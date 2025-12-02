@@ -2,16 +2,21 @@ import { GoogleGenAI } from "@google/genai";
 import { Job, JobStatus, UrgencyLevel } from "../types";
 
 const initGenAI = () => {
-  if (!process.env.API_KEY) {
-    console.warn("Gemini API Key is missing.");
-    return null;
+  // In Vite, process.env.API_KEY is replaced by a string literal at build time.
+  // We access it directly to ensure the replacement works.
+  // Checking 'typeof process' is unnecessary and causes issues in the browser.
+  const apiKey = process.env.API_KEY;
+  if (apiKey) {
+     return new GoogleGenAI({ apiKey });
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  console.warn("Gemini API Key is missing.");
+  return null;
 };
 
 export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
   const ai = initGenAI();
-  if (!ai) return "Serviço de IA Indisponível (Falta Chave API).";
+  if (!ai) return "Serviço de IA Indisponível (Falta Chave API ou Configuração).";
 
   // Prepare data summary for the AI
   const totalJobs = jobs.length;
@@ -50,6 +55,6 @@ export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
     return response.text || "Nenhum insight gerado.";
   } catch (error) {
     console.error("Gemini Error:", error);
-    return "Falha ao gerar insights. Tente novamente mais tarde.";
+    return "Falha ao gerar insights. Verifique a configuração da API.";
   }
 };
