@@ -259,13 +259,30 @@ export const JobTypes = () => {
                                             </div>
 
                                             {/* Options within group */}
-                                            <div className="space-y-2">
+                                            <div className="space-y-3">
                                                 {group.options.map(option => (
-                                                    <div key={option.id} className="bg-white p-2 rounded-lg border border-slate-200 space-y-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <input value={option.name} onChange={e => updateOption(group.id, option.id, { name: e.target.value })} className="flex-1 p-1 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1" placeholder="Nome da Opção" />
-                                                            <input type="number" value={option.priceModifier} onChange={e => updateOption(group.id, option.id, { priceModifier: parseFloat(e.target.value) })} className="w-24 p-1 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 text-right" />
-                                                            <button type="button" onClick={() => deleteOption(group.id, option.id)} className="text-slate-300 hover:text-red-500"><X size={16} /></button>
+                                                    <div key={option.id} className="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
+                                                        <div className="grid grid-cols-12 gap-2 items-end">
+                                                            <div className="col-span-12 sm:col-span-7">
+                                                                <label className="text-[10px] text-slate-500 font-bold block">Nome da Opção</label>
+                                                                <input value={option.name} onChange={e => updateOption(group.id, option.id, { name: e.target.value })} className="w-full p-2 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400" placeholder="Ex: Zircônia Translúcida" />
+                                                            </div>
+                                                            <div className="col-span-8 sm:col-span-4">
+                                                                <label className="text-[10px] text-slate-500 font-bold block">Acréscimo (R$)</label>
+                                                                <div className="relative">
+                                                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
+                                                                    <input 
+                                                                        type="number" 
+                                                                        step="0.01" 
+                                                                        value={option.priceModifier} 
+                                                                        onChange={e => updateOption(group.id, option.id, { priceModifier: parseFloat(e.target.value) || 0 })} 
+                                                                        className="w-full p-2 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400 text-right pr-3 pl-8" 
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                            <div className="col-span-4 sm:col-span-1 flex justify-end">
+                                                                <button type="button" onClick={() => deleteOption(group.id, option.id)} className="text-slate-300 hover:text-red-500 p-2"><X size={16} /></button>
+                                                            </div>
                                                         </div>
                                                         <div className="pl-1">
                                                             <label className="text-[10px] text-slate-500 font-bold block">Condicionais: Desabilitar OPÇÕES...</label>
@@ -286,7 +303,7 @@ export const JobTypes = () => {
                                                         </div>
                                                     </div>
                                                 ))}
-                                                <button type="button" onClick={() => addOption(group.id)} className="w-full text-xs text-center py-1 bg-slate-200 text-slate-600 rounded hover:bg-slate-300 font-bold">
+                                                <button type="button" onClick={() => addOption(group.id)} className="w-full text-xs text-center py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 font-bold">
                                                     + Adicionar Opção
                                                 </button>
                                             </div>

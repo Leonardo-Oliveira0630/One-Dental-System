@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup } from '../types';
 import { BOX_COLORS } from '../services/mockData';
-import { Plus, Trash2, Save, User, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check } from 'lucide-react';
+import { Plus, Trash2, Save, User, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle } from 'lucide-react';
 
 type EntryType = 'NEW' | 'CONTINUATION';
 
@@ -32,6 +32,8 @@ export const NewJob = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); // { [groupId]: optionId | optionId[] }
   const [commissionDisabled, setCommissionDisabled] = useState(false);
+
+  const dentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
 
   // --- Derived Data & Memos ---
   const activeJobType = useMemo(() => jobTypes.find(t => t.id === selectedTypeId), [selectedTypeId, jobTypes]);
@@ -62,19 +64,17 @@ export const NewJob = () => {
     if (disabledOptions.size === 0) return;
 
     let changesMade = false;
-    const newSelections = JSON.parse(JSON.stringify(selectedVariations)); // Deep copy to avoid mutation
+    const newSelections = JSON.parse(JSON.stringify(selectedVariations)); 
 
     for (const groupId in newSelections) {
       const selection = newSelections[groupId];
       if (Array.isArray(selection)) {
-        // MULTIPLE selection type
         const validSelections = selection.filter(optionId => !disabledOptions.has(optionId));
         if (validSelections.length !== selection.length) {
           newSelections[groupId] = validSelections;
           changesMade = true;
         }
       } else {
-        // SINGLE selection type
         if (disabledOptions.has(selection)) {
           delete newSelections[groupId];
           changesMade = true;
@@ -87,9 +87,6 @@ export const NewJob = () => {
     }
   }, [disabledOptions, selectedVariations]);
 
-
-  // --- OS Generation & Form Logic (remains mostly the same) ---
-  // ... (generateNextNewOs, generateContinuationOs, etc.)
   const generateNextNewOs = () => {
     let maxId = 0;
     jobs.forEach(j => {
@@ -128,8 +125,27 @@ export const NewJob = () => {
     setDueDate(d.toISOString().split('T')[0]);
   }, [entryType, jobs]);
 
+  const handleSelectParentJob = (parentJob: Job) => {
+      setOsNumber(generateContinuationOs(parentJob));
+      setPatientName(parentJob.patientName);
+      setDentistName(parentJob.dentistName);
+      setSelectedDentistId(parentJob.dentistId);
+      setShowParentSearch(false);
+  };
 
-  // --- NEW VARIATION HANDLER ---
+  const handleDentistSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    if (id === 'manual') {
+      setSelectedDentistId('manual');
+      setDentistName(''); // Clear for manual typing
+    } else {
+      const dentist = dentists.find(d => d.id === id);
+      if (dentist) {
+        setSelectedDentistId(dentist.id);
+        setDentistName(dentist.name);
+      }
+    }
+  };
 
   const handleVariationChange = (group: VariationGroup, optionId: string) => {
     setSelectedVariations(prev => {
@@ -152,13 +168,10 @@ export const NewJob = () => {
     });
   };
   
-  // Reset variations when job type changes
   useEffect(() => {
     setSelectedVariations({});
   }, [selectedTypeId]);
 
-  // --- Handlers (AddItem, Submit, etc.) ---
-  
   const handleAddItem = () => {
     if (!activeJobType) return;
     
@@ -185,17 +198,16 @@ export const NewJob = () => {
     };
 
     setAddedItems([...addedItems, newItem]);
-    // Reset item form
     setQuantity(1);
     setSelectedVariations({});
     setCommissionDisabled(false);
   };
 
-  // ... (Other handlers like handleRemoveItem, handleSubmit, handleFinish remain)
-    const handleRemoveItem = (id: string) => {
+  const handleRemoveItem = (id: string) => {
     setAddedItems(addedItems.filter(i => i.id !== id));
   };
-    const handleSubmit = (e: React.FormEvent) => {
+  
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser || addedItems.length === 0) {
         alert("Por favor adicione pelo menos um item.");
@@ -238,27 +250,80 @@ export const NewJob = () => {
     addJob(newJob);
     setLastCreatedJob(newJob);
   };
-    const handleFinish = () => {
+
+  const handleFinish = () => {
     setLastCreatedJob(null);
     navigate('/jobs');
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
-        {/* ... (Success Modal and Header remain the same) ... */}
-        {/* ... */}
+        {/* Success Modal */}
+        {lastCreatedJob && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl p-8 max-w-lg w-full text-center animate-in zoom-in duration-300">
+                <CheckCircle size={56} className="mx-auto text-green-500 mb-4" />
+                <h2 className="text-2xl font-bold text-slate-800">Trabalho Salvo com Sucesso!</h2>
+                <p className="text-slate-500 mt-2 mb-6">OS <span className="font-bold">{lastCreatedJob.osNumber}</span> foi criada. O que deseja fazer agora?</p>
+                <div className="space-y-3">
+                  <button onClick={() => triggerPrint(lastCreatedJob, 'SHEET')} className="w-full p-4 flex items-center gap-3 border rounded-xl hover:bg-slate-50"><Printer /> Imprimir Ficha de Trabalho (A4)</button>
+                  <button onClick={() => triggerPrint(lastCreatedJob, 'LABEL')} className="w-full p-4 flex items-center gap-3 border rounded-xl hover:bg-slate-50"><Printer /> Imprimir Etiqueta da Caixa</button>
+                  <button onClick={handleFinish} className="w-full p-4 flex items-center gap-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700"><ArrowRight /> Ir para a Lista de Trabalhos</button>
+                </div>
+              </div>
+            </div>
+        )}
+
+        {/* Header */}
+        <div>
+            <h1 className="text-2xl font-bold text-slate-900">Nova Entrada de Bancada</h1>
+            <p className="text-slate-500">Preencha os dados para registrar um novo trabalho no sistema.</p>
+        </div>
+        
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
-                {/* ... (Case Info Panel remains the same) ... */}
-                {/* ... */}
+                
+                {/* DADOS DO CASO */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                  <h2 className="text-lg font-bold text-slate-800 mb-4">Dados do Caso</h2>
+                  <div className="space-y-4">
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <button type="button" onClick={() => setEntryType('NEW')} className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${entryType === 'NEW' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}>Novo Caso</button>
+                      <button type="button" onClick={() => { setEntryType('CONTINUATION'); setShowParentSearch(true); }} className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${entryType === 'CONTINUATION' ? 'bg-white shadow text-slate-800' : 'text-slate-500'}`}>Continuação/Ajuste</button>
+                    </div>
 
-                {/* --- NEW ITEM BUILDER --- */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="md:col-span-1">
+                        <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">OS #</label>
+                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono font-bold" />
+                      </div>
+                      <div className="md:col-span-2">
+                         <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Paciente</label>
+                         <input value={patientName} onChange={e => setPatientName(e.target.value)} required className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Dentista</label>
+                      <div className="flex gap-2">
+                        <select onChange={handleDentistSelect} value={selectedDentistId} className="flex-1 w-full px-3 py-2 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                          <option value="" disabled>Selecione um dentista cadastrado</option>
+                          {dentists.map(d => <option key={d.id} value={d.id}>{d.name} - {d.clinicName}</option>)}
+                          <option value="manual">-- Digitar Manualmente --</option>
+                        </select>
+                        {selectedDentistId === 'manual' && (
+                           <input value={dentistName} onChange={e => setDentistName(e.target.value)} placeholder="Digite o nome" className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ESPECIFICAÇÕES DO TRABALHO */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h2 className="text-lg font-bold text-slate-800 mb-4">Especificações do Trabalho</h2>
                     <div className="space-y-4 mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
                         {/* Type & Qty Selector */}
                         <div className="flex flex-col md:flex-row gap-3 items-end">
-                            {/* ... (select job type and quantity) ... */}
                              <div className="flex-1 w-full">
                                 <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Tipo de Serviço</label>
                                 <select 
@@ -281,7 +346,7 @@ export const NewJob = () => {
                             </div>
                         </div>
 
-                        {/* NEW Variations Area */}
+                        {/* Variations Area */}
                         {activeJobType && activeJobType.variationGroups.length > 0 && (
                             <div className="pt-3 border-t border-slate-200 mt-3 space-y-4">
                                 {activeJobType.variationGroups.map(group => {
@@ -327,7 +392,6 @@ export const NewJob = () => {
                             </div>
                         )}
 
-                        {/* ... (Commission Toggle and Add Button remain the same) ... */}
                         <div className="flex items-center gap-2 pt-2 border-t border-slate-200 mt-2">
                             <input 
                                 type="checkbox" id="commissionDisable"
@@ -345,11 +409,74 @@ export const NewJob = () => {
                         </button>
                     </div>
 
-                    {/* ... (Added Items List remains the same) ... */}
+                    {/* Added Items List */}
+                    {addedItems.length > 0 && (
+                      <div>
+                        {addedItems.map(item => (
+                          <div key={item.id} className="flex justify-between items-center p-3 border-b border-slate-100">
+                            <div>
+                              <p className="font-bold text-slate-800">{item.quantity}x {item.name}</p>
+                              <p className="text-xs text-slate-500">{item.selectedVariationIds?.length || 0} variações</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className="font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span>
+                              <button type="button" onClick={() => handleRemoveItem(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
-                 {/* ... (Notes Panel remains the same) ... */}
+                 
+                {/* OBSERVAÇÕES */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                  <h2 className="text-lg font-bold text-slate-800 mb-2">Observações</h2>
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full p-3 border border-slate-200 rounded-lg" placeholder="Cor, instruções especiais, etc."></textarea>
+                </div>
             </div>
-            {/* ... (Right Column with Logistics remains the same) ... */}
+            
+            {/* RIGHT COLUMN */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 sticky top-6 space-y-6">
+                <h2 className="text-lg font-bold text-slate-800">Logística & Prazos</h2>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Data de Entrega</label>
+                  <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Urgência</label>
+                  <select value={urgency} onChange={e => setUrgency(e.target.value as UrgencyLevel)} className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg">
+                    <option value={UrgencyLevel.NORMAL}>Normal</option>
+                    <option value={UrgencyLevel.HIGH}>Alta</option>
+                    <option value={UrgencyLevel.VIP}>VIP/Prometido</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Nº Caixa</label>
+                    <input value={boxNumber} onChange={e => setBoxNumber(e.target.value)} className="w-full text-center px-3 py-2 bg-white border border-slate-300 rounded-lg" />
+                  </div>
+                   <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Cor</label>
+                    <div className="flex gap-1.5 flex-wrap items-center">
+                      {BOX_COLORS.map(c => (
+                        <button type="button" key={c.id} onClick={() => setSelectedColorId(c.id)} style={{backgroundColor: c.hex}} className={`w-6 h-6 rounded-full border-2 ${selectedColorId === c.id ? 'border-slate-800 scale-110' : 'border-white'}`}></button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 pt-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-slate-500 font-bold">Total do Pedido</span>
+                    <span className="text-2xl font-bold text-slate-900">R$ {addedItems.reduce((acc, i) => acc + i.price * i.quantity, 0).toFixed(2)}</span>
+                  </div>
+                   <button type="submit" className="w-full py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 flex items-center justify-center gap-2 shadow-lg shadow-green-200">
+                    <Save size={20} /> Salvar Trabalho
+                  </button>
+                </div>
+              </div>
+            </div>
         </form>
     </div>
   );
