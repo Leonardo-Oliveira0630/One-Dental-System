@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { UserRole, User } from '../types';
+import { UserRole, User, CustomPrice } from '../types';
 import { 
   Building2, Users, Plus, Trash2, 
-  MapPin, Mail, UserPlus, Save, Stethoscope, Building
+  MapPin, Mail, UserPlus, Save, Stethoscope, Building, Edit, X, DollarSign
 } from 'lucide-react';
 
 export const Admin = () => {
   const { 
     sectors, addSector, deleteSector, 
-    allUsers, addUser, deleteUser 
+    allUsers, addUser, deleteUser, updateUser,
+    jobTypes 
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS'>('SECTORS');
@@ -17,16 +19,27 @@ export const Admin = () => {
   // Sectors State
   const [newSectorName, setNewSectorName] = useState('');
 
-  // Users State (Collaborators)
+  // Users State (Collaborators) - CREATE
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userRole, setUserRole] = useState<UserRole>(UserRole.COLLABORATOR);
   const [userSector, setUserSector] = useState('');
 
-  // Dentists State
+  // Dentists State - CREATE
   const [dentistName, setDentistName] = useState('');
   const [dentistEmail, setDentistEmail] = useState('');
   const [clinicName, setClinicName] = useState('');
+
+  // --- EDIT MODAL STATE ---
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>(UserRole.COLLABORATOR);
+  const [editSector, setEditSector] = useState('');
+
+  // --- PRICE TABLE MODAL STATE ---
+  const [priceUser, setPriceUser] = useState<User | null>(null);
+  const [tempPrices, setTempPrices] = useState<CustomPrice[]>([]);
 
   // Handlers
   const handleAddSector = (e: React.FormEvent) => {
@@ -75,8 +88,215 @@ export const Admin = () => {
     setClinicName('');
   };
 
+  // Edit Handlers
+  const openEditModal = (user: User) => {
+      setEditingUser(user);
+      setEditName(user.name);
+      setEditEmail(user.email);
+      setEditRole(user.role);
+      setEditSector(user.sector || '');
+  };
+
+  const handleUpdateUser = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!editingUser) return;
+
+      updateUser(editingUser.id, {
+          name: editName,
+          email: editEmail,
+          role: editRole,
+          sector: editRole === UserRole.COLLABORATOR ? editSector : undefined
+      });
+
+      setEditingUser(null);
+  };
+
+  // Price Table Handlers
+  const openPriceModal = (user: User) => {
+      setPriceUser(user);
+      setTempPrices(user.customPrices || []);
+  };
+
+  const handlePriceChange = (jobTypeId: string, newPrice: string) => {
+      const price = parseFloat(newPrice);
+      if (isNaN(price)) return;
+
+      setTempPrices(prev => {
+          const exists = prev.find(p => p.jobTypeId === jobTypeId);
+          if (exists) {
+              return prev.map(p => p.jobTypeId === jobTypeId ? { ...p, price } : p);
+          }
+          return [...prev, { jobTypeId, price }];
+      });
+  };
+
+  const handleSavePrices = () => {
+      if (priceUser) {
+          updateUser(priceUser.id, { customPrices: tempPrices });
+          setPriceUser(null);
+      }
+  };
+
   return (
     <div className="space-y-6 pb-12">
+      {/* EDIT USER MODAL */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in duration-200">
+                <div className="flex justify-between items-center p-4 border-b border-slate-100">
+                    <h3 className="font-bold text-lg text-slate-800">Editar Usuário</h3>
+                    <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600">
+                        <X size={20} />
+                    </button>
+                </div>
+                <form onSubmit={handleUpdateUser} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Nome</label>
+                        <input 
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                        <input 
+                            value={editEmail}
+                            onChange={e => setEditEmail(e.target.value)}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Cargo / Permissão</label>
+                        <select 
+                            value={editRole}
+                            onChange={e => setEditRole(e.target.value as UserRole)}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                        >
+                            <option value={UserRole.COLLABORATOR}>Colaborador</option>
+                            <option value={UserRole.MANAGER}>Gestor</option>
+                            <option value={UserRole.ADMIN}>Administrador</option>
+                        </select>
+                    </div>
+
+                    {editRole === UserRole.COLLABORATOR && (
+                        <div>
+                            <label className="block text-sm font-bold text-blue-700 mb-1">Setor Atual</label>
+                            <select 
+                                value={editSector}
+                                onChange={e => setEditSector(e.target.value)}
+                                className="w-full px-4 py-2 border-2 border-blue-100 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"
+                            >
+                                <option value="">Selecione...</option>
+                                {sectors.map(s => (
+                                    <option key={s.id} value={s.name}>{s.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    <div className="pt-4 flex gap-3">
+                        <button 
+                            type="button" 
+                            onClick={() => setEditingUser(null)}
+                            className="flex-1 py-2 text-slate-500 hover:bg-slate-50 rounded-lg"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            type="submit" 
+                            className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
+                        >
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* PRICE TABLE MODAL */}
+      {priceUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
+                <div className="flex justify-between items-center p-6 border-b border-slate-100">
+                    <div>
+                        <h3 className="font-bold text-xl text-slate-800">Tabela de Preços Individual</h3>
+                        <p className="text-slate-500 text-sm">Dentista: <span className="font-bold text-blue-600">{priceUser.name}</span></p>
+                    </div>
+                    <button onClick={() => setPriceUser(null)} className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto flex-1">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800 mb-4 flex gap-2">
+                        <DollarSign size={20} className="shrink-0" />
+                        <p>Defina preços especiais para este dentista. Deixe em branco ou igual ao padrão para usar o preço base.</p>
+                    </div>
+
+                    <div className="space-y-1">
+                        <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-slate-100 rounded-lg text-xs font-bold text-slate-500 uppercase">
+                            <div className="col-span-6">Serviço</div>
+                            <div className="col-span-3 text-right">Preço Padrão</div>
+                            <div className="col-span-3 text-right">Preço Especial</div>
+                        </div>
+                        {jobTypes.map(type => {
+                            const customPrice = tempPrices.find(p => p.jobTypeId === type.id)?.price;
+                            const isCustom = customPrice !== undefined && customPrice !== type.basePrice;
+
+                            return (
+                                <div key={type.id} className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-slate-50 items-center hover:bg-slate-50 transition-colors">
+                                    <div className="col-span-6 font-medium text-slate-700">
+                                        {type.name}
+                                        <span className="block text-xs text-slate-400 font-normal">{type.category}</span>
+                                    </div>
+                                    <div className="col-span-3 text-right text-slate-400 text-sm">
+                                        R$ {type.basePrice.toFixed(2)}
+                                    </div>
+                                    <div className="col-span-3">
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-2.5 text-xs text-slate-400">R$</span>
+                                            <input 
+                                                type="number"
+                                                step="0.01"
+                                                value={customPrice !== undefined ? customPrice : ''}
+                                                placeholder={type.basePrice.toFixed(2)}
+                                                onChange={(e) => handlePriceChange(type.id, e.target.value)}
+                                                className={`w-full pl-8 pr-3 py-2 text-right rounded-lg border text-sm outline-none focus:ring-2 ${
+                                                    isCustom 
+                                                        ? 'border-blue-300 bg-blue-50 text-blue-700 font-bold focus:ring-blue-500' 
+                                                        : 'border-slate-200 text-slate-600 focus:ring-slate-300'
+                                                }`}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-2xl">
+                    <button 
+                        onClick={() => setPriceUser(null)}
+                        className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        onClick={handleSavePrices}
+                        className="px-6 py-2 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg"
+                    >
+                        Salvar Tabela
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Configurações Administrativas</h1>
@@ -214,18 +434,27 @@ export const Admin = () => {
                                         {user.role}
                                     </span>
                                     {user.sector && (
-                                        <div className="text-xs text-slate-500">
+                                        <div className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded mt-1 inline-block">
                                             {user.sector}
                                         </div>
                                     )}
                                 </div>
-                                <button 
-                                    onClick={() => deleteUser(user.id)}
-                                    className="ml-4 text-slate-300 hover:text-red-500 p-2"
-                                    title="Remover Usuário"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
+                                <div className="flex items-center justify-end gap-1 mt-2">
+                                    <button 
+                                        onClick={() => openEditModal(user)}
+                                        className="text-slate-400 hover:text-blue-600 p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Editar Usuário / Trocar Setor"
+                                    >
+                                        <Edit size={18} />
+                                    </button>
+                                    <button 
+                                        onClick={() => deleteUser(user.id)}
+                                        className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Remover Usuário"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -334,7 +563,14 @@ export const Admin = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center justify-end">
+                                <div className="flex items-center justify-end gap-2">
+                                    <button 
+                                        onClick={() => openPriceModal(user)}
+                                        className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
+                                        title="Tabela de Preços Personalizada"
+                                    >
+                                        <DollarSign size={14} /> Tabela
+                                    </button>
                                     <button 
                                         onClick={() => deleteUser(user.id)}
                                         className="text-slate-300 hover:text-red-500 p-2"

@@ -1,26 +1,48 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem } from '../types';
 import { 
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
-  Printer, Box, Layers, ListChecks, Bell
+  Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
+  LogIn, LogOut, Flag, CheckSquare, Truck
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, triggerPrint, currentUser } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes } = useApp();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION'>('SUMMARY');
   const [showAlertModal, setShowAlertModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const job = jobs.find(j => j.id === id);
 
-  // Permissão: Admin ou Gestor pode criar alertas
-  const canCreateAlerts = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
+  // Permissão: Admin ou Gestor pode criar alertas e editar
+  const canManage = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
+
+  // --- EDIT STATE ---
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
+  const [editNotes, setEditNotes] = useState('');
+  const [editItems, setEditItems] = useState<JobItem[]>([]);
+  
+  // Add Item inside Edit
+  const [newItemTypeId, setNewItemTypeId] = useState('');
+  const [newItemQty, setNewItemQty] = useState(1);
+
+  useEffect(() => {
+    if (job) {
+        setEditDueDate(new Date(job.dueDate).toISOString().split('T')[0]);
+        setEditUrgency(job.urgency);
+        setEditNotes(job.notes || '');
+        setEditItems(job.items);
+        if (jobTypes.length > 0) setNewItemTypeId(jobTypes[0].id);
+    }
+  }, [job, jobTypes]);
 
   if (!job) {
     return (
@@ -33,6 +55,52 @@ export const JobDetails = () => {
     );
   }
 
+  // --- HANDLERS ---
+
+  const handleAddItemToJob = () => {
+      const type = jobTypes.find(t => t.id === newItemTypeId);
+      if (!type) return;
+
+      const newItem: JobItem = {
+          id: Math.random().toString(),
+          jobTypeId: type.id,
+          name: type.name,
+          quantity: newItemQty,
+          price: type.basePrice, // Basic price logic for editing
+          selectedVariationIds: []
+      };
+
+      setEditItems([...editItems, newItem]);
+  };
+
+  const handleRemoveItemFromJob = (itemId: string) => {
+      setEditItems(editItems.filter(i => i.id !== itemId));
+  };
+
+  const handleSaveChanges = () => {
+      const newTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+      
+      // Adjust date to prevent timezone shift
+      const dateParts = editDueDate.split('-');
+      const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+
+      updateJob(job.id, {
+          dueDate: adjustedDate,
+          urgency: editUrgency,
+          notes: editNotes,
+          items: editItems,
+          totalValue: newTotal,
+          history: [...job.history, {
+              id: Math.random().toString(),
+              timestamp: new Date(),
+              action: 'Ficha Editada Manualmente (Itens/Datas)',
+              userId: currentUser?.id || 'admin',
+              userName: currentUser?.name || 'Admin'
+          }]
+      });
+      setShowEditModal(false);
+  };
+
   // Helper for status colors
   const getStatusColor = (status: JobStatus) => {
     switch(status) {
@@ -41,6 +109,17 @@ export const JobDetails = () => {
         case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border-purple-200';
         default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
+  };
+
+  // Helper for Timeline Icons
+  const getTimelineIcon = (action: string) => {
+      const lower = action.toLowerCase();
+      if (lower.includes('entrada')) return <LogIn size={16} className="text-blue-600" />;
+      if (lower.includes('saída')) return <LogOut size={16} className="text-orange-600" />;
+      if (lower.includes('concluído') || lower.includes('finalizado')) return <CheckCircle size={16} className="text-green-600" />;
+      if (lower.includes('criado') || lower.includes('cadastro')) return <Flag size={16} className="text-purple-600" />;
+      if (lower.includes('aprovado')) return <CheckSquare size={16} className="text-teal-600" />;
+      return <Clock size={16} className="text-slate-500" />;
   };
 
   // Sort history: Newest first for list
@@ -54,6 +133,125 @@ export const JobDetails = () => {
       {/* Alert Creation Modal */}
       {showAlertModal && (
           <CreateAlertModal job={job} onClose={() => setShowAlertModal(false)} />
+      )}
+
+      {/* EDIT MODAL */}
+      {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                          <Edit size={24} className="text-blue-600" /> Editar Ficha do Trabalho
+                      </h3>
+                      <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600">
+                          <X size={24} />
+                      </button>
+                  </div>
+
+                  <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">Data Prevista de Entrega</label>
+                              <input 
+                                  type="date" 
+                                  value={editDueDate} 
+                                  onChange={e => setEditDueDate(e.target.value)}
+                                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">Nível de Urgência</label>
+                              <select 
+                                  value={editUrgency}
+                                  onChange={e => setEditUrgency(e.target.value as UrgencyLevel)}
+                                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                              >
+                                  <option value={UrgencyLevel.LOW}>Baixa</option>
+                                  <option value={UrgencyLevel.NORMAL}>Normal</option>
+                                  <option value={UrgencyLevel.HIGH}>Alta</option>
+                                  <option value={UrgencyLevel.VIP}>VIP (Prometido)</option>
+                              </select>
+                          </div>
+                      </div>
+
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
+                              <Layers size={18} /> Itens e Serviços
+                          </h4>
+                          
+                          {/* List Existing */}
+                          <div className="space-y-2 mb-4">
+                              {editItems.map((item, idx) => (
+                                  <div key={idx} className="flex justify-between items-center bg-white p-3 rounded border border-slate-200">
+                                      <span className="text-sm font-medium">
+                                          <span className="font-bold text-blue-600 mr-2">{item.quantity}x</span> 
+                                          {item.name}
+                                      </span>
+                                      <button onClick={() => handleRemoveItemFromJob(item.id)} className="text-red-400 hover:text-red-600">
+                                          <Trash2 size={16} />
+                                      </button>
+                                  </div>
+                              ))}
+                          </div>
+
+                          {/* Add New */}
+                          <div className="flex gap-2 items-end border-t border-slate-200 pt-3">
+                              <div className="flex-1">
+                                  <label className="text-xs font-bold text-slate-500 mb-1 block">Adicionar Serviço</label>
+                                  <select 
+                                      value={newItemTypeId}
+                                      onChange={e => setNewItemTypeId(e.target.value)}
+                                      className="w-full px-2 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500"
+                                  >
+                                      {jobTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                  </select>
+                              </div>
+                              <div className="w-20">
+                                  <label className="text-xs font-bold text-slate-500 mb-1 block">Qtd</label>
+                                  <input 
+                                      type="number" 
+                                      min="1" 
+                                      value={newItemQty}
+                                      onChange={e => setNewItemQty(parseInt(e.target.value))}
+                                      className="w-full px-2 py-2 text-sm border border-slate-300 rounded"
+                                  />
+                              </div>
+                              <button 
+                                  onClick={handleAddItemToJob}
+                                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                              >
+                                  <Plus size={20} />
+                              </button>
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-1">Observações</label>
+                          <textarea 
+                              value={editNotes}
+                              onChange={e => setEditNotes(e.target.value)}
+                              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                              rows={3}
+                          />
+                      </div>
+
+                      <div className="flex gap-3 pt-4">
+                          <button 
+                              onClick={() => setShowEditModal(false)}
+                              className="flex-1 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl"
+                          >
+                              Cancelar
+                          </button>
+                          <button 
+                              onClick={handleSaveChanges}
+                              className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg"
+                          >
+                              Salvar Alterações
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
       )}
 
       {/* Header Navigation */}
@@ -100,14 +298,23 @@ export const JobDetails = () => {
                 
                 <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
                     {/* Create Alarm Button (Admin & Managers) */}
-                    {canCreateAlerts && (
-                        <button 
-                            onClick={() => setShowAlertModal(true)}
-                            title="Agendar um alerta de urgência para a equipe"
-                            className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 font-bold flex items-center gap-2 text-sm transition-colors"
-                        >
-                            <Bell size={16} /> Criar Alarme
-                        </button>
+                    {canManage && (
+                        <>
+                            <button 
+                                onClick={() => setShowAlertModal(true)}
+                                title="Agendar um alerta de urgência para a equipe"
+                                className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 font-bold flex items-center gap-2 text-sm transition-colors"
+                            >
+                                <Bell size={16} /> Alerta
+                            </button>
+                            <button 
+                                onClick={() => setShowEditModal(true)}
+                                title="Editar dados do trabalho, datas e itens"
+                                className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 font-bold flex items-center gap-2 text-sm transition-colors"
+                            >
+                                <Edit size={16} /> Editar
+                            </button>
+                        </>
                     )}
 
                     <div className="flex gap-2">
@@ -238,55 +445,71 @@ export const JobDetails = () => {
         </div>
       )}
 
+      {/* NEW TIMELINE DESIGN */}
       {activeTab === 'PRODUCTION' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 animate-in fade-in slide-in-from-right-2 duration-300">
             <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <Clock size={20} className="text-slate-500" /> Histórico de Movimentação
+                    <Clock size={20} className="text-slate-500" /> Linha do Tempo
                 </h3>
             </div>
             
-            <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                    <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase">
-                            <th className="p-4">Data / Hora</th>
-                            <th className="p-4">Ação</th>
-                            <th className="p-4">Setor</th>
-                            <th className="p-4">Responsável</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {sortedHistory.map((event, index) => (
-                            <tr key={event.id} className="hover:bg-slate-50">
-                                <td className="p-4 text-sm text-slate-600">
-                                    <div className="font-bold text-slate-800">{new Date(event.timestamp).toLocaleDateString()}</div>
-                                    <div className="text-xs">{new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                                </td>
-                                <td className="p-4">
-                                    <span className="font-bold text-slate-700">{event.action}</span>
-                                </td>
-                                <td className="p-4 text-sm text-slate-600">
-                                    {event.sector ? (
-                                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md font-medium text-xs">
-                                            {event.sector}
-                                        </span>
-                                    ) : '-'}
-                                </td>
-                                <td className="p-4 flex items-center gap-2">
-                                     <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                                        {event.userName.charAt(0)}
-                                     </div>
-                                     <span className="text-sm font-medium text-slate-700">{event.userName}</span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            
-            <div className="p-6 text-center border-t border-slate-100">
-                 <p className="text-xs text-slate-400">Total de registros: {job.history.length}</p>
+            <div className="p-6 md:p-8">
+                <div className="relative">
+                    {/* Vertical Line Container */}
+                    <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-slate-200 md:left-1/2 md:-ml-0.5"></div>
+
+                    <div className="space-y-8">
+                        {sortedHistory.map((event, index) => {
+                             const isLeft = index % 2 === 0;
+                             return (
+                                <div key={event.id} className={`relative flex flex-col md:flex-row gap-8 ${isLeft ? 'md:flex-row-reverse' : ''}`}>
+                                    
+                                    {/* Spacer for alternating layout on desktop */}
+                                    <div className="hidden md:block flex-1"></div>
+
+                                    {/* Timeline Dot & Icon */}
+                                    <div className="absolute left-0 md:left-1/2 md:-ml-4 flex items-center justify-center w-8 h-8 rounded-full bg-white border-4 border-slate-100 shadow-sm z-10">
+                                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                                    </div>
+
+                                    {/* Content Card */}
+                                    <div className="flex-1 ml-10 md:ml-0">
+                                        <div className={`bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative hover:shadow-md transition-shadow group ${isLeft ? 'md:text-right' : 'md:text-left'}`}>
+                                            {/* Arrow visual */}
+                                            <div className={`hidden md:block absolute top-4 w-3 h-3 bg-white border-b border-r border-slate-100 transform rotate-45 ${isLeft ? '-left-1.5 border-l border-t-0' : '-right-1.5 border-r border-b-0'}`}></div>
+                                            
+                                            <div className={`flex items-center gap-2 mb-2 ${isLeft ? 'md:flex-row-reverse' : ''}`}>
+                                                <div className="p-1.5 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                                    {getTimelineIcon(event.action)}
+                                                </div>
+                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                    {new Date(event.timestamp).toLocaleDateString()} • {new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                                </span>
+                                            </div>
+
+                                            <h4 className="font-bold text-slate-800 text-lg mb-1">{event.action}</h4>
+                                            
+                                            <div className={`flex flex-col gap-1 ${isLeft ? 'md:items-end' : 'md:items-start'}`}>
+                                                {event.sector && (
+                                                    <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-bold rounded">
+                                                        Setor: {event.sector}
+                                                    </span>
+                                                )}
+                                                <div className={`flex items-center gap-2 text-sm text-slate-500 mt-1 ${isLeft ? 'md:flex-row-reverse' : ''}`}>
+                                                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                                        {event.userName.charAt(0)}
+                                                    </div>
+                                                    <span>{event.userName}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                             )
+                        })}
+                    </div>
+                </div>
             </div>
         </div>
       )}
@@ -294,3 +517,4 @@ export const JobDetails = () => {
     </div>
   );
 };
+    

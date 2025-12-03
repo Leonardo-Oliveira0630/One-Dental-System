@@ -1,4 +1,5 @@
 
+
 import { 
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc,
   onSnapshot, Timestamp, query, orderBy, arrayUnion 
@@ -95,7 +96,13 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
   const docSnap = await getDoc(docRef);
   
   if (docSnap.exists()) {
-    return { id: docSnap.id, ...docSnap.data() } as User;
+    const data = docSnap.data();
+    return { 
+      id: docSnap.id, 
+      ...data,
+      // Fallback de segurança para arrays
+      customPrices: data.customPrices || [],
+    } as User;
   }
   return null;
 };
@@ -108,10 +115,16 @@ export const subscribeJobs = (callback: (jobs: Job[]) => void) => {
   const q = query(collection(db, 'jobs'), orderBy('createdAt', 'desc'));
   
   return onSnapshot(q, (snapshot) => {
-    const jobs = snapshot.docs.map(doc => ({
-      ...convertDates(doc.data()),
-      id: doc.id
-    })) as Job[];
+    const jobs = snapshot.docs.map(doc => {
+      const data = convertDates(doc.data());
+      return {
+        ...data,
+        id: doc.id,
+        // Fallbacks de segurança para arrays
+        items: data.items || [],
+        history: data.history || [],
+      }
+    }) as Job[];
     callback(jobs);
   });
 };
@@ -120,10 +133,15 @@ export const subscribeUsers = (callback: (users: User[]) => void) => {
   if (!db) return () => {};
   
   return onSnapshot(collection(db, 'users'), (snapshot) => {
-    const users = snapshot.docs.map(doc => ({
-      ...convertDates(doc.data()),
-      id: doc.id
-    })) as User[];
+    const users = snapshot.docs.map(doc => {
+      const data = convertDates(doc.data());
+      return {
+        ...data,
+        id: doc.id,
+        // Fallback de segurança para arrays
+        customPrices: data.customPrices || [],
+      }
+    }) as User[];
     callback(users);
   });
 };
@@ -132,10 +150,24 @@ export const subscribeJobTypes = (callback: (types: JobType[]) => void) => {
   if (!db) return () => {};
   
   return onSnapshot(collection(db, 'jobTypes'), (snapshot) => {
-    const types = snapshot.docs.map(doc => ({
-      ...convertDates(doc.data()),
-      id: doc.id
-    })) as JobType[];
+    const types = snapshot.docs.map(doc => {
+      const data = convertDates(doc.data());
+      
+      // DEEP SANITIZATION FOR VARIATIONS
+      const sanitizedGroups = (data.variationGroups || []).map((group: any) => ({
+        ...group,
+        options: (group.options || []).map((option: any) => ({
+          ...option,
+          disablesOptions: option.disablesOptions || [] // << CRITICAL FIX
+        }))
+      }));
+
+      return {
+        ...data,
+        id: doc.id,
+        variationGroups: sanitizedGroups,
+      }
+    }) as JobType[];
     callback(types);
   });
 };
@@ -159,10 +191,15 @@ export const subscribeAlerts = (callback: (alerts: JobAlert[]) => void) => {
   const q = query(collection(db, 'alerts'), orderBy('scheduledFor', 'asc'));
   
   return onSnapshot(q, (snapshot) => {
-    const alerts = snapshot.docs.map(doc => ({
-      ...convertDates(doc.data()),
-      id: doc.id
-    })) as JobAlert[];
+    const alerts = snapshot.docs.map(doc => {
+      const data = convertDates(doc.data());
+      return {
+        ...data,
+        id: doc.id,
+        // Fallback de segurança para arrays
+        readBy: data.readBy || [],
+      }
+    }) as JobAlert[];
     callback(alerts);
   });
 };

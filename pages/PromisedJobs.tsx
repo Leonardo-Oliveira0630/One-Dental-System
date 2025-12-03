@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { Job, UrgencyLevel, JobStatus } from '../types';
 import { AlertTriangle, Calendar, Clock, Edit2, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getContrastColor } from '../services/mockData';
 
 export const PromisedJobs = () => {
   const { jobs, updateJob } = useApp();
@@ -50,8 +51,21 @@ export const PromisedJobs = () => {
   };
 
   const renderJobCard = (job: Job, colorClass: string) => (
-    <div key={job.id} className={`bg-white p-4 rounded-xl shadow-sm border-l-4 ${colorClass} mb-3`}>
-        <div className="flex justify-between items-start mb-2">
+    <div key={job.id} className={`bg-white p-4 rounded-xl shadow-sm border-l-4 ${colorClass} mb-3 relative`}>
+        {/* Box Badge Absolute Top Right */}
+        {job.boxNumber && (
+            <div 
+                className="absolute top-4 right-4 w-8 h-8 rounded flex items-center justify-center font-bold text-sm shadow-sm border border-black/10"
+                style={{ 
+                    backgroundColor: job.boxColor?.hex || '#ccc',
+                    color: getContrastColor(job.boxColor?.hex || '#ccc')
+                }}
+            >
+                {job.boxNumber}
+            </div>
+        )}
+
+        <div className="flex justify-between items-start mb-2 pr-10">
             <div>
                 <span className="font-mono font-bold text-lg text-slate-800">{job.osNumber}</span>
                 <h4 className="font-bold text-slate-900 leading-tight cursor-pointer hover:text-blue-600" onClick={() => navigate(`/jobs/${job.id}`)}>
@@ -59,11 +73,12 @@ export const PromisedJobs = () => {
                 </h4>
                 <p className="text-xs text-slate-500">Dr. {job.dentistName}</p>
             </div>
-            <div className="text-right">
-                <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600 uppercase">
-                    {job.currentSector || 'Recepção'}
-                </span>
-            </div>
+        </div>
+        
+        <div className="text-right mb-2">
+            <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600 uppercase">
+                {job.currentSector || 'Recepção'}
+            </span>
         </div>
 
         {/* Items Summary */}

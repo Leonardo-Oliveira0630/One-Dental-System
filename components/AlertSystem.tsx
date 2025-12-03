@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobAlert, UserRole } from '../types';
 import { AlertOctagon, Bell, Calendar, Clock, MapPin, Send, User, X } from 'lucide-react';
+import { getContrastColor } from '../services/mockData';
 
 interface CreateAlertModalProps {
     job: Job;
@@ -152,9 +152,12 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
 };
 
 export const AlertPopup = () => {
-    const { activeAlert, dismissAlert } = useApp();
+    const { activeAlert, dismissAlert, jobs } = useApp();
 
     if (!activeAlert) return null;
+
+    // Find full job details for the box info
+    const job = jobs.find(j => j.id === activeAlert.jobId);
 
     return (
         <div className="fixed top-0 left-0 right-0 z-[200] flex justify-center p-4 animate-in slide-in-from-top-4 duration-300">
@@ -163,11 +166,29 @@ export const AlertPopup = () => {
                     <div className="bg-white/20 p-3 rounded-full shrink-0 animate-pulse">
                         <AlertOctagon size={32} />
                     </div>
-                    <div>
-                        <h4 className="font-bold text-lg uppercase tracking-wider mb-1">Alerta de Urgência</h4>
-                        <p className="text-red-100 text-sm mb-2">
-                            OS: <span className="font-mono font-bold">{activeAlert.osNumber}</span> • Enviado por: {activeAlert.createdBy}
-                        </p>
+                    <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                             <div>
+                                <h4 className="font-bold text-lg uppercase tracking-wider mb-1">Alerta de Urgência</h4>
+                                <p className="text-red-100 text-sm mb-2">
+                                    OS: <span className="font-mono font-bold">{activeAlert.osNumber}</span> • Enviado por: {activeAlert.createdBy}
+                                </p>
+                             </div>
+                             
+                             {/* Box Info in Alert */}
+                             {job && job.boxNumber && (
+                                <div 
+                                    className="w-12 h-12 rounded-lg flex items-center justify-center font-bold text-xl shadow-lg border-2 border-white/20"
+                                    style={{ 
+                                        backgroundColor: job.boxColor?.hex || '#ccc',
+                                        color: getContrastColor(job.boxColor?.hex || '#ccc')
+                                    }}
+                                >
+                                    {job.boxNumber}
+                                </div>
+                             )}
+                        </div>
+
                         <div className="bg-black/10 p-3 rounded-lg border border-white/10 text-lg font-bold">
                             "{activeAlert.message}"
                         </div>

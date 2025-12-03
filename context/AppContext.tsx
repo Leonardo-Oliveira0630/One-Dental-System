@@ -1,4 +1,5 @@
 
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, Job, JobType, CartItem, UserRole, Sector, BoxColor, JobAlert } from '../types';
 import { MOCK_USERS, MOCK_JOBS, JOB_TYPES as INITIAL_JOB_TYPES, MOCK_SECTORS } from '../services/mockData';
@@ -33,8 +34,8 @@ interface AppContextType {
   updateJob: (id: string, updates: Partial<Job>) => void;
   
   jobTypes: JobType[];
-  addJobType: (type: JobType) => void;
-  updateJobType: (id: string, updates: Partial<JobType>) => void;
+  addJobType: (type: JobType) => Promise<void>;
+  updateJobType: (id: string, updates: Partial<JobType>) => Promise<void>;
   deleteJobType: (id: string) => void;
 
   sectors: Sector[];
@@ -42,8 +43,8 @@ interface AppContextType {
   deleteSector: (id: string) => void;
 
   cart: CartItem[];
-  addToCart: (item: JobType) => void;
-  removeFromCart: (itemId: string) => void;
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (cartItemId: string) => void;
   clearCart: () => void;
   createWebOrder: (patientName: string, dueDate: Date, notes: string) => void;
 
@@ -144,16 +145,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const checkAlerts = () => {
         const now = new Date();
         
-        // Find an alert that:
-        // 1. Is scheduled for now or past
-        // 2. Has NOT been read by current user
-        // 3. Is targeted to current user (ID match, Sector match, or User is Admin)
         const pending = alerts.find(a => {
             const isDue = new Date(a.scheduledFor) <= now;
             const notRead = !a.readBy.includes(currentUser.id);
             
             const isTarget = 
-                currentUser.role === UserRole.ADMIN || // Admin sees everything? Maybe too noisy. Let's keep explicit targets + admin override if needed
+                currentUser.role === UserRole.ADMIN ||
                 (a.targetUserId && a.targetUserId === currentUser.id) || 
                 (a.targetSector && a.targetSector === currentUser.sector);
 
@@ -164,8 +161,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             setActiveAlert(pending);
         }
     };
-
-    // Check immediately and then every 30 seconds
     checkAlerts();
     const interval = setInterval(checkAlerts, 30000);
     return () => clearInterval(interval);
@@ -177,20 +172,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const login = async (email: string, pass: string) => {
     if (auth) {
       await apiLogin(email, pass);
-      // State updated by onAuthStateChanged listener
     } else {
-      // Mock Login Fallback
       const found = allUsers.find(u => u.email === email);
-      if (found) {
-        setCurrentUser(found);
-      } else {
-         // Create mock session
-         setCurrentUser({ 
-            id: 'mock-user', 
-            name: 'Usuário Mock', 
-            email, 
-            role: UserRole.ADMIN 
-         });
+      if (found) setCurrentUser(found);
+      else {
+         setCurrentUser({ id: 'mock-user', name: 'Usuário Mock', email, role: UserRole.ADMIN });
       }
     }
   };
@@ -209,97 +195,81 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   // --- CRUD WRAPPERS (Hybrid: DB or Local) ---
-
   const addUser = (user: User) => {
     if (db) apiAddUser(user);
     else setAllUsers(prev => [...prev, user]);
   };
-
   const updateUser = (id: string, updates: Partial<User>) => {
     if (db) apiUpdateUser(id, updates);
     else setAllUsers(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
   }
-
   const deleteUser = (id: string) => {
     if (db) apiDeleteUser(id);
     else setAllUsers(prev => prev.filter(u => u.id !== id));
   };
-
   const addSector = (name: string) => {
-    const newSector = { id: Math.random().toString(), name };
+    const newSector = { id: `sector_${Date.now()}`, name };
     if (db) apiAddSector(newSector);
     else setSectors(prev => [...prev, newSector]);
   };
-
   const deleteSector = (id: string) => {
     if (db) apiDeleteSector(id);
     else setSectors(prev => prev.filter(s => s.id !== id));
   };
-
   const addJob = (job: Job) => {
     if (db) apiAddJob(job);
     else setJobs(prev => [job, ...prev]);
   };
-
   const updateJob = (id: string, updates: Partial<Job>) => {
     if (db) apiUpdateJob(id, updates);
     else setJobs(prev => prev.map(j => j.id === id ? { ...j, ...updates } : j));
   };
-
-  const addJobType = (type: JobType) => {
-    if (db) apiAddJobType(type);
+  const addJobType = async (type: JobType) => {
+    if (db) await apiAddJobType(type);
     else setJobTypes(prev => [...prev, type]);
   };
-  
-  const updateJobType = (id: string, updates: Partial<JobType>) => {
-    if (db) apiUpdateJobType(id, updates);
+  const updateJobType = async (id: string, updates: Partial<JobType>) => {
+    if (db) await apiUpdateJobType(id, updates);
     else setJobTypes(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
-
   const deleteJobType = (id: string) => {
     if (db) apiDeleteJobType(id);
     else setJobTypes(prev => prev.filter(t => t.id !== id));
   };
 
-  // --- CART & WEB ORDERS ---
-  const addToCart = (item: JobType) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === item.id);
-      if (existing) {
-        return prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i);
-      }
-      return [...prev, { ...item, quantity: 1 }];
-    });
+  // --- NEW CART & WEB ORDERS LOGIC ---
+  const addToCart = (item: CartItem) => {
+    setCart(prev => [...prev, item]);
   };
 
-  const removeFromCart = (itemId: string) => {
-    setCart(prev => prev.filter(i => i.id !== itemId));
+  const removeFromCart = (cartItemId: string) => {
+    setCart(prev => prev.filter(i => i.cartItemId !== cartItemId));
   };
 
   const clearCart = () => setCart([]);
 
   const createWebOrder = (patientName: string, dueDate: Date, notes: string) => {
-    if (!currentUser) return;
+    if (!currentUser || cart.length === 0) return;
     
-    const totalVal = cart.reduce((acc, item) => acc + (item.basePrice * item.quantity), 0);
+    const totalVal = cart.reduce((acc, item) => acc + item.finalPrice, 0);
     
     const newJob: Job = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `job_${Date.now()}`,
       patientName,
       dentistId: currentUser.id,
       dentistName: currentUser.name,
       status: JobStatus.WAITING_APPROVAL,
       urgency: UrgencyLevel.NORMAL,
       items: cart.map(c => ({ 
-        id: Math.random().toString(), 
-        jobTypeId: c.id, 
-        name: c.name, 
+        id: `item_${c.cartItemId}`, 
+        jobTypeId: c.jobType.id, 
+        name: c.jobType.name, 
         quantity: c.quantity, 
-        price: c.basePrice,
-        selectedVariationIds: []
+        price: c.unitPrice,
+        selectedVariationIds: c.selectedVariationIds
       })),
       history: [{
-        id: Math.random().toString(),
+        id: `hist_${Date.now()}`,
         timestamp: new Date(),
         action: 'Criado via Loja Virtual',
         userId: currentUser.id,
@@ -319,7 +289,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const triggerPrint = (job: Job, mode: 'SHEET' | 'LABEL') => {
     setPrintData({ job, mode });
   };
-
   const clearPrint = () => setPrintData(null);
 
   // --- ALERT SYSTEM ---
@@ -327,12 +296,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (db) apiAddAlert(alert);
       else setAlerts(prev => [...prev, alert]);
   };
-
   const dismissAlert = (alertId: string) => {
       if (currentUser) {
           if (db) apiMarkAlertAsRead(alertId, currentUser.id);
           else {
-              // Mock update
               setAlerts(prev => prev.map(a => a.id === alertId ? {...a, readBy: [...a.readBy, currentUser.id]} : a));
           }
       }

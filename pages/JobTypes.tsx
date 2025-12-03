@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { JobType, JobVariation } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle } from 'lucide-react';
+import { JobType, VariationGroup, VariationOption } from '../types';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
+
+// Helper to generate Firestore-compatible IDs (alphanumeric)
+const generateFirestoreId = (prefix: string) => {
+  return `${prefix}_${Math.random().toString(36).substr(2, 9)}`;
+};
 
 export const JobTypes = () => {
   const { jobTypes, addJobType, updateJobType, deleteJobType } = useApp();
   
-  // UI State
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('BASIC');
@@ -17,18 +21,14 @@ export const JobTypes = () => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [basePrice, setBasePrice] = useState(0);
-  const [variations, setVariations] = useState<JobVariation[]>([]);
-
-  // Variation Input State
-  const [varName, setVarName] = useState('');
-  const [varPrice, setVarPrice] = useState(0);
-  const [varGroup, setVarGroup] = useState('');
+  const [variationGroups, setVariationGroups] = useState<VariationGroup[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   const resetForm = () => {
     setName('');
     setCategory('');
     setBasePrice(0);
-    setVariations([]);
+    setVariationGroups([]);
     setIsEditing(false);
     setEditingId(null);
     setActiveTab('BASIC');
@@ -40,53 +40,84 @@ export const JobTypes = () => {
     setName(type.name);
     setCategory(type.category);
     setBasePrice(type.basePrice);
-    setVariations(type.variations || []);
+    setVariationGroups(type.variationGroups || []);
     setActiveTab('BASIC');
   };
 
-  const handleAddVariation = () => {
-    if (!varName) return;
-    const newVar: JobVariation = {
-        id: Math.random().toString(),
-        name: varName,
-        priceModifier: varPrice,
-        group: varGroup || undefined
-    };
-    setVariations([...variations, newVar]);
-    setVarName('');
-    setVarPrice(0);
-    setVarGroup('');
-  };
-
-  const handleRemoveVariation = (id: string) => {
-    setVariations(variations.filter(v => v.id !== id));
-  };
-
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !category) {
         alert("Preencha o nome e a categoria.");
         return;
     }
-
-    if (isEditing && editingId) {
-        updateJobType(editingId, { name, category, basePrice, variations });
-    } else {
-        const newType: JobType = {
-            id: Math.random().toString(),
-            name,
-            category,
-            basePrice,
-            variations
-        };
-        addJobType(newType);
+    
+    setIsSaving(true);
+    try {
+      if (isEditing && editingId) {
+          await updateJobType(editingId, { name, category, basePrice, variationGroups });
+      } else {
+          const newType: JobType = {
+              id: generateFirestoreId('jtype'),
+              name, category, basePrice, variationGroups
+          };
+          await addJobType(newType);
+      }
+      resetForm();
+    } catch (error) {
+        console.error("Failed to save Job Type:", error);
+        alert("Falha ao salvar o tipo de trabalho. Verifique o console para mais detalhes.");
+    } finally {
+      setIsSaving(false);
     }
-    resetForm();
+  };
+
+  // --- Variation Group & Option Handlers ---
+
+  const addGroup = () => {
+      const newGroup: VariationGroup = {
+          id: generateFirestoreId('group'),
+          name: `Novo Grupo ${variationGroups.length + 1}`,
+          selectionType: 'SINGLE',
+          options: []
+      };
+      setVariationGroups([...variationGroups, newGroup]);
+  };
+
+  const updateGroup = (groupId: string, updates: Partial<VariationGroup>) => {
+      setVariationGroups(groups => groups.map(g => g.id === groupId ? { ...g, ...updates } : g));
+  };
+
+  const deleteGroup = (groupId: string) => {
+      setVariationGroups(groups => groups.filter(g => g.id !== groupId));
+  };
+
+  const addOption = (groupId: string) => {
+      const newOption: VariationOption = {
+          id: generateFirestoreId('opt'),
+          name: 'Nova Opção',
+          priceModifier: 0,
+          disablesOptions: []
+      };
+      updateGroup(groupId, { options: [...(variationGroups.find(g => g.id === groupId)?.options || []), newOption] });
+  };
+  
+  const updateOption = (groupId: string, optionId: string, updates: Partial<VariationOption>) => {
+      const group = variationGroups.find(g => g.id === groupId);
+      if (!group) return;
+      const updatedOptions = group.options.map(o => o.id === optionId ? { ...o, ...updates } : o);
+      updateGroup(groupId, { options: updatedOptions });
+  };
+
+  const deleteOption = (groupId: string, optionId: string) => {
+      const group = variationGroups.find(g => g.id === groupId);
+      if (!group) return;
+      updateGroup(groupId, { options: group.options.filter(o => o.id !== optionId) });
   };
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* ... (Header remains the same) ... */}
+       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 className="text-2xl font-bold text-slate-900">Catálogo de Serviços</h1>
             <p className="text-slate-500">Gerencie tipos de próteses, preços e suas variações.</p>
@@ -135,7 +166,7 @@ export const JobTypes = () => {
                         </div>
                         <div className="mt-2 text-xs text-slate-400 flex items-center gap-1">
                             <Layers size={12} />
-                            {type.variations.length} variações
+                            {type.variationGroups.length} grupos
                         </div>
                     </div>
                 ))}
@@ -147,6 +178,7 @@ export const JobTypes = () => {
             <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
                 {/* Header / Tabs */}
                 <div className="bg-slate-50 border-b border-slate-200 flex">
+                    {/* ... (Tabs remain the same) ... */}
                     <button
                         onClick={() => setActiveTab('BASIC')}
                         className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
@@ -161,153 +193,107 @@ export const JobTypes = () => {
                             activeTab === 'VARIATIONS' ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'text-slate-500 hover:text-slate-700'
                         }`}
                     >
-                        <Layers size={18} /> <span className="hidden sm:inline">Variações</span>
+                        <Layers size={18} /> Grupos & Variações
                         <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-full text-[10px]">
-                            {variations.length}
+                            {variationGroups.length}
                         </span>
                     </button>
                 </div>
 
                 <form onSubmit={handleSave} className="p-6">
-                    
-                    {/* Tab: Basic Data */}
                     {activeTab === 'BASIC' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
-                            <h2 className="text-xl font-bold text-slate-800">
+                             <h2 className="text-xl font-bold text-slate-800">
                                 {isEditing ? `Editando: ${name}` : 'Novo Tipo de Trabalho'}
                             </h2>
-                            
-                            <div className="grid grid-cols-1 gap-5">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Serviço</label>
-                                    <input 
-                                        required
-                                        value={name}
-                                        onChange={e => setName(e.target.value)}
-                                        className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-lg"
-                                        placeholder="Ex: Coroa de Zircônia"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-5">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
-                                        <input 
-                                            required
-                                            value={category}
-                                            onChange={e => setCategory(e.target.value)}
-                                            className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                            placeholder="Ex: Prótese Fixa"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">Preço Base (R$)</label>
-                                        <input 
-                                            required
-                                            type="number"
-                                            value={basePrice}
-                                            onChange={e => setBasePrice(parseFloat(e.target.value))}
-                                            className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold"
-                                        />
-                                    </div>
-                                </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Serviço</label>
+                                <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
                             </div>
-
-                            <div className="bg-blue-50 p-4 rounded-xl flex items-start gap-3 text-sm text-blue-800">
-                                <AlertCircle size={20} className="mt-0.5 flex-shrink-0" />
-                                <p>Cadastre aqui o valor base. Adicionais como "Urgência" ou "Metal Precioso" devem ser configurados na aba <strong>Variações</strong>.</p>
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
+                                <input value={category} onChange={e => setCategory(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                            </div>
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Preço Base (R$)</label>
+                                <input type="number" step="0.01" value={basePrice} onChange={e => setBasePrice(parseFloat(e.target.value))} required className="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
                             </div>
                         </div>
                     )}
-
-                    {/* Tab: Variations */}
+                    
+                    {/* --- NEW VARIATIONS TAB --- */}
                     {activeTab === 'VARIATIONS' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div className="flex justify-between items-center">
-                                <h2 className="text-xl font-bold text-slate-800">Gerenciar Adicionais</h2>
+                                <h2 className="text-xl font-bold text-slate-800">Configurar Variações</h2>
+                                <button type="button" onClick={addGroup} className="flex items-center gap-2 px-3 py-1.5 text-sm bg-indigo-100 text-indigo-700 rounded-lg font-bold hover:bg-indigo-200">
+                                    <Plus size={16} /> Novo Grupo
+                                </button>
                             </div>
-
-                            {/* Add New Variation */}
-                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
-                                <h3 className="text-sm font-bold text-slate-700 mb-3">Adicionar Nova Variação</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                                    <div className="md:col-span-5">
-                                        <label className="text-xs text-slate-500 mb-1 block">Nome</label>
-                                        <input 
-                                            value={varName}
-                                            onChange={e => setVarName(e.target.value)}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                            placeholder="Ex: Taxa de Urgência"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-1 gap-3 md:col-span-3 w-full">
-                                        <div className="md:col-span-3">
-                                            <label className="text-xs text-slate-500 mb-1 block">Valor (+R$)</label>
-                                            <input 
-                                                type="number"
-                                                value={varPrice}
-                                                onChange={e => setVarPrice(parseFloat(e.target.value))}
-                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="md:col-span-3">
-                                        <label className="text-xs text-slate-500 mb-1 block">Grupo</label>
-                                        <div className="relative">
-                                            <Tag size={12} className="absolute left-2.5 top-2.5 text-slate-400" />
-                                            <input 
-                                                value={varGroup}
-                                                onChange={e => setVarGroup(e.target.value)}
-                                                className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                placeholder="Ex: Cor"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="md:col-span-1">
-                                        <button 
-                                            type="button"
-                                            onClick={handleAddVariation}
-                                            disabled={!varName}
-                                            className="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center"
-                                        >
-                                            <Plus size={18} />
-                                        </button>
-                                    </div>
+                            
+                            {variationGroups.length === 0 ? (
+                                <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                                    Clique em "Novo Grupo" para começar.
                                 </div>
-                                <p className="text-[10px] text-slate-400 mt-2">
-                                    * Itens com o mesmo nome de "Grupo" (ex: "Cor") funcionarão como botões de rádio (seleção única).
-                                </p>
-                            </div>
-
-                            {/* List Variations */}
-                            <div className="space-y-2">
-                                {variations.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                                        Nenhuma variação cadastrada para este serviço.
-                                    </div>
-                                ) : (
-                                    variations.map(v => (
-                                        <div key={v.id} className="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-100 shadow-sm hover:border-indigo-100 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                                    <Layers size={14} />
+                            ) : (
+                                <div className="space-y-4">
+                                    {variationGroups.map(group => (
+                                        <div key={group.id} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                            {/* Group Header */}
+                                            <div className="flex justify-between items-center mb-3 border-b border-slate-200 pb-3">
+                                                <div className="flex items-center gap-2 flex-1">
+                                                    <Folder size={18} className="text-indigo-500" />
+                                                    <input 
+                                                        value={group.name}
+                                                        onChange={(e) => updateGroup(group.id, { name: e.target.value })}
+                                                        className="font-bold text-lg text-slate-800 bg-transparent focus:bg-white rounded p-1 outline-none focus:ring-1 focus:ring-indigo-400 w-full"
+                                                    />
                                                 </div>
-                                                <div>
-                                                    <span className="font-bold text-slate-800 block">{v.name}</span>
-                                                    {v.group && <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded flex items-center gap-1 w-fit"><Tag size={8}/> {v.group}</span>}
+                                                <div className="flex items-center gap-3">
+                                                     <button type="button" onClick={() => updateGroup(group.id, { selectionType: group.selectionType === 'SINGLE' ? 'MULTIPLE' : 'SINGLE' })} className="flex items-center gap-1 text-xs text-slate-500" title="Mudar tipo de seleção">
+                                                        {group.selectionType === 'SINGLE' ? <ToggleLeft size={18} /> : <ToggleRight size={18} className="text-indigo-600" />}
+                                                        {group.selectionType === 'SINGLE' ? 'Única' : 'Múltipla'}
+                                                    </button>
+                                                    <button type="button" onClick={() => deleteGroup(group.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-4">
-                                                <span className={`font-mono font-bold ${v.priceModifier > 0 ? 'text-green-600' : 'text-slate-400'}`}>
-                                                    {v.priceModifier > 0 ? `+ R$ ${v.priceModifier.toFixed(2)}` : 'Grátis'}
-                                                </span>
-                                                <button type="button" onClick={() => handleRemoveVariation(v.id)} className="text-slate-300 hover:text-red-500 p-1">
-                                                    <X size={18} />
+
+                                            {/* Options within group */}
+                                            <div className="space-y-2">
+                                                {group.options.map(option => (
+                                                    <div key={option.id} className="bg-white p-2 rounded-lg border border-slate-200 space-y-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <input value={option.name} onChange={e => updateOption(group.id, option.id, { name: e.target.value })} className="flex-1 p-1 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1" placeholder="Nome da Opção" />
+                                                            <input type="number" value={option.priceModifier} onChange={e => updateOption(group.id, option.id, { priceModifier: parseFloat(e.target.value) })} className="w-24 p-1 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 text-right" />
+                                                            <button type="button" onClick={() => deleteOption(group.id, option.id)} className="text-slate-300 hover:text-red-500"><X size={16} /></button>
+                                                        </div>
+                                                        <div className="pl-1">
+                                                            <label className="text-[10px] text-slate-500 font-bold block">Condicionais: Desabilitar OPÇÕES...</label>
+                                                            <select 
+                                                                multiple 
+                                                                value={option.disablesOptions || []}
+                                                                onChange={e => updateOption(group.id, option.id, { disablesOptions: [...e.target.selectedOptions].map(opt => opt.value) })}
+                                                                className="w-full text-xs p-1 border rounded bg-slate-50 max-h-24"
+                                                            >
+                                                                {variationGroups.filter(g => g.id !== group.id).map(otherGroup => (
+                                                                    <optgroup key={otherGroup.id} label={otherGroup.name}>
+                                                                        {otherGroup.options.map(otherOption => (
+                                                                            <option key={otherOption.id} value={otherOption.id}>{otherOption.name}</option>
+                                                                        ))}
+                                                                    </optgroup>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <button type="button" onClick={() => addOption(group.id)} className="w-full text-xs text-center py-1 bg-slate-200 text-slate-600 rounded hover:bg-slate-300 font-bold">
+                                                    + Adicionar Opção
                                                 </button>
                                             </div>
                                         </div>
-                                    ))
-                                )}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -324,10 +310,11 @@ export const JobTypes = () => {
                         )}
                         <button 
                             type="submit"
-                            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg shadow-blue-200 transition-all transform hover:scale-[1.02] flex items-center gap-2"
+                            disabled={isSaving}
+                            className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg shadow-blue-200 transition-all transform hover:scale-[1.02] flex items-center gap-2 disabled:opacity-50"
                         >
                             <Save size={20} />
-                            {isEditing ? 'Atualizar' : 'Salvar'}
+                            {isSaving ? 'Salvando...' : (isEditing ? 'Atualizar' : 'Salvar')}
                         </button>
                     </div>
                 </form>

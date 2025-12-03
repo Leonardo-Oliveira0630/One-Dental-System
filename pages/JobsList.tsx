@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, Box, Calendar, Layers, MapPin, User, SlidersHorizontal, RefreshCcw } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getContrastColor } from '../services/mockData';
 
 export const JobsList = () => {
   const { jobs, currentUser, triggerPrint, jobTypes, sectors, allUsers } = useApp();
@@ -69,8 +71,6 @@ export const JobsList = () => {
     // 8. Collaborator Filter (Check History - Has this person touched the job?)
     if (filterCollaborator) {
         const hasHistory = job.history.some(h => h.userId === filterCollaborator);
-        // Also check if they are the creator (just in case history doesn't capture creation explicitly as separate event sometimes)
-        // But our logic puts creation in history, so checking history is enough.
         if (!hasHistory) return false;
     }
 
@@ -90,10 +90,11 @@ export const JobsList = () => {
 
   const getStatusColor = (status: JobStatus) => {
     switch(status) {
-        case JobStatus.COMPLETED: return 'bg-green-100 text-green-700';
-        case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700';
-        case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700';
-        case JobStatus.PENDING: return 'bg-slate-100 text-slate-700';
+        case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border border-green-200';
+        case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border border-blue-200';
+        case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border border-purple-200';
+        case JobStatus.PENDING: return 'bg-slate-100 text-slate-700 border border-slate-200';
+        case JobStatus.REJECTED: return 'bg-red-100 text-red-700 border border-red-200';
         default: return 'bg-gray-100 text-gray-700';
     }
   };
@@ -105,6 +106,7 @@ export const JobsList = () => {
         case JobStatus.IN_PROGRESS: return 'Em Produção';
         case JobStatus.COMPLETED: return 'Concluído';
         case JobStatus.DELIVERED: return 'Entregue';
+        case JobStatus.REJECTED: return 'Rejeitado';
         default: return status;
       }
   };
@@ -179,6 +181,7 @@ export const JobsList = () => {
                     </div>
                 </div>
 
+                {/* Other filters remain similar ... */}
                 {/* Urgency */}
                 <div>
                     <label className="text-xs font-bold text-slate-500 mb-1 block">Urgência</label>
@@ -215,44 +218,7 @@ export const JobsList = () => {
                         </div>
                     </div>
                 )}
-
-                {/* Job Type */}
-                <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Tipo de Trabalho</label>
-                    <div className="relative">
-                        <Layers size={16} className="absolute left-3 top-2.5 text-slate-400" />
-                        <select 
-                            value={filterJobType}
-                            onChange={(e) => setFilterJobType(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                        >
-                            <option value="">Todos os Tipos</option>
-                            {jobTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                        </select>
-                    </div>
-                </div>
-
-                 {/* Collaborator (History Check) */}
-                 {!isClient && (
-                    <div>
-                        <label className="text-xs font-bold text-slate-500 mb-1 block">Colaborador Envolvido</label>
-                        <div className="relative">
-                            <User size={16} className="absolute left-3 top-2.5 text-slate-400" />
-                            <select 
-                                value={filterCollaborator}
-                                onChange={(e) => setFilterCollaborator(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                            >
-                                <option value="">Qualquer um</option>
-                                {allUsers
-                                    .filter(u => u.role !== UserRole.CLIENT)
-                                    .map(u => <option key={u.id} value={u.id}>{u.name}</option>)
-                                }
-                            </select>
-                        </div>
-                    </div>
-                )}
-
+                
                 {/* Date Range */}
                 <div className="sm:col-span-2 lg:col-span-2 flex gap-2">
                     <div className="flex-1">
@@ -305,22 +271,24 @@ export const JobsList = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                     {filteredJobs.length === 0 ? (
-                        <tr><td colSpan={8} className="p-8 text-center text-slate-400">Nenhum trabalho encontrado com os filtros atuais.</td></tr>
+                        <tr><td colSpan={8} className="p-8 text-center text-slate-400">Nenhum trabalho encontrado.</td></tr>
                     ) : (
                         filteredJobs.map(job => (
                             <tr key={job.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="p-4 font-mono font-medium text-slate-700">
-                                    {job.osNumber || <span className="text-xs text-orange-400 italic">Pendente</span>}
+                                    {job.osNumber || <span className="text-xs text-purple-400 italic">WEB</span>}
                                 </td>
                                 {!isClient && (
                                     <td className="p-4">
                                         {job.boxNumber ? (
-                                            <div className="flex items-center gap-2">
-                                                <div 
-                                                    className="w-3 h-3 rounded-full shadow-sm" 
-                                                    style={{ backgroundColor: job.boxColor?.hex || '#ccc' }} 
-                                                />
-                                                <span className="font-bold text-slate-700">{job.boxNumber}</span>
+                                            <div 
+                                                className="w-8 h-8 rounded flex items-center justify-center font-bold text-sm shadow-sm border border-black/10"
+                                                style={{ 
+                                                    backgroundColor: job.boxColor?.hex || '#ccc',
+                                                    color: getContrastColor(job.boxColor?.hex || '#ccc')
+                                                }}
+                                            >
+                                                {job.boxNumber}
                                             </div>
                                         ) : <span className="text-slate-300">-</span>}
                                     </td>
@@ -333,7 +301,7 @@ export const JobsList = () => {
                                     </span>
                                 </td>
                                 <td className="p-4 text-sm text-slate-500">
-                                    {job.currentSector || 'Início'}
+                                    {job.status === JobStatus.REJECTED ? <Ban size={16} className="text-red-400"/> : (job.currentSector || 'Início')}
                                 </td>
                                 <td className="p-4 text-slate-600">
                                     <div className="flex items-center gap-1">
@@ -342,11 +310,11 @@ export const JobsList = () => {
                                     </div>
                                 </td>
                                 <td className="p-4 text-right flex justify-end gap-2">
-                                    {!isClient && (
+                                    {!isClient && job.status !== JobStatus.REJECTED && (
                                         <button 
                                             onClick={() => setPrintModalJob(job)}
                                             className="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                                            title="Imprimir Ficha ou Etiqueta"
+                                            title="Imprimir"
                                         >
                                             <Printer size={18} />
                                         </button>
@@ -354,7 +322,7 @@ export const JobsList = () => {
                                     <button 
                                         onClick={() => navigate(`/jobs/${job.id}`)}
                                         className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                                        title="Ver Detalhes e Histórico"
+                                        title="Ver Detalhes"
                                     >
                                         <Eye size={18} />
                                     </button>
@@ -375,16 +343,30 @@ export const JobsList = () => {
             </div>
         ) : (
             filteredJobs.map(job => (
-                <div key={job.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                <div key={job.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden">
                     <div className="flex justify-between items-start mb-3">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="font-mono font-bold text-lg text-slate-800">
-                                    {job.osNumber || '---'}
-                                </span>
-                                {job.urgency === UrgencyLevel.VIP && <AlertCircle size={16} className="text-red-500" />}
+                        <div className="flex items-start gap-3">
+                            {/* Box Badge for Mobile */}
+                            {!isClient && job.boxNumber && (
+                                <div 
+                                    className="w-10 h-10 rounded flex items-center justify-center font-bold shadow-sm border border-black/10 shrink-0"
+                                    style={{ 
+                                        backgroundColor: job.boxColor?.hex || '#ccc',
+                                        color: getContrastColor(job.boxColor?.hex || '#ccc')
+                                    }}
+                                >
+                                    {job.boxNumber}
+                                </div>
+                            )}
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-mono font-bold text-lg text-slate-800">
+                                        {job.osNumber || 'WEB'}
+                                    </span>
+                                    {job.urgency === UrgencyLevel.VIP && <AlertCircle size={16} className="text-red-500" />}
+                                </div>
+                                <h3 className="font-bold text-slate-900 leading-tight">{job.patientName}</h3>
                             </div>
-                            <h3 className="font-bold text-slate-900">{job.patientName}</h3>
                         </div>
                         <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${getStatusColor(job.status)}`}>
                             {getTranslatedStatus(job.status)}
@@ -392,24 +374,19 @@ export const JobsList = () => {
                     </div>
                     
                     <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 mb-3">
-                        {!isClient && (
-                            <div className="flex items-center gap-1">
-                                <Box size={14} className="text-slate-400" />
-                                <span>CX: {job.boxNumber || '-'}</span>
-                            </div>
-                        )}
                          <div className="flex items-center gap-1">
                             <Clock size={14} className="text-slate-400" />
                             <span>{new Date(job.dueDate).toLocaleDateString()}</span>
                         </div>
                         <div className="flex items-center gap-1 col-span-2">
                              <MapPin size={14} className="text-slate-400" />
-                             <span>{job.currentSector || 'Recepção'}</span>
+                             <span>{job.status === JobStatus.REJECTED ? 'Cancelado' : (job.currentSector || 'Recepção')}</span>
                         </div>
                     </div>
 
                     <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                        {!isClient && (
+                         {/* Only allow print if not rejected */}
+                        {!isClient && job.status !== JobStatus.REJECTED && (
                             <button 
                                 onClick={() => setPrintModalJob(job)}
                                 className="text-slate-400 hover:text-slate-700 p-2"
@@ -419,7 +396,7 @@ export const JobsList = () => {
                         )}
                         <button 
                             onClick={() => navigate(`/jobs/${job.id}`)}
-                            className="flex items-center gap-1 text-blue-600 font-medium text-sm hover:underline"
+                            className="flex items-center gap-1 text-blue-600 font-medium text-sm hover:underline ml-auto"
                         >
                             Ver Detalhes <ChevronRight size={16} />
                         </button>
@@ -429,7 +406,7 @@ export const JobsList = () => {
         )}
       </div>
 
-      {/* Print Selection Modal for List View */}
+      {/* Print Selection Modal */}
       {printModalJob && (
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full relative">

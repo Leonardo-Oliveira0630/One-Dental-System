@@ -11,7 +11,8 @@ export enum JobStatus {
   PENDING = 'PENDING', // Accepted, ready to start
   IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED',
-  DELIVERED = 'DELIVERED'
+  DELIVERED = 'DELIVERED',
+  REJECTED = 'REJECTED' // New: Order refused by lab
 }
 
 export enum UrgencyLevel {
@@ -32,12 +33,34 @@ export interface Sector {
   name: string;
 }
 
-export interface JobVariation {
+// --- NEW VARIATION STRUCTURE ---
+
+export interface VariationOption {
   id: string;
   name: string;
-  priceModifier: number; // Additive price (e.g., +50.00)
-  group?: string; // Mutually exclusive group (e.g., "ShadeType", "Material")
+  priceModifier: number;
+  // New: Conditional logic field. List of OPTION IDs this option disables.
+  disablesOptions?: string[]; 
 }
+
+export interface VariationGroup {
+  id: string;
+  name: string;
+  selectionType: 'SINGLE' | 'MULTIPLE';
+  options: VariationOption[];
+}
+
+export interface JobType {
+  id: string;
+  name: string;
+  category: string;
+  basePrice: number;
+  // Replaced flat variations list with structured groups
+  variationGroups: VariationGroup[]; 
+}
+
+
+// --- JOB & USER STRUCTURES ---
 
 export interface JobItem {
   id: string;
@@ -45,12 +68,13 @@ export interface JobItem {
   name: string;
   quantity: number;
   price: number; // Calculated unit price (Base + Variations)
-  selectedVariationIds?: string[]; // IDs of selected variations
+  // Updated to reflect new structure, still stores flat list of selected OPTION IDs
+  selectedVariationIds?: string[];
   commissionDisabled?: boolean; // New: Flag to disable commission
 }
 
 export interface JobHistoryEvent {
-  id: string;
+  id:string;
   timestamp: Date;
   action: string;
   userId: string;
@@ -91,6 +115,11 @@ export interface JobAlert {
   readBy: string[]; // List of user IDs who have dismissed/read the alert
 }
 
+export interface CustomPrice {
+  jobTypeId: string;
+  price: number;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -98,17 +127,15 @@ export interface User {
   role: UserRole;
   clinicName?: string; // For Clients
   sector?: string; // For Collaborators
+  customPrices?: CustomPrice[]; // Table of individual prices for this user
 }
 
-export interface JobType {
-  id: string;
-  name: string;
-  category: string;
-  basePrice: number;
-  variations: JobVariation[];
-}
-
-export interface CartItem extends JobType {
+// --- NEW CART STRUCTURE ---
+export interface CartItem {
+  cartItemId: string; // Unique ID for this specific cart entry
+  jobType: JobType;
   quantity: number;
-  selectedVariationIds?: string[];
+  unitPrice: number; // Price per unit after variations
+  finalPrice: number; // unitPrice * quantity
+  selectedVariationIds: string[];
 }

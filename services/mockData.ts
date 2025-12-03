@@ -1,11 +1,35 @@
-import { Job, JobStatus, UrgencyLevel, User, UserRole, JobType, BoxColor, Sector } from "../types";
+import { Job, JobStatus, UrgencyLevel, User, UserRole, JobType, BoxColor, Sector, VariationOption } from "../types";
 
 export const BOX_COLORS: BoxColor[] = [
   { id: '1', name: 'Azul', hex: '#3b82f6' },
   { id: '2', name: 'Vermelho', hex: '#ef4444' },
   { id: '3', name: 'Verde', hex: '#22c55e' },
   { id: '4', name: 'Amarelo', hex: '#eab308' },
+  { id: '5', name: 'Roxo', hex: '#a855f7' },
+  { id: '6', name: 'Laranja', hex: '#f97316' },
+  { id: '7', name: 'Cinza', hex: '#64748b' },
+  { id: '8', name: 'Preto', hex: '#1e293b' },
+  { id: '9', name: 'Rosa', hex: '#ec4899' },
+  { id: '10', name: 'Branco', hex: '#ffffff' },
 ];
+
+// Helper para definir cor do texto (Preto ou Branco) baseado no fundo
+export const getContrastColor = (hexColor: string) => {
+  if (!hexColor) return '#000000';
+  // Remove # se houver
+  const hex = hexColor.replace('#', '');
+  
+  // Converte para RGB
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calcula luminância (YIQ formula)
+  const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+  
+  // Se for escuro (< 128), texto branco. Senão, texto preto (slate-900).
+  return yiq >= 128 ? '#0f172a' : '#ffffff';
+};
 
 export const MOCK_SECTORS: Sector[] = [
   { id: 's1', name: 'Recepção / Triagem' },
@@ -22,11 +46,25 @@ export const JOB_TYPES: JobType[] = [
     name: 'Coroa de Zircônia', 
     category: 'Coroas', 
     basePrice: 450,
-    variations: [
-      { id: 'v1', name: 'Cor Padrão (Escala)', priceModifier: 0, group: 'Cor' },
-      { id: 'v2', name: 'Cor Personalizada (Foto)', priceModifier: 50, group: 'Cor' },
-      { id: 'v3', name: 'Taxa de Urgência (24h)', priceModifier: 150, group: 'Prazo' },
-      { id: 'v4', name: 'Parafuso de Implante', priceModifier: 120 }
+    variationGroups: [
+      {
+        id: 'g1',
+        name: 'Material',
+        selectionType: 'SINGLE',
+        options: [
+          { id: 'v1', name: 'Zircônia Translúcida', priceModifier: 0 },
+          { id: 'v2', name: 'Zircônia Multilayer', priceModifier: 70 },
+        ]
+      },
+      {
+        id: 'g2',
+        name: 'Adicionais de Implante',
+        selectionType: 'MULTIPLE',
+        options: [
+          { id: 'v3', name: 'Pilar Personalizado', priceModifier: 150 },
+          { id: 'v4', name: 'Parafuso de Titânio', priceModifier: 120 }
+        ]
+      }
     ]
   },
   { 
@@ -34,8 +72,24 @@ export const JOB_TYPES: JobType[] = [
     name: 'Lente E-Max', 
     category: 'Lentes', 
     basePrice: 550,
-    variations: [
-       { id: 'v5', name: 'Técnica Cut-back', priceModifier: 80 }
+    variationGroups: [
+       {
+        id: 'g3',
+        name: 'Técnica',
+        selectionType: 'SINGLE',
+        options: [
+          { id: 'v5', name: 'Padrão (Injetada)', priceModifier: 0, disablesOptions: ['v7'] },
+          { id: 'v6', name: 'Cut-back (Estratificada)', priceModifier: 80, disablesOptions: ['v7'] }
+        ]
+       },
+       {
+        id: 'g4',
+        name: 'Adicionais de Implante', 
+        selectionType: 'MULTIPLE',
+        options: [
+            { id: 'v7', name: 'Componente de Implante', priceModifier: 100 }
+        ]
+       }
     ]
   },
   { 
@@ -43,16 +97,23 @@ export const JOB_TYPES: JobType[] = [
     name: 'Prótese Total (PT)', 
     category: 'Próteses', 
     basePrice: 1200,
-    variations: []
+    variationGroups: []
   },
   { 
     id: 't4', 
     name: 'Metalocerâmica', 
     category: 'Coroas', 
     basePrice: 380,
-    variations: [
-       { id: 'v6', name: 'Metal Precioso', priceModifier: 200, group: 'Liga' },
-       { id: 'v7', name: 'Metal Não-Precioso', priceModifier: 0, group: 'Liga' }
+    variationGroups: [
+       { 
+        id: 'g5', 
+        name: 'Liga Metálica', 
+        selectionType: 'SINGLE', 
+        options: [
+           { id: 'v8', name: 'Metal Precioso (Au)', priceModifier: 200 },
+           { id: 'v9', name: 'Metal Não-Precioso (NiCr)', priceModifier: 0 }
+        ]
+       }
     ]
   },
 ];
