@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -114,6 +115,21 @@ export const JobTypes = () => {
       updateGroup(groupId, { options: group.options.filter(o => o.id !== optionId) });
   };
 
+  const cycleSelectionType = (current: string): 'SINGLE' | 'MULTIPLE' | 'TEXT' => {
+      if (current === 'SINGLE') return 'MULTIPLE';
+      if (current === 'MULTIPLE') return 'TEXT';
+      return 'SINGLE';
+  };
+
+  const getSelectionTypeLabel = (type: string) => {
+      switch(type) {
+          case 'SINGLE': return 'Seleção Única (Radio)';
+          case 'MULTIPLE': return 'Múltipla Escolha (Check)';
+          case 'TEXT': return 'Campo de Texto (Input)';
+          default: return type;
+      }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* ... (Header remains the same) ... */}
@@ -178,7 +194,6 @@ export const JobTypes = () => {
             <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
                 {/* Header / Tabs */}
                 <div className="bg-slate-50 border-b border-slate-200 flex">
-                    {/* ... (Tabs remain the same) ... */}
                     <button
                         onClick={() => setActiveTab('BASIC')}
                         className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
@@ -250,9 +265,16 @@ export const JobTypes = () => {
                                                     />
                                                 </div>
                                                 <div className="flex items-center gap-3">
-                                                     <button type="button" onClick={() => updateGroup(group.id, { selectionType: group.selectionType === 'SINGLE' ? 'MULTIPLE' : 'SINGLE' })} className="flex items-center gap-1 text-xs text-slate-500" title="Mudar tipo de seleção">
-                                                        {group.selectionType === 'SINGLE' ? <ToggleLeft size={18} /> : <ToggleRight size={18} className="text-indigo-600" />}
-                                                        {group.selectionType === 'SINGLE' ? 'Única' : 'Múltipla'}
+                                                     <button 
+                                                        type="button" 
+                                                        onClick={() => updateGroup(group.id, { selectionType: cycleSelectionType(group.selectionType) })} 
+                                                        className="flex items-center gap-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors" 
+                                                        title="Mudar tipo de seleção"
+                                                     >
+                                                        {group.selectionType === 'SINGLE' && <ToggleLeft size={16} />}
+                                                        {group.selectionType === 'MULTIPLE' && <ToggleRight size={16} />}
+                                                        {group.selectionType === 'TEXT' && <Type size={16} />}
+                                                        {getSelectionTypeLabel(group.selectionType)}
                                                     </button>
                                                     <button type="button" onClick={() => deleteGroup(group.id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
                                                 </div>
@@ -264,8 +286,10 @@ export const JobTypes = () => {
                                                     <div key={option.id} className="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
                                                         <div className="grid grid-cols-12 gap-2 items-end">
                                                             <div className="col-span-12 sm:col-span-7">
-                                                                <label className="text-[10px] text-slate-500 font-bold block">Nome da Opção</label>
-                                                                <input value={option.name} onChange={e => updateOption(group.id, option.id, { name: e.target.value })} className="w-full p-2 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400" placeholder="Ex: Zircônia Translúcida" />
+                                                                <label className="text-[10px] text-slate-500 font-bold block">
+                                                                    {group.selectionType === 'TEXT' ? 'Rótulo do Campo (ex: Cor)' : 'Nome da Opção'}
+                                                                </label>
+                                                                <input value={option.name} onChange={e => updateOption(group.id, option.id, { name: e.target.value })} className="w-full p-2 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400" placeholder={group.selectionType === 'TEXT' ? "Ex: Especifique a cor" : "Ex: Zircônia Translúcida"} />
                                                             </div>
                                                             <div className="col-span-8 sm:col-span-4">
                                                                 <label className="text-[10px] text-slate-500 font-bold block">Acréscimo (R$)</label>
@@ -304,7 +328,7 @@ export const JobTypes = () => {
                                                     </div>
                                                 ))}
                                                 <button type="button" onClick={() => addOption(group.id)} className="w-full text-xs text-center py-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 font-bold">
-                                                    + Adicionar Opção
+                                                    + Adicionar {group.selectionType === 'TEXT' ? 'Campo' : 'Opção'}
                                                 </button>
                                             </div>
                                         </div>

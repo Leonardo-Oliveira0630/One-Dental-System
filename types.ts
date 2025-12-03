@@ -46,7 +46,7 @@ export interface VariationOption {
 export interface VariationGroup {
   id: string;
   name: string;
-  selectionType: 'SINGLE' | 'MULTIPLE';
+  selectionType: 'SINGLE' | 'MULTIPLE' | 'TEXT';
   options: VariationOption[];
 }
 
@@ -70,6 +70,8 @@ export interface JobItem {
   price: number; // Calculated unit price (Base + Variations)
   // Updated to reflect new structure, still stores flat list of selected OPTION IDs
   selectedVariationIds?: string[];
+  // New: Stores the actual text typed by user for TEXT variations { optionId: "User Input" }
+  variationValues?: Record<string, string>;
   commissionDisabled?: boolean; // New: Flag to disable commission
 }
 
@@ -82,6 +84,13 @@ export interface JobHistoryEvent {
   sector?: string;
 }
 
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  uploadedAt: Date;
+}
+
 export interface Job {
   id: string; // Internal ID (UUID)
   osNumber?: string; // Lab visible number (e.g. 8090)
@@ -92,6 +101,7 @@ export interface Job {
   urgency: UrgencyLevel;
   items: JobItem[];
   history: JobHistoryEvent[];
+  attachments?: Attachment[]; // New: Files uploaded by dentist
   createdAt: Date;
   dueDate: Date;
   boxNumber?: string;
@@ -138,4 +148,41 @@ export interface CartItem {
   unitPrice: number; // Price per unit after variations
   finalPrice: number; // unitPrice * quantity
   selectedVariationIds: string[];
+  // New: Stores the text values in cart
+  variationValues?: Record<string, string>;
+}
+
+// --- CLINIC MANAGEMENT SYSTEM (CMS) STRUCTURES ---
+
+export interface ClinicPatient {
+  id: string;
+  dentistId: string; // Link to the dentist user
+  name: string;
+  cpf?: string;
+  phone: string;
+  email?: string;
+  birthDate?: Date;
+  address?: string;
+  anamnesis?: string; // Medical history
+  createdAt: Date;
+}
+
+export enum AppointmentStatus {
+  SCHEDULED = 'SCHEDULED',
+  CONFIRMED = 'CONFIRMED',
+  COMPLETED = 'COMPLETED',
+  CANCELED = 'CANCELED',
+  NO_SHOW = 'NO_SHOW'
+}
+
+export interface Appointment {
+  id: string;
+  dentistId: string;
+  patientId: string;
+  patientName: string; // Denormalized for display
+  date: Date; // Start Date & Time
+  durationMinutes: number; // e.g., 30, 60
+  procedure: string; // e.g., "Avaliação", "Limpeza"
+  notes?: string;
+  status: AppointmentStatus;
 }

@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Plus, Search, ShoppingBag, BadgePercent, Package, X } from 'lucide-react';
@@ -10,11 +9,11 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     const { addToCart, currentUser } = useApp();
     const [quantity, setQuantity] = useState(1);
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
+    const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); // Text state
 
     // Price calculation logic
     const unitPrice = useMemo(() => {
         let price = product.basePrice;
-        // Check for custom dentist price
         const custom = currentUser?.customPrices?.find(p => p.jobTypeId === product.id);
         if (custom) price = custom.price;
 
@@ -30,7 +29,7 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
 
     const finalPrice = unitPrice * quantity;
 
-    // --- Conditional Logic (same as NewJob.tsx) ---
+    // --- Conditional Logic ---
     const disabledOptions = useMemo(() => {
         const disabled = new Set<string>();
         const allSelectedOptionIds = Object.values(selectedVariations).flat();
@@ -82,6 +81,20 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
         });
     };
 
+    const handleTextVariationChange = (group: VariationGroup, optionId: string, value: string) => {
+        setVariationTextValues(prev => ({ ...prev, [optionId]: value }));
+        setSelectedVariations(prev => {
+            const newSelections = { ...prev };
+            const current = (newSelections[group.id] as string[]) || [];
+            if (value.trim().length > 0) {
+                if (!current.includes(optionId)) newSelections[group.id] = [...current, optionId];
+            } else {
+                newSelections[group.id] = current.filter(id => id !== optionId);
+            }
+            return newSelections;
+        });
+    };
+
     const handleAddToCart = () => {
         const newItem: CartItem = {
             cartItemId: `cart_${Date.now()}`,
@@ -90,6 +103,7 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
             unitPrice,
             finalPrice,
             selectedVariationIds: Object.values(selectedVariations).flat() as string[],
+            variationValues: variationTextValues // Store text
         };
         addToCart(newItem);
         onClose();
@@ -108,11 +122,33 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
                         <div key={group.id} className="p-3 rounded-lg border bg-white border-slate-200">
                             <div className="flex justify-between items-center mb-2">
                                 <h4 className="font-bold text-sm text-slate-700">{group.name}</h4>
-                                <span className="text-xs font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-500">{group.selectionType === 'SINGLE' ? 'Seleção Única' : 'Múltipla Escolha'}</span>
+                                <span className="text-xs font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-500">
+                                    {group.selectionType === 'SINGLE' ? 'Seleção Única' : group.selectionType === 'MULTIPLE' ? 'Múltipla Escolha' : 'Texto Livre'}
+                                </span>
                             </div>
                             <div className="space-y-2">
                                 {group.options.map(option => {
                                     const isDisabled = disabledOptions.has(option.id);
+                                    
+                                    if (group.selectionType === 'TEXT') {
+                                        return (
+                                            <div key={option.id} className={`p-2 rounded bg-slate-50 border border-slate-200 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <div className="flex justify-between mb-1">
+                                                    <label className="text-xs font-bold text-slate-600">{option.name}</label>
+                                                    <span className="text-xs font-semibold">{option.priceModifier > 0 ? `+ R$ ${option.priceModifier.toFixed(2)}` : ''}</span>
+                                                </div>
+                                                <input 
+                                                    type="text"
+                                                    disabled={isDisabled}
+                                                    value={variationTextValues[option.id] || ''}
+                                                    onChange={e => handleTextVariationChange(group, option.id, e.target.value)}
+                                                    className="w-full p-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    placeholder="Digite aqui..."
+                                                />
+                                            </div>
+                                        )
+                                    }
+
                                     const isSelected = group.selectionType === 'SINGLE'
                                         ? selectedVariations[group.id] === option.id
                                         : (selectedVariations[group.id] as string[])?.includes(option.id);
@@ -133,6 +169,7 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
                         </div>
                     ))}
                 </div>
+                {/* ... (Footer logic remains) ... */}
                 <div className="p-4 bg-slate-50 border-t border-slate-200 mt-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <label className="text-sm font-bold">Qtd:</label>
@@ -153,8 +190,9 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     );
 };
 
-
+// ... (Catalog export remains) ...
 export const Catalog = () => {
+  // (No major changes needed in main Catalog view, logic handles everything)
   const { jobTypes, currentUser } = useApp();
   const [term, setTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');

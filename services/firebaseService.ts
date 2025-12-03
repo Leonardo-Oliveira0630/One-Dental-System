@@ -1,16 +1,16 @@
 
-
 import { 
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc,
-  onSnapshot, Timestamp, query, orderBy, arrayUnion 
+  onSnapshot, Timestamp, query, orderBy, arrayUnion, where
 } from 'firebase/firestore';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut 
 } from 'firebase/auth';
-import { db, auth } from './firebaseConfig';
-import { Job, User, JobType, Sector, UserRole, JobAlert } from '../types';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage } from './firebaseConfig';
+import { Job, User, JobType, Sector, UserRole, JobAlert, ClinicPatient, Appointment } from '../types';
 
 // --- HELPERS ---
 
@@ -53,6 +53,31 @@ const sanitizeData = (data: any): any => {
     return newObj;
   }
   return data;
+};
+
+// --- STORAGE ---
+
+export const uploadJobFile = async (file: File): Promise<string> => {
+  // Se o storage não estiver configurado (modo local/mock), retorna URL falsa
+  if (!storage) {
+    console.warn("Storage não configurado. Retornando URL simulada.");
+    return new Promise(resolve => setTimeout(() => resolve(`https://mock-storage.com/${file.name}`), 1000));
+  }
+
+  try {
+    // Cria uma referência: uploads/timestamp_nomearquivo
+    const storageRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
+    
+    // Faz o upload
+    const snapshot = await uploadBytes(storageRef, file);
+    
+    // Pega a URL pública
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  } catch (error) {
+    console.error("Erro no upload:", error);
+    throw new Error("Falha ao enviar arquivo.");
+  }
 };
 
 // --- AUTHENTICATION ---
@@ -123,6 +148,7 @@ export const subscribeJobs = (callback: (jobs: Job[]) => void) => {
         // Fallbacks de segurança para arrays
         items: data.items || [],
         history: data.history || [],
+        attachments: data.attachments || [],
       }
     }) as Job[];
     callback(jobs);
@@ -267,4 +293,54 @@ export const apiMarkAlertAsRead = async (alertId: string, userId: string) => {
   await updateDoc(docRef, {
     readBy: arrayUnion(userId)
   });
+};
+
+// --- CLINIC FEATURES ---
+
+export const subscribeClinicPatients = (dentistId: string, callback: (patients: ClinicPatient[]) => void) => {
+  if (!db) return () => {};
+  const q = query(collection(db, 'clinicPatients'), where('dentistId', '==', dentistId), orderBy('name', 'asc'));
+  return onSnapshot(q, (snapshot) => {
+    const patients = snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id })) as ClinicPatient[];
+    callback(patients);
+  });
+};
+
+export const apiAddPatient = async (patient: ClinicPatient) => {
+  if (!db) return;
+  await setDoc(doc(db, 'clinicPatients', patient.id), sanitizeData(patient));
+};
+
+export const apiUpdatePatient = async (id: string, updates: Partial<ClinicPatient>) => {
+  if (!db) return;
+  await updateDoc(doc(db, 'clinicPatients', id), sanitizeData(updates));
+};
+
+export const apiDeletePatient = async (id: string) => {
+  if (!db) return;
+  await deleteDoc(doc(db, 'clinicPatients', id));
+};
+
+export const subscribeAppointments = (dentistId: string, callback: (appts: Appointment[]) => void) => {
+  if (!db) return () => {};
+  const q = query(collection(db, 'appointments'), where('dentistId', '==', dentistId), orderBy('date', 'asc'));
+  return onSnapshot(q, (snapshot) => {
+    const appts = snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id })) as Appointment[];
+    callback(appts);
+  });
+};
+
+export const apiAddAppointment = async (appt: Appointment) => {
+  if (!db) return;
+  await setDoc(doc(db, 'appointments', appt.id), sanitizeData(appt));
+};
+
+export const apiUpdateAppointment = async (id: string, updates: Partial<Appointment>) => {
+  if (!db) return;
+  await updateDoc(doc(db, 'appointments', id), sanitizeData(updates));
+};
+
+export const apiDeleteAppointment = async (id: string) => {
+  if (!db) return;
+  await deleteDoc(doc(db, 'appointments', id));
 };

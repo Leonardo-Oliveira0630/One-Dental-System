@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
 import { ShieldCheck, Stethoscope, Lock, Mail, User, Building, Loader2 } from 'lucide-react';
 
 export const Login = () => {
-  const { login, register } = useApp();
+  const { login, register, currentUser, isLoadingAuth } = useApp();
   const navigate = useNavigate();
   
   // Mode: LOGIN vs REGISTER
@@ -22,6 +22,17 @@ export const Login = () => {
   const [clinicName, setClinicName] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.ADMIN); // Default role selection for UX
 
+  // --- AUTO-REDIRECT LOGIC (Fixes Double Login Issue) ---
+  useEffect(() => {
+    if (!isLoadingAuth && currentUser) {
+        if (currentUser.role === UserRole.CLIENT) {
+            navigate('/store');
+        } else {
+            navigate('/dashboard');
+        }
+    }
+  }, [currentUser, isLoadingAuth, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -34,19 +45,11 @@ export const Login = () => {
                 throw new Error("A senha deve ter pelo menos 6 caracteres.");
             }
             await register(email, password, name, role, role === UserRole.CLIENT ? clinicName : undefined);
-            // After register, it usually auto-logs in.
+            // After register, wait for useEffect to redirect
         } else {
             // Login Logic
             await login(email, password);
-        }
-
-        // Navigate based on role (if login/register successful)
-        // Note: currentUser might not be immediately updated here due to async listener,
-        // but navigation works because ProtectedRoute will check currentUser
-        if (role === UserRole.CLIENT) {
-            navigate('/store');
-        } else {
-            navigate('/dashboard');
+            // Wait for useEffect to redirect
         }
 
     } catch (err: any) {
@@ -60,8 +63,7 @@ export const Login = () => {
         } else {
             setError(err.message || "Erro ao autenticar. Tente novamente.");
         }
-    } finally {
-        setLoading(false);
+        setLoading(false); // Only stop loading on error. On success, keep loading until redirect.
     }
   };
 

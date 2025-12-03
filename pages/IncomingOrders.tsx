@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole } from '../types';
 import { BOX_COLORS } from '../services/mockData';
-import { Check, X, AlertOctagon, User, Clock, ArrowRight } from 'lucide-react';
+import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { STLViewer } from '../components/STLViewer';
 
 export const IncomingOrders = () => {
   const { jobs, updateJob, currentUser } = useApp();
@@ -22,10 +22,11 @@ export const IncomingOrders = () => {
   const [osInput, setOsInput] = useState('');
   const [boxNum, setBoxNum] = useState('');
   const [boxColorId, setBoxColorId] = useState(BOX_COLORS[0].id);
+  
+  // 3D Viewer State
+  const [viewing3DJob, setViewing3DJob] = useState<Job | null>(null);
 
   const handleOpenApprove = (job: Job) => {
-    // Generate suggested OS
-    // Find max OS to suggest next
     let maxId = 0;
     jobs.forEach(j => {
       const num = parseInt(j.osNumber?.split('-')[0] || '0');
@@ -72,8 +73,17 @@ export const IncomingOrders = () => {
       }
   };
 
+  const hasStl = (job: Job) => job.attachments?.some(a => a.name.toLowerCase().endsWith('.stl'));
+
   return (
     <div className="space-y-6">
+       {viewing3DJob && viewing3DJob.attachments && (
+           <STLViewer 
+                files={viewing3DJob.attachments} 
+                onClose={() => setViewing3DJob(null)} 
+           />
+       )}
+
        <div className="flex justify-between items-end">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Pedidos Web Recebidos</h1>
@@ -115,7 +125,7 @@ export const IncomingOrders = () => {
                                 <span className="font-medium">Dr(a). {job.dentistName}</span>
                             </div>
                             
-                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-3">
                                 <p className="text-xs font-bold text-slate-400 uppercase mb-1">Itens do Pedido</p>
                                 <ul className="text-sm text-slate-700 space-y-1">
                                     {job.items.map((i, idx) => (
@@ -131,6 +141,31 @@ export const IncomingOrders = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Attachments Section */}
+                            {job.attachments && job.attachments.length > 0 && (
+                                <div className="flex gap-2 flex-wrap items-center">
+                                    {job.attachments.map((file, idx) => (
+                                        <a 
+                                            key={idx} 
+                                            href={file.url} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
+                                        >
+                                            <File size={12} /> {file.name}
+                                        </a>
+                                    ))}
+                                    {hasStl(job) && (
+                                        <button 
+                                            onClick={() => setViewing3DJob(job)}
+                                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm ml-2"
+                                        >
+                                            <Box size={14} /> Visualizar 3D
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         
                         <div className="flex flex-col gap-3 w-full md:w-auto">

@@ -1,4 +1,5 @@
-import { Job, JobStatus, UrgencyLevel, User, UserRole, JobType, BoxColor, Sector, VariationOption } from "../types";
+
+import { Job, JobStatus, UrgencyLevel, User, UserRole, JobType, BoxColor, Sector, VariationOption, ClinicPatient, Appointment, AppointmentStatus } from "../types";
 
 export const BOX_COLORS: BoxColor[] = [
   { id: '1', name: 'Azul', hex: '#3b82f6' },
@@ -177,5 +178,62 @@ export const MOCK_JOBS: Job[] = [
     boxColor: BOX_COLORS[1],
     currentSector: 'Gesso',
     totalValue: 1200
+  }
+];
+
+// --- MOCK CLINIC DATA ---
+
+export const MOCK_PATIENTS: ClinicPatient[] = [
+  {
+    id: 'p1',
+    dentistId: 'u4',
+    name: 'Maria Oliveira',
+    phone: '(11) 99999-1234',
+    email: 'maria@email.com',
+    createdAt: new Date('2023-01-15')
+  },
+  {
+    id: 'p2',
+    dentistId: 'u4',
+    name: 'João Pedro',
+    phone: '(11) 98888-5678',
+    createdAt: new Date('2023-02-20')
+  }
+];
+
+const apptTime1 = new Date(); apptTime1.setHours(10, 0, 0, 0);
+const apptTime2 = new Date(); apptTime2.setHours(14, 30, 0, 0);
+const apptTime3 = new Date(tomorrow); apptTime3.setHours(9, 0, 0, 0);
+
+export const MOCK_APPOINTMENTS: Appointment[] = [
+  {
+    id: 'a1',
+    dentistId: 'u4',
+    patientId: 'p1',
+    patientName: 'Maria Oliveira',
+    date: apptTime1,
+    durationMinutes: 60,
+    procedure: 'Avaliação Inicial',
+    status: AppointmentStatus.COMPLETED
+  },
+  {
+    id: 'a2',
+    dentistId: 'u4',
+    patientId: 'p2',
+    patientName: 'João Pedro',
+    date: apptTime2,
+    durationMinutes: 30,
+    procedure: 'Retorno',
+    status: AppointmentStatus.SCHEDULED
+  },
+  {
+    id: 'a3',
+    dentistId: 'u4',
+    patientId: 'p1',
+    patientName: 'Maria Oliveira',
+    date: apptTime3,
+    durationMinutes: 90,
+    procedure: 'Preparo Coroa',
+    status: AppointmentStatus.SCHEDULED
   }
 ];

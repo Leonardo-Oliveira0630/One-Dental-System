@@ -5,7 +5,8 @@ import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, List, Calendar, ShoppingBag, 
   Settings, LogOut, Menu, UserCircle, ShoppingCart, 
-  Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield
+  Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
+  Contact, CalendarRange
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -50,21 +51,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isManager = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
 
-  // Lab Theme vs Store Theme
   const bgClass = isClient ? 'bg-store-900' : 'bg-lab-900';
   const logoColor = isClient ? 'text-store-600' : 'text-lab-600';
-
-  // Count VIP jobs for badge
   const vipCount = jobs.filter(j => j.urgency === 'VIP' && j.status !== 'COMPLETED').length;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
+  const handleLogout = () => { logout(); navigate('/'); };
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
-  // Helper to translate role
   const getRoleLabel = (role?: UserRole) => {
     switch (role) {
       case UserRole.ADMIN: return 'Administrador';
@@ -81,7 +74,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <PrintOverlay />
       <AlertPopup />
       
-      {/* Mobile Backdrop */}
       {isMobileMenuOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm transition-opacity"
@@ -89,7 +81,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
@@ -101,7 +92,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </div>
               <span className="text-lg font-bold tracking-tight">ONE DENTAL</span>
             </div>
-            {/* Close button for mobile */}
             <button onClick={closeMobileMenu} className="md:hidden text-white/70 hover:text-white">
               <X size={24} />
             </button>
@@ -111,18 +101,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             {!isClient && (
               <>
                 <SidebarItem onClick={closeMobileMenu} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
-                
                 {isManager && (
                    <SidebarItem onClick={closeMobileMenu} to="/promised" icon={<AlertOctagon size={20} className="text-orange-400"/>} label="Casos Prometidos" active={location.pathname === '/promised'} badge={vipCount} />
                 )}
-
                 <SidebarItem onClick={closeMobileMenu} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />
                 <SidebarItem onClick={closeMobileMenu} to="/jobs" icon={<List size={20} />} label="Todos os Trabalhos" active={location.pathname === '/jobs'} />
                 <SidebarItem onClick={closeMobileMenu} to="/calendar" icon={<Calendar size={20} />} label="Produção" active={location.pathname === '/calendar'} />
-                
-                {/* Visible to all lab staff */}
                 <SidebarItem onClick={closeMobileMenu} to="/job-types" icon={<Layers size={20} />} label="Catálogo de Serviços" active={location.pathname === '/job-types'} />
-
                 {isManager && (
                    <SidebarItem onClick={closeMobileMenu} to="/incoming" icon={<Inbox size={20} />} label="Pedidos Web" active={location.pathname === '/incoming'} />
                 )}
@@ -131,6 +116,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
             {isClient && (
               <>
+                <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
+                <SidebarItem onClick={closeMobileMenu} to="/clinic/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/clinic/schedule'} />
+                <SidebarItem onClick={closeMobileMenu} to="/clinic/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/clinic/patients'} />
+                
+                <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Loja & Laboratório</div>
                 <SidebarItem onClick={closeMobileMenu} to="/store" icon={<ShoppingBag size={20} />} label="Catálogo" active={location.pathname === '/store'} />
                 <SidebarItem onClick={closeMobileMenu} to="/my-orders" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/my-orders'} />
                 <SidebarItem onClick={closeMobileMenu} to="/cart" icon={
@@ -148,7 +138,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
             <div className="pt-8 mt-8 border-t border-white/10">
               <SidebarItem onClick={closeMobileMenu} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-              
               {!isClient && (
                 <SidebarItem onClick={closeMobileMenu} to="/admin" icon={<Users size={20} />} label="Admin & Equipe" active={location.pathname === '/admin'} />
               )}
@@ -156,7 +145,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </nav>
 
           <div className="mt-auto pt-4">
-            {/* User Info Card */}
             <div className="bg-white/10 rounded-xl p-3 mb-3 flex items-center gap-3">
                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
                   {currentUser?.name.charAt(0)}
@@ -168,7 +156,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   </div>
                </div>
             </div>
-
             <button 
               onClick={handleLogout}
               className="flex items-center gap-3 w-full px-4 py-3 text-red-300 hover:bg-white/5 hover:text-red-200 rounded-xl transition-colors"
@@ -180,9 +167,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
-        {/* Mobile Header */}
         <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-2">
              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
@@ -192,7 +177,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <Menu size={24} />
           </button>
         </header>
-
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full print:p-0 flex-1">
           {children}
         </div>

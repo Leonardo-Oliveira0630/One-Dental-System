@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -30,7 +31,8 @@ export const NewJob = () => {
   // --- Item Builder State ---
   const [selectedTypeId, setSelectedTypeId] = useState(jobTypes[0]?.id || '');
   const [quantity, setQuantity] = useState(1);
-  const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); // { [groupId]: optionId | optionId[] }
+  const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); 
+  const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); // New: Store text inputs
   const [commissionDisabled, setCommissionDisabled] = useState(false);
 
   const dentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
@@ -65,6 +67,7 @@ export const NewJob = () => {
 
     let changesMade = false;
     const newSelections = JSON.parse(JSON.stringify(selectedVariations)); 
+    const newTextValues = { ...variationTextValues };
 
     for (const groupId in newSelections) {
       const selection = newSelections[groupId];
@@ -81,11 +84,20 @@ export const NewJob = () => {
         }
       }
     }
+    
+    // Also clear text values if option is disabled
+    Object.keys(newTextValues).forEach(optId => {
+        if (disabledOptions.has(optId)) {
+            delete newTextValues[optId];
+            changesMade = true;
+        }
+    });
 
     if (changesMade) {
       setSelectedVariations(newSelections);
+      setVariationTextValues(newTextValues);
     }
-  }, [disabledOptions, selectedVariations]);
+  }, [disabledOptions, selectedVariations, variationTextValues]);
 
   const generateNextNewOs = () => {
     let maxId = 0;
@@ -147,6 +159,7 @@ export const NewJob = () => {
     }
   };
 
+  // Logic for standard variations (Single/Multiple)
   const handleVariationChange = (group: VariationGroup, optionId: string) => {
     setSelectedVariations(prev => {
       const newSelections = { ...prev };
@@ -167,9 +180,30 @@ export const NewJob = () => {
       return newSelections;
     });
   };
+
+  // Logic for TEXT inputs
+  const handleTextVariationChange = (group: VariationGroup, optionId: string, value: string) => {
+      setVariationTextValues(prev => ({ ...prev, [optionId]: value }));
+      
+      // Auto-select the option if text is present, deselect if empty
+      setSelectedVariations(prev => {
+          const newSelections = { ...prev };
+          const current = (newSelections[group.id] as string[]) || [];
+          
+          if (value.trim().length > 0) {
+              if (!current.includes(optionId)) {
+                  newSelections[group.id] = [...current, optionId];
+              }
+          } else {
+              newSelections[group.id] = current.filter(id => id !== optionId);
+          }
+          return newSelections;
+      });
+  };
   
   useEffect(() => {
     setSelectedVariations({});
+    setVariationTextValues({});
   }, [selectedTypeId]);
 
   const handleAddItem = () => {
@@ -194,12 +228,14 @@ export const NewJob = () => {
       quantity: quantity,
       price: unitPrice,
       selectedVariationIds: allSelectedOptionIds,
+      variationValues: variationTextValues, // Pass text values
       commissionDisabled: commissionDisabled
     };
 
     setAddedItems([...addedItems, newItem]);
     setQuantity(1);
     setSelectedVariations({});
+    setVariationTextValues({});
     setCommissionDisabled(false);
   };
 
@@ -357,12 +393,34 @@ export const NewJob = () => {
                                             <div className="flex justify-between items-center mb-2">
                                                 <h4 className="font-bold text-sm text-slate-700">{group.name}</h4>
                                                 <span className="text-xs font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-500">
-                                                    {group.selectionType === 'SINGLE' ? 'Seleção Única' : 'Múltipla Escolha'}
+                                                    {group.selectionType === 'SINGLE' ? 'Seleção Única' : group.selectionType === 'MULTIPLE' ? 'Múltipla Escolha' : 'Texto Livre'}
                                                 </span>
                                             </div>
                                             <div className="space-y-2">
                                                 {group.options.map(option => {
                                                     const isOptionDisabled = disabledOptions.has(option.id);
+                                                    
+                                                    // TEXT INPUT RENDER
+                                                    if (group.selectionType === 'TEXT') {
+                                                        return (
+                                                            <div key={option.id} className={`p-2 rounded bg-slate-50 border border-slate-200 ${isOptionDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                                <div className="flex justify-between mb-1">
+                                                                    <label className="text-xs font-bold text-slate-600">{option.name}</label>
+                                                                    <span className="text-xs font-semibold">{option.priceModifier > 0 ? `+ R$ ${option.priceModifier.toFixed(2)}` : ''}</span>
+                                                                </div>
+                                                                <input 
+                                                                    type="text"
+                                                                    disabled={isOptionDisabled}
+                                                                    value={variationTextValues[option.id] || ''}
+                                                                    onChange={e => handleTextVariationChange(group, option.id, e.target.value)}
+                                                                    className="w-full p-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                                                                    placeholder="Digite aqui..."
+                                                                />
+                                                            </div>
+                                                        )
+                                                    }
+
+                                                    // STANDARD RENDER (Checkbox/Radio)
                                                     const isSelected = group.selectionType === 'SINGLE' 
                                                         ? selectedVariations[group.id] === option.id
                                                         : (selectedVariations[group.id] as string[])?.includes(option.id);
@@ -416,7 +474,15 @@ export const NewJob = () => {
                           <div key={item.id} className="flex justify-between items-center p-3 border-b border-slate-100">
                             <div>
                               <p className="font-bold text-slate-800">{item.quantity}x {item.name}</p>
-                              <p className="text-xs text-slate-500">{item.selectedVariationIds?.length || 0} variações</p>
+                              <div className="text-xs text-slate-500">
+                                  {item.selectedVariationIds?.length || 0} variações selecionadas
+                                  {/* Show Text Values in summary */}
+                                  {item.variationValues && Object.keys(item.variationValues).length > 0 && (
+                                      <span className="ml-2 text-blue-600 font-medium">
+                                          ({Object.values(item.variationValues).join(', ')})
+                                      </span>
+                                  )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="font-bold">R$ {(item.price * item.quantity).toFixed(2)}</span>

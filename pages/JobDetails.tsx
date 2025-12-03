@@ -7,30 +7,28 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, Truck
+  LogIn, LogOut, Flag, CheckSquare, File, Download
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
+import { STLViewer } from '../components/STLViewer';
 
 export const JobDetails = () => {
   const { id } = useParams();
   const { jobs, updateJob, triggerPrint, currentUser, jobTypes } = useApp();
+  // ... (rest of state logic same as previous)
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION'>('SUMMARY');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [show3DViewer, setShow3DViewer] = useState(false);
 
   const job = jobs.find(j => j.id === id);
-
-  // Permissão: Admin ou Gestor pode criar alertas e editar
   const canManage = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
 
-  // --- EDIT STATE ---
   const [editDueDate, setEditDueDate] = useState('');
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
   const [editItems, setEditItems] = useState<JobItem[]>([]);
-  
-  // Add Item inside Edit
   const [newItemTypeId, setNewItemTypeId] = useState('');
   const [newItemQty, setNewItemQty] = useState(1);
 
@@ -55,21 +53,18 @@ export const JobDetails = () => {
     );
   }
 
-  // --- HANDLERS ---
-
+  // ... (handlers same as previous) ...
   const handleAddItemToJob = () => {
       const type = jobTypes.find(t => t.id === newItemTypeId);
       if (!type) return;
-
       const newItem: JobItem = {
           id: Math.random().toString(),
           jobTypeId: type.id,
           name: type.name,
           quantity: newItemQty,
-          price: type.basePrice, // Basic price logic for editing
+          price: type.basePrice,
           selectedVariationIds: []
       };
-
       setEditItems([...editItems, newItem]);
   };
 
@@ -79,8 +74,6 @@ export const JobDetails = () => {
 
   const handleSaveChanges = () => {
       const newTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
-      
-      // Adjust date to prevent timezone shift
       const dateParts = editDueDate.split('-');
       const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
 
@@ -101,7 +94,6 @@ export const JobDetails = () => {
       setShowEditModal(false);
   };
 
-  // Helper for status colors
   const getStatusColor = (status: JobStatus) => {
     switch(status) {
         case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border-green-200';
@@ -111,7 +103,6 @@ export const JobDetails = () => {
     }
   };
 
-  // Helper for Timeline Icons
   const getTimelineIcon = (action: string) => {
       const lower = action.toLowerCase();
       if (lower.includes('entrada')) return <LogIn size={16} className="text-blue-600" />;
@@ -122,20 +113,21 @@ export const JobDetails = () => {
       return <Clock size={16} className="text-slate-500" />;
   };
 
-  // Sort history: Newest first for list
   const sortedHistory = [...job.history].sort((a, b) => 
     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
+  const hasStl = job.attachments?.some(a => a.name.toLowerCase().endsWith('.stl'));
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* Alert Creation Modal */}
-      {showAlertModal && (
-          <CreateAlertModal job={job} onClose={() => setShowAlertModal(false)} />
+      {show3DViewer && job.attachments && (
+          <STLViewer files={job.attachments} onClose={() => setShow3DViewer(false)} />
       )}
 
-      {/* EDIT MODAL */}
+      {showAlertModal && <CreateAlertModal job={job} onClose={() => setShowAlertModal(false)} />}
+      
       {showEditModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in duration-200">
@@ -147,7 +139,6 @@ export const JobDetails = () => {
                           <X size={24} />
                       </button>
                   </div>
-
                   <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
@@ -173,13 +164,10 @@ export const JobDetails = () => {
                               </select>
                           </div>
                       </div>
-
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                           <h4 className="font-bold text-slate-700 mb-3 flex items-center gap-2">
                               <Layers size={18} /> Itens e Serviços
                           </h4>
-                          
-                          {/* List Existing */}
                           <div className="space-y-2 mb-4">
                               {editItems.map((item, idx) => (
                                   <div key={idx} className="flex justify-between items-center bg-white p-3 rounded border border-slate-200">
@@ -193,8 +181,6 @@ export const JobDetails = () => {
                                   </div>
                               ))}
                           </div>
-
-                          {/* Add New */}
                           <div className="flex gap-2 items-end border-t border-slate-200 pt-3">
                               <div className="flex-1">
                                   <label className="text-xs font-bold text-slate-500 mb-1 block">Adicionar Serviço</label>
@@ -224,7 +210,6 @@ export const JobDetails = () => {
                               </button>
                           </div>
                       </div>
-
                       <div>
                           <label className="block text-sm font-bold text-slate-700 mb-1">Observações</label>
                           <textarea 
@@ -234,7 +219,6 @@ export const JobDetails = () => {
                               rows={3}
                           />
                       </div>
-
                       <div className="flex gap-3 pt-4">
                           <button 
                               onClick={() => setShowEditModal(false)}
@@ -254,106 +238,47 @@ export const JobDetails = () => {
           </div>
       )}
 
-      {/* Header Navigation */}
-      <button 
-        onClick={() => navigate('/jobs')} 
-        className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors"
-      >
+      {/* Main Layout (Same header as before) */}
+      <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors">
         <ArrowLeft size={20} /> Voltar para Lista
       </button>
 
-      {/* Main Header Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8 relative overflow-hidden">
          <div className={`absolute top-0 left-0 w-2 h-full ${job.urgency === UrgencyLevel.VIP ? 'bg-orange-500' : 'bg-blue-600'}`} />
-         
          <div className="flex flex-col md:flex-row justify-between items-start gap-6">
             <div className="w-full">
                 <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <span className="font-mono font-bold text-3xl text-slate-900 tracking-tight">
-                        OS #{job.osNumber || '---'}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(job.status)}`}>
-                        {job.status}
-                    </span>
-                    {job.urgency === UrgencyLevel.VIP && (
-                        <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">
-                            <AlertTriangle size={12} /> VIP / URGENTE
-                        </span>
-                    )}
+                    <span className="font-mono font-bold text-3xl text-slate-900 tracking-tight">OS #{job.osNumber || '---'}</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(job.status)}`}>{job.status}</span>
+                    {job.urgency === UrgencyLevel.VIP && <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200"><AlertTriangle size={12} /> VIP / URGENTE</span>}
                 </div>
                 <h1 className="text-2xl font-bold text-slate-800">{job.patientName}</h1>
-                <div className="flex items-center gap-2 text-slate-500 mt-1">
-                    <User size={16} /> Dr(a). {job.dentistName}
-                </div>
+                <div className="flex items-center gap-2 text-slate-500 mt-1"><User size={16} /> Dr(a). {job.dentistName}</div>
             </div>
-
             <div className="flex flex-col md:items-end gap-3 w-full md:w-auto mt-4 md:mt-0">
                 <div className="md:text-right flex items-center md:flex-col gap-2 md:gap-0">
                     <p className="text-xs text-slate-400 uppercase font-bold">Data de Entrega:</p>
-                    <div className="flex items-center justify-end gap-2 text-lg font-bold text-slate-800">
-                        <Calendar size={18} className="text-blue-600" />
-                        {new Date(job.dueDate).toLocaleDateString()}
-                    </div>
+                    <div className="flex items-center justify-end gap-2 text-lg font-bold text-slate-800"><Calendar size={18} className="text-blue-600" /> {new Date(job.dueDate).toLocaleDateString()}</div>
                 </div>
-                
                 <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                    {/* Create Alarm Button (Admin & Managers) */}
                     {canManage && (
                         <>
-                            <button 
-                                onClick={() => setShowAlertModal(true)}
-                                title="Agendar um alerta de urgência para a equipe"
-                                className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 font-bold flex items-center gap-2 text-sm transition-colors"
-                            >
-                                <Bell size={16} /> Alerta
-                            </button>
-                            <button 
-                                onClick={() => setShowEditModal(true)}
-                                title="Editar dados do trabalho, datas e itens"
-                                className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 font-bold flex items-center gap-2 text-sm transition-colors"
-                            >
-                                <Edit size={16} /> Editar
-                            </button>
+                            <button onClick={() => setShowAlertModal(true)} className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 font-bold flex items-center gap-2 text-sm transition-colors"><Bell size={16} /> Alerta</button>
+                            <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 font-bold flex items-center gap-2 text-sm transition-colors"><Edit size={16} /> Editar</button>
                         </>
                     )}
-
                     <div className="flex gap-2">
-                        <button 
-                            onClick={() => triggerPrint(job, 'SHEET')}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium flex items-center gap-2 text-sm"
-                        >
-                            <Printer size={16} /> Ficha
-                        </button>
-                        <button 
-                             onClick={() => triggerPrint(job, 'LABEL')}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium flex items-center gap-2 text-sm"
-                        >
-                            <Printer size={16} /> Etiqueta
-                        </button>
+                        <button onClick={() => triggerPrint(job, 'SHEET')} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium flex items-center gap-2 text-sm"><Printer size={16} /> Ficha</button>
+                        <button onClick={() => triggerPrint(job, 'LABEL')} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-medium flex items-center gap-2 text-sm"><Printer size={16} /> Etiqueta</button>
                     </div>
                 </div>
             </div>
          </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex border-b border-slate-200">
-         <button
-            onClick={() => setActiveTab('SUMMARY')}
-            className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${
-                activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'
-            }`}
-         >
-            <FileText size={18} /> Resumo do Pedido
-         </button>
-         <button
-            onClick={() => setActiveTab('PRODUCTION')}
-            className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${
-                activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'
-            }`}
-         >
-            <ListChecks size={18} /> Produção & Rastreio
-         </button>
+         <button onClick={() => setActiveTab('SUMMARY')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><FileText size={18} /> Resumo do Pedido</button>
+         <button onClick={() => setActiveTab('PRODUCTION')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><ListChecks size={18} /> Produção & Rastreio</button>
       </div>
 
       {activeTab === 'SUMMARY' && (
@@ -361,38 +286,24 @@ export const JobDetails = () => {
             {/* Logistics Box */}
             <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-                        <Box size={24} />
-                    </div>
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><Box size={24} /></div>
                     <div>
                         <p className="text-xs text-slate-400 uppercase font-bold">Caixa Física</p>
                         <div className="flex items-center gap-2">
                             <span className="font-bold text-xl text-slate-800">{job.boxNumber || '-'}</span>
-                            {job.boxColor && (
-                                <div 
-                                    className="w-4 h-4 rounded-full shadow-sm border border-black/10" 
-                                    style={{ backgroundColor: job.boxColor.hex }} 
-                                    title={job.boxColor.name}
-                                />
-                            )}
+                            {job.boxColor && <div className="w-4 h-4 rounded-full shadow-sm border border-black/10" style={{ backgroundColor: job.boxColor.hex }} title={job.boxColor.name} />}
                         </div>
                     </div>
                 </div>
-
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-                        <MapPin size={24} />
-                    </div>
+                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><MapPin size={24} /></div>
                     <div>
                         <p className="text-xs text-slate-400 uppercase font-bold">Local Atual</p>
                         <p className="font-bold text-lg text-slate-800">{job.currentSector || 'Recepção'}</p>
                     </div>
                 </div>
-
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                    <div className="p-3 bg-green-50 text-green-600 rounded-xl">
-                        <DollarSign size={24} />
-                    </div>
+                    <div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign size={24} /></div>
                     <div>
                         <p className="text-xs text-slate-400 uppercase font-bold">Valor Total</p>
                         <p className="font-bold text-lg text-slate-800">R$ {job.totalValue.toFixed(2)}</p>
@@ -400,7 +311,46 @@ export const JobDetails = () => {
                 </div>
             </div>
 
-            {/* Items List */}
+            {/* Attachments Section */}
+            {job.attachments && job.attachments.length > 0 && (
+                <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <FileText size={20} className="text-blue-500" /> Arquivos do Caso
+                        </h3>
+                        {hasStl && (
+                            <button 
+                                onClick={() => setShow3DViewer(true)}
+                                className="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow-md flex items-center gap-2"
+                            >
+                                <Box size={16} /> Abrir Viewer 3D
+                            </button>
+                        )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {job.attachments.map((file, idx) => (
+                            <a 
+                                key={idx} 
+                                href={file.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center p-3 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors group"
+                            >
+                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg mr-3 group-hover:bg-blue-100">
+                                    <File size={20} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-sm text-slate-700 truncate">{file.name}</p>
+                                    <p className="text-xs text-slate-400">{new Date(file.uploadedAt).toLocaleDateString()}</p>
+                                </div>
+                                <Download size={16} className="text-slate-400 group-hover:text-blue-600" />
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Items List - UPDATED TO SHOW TEXT VALUES */}
             <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <div className="p-6 border-b border-slate-100">
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -416,16 +366,13 @@ export const JobDetails = () => {
                                     {item.name}
                                 </div>
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
-                                    {item.selectedVariationIds && item.selectedVariationIds.length > 0 && (
-                                        <p className="text-sm text-slate-500">
-                                            Obs: Contém variações/adicionais
+                                    {item.selectedVariationIds && item.selectedVariationIds.length > 0 && <p className="text-sm text-slate-500">Obs: Contém variações/adicionais</p>}
+                                    {item.variationValues && Object.keys(item.variationValues).length > 0 && (
+                                        <p className="text-sm text-blue-600 font-medium">
+                                            {Object.values(item.variationValues).join(', ')}
                                         </p>
                                     )}
-                                    {item.commissionDisabled && (
-                                        <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-bold border border-gray-300 w-fit">
-                                            Sem Comissão
-                                        </span>
-                                    )}
+                                    {item.commissionDisabled && <span className="text-[10px] bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-bold border border-gray-300 w-fit">Sem Comissão</span>}
                                 </div>
                             </div>
                             <div className="text-left sm:text-right w-full sm:w-auto flex justify-between sm:block">
@@ -445,7 +392,7 @@ export const JobDetails = () => {
         </div>
       )}
 
-      {/* NEW TIMELINE DESIGN */}
+      {/* TIMELINE TAB (Same as before) */}
       {activeTab === 'PRODUCTION' && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 animate-in fade-in slide-in-from-right-2 duration-300">
             <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -456,50 +403,28 @@ export const JobDetails = () => {
             
             <div className="p-6 md:p-8">
                 <div className="relative">
-                    {/* Vertical Line Container */}
                     <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-slate-200 md:left-1/2 md:-ml-0.5"></div>
-
                     <div className="space-y-8">
                         {sortedHistory.map((event, index) => {
                              const isLeft = index % 2 === 0;
                              return (
                                 <div key={event.id} className={`relative flex flex-col md:flex-row gap-8 ${isLeft ? 'md:flex-row-reverse' : ''}`}>
-                                    
-                                    {/* Spacer for alternating layout on desktop */}
                                     <div className="hidden md:block flex-1"></div>
-
-                                    {/* Timeline Dot & Icon */}
                                     <div className="absolute left-0 md:left-1/2 md:-ml-4 flex items-center justify-center w-8 h-8 rounded-full bg-white border-4 border-slate-100 shadow-sm z-10">
                                         <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                                     </div>
-
-                                    {/* Content Card */}
                                     <div className="flex-1 ml-10 md:ml-0">
                                         <div className={`bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative hover:shadow-md transition-shadow group ${isLeft ? 'md:text-right' : 'md:text-left'}`}>
-                                            {/* Arrow visual */}
                                             <div className={`hidden md:block absolute top-4 w-3 h-3 bg-white border-b border-r border-slate-100 transform rotate-45 ${isLeft ? '-left-1.5 border-l border-t-0' : '-right-1.5 border-r border-b-0'}`}></div>
-                                            
                                             <div className={`flex items-center gap-2 mb-2 ${isLeft ? 'md:flex-row-reverse' : ''}`}>
-                                                <div className="p-1.5 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                                                    {getTimelineIcon(event.action)}
-                                                </div>
-                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                                    {new Date(event.timestamp).toLocaleDateString()} • {new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                                </span>
+                                                <div className="p-1.5 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">{getTimelineIcon(event.action)}</div>
+                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{new Date(event.timestamp).toLocaleDateString()} • {new Date(event.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                             </div>
-
                                             <h4 className="font-bold text-slate-800 text-lg mb-1">{event.action}</h4>
-                                            
                                             <div className={`flex flex-col gap-1 ${isLeft ? 'md:items-end' : 'md:items-start'}`}>
-                                                {event.sector && (
-                                                    <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-bold rounded">
-                                                        Setor: {event.sector}
-                                                    </span>
-                                                )}
+                                                {event.sector && <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-bold rounded">Setor: {event.sector}</span>}
                                                 <div className={`flex items-center gap-2 text-sm text-slate-500 mt-1 ${isLeft ? 'md:flex-row-reverse' : ''}`}>
-                                                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                                                        {event.userName.charAt(0)}
-                                                    </div>
+                                                    <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">{event.userName.charAt(0)}</div>
                                                     <span>{event.userName}</span>
                                                 </div>
                                             </div>
@@ -513,8 +438,6 @@ export const JobDetails = () => {
             </div>
         </div>
       )}
-
     </div>
   );
 };
-    
