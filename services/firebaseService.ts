@@ -1,6 +1,5 @@
-
 import { 
-  collection, doc, setDoc, updateDoc, deleteDoc, getDoc,
+  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs,
   onSnapshot, Timestamp, query, orderBy, arrayUnion, where
 } from 'firebase/firestore';
 import { 
@@ -48,7 +47,7 @@ export const apiRegisterUserInOrg = async (email: string, pass: string, name: st
     return newUser;
 };
 
-// NEW: Independent Dentist Registration
+// Independent Dentist Registration
 export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string): Promise<User> => {
     if (!auth || !db) throw new Error("Firebase not configured");
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
@@ -92,7 +91,8 @@ export const apiAddConnectionByCode = async (dentistId: string, orgCode: string)
 
     // 2. Check if connection already exists
     const existingQuery = query(collection(db, 'connections'), where('dentistId', '==', dentistId), where('organizationId', '==', orgCode));
-    const existingSnap = await getDoc(existingQuery);
+    // FIX: Using getDocs for query instead of getDoc
+    const existingSnap = await getDocs(existingQuery);
     if (!existingSnap.empty) {
         throw new Error("Você já tem parceria com este laboratório.");
     }
@@ -103,7 +103,7 @@ export const apiAddConnectionByCode = async (dentistId: string, orgCode: string)
         id: connectionId,
         dentistId,
         organizationId: orgCode,
-        organizationName: orgData.name, // Denormalize name for easy display
+        organizationName: orgData.name,
         status: 'active',
         createdAt: new Date()
     };
