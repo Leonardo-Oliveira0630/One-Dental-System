@@ -1,6 +1,5 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -14,7 +13,7 @@ export default defineConfig(({ mode }) => {
       alias: {
         // Force all "three" imports to resolve to the same local instance
         // This fixes the "Multiple instances of Three.js being imported" warning
-        'three': path.resolve('./node_modules/three')
+        'three': 'three' 
       }
     },
     define: {

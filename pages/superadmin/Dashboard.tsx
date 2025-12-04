@@ -1,48 +1,77 @@
 
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { Building, Users, CreditCard } from 'lucide-react';
+import { Building, Crown, Users } from 'lucide-react';
 
 export const SuperAdminDashboard = () => {
     const { allOrganizations, allPlans, allUsers } = useApp();
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-slate-900">Painel de Controle SaaS</h1>
-
+        <div className="space-y-8">
+            <h1 className="text-3xl font-bold text-slate-900">Painel Super Admin</h1>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <Building size={24} className="text-blue-500 mb-2" />
-                    <h3 className="text-3xl font-bold">{allOrganizations.length}</h3>
-                    <p className="text-slate-500">Laboratórios Ativos</p>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-sm font-bold text-slate-500 uppercase">Laboratórios</p>
+                            <h3 className="text-3xl font-bold text-slate-800">{allOrganizations.length}</h3>
+                        </div>
+                        <div className="p-3 bg-blue-100 text-blue-600 rounded-xl">
+                            <Building size={24} />
+                        </div>
+                    </div>
                 </div>
+                
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <Users size={24} className="text-green-500 mb-2" />
-                    <h3 className="text-3xl font-bold">{allUsers.length}</h3>
-                    <p className="text-slate-500">Usuários Totais</p>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-sm font-bold text-slate-500 uppercase">Planos Ativos</p>
+                            <h3 className="text-3xl font-bold text-slate-800">{allPlans.length}</h3>
+                        </div>
+                        <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
+                            <Crown size={24} />
+                        </div>
+                    </div>
                 </div>
+
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <CreditCard size={24} className="text-purple-500 mb-2" />
-                    <h3 className="text-3xl font-bold">{allPlans.length}</h3>
-                    <p className="text-slate-500">Planos de Assinatura</p>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-sm font-bold text-slate-500 uppercase">Usuários Totais</p>
+                            <h3 className="text-3xl font-bold text-slate-800">{allUsers.length}</h3>
+                        </div>
+                        <div className="p-3 bg-green-100 text-green-600 rounded-xl">
+                            <Users size={24} />
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-                <h2 className="p-4 font-bold border-b border-slate-100">Organizações</h2>
-                <div className="divide-y divide-slate-100">
-                    {allOrganizations.map(org => (
-                        <div key={org.id} className="p-4 flex justify-between items-center">
-                            <div>
-                                <p className="font-bold">{org.name}</p>
-                                <p className="text-xs text-slate-500">{org.id}</p>
-                            </div>
-                            <span className="text-xs font-bold bg-slate-100 px-2 py-1 rounded-full">
-                                Plano: {allPlans.find(p => p.id === org.planId)?.name || 'N/A'}
-                            </span>
-                        </div>
-                    ))}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-6 border-b border-slate-100">
+                    <h3 className="text-lg font-bold text-slate-800">Organizações Recentes</h3>
                 </div>
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase">
+                            <th className="p-4">ID</th>
+                            <th className="p-4">Nome</th>
+                            <th className="p-4">Plano</th>
+                            <th className="p-4">Criado em</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {allOrganizations.map(org => (
+                            <tr key={org.id}>
+                                <td className="p-4 font-mono text-xs">{org.id}</td>
+                                <td className="p-4 font-bold">{org.name}</td>
+                                <td className="p-4"><span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold uppercase">{org.planId}</span></td>
+                                <td className="p-4 text-sm text-slate-500">{new Date(org.createdAt).toLocaleDateString()}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

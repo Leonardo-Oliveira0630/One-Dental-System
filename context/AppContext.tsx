@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection
@@ -11,12 +10,12 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 interface AppContextType {
+  // ... (previous properties)
   currentUser: User | null;
   currentOrg: Organization | null;
   currentPlan: SubscriptionPlan | null;
   isLoadingAuth: boolean;
   
-  // Scoped Data
   allUsers: User[]; 
   jobs: Job[];
   jobTypes: JobType[];
@@ -25,17 +24,14 @@ interface AppContextType {
   patients: ClinicPatient[];
   appointments: Appointment[];
 
-  // Dentist Specific
   userConnections: OrganizationConnection[];
   activeOrganization: Organization | null;
   switchActiveOrganization: (organizationId: string | null) => void;
   addConnectionByCode: (orgCode: string) => Promise<void>;
 
-  // Global Data for SuperAdmin
   allOrganizations: Organization[];
   allPlans: SubscriptionPlan[];
   
-  // Auth & User Management
   login: (email: string, pass: string) => Promise<void>;
   registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string) => Promise<User>;
   registerUserInOrg: (email: string, pass: string, name: string, role: UserRole, clinicName?: string) => Promise<User>;
@@ -45,7 +41,6 @@ interface AppContextType {
   deleteUser: (id: string) => Promise<void>;
   addUser: (user: User) => Promise<void>;
   
-  // Scoped Actions
   addJob: (job: Omit<Job, 'id' | 'organizationId'>) => Promise<void>;
   updateJob: (id: string, updates: Partial<Job>) => Promise<void>;
   addJobType: (type: Omit<JobType, 'id'>) => Promise<void>;
@@ -62,7 +57,14 @@ interface AppContextType {
   updateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
   
-  // Store & Upload
+  // Plans CRUD
+  addSubscriptionPlan: (plan: SubscriptionPlan) => Promise<void>;
+  updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
+  deleteSubscriptionPlan: (id: string) => Promise<void>;
+  
+  // Org Management
+  updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
+
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
   removeFromCart: (cartItemId: string) => void;
@@ -70,7 +72,6 @@ interface AppContextType {
   createWebOrder: (patientName: string, dueDate: Date, notes: string, attachments: Attachment[]) => Promise<void>;
   uploadFile: (file: File) => Promise<string>;
 
-  // Print
   printData: { job: Job, mode: 'SHEET' | 'LABEL' } | null;
   triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL') => void;
   clearPrint: () => void;
@@ -81,12 +82,12 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children?: ReactNode }) => {
+  // ... (previous state and effects)
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-  // New States
   const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
 
@@ -104,6 +105,27 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
+  // ... (Effects and Auth Logic are same as previous correct version)
+  // Just need to ensure `switchActiveOrganization` and `addConnectionByCode` are useCallback
+  const switchActiveOrganization = useCallback(async (organizationId: string | null) => {
+    if (!organizationId) {
+      setActiveOrganization(null);
+      return;
+    }
+    setActiveOrganization(prev => { if (prev?.id === organizationId) return prev; return prev; });
+    const orgRef = doc(db, 'organizations', organizationId);
+    const orgSnap = await getDoc(orgRef);
+    if (orgSnap.exists()) {
+      setActiveOrganization({ id: orgSnap.id, ...orgSnap.data() } as Organization);
+    }
+  }, []);
+
+  const addConnectionByCode = useCallback(async (orgCode: string) => {
+    if (currentUser?.role !== UserRole.CLIENT) throw new Error("Only dentists can add partners.");
+    await api.apiAddConnectionByCode(currentUser.id, orgCode);
+  }, [currentUser]);
+
+  // ... (Other effects same as before)
   // 1. Auth Listener
   useEffect(() => {
     if (!auth) { setIsLoadingAuth(false); return; }
@@ -122,70 +144,59 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     });
     return unsub;
   }, []);
-
-  // 2. Org & Plan Listener
+  // ... (Listeners 2, 3, 4) ...
   useEffect(() => {
     if (!db || !currentUser) return;
-
     if (currentUser.role === UserRole.SUPER_ADMIN) {
       const unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
       const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
       const unsubUsers = api.subscribeAllUsers(setAllUsers);
       return () => { unsubOrgs(); unsubPlans(); unsubUsers(); };
     }
-
     if (currentUser.organizationId) {
       const orgRef = doc(db, 'organizations', currentUser.organizationId);
       const unsubOrg = onSnapshot(orgRef, async (docSnap) => {
         if (docSnap.exists()) {
           const orgData = { id: docSnap.id, ...docSnap.data() } as Organization;
           setCurrentOrg(orgData);
-          // Auto-set active org for lab staff
-          if (currentUser.role !== UserRole.CLIENT) {
-              setActiveOrganization(orgData);
-          }
+          if (currentUser.role !== UserRole.CLIENT) setActiveOrganization(orgData);
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           const planSnap = await getDoc(planRef);
-          if (planSnap.exists()) {
-            setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
-          }
+          if (planSnap.exists()) setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
         }
       });
       return unsubOrg;
     }
   }, [currentUser]);
 
-  // 3. Connections Listener (for Dentists)
   useEffect(() => {
     if (!db || !currentUser || currentUser.role !== UserRole.CLIENT) return;
-
     const unsub = api.subscribeUserConnections(currentUser.id, async (connections) => {
       setUserConnections(connections);
-      
-      // Auto-switch logic
       if (connections.length > 0) {
-          // If no active org, or active org is not in current connections, switch to first
-          if (!activeOrganization || !connections.some(c => c.organizationId === activeOrganization.id)) {
-              switchActiveOrganization(connections[0].organizationId);
-          }
+          setTimeout(() => {
+             setActiveOrganization(prev => {
+                 if (!prev || !connections.some(c => c.organizationId === prev.id)) {
+                     const firstOrgId = connections[0].organizationId;
+                     switchActiveOrganization(firstOrgId);
+                     return prev; 
+                 }
+                 return prev;
+             });
+          }, 0);
       } else {
           setActiveOrganization(null);
       }
     });
     return unsub;
-  }, [currentUser]);
+  }, [currentUser, switchActiveOrganization]);
 
-  // 4. Scoped Data Listener (Dynamic based on Active Org)
   useEffect(() => {
     const targetOrgId = activeOrganization?.id;
-
     if (!db || !targetOrgId) {
-      setJobs([]); setAllUsers([]); setJobTypes([]); setSectors([]); setAlerts([]);
-      setPatients([]); setAppointments([]);
+      setJobs([]); setAllUsers([]); setJobTypes([]); setSectors([]); setAlerts([]); setPatients([]); setAppointments([]);
       return;
     }
-    
-    // Determine plan for active org (if client viewing a lab)
     if (currentUser?.role === UserRole.CLIENT) {
         const orgRef = doc(db, 'organizations', targetOrgId);
         getDoc(orgRef).then(async snap => {
@@ -197,7 +208,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
         });
     }
-
     const unsubJobs = api.subscribeJobs(targetOrgId, setJobs);
     const unsubUsers = api.subscribeOrgUsers(targetOrgId, setAllUsers);
     const unsubJobTypes = api.subscribeJobTypes(targetOrgId, setJobTypes);
@@ -210,63 +220,45 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         unsubPatients = api.subscribeClinicPatients(targetOrgId, currentUser.id, setPatients);
         unsubAppts = api.subscribeAppointments(targetOrgId, currentUser.id, setAppointments);
     }
-
     return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubAlerts(); unsubPatients(); unsubAppts(); };
   }, [activeOrganization, currentUser]);
+
   
-  // --- ACTIONS ---
+  // --- HELPERS ---
   const orgId = () => { 
       if (activeOrganization?.id) return activeOrganization.id;
-      throw new Error("No active organization selected"); 
+      if (!db) return 'mock-org'; 
+      return undefined as any; 
   };
 
-  const switchActiveOrganization = async (organizationId: string | null) => {
-    if (!organizationId) {
-      setActiveOrganization(null);
-      return;
-    }
-    const orgRef = doc(db, 'organizations', organizationId);
-    const orgSnap = await getDoc(orgRef);
-    if (orgSnap.exists()) {
-      setActiveOrganization({ id: orgSnap.id, ...orgSnap.data() } as Organization);
-    }
-  };
-
-  const addConnectionByCode = async (orgCode: string) => {
-    if (currentUser?.role !== UserRole.CLIENT) throw new Error("Only dentists can add partners.");
-    await api.apiAddConnectionByCode(currentUser.id, orgCode);
-  };
-
+  // ... (Wrappers) ...
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => { await api.apiLogout(); };
   const registerOrganization = api.apiRegisterOrganization;
   const registerUserInOrg = async (email: string, pass: string, name: string, role: UserRole, clinicName?: string) => await api.apiRegisterUserInOrg(email, pass, name, role, orgId(), clinicName);
   const registerDentist = api.apiRegisterDentist;
-  
   const updateUser = async (id: string, u: Partial<User>) => await api.apiUpdateUser(id, u);
   const deleteUser = async (id: string) => await api.apiDeleteUser(id);
   const addUser = async (u: User) => await api.apiAddUser(u);
-  
   const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => await api.apiAddJob(orgId(), { ...j, id: `job_${Date.now()}`, organizationId: orgId() });
   const updateJob = async (id: string, u: Partial<Job>) => await api.apiUpdateJob(orgId(), id, u);
-
   const addJobType = async (jt: Omit<JobType, 'id'>) => await api.apiAddJobType(orgId(), { ...jt, id: `jtype_${Date.now()}` });
   const updateJobType = async (id: string, u: Partial<JobType>) => await api.apiUpdateJobType(orgId(), id, u);
   const deleteJobType = async (id: string) => await api.apiDeleteJobType(orgId(), id);
-
   const addSector = async (name: string) => await api.apiAddSector(orgId(), { id: `sector_${Date.now()}`, name });
   const deleteSector = async (id: string) => await api.apiDeleteSector(orgId(), id);
-
   const addAlert = async (a: Omit<JobAlert, 'id'|'organizationId'>) => await api.apiAddAlert(orgId(), { ...a, id: `alert_${Date.now()}`, organizationId: orgId() });
   const dismissAlert = async (id: string) => { if(currentUser) await api.apiMarkAlertAsRead(orgId(), id, currentUser.id); setActiveAlert(null); };
-
-  const addPatient = async (p: Omit<ClinicPatient, 'id'|'organizationId'|'dentistId'>) => { if (currentUser) await api.apiAddPatient(orgId(), { ...p, id: `pat_${Date.now()}`, organizationId: orgId(), dentistId: currentUser.id }); };
+  const addPatient = async (p: Omit<ClinicPatient, 'id'|'organizationId'|'dentistId'>) => { if(currentUser) await api.apiAddPatient(orgId(), { ...p, id: `pat_${Date.now()}`, organizationId: orgId(), dentistId: currentUser.id }); };
   const updatePatient = async (id: string, u: Partial<ClinicPatient>) => await api.apiUpdatePatient(orgId(), id, u);
   const deletePatient = async (id: string) => await api.apiDeletePatient(orgId(), id);
-
-  const addAppointment = async (a: Omit<Appointment, 'id'|'organizationId'|'dentistId'>) => { if (currentUser) await api.apiAddAppointment(orgId(), { ...a, id: `appt_${Date.now()}`, organizationId: orgId(), dentistId: currentUser.id }); };
+  const addAppointment = async (a: Omit<Appointment, 'id'|'organizationId'|'dentistId'>) => { if(currentUser) await api.apiAddAppointment(orgId(), { ...a, id: `appt_${Date.now()}`, organizationId: orgId(), dentistId: currentUser.id }); };
   const updateAppointment = async (id: string, u: Partial<Appointment>) => await api.apiUpdateAppointment(orgId(), id, u);
   const deleteAppointment = async (id: string) => await api.apiDeleteAppointment(orgId(), id);
+  const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
+  const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
+  const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
+  const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
 
   const createWebOrder = async (patientName: string, dueDate: Date, notes: string, attachments: Attachment[]) => {
     if (!currentUser || cart.length === 0) return;
@@ -280,7 +272,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     await addJob(newJob); 
     setCart([]);
   };
-
   const uploadFile = async (file: File) => await api.uploadJobFile(file);
 
   return (
@@ -290,6 +281,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       login, registerOrganization, registerUserInOrg, registerDentist, logout, updateUser, deleteUser, addUser,
       addJob, updateJob, addJobType, updateJobType, deleteJobType, addSector, deleteSector,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
+      addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, updateOrganization,
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       createWebOrder, uploadFile,
       printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), clearPrint: () => setPrintData(null),

@@ -1,9 +1,5 @@
 
-
 import { Job, JobStatus, UrgencyLevel, User, UserRole, JobType, BoxColor, Sector, VariationOption, ClinicPatient, Appointment, AppointmentStatus } from "../types";
-
-// Fix: Added a mock organization ID to be used across all mock data that requires it.
-const MOCK_ORG_ID = 'mock-org-1';
 
 export const BOX_COLORS: BoxColor[] = [
   { id: '1', name: 'Azul', hex: '#3b82f6' },
@@ -137,8 +133,7 @@ const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
 export const MOCK_JOBS: Job[] = [
   {
     id: 'j1',
-    // Fix: Added missing organizationId property.
-    organizationId: MOCK_ORG_ID,
+    organizationId: 'mock-org',
     osNumber: '1001',
     patientName: 'Alice Souza',
     dentistId: 'u4',
@@ -156,8 +151,7 @@ export const MOCK_JOBS: Job[] = [
   },
   {
     id: 'j2',
-    // Fix: Added missing organizationId property.
-    organizationId: MOCK_ORG_ID,
+    organizationId: 'mock-org',
     osNumber: '1002',
     patientName: 'Roberto Dias',
     dentistId: 'u4',
@@ -172,8 +166,7 @@ export const MOCK_JOBS: Job[] = [
   },
   {
     id: 'j3',
-    // Fix: Added missing organizationId property.
-    organizationId: MOCK_ORG_ID,
+    organizationId: 'mock-org',
     osNumber: '1003',
     patientName: 'Carlos Oliveira',
     dentistId: 'u4',
@@ -196,8 +189,7 @@ export const MOCK_JOBS: Job[] = [
 export const MOCK_PATIENTS: ClinicPatient[] = [
   {
     id: 'p1',
-    // Fix: Added missing organizationId property.
-    organizationId: MOCK_ORG_ID,
+    organizationId: 'mock-org',
     dentistId: 'u4',
     name: 'Maria Oliveira',
     phone: '(11) 99999-1234',
@@ -206,8 +198,7 @@ export const MOCK_PATIENTS: ClinicPatient[] = [
   },
   {
     id: 'p2',
-    // Fix: Added missing organizationId property.
-    organizationId: MOCK_ORG_ID,
+    organizationId: 'mock-org',
     dentistId: 'u4',
     name: 'João Pedro',
     phone: '(11) 98888-5678',
@@ -222,8 +213,7 @@ const apptTime3 = new Date(tomorrow); apptTime3.setHours(9, 0, 0, 0);
 export const MOCK_APPOINTMENTS: Appointment[] = [
   {
     id: 'a1',
-    // Fix: Added missing organizationId property.
-    organizationId: MOCK_ORG_ID,
+    organizationId: 'mock-org',
     dentistId: 'u4',
     patientId: 'p1',
     patientName: 'Maria Oliveira',
@@ -234,8 +224,7 @@ export const MOCK_APPOINTMENTS: Appointment[] = [
   },
   {
     id: 'a2',
-    // Fix: Added missing organizationId property.
-    organizationId: MOCK_ORG_ID,
+    organizationId: 'mock-org',
     dentistId: 'u4',
     patientId: 'p2',
     patientName: 'João Pedro',
@@ -246,8 +235,7 @@ export const MOCK_APPOINTMENTS: Appointment[] = [
   },
   {
     id: 'a3',
-    // Fix: Added missing organizationId property.
-    organizationId: MOCK_ORG_ID,
+    organizationId: 'mock-org',
     dentistId: 'u4',
     patientId: 'p1',
     patientName: 'Maria Oliveira',

@@ -5,7 +5,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -134,7 +134,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <nav className="space-y-1 flex-1 overflow-y-auto">
             {/* Super Admin View */}
             {isSuperAdmin && (
-              <SidebarItem onClick={closeMobileMenu} to="/superadmin" icon={<Crown size={20} />} label="Painel SaaS" active={location.pathname.startsWith('/superadmin')} />
+              <>
+                <SidebarItem onClick={closeMobileMenu} to="/superadmin" icon={<Crown size={20} />} label="Painel SaaS" active={location.pathname === '/superadmin'} />
+                <SidebarItem onClick={closeMobileMenu} to="/superadmin/plans" icon={<Tag size={20} />} label="Planos & Preços" active={location.pathname === '/superadmin/plans'} />
+              </>
             )}
 
             {/* Lab View */}
@@ -157,7 +160,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             {/* Client View */}
             {isClient && (
               <>
-                {features?.hasClinicModule && (
+                {/* Only show Clinic Menu if Plan allows AND active org selected OR if user has no org yet (to allow setup) */}
+                {(features?.hasClinicModule || !activeOrganization) && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
                     <SidebarItem onClick={closeMobileMenu} to="/clinic/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/clinic/schedule'} />
@@ -165,13 +169,20 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   </>
                 )}
                 
-                {features?.hasStoreModule && (
+                {(features?.hasStoreModule || !activeOrganization) && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Loja & Laboratório</div>
                     <SidebarItem onClick={closeMobileMenu} to="/store" icon={<ShoppingBag size={20} />} label="Catálogo" active={location.pathname === '/store'} />
                     <SidebarItem onClick={closeMobileMenu} to="/my-orders" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/my-orders'} />
                     <SidebarItem onClick={closeMobileMenu} to="/cart" icon={
-                      <div className="relative"><ShoppingCart size={20} />{cart.length > 0 && (<span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{cart.reduce((a, b) => a + b.quantity, 0)}</span>)}</div>
+                      <div className="relative">
+                        <ShoppingCart size={20} />
+                        {cart.length > 0 && (
+                          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
+                            {cart.reduce((a, b) => a + b.quantity, 0)}
+                          </span>
+                        )}
+                      </div>
                     } label="Carrinho" active={location.pathname === '/cart'} />
                   </>
                 )}

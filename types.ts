@@ -1,6 +1,4 @@
-
 // --- USER & AUTH ---
-
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN', // SaaS Owner
   ADMIN = 'ADMIN', // Lab Owner/Admin
@@ -10,8 +8,8 @@ export enum UserRole {
 }
 
 export interface User {
-  id: string; // Firebase Auth UID
-  organizationId?: string; // ID of the Lab this user belongs to (Optional for Dentists)
+  id: string; 
+  organizationId?: string; // Optional for Dentists/SuperAdmin
   name: string;
   email: string;
   role: UserRole;
@@ -20,30 +18,31 @@ export interface User {
   customPrices?: CustomPrice[]; 
 }
 
-// --- NEW: SAAS PARTNERSHIP STRUCTURE ---
-export interface OrganizationConnection {
-  id: string;
-  dentistId: string;
-  organizationId: string;
-  organizationName: string; // Denormalized for display
-  status: 'active' | 'pending' | 'revoked';
-  createdAt: Date;
-}
-
 // --- SAAS STRUCTURE ---
 
 export interface SubscriptionPlanFeatures {
-  maxUsers: number;
+  maxUsers: number; // -1 for unlimited
   maxStorageGB: number;
   hasStoreModule: boolean;
   hasClinicModule: boolean;
 }
 
 export interface SubscriptionPlan {
-  id: string; // e.g., 'basic', 'pro', 'enterprise'
+  id: string; // e.g., 'basic', 'pro', 'partner_vip'
   name: string;
-  price: number;
+  price: number; // 0 for free
+  description?: string;
   features: SubscriptionPlanFeatures;
+  isPublic: boolean; // If false, only Admin can assign (for Partners/Internal)
+  active: boolean;
+}
+
+export interface FinancialSettings {
+  pixKey?: string;
+  pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM';
+  bankInfo?: string; // Agency/Account text
+  paymentLink?: string; // External link (Mercado Pago, Stripe Link, etc)
+  instructions?: string;
 }
 
 export interface Organization {
@@ -51,8 +50,19 @@ export interface Organization {
   name: string; // Lab's name
   ownerId: string; // The first Admin user
   planId: string; // Link to the subscription plan
+  subscriptionStatus?: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'TRIAL';
+  financialSettings?: FinancialSettings; // For receiving payments from Dentists
   createdAt: Date;
   storageUsageBytes?: number;
+}
+
+export interface OrganizationConnection {
+  id: string;
+  dentistId: string;
+  organizationId: string;
+  organizationName: string; 
+  status: 'active' | 'pending' | 'revoked';
+  createdAt: Date;
 }
 
 // --- LAB & CLINIC DATA (Now scoped by Organization) ---

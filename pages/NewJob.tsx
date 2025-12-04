@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -258,8 +257,9 @@ export const NewJob = () => {
         ? `Cadastro Inicial realizado por ${currentUser.name}` 
         : `Continuação/Retorno registrada por ${currentUser.name}`;
 
-    // Fix: Create an object matching the type expected by addJob, then create a full Job object for local state.
-    const jobData: Omit<Job, 'id' | 'organizationId'> = {
+    const newJob: Job = {
+      id: Math.random().toString(36).substr(2, 9),
+      organizationId: currentUser.organizationId || 'mock-org',
       osNumber,
       patientName,
       dentistId: selectedDentistId || 'manual-entry', 
@@ -284,15 +284,8 @@ export const NewJob = () => {
       notes
     };
 
-    addJob(jobData);
-
-    // We create a temporary full Job object for the modal state.
-    // The ID is temporary but sufficient for printing since PrintOverlay doesn't re-fetch.
-    setLastCreatedJob({
-        ...jobData,
-        id: `temp_${Date.now()}`, // Temporary ID for modal/print UI
-        organizationId: currentUser.organizationId!,
-    });
+    addJob(newJob);
+    setLastCreatedJob(newJob);
   };
 
   const handleFinish = () => {

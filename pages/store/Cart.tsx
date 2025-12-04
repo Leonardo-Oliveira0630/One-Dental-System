@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building } from 'lucide-react';

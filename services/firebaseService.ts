@@ -28,7 +28,8 @@ export const apiRegisterOrganization = async (email: string, pass: string, owner
   const uid = userCredential.user.uid;
 
   const orgId = `org_${uid}`;
-  const newOrg: Organization = { id: orgId, name: orgName, ownerId: uid, planId, createdAt: new Date() };
+  // Default to TRIAL or ACTIVE status depending on business logic
+  const newOrg: Organization = { id: orgId, name: orgName, ownerId: uid, planId, createdAt: new Date(), subscriptionStatus: 'TRIAL' };
   await setDoc(doc(db, 'organizations', orgId), newOrg);
 
   const newUser: User = { id: uid, organizationId: orgId, email, name: ownerName, role: UserRole.ADMIN };
@@ -37,7 +38,6 @@ export const apiRegisterOrganization = async (email: string, pass: string, owner
   return newUser;
 };
 
-// Simplified registration for users within an org (e.g., staff)
 export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string, clinicName?: string) => {
     if (!auth || !db) throw new Error("Firebase not configured");
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
@@ -47,12 +47,10 @@ export const apiRegisterUserInOrg = async (email: string, pass: string, name: st
     return newUser;
 };
 
-// Independent Dentist Registration
 export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string): Promise<User> => {
     if (!auth || !db) throw new Error("Firebase not configured");
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     const uid = userCredential.user.uid;
-    // Note: organizationId is intentionally omitted
     const newUser: User = { id: uid, email, name, role: UserRole.CLIENT, clinicName };
     await setDoc(doc(db, 'users', uid), sanitizeData(newUser));
     return newUser;
@@ -68,8 +66,7 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
   return null;
 };
 
-// --- CONNECTIONS (PARTNERSHIPS) ---
-
+// --- CONNECTIONS ---
 export const subscribeUserConnections = (dentistId: string, callback: (connections: OrganizationConnection[]) => void) => {
     if (!db) return () => {};
     const q = query(collection(db, 'connections'), where('dentistId', '==', dentistId));
@@ -80,41 +77,25 @@ export const subscribeUserConnections = (dentistId: string, callback: (connectio
 
 export const apiAddConnectionByCode = async (dentistId: string, orgCode: string): Promise<void> => {
     if (!db) throw new Error("Database not connected");
-
-    // 1. Check if the organization exists
     const orgRef = doc(db, 'organizations', orgCode);
     const orgSnap = await getDoc(orgRef);
-    if (!orgSnap.exists()) {
-        throw new Error("Código do laboratório inválido ou não encontrado.");
-    }
+    if (!orgSnap.exists()) throw new Error("Código do laboratório inválido ou não encontrado.");
     const orgData = orgSnap.data() as Organization;
 
-    // 2. Check if connection already exists
     const existingQuery = query(collection(db, 'connections'), where('dentistId', '==', dentistId), where('organizationId', '==', orgCode));
-    // FIX: Using getDocs for query instead of getDoc
     const existingSnap = await getDocs(existingQuery);
-    if (!existingSnap.empty) {
-        throw new Error("Você já tem parceria com este laboratório.");
-    }
+    if (!existingSnap.empty) throw new Error("Você já tem parceria com este laboratório.");
     
-    // 3. Create the connection document
     const connectionId = `conn_${dentistId}_${orgCode}`;
     const newConnection: OrganizationConnection = {
-        id: connectionId,
-        dentistId,
-        organizationId: orgCode,
-        organizationName: orgData.name,
-        status: 'active',
-        createdAt: new Date()
+        id: connectionId, dentistId, organizationId: orgCode, organizationName: orgData.name, status: 'active', createdAt: new Date()
     };
     await setDoc(doc(db, 'connections', connectionId), newConnection);
 };
 
-// --- MULTI-TENANT DATA FUNCTIONS ---
+// --- DATA FUNCTIONS ---
 const getSubCollection = (orgId: string, collName: string) => collection(db, 'organizations', orgId, collName);
 const getSubDoc = (orgId: string, collName: string, docId: string) => doc(db, 'organizations', orgId, collName, docId);
-
-// Generic listener for any sub-collection
 const subscribeSubCollection = <T>(orgId: string, collName: string, callback: (data: T[]) => void) => {
   if (!db) return () => {};
   const q = query(getSubCollection(orgId, collName));
@@ -122,13 +103,10 @@ const subscribeSubCollection = <T>(orgId: string, collName: string, callback: (d
     callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as T)));
   });
 };
-
-// Generic actions for any sub-collection
 const apiAddSubDoc = async <T extends {id: string}>(orgId: string, collName: string, data: T) => await setDoc(getSubDoc(orgId, collName, data.id), sanitizeData(data));
 const apiUpdateSubDoc = async <T>(orgId: string, collName: string, docId: string, updates: Partial<T>) => await updateDoc(getSubDoc(orgId, collName, docId), sanitizeData(updates));
 const apiDeleteSubDoc = async (orgId: string, collName: string, docId: string) => await deleteDoc(getSubDoc(orgId, collName, docId));
 
-// Export specific functions using generics
 export const subscribeJobs = (orgId: string, cb: (d: Job[]) => void) => subscribeSubCollection<Job>(orgId, 'jobs', cb);
 export const apiAddJob = (orgId: string, d: Job) => apiAddSubDoc(orgId, 'jobs', d);
 export const apiUpdateJob = (orgId: string, id: string, u: Partial<Job>) => apiUpdateSubDoc(orgId, 'jobs', id, u);
@@ -162,7 +140,6 @@ export const apiAddAppointment = (orgId: string, d: Appointment) => apiAddSubDoc
 export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => apiUpdateSubDoc(orgId, 'appointments', id, u);
 export const apiDeleteAppointment = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'appointments', id);
 
-// --- USER MANAGEMENT (Global Collection) ---
 export const subscribeOrgUsers = (orgId: string, callback: (users: User[]) => void) => {
   if (!db) return () => {};
   const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
@@ -174,14 +151,19 @@ export const apiAddUser = async (user: User) => await setDoc(doc(db, 'users', us
 export const apiUpdateUser = async (id: string, updates: Partial<User>) => await updateDoc(doc(db, 'users', id), sanitizeData(updates));
 export const apiDeleteUser = async (id: string) => await deleteDoc(doc(db, 'users', id));
 
+// --- ORGANIZATION & PLANS MANAGEMENT ---
 
-// --- SUPER ADMIN FUNCTIONS ---
 export const subscribeAllOrganizations = (callback: (orgs: Organization[]) => void) => {
   if (!db) return () => {};
   const q = query(collection(db, 'organizations'));
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as Organization)));
   });
+};
+
+export const apiUpdateOrganization = async (id: string, updates: Partial<Organization>) => {
+    if (!db) return;
+    await updateDoc(doc(db, 'organizations', id), sanitizeData(updates));
 };
 
 export const subscribeSubscriptionPlans = (callback: (plans: SubscriptionPlan[]) => void) => {
@@ -192,6 +174,21 @@ export const subscribeSubscriptionPlans = (callback: (plans: SubscriptionPlan[])
   });
 };
 
+export const apiAddSubscriptionPlan = async (plan: SubscriptionPlan) => {
+  if (!db) return;
+  await setDoc(doc(db, 'subscriptionPlans', plan.id), sanitizeData(plan));
+};
+
+export const apiUpdateSubscriptionPlan = async (id: string, updates: Partial<SubscriptionPlan>) => {
+  if (!db) return;
+  await updateDoc(doc(db, 'subscriptionPlans', id), sanitizeData(updates));
+};
+
+export const apiDeleteSubscriptionPlan = async (id: string) => {
+  if (!db) return;
+  await deleteDoc(doc(db, 'subscriptionPlans', id));
+};
+
 export const subscribeAllUsers = (cb: (d: User[]) => void) => {
     return onSnapshot(query(collection(db, 'users')), (snapshot) => cb(snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as User))));
 }
@@ -200,6 +197,5 @@ export const uploadJobFile = async (file: File): Promise<string> => {
   if (!storage) throw new Error("Firebase Storage not configured.");
   const storageRef = ref(storage, `job_attachments/${Date.now()}_${file.name}`);
   await uploadBytes(storageRef, file);
-  const downloadURL = await getDownloadURL(storageRef);
-  return downloadURL;
+  return await getDownloadURL(storageRef);
 };

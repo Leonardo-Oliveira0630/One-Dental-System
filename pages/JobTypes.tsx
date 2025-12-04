@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
@@ -57,8 +56,7 @@ export const JobTypes = () => {
       if (isEditing && editingId) {
           await updateJobType(editingId, { name, category, basePrice, variationGroups });
       } else {
-          const newType: JobType = {
-              id: generateFirestoreId('jtype'),
+          const newType: Omit<JobType, 'id'> = {
               name, category, basePrice, variationGroups
           };
           await addJobType(newType);
@@ -66,7 +64,7 @@ export const JobTypes = () => {
       resetForm();
     } catch (error) {
         console.error("Failed to save Job Type:", error);
-        alert("Falha ao salvar o tipo de trabalho. Verifique o console para mais detalhes.");
+        alert("Falha ao salvar o tipo de trabalho. Verifique se você tem permissão ou está conectado a um laboratório.");
     } finally {
       setIsSaving(false);
     }
@@ -99,20 +97,28 @@ export const JobTypes = () => {
           priceModifier: 0,
           disablesOptions: []
       };
-      updateGroup(groupId, { options: [...(variationGroups.find(g => g.id === groupId)?.options || []), newOption] });
+      // FIX: Ensure options array exists with fallback to []
+      const group = variationGroups.find(g => g.id === groupId);
+      const currentOptions = group?.options || []; 
+      
+      updateGroup(groupId, { options: [...currentOptions, newOption] });
   };
   
   const updateOption = (groupId: string, optionId: string, updates: Partial<VariationOption>) => {
       const group = variationGroups.find(g => g.id === groupId);
       if (!group) return;
-      const updatedOptions = group.options.map(o => o.id === optionId ? { ...o, ...updates } : o);
+      // FIX: Ensure options array exists
+      const currentOptions = group.options || [];
+      const updatedOptions = currentOptions.map(o => o.id === optionId ? { ...o, ...updates } : o);
       updateGroup(groupId, { options: updatedOptions });
   };
 
   const deleteOption = (groupId: string, optionId: string) => {
       const group = variationGroups.find(g => g.id === groupId);
       if (!group) return;
-      updateGroup(groupId, { options: group.options.filter(o => o.id !== optionId) });
+      // FIX: Ensure options array exists
+      const currentOptions = group.options || [];
+      updateGroup(groupId, { options: currentOptions.filter(o => o.id !== optionId) });
   };
 
   const cycleSelectionType = (current: string): 'SINGLE' | 'MULTIPLE' | 'TEXT' => {
@@ -282,7 +288,7 @@ export const JobTypes = () => {
 
                                             {/* Options within group */}
                                             <div className="space-y-3">
-                                                {group.options.map(option => (
+                                                {(group.options || []).map(option => (
                                                     <div key={option.id} className="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
                                                         <div className="grid grid-cols-12 gap-2 items-end">
                                                             <div className="col-span-12 sm:col-span-7">
@@ -318,7 +324,7 @@ export const JobTypes = () => {
                                                             >
                                                                 {variationGroups.filter(g => g.id !== group.id).map(otherGroup => (
                                                                     <optgroup key={otherGroup.id} label={otherGroup.name}>
-                                                                        {otherGroup.options.map(otherOption => (
+                                                                        {(otherGroup.options || []).map(otherOption => (
                                                                             <option key={otherOption.id} value={otherOption.id}>{otherOption.name}</option>
                                                                         ))}
                                                                     </optgroup>
