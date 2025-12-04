@@ -1,8 +1,9 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Plus, Search, ShoppingBag, BadgePercent, Package, X } from 'lucide-react';
+import { Plus, Search, ShoppingBag, BadgePercent, Package, X, Building } from 'lucide-react';
 import { JobType, VariationGroup, CartItem } from '../../types';
+import { useNavigate } from 'react-router-dom';
 
 // Variation Configuration Modal (Component)
 const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose: () => void; }) => {
@@ -190,13 +191,35 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     );
 };
 
-// ... (Catalog export remains) ...
 export const Catalog = () => {
-  // (No major changes needed in main Catalog view, logic handles everything)
-  const { jobTypes, currentUser } = useApp();
+  const { jobTypes, currentUser, activeOrganization } = useApp();
+  const navigate = useNavigate();
   const [term, setTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
+
+  // --- SAFEGUARD: DENTIST WITHOUT ACTIVE LAB ---
+  if (!activeOrganization) {
+    return (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                    <Building size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Nenhum Laboratório Selecionado</h2>
+                <p className="text-slate-500 mb-6">
+                    Selecione um laboratório para visualizar o catálogo de produtos disponível.
+                </p>
+                <button 
+                    onClick={() => navigate('/dentist/partnerships')}
+                    className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors w-full"
+                >
+                    Gerenciar Parcerias
+                </button>
+            </div>
+        </div>
+    );
+  }
 
   const categories = Array.from(new Set(jobTypes.map(t => t.category)));
 
@@ -216,15 +239,17 @@ export const Catalog = () => {
   return (
     <div className="space-y-8 pb-12">
        {configuringProduct && <VariationConfigModal product={configuringProduct} onClose={() => setConfiguringProduct(null)} />}
+       
        <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row justify-between items-center gap-6">
             <div>
-                <h1 className="text-3xl font-bold mb-2">Catálogo de Próteses</h1>
+                <h1 className="text-3xl font-bold mb-2">Catálogo: {activeOrganization.name}</h1>
                 <p className="text-indigo-100 max-w-lg">Selecione e configure os serviços para montar seu pedido.</p>
             </div>
             <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/20">
                 <ShoppingBag size={48} className="text-white opacity-80" />
             </div>
        </div>
+
        <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 sticky top-4 z-10">
             <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-3 text-slate-400" size={20} />

@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Appointment, AppointmentStatus } from '../../types';
@@ -59,9 +60,10 @@ export const Schedule = () => {
     if (selectedAppt) {
       updateAppointment(selectedAppt.id, { date, procedure, durationMinutes: duration, notes, patientId, patientName: patient.name });
     } else {
-      const newAppt: Appointment = {
-        id: Math.random().toString(36).substr(2, 9),
-        dentistId: currentUser.id,
+      // FIX: The context function `addAppointment` expects a partial object.
+      // The previous code was creating a full, but invalid, Appointment object.
+      // This now correctly passes only the form data to the context.
+      addAppointment({
         patientId,
         patientName: patient.name,
         date,
@@ -69,8 +71,7 @@ export const Schedule = () => {
         procedure,
         notes,
         status: AppointmentStatus.SCHEDULED
-      };
-      addAppointment(newAppt);
+      });
     }
     setIsModalOpen(false);
   };

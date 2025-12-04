@@ -1,13 +1,12 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 
 export const JobsList = () => {
-  const { jobs, currentUser, triggerPrint, jobTypes, sectors, allUsers } = useApp();
+  const { jobs, currentUser, triggerPrint, jobTypes, sectors, allUsers, activeOrganization } = useApp();
   const navigate = useNavigate();
   
   // Basic Search
@@ -27,6 +26,29 @@ export const JobsList = () => {
   const [printModalJob, setPrintModalJob] = useState<Job | null>(null);
 
   const isClient = currentUser?.role === UserRole.CLIENT;
+
+  // --- SAFEGUARD: DENTIST WITHOUT ACTIVE LAB ---
+  if (isClient && !activeOrganization) {
+    return (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                    <Building size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Nenhum Laboratório Selecionado</h2>
+                <p className="text-slate-500 mb-6">
+                    Para visualizar seus pedidos, selecione um laboratório parceiro no menu lateral ou adicione uma nova parceria.
+                </p>
+                <button 
+                    onClick={() => navigate('/dentist/partnerships')}
+                    className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors w-full"
+                >
+                    Gerenciar Parcerias
+                </button>
+            </div>
+        </div>
+    );
+  }
 
   // Filter Logic
   const filteredJobs = jobs.filter(job => {
@@ -121,6 +143,7 @@ export const JobsList = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{isClient ? 'Meus Pedidos' : 'Lista de Trabalhos'}</h1>
           <p className="text-slate-500">
+            {isClient && activeOrganization ? `Laboratório: ${activeOrganization.name} • ` : ''}
             Mostrando {filteredJobs.length} de {jobs.length} trabalhos encontrados.
           </p>
         </div>
@@ -181,7 +204,6 @@ export const JobsList = () => {
                     </div>
                 </div>
 
-                {/* Other filters remain similar ... */}
                 {/* Urgency */}
                 <div>
                     <label className="text-xs font-bold text-slate-500 mb-1 block">Urgência</label>

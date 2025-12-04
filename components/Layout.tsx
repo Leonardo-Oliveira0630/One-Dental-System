@@ -1,12 +1,11 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, List, Calendar, ShoppingBag, 
-  Settings, LogOut, Menu, UserCircle, ShoppingCart, 
+  LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -43,14 +42,19 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onCl
 );
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
-  const { currentUser, logout, cart, jobs } = useApp();
+  const { 
+    currentUser, logout, cart, jobs, currentPlan,
+    userConnections, activeOrganization, switchActiveOrganization
+  } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isManager = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
 
+  const features = currentPlan?.features;
   const bgClass = isClient ? 'bg-store-900' : 'bg-lab-900';
   const logoColor = isClient ? 'text-store-600' : 'text-lab-600';
   const vipCount = jobs.filter(j => j.urgency === 'VIP' && j.status !== 'COMPLETED').length;
@@ -58,8 +62,17 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const handleLogout = () => { logout(); navigate('/'); };
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
+  // --- AUTO-SELECT LOGIC FOR DENTISTS ---
+  useEffect(() => {
+    if (isClient && userConnections.length > 0 && !activeOrganization) {
+      // If user has connections but none selected, select the first one
+      switchActiveOrganization(userConnections[0].organizationId);
+    }
+  }, [isClient, userConnections, activeOrganization, switchActiveOrganization]);
+
   const getRoleLabel = (role?: UserRole) => {
     switch (role) {
+      case UserRole.SUPER_ADMIN: return 'SaaS Admin';
       case UserRole.ADMIN: return 'Administrador';
       case UserRole.MANAGER: return 'Gestor';
       case UserRole.COLLABORATOR: return 'Colaborador';
@@ -97,8 +110,35 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             </button>
           </div>
 
+          {/* LAB SWITCHER FOR DENTISTS */}
+          {isClient && userConnections.length > 0 && (
+            <div className="mb-6 bg-white/10 rounded-xl p-3 border border-white/10 relative">
+              <label className="text-[10px] uppercase font-bold text-white/50 tracking-wider mb-1 block">Laboratório Ativo</label>
+              <div className="relative">
+                <select 
+                  value={activeOrganization?.id || ''}
+                  onChange={(e) => switchActiveOrganization(e.target.value)}
+                  className="w-full bg-transparent text-white font-bold text-sm border-none outline-none appearance-none cursor-pointer"
+                >
+                  {userConnections.map(conn => (
+                    <option key={conn.organizationId} value={conn.organizationId} className="bg-store-900 text-white">
+                      {conn.organizationName}
+                    </option>
+                  ))}
+                </select>
+                <ChevronsUpDown size={14} className="absolute right-0 top-1 text-white/50 pointer-events-none" />
+              </div>
+            </div>
+          )}
+
           <nav className="space-y-1 flex-1 overflow-y-auto">
-            {!isClient && (
+            {/* Super Admin View */}
+            {isSuperAdmin && (
+              <SidebarItem onClick={closeMobileMenu} to="/superadmin" icon={<Crown size={20} />} label="Painel SaaS" active={location.pathname.startsWith('/superadmin')} />
+            )}
+
+            {/* Lab View */}
+            {!isClient && !isSuperAdmin && (
               <>
                 <SidebarItem onClick={closeMobileMenu} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
                 {isManager && (
@@ -108,37 +148,42 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem onClick={closeMobileMenu} to="/jobs" icon={<List size={20} />} label="Todos os Trabalhos" active={location.pathname === '/jobs'} />
                 <SidebarItem onClick={closeMobileMenu} to="/calendar" icon={<Calendar size={20} />} label="Produção" active={location.pathname === '/calendar'} />
                 <SidebarItem onClick={closeMobileMenu} to="/job-types" icon={<Layers size={20} />} label="Catálogo de Serviços" active={location.pathname === '/job-types'} />
-                {isManager && (
+                {isManager && features?.hasStoreModule && (
                    <SidebarItem onClick={closeMobileMenu} to="/incoming" icon={<Inbox size={20} />} label="Pedidos Web" active={location.pathname === '/incoming'} />
                 )}
               </>
             )}
 
+            {/* Client View */}
             {isClient && (
               <>
-                <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
-                <SidebarItem onClick={closeMobileMenu} to="/clinic/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/clinic/schedule'} />
-                <SidebarItem onClick={closeMobileMenu} to="/clinic/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/clinic/patients'} />
+                {features?.hasClinicModule && (
+                  <>
+                    <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
+                    <SidebarItem onClick={closeMobileMenu} to="/clinic/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/clinic/schedule'} />
+                    <SidebarItem onClick={closeMobileMenu} to="/clinic/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/clinic/patients'} />
+                  </>
+                )}
                 
-                <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Loja & Laboratório</div>
-                <SidebarItem onClick={closeMobileMenu} to="/store" icon={<ShoppingBag size={20} />} label="Catálogo" active={location.pathname === '/store'} />
-                <SidebarItem onClick={closeMobileMenu} to="/my-orders" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/my-orders'} />
-                <SidebarItem onClick={closeMobileMenu} to="/cart" icon={
-                  <div className="relative">
-                    <ShoppingCart size={20} />
-                    {cart.length > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">
-                        {cart.reduce((a, b) => a + b.quantity, 0)}
-                      </span>
-                    )}
-                  </div>
-                } label="Carrinho" active={location.pathname === '/cart'} />
+                {features?.hasStoreModule && (
+                  <>
+                    <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Loja & Laboratório</div>
+                    <SidebarItem onClick={closeMobileMenu} to="/store" icon={<ShoppingBag size={20} />} label="Catálogo" active={location.pathname === '/store'} />
+                    <SidebarItem onClick={closeMobileMenu} to="/my-orders" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/my-orders'} />
+                    <SidebarItem onClick={closeMobileMenu} to="/cart" icon={
+                      <div className="relative"><ShoppingCart size={20} />{cart.length > 0 && (<span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">{cart.reduce((a, b) => a + b.quantity, 0)}</span>)}</div>
+                    } label="Carrinho" active={location.pathname === '/cart'} />
+                  </>
+                )}
+
+                <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Configurações</div>
+                <SidebarItem onClick={closeMobileMenu} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Laboratórios" active={location.pathname === '/dentist/partnerships'} />
               </>
             )}
 
             <div className="pt-8 mt-8 border-t border-white/10">
               <SidebarItem onClick={closeMobileMenu} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-              {!isClient && (
+              {isManager && (
                 <SidebarItem onClick={closeMobileMenu} to="/admin" icon={<Users size={20} />} label="Admin & Equipe" active={location.pathname === '/admin'} />
               )}
             </div>

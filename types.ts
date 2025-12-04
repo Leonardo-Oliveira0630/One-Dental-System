@@ -1,25 +1,76 @@
 
+// --- USER & AUTH ---
+
 export enum UserRole {
-  ADMIN = 'ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN', // SaaS Owner
+  ADMIN = 'ADMIN', // Lab Owner/Admin
   MANAGER = 'MANAGER',
   COLLABORATOR = 'COLLABORATOR',
   CLIENT = 'CLIENT' // Dentist
 }
 
+export interface User {
+  id: string; // Firebase Auth UID
+  organizationId?: string; // ID of the Lab this user belongs to (Optional for Dentists)
+  name: string;
+  email: string;
+  role: UserRole;
+  clinicName?: string; 
+  sector?: string; 
+  customPrices?: CustomPrice[]; 
+}
+
+// --- NEW: SAAS PARTNERSHIP STRUCTURE ---
+export interface OrganizationConnection {
+  id: string;
+  dentistId: string;
+  organizationId: string;
+  organizationName: string; // Denormalized for display
+  status: 'active' | 'pending' | 'revoked';
+  createdAt: Date;
+}
+
+// --- SAAS STRUCTURE ---
+
+export interface SubscriptionPlanFeatures {
+  maxUsers: number;
+  maxStorageGB: number;
+  hasStoreModule: boolean;
+  hasClinicModule: boolean;
+}
+
+export interface SubscriptionPlan {
+  id: string; // e.g., 'basic', 'pro', 'enterprise'
+  name: string;
+  price: number;
+  features: SubscriptionPlanFeatures;
+}
+
+export interface Organization {
+  id: string;
+  name: string; // Lab's name
+  ownerId: string; // The first Admin user
+  planId: string; // Link to the subscription plan
+  createdAt: Date;
+  storageUsageBytes?: number;
+}
+
+// --- LAB & CLINIC DATA (Now scoped by Organization) ---
+
 export enum JobStatus {
-  WAITING_APPROVAL = 'WAITING_APPROVAL', // Web order not yet accepted
-  PENDING = 'PENDING', // Accepted, ready to start
+  WAITING_APPROVAL = 'WAITING_APPROVAL', 
+  PENDING = 'PENDING', 
   IN_PROGRESS = 'IN_PROGRESS',
   COMPLETED = 'COMPLETED',
   DELIVERED = 'DELIVERED',
-  REJECTED = 'REJECTED' // New: Order refused by lab
+  REJECTED = 'REJECTED'
 }
 
 export enum UrgencyLevel {
   LOW = 'LOW',
   NORMAL = 'NORMAL',
   HIGH = 'HIGH',
-  VIP = 'VIP' // Promised
+  VIP = 'VIP' 
 }
 
 export interface BoxColor {
@@ -33,13 +84,10 @@ export interface Sector {
   name: string;
 }
 
-// --- NEW VARIATION STRUCTURE ---
-
 export interface VariationOption {
   id: string;
   name: string;
   priceModifier: number;
-  // New: Conditional logic field. List of OPTION IDs this option disables.
   disablesOptions?: string[]; 
 }
 
@@ -55,24 +103,18 @@ export interface JobType {
   name: string;
   category: string;
   basePrice: number;
-  // Replaced flat variations list with structured groups
   variationGroups: VariationGroup[]; 
 }
-
-
-// --- JOB & USER STRUCTURES ---
 
 export interface JobItem {
   id: string;
   jobTypeId: string;
   name: string;
   quantity: number;
-  price: number; // Calculated unit price (Base + Variations)
-  // Updated to reflect new structure, still stores flat list of selected OPTION IDs
+  price: number; 
   selectedVariationIds?: string[];
-  // New: Stores the actual text typed by user for TEXT variations { optionId: "User Input" }
   variationValues?: Record<string, string>;
-  commissionDisabled?: boolean; // New: Flag to disable commission
+  commissionDisabled?: boolean; 
 }
 
 export interface JobHistoryEvent {
@@ -92,8 +134,9 @@ export interface Attachment {
 }
 
 export interface Job {
-  id: string; // Internal ID (UUID)
-  osNumber?: string; // Lab visible number (e.g. 8090)
+  id: string; 
+  organizationId: string; // Data Scoping
+  osNumber?: string; 
   patientName: string;
   dentistId: string;
   dentistName: string;
@@ -101,7 +144,7 @@ export interface Job {
   urgency: UrgencyLevel;
   items: JobItem[];
   history: JobHistoryEvent[];
-  attachments?: Attachment[]; // New: Files uploaded by dentist
+  attachments?: Attachment[]; 
   createdAt: Date;
   dueDate: Date;
   boxNumber?: string;
@@ -109,20 +152,21 @@ export interface Job {
   currentSector?: string;
   totalValue: number;
   notes?: string;
-  managerNotes?: string; // New: Internal notes for production manager
+  managerNotes?: string; 
 }
 
 export interface JobAlert {
   id: string;
+  organizationId: string; // Data Scoping
   jobId: string;
   osNumber: string;
   message: string;
-  targetSector?: string; // If set, alerts anyone in this sector
-  targetUserId?: string; // If set, alerts specific user
+  targetSector?: string; 
+  targetUserId?: string; 
   scheduledFor: Date;
   createdBy: string;
   createdAt: Date;
-  readBy: string[]; // List of user IDs who have dismissed/read the alert
+  readBy: string[]; 
 }
 
 export interface CustomPrice {
@@ -130,40 +174,27 @@ export interface CustomPrice {
   price: number;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  clinicName?: string; // For Clients
-  sector?: string; // For Collaborators
-  customPrices?: CustomPrice[]; // Table of individual prices for this user
-}
-
-// --- NEW CART STRUCTURE ---
 export interface CartItem {
-  cartItemId: string; // Unique ID for this specific cart entry
+  cartItemId: string; 
   jobType: JobType;
   quantity: number;
-  unitPrice: number; // Price per unit after variations
-  finalPrice: number; // unitPrice * quantity
+  unitPrice: number; 
+  finalPrice: number; 
   selectedVariationIds: string[];
-  // New: Stores the text values in cart
   variationValues?: Record<string, string>;
 }
 
-// --- CLINIC MANAGEMENT SYSTEM (CMS) STRUCTURES ---
-
 export interface ClinicPatient {
   id: string;
-  dentistId: string; // Link to the dentist user
+  organizationId: string; // Data Scoping
+  dentistId: string; 
   name: string;
   cpf?: string;
   phone: string;
   email?: string;
   birthDate?: Date;
   address?: string;
-  anamnesis?: string; // Medical history
+  anamnesis?: string;
   createdAt: Date;
 }
 
@@ -177,12 +208,13 @@ export enum AppointmentStatus {
 
 export interface Appointment {
   id: string;
+  organizationId: string; // Data Scoping
   dentistId: string;
   patientId: string;
-  patientName: string; // Denormalized for display
-  date: Date; // Start Date & Time
-  durationMinutes: number; // e.g., 30, 60
-  procedure: string; // e.g., "Avaliação", "Limpeza"
+  patientName: string; 
+  date: Date;
+  durationMinutes: number; 
+  procedure: string;
   notes?: string;
   status: AppointmentStatus;
 }

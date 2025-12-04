@@ -1,4 +1,5 @@
 
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ClinicPatient } from '../../types';
@@ -45,13 +46,17 @@ export const Patients = () => {
     if (editingId) {
       updatePatient(editingId, { name, phone, email, cpf, anamnesis });
     } else {
-      const newPatient: ClinicPatient = {
-        id: Math.random().toString(36).substr(2, 9),
-        dentistId: currentUser.id,
-        name, phone, email, cpf, anamnesis,
+      // FIX: The context function `addPatient` expects a partial object.
+      // The previous code was creating a full, but invalid, ClinicPatient object.
+      // This now correctly passes only the form data to the context.
+      addPatient({
+        name,
+        phone,
+        email,
+        cpf,
+        anamnesis,
         createdAt: new Date()
-      };
-      addPatient(newPatient);
+      });
     }
     setIsModalOpen(false);
   };

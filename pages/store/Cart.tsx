@@ -1,12 +1,12 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2 } from 'lucide-react';
+import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Attachment } from '../../types';
 
 export const Cart = () => {
-  const { cart, removeFromCart, createWebOrder, uploadFile } = useApp();
+  const { cart, removeFromCart, createWebOrder, uploadFile, activeOrganization } = useApp();
   const navigate = useNavigate();
   
   const [patientName, setPatientName] = useState('');
@@ -18,6 +18,29 @@ export const Cart = () => {
   const [isUploading, setIsUploading] = useState(false);
 
   const total = cart.reduce((acc, item) => acc + item.finalPrice, 0);
+
+  // --- SAFEGUARD: DENTIST WITHOUT ACTIVE LAB ---
+  if (!activeOrganization) {
+    return (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                    <Building size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Nenhum Laboratório Selecionado</h2>
+                <p className="text-slate-500 mb-6">
+                    Selecione um laboratório parceiro para finalizar sua compra.
+                </p>
+                <button 
+                    onClick={() => navigate('/dentist/partnerships')}
+                    className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors w-full"
+                >
+                    Gerenciar Parcerias
+                </button>
+            </div>
+        </div>
+    );
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {

@@ -1,17 +1,18 @@
 
+// ... (imports remain same)
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice } from '../types';
 import { 
   Building2, Users, Plus, Trash2, 
-  MapPin, Mail, UserPlus, Save, Stethoscope, Building, Edit, X, DollarSign
+  MapPin, Mail, UserPlus, Save, Stethoscope, Building, Edit, X, DollarSign, Share2
 } from 'lucide-react';
 
 export const Admin = () => {
   const { 
     sectors, addSector, deleteSector, 
     allUsers, addUser, deleteUser, updateUser,
-    jobTypes 
+    jobTypes, currentOrg
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS'>('SECTORS');
@@ -346,6 +347,20 @@ export const Admin = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-left-4 duration-300">
           {/* List */}
           <div className="lg:col-span-2 space-y-4">
+             {/* ADDED: Org Code Display */}
+             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+                    <Share2 size={20} className="text-indigo-500" />
+                    Código de Parceria
+                </h3>
+                <p className="text-sm text-slate-500 mb-3">Compartilhe este código com dentistas para que eles se conectem ao seu laboratório.</p>
+                <div className="bg-indigo-50 border-2 border-dashed border-indigo-200 p-4 rounded-xl text-center">
+                    <span className="font-mono text-xl font-bold text-indigo-900 tracking-wider select-all">
+                        {currentOrg?.id || 'Carregando...'}
+                    </span>
+                </div>
+             </div>
+
              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <MapPin size={20} className="text-blue-500" />
@@ -390,9 +405,6 @@ export const Admin = () => {
                         <Plus size={20} /> Adicionar
                     </button>
                 </form>
-                <div className="mt-6 bg-blue-50 p-4 rounded-xl text-xs text-blue-800">
-                    <p>Setores definem as etapas de produção. O Scanner usará esses nomes para rastrear onde cada trabalho está.</p>
-                </div>
             </div>
           </div>
         </div>

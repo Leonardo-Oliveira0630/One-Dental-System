@@ -25,8 +25,8 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
         // Combine date and time
         const scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`);
 
-        const newAlert: JobAlert = {
-            id: Math.random().toString(36).substr(2, 9),
+        // Fix: Changed type to what addAlert expects and removed properties that are added by the context function.
+        const newAlert: Omit<JobAlert, 'id' | 'organizationId'> = {
             jobId: job.id,
             osNumber: job.osNumber || 'N/A',
             message: message || `Atenção ao trabalho OS ${job.osNumber}`,

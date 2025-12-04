@@ -1,24 +1,13 @@
 import React, { useState, Suspense, useEffect } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
-import { OrbitControls, Stage, Center, Grid, Html, useProgress } from '@react-three/drei';
+import { OrbitControls, Stage, Grid, Html, useProgress } from '@react-three/drei';
 import { STLLoader } from 'three-stdlib';
 import { Attachment } from '../types';
 import { Eye, EyeOff, Layers, X, Box, Sun } from 'lucide-react';
 import * as THREE from 'three';
 
-// Add type definitions for React Three Fiber intrinsic elements
-// We augment 'react' module because in some setups global JSX namespace is not used or shadowed
-declare module 'react' {
-  namespace JSX {
-    interface IntrinsicElements {
-      mesh: any;
-      meshStandardMaterial: any;
-      color: any;
-    }
-  }
-}
-
-// Keep global declaration for compatibility
+// Add type augmentation for React Three Fiber elements
+// Explicitly defining them as any to resolve type errors if R3F types are not picked up correctly
 declare global {
   namespace JSX {
     interface IntrinsicElements {
@@ -37,7 +26,8 @@ interface ModelProps {
   visible: boolean;
 }
 
-const Model = ({ url, color, opacity, visible }: ModelProps) => {
+// FIX: Typed as React.FC to correctly handle intrinsic props like 'key'
+const Model: React.FC<ModelProps> = ({ url, color, opacity, visible }) => {
   // Carrega o STL
   const geometry = useLoader(STLLoader, url);
 
