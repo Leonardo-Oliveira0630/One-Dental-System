@@ -160,8 +160,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             {/* Client View */}
             {isClient && (
               <>
-                {/* Only show Clinic Menu if Plan allows AND active org selected OR if user has no org yet (to allow setup) */}
-                {(features?.hasClinicModule || !activeOrganization) && (
+                {/* Robust Feature Checking for Menu Display */}
+                {(features?.hasClinicModule || !activeOrganization || !currentPlan) && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
                     <SidebarItem onClick={closeMobileMenu} to="/clinic/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/clinic/schedule'} />
@@ -169,7 +169,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   </>
                 )}
                 
-                {(features?.hasStoreModule || !activeOrganization) && (
+                {(features?.hasStoreModule || !activeOrganization || !currentPlan) && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Loja & Laboratório</div>
                     <SidebarItem onClick={closeMobileMenu} to="/store" icon={<ShoppingBag size={20} />} label="Catálogo" active={location.pathname === '/store'} />
