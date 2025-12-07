@@ -1,4 +1,3 @@
-// ... imports ...
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice, FinancialSettings } from '../types';
@@ -16,8 +15,8 @@ export const Admin = () => {
 
   const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'FINANCIAL'>('SECTORS');
   const [copied, setCopied] = useState(false);
-
-  // ... existing states ...
+  
+  // ... (Previous state variables remain same) ...
   const [newSectorName, setNewSectorName] = useState('');
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -58,7 +57,7 @@ export const Admin = () => {
       alert("Configurações financeiras salvas!");
   };
 
-  // ... existing handlers ...
+  // ... (Previous handlers remain same)
   const handleAddSector = async (e: React.FormEvent) => { e.preventDefault(); if (newSectorName.trim()) { try { await addSector(newSectorName); setNewSectorName(''); } catch (error) { console.error(error); alert("Erro ao adicionar setor. Verifique permissões."); } } };
   const handleAddUser = (e: React.FormEvent) => { e.preventDefault(); if (!userName || !userEmail) return; const newUser: User = { id: Math.random().toString(), name: userName, email: userEmail, role: userRole, sector: userRole === UserRole.COLLABORATOR ? userSector : undefined }; addUser(newUser); setUserName(''); setUserEmail(''); setUserRole(UserRole.COLLABORATOR); setUserSector(''); };
   const handleAddDentist = (e: React.FormEvent) => { e.preventDefault(); if (!dentistName || !dentistEmail) return; const newDentist: User = { id: Math.random().toString(), name: dentistName, email: dentistEmail, role: UserRole.CLIENT, clinicName: clinicName || 'Clínica Particular' }; addUser(newDentist); setDentistName(''); setDentistEmail(''); setClinicName(''); };
@@ -71,7 +70,7 @@ export const Admin = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* ... Modals ... */}
+      {/* ... Modals (Edit User, Price) ... */}
       {editingUser && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"><div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in duration-200"><div className="flex justify-between items-center p-4 border-b border-slate-100"><h3 className="font-bold text-lg text-slate-800">Editar Usuário</h3><button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button></div><form onSubmit={handleUpdateUser} className="p-6 space-y-4"><div><label className="block text-sm font-medium text-slate-700 mb-1">Nome</label><input value={editName} onChange={e => setEditName(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Email</label><input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Cargo / Permissão</label><select value={editRole} onChange={e => setEditRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"><option value={UserRole.COLLABORATOR}>Colaborador</option><option value={UserRole.MANAGER}>Gestor</option><option value={UserRole.ADMIN}>Administrador</option></select></div>{editRole === UserRole.COLLABORATOR && (<div><label className="block text-sm font-bold text-blue-700 mb-1">Setor Atual</label><select value={editSector} onChange={e => setEditSector(e.target.value)} className="w-full px-4 py-2 border-2 border-blue-100 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50"><option value="">Selecione...</option>{sectors.map(s => (<option key={s.id} value={s.name}>{s.name}</option>))}</select></div>)}<div className="pt-4 flex gap-3"><button type="button" onClick={() => setEditingUser(null)} className="flex-1 py-2 text-slate-500 hover:bg-slate-50 rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700">Salvar Alterações</button></div></form></div></div>)}
       {priceUser && (<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"><div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200"><div className="flex justify-between items-center p-6 border-b border-slate-100"><div><h3 className="font-bold text-xl text-slate-800">Tabela de Preços Individual</h3><p className="text-slate-500 text-sm">Dentista: <span className="font-bold text-blue-600">{priceUser.name}</span></p></div><button onClick={() => setPriceUser(null)} className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full"><X size={20} /></button></div><div className="p-6 overflow-y-auto flex-1"><div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800 mb-4 flex gap-2"><DollarSign size={20} className="shrink-0" /><p>Defina preços especiais para este dentista. Deixe em branco ou igual ao padrão para usar o preço base.</p></div><div className="space-y-1"><div className="grid grid-cols-12 gap-4 px-4 py-2 bg-slate-100 rounded-lg text-xs font-bold text-slate-500 uppercase"><div className="col-span-6">Serviço</div><div className="col-span-3 text-right">Preço Padrão</div><div className="col-span-3 text-right">Preço Especial</div></div>{jobTypes.map(type => { const customPrice = tempPrices.find(p => p.jobTypeId === type.id)?.price; const isCustom = customPrice !== undefined && customPrice !== type.basePrice; return (<div key={type.id} className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-slate-50 items-center hover:bg-slate-50 transition-colors"><div className="col-span-6 font-medium text-slate-700">{type.name}<span className="block text-xs text-slate-400 font-normal">{type.category}</span></div><div className="col-span-3 text-right text-slate-400 text-sm">R$ {type.basePrice.toFixed(2)}</div><div className="col-span-3"><div className="relative"><span className="absolute left-3 top-2.5 text-xs text-slate-400">R$</span><input type="number" step="0.01" value={customPrice !== undefined ? customPrice : ''} placeholder={type.basePrice.toFixed(2)} onChange={(e) => handlePriceChange(type.id, e.target.value)} className={`w-full pl-8 pr-3 py-2 text-right rounded-lg border text-sm outline-none focus:ring-2 ${isCustom ? 'border-blue-300 bg-blue-50 text-blue-700 font-bold focus:ring-blue-500' : 'border-slate-200 text-slate-600 focus:ring-slate-300'}`} /></div></div></div>); })}</div></div><div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-2xl"><button onClick={() => setPriceUser(null)} className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl">Cancelar</button><button onClick={handleSavePrices} className="px-6 py-2 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg">Salvar Tabela</button></div></div></div>)}
 
@@ -79,7 +78,6 @@ export const Admin = () => {
         <div><h1 className="text-2xl font-bold text-slate-900">Configurações Administrativas</h1><p className="text-slate-500">Gerencie a estrutura física, equipe interna e cadastro de clientes.</p></div>
       </div>
 
-      {/* Tabs Navigation */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col sm:flex-row">
         <button onClick={() => setActiveTab('SECTORS')} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'SECTORS' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}><Building2 size={18} /> Setores & Fluxo</button>
         <button onClick={() => setActiveTab('USERS')} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'USERS' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}><Users size={18} /> Colaboradores</button>
@@ -111,56 +109,12 @@ export const Admin = () => {
                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                      <CreditCard size={20} className="text-indigo-500" /> Dados de Recebimento
                  </h3>
-                 
                  <form onSubmit={handleSaveFinancial} className="space-y-6">
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Chave PIX (Principal)</label>
-                         <input 
-                             value={pixKey}
-                             onChange={e => setPixKey(e.target.value)}
-                             placeholder="CPF, CNPJ, Email ou Celular"
-                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                         />
-                     </div>
-
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Link de Pagamento Externo (Opcional)</label>
-                         <input 
-                             value={paymentLink}
-                             onChange={e => setPaymentLink(e.target.value)}
-                             placeholder="https://link.mercadopago.com.br/..."
-                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-blue-600"
-                         />
-                         <p className="text-xs text-slate-400 mt-1">Link do Mercado Pago, Stripe ou outro gateway para cartão.</p>
-                     </div>
-
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Dados Bancários / Instruções</label>
-                         <textarea 
-                             value={bankInfo}
-                             onChange={e => setBankInfo(e.target.value)}
-                             rows={3}
-                             placeholder="Banco X, Ag: 0000, CC: 00000-0..."
-                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                         />
-                     </div>
-
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Instruções Adicionais</label>
-                         <textarea 
-                             value={instructions}
-                             onChange={e => setInstructions(e.target.value)}
-                             rows={2}
-                             placeholder="Enviar comprovante para o WhatsApp..."
-                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                         />
-                     </div>
-
-                     <div className="pt-4 border-t border-slate-100 flex justify-end">
-                         <button type="submit" className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">
-                             Salvar Configurações
-                         </button>
-                     </div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Chave PIX (Principal)</label><input value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="CPF, CNPJ, Email ou Celular" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Link de Pagamento Externo (Opcional)</label><input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} placeholder="https://link.mercadopago.com.br/..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-blue-600" /><p className="text-xs text-slate-400 mt-1">Link do Mercado Pago, Stripe ou outro gateway para cartão.</p></div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Dados Bancários / Instruções</label><textarea value={bankInfo} onChange={e => setBankInfo(e.target.value)} rows={3} placeholder="Banco X, Ag: 0000, CC: 00000-0..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Instruções Adicionais</label><textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={2} placeholder="Enviar comprovante para o WhatsApp..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                     <div className="pt-4 border-t border-slate-100 flex justify-end"><button type="submit" className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">Salvar Configurações</button></div>
                  </form>
              </div>
          </div>

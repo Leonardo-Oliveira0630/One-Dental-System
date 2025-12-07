@@ -32,7 +32,7 @@ interface AppContextType {
   allPlans: SubscriptionPlan[];
   
   login: (email: string, pass: string) => Promise<void>;
-  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string) => Promise<User>;
+  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date) => Promise<User>;
   registerUserInOrg: (email: string, pass: string, name: string, role: UserRole, clinicName?: string) => Promise<User>;
   registerDentist: (email: string, pass: string, name: string, clinicName: string) => Promise<User>;
   logout: () => void;
@@ -61,7 +61,6 @@ interface AppContextType {
   updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
   deleteSubscriptionPlan: (id: string) => Promise<void>;
   
-  // Org Management
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
 
   cart: CartItem[];
@@ -103,26 +102,27 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-  // ACTIONS DEFINED BEFORE EFFECTS
+  // ACTIONS DEFINED BEFORE EFFECTS TO BE USED IN THEM
   // Use useCallback to stabilize references and prevent infinite loops in useEffects
   const switchActiveOrganization = useCallback(async (organizationId: string | null) => {
     if (!organizationId) {
       setActiveOrganization(null);
-      setCurrentPlan(null); // Clear plan if no org
+      setCurrentPlan(null);
       return;
     }
-    
-    // Optimistic update if switching to same ID (prevent redundant fetches)
-    if (activeOrganization?.id === organizationId) return;
+    // Prevent refetching if already active
+    setActiveOrganization(prev => {
+        if (prev?.id === organizationId) return prev;
+        return prev; // We set it properly via fetch below to ensure data consistency
+    });
 
     const orgRef = doc(db, 'organizations', organizationId);
     const orgSnap = await getDoc(orgRef);
-    
     if (orgSnap.exists()) {
       const orgData = { id: orgSnap.id, ...orgSnap.data() } as Organization;
       setActiveOrganization(orgData);
       
-      // IMMEDIATELY fetch the plan for the new active org to update UI features
+      // Fetch plan immediately for the switched org
       if (orgData.planId) {
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           const planSnap = await getDoc(planRef);
@@ -157,7 +157,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return unsub;
   }, []);
 
-  // 2. Org & Plan Listener (For Lab Staff / Super Admin)
+  // 2. Org & Plan Listener
   useEffect(() => {
     if (!db || !currentUser) return;
 
@@ -168,19 +168,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return () => { unsubOrgs(); unsubPlans(); unsubUsers(); };
     }
 
-    // If user belongs to a fixed org (Lab Staff)
     if (currentUser.organizationId) {
       const orgRef = doc(db, 'organizations', currentUser.organizationId);
       const unsubOrg = onSnapshot(orgRef, async (docSnap) => {
         if (docSnap.exists()) {
           const orgData = { id: docSnap.id, ...docSnap.data() } as Organization;
           setCurrentOrg(orgData);
-          
-          // Auto-set active org for lab staff
           if (currentUser.role !== UserRole.CLIENT) {
               setActiveOrganization(orgData);
           }
-          
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           const planSnap = await getDoc(planRef);
           if (planSnap.exists()) {
@@ -199,13 +195,25 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsub = api.subscribeUserConnections(currentUser.id, async (connections) => {
       setUserConnections(connections);
       
-      // Logic handled in Layout or manual selection now to avoid loops here
-      if (connections.length === 0) {
+      if (connections.length > 0) {
+          // Check if we need to auto-select inside a timeout to avoid render loop
+          setTimeout(() => {
+             setActiveOrganization(prev => {
+                 // If no active org, OR active org is not in current connections list
+                 if (!prev || !connections.some(c => c.organizationId === prev.id)) {
+                     const firstOrgId = connections[0].organizationId;
+                     switchActiveOrganization(firstOrgId);
+                     return prev; // The switch function will update the state properly with full org data
+                 }
+                 return prev;
+             });
+          }, 0);
+      } else {
           setActiveOrganization(null);
       }
     });
     return unsub;
-  }, [currentUser]);
+  }, [currentUser, switchActiveOrganization]);
 
   // 4. Scoped Data Listener (Dynamic based on Active Org)
   useEffect(() => {
@@ -217,8 +225,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return;
     }
     
-    // Plan fetching for dentists is now handled inside switchActiveOrganization
-    // but we keep a listener for updates if needed, or rely on initial fetch
+    // Determine plan for active org (if client viewing a lab)
+    if (currentUser?.role === UserRole.CLIENT) {
+        const orgRef = doc(db, 'organizations', targetOrgId);
+        getDoc(orgRef).then(async snap => {
+            if(snap.exists()) {
+                const od = snap.data() as Organization;
+                const planRef = doc(db, 'subscriptionPlans', od.planId);
+                const planSnap = await getDoc(planRef);
+                if(planSnap.exists()) setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+            }
+        });
+    }
 
     const unsubJobs = api.subscribeJobs(targetOrgId, setJobs);
     const unsubUsers = api.subscribeOrgUsers(targetOrgId, setAllUsers);
@@ -240,6 +258,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const orgId = () => { 
       if (activeOrganization?.id) return activeOrganization.id;
       if (!db) return 'mock-org'; 
+      // SAFEGUARD: Return empty string or handle error in UI instead of throwing here if possible
       return undefined as any; 
   };
 

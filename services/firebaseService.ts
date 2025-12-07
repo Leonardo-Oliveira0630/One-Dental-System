@@ -22,15 +22,23 @@ const sanitizeData = (data: any): any => { if (data instanceof Date) return data
 export const apiLogin = async (email: string, pass: string) => await signInWithEmailAndPassword(auth, email, pass);
 export const apiLogout = async () => { if (auth) await signOut(auth); };
 
-export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string): Promise<User> => {
+export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date): Promise<User> => {
   if (!auth || !db) throw new Error("Firebase not configured");
   const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
   const uid = userCredential.user.uid;
 
   const orgId = `org_${uid}`;
   // Default to TRIAL or ACTIVE status depending on business logic
-  const newOrg: Organization = { id: orgId, name: orgName, ownerId: uid, planId, createdAt: new Date(), subscriptionStatus: 'TRIAL' };
-  await setDoc(doc(db, 'organizations', orgId), newOrg);
+  const newOrg: Organization = { 
+      id: orgId, 
+      name: orgName, 
+      ownerId: uid, 
+      planId, 
+      createdAt: new Date(), 
+      subscriptionStatus: trialEndsAt ? 'TRIAL' : 'ACTIVE',
+      trialEndsAt: trialEndsAt
+  };
+  await setDoc(doc(db, 'organizations', orgId), sanitizeData(newOrg));
 
   const newUser: User = { id: uid, organizationId: orgId, email, name: ownerName, role: UserRole.ADMIN };
   await setDoc(doc(db, 'users', uid), sanitizeData(newUser));

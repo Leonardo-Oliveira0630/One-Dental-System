@@ -33,6 +33,7 @@ export interface SubscriptionPlan {
   price: number; // 0 for free
   description?: string;
   features: SubscriptionPlanFeatures;
+  trialDays?: number; // New: Days of free trial
   isPublic: boolean; // If false, only Admin can assign (for Partners/Internal)
   active: boolean;
 }
@@ -51,6 +52,7 @@ export interface Organization {
   ownerId: string; // The first Admin user
   planId: string; // Link to the subscription plan
   subscriptionStatus?: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'TRIAL';
+  trialEndsAt?: Date; // New: When the trial expires
   financialSettings?: FinancialSettings; // For receiving payments from Dentists
   createdAt: Date;
   storageUsageBytes?: number;

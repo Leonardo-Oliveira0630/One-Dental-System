@@ -5,7 +5,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -43,7 +43,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onCl
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { 
-    currentUser, logout, cart, jobs, currentPlan,
+    currentUser, logout, cart, jobs, currentPlan, currentOrg,
     userConnections, activeOrganization, switchActiveOrganization
   } = useApp();
   const navigate = useNavigate();
@@ -59,13 +59,24 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const logoColor = isClient ? 'text-store-600' : 'text-lab-600';
   const vipCount = jobs.filter(j => j.urgency === 'VIP' && j.status !== 'COMPLETED').length;
 
+  // --- TRIAL / LOCKOUT LOGIC ---
+  const isTrialExpired = !isClient && !isSuperAdmin && currentOrg && currentOrg.subscriptionStatus === 'TRIAL' && currentOrg.trialEndsAt && new Date() > new Date(currentOrg.trialEndsAt);
+  const isPastDue = !isClient && !isSuperAdmin && currentOrg && currentOrg.subscriptionStatus === 'PAST_DUE';
+  const isLocked = isTrialExpired || isPastDue;
+
+  // Redirect to subscribe if locked (unless already there)
+  useEffect(() => {
+      if (isLocked && location.pathname !== '/subscribe' && location.pathname !== '/profile') {
+          navigate('/subscribe');
+      }
+  }, [isLocked, location.pathname, navigate]);
+
   const handleLogout = () => { logout(); navigate('/'); };
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   // --- AUTO-SELECT LOGIC FOR DENTISTS ---
   useEffect(() => {
     if (isClient && userConnections.length > 0 && !activeOrganization) {
-      // If user has connections but none selected, select the first one
       switchActiveOrganization(userConnections[0].organizationId);
     }
   }, [isClient, userConnections, activeOrganization, switchActiveOrganization]);
@@ -80,6 +91,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       default: return 'Usuário';
     }
   };
+
+  if (isLocked && location.pathname !== '/subscribe' && location.pathname !== '/profile') {
+      return null; // Don't render layout if locked and redirecting
+  }
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans">
@@ -131,6 +146,15 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             </div>
           )}
 
+          {/* TRIAL BANNER */}
+          {!isClient && currentOrg?.subscriptionStatus === 'TRIAL' && (
+              <div className="mb-6 bg-orange-500/20 border border-orange-500/50 p-3 rounded-xl text-orange-200 text-xs">
+                  <p className="font-bold flex items-center gap-1 mb-1"><Lock size={12}/> Modo de Teste</p>
+                  <p>Expira em: {currentOrg.trialEndsAt ? new Date(currentOrg.trialEndsAt).toLocaleDateString() : '?'}</p>
+                  <Link to="/subscribe" className="block mt-2 text-center bg-orange-500 text-white py-1 rounded font-bold hover:bg-orange-600 transition-colors">Assinar Agora</Link>
+              </div>
+          )}
+
           <nav className="space-y-1 flex-1 overflow-y-auto">
             {/* Super Admin View */}
             {isSuperAdmin && (
@@ -141,7 +165,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             )}
 
             {/* Lab View */}
-            {!isClient && !isSuperAdmin && (
+            {!isClient && !isSuperAdmin && !isLocked && (
               <>
                 <SidebarItem onClick={closeMobileMenu} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
                 {isManager && (
@@ -160,7 +184,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             {/* Client View */}
             {isClient && (
               <>
-                {/* Robust Feature Checking for Menu Display */}
                 {(features?.hasClinicModule || !activeOrganization || !currentPlan) && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
