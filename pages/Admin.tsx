@@ -15,7 +15,7 @@ export const Admin = () => {
 
   const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'FINANCIAL'>('SECTORS');
   const [copied, setCopied] = useState(false);
-  
+
   // ... (Previous state variables remain same) ...
   const [newSectorName, setNewSectorName] = useState('');
   const [userName, setUserName] = useState('');
@@ -78,6 +78,7 @@ export const Admin = () => {
         <div><h1 className="text-2xl font-bold text-slate-900">Configurações Administrativas</h1><p className="text-slate-500">Gerencie a estrutura física, equipe interna e cadastro de clientes.</p></div>
       </div>
 
+      {/* Tabs Navigation */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col sm:flex-row">
         <button onClick={() => setActiveTab('SECTORS')} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'SECTORS' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}><Building2 size={18} /> Setores & Fluxo</button>
         <button onClick={() => setActiveTab('USERS')} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'USERS' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}><Users size={18} /> Colaboradores</button>
@@ -109,12 +110,56 @@ export const Admin = () => {
                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                      <CreditCard size={20} className="text-indigo-500" /> Dados de Recebimento
                  </h3>
+                 
                  <form onSubmit={handleSaveFinancial} className="space-y-6">
-                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Chave PIX (Principal)</label><input value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="CPF, CNPJ, Email ou Celular" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
-                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Link de Pagamento Externo (Opcional)</label><input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} placeholder="https://link.mercadopago.com.br/..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-blue-600" /><p className="text-xs text-slate-400 mt-1">Link do Mercado Pago, Stripe ou outro gateway para cartão.</p></div>
-                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Dados Bancários / Instruções</label><textarea value={bankInfo} onChange={e => setBankInfo(e.target.value)} rows={3} placeholder="Banco X, Ag: 0000, CC: 00000-0..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
-                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Instruções Adicionais</label><textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={2} placeholder="Enviar comprovante para o WhatsApp..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
-                     <div className="pt-4 border-t border-slate-100 flex justify-end"><button type="submit" className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">Salvar Configurações</button></div>
+                     <div>
+                         <label className="block text-sm font-bold text-slate-700 mb-2">Chave PIX (Principal)</label>
+                         <input 
+                             value={pixKey}
+                             onChange={e => setPixKey(e.target.value)}
+                             placeholder="CPF, CNPJ, Email ou Celular"
+                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                         />
+                     </div>
+
+                     <div>
+                         <label className="block text-sm font-bold text-slate-700 mb-2">Link de Pagamento Externo (Opcional)</label>
+                         <input 
+                             value={paymentLink}
+                             onChange={e => setPaymentLink(e.target.value)}
+                             placeholder="https://link.mercadopago.com.br/..."
+                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-blue-600"
+                         />
+                         <p className="text-xs text-slate-400 mt-1">Link do Mercado Pago, Stripe ou outro gateway para cartão.</p>
+                     </div>
+
+                     <div>
+                         <label className="block text-sm font-bold text-slate-700 mb-2">Dados Bancários / Instruções</label>
+                         <textarea 
+                             value={bankInfo}
+                             onChange={e => setBankInfo(e.target.value)}
+                             rows={3}
+                             placeholder="Banco X, Ag: 0000, CC: 00000-0..."
+                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                         />
+                     </div>
+
+                     <div>
+                         <label className="block text-sm font-bold text-slate-700 mb-2">Instruções Adicionais</label>
+                         <textarea 
+                             value={instructions}
+                             onChange={e => setInstructions(e.target.value)}
+                             rows={2}
+                             placeholder="Enviar comprovante para o WhatsApp..."
+                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                         />
+                     </div>
+
+                     <div className="pt-4 border-t border-slate-100 flex justify-end">
+                         <button type="submit" className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">
+                             Salvar Configurações
+                         </button>
+                     </div>
                  </form>
              </div>
          </div>

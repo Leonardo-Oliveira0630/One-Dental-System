@@ -1,4 +1,5 @@
 // --- USER & AUTH ---
+
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN', // SaaS Owner
   ADMIN = 'ADMIN', // Lab Owner/Admin
@@ -8,8 +9,8 @@ export enum UserRole {
 }
 
 export interface User {
-  id: string; 
-  organizationId?: string; // Optional for Dentists/SuperAdmin
+  id: string; // Firebase Auth UID
+  organizationId?: string; // ID of the Lab this user belongs to (undefined for SUPER_ADMIN or Independent Dentist)
   name: string;
   email: string;
   role: UserRole;
@@ -33,9 +34,22 @@ export interface SubscriptionPlan {
   price: number; // 0 for free
   description?: string;
   features: SubscriptionPlanFeatures;
-  trialDays?: number; // New: Days of free trial
+  trialDays?: number; 
   isPublic: boolean; // If false, only Admin can assign (for Partners/Internal)
   active: boolean;
+}
+
+// NEW: COUPON STRUCTURE
+export interface Coupon {
+  id: string; // The code itself (e.g., "PROMO2024")
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED' | 'TRIAL_EXT' | 'FREE_FOREVER';
+  discountValue: number; // % off, $ off, or days added
+  validUntil?: Date;
+  maxUses?: number;
+  usedCount: number;
+  active: boolean;
+  applicablePlans?: string[]; // IDs of plans this coupon works for (empty = all)
 }
 
 export interface FinancialSettings {
@@ -52,8 +66,9 @@ export interface Organization {
   ownerId: string; // The first Admin user
   planId: string; // Link to the subscription plan
   subscriptionStatus?: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'TRIAL';
-  trialEndsAt?: Date; // New: When the trial expires
+  trialEndsAt?: Date; 
   financialSettings?: FinancialSettings; // For receiving payments from Dentists
+  appliedCoupon?: string; // Track which coupon was used
   createdAt: Date;
   storageUsageBytes?: number;
 }

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -30,9 +30,10 @@ interface AppContextType {
 
   allOrganizations: Organization[];
   allPlans: SubscriptionPlan[];
+  coupons: Coupon[];
   
   login: (email: string, pass: string) => Promise<void>;
-  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date) => Promise<User>;
+  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
   registerUserInOrg: (email: string, pass: string, name: string, role: UserRole, clinicName?: string) => Promise<User>;
   registerDentist: (email: string, pass: string, name: string, clinicName: string) => Promise<User>;
   logout: () => void;
@@ -56,12 +57,15 @@ interface AppContextType {
   updateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
   
-  // Plans CRUD
   addSubscriptionPlan: (plan: SubscriptionPlan) => Promise<void>;
   updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
   deleteSubscriptionPlan: (id: string) => Promise<void>;
-  
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
+
+  addCoupon: (coupon: Coupon) => Promise<void>;
+  updateCoupon: (code: string, updates: Partial<Coupon>) => Promise<void>;
+  deleteCoupon: (code: string) => Promise<void>;
+  validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
 
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
@@ -90,6 +94,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const [allOrganizations, setAllOrganizations] = useState<Organization[]>([]);
   const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
   
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -102,19 +107,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-  // ACTIONS DEFINED BEFORE EFFECTS TO BE USED IN THEM
-  // Use useCallback to stabilize references and prevent infinite loops in useEffects
+  // ACTIONS DEFINED BEFORE EFFECTS
   const switchActiveOrganization = useCallback(async (organizationId: string | null) => {
     if (!organizationId) {
       setActiveOrganization(null);
       setCurrentPlan(null);
       return;
     }
-    // Prevent refetching if already active
-    setActiveOrganization(prev => {
-        if (prev?.id === organizationId) return prev;
-        return prev; // We set it properly via fetch below to ensure data consistency
-    });
+    if (activeOrganization?.id === organizationId) return;
 
     const orgRef = doc(db, 'organizations', organizationId);
     const orgSnap = await getDoc(orgRef);
@@ -122,7 +122,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgData = { id: orgSnap.id, ...orgSnap.data() } as Organization;
       setActiveOrganization(orgData);
       
-      // Fetch plan immediately for the switched org
       if (orgData.planId) {
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           const planSnap = await getDoc(planRef);
@@ -138,7 +137,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     await api.apiAddConnectionByCode(currentUser.id, orgCode);
   }, [currentUser]);
 
-  // 1. Auth Listener
+  // Auth Listener
   useEffect(() => {
     if (!auth) { setIsLoadingAuth(false); return; }
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -157,53 +156,44 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return unsub;
   }, []);
 
-  // 2. Org & Plan Listener
+  // Org & Plan Listener
   useEffect(() => {
     if (!db || !currentUser) return;
-
     if (currentUser.role === UserRole.SUPER_ADMIN) {
       const unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
       const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
       const unsubUsers = api.subscribeAllUsers(setAllUsers);
-      return () => { unsubOrgs(); unsubPlans(); unsubUsers(); };
+      const unsubCoupons = api.subscribeCoupons(setCoupons);
+      return () => { unsubOrgs(); unsubPlans(); unsubUsers(); unsubCoupons(); };
     }
-
     if (currentUser.organizationId) {
       const orgRef = doc(db, 'organizations', currentUser.organizationId);
       const unsubOrg = onSnapshot(orgRef, async (docSnap) => {
         if (docSnap.exists()) {
           const orgData = { id: docSnap.id, ...docSnap.data() } as Organization;
           setCurrentOrg(orgData);
-          if (currentUser.role !== UserRole.CLIENT) {
-              setActiveOrganization(orgData);
-          }
+          if (currentUser.role !== UserRole.CLIENT) { setActiveOrganization(orgData); }
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           const planSnap = await getDoc(planRef);
-          if (planSnap.exists()) {
-            setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
-          }
+          if (planSnap.exists()) { setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan); }
         }
       });
       return unsubOrg;
     }
   }, [currentUser]);
 
-  // 3. Connections Listener (for Dentists)
+  // Connections Listener (Dentists)
   useEffect(() => {
     if (!db || !currentUser || currentUser.role !== UserRole.CLIENT) return;
-
     const unsub = api.subscribeUserConnections(currentUser.id, async (connections) => {
       setUserConnections(connections);
-      
       if (connections.length > 0) {
-          // Check if we need to auto-select inside a timeout to avoid render loop
           setTimeout(() => {
              setActiveOrganization(prev => {
-                 // If no active org, OR active org is not in current connections list
                  if (!prev || !connections.some(c => c.organizationId === prev.id)) {
                      const firstOrgId = connections[0].organizationId;
                      switchActiveOrganization(firstOrgId);
-                     return prev; // The switch function will update the state properly with full org data
+                     return prev; 
                  }
                  return prev;
              });
@@ -215,17 +205,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return unsub;
   }, [currentUser, switchActiveOrganization]);
 
-  // 4. Scoped Data Listener (Dynamic based on Active Org)
+  // Scoped Data Listener
   useEffect(() => {
     const targetOrgId = activeOrganization?.id;
-
     if (!db || !targetOrgId) {
-      setJobs([]); setAllUsers([]); setJobTypes([]); setSectors([]); setAlerts([]);
-      setPatients([]); setAppointments([]);
+      setJobs([]); setAllUsers([]); setJobTypes([]); setSectors([]); setAlerts([]); setPatients([]); setAppointments([]);
       return;
     }
-    
-    // Determine plan for active org (if client viewing a lab)
     if (currentUser?.role === UserRole.CLIENT) {
         const orgRef = doc(db, 'organizations', targetOrgId);
         getDoc(orgRef).then(async snap => {
@@ -237,66 +223,54 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
         });
     }
-
     const unsubJobs = api.subscribeJobs(targetOrgId, setJobs);
     const unsubUsers = api.subscribeOrgUsers(targetOrgId, setAllUsers);
     const unsubJobTypes = api.subscribeJobTypes(targetOrgId, setJobTypes);
     const unsubSectors = api.subscribeSectors(targetOrgId, setSectors);
     const unsubAlerts = api.subscribeAlerts(targetOrgId, setAlerts);
-    
     let unsubPatients = () => {};
     let unsubAppts = () => {};
     if (currentUser?.role === UserRole.CLIENT) {
         unsubPatients = api.subscribeClinicPatients(targetOrgId, currentUser.id, setPatients);
         unsubAppts = api.subscribeAppointments(targetOrgId, currentUser.id, setAppointments);
     }
-
     return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubAlerts(); unsubPatients(); unsubAppts(); };
   }, [activeOrganization, currentUser]);
   
-  // --- HELPERS ---
-  const orgId = () => { 
-      if (activeOrganization?.id) return activeOrganization.id;
-      if (!db) return 'mock-org'; 
-      // SAFEGUARD: Return empty string or handle error in UI instead of throwing here if possible
-      return undefined as any; 
-  };
-
+  const orgId = () => { if (activeOrganization?.id) return activeOrganization.id; if (!db) return 'mock-org'; return undefined as any; };
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => { await api.apiLogout(); };
-  const registerOrganization = api.apiRegisterOrganization;
+  const registerOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => await api.apiRegisterOrganization(email, pass, ownerName, orgName, planId, trialEndsAt, couponCode);
   const registerUserInOrg = async (email: string, pass: string, name: string, role: UserRole, clinicName?: string) => await api.apiRegisterUserInOrg(email, pass, name, role, orgId(), clinicName);
   const registerDentist = api.apiRegisterDentist;
-  
   const updateUser = async (id: string, u: Partial<User>) => await api.apiUpdateUser(id, u);
   const deleteUser = async (id: string) => await api.apiDeleteUser(id);
   const addUser = async (u: User) => await api.apiAddUser(u);
-  
   const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => await api.apiAddJob(orgId(), { ...j, id: `job_${Date.now()}`, organizationId: orgId() });
   const updateJob = async (id: string, u: Partial<Job>) => await api.apiUpdateJob(orgId(), id, u);
-
   const addJobType = async (jt: Omit<JobType, 'id'>) => await api.apiAddJobType(orgId(), { ...jt, id: `jtype_${Date.now()}` });
   const updateJobType = async (id: string, u: Partial<JobType>) => await api.apiUpdateJobType(orgId(), id, u);
   const deleteJobType = async (id: string) => await api.apiDeleteJobType(orgId(), id);
-
   const addSector = async (name: string) => await api.apiAddSector(orgId(), { id: `sector_${Date.now()}`, name });
   const deleteSector = async (id: string) => await api.apiDeleteSector(orgId(), id);
-
   const addAlert = async (a: Omit<JobAlert, 'id'|'organizationId'>) => await api.apiAddAlert(orgId(), { ...a, id: `alert_${Date.now()}`, organizationId: orgId() });
   const dismissAlert = async (id: string) => { if(currentUser) await api.apiMarkAlertAsRead(orgId(), id, currentUser.id); setActiveAlert(null); };
-
   const addPatient = async (p: Omit<ClinicPatient, 'id'|'organizationId'|'dentistId'>) => { if(currentUser) await api.apiAddPatient(orgId(), { ...p, id: `pat_${Date.now()}`, organizationId: orgId(), dentistId: currentUser.id }); };
   const updatePatient = async (id: string, u: Partial<ClinicPatient>) => await api.apiUpdatePatient(orgId(), id, u);
   const deletePatient = async (id: string) => await api.apiDeletePatient(orgId(), id);
-
   const addAppointment = async (a: Omit<Appointment, 'id'|'organizationId'|'dentistId'>) => { if(currentUser) await api.apiAddAppointment(orgId(), { ...a, id: `appt_${Date.now()}`, organizationId: orgId(), dentistId: currentUser.id }); };
   const updateAppointment = async (id: string, u: Partial<Appointment>) => await api.apiUpdateAppointment(orgId(), id, u);
   const deleteAppointment = async (id: string) => await api.apiDeleteAppointment(orgId(), id);
-
+  
   const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
   const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
   const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
   const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
+  
+  const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
+  const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
+  const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
+  const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
 
   const createWebOrder = async (patientName: string, dueDate: Date, notes: string, attachments: Attachment[]) => {
     if (!currentUser || cart.length === 0) return;
@@ -315,12 +289,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   return (
     <AppContext.Provider value={{
-      currentUser, currentOrg, currentPlan, isLoadingAuth, allOrganizations, allPlans,
+      currentUser, currentOrg, currentPlan, isLoadingAuth, allOrganizations, allPlans, coupons,
       allUsers, jobs, jobTypes, sectors, alerts, patients, appointments,
       login, registerOrganization, registerUserInOrg, registerDentist, logout, updateUser, deleteUser, addUser,
       addJob, updateJob, addJobType, updateJobType, deleteJobType, addSector, deleteSector,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, updateOrganization,
+      addCoupon, updateCoupon, deleteCoupon, validateCoupon,
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       createWebOrder, uploadFile,
       printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), clearPrint: () => setPrintData(null),

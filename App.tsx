@@ -20,6 +20,7 @@ import { Schedule } from './pages/clinic/Schedule';
 import { RegisterOrganization } from './pages/RegisterOrganization';
 import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
 import { Plans } from './pages/superadmin/Plans';
+import { Coupons } from './pages/superadmin/Coupons';
 import { Partnerships } from './pages/dentist/Partnerships';
 import { Subscribe } from './pages/Subscribe';
 import { Loader2 } from 'lucide-react';
@@ -55,6 +56,7 @@ const AppContent = () => {
       {/* Super Admin Routes */}
       <Route path="/superadmin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
       <Route path="/superadmin/plans" element={<SuperAdminRoute><Plans /></SuperAdminRoute>} />
+      <Route path="/superadmin/coupons" element={<SuperAdminRoute><Coupons /></SuperAdminRoute>} />
 
       {/* Protected Lab Routes */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

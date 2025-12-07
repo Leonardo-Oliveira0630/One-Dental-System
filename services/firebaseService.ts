@@ -11,7 +11,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from './firebaseConfig';
 import { 
   Job, User, JobType, Sector, UserRole, JobAlert, ClinicPatient, Appointment, 
-  Organization, SubscriptionPlan, OrganizationConnection
+  Organization, SubscriptionPlan, OrganizationConnection, Coupon
 } from '../types';
 
 // --- HELPERS ---
@@ -22,13 +22,12 @@ const sanitizeData = (data: any): any => { if (data instanceof Date) return data
 export const apiLogin = async (email: string, pass: string) => await signInWithEmailAndPassword(auth, email, pass);
 export const apiLogout = async () => { if (auth) await signOut(auth); };
 
-export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date): Promise<User> => {
+export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
   if (!auth || !db) throw new Error("Firebase not configured");
   const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
   const uid = userCredential.user.uid;
 
   const orgId = `org_${uid}`;
-  // Default to TRIAL or ACTIVE status depending on business logic
   const newOrg: Organization = { 
       id: orgId, 
       name: orgName, 
@@ -36,12 +35,23 @@ export const apiRegisterOrganization = async (email: string, pass: string, owner
       planId, 
       createdAt: new Date(), 
       subscriptionStatus: trialEndsAt ? 'TRIAL' : 'ACTIVE',
-      trialEndsAt: trialEndsAt
+      trialEndsAt: trialEndsAt,
+      appliedCoupon: couponCode
   };
   await setDoc(doc(db, 'organizations', orgId), sanitizeData(newOrg));
 
   const newUser: User = { id: uid, organizationId: orgId, email, name: ownerName, role: UserRole.ADMIN };
   await setDoc(doc(db, 'users', uid), sanitizeData(newUser));
+  
+  // Increment coupon usage if applied
+  if (couponCode) {
+      const couponRef = doc(db, 'coupons', couponCode);
+      const couponSnap = await getDoc(couponRef);
+      if (couponSnap.exists()) {
+          const currentUsage = couponSnap.data().usedCount || 0;
+          await updateDoc(couponRef, { usedCount: currentUsage + 1 });
+      }
+  }
   
   return newUser;
 };
@@ -200,6 +210,44 @@ export const apiDeleteSubscriptionPlan = async (id: string) => {
 export const subscribeAllUsers = (cb: (d: User[]) => void) => {
     return onSnapshot(query(collection(db, 'users')), (snapshot) => cb(snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as User))));
 }
+
+// --- COUPONS MANAGEMENT ---
+
+export const subscribeCoupons = (callback: (coupons: Coupon[]) => void) => {
+  if (!db) return () => {};
+  const q = query(collection(db, 'coupons'));
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as Coupon)));
+  });
+};
+
+export const apiAddCoupon = async (coupon: Coupon) => {
+  if (!db) return;
+  await setDoc(doc(db, 'coupons', coupon.code.toUpperCase()), sanitizeData(coupon));
+};
+
+export const apiUpdateCoupon = async (code: string, updates: Partial<Coupon>) => {
+  if (!db) return;
+  await updateDoc(doc(db, 'coupons', code.toUpperCase()), sanitizeData(updates));
+};
+
+export const apiDeleteCoupon = async (code: string) => {
+  if (!db) return;
+  await deleteDoc(doc(db, 'coupons', code.toUpperCase()));
+};
+
+export const apiValidateCoupon = async (code: string, planId: string): Promise<Coupon | null> => {
+    if (!db) return null;
+    const docRef = doc(db, 'coupons', code.toUpperCase());
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+    const coupon = { ...convertDates(snap.data()), id: snap.id } as Coupon;
+    if (!coupon.active) return null;
+    if (coupon.validUntil && new Date() > coupon.validUntil) return null;
+    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) return null;
+    if (coupon.applicablePlans && coupon.applicablePlans.length > 0 && !coupon.applicablePlans.includes(planId)) return null;
+    return coupon;
+};
 
 export const uploadJobFile = async (file: File): Promise<string> => {
   if (!storage) throw new Error("Firebase Storage not configured.");
