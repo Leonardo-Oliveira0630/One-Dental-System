@@ -1,7 +1,3 @@
-// ... (Imports and Interface remain the same as previous full version provided above)
-// Ensure updateOrganization, createSubscription, addSubscriptionPlan, etc are exposed
-// Ensure switchActiveOrganization uses useCallback
-
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
@@ -14,7 +10,6 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 
 interface AppContextType {
-  // ... (Full interface as defined previously)
   currentUser: User | null;
   currentOrg: Organization | null;
   currentPlan: SubscriptionPlan | null;
@@ -66,6 +61,7 @@ interface AppContextType {
   updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
   deleteSubscriptionPlan: (id: string) => Promise<void>;
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
+  
   createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<{success: boolean, paymentLink?: string}>;
 
   addCoupon: (coupon: Coupon) => Promise<void>;
