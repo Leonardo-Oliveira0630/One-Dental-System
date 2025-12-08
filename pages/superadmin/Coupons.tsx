@@ -14,6 +14,7 @@ export const Coupons = () => {
   const [validUntil, setValidUntil] = useState('');
   const [maxUses, setMaxUses] = useState<number | ''>('');
   const [active, setActive] = useState(true);
+  const [applicablePlans, setApplicablePlans] = useState<string[]>([]);
 
   const resetForm = () => {
     setCode('');
@@ -22,6 +23,7 @@ export const Coupons = () => {
     setValidUntil('');
     setMaxUses('');
     setActive(true);
+    setApplicablePlans([]);
     setIsEditing(false);
   };
 
@@ -33,6 +35,13 @@ export const Coupons = () => {
     setValidUntil(c.validUntil ? new Date(c.validUntil).toISOString().split('T')[0] : '');
     setMaxUses(c.maxUses || '');
     setActive(c.active);
+    setApplicablePlans(c.applicablePlans || []);
+  };
+
+  const togglePlan = (planId: string) => {
+      setApplicablePlans(prev => 
+          prev.includes(planId) ? prev.filter(id => id !== planId) : [...prev, planId]
+      );
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -44,14 +53,13 @@ export const Coupons = () => {
         discountValue,
         validUntil: validUntil ? new Date(validUntil) : undefined,
         maxUses: maxUses === '' ? undefined : Number(maxUses),
-        usedCount: 0, // Reset on new, keep on edit? Ideally merge
+        usedCount: 0, 
         active,
-        applicablePlans: [] // All for now
+        applicablePlans: applicablePlans.length > 0 ? applicablePlans : undefined
     };
 
     try {
         if (isEditing) {
-            // Update logic (preserve usedCount)
             await updateCoupon(code, { ...couponData, usedCount: coupons.find(c => c.code === code)?.usedCount || 0 });
         } else {
             await addCoupon(couponData);
@@ -121,6 +129,26 @@ export const Coupons = () => {
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Limite de Usos (Opcional)</label>
                         <input type="number" value={maxUses} onChange={e => setMaxUses(e.target.value === '' ? '' : parseInt(e.target.value))} className="w-full px-3 py-2 border rounded-lg" />
                     </div>
+                    
+                    {/* Plans Selection */}
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Planos Válidos</label>
+                        <div className="space-y-1 max-h-32 overflow-y-auto p-2 border rounded bg-slate-50">
+                            {allPlans.map(plan => (
+                                <div key={plan.id} className="flex items-center gap-2">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={applicablePlans.includes(plan.id)}
+                                        onChange={() => togglePlan(plan.id)}
+                                        id={`plan-${plan.id}`}
+                                    />
+                                    <label htmlFor={`plan-${plan.id}`} className="text-sm text-slate-700">{plan.name}</label>
+                                </div>
+                            ))}
+                            {allPlans.length === 0 && <p className="text-xs text-slate-400">Nenhum plano cadastrado.</p>}
+                        </div>
+                    </div>
+
                     <div className="flex items-center gap-2">
                         <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} id="activeCheck" />
                         <label htmlFor="activeCheck" className="text-sm font-bold text-slate-700">Ativo</label>

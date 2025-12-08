@@ -3,20 +3,21 @@ import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice, FinancialSettings } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard
+  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket
 } from 'lucide-react';
 
 export const Admin = () => {
   const { 
     sectors, addSector, deleteSector, 
     allUsers, addUser, deleteUser, updateUser,
-    jobTypes, currentOrg, updateOrganization
+    jobTypes, currentOrg, currentPlan, updateOrganization, allPlans,
+    validateCoupon, updateSubscriptionPlan // Assuming we might need this or a specific upgrade function
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'FINANCIAL'>('SECTORS');
+  const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'FINANCIAL' | 'SUBSCRIPTION'>('SECTORS');
   const [copied, setCopied] = useState(false);
 
-  // ... (Previous state variables remain same) ...
+  // Sector & User State
   const [newSectorName, setNewSectorName] = useState('');
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
@@ -39,6 +40,10 @@ export const Admin = () => {
   const [paymentLink, setPaymentLink] = useState('');
   const [instructions, setInstructions] = useState('');
 
+  // Subscription State
+  const [upgradeCoupon, setUpgradeCoupon] = useState('');
+  const [appliedUpgradeCoupon, setAppliedUpgradeCoupon] = useState<any>(null);
+
   useEffect(() => {
       if (currentOrg?.financialSettings) {
           setPixKey(currentOrg.financialSettings.pixKey || '');
@@ -57,7 +62,33 @@ export const Admin = () => {
       alert("Configurações financeiras salvas!");
   };
 
-  // ... (Previous handlers remain same)
+  const handleValidateUpgradeCoupon = async () => {
+    if (!upgradeCoupon) return;
+    const coupon = await validateCoupon(upgradeCoupon, 'ANY'); // Validate generally first
+    if (coupon) {
+        setAppliedUpgradeCoupon(coupon);
+        alert("Cupom válido!");
+    } else {
+        alert("Cupom inválido ou expirado.");
+        setAppliedUpgradeCoupon(null);
+    }
+  };
+
+  const handleUpgrade = async (planId: string) => {
+      if (!currentOrg) return;
+      if (confirm(`Deseja alterar seu plano para este nível?`)) {
+          // In a real app, this would redirect to checkout if paid
+          // For now, we simulate direct upgrade
+          await updateOrganization(currentOrg.id, { 
+              planId: planId,
+              appliedCoupon: appliedUpgradeCoupon?.code 
+          });
+          alert("Plano atualizado com sucesso!");
+          window.location.reload();
+      }
+  };
+
+  // ... (Standard Handlers)
   const handleAddSector = async (e: React.FormEvent) => { e.preventDefault(); if (newSectorName.trim()) { try { await addSector(newSectorName); setNewSectorName(''); } catch (error) { console.error(error); alert("Erro ao adicionar setor. Verifique permissões."); } } };
   const handleAddUser = (e: React.FormEvent) => { e.preventDefault(); if (!userName || !userEmail) return; const newUser: User = { id: Math.random().toString(), name: userName, email: userEmail, role: userRole, sector: userRole === UserRole.COLLABORATOR ? userSector : undefined }; addUser(newUser); setUserName(''); setUserEmail(''); setUserRole(UserRole.COLLABORATOR); setUserSector(''); };
   const handleAddDentist = (e: React.FormEvent) => { e.preventDefault(); if (!dentistName || !dentistEmail) return; const newDentist: User = { id: Math.random().toString(), name: dentistName, email: dentistEmail, role: UserRole.CLIENT, clinicName: clinicName || 'Clínica Particular' }; addUser(newDentist); setDentistName(''); setDentistEmail(''); setClinicName(''); };
@@ -84,6 +115,7 @@ export const Admin = () => {
         <button onClick={() => setActiveTab('USERS')} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'USERS' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}><Users size={18} /> Colaboradores</button>
         <button onClick={() => setActiveTab('DENTISTS')} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'DENTISTS' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}><Stethoscope size={18} /> Dentistas & Clínicas</button>
         <button onClick={() => setActiveTab('FINANCIAL')} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'FINANCIAL' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}><CreditCard size={18} /> Financeiro</button>
+        <button onClick={() => setActiveTab('SUBSCRIPTION')} className={`flex-1 py-4 text-sm font-bold flex items-center justify-center gap-2 transition-all ${activeTab === 'SUBSCRIPTION' ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-slate-500 hover:bg-slate-50'}`}><Crown size={18} /> Assinatura</button>
       </div>
 
       {/* SECTORS CONTENT */}
@@ -103,66 +135,86 @@ export const Admin = () => {
       {/* DENTISTS CONTENT */}
       {activeTab === 'DENTISTS' && (<div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-right-4 duration-300"><div className="lg:col-span-2 space-y-4"><div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"><div className="p-6 border-b border-slate-100"><h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Stethoscope size={20} className="text-teal-500" /> Dentistas & Clínicas</h3></div><div className="divide-y divide-slate-100">{allUsers.filter(u => u.role === UserRole.CLIENT).length === 0 ? (<div className="p-8 text-center text-slate-400 italic">Nenhum dentista cadastrado.</div>) : (allUsers.filter(u => u.role === UserRole.CLIENT).map(user => (<div key={user.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:bg-slate-50 transition-colors gap-4"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 font-bold uppercase shrink-0"><Stethoscope size={18} /></div><div><h4 className="font-bold text-slate-800">{user.name}</h4><div className="flex items-center gap-2 text-sm text-teal-700 mb-0.5"><Building size={12} /> {user.clinicName}</div><div className="flex items-center gap-2 text-xs text-slate-500 break-all"><Mail size={12} /> {user.email}</div></div></div><div className="flex items-center justify-end gap-2"><button onClick={() => openPriceModal(user)} className="text-teal-600 bg-teal-50 hover:bg-teal-100 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors" title="Tabela de Preços Personalizada"><DollarSign size={14} /> Tabela</button><button onClick={() => deleteUser(user.id)} className="text-slate-300 hover:text-red-500 p-2" title="Remover Cadastro"><Trash2 size={18} /></button></div></div>)))}</div></div></div><div><div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 sticky top-6"><h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><UserPlus size={20} className="text-teal-600" /> Novo Cliente</h3><form onSubmit={handleAddDentist} className="space-y-4"><div><label className="block text-sm font-medium text-slate-700 mb-1">Nome do Dentista</label><input value={dentistName} onChange={e => setDentistName(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" placeholder="Dr. Exemplo" required /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Nome da Clínica</label><input value={clinicName} onChange={e => setClinicName(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" placeholder="Clínica Sorriso" /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Email (Login)</label><input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none" required /></div><button type="submit" className="w-full py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 shadow-lg shadow-teal-200 flex items-center justify-center gap-2 mt-2"><Save size={20} /> Cadastrar</button></form></div></div></div>)}
 
-      {/* FINANCIAL CONTENT (NEW) */}
+      {/* FINANCIAL CONTENT */}
       {activeTab === 'FINANCIAL' && (
          <div className="animate-in fade-in slide-in-from-right-4 duration-300 max-w-4xl mx-auto">
              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                      <CreditCard size={20} className="text-indigo-500" /> Dados de Recebimento
                  </h3>
-                 
                  <form onSubmit={handleSaveFinancial} className="space-y-6">
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Chave PIX (Principal)</label>
-                         <input 
-                             value={pixKey}
-                             onChange={e => setPixKey(e.target.value)}
-                             placeholder="CPF, CNPJ, Email ou Celular"
-                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                         />
-                     </div>
-
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Link de Pagamento Externo (Opcional)</label>
-                         <input 
-                             value={paymentLink}
-                             onChange={e => setPaymentLink(e.target.value)}
-                             placeholder="https://link.mercadopago.com.br/..."
-                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-blue-600"
-                         />
-                         <p className="text-xs text-slate-400 mt-1">Link do Mercado Pago, Stripe ou outro gateway para cartão.</p>
-                     </div>
-
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Dados Bancários / Instruções</label>
-                         <textarea 
-                             value={bankInfo}
-                             onChange={e => setBankInfo(e.target.value)}
-                             rows={3}
-                             placeholder="Banco X, Ag: 0000, CC: 00000-0..."
-                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                         />
-                     </div>
-
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Instruções Adicionais</label>
-                         <textarea 
-                             value={instructions}
-                             onChange={e => setInstructions(e.target.value)}
-                             rows={2}
-                             placeholder="Enviar comprovante para o WhatsApp..."
-                             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                         />
-                     </div>
-
-                     <div className="pt-4 border-t border-slate-100 flex justify-end">
-                         <button type="submit" className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">
-                             Salvar Configurações
-                         </button>
-                     </div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Chave PIX (Principal)</label><input value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="CPF, CNPJ, Email ou Celular" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Link de Pagamento Externo (Opcional)</label><input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} placeholder="https://link.mercadopago.com.br/..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-blue-600" /><p className="text-xs text-slate-400 mt-1">Link do Mercado Pago, Stripe ou outro gateway para cartão.</p></div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Dados Bancários / Instruções</label><textarea value={bankInfo} onChange={e => setBankInfo(e.target.value)} rows={3} placeholder="Banco X, Ag: 0000, CC: 00000-0..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Instruções Adicionais</label><textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={2} placeholder="Enviar comprovante para o WhatsApp..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                     <div className="pt-4 border-t border-slate-100 flex justify-end"><button type="submit" className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">Salvar Configurações</button></div>
                  </form>
              </div>
          </div>
+      )}
+
+      {/* SUBSCRIPTION CONTENT */}
+      {activeTab === 'SUBSCRIPTION' && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300 max-w-5xl mx-auto space-y-6">
+              <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 rounded-2xl shadow-xl text-white">
+                  <div className="flex justify-between items-start">
+                      <div>
+                          <p className="text-slate-400 text-sm font-bold uppercase mb-1">Seu Plano Atual</p>
+                          <h2 className="text-3xl font-bold">{currentPlan?.name || 'Não Identificado'}</h2>
+                          <div className={`inline-flex items-center gap-2 mt-2 px-3 py-1 rounded-full text-xs font-bold ${currentOrg?.subscriptionStatus === 'ACTIVE' ? 'bg-green-500/20 text-green-300' : 'bg-orange-500/20 text-orange-300'}`}>
+                             {currentOrg?.subscriptionStatus === 'ACTIVE' ? <Check size={12}/> : <ArrowUpCircle size={12}/>}
+                             STATUS: {currentOrg?.subscriptionStatus || 'N/A'}
+                          </div>
+                      </div>
+                      <div className="text-right">
+                           <p className="text-3xl font-bold text-blue-400">R$ {currentPlan?.price.toFixed(2)}</p>
+                           <p className="text-sm text-slate-400">/mês</p>
+                      </div>
+                  </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600"/> Upgrade de Plano</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                      {allPlans.filter(p => p.isPublic && p.active && p.id !== currentPlan?.id).map(plan => (
+                          <div key={plan.id} className="border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors flex flex-col">
+                              <h4 className="font-bold text-slate-800">{plan.name}</h4>
+                              <p className="text-2xl font-bold text-blue-600 my-2">R$ {plan.price}</p>
+                              <ul className="text-xs text-slate-500 space-y-1 mb-4 flex-1">
+                                  <li>• {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
+                                  <li>• {plan.features.maxStorageGB} GB Armazenamento</li>
+                                  {plan.features.hasStoreModule && <li>• Loja Virtual</li>}
+                              </ul>
+                              <button onClick={() => handleUpgrade(plan.id)} className="w-full py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-blue-600 hover:text-white transition-all text-sm">
+                                  Mudar para este
+                              </button>
+                          </div>
+                      ))}
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-6">
+                      <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Ticket size={18} className="text-green-600"/> Cupom de Desconto</h4>
+                      <div className="flex gap-2 max-w-md">
+                          <input 
+                              value={upgradeCoupon}
+                              onChange={e => setUpgradeCoupon(e.target.value.toUpperCase())}
+                              placeholder="Código Promocional"
+                              className="flex-1 px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500"
+                              disabled={!!appliedUpgradeCoupon}
+                          />
+                          <button 
+                             onClick={handleValidateUpgradeCoupon}
+                             disabled={!!appliedUpgradeCoupon}
+                             className="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:opacity-50"
+                          >
+                              {appliedUpgradeCoupon ? 'Aplicado' : 'Validar'}
+                          </button>
+                      </div>
+                      {appliedUpgradeCoupon && <p className="text-xs text-green-600 mt-2 font-bold flex items-center gap-1"><Check size={12}/> Cupom {appliedUpgradeCoupon.code} aplicado!</p>}
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );
