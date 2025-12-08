@@ -149,8 +149,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           {!isClient && currentOrg?.subscriptionStatus === 'TRIAL' && (
               <div className="mb-6 bg-orange-500/20 border border-orange-500/50 p-3 rounded-xl text-orange-200 text-xs">
                   <p className="font-bold flex items-center gap-1 mb-1"><Lock size={12}/> Modo de Teste</p>
-                  <p>Expira em: {currentOrg.trialEndsAt ? new Date(currentOrg.trialEndsAt).toLocaleDateString() : '?'}</p>
-                  <Link to="/subscribe" className="block mt-2 text-center bg-orange-500 text-white py-1 rounded font-bold hover:bg-orange-600 transition-colors">Assinar Agora</Link>
+                  <p className="mb-2">Expira em: {currentOrg.trialEndsAt ? new Date(currentOrg.trialEndsAt).toLocaleDateString() : '?'}</p>
+                  <button 
+                     onClick={() => navigate('/subscribe')}
+                     className="w-full text-center bg-orange-500 text-white py-1.5 rounded font-bold hover:bg-orange-600 transition-colors"
+                  >
+                      Assinar Agora
+                  </button>
               </div>
           )}
 
@@ -185,7 +190,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             {isClient && (
               <>
                 {/* Robust Feature Checking for Menu Display */}
-                {(features?.hasClinicModule || (!activeOrganization && userConnections.length === 0)) && (
+                {(features?.hasClinicModule || !activeOrganization || !currentPlan) && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
                     <SidebarItem onClick={closeMobileMenu} to="/clinic/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/clinic/schedule'} />
@@ -193,7 +198,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   </>
                 )}
                 
-                {(features?.hasStoreModule || (!activeOrganization && userConnections.length === 0)) && (
+                {(features?.hasStoreModule || !activeOrganization || !currentPlan) && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Loja & Laboratório</div>
                     <SidebarItem onClick={closeMobileMenu} to="/store" icon={<ShoppingBag size={20} />} label="Catálogo" active={location.pathname === '/store'} />

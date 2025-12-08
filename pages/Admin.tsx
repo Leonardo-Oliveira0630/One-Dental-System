@@ -5,14 +5,16 @@ import {
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
   Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const Admin = () => {
   const { 
     sectors, addSector, deleteSector, 
     allUsers, addUser, deleteUser, updateUser,
     jobTypes, currentOrg, currentPlan, updateOrganization, allPlans,
-    validateCoupon, updateSubscriptionPlan // Assuming we might need this or a specific upgrade function
+    validateCoupon, createSubscription 
   } = useApp();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'FINANCIAL' | 'SUBSCRIPTION'>('SECTORS');
   const [copied, setCopied] = useState(false);
@@ -76,16 +78,8 @@ export const Admin = () => {
 
   const handleUpgrade = async (planId: string) => {
       if (!currentOrg) return;
-      if (confirm(`Deseja alterar seu plano para este nível?`)) {
-          // In a real app, this would redirect to checkout if paid
-          // For now, we simulate direct upgrade
-          await updateOrganization(currentOrg.id, { 
-              planId: planId,
-              appliedCoupon: appliedUpgradeCoupon?.code 
-          });
-          alert("Plano atualizado com sucesso!");
-          window.location.reload();
-      }
+      // Redirect to subscribe page with plan selected for real payment flow
+      navigate(`/subscribe?plan=${planId}${appliedUpgradeCoupon ? `&coupon=${appliedUpgradeCoupon.code}` : ''}`);
   };
 
   // ... (Standard Handlers)
@@ -171,6 +165,14 @@ export const Admin = () => {
                            <p className="text-sm text-slate-400">/mês</p>
                       </div>
                   </div>
+                  {currentOrg?.subscriptionStatus === 'TRIAL' && (
+                      <div className="mt-4 bg-orange-500/20 border border-orange-500/50 p-4 rounded-xl flex items-center justify-between">
+                          <p className="font-bold text-orange-200">Seu período de teste está ativo.</p>
+                          <button onClick={() => navigate('/subscribe')} className="px-4 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600 transition-colors shadow-lg">
+                              Ativar Assinatura Definitiva
+                          </button>
+                      </div>
+                  )}
               </div>
 
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
