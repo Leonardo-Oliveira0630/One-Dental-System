@@ -8,7 +8,8 @@ import {
   signOut 
 } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage } from './firebaseConfig';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, storage, functions } from './firebaseConfig';
 import { 
   Job, User, JobType, Sector, UserRole, JobAlert, ClinicPatient, Appointment, 
   Organization, SubscriptionPlan, OrganizationConnection, Coupon
@@ -43,7 +44,6 @@ export const apiRegisterOrganization = async (email: string, pass: string, owner
   const newUser: User = { id: uid, organizationId: orgId, email, name: ownerName, role: UserRole.ADMIN };
   await setDoc(doc(db, 'users', uid), sanitizeData(newUser));
   
-  // Increment coupon usage if applied
   if (couponCode) {
       const couponRef = doc(db, 'coupons', couponCode);
       const couponSnap = await getDoc(couponRef);
@@ -247,6 +247,19 @@ export const apiValidateCoupon = async (code: string, planId: string): Promise<C
     if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) return null;
     if (coupon.applicablePlans && coupon.applicablePlans.length > 0 && !coupon.applicablePlans.includes(planId)) return null;
     return coupon;
+};
+
+// --- NEW FUNCTION: PAYMENT (REAL CALL TO BACKEND) ---
+export const callCreateSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => {
+    if (!functions) throw new Error("Backend functions not initialized.");
+    const createSub = httpsCallable(functions, 'createSaaSSubscription');
+    try {
+        const result: any = await createSub({ orgId, planId, email, name, cpfCnpj });
+        return result.data as { success: boolean; paymentLink?: string };
+    } catch (error) {
+        console.error("Cloud Function Error:", error);
+        throw error;
+    }
 };
 
 export const uploadJobFile = async (file: File): Promise<string> => {

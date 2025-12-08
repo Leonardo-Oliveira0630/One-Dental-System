@@ -1,82 +1,92 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, ShieldCheck, Loader2, Star } from 'lucide-react';
+import { CheckCircle, CreditCard, ShieldCheck, Loader2, Star, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Subscribe = () => {
-    const { currentOrg, updateOrganization } = useApp();
+    const { currentOrg, createSubscription, allPlans } = useApp();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState('pro');
+    const [selectedPlanId, setSelectedPlanId] = useState(currentOrg?.planId || 'pro');
+    const [cpfCnpj, setCpfCnpj] = useState('');
+    const [error, setError] = useState('');
+
+    const publicPlans = allPlans.filter(p => p.isPublic && p.active);
+    const displayPlans = publicPlans.length > 0 ? publicPlans : [
+        { id: 'basic', name: 'Básico', price: 99, features: { maxUsers: 2, maxStorageGB: 5 } },
+        { id: 'pro', name: 'Profissional', price: 199, features: { maxUsers: 10, maxStorageGB: 50 } },
+        { id: 'enterprise', name: 'Enterprise', price: 499, features: { maxUsers: -1, maxStorageGB: 1000 } }
+    ];
 
     if (!currentOrg) return null;
 
     const handleSubscribe = async () => {
+        if (!cpfCnpj) { setError("Informe CPF ou CNPJ."); return; }
         setLoading(true);
-        // SIMULATION OF STRIPE CHECKOUT
-        setTimeout(async () => {
-            await updateOrganization(currentOrg.id, { subscriptionStatus: 'ACTIVE' });
+        setError('');
+
+        try {
+            const result = await createSubscription(
+                currentOrg.id, 
+                selectedPlanId, 
+                currentOrg.ownerId, 
+                currentOrg.name, 
+                cpfCnpj
+            );
+
+            if (result.success && result.paymentLink) {
+                window.location.href = result.paymentLink;
+            } else {
+                setError("Erro ao gerar pagamento. Tente novamente.");
+            }
+        } catch (err: any) {
+            console.error(err);
+            setError(err.message || "Erro de conexão com servidor de pagamento.");
+        } finally {
             setLoading(false);
-            alert("Pagamento simulado com sucesso! Assinatura ATIVA.");
-            navigate('/dashboard');
-        }, 2000);
+        }
     };
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
             <div className="max-w-4xl w-full">
-                <div className="text-center mb-12">
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Escolha seu Plano</h1>
-                    <p className="text-slate-500">Desbloqueie todo o potencial do One Dental System.</p>
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Assinatura One Dental</h1>
+                    <p className="text-slate-500">Escolha o plano ideal para o seu laboratório.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Basic */}
-                    <div className={`bg-white p-8 rounded-2xl border-2 ${selectedPlan === 'basic' ? 'border-blue-600 shadow-xl' : 'border-slate-100 shadow-sm'} cursor-pointer transition-all`} onClick={() => setSelectedPlan('basic')}>
-                        <h3 className="font-bold text-xl text-slate-800">Básico</h3>
-                        <p className="text-3xl font-bold text-slate-900 mt-4">R$ 99<span className="text-sm text-slate-400 font-normal">/mês</span></p>
-                        <ul className="mt-6 space-y-3 text-sm text-slate-600">
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> 2 Usuários</li>
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> 5GB Armazenamento</li>
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> Controle de Produção</li>
-                        </ul>
-                    </div>
-
-                    {/* Pro */}
-                    <div className={`bg-white p-8 rounded-2xl border-2 relative ${selectedPlan === 'pro' ? 'border-indigo-600 shadow-2xl scale-105' : 'border-slate-100 shadow-sm'} cursor-pointer transition-all`} onClick={() => setSelectedPlan('pro')}>
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">RECOMENDADO</div>
-                        <h3 className="font-bold text-xl text-indigo-800">Profissional</h3>
-                        <p className="text-3xl font-bold text-slate-900 mt-4">R$ 199<span className="text-sm text-slate-400 font-normal">/mês</span></p>
-                        <ul className="mt-6 space-y-3 text-sm text-slate-600">
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> 10 Usuários</li>
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> 50GB Armazenamento</li>
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> Loja Virtual</li>
-                        </ul>
-                    </div>
-
-                    {/* Enterprise */}
-                    <div className={`bg-white p-8 rounded-2xl border-2 ${selectedPlan === 'ent' ? 'border-blue-600 shadow-xl' : 'border-slate-100 shadow-sm'} cursor-pointer transition-all`} onClick={() => setSelectedPlan('ent')}>
-                        <h3 className="font-bold text-xl text-slate-800">Enterprise</h3>
-                        <p className="text-3xl font-bold text-slate-900 mt-4">R$ 499<span className="text-sm text-slate-400 font-normal">/mês</span></p>
-                        <ul className="mt-6 space-y-3 text-sm text-slate-600">
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> Ilimitados</li>
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> 1TB Armazenamento</li>
-                            <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> Gestão de Clínicas</li>
-                        </ul>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    {displayPlans.map(plan => (
+                        <div 
+                            key={plan.id}
+                            className={`bg-white p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPlanId === plan.id ? 'border-blue-600 shadow-xl ring-2 ring-blue-100' : 'border-slate-100 shadow-sm'}`} 
+                            onClick={() => setSelectedPlanId(plan.id)}
+                        >
+                            <h3 className="font-bold text-lg text-slate-800 uppercase tracking-wide">{plan.name}</h3>
+                            <p className="text-3xl font-bold text-slate-900 mt-2">R$ {plan.price}<span className="text-sm text-slate-400 font-normal">/mês</span></p>
+                            <ul className="mt-4 space-y-2 text-sm text-slate-600">
+                                <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
+                                <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
+                            </ul>
+                        </div>
+                    ))}
                 </div>
 
-                <div className="mt-12 text-center">
-                    <button 
-                        onClick={handleSubscribe}
-                        disabled={loading}
-                        className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-200 hover:shadow-xl transition-all transform hover:scale-105 disabled:opacity-70 flex items-center gap-2 mx-auto"
-                    >
-                        {loading ? <Loader2 className="animate-spin" /> : <><CreditCard /> Assinar Agora</>}
-                    </button>
-                    <p className="mt-4 text-xs text-slate-400 flex items-center justify-center gap-1">
-                        <ShieldCheck size={12} /> Pagamento seguro via Stripe (Simulado)
-                    </p>
+                <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 max-w-md mx-auto">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center gap-2"><CreditCard /> Dados de Faturamento</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
+                            <input value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="000.000.000-00" />
+                        </div>
+                        
+                        {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><AlertTriangle size={16}/> {error}</div>}
+
+                        <button onClick={handleSubscribe} disabled={loading} className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70">
+                            {loading ? <Loader2 className="animate-spin" /> : 'Ir para Pagamento Seguro'}
+                        </button>
+                        <p className="text-center text-xs text-slate-400">Processado via Asaas. Boleto ou Pix.</p>
+                    </div>
                 </div>
             </div>
         </div>

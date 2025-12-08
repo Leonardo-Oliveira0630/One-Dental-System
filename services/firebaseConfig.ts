@@ -2,12 +2,10 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
+import { getFunctions } from 'firebase/functions';
 
 // --- CONFIGURAÇÃO DO FIREBASE ---
-// 1. Vá ao Console do Firebase (console.firebase.google.com)
-// 2. Crie um projeto e adicione um app Web
-// 3. Copie as chaves e cole abaixo
-
+// Certifique-se de substituir por suas chaves reais se não estiver usando o ambiente de preview
 const firebaseConfig = {
    apiKey: "AIzaSyBqvqRSt06s2Dh09fYiFsw4zTA598bmwlU",
   authDomain: "one-dental-system.firebaseapp.com",
@@ -23,14 +21,16 @@ let app;
 let db: any;
 let auth: any;
 let storage: any;
+let functions: any;
 
 try {
-    // Only initialize if config is present (prevents errors in preview mode without keys)
+    // Check if config exists to avoid crash in environments without env vars set up yet
     if (firebaseConfig.apiKey && firebaseConfig.apiKey.length > 0) {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
         storage = getStorage(app);
+        functions = getFunctions(app, 'us-central1'); // Region must match your deploy
         console.log("✅ Firebase conectado com sucesso!");
     } else {
         console.warn("⚠️ Configuração do Firebase ausente. O app está rodando em MODO OFFLINE (Mock Data).");
@@ -39,4 +39,4 @@ try {
     console.error("❌ Erro ao inicializar Firebase:", error);
 }
 
-export { db, auth, storage };
+export { db, auth, storage, functions };

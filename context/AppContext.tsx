@@ -61,6 +61,8 @@ interface AppContextType {
   updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
   deleteSubscriptionPlan: (id: string) => Promise<void>;
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
+  
+  createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<{success: boolean, paymentLink?: string}>;
 
   addCoupon: (coupon: Coupon) => Promise<void>;
   updateCoupon: (code: string, updates: Partial<Coupon>) => Promise<void>;
@@ -159,6 +161,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Org & Plan Listener
   useEffect(() => {
     if (!db || !currentUser) return;
+
     if (currentUser.role === UserRole.SUPER_ADMIN) {
       const unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
       const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
@@ -166,16 +169,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const unsubCoupons = api.subscribeCoupons(setCoupons);
       return () => { unsubOrgs(); unsubPlans(); unsubUsers(); unsubCoupons(); };
     }
+
     if (currentUser.organizationId) {
       const orgRef = doc(db, 'organizations', currentUser.organizationId);
       const unsubOrg = onSnapshot(orgRef, async (docSnap) => {
         if (docSnap.exists()) {
           const orgData = { id: docSnap.id, ...docSnap.data() } as Organization;
           setCurrentOrg(orgData);
-          if (currentUser.role !== UserRole.CLIENT) { setActiveOrganization(orgData); }
+          if (currentUser.role !== UserRole.CLIENT) {
+              setActiveOrganization(orgData);
+          }
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           const planSnap = await getDoc(planRef);
-          if (planSnap.exists()) { setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan); }
+          if (planSnap.exists()) {
+            setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+          }
         }
       });
       return unsubOrg;
@@ -185,8 +193,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Connections Listener (Dentists)
   useEffect(() => {
     if (!db || !currentUser || currentUser.role !== UserRole.CLIENT) return;
+
     const unsub = api.subscribeUserConnections(currentUser.id, async (connections) => {
       setUserConnections(connections);
+      
       if (connections.length > 0) {
           setTimeout(() => {
              setActiveOrganization(prev => {
@@ -228,16 +238,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsubJobTypes = api.subscribeJobTypes(targetOrgId, setJobTypes);
     const unsubSectors = api.subscribeSectors(targetOrgId, setSectors);
     const unsubAlerts = api.subscribeAlerts(targetOrgId, setAlerts);
+    
     let unsubPatients = () => {};
     let unsubAppts = () => {};
     if (currentUser?.role === UserRole.CLIENT) {
         unsubPatients = api.subscribeClinicPatients(targetOrgId, currentUser.id, setPatients);
         unsubAppts = api.subscribeAppointments(targetOrgId, currentUser.id, setAppointments);
     }
+
     return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubAlerts(); unsubPatients(); unsubAppts(); };
   }, [activeOrganization, currentUser]);
   
-  const orgId = () => { if (activeOrganization?.id) return activeOrganization.id; if (!db) return 'mock-org'; return undefined as any; };
+  const orgId = () => { 
+      if (activeOrganization?.id) return activeOrganization.id;
+      if (!db) return 'mock-org'; 
+      return undefined as any; 
+  };
+
+  // ... (Wrappers) ...
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => { await api.apiLogout(); };
   const registerOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => await api.apiRegisterOrganization(email, pass, ownerName, orgName, planId, trialEndsAt, couponCode);
@@ -266,11 +284,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
   const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
   const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
-  
   const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
   const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
   const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
   const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
+
+  // New Payment Function
+  const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => {
+      return await api.callCreateSubscription(orgId, planId, email, name, cpfCnpj);
+  };
 
   const createWebOrder = async (patientName: string, dueDate: Date, notes: string, attachments: Attachment[]) => {
     if (!currentUser || cart.length === 0) return;
@@ -295,6 +317,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addJob, updateJob, addJobType, updateJobType, deleteJobType, addSector, deleteSector,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, updateOrganization,
+      createSubscription, 
       addCoupon, updateCoupon, deleteCoupon, validateCoupon,
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       createWebOrder, uploadFile,
