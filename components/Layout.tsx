@@ -72,8 +72,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const handleLogout = () => { logout(); navigate('/'); };
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
+  // --- AUTO-SELECT LOGIC FOR DENTISTS ---
   useEffect(() => {
     if (isClient && userConnections.length > 0 && !activeOrganization) {
+      // If user has connections but none selected, select the first one
       switchActiveOrganization(userConnections[0].organizationId);
     }
   }, [isClient, userConnections, activeOrganization, switchActiveOrganization]);
@@ -122,6 +124,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             </button>
           </div>
 
+          {/* LAB SWITCHER FOR DENTISTS */}
           {isClient && userConnections.length > 0 && (
             <div className="mb-6 bg-white/10 rounded-xl p-3 border border-white/10 relative">
               <label className="text-[10px] uppercase font-bold text-white/50 tracking-wider mb-1 block">Laboratório Ativo</label>
@@ -151,6 +154,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           )}
 
           <nav className="space-y-1 flex-1 overflow-y-auto">
+            {/* Super Admin View */}
             {isSuperAdmin && (
               <>
                 <SidebarItem onClick={closeMobileMenu} to="/superadmin" icon={<Crown size={20} />} label="Painel SaaS" active={location.pathname === '/superadmin'} />
@@ -159,6 +163,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             )}
 
+            {/* Lab View */}
             {!isClient && !isSuperAdmin && !isLocked && (
               <>
                 <SidebarItem onClick={closeMobileMenu} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
@@ -175,8 +180,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             )}
 
+            {/* Client View */}
             {isClient && (
               <>
+                {/* Robust Feature Checking for Menu Display */}
                 {(features?.hasClinicModule || !activeOrganization || !currentPlan) && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
@@ -228,15 +235,26 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   </div>
                </div>
             </div>
-            <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 text-red-300 hover:bg-white/5 hover:text-red-200 rounded-xl transition-colors"><LogOut size={20} /><span>Sair</span></button>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-3 w-full px-4 py-3 text-red-300 hover:bg-white/5 hover:text-red-200 rounded-xl transition-colors"
+            >
+              <LogOut size={20} />
+              <span>Sair</span>
+            </button>
           </div>
         </div>
       </aside>
 
       <main className="flex-1 md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
         <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
-          <div className="flex items-center gap-2"><div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">O</div><span className="font-bold text-slate-800">ONE DENTAL</span></div>
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
+          <div className="flex items-center gap-2">
+             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
+             <span className="font-bold text-slate-800">ONE DENTAL</span>
+          </div>
+          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-600 p-2 rounded-lg hover:bg-slate-100">
+            <Menu size={24} />
+          </button>
         </header>
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full print:p-0 flex-1">
           {children}
