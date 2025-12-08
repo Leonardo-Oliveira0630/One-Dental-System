@@ -109,13 +109,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-  // ACTIONS
+  // ACTIONS DEFINED BEFORE EFFECTS
   const switchActiveOrganization = useCallback(async (organizationId: string | null) => {
     if (!organizationId) {
       setActiveOrganization(null);
       setCurrentPlan(null);
       return;
     }
+    
+    // Prevent refetching if already active to avoid loops
     if (activeOrganization?.id === organizationId) return;
 
     const orgRef = doc(db, 'organizations', organizationId);
@@ -124,12 +126,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgData = { id: orgSnap.id, ...orgSnap.data() } as Organization;
       setActiveOrganization(orgData);
       
+      // Fetch plan immediately for the switched org
       if (orgData.planId) {
+          // Use onSnapshot here if you want real-time updates for the active org plan too
+          // For simplicity and stability, a fetch is fine, but snapshot is better for immediate updates
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
-          const planSnap = await getDoc(planRef);
-          if (planSnap.exists()) {
-             setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
-          }
+          getDoc(planRef).then(snap => {
+               if (snap.exists()) setCurrentPlan({ id: snap.id, ...snap.data() } as SubscriptionPlan);
+          });
       }
     }
   }, [activeOrganization]);
@@ -158,7 +162,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return unsub;
   }, []);
 
-  // Org & Plan Listener
+  // Org & Plan Listener (For Lab Staff)
   useEffect(() => {
     if (!db || !currentUser) return;
 
@@ -179,10 +183,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           if (currentUser.role !== UserRole.CLIENT) {
               setActiveOrganization(orgData);
           }
-          const planRef = doc(db, 'subscriptionPlans', orgData.planId);
-          const planSnap = await getDoc(planRef);
-          if (planSnap.exists()) {
-            setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+          
+          // REAL-TIME LISTENER FOR PLAN CHANGES
+          if (orgData.planId) {
+              const planRef = doc(db, 'subscriptionPlans', orgData.planId);
+              // Use onSnapshot to get updates instantly when Super Admin changes price
+              onSnapshot(planRef, (planSnap) => {
+                  if (planSnap.exists()) {
+                    setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+                  }
+              });
           }
         }
       });
@@ -203,7 +213,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                  if (!prev || !connections.some(c => c.organizationId === prev.id)) {
                      const firstOrgId = connections[0].organizationId;
                      switchActiveOrganization(firstOrgId);
-                     return prev; 
+                     return prev;
                  }
                  return prev;
              });
@@ -223,14 +233,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return;
     }
     
+    // If client, fetch the plan details for the active org so Layout knows features
     if (currentUser?.role === UserRole.CLIENT) {
         const orgRef = doc(db, 'organizations', targetOrgId);
         getDoc(orgRef).then(async snap => {
             if(snap.exists()) {
                 const od = snap.data() as Organization;
-                const planRef = doc(db, 'subscriptionPlans', od.planId);
-                const planSnap = await getDoc(planRef);
-                if(planSnap.exists()) setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+                if (od.planId) {
+                    const planRef = doc(db, 'subscriptionPlans', od.planId);
+                    const planSnap = await getDoc(planRef);
+                    if(planSnap.exists()) setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+                }
             }
         });
     }
@@ -251,30 +264,54 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubAlerts(); unsubPatients(); unsubAppts(); };
   }, [activeOrganization, currentUser]);
   
-  const orgId = () => { if (activeOrganization?.id) return activeOrganization.id; if (!db) return 'mock-org'; return undefined as any; };
+  const orgId = () => { 
+      if (activeOrganization?.id) return activeOrganization.id;
+      if (!db) return 'mock-org'; 
+      return undefined as any; 
+  };
+
+  // ... (Wrappers) ...
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => { await api.apiLogout(); };
   const registerOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => await api.apiRegisterOrganization(email, pass, ownerName, orgName, planId, trialEndsAt, couponCode);
   const registerUserInOrg = async (email: string, pass: string, name: string, role: UserRole, clinicName?: string) => await api.apiRegisterUserInOrg(email, pass, name, role, orgId(), clinicName);
   const registerDentist = api.apiRegisterDentist;
+  
   const updateUser = async (id: string, u: Partial<User>) => await api.apiUpdateUser(id, u);
   const deleteUser = async (id: string) => await api.apiDeleteUser(id);
   const addUser = async (u: User) => await api.apiAddUser(u);
-  const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => await api.apiAddJob(orgId(), { ...j, id: `job_${Date.now()}`, organizationId: orgId() });
+  
+  const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => {
+     try {
+       await api.apiAddJob(orgId(), { ...j, id: `job_${Date.now()}`, organizationId: orgId() });
+     } catch (e) {
+       alert("Erro ao adicionar trabalho. Nenhuma organização ativa.");
+     }
+  };
   const updateJob = async (id: string, u: Partial<Job>) => await api.apiUpdateJob(orgId(), id, u);
-  const addJobType = async (jt: Omit<JobType, 'id'>) => await api.apiAddJobType(orgId(), { ...jt, id: `jtype_${Date.now()}` });
+
+  const addJobType = async (jt: Omit<JobType, 'id'>) => {
+     try { await api.apiAddJobType(orgId(), { ...jt, id: `jtype_${Date.now()}` }); } catch(e) { alert("Erro ao salvar serviço. Organização inválida."); }
+  };
   const updateJobType = async (id: string, u: Partial<JobType>) => await api.apiUpdateJobType(orgId(), id, u);
   const deleteJobType = async (id: string) => await api.apiDeleteJobType(orgId(), id);
-  const addSector = async (name: string) => await api.apiAddSector(orgId(), { id: `sector_${Date.now()}`, name });
+
+  const addSector = async (name: string) => {
+      try { await api.apiAddSector(orgId(), { id: `sector_${Date.now()}`, name }); } catch(e) { throw e; }
+  };
   const deleteSector = async (id: string) => await api.apiDeleteSector(orgId(), id);
+
   const addAlert = async (a: Omit<JobAlert, 'id'|'organizationId'>) => await api.apiAddAlert(orgId(), { ...a, id: `alert_${Date.now()}`, organizationId: orgId() });
   const dismissAlert = async (id: string) => { if(currentUser) await api.apiMarkAlertAsRead(orgId(), id, currentUser.id); setActiveAlert(null); };
+
   const addPatient = async (p: Omit<ClinicPatient, 'id'|'organizationId'|'dentistId'>) => { if(currentUser) await api.apiAddPatient(orgId(), { ...p, id: `pat_${Date.now()}`, organizationId: orgId(), dentistId: currentUser.id }); };
   const updatePatient = async (id: string, u: Partial<ClinicPatient>) => await api.apiUpdatePatient(orgId(), id, u);
   const deletePatient = async (id: string) => await api.apiDeletePatient(orgId(), id);
+
   const addAppointment = async (a: Omit<Appointment, 'id'|'organizationId'|'dentistId'>) => { if(currentUser) await api.apiAddAppointment(orgId(), { ...a, id: `appt_${Date.now()}`, organizationId: orgId(), dentistId: currentUser.id }); };
   const updateAppointment = async (id: string, u: Partial<Appointment>) => await api.apiUpdateAppointment(orgId(), id, u);
   const deleteAppointment = async (id: string) => await api.apiDeleteAppointment(orgId(), id);
+
   const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
   const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
   const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
