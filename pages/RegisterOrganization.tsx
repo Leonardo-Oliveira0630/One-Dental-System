@@ -11,7 +11,14 @@ export const RegisterOrganization = () => {
   const [error, setError] = useState('');
   
   const [regType, setRegType] = useState<'LAB' | 'DENTIST'>('LAB');
-  const [formData, setFormData] = useState({ labName: '', clinicName: '', ownerName: '', email: '', password: '', planId: '' });
+  
+  // Separated State for clarity
+  const [labName, setLabName] = useState('');
+  const [clinicName, setClinicName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [planId, setPlanId] = useState('');
   
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -26,8 +33,8 @@ export const RegisterOrganization = () => {
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return;
-    const planId = formData.planId || (displayPlans.length > 0 ? displayPlans[0].id : '');
-    const coupon = await validateCoupon(couponCode, planId);
+    const selectedPlanId = planId || (displayPlans.length > 0 ? displayPlans[0].id : '');
+    const coupon = await validateCoupon(couponCode, selectedPlanId);
     if (coupon) {
         setAppliedCoupon(coupon);
         alert("Cupom aplicado com sucesso!");
@@ -44,7 +51,7 @@ export const RegisterOrganization = () => {
 
     try {
       if (regType === 'LAB') {
-          const selectedPlanId = formData.planId || displayPlans[0].id;
+          const selectedPlanId = planId || displayPlans[0].id;
           const plan = displayPlans.find(p => p.id === selectedPlanId);
           
           let trialEnd = undefined;
@@ -60,10 +67,11 @@ export const RegisterOrganization = () => {
               const d = new Date(); d.setFullYear(d.getFullYear() + 10); trialEnd = d;
           }
 
-          await registerOrganization(formData.email, formData.password, formData.ownerName, formData.labName, selectedPlanId, trialEnd, appliedCoupon?.code);
+          await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code);
           navigate('/dashboard');
       } else {
-          await registerDentist(formData.email, formData.password, formData.ownerName, formData.clinicName);
+          // Register Dentist
+          await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular');
           navigate('/store'); 
       }
     } catch (err: any) {
@@ -75,77 +83,147 @@ export const RegisterOrganization = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="bg-slate-800 w-full max-w-5xl p-8 rounded-3xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in duration-300 flex flex-col lg:flex-row gap-8">
+      <div className="bg-slate-800 w-full max-w-5xl p-8 rounded-3xl shadow-2xl border border-slate-700 flex flex-col lg:flex-row gap-8">
         
         <div className="flex-1 space-y-6">
             <div className="text-left mb-6">
-                <div className="inline-block p-3 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-900/50">
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/20 ${regType === 'LAB' ? 'bg-blue-600' : 'bg-teal-600'}`}>
                     {regType === 'LAB' ? <ShieldCheck size={32} className="text-white" /> : <Stethoscope size={32} className="text-white" />}
                 </div>
                 <h1 className="text-3xl font-bold text-white mb-2">Crie sua Conta</h1>
-                <p className="text-slate-400">Comece a transformar sua gestão hoje.</p>
+                <p className="text-slate-400">
+                    {regType === 'LAB' ? 'Gestão completa para seu Laboratório.' : 'Conecte-se aos melhores laboratórios.'}
+                </p>
             </div>
 
-            <div className="flex bg-slate-900 p-1 rounded-xl mb-6">
-                <button type="button" onClick={() => setRegType('LAB')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${regType === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}><Building size={18} /> Sou Laboratório</button>
-                <button type="button" onClick={() => setRegType('DENTIST')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${regType === 'DENTIST' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}><Stethoscope size={18} /> Sou Dentista</button>
+            <div className="flex bg-slate-900 p-1 rounded-xl mb-6 border border-slate-700">
+                <button type="button" onClick={() => setRegType('LAB')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${regType === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Building size={18} /> Sou Laboratório</button>
+                <button type="button" onClick={() => setRegType('DENTIST')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${regType === 'DENTIST' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Stethoscope size={18} /> Sou Dentista</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {/* Campos Específicos - Renderização Simplificada */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {regType === 'LAB' ? (
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome do Laboratório</label><input required value={formData.labName} onChange={e => setFormData({...formData, labName: e.target.value})} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Laboratório Smile" /></div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome do Laboratório</label>
+                            <div className="relative">
+                                <Building className="absolute left-3 top-3 text-slate-500" size={18}/>
+                                <input required value={labName} onChange={e => setLabName(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600" placeholder="Ex: Laboratório Smile" />
+                            </div>
+                        </div>
                     ) : (
-                        <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome da Clínica</label><input required value={formData.clinicName} onChange={e => setFormData({...formData, clinicName: e.target.value})} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-teal-500 outline-none" placeholder="Ex: Clínica Sorriso" /></div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome da Clínica</label>
+                            <div className="relative">
+                                <Store className="absolute left-3 top-3 text-slate-500" size={18}/>
+                                <input required value={clinicName} onChange={e => setClinicName(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-teal-500 outline-none placeholder-slate-600" placeholder="Ex: Clínica Sorriso" />
+                            </div>
+                        </div>
                     )}
-                    <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1">Seu Nome</label><input required value={formData.ownerName} onChange={e => setFormData({...formData, ownerName: e.target.value})} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2" placeholder="Ex: João da Silva" /></div>
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Seu Nome Completo</label>
+                        <div className="relative">
+                            <User className="absolute left-3 top-3 text-slate-500" size={18}/>
+                            <input required value={ownerName} onChange={e => setOwnerName(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Ex: João da Silva" />
+                        </div>
+                    </div>
                 </div>
 
-                <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label><input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none" placeholder="seu@email.com" /></div>
-                <div><label className="block text-xs font-bold text-slate-400 uppercase mb-1">Senha</label><input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none" placeholder="••••••••" minLength={6} /></div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email de Acesso</label>
+                    <div className="relative">
+                        <Mail className="absolute left-3 top-3 text-slate-500" size={18}/>
+                        <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="seu@email.com" />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Senha</label>
+                    <div className="relative">
+                        <Lock className="absolute left-3 top-3 text-slate-500" size={18}/>
+                        <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="••••••••" minLength={6} />
+                    </div>
+                </div>
 
                 {regType === 'LAB' && (
-                    <div className="flex gap-2 items-end">
+                    <div className="flex gap-2 items-end pt-2">
                         <div className="flex-1">
                             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Cupom de Desconto</label>
                             <div className="relative">
                                 <Ticket className="absolute left-3 top-3 text-slate-500" size={16} />
-                                <input value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-2 text-white text-sm outline-none" placeholder="Código Promocional" disabled={!!appliedCoupon} />
+                                <input value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-blue-500" placeholder="Código Promocional" disabled={!!appliedCoupon} />
                             </div>
                         </div>
-                        <button type="button" onClick={handleApplyCoupon} disabled={!!appliedCoupon || !couponCode} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-600 disabled:opacity-50">{appliedCoupon ? 'Aplicado' : 'Validar'}</button>
+                        <button type="button" onClick={handleApplyCoupon} disabled={!!appliedCoupon || !couponCode} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-600 disabled:opacity-50 h-[42px]">{appliedCoupon ? 'Aplicado' : 'Validar'}</button>
                     </div>
                 )}
                 {appliedCoupon && <div className="text-green-400 text-xs font-bold flex items-center gap-1"><CheckCircle size={12} /> {appliedCoupon.discountType === 'FREE_FOREVER' ? 'Acesso Gratuito Vitalício' : appliedCoupon.discountType === 'TRIAL_EXT' ? `+${appliedCoupon.discountValue} dias de teste` : 'Desconto aplicado'}</div>}
 
-                {error && <div className="p-3 bg-red-500/20 text-red-300 rounded-lg text-sm text-center border border-red-500/30">{error}</div>}
+                {error && <div className="p-3 bg-red-500/20 text-red-300 rounded-lg text-sm text-center border border-red-500/30 font-medium">{error}</div>}
 
-                <button type="submit" disabled={loading} className={`w-full py-4 font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 text-white mt-4 ${regType === 'LAB' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-teal-600 hover:bg-teal-500'}`}>{loading ? 'Criando conta...' : 'Finalizar Cadastro'}</button>
-                <div className="text-center"><Link to="/" className="text-slate-400 hover:text-white text-sm transition-colors">Já tem conta? <span className="font-bold underline">Fazer Login</span></Link></div>
+                <button type="submit" disabled={loading} className={`w-full py-4 font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 text-white mt-4 flex items-center justify-center gap-2 ${regType === 'LAB' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/50' : 'bg-teal-600 hover:bg-teal-500 shadow-teal-900/50'}`}>
+                    {loading ? 'Processando...' : 'Finalizar Cadastro'}
+                </button>
+                
+                <div className="text-center pt-2">
+                    <Link to="/" className="text-slate-400 hover:text-white text-sm transition-colors">Já tem conta? <span className="font-bold underline">Fazer Login</span></Link>
+                </div>
             </form>
         </div>
 
-        {regType === 'LAB' && (
+        {/* Painel Informativo Direito */}
+        {regType === 'LAB' ? (
             <div className="flex-1 space-y-4">
-                <h3 className="text-xl font-bold text-white mb-4">Escolha seu Plano</h3>
+                <div className="flex items-center gap-2 text-white mb-4">
+                    <Activity className="text-blue-500"/>
+                    <h3 className="text-xl font-bold">Escolha seu Plano</h3>
+                </div>
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {displayPlans.map(plan => (
-                        <div key={plan.id} onClick={() => setFormData({...formData, planId: plan.id})} className={`cursor-pointer border-2 rounded-2xl p-5 transition-all relative overflow-hidden ${formData.planId === plan.id ? 'border-blue-500 bg-slate-800' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'}`}>
-                            {plan.trialDays && plan.trialDays > 0 && (<div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl">{plan.trialDays} DIAS GRÁTIS</div>)}
-                            <div className="flex justify-between items-start mb-3"><div><h4 className="text-white font-bold uppercase tracking-wider">{plan.name}</h4><p className="text-2xl font-bold text-blue-400 mt-1">R$ {plan.price.toFixed(2)}<span className="text-sm text-slate-500 font-normal">/mês</span></p></div><div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${formData.planId === plan.id ? 'border-blue-500 bg-blue-500' : 'border-slate-600'}`}>{formData.planId === plan.id && <CheckCircle size={14} className="text-white" />}</div></div>
-                            <div className="space-y-2 text-sm text-slate-400"><div className="flex items-center gap-2"><Users size={14} className="text-blue-500"/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div><div className="flex items-center gap-2"><Database size={14} className="text-blue-500"/>{plan.features.maxStorageGB} GB de Armazenamento</div><div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Store size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-600'}/>Loja Virtual</div><div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={14} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão Clínica</div></div>
+                        <div key={plan.id} onClick={() => setPlanId(plan.id)} className={`cursor-pointer border-2 rounded-2xl p-5 transition-all relative overflow-hidden group ${planId === plan.id || (!planId && plan.id === 'basic') ? 'border-blue-500 bg-slate-800 shadow-lg shadow-black/20' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'}`}>
+                            {plan.trialDays && plan.trialDays > 0 && (<div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-sm">{plan.trialDays} DIAS GRÁTIS</div>)}
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <h4 className="text-white font-bold uppercase tracking-wider text-sm">{plan.name}</h4>
+                                    <p className="text-2xl font-bold text-blue-400 mt-1">R$ {plan.price.toFixed(2)}<span className="text-sm text-slate-500 font-normal">/mês</span></p>
+                                </div>
+                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${planId === plan.id || (!planId && plan.id === 'basic') ? 'border-blue-500 bg-blue-500' : 'border-slate-600'}`}>
+                                    {(planId === plan.id || (!planId && plan.id === 'basic')) && <CheckCircle size={14} className="text-white" />}
+                                </div>
+                            </div>
+                            <div className="space-y-2 text-sm text-slate-400">
+                                <div className="flex items-center gap-2"><Users size={14} className="text-blue-500"/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
+                                <div className="flex items-center gap-2"><Database size={14} className="text-blue-500"/>{plan.features.maxStorageGB} GB de Armazenamento</div>
+                                <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Store size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-600'}/>Loja Virtual</div>
+                                <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={14} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão Clínica</div>
+                            </div>
                         </div>
                     ))}
                 </div>
             </div>
-        )}
-
-        {regType === 'DENTIST' && (
-            <div className="flex-1 bg-gradient-to-br from-teal-900/50 to-slate-800 rounded-2xl p-8 flex flex-col justify-center items-center text-center border border-teal-500/30">
-                <Stethoscope size={64} className="text-teal-400 mb-6" />
+        ) : (
+            <div className="flex-1 bg-gradient-to-br from-teal-900/50 to-slate-800 rounded-3xl p-8 flex flex-col justify-center items-center text-center border border-teal-500/30">
+                <div className="w-20 h-20 bg-teal-500/10 rounded-full flex items-center justify-center mb-6">
+                    <Stethoscope size={40} className="text-teal-400" />
+                </div>
                 <h3 className="text-2xl font-bold text-white mb-2">Área do Dentista</h3>
-                <p className="text-slate-300 leading-relaxed mb-6">Conecte-se com seus laboratórios parceiros, envie pedidos digitais, envie arquivos 3D e gerencie seus pacientes em um só lugar.</p>
-                <div className="space-y-2 text-left bg-black/20 p-4 rounded-xl w-full"><p className="text-teal-300 flex items-center gap-2 text-sm"><CheckCircle size={14}/> Envio de STL simplificado</p><p className="text-teal-300 flex items-center gap-2 text-sm"><CheckCircle size={14}/> Rastreio em tempo real</p><p className="text-teal-300 flex items-center gap-2 text-sm"><CheckCircle size={14}/> Agenda clínica integrada</p></div>
+                <p className="text-slate-300 leading-relaxed mb-8">
+                    Conecte-se com seus laboratórios parceiros, envie pedidos digitais com arquivos 3D e acompanhe a produção em tempo real.
+                </p>
+                <div className="space-y-3 text-left w-full max-w-xs">
+                    <div className="bg-slate-900/50 p-3 rounded-xl flex items-center gap-3 border border-teal-500/20">
+                        <CheckCircle size={18} className="text-teal-400 shrink-0"/> <span className="text-sm text-teal-100">Envio de STL e Fotos</span>
+                    </div>
+                    <div className="bg-slate-900/50 p-3 rounded-xl flex items-center gap-3 border border-teal-500/20">
+                        <CheckCircle size={18} className="text-teal-400 shrink-0"/> <span className="text-sm text-teal-100">Chat com o Laboratório</span>
+                    </div>
+                    <div className="bg-slate-900/50 p-3 rounded-xl flex items-center gap-3 border border-teal-500/20">
+                        <CheckCircle size={18} className="text-teal-400 shrink-0"/> <span className="text-sm text-teal-100">Agenda Clínica Integrada</span>
+                    </div>
+                </div>
             </div>
         )}
       </div>

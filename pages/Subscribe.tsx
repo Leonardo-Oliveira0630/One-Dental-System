@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, ShieldCheck, Loader2, Star, AlertTriangle, ArrowLeft, Mail, FileText } from 'lucide-react';
+import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const Subscribe = () => {
@@ -8,14 +8,13 @@ export const Subscribe = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     
-    // Initial Plan ID from URL or Current Org
     const initialPlanId = searchParams.get('plan') || currentOrg?.planId || 'pro';
     const initialCoupon = searchParams.get('coupon') || '';
 
     const [loading, setLoading] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
     const [cpfCnpj, setCpfCnpj] = useState('');
-    // Initialize with fallback to ensure it's never undefined
+    // Inicializa diretamente com o email do usuário se existir, ou string vazia
     const [billingEmail, setBillingEmail] = useState(currentUser?.email || '');
     const [error, setError] = useState('');
     const [couponCode, setCouponCode] = useState(initialCoupon);
@@ -27,7 +26,7 @@ export const Subscribe = () => {
         { id: 'enterprise', name: 'Enterprise', price: 499, features: { maxUsers: -1, maxStorageGB: 1000 } }
     ];
 
-    // Ensure email is set when user loads
+    // Atualiza o email se o currentUser carregar depois
     useEffect(() => {
         if (currentUser?.email && !billingEmail) {
             setBillingEmail(currentUser.email);
@@ -37,32 +36,32 @@ export const Subscribe = () => {
     if (!currentOrg) return null;
 
     const handleSubscribe = async () => {
-        // Sanitize CPF/CNPJ (Remove dots, dashes, slashes)
         const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
 
-        if (!cleanCpfCnpj) { 
-            setError("Informe CPF ou CNPJ."); 
+        if (!cleanCpfCnpj) { setError("Informe CPF ou CNPJ."); return; }
+        if (cleanCpfCnpj.length !== 11 && cleanCpfCnpj.length !== 14) { setError("Documento inválido (CPF 11 / CNPJ 14)."); return; }
+        
+        // Validação rigorosa do email
+        if (!billingEmail || !billingEmail.trim().includes('@')) { 
+            setError("O campo de Email é obrigatório e deve ser válido."); 
             return; 
-        }
-
-        if (cleanCpfCnpj.length !== 11 && cleanCpfCnpj.length !== 14) {
-            setError("Documento inválido. CPF deve ter 11 números, CNPJ deve ter 14.");
-            return;
-        }
-
-        if (!billingEmail || !billingEmail.includes('@')) {
-            setError("Informe um email válido para envio da fatura.");
-            return;
         }
 
         setLoading(true);
         setError('');
 
         try {
+            console.log("Enviando assinatura:", { 
+                orgId: currentOrg.id, 
+                plan: selectedPlanId, 
+                email: billingEmail.trim(), 
+                doc: cleanCpfCnpj 
+            });
+
             const result = await createSubscription(
                 currentOrg.id, 
                 selectedPlanId, 
-                billingEmail, 
+                billingEmail.trim(), // Garante que não há espaços
                 currentOrg.name, 
                 cleanCpfCnpj
             );
@@ -70,14 +69,13 @@ export const Subscribe = () => {
             if (result.success && result.paymentLink) {
                 window.location.href = result.paymentLink;
             } else {
-                setError("Erro ao gerar pagamento. Tente novamente.");
+                setError("Erro ao gerar link de pagamento. Tente novamente.");
             }
         } catch (err: any) {
-            console.error(err);
-            // Extract meaningful message from Firebase Error if possible
-            const message = err.message || "Erro de conexão com servidor de pagamento.";
-            // Remove "FirebaseError: " prefix if present for cleaner UI
-            setError(message.replace('FirebaseError: ', ''));
+            console.error("Erro no pagamento:", err);
+            const message = err.message || "Erro de conexão.";
+            // Mostra mensagem amigável removendo prefixos técnicos
+            setError(message.replace('FirebaseError: ', '').replace('Cloud Function Error: ', ''));
         } finally {
             setLoading(false);
         }
@@ -91,8 +89,8 @@ export const Subscribe = () => {
                 </button>
 
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Assinatura One Dental</h1>
-                    <p className="text-slate-500">Escolha o plano ideal para o seu laboratório.</p>
+                    <h1 className="text-3xl font-bold text-slate-900 mb-2">Finalizar Assinatura</h1>
+                    <p className="text-slate-500">Confirme seus dados para ativar o plano.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -113,55 +111,52 @@ export const Subscribe = () => {
                 </div>
 
                 <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 max-w-lg mx-auto">
-                    <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><CreditCard /> Dados de Faturamento</h3>
+                    <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><CreditCard /> Dados de Cobrança</h3>
                     
-                    <div className="space-y-5">
+                    <div className="space-y-6">
                         <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 border border-slate-100">
                             <p className="flex justify-between font-bold mb-1"><span>Plano Selecionado:</span> <span>{displayPlans.find(p => p.id === selectedPlanId)?.name}</span></p>
                             <p className="flex justify-between"><span>Valor Mensal:</span> <span>R$ {displayPlans.find(p => p.id === selectedPlanId)?.price.toFixed(2)}</span></p>
                         </div>
 
-                        {/* MOVED EMAIL TO TOP FOR VISIBILITY */}
+                        {/* CAMPO DE EMAIL EXPLÍCITO */}
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro (Obrigatório)</label>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Email para Fatura (Obrigatório)</label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-3 text-slate-400" size={18} />
+                                <Mail className="absolute left-3 top-3.5 text-slate-400" size={18} />
                                 <input 
                                     type="email"
-                                    name="email"
-                                    autoComplete="email"
                                     required
                                     value={billingEmail}
                                     onChange={e => setBillingEmail(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                    placeholder="exemplo@email.com"
+                                    className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 outline-none font-medium ${!billingEmail ? 'border-red-300 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-500'}`}
+                                    placeholder="seuemail@empresa.com"
                                 />
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-1 ml-1">O boleto/fatura será enviado para este email.</p>
+                            <p className="text-xs text-slate-400 mt-1">Este email receberá o boleto e a nota fiscal.</p>
                         </div>
 
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
                             <div className="relative">
-                                <FileText className="absolute left-3 top-3 text-slate-400" size={18} />
+                                <FileText className="absolute left-3 top-3.5 text-slate-400" size={18} />
                                 <input 
                                     value={cpfCnpj}
-                                    name="doc"
                                     onChange={e => setCpfCnpj(e.target.value)}
                                     className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                    placeholder="000.000.000-00 (Apenas números)"
+                                    placeholder="000.000.000-00 (Números)"
                                 />
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-1 ml-1">Digite apenas os números.</p>
                         </div>
                         
-                        {couponCode && (
-                             <div className="bg-green-50 text-green-700 text-sm px-3 py-2 rounded-lg font-bold border border-green-200">
-                                 Cupom aplicado: {couponCode}
-                             </div>
-                        )}
+                        {couponCode && <div className="bg-green-50 text-green-700 text-sm px-3 py-2 rounded-lg font-bold border border-green-200 text-center">Cupom aplicado: {couponCode}</div>}
                         
-                        {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2 border border-red-100 font-medium"><AlertTriangle size={16} className="shrink-0"/> {error}</div>}
+                        {error && (
+                            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-start gap-2 border border-red-100 font-medium">
+                                <AlertTriangle size={16} className="shrink-0 mt-0.5"/> 
+                                <span>{error}</span>
+                            </div>
+                        )}
 
                         <button 
                             onClick={handleSubscribe}
@@ -170,7 +165,7 @@ export const Subscribe = () => {
                         >
                             {loading ? <Loader2 className="animate-spin" /> : 'Ir para Pagamento Seguro'}
                         </button>
-                        <p className="text-center text-xs text-slate-400">Ambiente seguro. Processado via Asaas.</p>
+                        <p className="text-center text-xs text-slate-400">Ambiente seguro via Asaas.</p>
                     </div>
                 </div>
             </div>
