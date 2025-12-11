@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice, FinancialSettings } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket
+  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -167,9 +167,15 @@ export const Admin = () => {
                   </div>
                   {currentOrg?.subscriptionStatus === 'TRIAL' && (
                       <div className="mt-4 bg-orange-500/20 border border-orange-500/50 p-4 rounded-xl flex items-center justify-between">
-                          <p className="font-bold text-orange-200">Seu período de teste está ativo.</p>
-                          <button onClick={() => navigate('/subscribe')} className="px-4 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600 transition-colors shadow-lg">
-                              Ativar Assinatura Definitiva
+                          <div>
+                            <p className="font-bold text-orange-200">Seu período de teste está ativo.</p>
+                            <p className="text-xs text-orange-300/80">Aproveite para testar todas as funcionalidades. Você pode ativar o plano definitivo a qualquer momento.</p>
+                          </div>
+                          <button 
+                              onClick={() => navigate(`/subscribe?plan=${currentPlan?.id}`)} 
+                              className="px-4 py-2 bg-orange-500 text-white font-bold rounded-lg hover:bg-orange-600 transition-colors shadow-lg flex items-center gap-2"
+                          >
+                              <Zap size={16} /> Ativar Assinatura Definitiva
                           </button>
                       </div>
                   )}
@@ -179,20 +185,33 @@ export const Admin = () => {
                   <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600"/> Upgrade de Plano</h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                      {allPlans.filter(p => p.isPublic && p.active && p.id !== currentPlan?.id).map(plan => (
-                          <div key={plan.id} className="border border-slate-200 rounded-xl p-4 hover:border-blue-300 transition-colors flex flex-col">
-                              <h4 className="font-bold text-slate-800">{plan.name}</h4>
-                              <p className="text-2xl font-bold text-blue-600 my-2">R$ {plan.price}</p>
-                              <ul className="text-xs text-slate-500 space-y-1 mb-4 flex-1">
-                                  <li>• {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
-                                  <li>• {plan.features.maxStorageGB} GB Armazenamento</li>
-                                  {plan.features.hasStoreModule && <li>• Loja Virtual</li>}
-                              </ul>
-                              <button onClick={() => handleUpgrade(plan.id)} className="w-full py-2 bg-slate-100 text-slate-700 font-bold rounded-lg hover:bg-blue-600 hover:text-white transition-all text-sm">
-                                  Mudar para este
-                              </button>
-                          </div>
-                      ))}
+                      {allPlans.filter(p => p.isPublic && p.active).map(plan => {
+                          const isCurrentPlan = plan.id === currentPlan?.id;
+                          const isTrial = currentOrg?.subscriptionStatus === 'TRIAL';
+
+                          // Don't show current plan if already active paid
+                          if (isCurrentPlan && !isTrial) return null;
+
+                          return (
+                            <div key={plan.id} className={`border rounded-xl p-4 transition-all flex flex-col ${isCurrentPlan ? 'border-blue-500 bg-blue-50/50 relative' : 'border-slate-200 hover:border-blue-300'}`}>
+                                {isCurrentPlan && <span className="absolute top-0 right-0 bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">PLANO ATUAL</span>}
+                                
+                                <h4 className="font-bold text-slate-800">{plan.name}</h4>
+                                <p className="text-2xl font-bold text-blue-600 my-2">R$ {plan.price}</p>
+                                <ul className="text-xs text-slate-500 space-y-1 mb-4 flex-1">
+                                    <li>• {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
+                                    <li>• {plan.features.maxStorageGB} GB Armazenamento</li>
+                                    {plan.features.hasStoreModule && <li>• Loja Virtual</li>}
+                                </ul>
+                                <button 
+                                    onClick={() => handleUpgrade(plan.id)} 
+                                    className={`w-full py-2 font-bold rounded-lg transition-all text-sm ${isCurrentPlan ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-blue-600 hover:text-white'}`}
+                                >
+                                    {isCurrentPlan ? 'Contratar Agora (Antecipar)' : 'Mudar para este'}
+                                </button>
+                            </div>
+                          );
+                      })}
                   </div>
 
                   <div className="border-t border-slate-100 pt-6">
