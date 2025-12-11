@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, ShieldCheck, Loader2, Star, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { CheckCircle, CreditCard, ShieldCheck, Loader2, Star, AlertTriangle, ArrowLeft, Mail } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const Subscribe = () => {
@@ -15,6 +15,7 @@ export const Subscribe = () => {
     const [loading, setLoading] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
     const [cpfCnpj, setCpfCnpj] = useState('');
+    const [billingEmail, setBillingEmail] = useState(currentUser?.email || '');
     const [error, setError] = useState('');
     const [couponCode, setCouponCode] = useState(initialCoupon);
 
@@ -24,6 +25,12 @@ export const Subscribe = () => {
         { id: 'pro', name: 'Profissional', price: 199, features: { maxUsers: 10, maxStorageGB: 50 } },
         { id: 'enterprise', name: 'Enterprise', price: 499, features: { maxUsers: -1, maxStorageGB: 1000 } }
     ];
+
+    useEffect(() => {
+        if (currentUser?.email) {
+            setBillingEmail(currentUser.email);
+        }
+    }, [currentUser]);
 
     if (!currentOrg) return null;
 
@@ -41,6 +48,11 @@ export const Subscribe = () => {
             return;
         }
 
+        if (!billingEmail || !billingEmail.includes('@')) {
+            setError("Informe um email válido para faturamento.");
+            return;
+        }
+
         setLoading(true);
         setError('');
 
@@ -48,7 +60,7 @@ export const Subscribe = () => {
             const result = await createSubscription(
                 currentOrg.id, 
                 selectedPlanId, 
-                currentUser?.email || '', 
+                billingEmail, 
                 currentOrg.name, 
                 cleanCpfCnpj
             );
@@ -104,6 +116,20 @@ export const Subscribe = () => {
                         <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 border border-slate-100">
                             <p className="flex justify-between font-bold mb-1"><span>Plano Selecionado:</span> <span>{displayPlans.find(p => p.id === selectedPlanId)?.name}</span></p>
                             <p className="flex justify-between"><span>Valor Mensal:</span> <span>R$ {displayPlans.find(p => p.id === selectedPlanId)?.price.toFixed(2)}</span></p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro</label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-3 text-slate-400" size={18} />
+                                <input 
+                                    type="email"
+                                    value={billingEmail}
+                                    onChange={e => setBillingEmail(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                                    placeholder="financeiro@laboratorio.com"
+                                />
+                            </div>
                         </div>
 
                         <div>
