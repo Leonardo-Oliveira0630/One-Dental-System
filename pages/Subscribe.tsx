@@ -28,7 +28,10 @@ export const Subscribe = () => {
     if (!currentOrg) return null;
 
     const handleSubscribe = async () => {
-        if (!cpfCnpj) { setError("Informe CPF ou CNPJ."); return; }
+        // Sanitize CPF/CNPJ (Remove dots, dashes, slashes)
+        const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
+
+        if (!cleanCpfCnpj) { setError("Informe CPF ou CNPJ."); return; }
         setLoading(true);
         setError('');
 
@@ -38,7 +41,7 @@ export const Subscribe = () => {
                 selectedPlanId, 
                 currentUser?.email || '', 
                 currentOrg.name, 
-                cpfCnpj
+                cleanCpfCnpj
             );
 
             if (result.success && result.paymentLink) {
@@ -97,7 +100,7 @@ export const Subscribe = () => {
                                 value={cpfCnpj}
                                 onChange={e => setCpfCnpj(e.target.value)}
                                 className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                placeholder="000.000.000-00"
+                                placeholder="000.000.000-00 (Apenas números)"
                             />
                         </div>
                         

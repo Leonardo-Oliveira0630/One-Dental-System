@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense, useEffect } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid, Html, useProgress } from '@react-three/drei';
@@ -7,16 +6,10 @@ import { Attachment } from '../types';
 import { Eye, EyeOff, Layers, X, Box, Sun } from 'lucide-react';
 import * as THREE from 'three';
 
-// Extend JSX IntrinsicElements to include R3F elements
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      mesh: any;
-      meshStandardMaterial: any;
-      color: any;
-    }
-  }
-}
+// Define R3F elements as any to avoid TypeScript errors with IntrinsicElements
+const Mesh = 'mesh' as any;
+const MeshStandardMaterial = 'meshStandardMaterial' as any;
+const Color = 'color' as any;
 
 // --- Componente Individual de Malha (Mesh) ---
 interface ModelProps {
@@ -38,8 +31,8 @@ const Model: React.FC<ModelProps> = ({ url, color, opacity, visible }) => {
   }, [geometry]);
 
   return (
-    <mesh geometry={geometry} visible={visible} castShadow receiveShadow>
-      <meshStandardMaterial 
+    <Mesh geometry={geometry} visible={visible} castShadow receiveShadow>
+      <MeshStandardMaterial 
         color={color} 
         roughness={0.5} 
         metalness={0.2}
@@ -47,7 +40,7 @@ const Model: React.FC<ModelProps> = ({ url, color, opacity, visible }) => {
         opacity={opacity}
         side={THREE.DoubleSide} // Renderiza interior e exterior
       />
-    </mesh>
+    </Mesh>
   );
 };
 
@@ -123,7 +116,7 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
         </button>
 
         <Canvas shadows camera={{ position: [0, 50, 100], fov: 45 }}>
-          <color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
+          <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
           
           <Suspense fallback={<Loader />}>
             <Stage environment="city" intensity={0.5} adjustCamera={1.2}>
