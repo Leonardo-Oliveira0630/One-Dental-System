@@ -46,12 +46,21 @@ export const Coupons = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Adjust Date to End of Day to prevent immediate expiration on the same day
+    let expirationDate: Date | undefined = undefined;
+    if (validUntil) {
+        expirationDate = new Date(validUntil);
+        expirationDate.setHours(23, 59, 59, 999); // Set to end of day
+        // Adjust for timezone offset if necessary, but end of day usually covers it for UX
+    }
+
     const couponData: Coupon = {
         id: code.toUpperCase(),
         code: code.toUpperCase(),
         discountType,
         discountValue,
-        validUntil: validUntil ? new Date(validUntil) : undefined,
+        validUntil: expirationDate,
         maxUses: maxUses === '' ? undefined : Number(maxUses),
         usedCount: 0, 
         active,
@@ -60,7 +69,9 @@ export const Coupons = () => {
 
     try {
         if (isEditing) {
-            await updateCoupon(code, { ...couponData, usedCount: coupons.find(c => c.code === code)?.usedCount || 0 });
+            // Preserve usedCount when editing
+            const existing = coupons.find(c => c.code === code.toUpperCase());
+            await updateCoupon(code, { ...couponData, usedCount: existing?.usedCount || 0 });
         } else {
             await addCoupon(couponData);
         }

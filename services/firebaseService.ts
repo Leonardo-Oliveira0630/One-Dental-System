@@ -241,11 +241,21 @@ export const apiValidateCoupon = async (code: string, planId: string): Promise<C
     const docRef = doc(db, 'coupons', code.toUpperCase());
     const snap = await getDoc(docRef);
     if (!snap.exists()) return null;
+    
+    // Ensure all dates are converted properly from Timestamp
     const coupon = { ...convertDates(snap.data()), id: snap.id } as Coupon;
+    
     if (!coupon.active) return null;
+    
+    // Check Date
     if (coupon.validUntil && new Date() > coupon.validUntil) return null;
+    
+    // Check Uses
     if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) return null;
-    if (coupon.applicablePlans && coupon.applicablePlans.length > 0 && !coupon.applicablePlans.includes(planId)) return null;
+    
+    // Check Plan match (If 'ANY', we skip checking applicablePlans)
+    if (planId !== 'ANY' && coupon.applicablePlans && coupon.applicablePlans.length > 0 && !coupon.applicablePlans.includes(planId)) return null;
+    
     return coupon;
 };
 
