@@ -4,7 +4,7 @@ import { CheckCircle, CreditCard, ShieldCheck, Loader2, Star, AlertTriangle, Arr
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const Subscribe = () => {
-    const { currentOrg, createSubscription, allPlans } = useApp();
+    const { currentOrg, createSubscription, allPlans, currentUser } = useApp();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     
@@ -36,7 +36,7 @@ export const Subscribe = () => {
             const result = await createSubscription(
                 currentOrg.id, 
                 selectedPlanId, 
-                currentOrg.ownerId, // Should be email
+                currentUser?.email || '', 
                 currentOrg.name, 
                 cpfCnpj
             );

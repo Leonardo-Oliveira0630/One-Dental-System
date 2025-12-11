@@ -1,10 +1,22 @@
+
 import React, { useState, Suspense, useEffect } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
-import { OrbitControls, Stage, Center, Grid, Html, useProgress } from '@react-three/drei';
+import { OrbitControls, Stage, Grid, Html, useProgress } from '@react-three/drei';
 import { STLLoader } from 'three-stdlib';
 import { Attachment } from '../types';
 import { Eye, EyeOff, Layers, X, Box, Sun } from 'lucide-react';
 import * as THREE from 'three';
+
+// Extend JSX IntrinsicElements to include R3F elements
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      mesh: any;
+      meshStandardMaterial: any;
+      color: any;
+    }
+  }
+}
 
 // --- Componente Individual de Malha (Mesh) ---
 interface ModelProps {

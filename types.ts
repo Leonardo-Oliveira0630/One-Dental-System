@@ -1,3 +1,4 @@
+
 // --- USER & AUTH ---
 
 export enum UserRole {
@@ -245,3 +246,6 @@ export interface Appointment {
   notes?: string;
   status: AppointmentStatus;
 }
+
+// Temporary fix for missing types in environment
+declare module 'react-router-dom';
