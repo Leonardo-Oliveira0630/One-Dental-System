@@ -264,7 +264,9 @@ export const callCreateSubscription = async (orgId: string, planId: string, emai
     if (!functions) throw new Error("Backend functions not initialized.");
     const createSub = httpsCallable(functions, 'createSaaSSubscription');
     try {
-        const result: any = await createSub({ orgId, planId, email, name, cpfCnpj });
+        // Ensure email is trimmed to avoid validation errors
+        const cleanEmail = email ? email.trim() : '';
+        const result: any = await createSub({ orgId, planId, email: cleanEmail, name, cpfCnpj });
         return result.data as { success: boolean; paymentLink?: string };
     } catch (error) {
         console.error("Cloud Function Error:", error);

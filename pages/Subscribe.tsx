@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, ShieldCheck, Loader2, Star, AlertTriangle, ArrowLeft, Mail } from 'lucide-react';
+import { CheckCircle, CreditCard, ShieldCheck, Loader2, Star, AlertTriangle, ArrowLeft, Mail, FileText } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const Subscribe = () => {
@@ -15,6 +15,7 @@ export const Subscribe = () => {
     const [loading, setLoading] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
     const [cpfCnpj, setCpfCnpj] = useState('');
+    // Initialize with fallback to ensure it's never undefined
     const [billingEmail, setBillingEmail] = useState(currentUser?.email || '');
     const [error, setError] = useState('');
     const [couponCode, setCouponCode] = useState(initialCoupon);
@@ -26,8 +27,9 @@ export const Subscribe = () => {
         { id: 'enterprise', name: 'Enterprise', price: 499, features: { maxUsers: -1, maxStorageGB: 1000 } }
     ];
 
+    // Ensure email is set when user loads
     useEffect(() => {
-        if (currentUser?.email) {
+        if (currentUser?.email && !billingEmail) {
             setBillingEmail(currentUser.email);
         }
     }, [currentUser]);
@@ -49,7 +51,7 @@ export const Subscribe = () => {
         }
 
         if (!billingEmail || !billingEmail.includes('@')) {
-            setError("Informe um email válido para faturamento.");
+            setError("Informe um email válido para envio da fatura.");
             return;
         }
 
@@ -112,34 +114,44 @@ export const Subscribe = () => {
 
                 <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 max-w-lg mx-auto">
                     <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><CreditCard /> Dados de Faturamento</h3>
+                    
                     <div className="space-y-5">
                         <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 border border-slate-100">
                             <p className="flex justify-between font-bold mb-1"><span>Plano Selecionado:</span> <span>{displayPlans.find(p => p.id === selectedPlanId)?.name}</span></p>
                             <p className="flex justify-between"><span>Valor Mensal:</span> <span>R$ {displayPlans.find(p => p.id === selectedPlanId)?.price.toFixed(2)}</span></p>
                         </div>
 
+                        {/* MOVED EMAIL TO TOP FOR VISIBILITY */}
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro</label>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro (Obrigatório)</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-3 text-slate-400" size={18} />
                                 <input 
                                     type="email"
+                                    name="email"
+                                    autoComplete="email"
+                                    required
                                     value={billingEmail}
                                     onChange={e => setBillingEmail(e.target.value)}
                                     className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                    placeholder="financeiro@laboratorio.com"
+                                    placeholder="exemplo@email.com"
                                 />
                             </div>
+                            <p className="text-[10px] text-slate-400 mt-1 ml-1">O boleto/fatura será enviado para este email.</p>
                         </div>
 
                         <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
-                            <input 
-                                value={cpfCnpj}
-                                onChange={e => setCpfCnpj(e.target.value)}
-                                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                placeholder="000.000.000-00 (Apenas números)"
-                            />
+                            <div className="relative">
+                                <FileText className="absolute left-3 top-3 text-slate-400" size={18} />
+                                <input 
+                                    value={cpfCnpj}
+                                    name="doc"
+                                    onChange={e => setCpfCnpj(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                                    placeholder="000.000.000-00 (Apenas números)"
+                                />
+                            </div>
                             <p className="text-[10px] text-slate-400 mt-1 ml-1">Digite apenas os números.</p>
                         </div>
                         
