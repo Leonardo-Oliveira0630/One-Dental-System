@@ -31,7 +31,16 @@ export const Subscribe = () => {
         // Sanitize CPF/CNPJ (Remove dots, dashes, slashes)
         const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
 
-        if (!cleanCpfCnpj) { setError("Informe CPF ou CNPJ."); return; }
+        if (!cleanCpfCnpj) { 
+            setError("Informe CPF ou CNPJ."); 
+            return; 
+        }
+
+        if (cleanCpfCnpj.length !== 11 && cleanCpfCnpj.length !== 14) {
+            setError("Documento inválido. CPF deve ter 11 números, CNPJ deve ter 14.");
+            return;
+        }
+
         setLoading(true);
         setError('');
 
@@ -51,7 +60,10 @@ export const Subscribe = () => {
             }
         } catch (err: any) {
             console.error(err);
-            setError(err.message || "Erro de conexão com servidor de pagamento.");
+            // Extract meaningful message from Firebase Error if possible
+            const message = err.message || "Erro de conexão com servidor de pagamento.";
+            // Remove "FirebaseError: " prefix if present for cleaner UI
+            setError(message.replace('FirebaseError: ', ''));
         } finally {
             setLoading(false);
         }
@@ -102,6 +114,7 @@ export const Subscribe = () => {
                                 className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
                                 placeholder="000.000.000-00 (Apenas números)"
                             />
+                            <p className="text-[10px] text-slate-400 mt-1 ml-1">Digite apenas os números.</p>
                         </div>
                         
                         {couponCode && (
@@ -110,7 +123,7 @@ export const Subscribe = () => {
                              </div>
                         )}
                         
-                        {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2 border border-red-100"><AlertTriangle size={16}/> {error}</div>}
+                        {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2 border border-red-100 font-medium"><AlertTriangle size={16} className="shrink-0"/> {error}</div>}
 
                         <button 
                             onClick={handleSubscribe}
