@@ -6,29 +6,6 @@ import { Attachment } from '../types';
 import { Eye, EyeOff, Layers, X, Box, Sun } from 'lucide-react';
 import * as THREE from 'three';
 
-// Add type definitions for React Three Fiber intrinsic elements
-// We augment 'react' module because in some setups global JSX namespace is not used or shadowed
-declare module 'react' {
-  namespace JSX {
-    interface IntrinsicElements {
-      mesh: any;
-      meshStandardMaterial: any;
-      color: any;
-    }
-  }
-}
-
-// Keep global declaration for compatibility
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      mesh: any;
-      meshStandardMaterial: any;
-      color: any;
-    }
-  }
-}
-
 // --- Componente Individual de Malha (Mesh) ---
 interface ModelProps {
   url: string;
@@ -37,7 +14,7 @@ interface ModelProps {
   visible: boolean;
 }
 
-const Model = ({ url, color, opacity, visible }: ModelProps) => {
+const Model: React.FC<ModelProps> = ({ url, color, opacity, visible }) => {
   // Carrega o STL
   const geometry = useLoader(STLLoader, url);
 
