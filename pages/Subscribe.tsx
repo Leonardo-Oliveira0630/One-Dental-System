@@ -66,8 +66,15 @@ export const Subscribe = () => {
                 cleanCpfCnpj
             );
 
-            if (result.success && result.paymentLink) {
-                window.location.href = result.paymentLink;
+            if (result.success) {
+                if (result.isMock) {
+                    alert("Plano ativado em MODO DE TESTE (Simulação). Você não será cobrado.");
+                    navigate('/dashboard');
+                } else if (result.paymentLink) {
+                    window.location.href = result.paymentLink;
+                } else {
+                    setError("Erro desconhecido. Contate o suporte.");
+                }
             } else {
                 setError("Erro ao gerar link de pagamento. Tente novamente.");
             }
