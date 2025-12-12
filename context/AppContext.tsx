@@ -128,8 +128,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       // Fetch plan immediately for the switched org
       if (orgData.planId) {
-          // Use onSnapshot here if you want real-time updates for the active org plan too
-          // For simplicity and stability, a fetch is fine, but snapshot is better for immediate updates
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           getDoc(planRef).then(snap => {
                if (snap.exists()) setCurrentPlan({ id: snap.id, ...snap.data() } as SubscriptionPlan);
@@ -162,16 +160,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return unsub;
   }, []);
 
+  // --- GLOBAL PUBLIC DATA LISTENER (Plans) ---
+  // Runs once on mount. Allows Register Page to see prices even if logged out.
+  useEffect(() => {
+      if (!db) return;
+      const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
+      return () => { unsubPlans(); };
+  }, []);
+
   // Org & Plan Listener (For Lab Staff)
   useEffect(() => {
     if (!db || !currentUser) return;
 
     if (currentUser.role === UserRole.SUPER_ADMIN) {
       const unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
-      const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
+      // Removed duplicate subscribeSubscriptionPlans from here
       const unsubUsers = api.subscribeAllUsers(setAllUsers);
       const unsubCoupons = api.subscribeCoupons(setCoupons);
-      return () => { unsubOrgs(); unsubPlans(); unsubUsers(); unsubCoupons(); };
+      return () => { unsubOrgs(); unsubUsers(); unsubCoupons(); };
     }
 
     if (currentUser.organizationId) {
@@ -187,7 +193,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           // REAL-TIME LISTENER FOR PLAN CHANGES
           if (orgData.planId) {
               const planRef = doc(db, 'subscriptionPlans', orgData.planId);
-              // Use onSnapshot to get updates instantly when Super Admin changes price
               onSnapshot(planRef, (planSnap) => {
                   if (planSnap.exists()) {
                     setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);

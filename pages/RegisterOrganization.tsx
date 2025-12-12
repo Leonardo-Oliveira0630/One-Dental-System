@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2 } from 'lucide-react';
 import { Coupon } from '../types';
 
 export const RegisterOrganization = () => {
@@ -23,13 +23,10 @@ export const RegisterOrganization = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
+  // Use plans from context (now fetched globally)
   const publicPlans = allPlans.filter(p => p.isPublic && p.active);
-  // Default mock if no plans in DB yet (safe fallback)
-  const displayPlans = publicPlans.length > 0 ? publicPlans : [
-      { id: 'basic', name: 'Básico', price: 99, trialDays: 7, features: { maxUsers: 2, maxStorageGB: 5, hasStoreModule: false, hasClinicModule: false } },
-      { id: 'pro', name: 'Profissional', price: 199, trialDays: 14, features: { maxUsers: 10, maxStorageGB: 50, hasStoreModule: true, hasClinicModule: false } },
-      { id: 'enterprise', name: 'Enterprise', price: 499, trialDays: 30, features: { maxUsers: -1, maxStorageGB: 1000, hasStoreModule: true, hasClinicModule: true } }
-  ];
+  // Only fallback if absolutely necessary (should be covered by context now)
+  const displayPlans = publicPlans; 
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return;
@@ -51,7 +48,12 @@ export const RegisterOrganization = () => {
 
     try {
       if (regType === 'LAB') {
-          const selectedPlanId = planId || displayPlans[0].id;
+          // If no plan selected, pick the first one available
+          const selectedPlanId = planId || (displayPlans.length > 0 ? displayPlans[0].id : '');
+          if (!selectedPlanId) {
+              throw new Error("Nenhum plano de assinatura disponível.");
+          }
+
           const plan = displayPlans.find(p => p.id === selectedPlanId);
           
           let trialEnd = undefined;
@@ -103,7 +105,6 @@ export const RegisterOrganization = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 
-                {/* Campos Específicos - Renderização Simplificada */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {regType === 'LAB' ? (
                         <div>
@@ -181,28 +182,36 @@ export const RegisterOrganization = () => {
                     <Activity className="text-blue-500"/>
                     <h3 className="text-xl font-bold">Escolha seu Plano</h3>
                 </div>
-                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                    {displayPlans.map(plan => (
-                        <div key={plan.id} onClick={() => setPlanId(plan.id)} className={`cursor-pointer border-2 rounded-2xl p-5 transition-all relative overflow-hidden group ${planId === plan.id || (!planId && plan.id === 'basic') ? 'border-blue-500 bg-slate-800 shadow-lg shadow-black/20' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'}`}>
-                            {plan.trialDays && plan.trialDays > 0 && (<div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-sm">{plan.trialDays} DIAS GRÁTIS</div>)}
-                            <div className="flex justify-between items-start mb-3">
-                                <div>
-                                    <h4 className="text-white font-bold uppercase tracking-wider text-sm">{plan.name}</h4>
-                                    <p className="text-2xl font-bold text-blue-400 mt-1">R$ {plan.price.toFixed(2)}<span className="text-sm text-slate-500 font-normal">/mês</span></p>
+                
+                {displayPlans.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-slate-400 border-2 border-dashed border-slate-700 rounded-2xl">
+                        <Loader2 className="animate-spin mb-2 text-blue-500" />
+                        <p>Carregando planos...</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                        {displayPlans.map(plan => (
+                            <div key={plan.id} onClick={() => setPlanId(plan.id)} className={`cursor-pointer border-2 rounded-2xl p-5 transition-all relative overflow-hidden group ${planId === plan.id || (!planId && plan.id === displayPlans[0].id) ? 'border-blue-500 bg-slate-800 shadow-lg shadow-black/20' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'}`}>
+                                {plan.trialDays && plan.trialDays > 0 && (<div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-sm">{plan.trialDays} DIAS GRÁTIS</div>)}
+                                <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h4 className="text-white font-bold uppercase tracking-wider text-sm">{plan.name}</h4>
+                                        <p className="text-2xl font-bold text-blue-400 mt-1">R$ {plan.price.toFixed(2)}<span className="text-sm text-slate-500 font-normal">/mês</span></p>
+                                    </div>
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${planId === plan.id || (!planId && plan.id === displayPlans[0].id) ? 'border-blue-500 bg-blue-500' : 'border-slate-600'}`}>
+                                        {(planId === plan.id || (!planId && plan.id === displayPlans[0].id)) && <CheckCircle size={14} className="text-white" />}
+                                    </div>
                                 </div>
-                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${planId === plan.id || (!planId && plan.id === 'basic') ? 'border-blue-500 bg-blue-500' : 'border-slate-600'}`}>
-                                    {(planId === plan.id || (!planId && plan.id === 'basic')) && <CheckCircle size={14} className="text-white" />}
+                                <div className="space-y-2 text-sm text-slate-400">
+                                    <div className="flex items-center gap-2"><Users size={14} className="text-blue-500"/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
+                                    <div className="flex items-center gap-2"><Database size={14} className="text-blue-500"/>{plan.features.maxStorageGB} GB de Armazenamento</div>
+                                    <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Store size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-600'}/>Loja Virtual</div>
+                                    <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={14} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão Clínica</div>
                                 </div>
                             </div>
-                            <div className="space-y-2 text-sm text-slate-400">
-                                <div className="flex items-center gap-2"><Users size={14} className="text-blue-500"/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
-                                <div className="flex items-center gap-2"><Database size={14} className="text-blue-500"/>{plan.features.maxStorageGB} GB de Armazenamento</div>
-                                <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Store size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-600'}/>Loja Virtual</div>
-                                <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={14} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão Clínica</div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         ) : (
             <div className="flex-1 bg-gradient-to-br from-teal-900/50 to-slate-800 rounded-3xl p-8 flex flex-col justify-center items-center text-center border border-teal-500/30">
