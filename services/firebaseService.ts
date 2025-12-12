@@ -267,9 +267,15 @@ export const callCreateSubscription = async (orgId: string, planId: string, emai
             const createSub = httpsCallable(functions, 'createSaaSSubscription');
             const cleanEmail = email ? email.trim() : '';
             const result: any = await createSub({ orgId, planId, email: cleanEmail, name, cpfCnpj });
-            return result.data as { success: boolean; paymentLink?: string; isMock?: boolean };
+            
+            // Check if result data is valid
+            if (result && result.data) {
+                return result.data as { success: boolean; paymentLink?: string; isMock?: boolean };
+            }
+            // If data is missing but no error thrown, force fallback below
+            console.warn("Função retornou sem dados. Usando fallback.");
         } catch (error: any) {
-            console.warn("Cloud Function falhou (provavelmente ambiente Dev ou erro de config). Tentando fallback simulado...", error);
+            console.warn("Cloud Function falhou (provavelmente ambiente Dev, erro de config ou deploy). Tentando fallback simulado...", error);
             // Fallback ocorre abaixo se a função falhar
         }
     }

@@ -27,41 +27,45 @@ export const createSaaSSubscription = functions.https.onCall(
     const apiKey = process.env.ASAAS_API_KEY;
 
     // --- MOCK / SIMULATION MODE ---
-    // Se não houver chave API configurada, simula o sucesso para não travar o teste.
+    // Se não houver chave API configurada, simula o sucesso.
     if (!apiKey || apiKey === "YOUR_ASAAS_KEY") {
-        functions.logger.warn("ASAAS_API_KEY missing. Running in MOCK MODE.");
-        
-        // Simula atualização no banco
-        await admin.firestore().collection("organizations").doc(orgId).update({
-            subscriptionStatus: "ACTIVE", // Ativa direto no mock
-            planId: planId,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
+      functions.logger.warn("ASAAS_API_KEY missing. Running in MOCK MODE.");
 
-        return {
-            success: true, 
-            paymentLink: "https://www.asaas.com/mock-payment-success",
-            isMock: true
-        };
+      // Simula atualização no banco
+      await admin.firestore().collection("organizations").doc(orgId).update({
+        subscriptionStatus: "ACTIVE", // Ativa direto no mock
+        planId: planId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return {
+        success: true,
+        paymentLink: "https://www.asaas.com/mock-payment-success",
+        isMock: true,
+      };
     }
 
     try {
       // 1. Fetch Dynamic Plan Price from Firestore
-      const planRef = admin.firestore().collection("subscriptionPlans").doc(planId);
+      const planRef = admin.firestore()
+        .collection("subscriptionPlans")
+        .doc(planId);
       const planSnap = await planRef.get();
-      
+
       let value = 99.00;
       let planName = planId;
 
       if (planSnap.exists) {
-          const planData = planSnap.data();
-          value = planData?.price || 99.00;
-          planName = planData?.name || planId;
+        const planData = planSnap.data();
+        value = planData?.price || 99.00;
+        planName = planData?.name || planId;
       } else {
-          functions.logger.warn(`Plan ${planId} not found in DB, using defaults.`);
-          // Fallback logic for legacy hardcoded plans
-          if (planId === "pro") value = 199.00;
-          if (planId === "enterprise") value = 499.00;
+        functions.logger.warn(
+          `Plan ${planId} not found in DB, using defaults.`
+        );
+        // Fallback logic for legacy hardcoded plans
+        if (planId === "pro") value = 199.00;
+        if (planId === "enterprise") value = 499.00;
       }
 
       // 3. Create/Get Customer
@@ -100,7 +104,7 @@ export const createSaaSSubscription = functions.https.onCall(
       });
 
       return {success: true, paymentLink: subRes.data.invoiceUrl};
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       functions.logger.error("Asaas API Failure", error);
 

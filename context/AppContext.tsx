@@ -62,7 +62,7 @@ interface AppContextType {
   deleteSubscriptionPlan: (id: string) => Promise<void>;
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
   
-  createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<{success: boolean, paymentLink?: string}>;
+  createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<{success: boolean, paymentLink?: string, isMock?: boolean}>;
 
   addCoupon: (coupon: Coupon) => Promise<void>;
   updateCoupon: (code: string, updates: Partial<Coupon>) => Promise<void>;
