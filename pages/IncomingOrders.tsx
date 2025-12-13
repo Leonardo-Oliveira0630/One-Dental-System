@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Job, JobStatus, UserRole } from '../types';
+import { Job, JobStatus, UserRole, Attachment } from '../types';
 import { BOX_COLORS } from '../services/mockData';
-import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box } from 'lucide-react';
+import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box, Archive, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { STLViewer } from '../components/STLViewer';
 import { FeatureLocked } from '../components/FeatureLocked';
+import JSZip from 'jszip';
+import FileSaver from 'file-saver';
 
 export const IncomingOrders = () => {
   const { jobs, updateJob, currentUser, currentPlan } = useApp();
@@ -36,6 +38,9 @@ export const IncomingOrders = () => {
   
   // 3D Viewer State
   const [viewing3DJob, setViewing3DJob] = useState<Job | null>(null);
+  
+  // Downloading State
+  const [zippingJobId, setZippingJobId] = useState<string | null>(null);
 
   const handleOpenApprove = (job: Job) => {
     let maxId = 0;
@@ -86,6 +91,42 @@ export const IncomingOrders = () => {
 
   const hasStl = (job: Job) => job.attachments?.some(a => a.name.toLowerCase().endsWith('.stl'));
 
+  // --- BATCH DOWNLOAD LOGIC ---
+  const handleDownloadAll = async (job: Job) => {
+      if (!job.attachments || job.attachments.length === 0) return;
+      
+      setZippingJobId(job.id);
+      
+      try {
+          const zip = new JSZip();
+          const folderName = `${job.patientName.replace(/\s+/g, '_')}_Arquivos`;
+          const folder = zip.folder(folderName);
+
+          // Fetch all files
+          const downloadPromises = job.attachments.map(async (file) => {
+              try {
+                  const response = await fetch(file.url);
+                  const blob = await response.blob();
+                  folder?.file(file.name, blob);
+              } catch (err) {
+                  console.error(`Erro ao baixar arquivo ${file.name}:`, err);
+              }
+          });
+
+          await Promise.all(downloadPromises);
+
+          // Generate Zip
+          const content = await zip.generateAsync({ type: "blob" });
+          FileSaver.saveAs(content, `${folderName}.zip`);
+
+      } catch (error) {
+          console.error("Erro ao criar ZIP:", error);
+          alert("Erro ao criar arquivo ZIP. Tente baixar os arquivos individualmente.");
+      } finally {
+          setZippingJobId(null);
+      }
+  };
+
   return (
     <div className="space-y-6">
        {viewing3DJob && viewing3DJob.attachments && (
@@ -121,22 +162,24 @@ export const IncomingOrders = () => {
                     <div className="w-full md:w-2 bg-purple-500"></div>
                     
                     <div className="p-6 flex-1 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                                 <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full flex items-center gap-1">
-                                    <Clock size={12} /> Aguardando
-                                 </span>
-                                 <span className="text-slate-400 text-sm">Pedido realizado em {new Date(job.createdAt).toLocaleDateString()}</span>
+                        <div className="flex-1 space-y-4">
+                            <div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full flex items-center gap-1">
+                                        <Clock size={12} /> Aguardando
+                                    </span>
+                                    <span className="text-slate-400 text-sm">Pedido realizado em {new Date(job.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                
+                                <h3 className="text-xl font-bold text-slate-900 mb-1">{job.patientName}</h3>
+                                
+                                <div className="flex items-center gap-2 text-slate-600 text-sm">
+                                    <User size={16} className="text-purple-500" />
+                                    <span className="font-medium">Dr(a). {job.dentistName}</span>
+                                </div>
                             </div>
                             
-                            <h3 className="text-xl font-bold text-slate-900 mb-1">{job.patientName}</h3>
-                            
-                            <div className="flex items-center gap-2 text-slate-600 text-sm mb-4">
-                                <User size={16} className="text-purple-500" />
-                                <span className="font-medium">Dr(a). {job.dentistName}</span>
-                            </div>
-                            
-                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-3">
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                                 <p className="text-xs font-bold text-slate-400 uppercase mb-1">Itens do Pedido</p>
                                 <ul className="text-sm text-slate-700 space-y-1">
                                     {job.items.map((i, idx) => (
@@ -155,31 +198,51 @@ export const IncomingOrders = () => {
 
                             {/* Attachments Section */}
                             {job.attachments && job.attachments.length > 0 && (
-                                <div className="flex gap-2 flex-wrap items-center">
-                                    {job.attachments.map((file, idx) => (
-                                        <a 
-                                            key={idx} 
-                                            href={file.url} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
-                                        >
-                                            <File size={12} /> {file.name}
-                                        </a>
-                                    ))}
-                                    {hasStl(job) && (
-                                        <button 
-                                            onClick={() => setViewing3DJob(job)}
-                                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors shadow-sm ml-2"
-                                        >
-                                            <Box size={14} /> Visualizar 3D
-                                        </button>
-                                    )}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="text-xs font-bold text-slate-400 uppercase">Arquivos Anexados ({job.attachments.length})</p>
+                                        <div className="flex gap-2">
+                                            {hasStl(job) && (
+                                                <button 
+                                                    onClick={() => setViewing3DJob(job)}
+                                                    className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
+                                                >
+                                                    <Box size={12} /> Ver 3D
+                                                </button>
+                                            )}
+                                            <button 
+                                                onClick={() => handleDownloadAll(job)}
+                                                disabled={zippingJobId === job.id}
+                                                className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors disabled:opacity-50"
+                                            >
+                                                {zippingJobId === job.id ? <Loader2 size={12} className="animate-spin"/> : <Archive size={12} />} 
+                                                Baixar Todos (ZIP)
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-2 flex-wrap items-center">
+                                        {job.attachments.map((file, idx) => (
+                                            <a 
+                                                key={idx} 
+                                                href={file.url} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer"
+                                                download={file.name} // Hint to browser
+                                                className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-medium hover:bg-slate-50 hover:border-blue-300 hover:text-blue-600 transition-all"
+                                                title="Clique para baixar"
+                                            >
+                                                <File size={14} /> 
+                                                <span className="max-w-[150px] truncate">{file.name}</span>
+                                                <Download size={12} className="opacity-50" />
+                                            </a>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
                         
-                        <div className="flex flex-col gap-3 w-full md:w-auto">
+                        <div className="flex flex-col gap-3 w-full md:w-auto border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
                              <div className="text-right mb-2 hidden md:block">
                                 <span className="text-xs text-slate-400 uppercase font-bold">Valor Total</span>
                                 <p className="text-2xl font-bold text-slate-800">R$ {job.totalValue.toFixed(2)}</p>

@@ -1,6 +1,6 @@
 import React, { useState, Suspense, useEffect } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
-import { OrbitControls, Stage, Grid, Html, useProgress } from '@react-three/drei';
+import { OrbitControls, Stage, Grid, Html, useProgress, Center } from '@react-three/drei';
 import { STLLoader } from 'three-stdlib';
 import { Attachment } from '../types';
 import { Eye, EyeOff, Layers, X, Box, Sun } from 'lucide-react';
@@ -23,10 +23,16 @@ const Model: React.FC<ModelProps> = ({ url, color, opacity, visible }) => {
   // Carrega o STL
   const geometry = useLoader(STLLoader, url);
 
-  // Computa normais para melhor iluminação se não existirem
+  // Computa normais e CENTRALIZA a geometria (Correção para scanners intraorais)
   useEffect(() => {
-    if (geometry && !geometry.attributes.normal) {
-      geometry.computeVertexNormals();
+    if (geometry) {
+      // Scanners odontológicos muitas vezes têm coordenadas distantes da origem.
+      // geometry.center() move o objeto para (0,0,0) localmente.
+      geometry.center(); 
+      
+      if (!geometry.attributes.normal) {
+        geometry.computeVertexNormals();
+      }
     }
   }, [geometry]);
 
@@ -35,7 +41,7 @@ const Model: React.FC<ModelProps> = ({ url, color, opacity, visible }) => {
       <MeshStandardMaterial 
         color={color} 
         roughness={0.5} 
-        metalness={0.2}
+        metalness={0.1}
         transparent={opacity < 1}
         opacity={opacity}
         side={THREE.DoubleSide} // Renderiza interior e exterior
@@ -115,37 +121,40 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
             <X size={24} />
         </button>
 
-        <Canvas shadows camera={{ position: [0, 50, 100], fov: 45 }}>
+        <Canvas shadows camera={{ position: [0, 0, 100], fov: 50 }}>
           <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
           
           <Suspense fallback={<Loader />}>
-            <Stage environment="city" intensity={0.5} adjustCamera={1.2}>
-                {meshes.map((mesh) => (
-                    <Model 
-                        key={mesh.id} 
-                        url={mesh.id} // URL is stored in ID field
-                        color={mesh.color}
-                        opacity={mesh.opacity}
-                        visible={mesh.visible}
-                    />
-                ))}
+            {/* Stage fornece iluminação padrão. Center garante que o modelo esteja no foco da câmera */}
+            <Stage environment="city" intensity={0.6} adjustCamera={false}>
+                <Center>
+                    {meshes.map((mesh) => (
+                        <Model 
+                            key={mesh.id} 
+                            url={mesh.id} // URL is stored in ID field
+                            color={mesh.color}
+                            opacity={mesh.opacity}
+                            visible={mesh.visible}
+                        />
+                    ))}
+                </Center>
             </Stage>
           </Suspense>
           
           <Grid 
             renderOrder={-1} 
-            position={[0, -0.1, 0]} 
+            position={[0, -50, 0]} // Grid abaixo do modelo
             infiniteGrid 
             cellSize={10} 
             sectionSize={50} 
-            fadeDistance={200} 
+            fadeDistance={400} 
             sectionColor="#475569" 
             cellColor="#334155" 
           />
           <OrbitControls makeDefault />
         </Canvas>
         
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none select-none">
             Botão Esq: Rotacionar • Botão Dir: Mover • Scroll: Zoom
         </div>
       </div>
@@ -204,9 +213,9 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
         <div className="p-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-500">
             <p className="flex items-center gap-2 mb-2"><Sun size={14} /> Dicas de Visualização:</p>
             <ul className="list-disc pl-4 space-y-1">
+                <li>O modelo foi centralizado automaticamente.</li>
                 <li>Use cores contrastantes para antagonistas.</li>
                 <li>Reduza opacidade para ver oclusão interna.</li>
-                <li>Duplo clique para focar em uma peça.</li>
             </ul>
         </div>
       </div>
