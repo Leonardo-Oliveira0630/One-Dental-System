@@ -3,13 +3,60 @@ import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid, Html, useProgress, Center } from '@react-three/drei';
 import { STLLoader } from 'three-stdlib';
 import { Attachment } from '../types';
-import { Eye, EyeOff, Layers, X, Box, Sun } from 'lucide-react';
+import { Eye, EyeOff, Layers, X, Box, Sun, AlertTriangle } from 'lucide-react';
 import * as THREE from 'three';
 
 // Define R3F elements as any to avoid TypeScript errors with IntrinsicElements
 const Mesh = 'mesh' as any;
 const MeshStandardMaterial = 'meshStandardMaterial' as any;
 const Color = 'color' as any;
+
+// --- Error Boundary for 3D Loading ---
+class ViewerErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, errorMsg: string}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, errorMsg: '' };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, errorMsg: error.message };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("STL Viewer Error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-white p-8 text-center bg-slate-900">
+          <div className="bg-red-500/20 p-4 rounded-full mb-4">
+             <AlertTriangle size={48} className="text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Não foi possível carregar o modelo 3D</h2>
+          <p className="text-slate-400 text-sm max-w-md mb-6">
+            O navegador bloqueou o carregamento do arquivo. Isso geralmente ocorre devido a restrições de segurança (CORS) no servidor de arquivos.
+          </p>
+          <div className="bg-slate-800 p-4 rounded-xl text-left border border-slate-700 text-xs text-slate-300 w-full max-w-lg">
+             <p className="font-bold text-yellow-500 mb-2">Dica Técnica para o Administrador:</p>
+             <p>Configure o CORS no Firebase Storage para permitir requisições deste domínio.</p>
+             <code className="block bg-black p-2 mt-2 rounded font-mono text-green-400">
+               [<br/>
+               &nbsp;&nbsp;{'{'}<br/>
+               &nbsp;&nbsp;&nbsp;&nbsp;"origin": ["*"],<br/>
+               &nbsp;&nbsp;&nbsp;&nbsp;"method": ["GET"],<br/>
+               &nbsp;&nbsp;&nbsp;&nbsp;"maxAgeSeconds": 3600<br/>
+               &nbsp;&nbsp;{'}'}<br/>
+               ]
+             </code>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // --- Componente Individual de Malha (Mesh) ---
 interface ModelProps {
@@ -121,38 +168,40 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
             <X size={24} />
         </button>
 
-        <Canvas shadows camera={{ position: [0, 0, 100], fov: 50 }}>
-          <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
-          
-          <Suspense fallback={<Loader />}>
-            {/* Stage fornece iluminação padrão. Center garante que o modelo esteja no foco da câmera */}
-            <Stage environment="city" intensity={0.6} adjustCamera={false}>
-                <Center>
-                    {meshes.map((mesh) => (
-                        <Model 
-                            key={mesh.id} 
-                            url={mesh.id} // URL is stored in ID field
-                            color={mesh.color}
-                            opacity={mesh.opacity}
-                            visible={mesh.visible}
-                        />
-                    ))}
-                </Center>
-            </Stage>
-          </Suspense>
-          
-          <Grid 
-            renderOrder={-1} 
-            position={[0, -50, 0]} // Grid abaixo do modelo
-            infiniteGrid 
-            cellSize={10} 
-            sectionSize={50} 
-            fadeDistance={400} 
-            sectionColor="#475569" 
-            cellColor="#334155" 
-          />
-          <OrbitControls makeDefault />
-        </Canvas>
+        <ViewerErrorBoundary>
+            <Canvas shadows camera={{ position: [0, 0, 100], fov: 50 }}>
+            <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
+            
+            <Suspense fallback={<Loader />}>
+                {/* Stage fornece iluminação padrão. Center garante que o modelo esteja no foco da câmera */}
+                <Stage environment="city" intensity={0.6} adjustCamera={false}>
+                    <Center>
+                        {meshes.map((mesh) => (
+                            <Model 
+                                key={mesh.id} 
+                                url={mesh.id} // URL is stored in ID field
+                                color={mesh.color}
+                                opacity={mesh.opacity}
+                                visible={mesh.visible}
+                            />
+                        ))}
+                    </Center>
+                </Stage>
+            </Suspense>
+            
+            <Grid 
+                renderOrder={-1} 
+                position={[0, -50, 0]} // Grid abaixo do modelo
+                infiniteGrid 
+                cellSize={10} 
+                sectionSize={50} 
+                fadeDistance={400} 
+                sectionColor="#475569" 
+                cellColor="#334155" 
+            />
+            <OrbitControls makeDefault />
+            </Canvas>
+        </ViewerErrorBoundary>
         
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none select-none">
             Botão Esq: Rotacionar • Botão Dir: Mover • Scroll: Zoom
