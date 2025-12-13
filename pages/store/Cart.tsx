@@ -1,20 +1,30 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building } from 'lucide-react';
+import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building, ShieldCheck, QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Attachment } from '../../types';
+import { Attachment, JobStatus, UrgencyLevel } from '../../types';
+import * as api from '../../services/firebaseService';
 
 export const Cart = () => {
-  const { cart, removeFromCart, createWebOrder, uploadFile, activeOrganization } = useApp();
+  const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, clearCart } = useApp();
   const navigate = useNavigate();
   
   const [patientName, setPatientName] = useState('');
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   
+  // Payment State
+  const [paymentMethod, setPaymentMethod] = useState<'CREDIT_CARD' | 'PIX'>('CREDIT_CARD');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cpfCnpj, setCpfCnpj] = useState('');
+  
   // File Upload State
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const total = cart.reduce((acc, item) => acc + item.finalPrice, 0);
 
@@ -62,11 +72,13 @@ export const Cart = () => {
         return;
     }
 
-    setIsUploading(true);
+    if (!currentUser) return;
+
+    setIsProcessing(true);
     const uploadedAttachments: Attachment[] = [];
 
     try {
-        // Upload each file
+        // 1. Upload Files
         for (const file of selectedFiles) {
             const url = await uploadFile(file);
             uploadedAttachments.push({
@@ -77,15 +89,62 @@ export const Cart = () => {
             });
         }
 
-        // Create Order with Attachments
-        createWebOrder(patientName, new Date(date), notes, uploadedAttachments);
-        navigate('/my-orders');
+        // 2. Prepare Job Data
+        const jobData = {
+            organizationId: activeOrganization.id, 
+            patientName, 
+            dentistId: currentUser.id, 
+            dentistName: currentUser.name, 
+            urgency: UrgencyLevel.NORMAL,
+            items: cart.map(c => ({ 
+                id: `item_${c.cartItemId}`, 
+                jobTypeId: c.jobType.id, 
+                name: c.jobType.name, 
+                quantity: c.quantity, 
+                price: c.unitPrice, 
+                selectedVariationIds: c.selectedVariationIds, 
+                variationValues: c.variationValues 
+            })),
+            history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual', userId: currentUser.id, userName: currentUser.name }],
+            attachments: uploadedAttachments, 
+            createdAt: new Date(), 
+            dueDate: new Date(date), 
+            totalValue: total, 
+            notes
+        };
 
-    } catch (error) {
+        // 3. Prepare Payment Data
+        const paymentData = {
+            method: paymentMethod,
+            cpfCnpj: cpfCnpj.replace(/\D/g, ''),
+            creditCard: paymentMethod === 'CREDIT_CARD' ? {
+                number: cardNumber.replace(/\s/g, ''),
+                holderName: cardHolder,
+                expiry: cardExpiry,
+                cvv: cardCvv
+            } : undefined
+        };
+
+        // 4. Call Backend to Create Payment & Job
+        const result = await api.apiCreateOrderPayment(jobData, paymentData);
+
+        if (result.success) {
+            clearCart();
+            if (paymentMethod === 'PIX') {
+                alert("Código PIX gerado! Copie o código no seu histórico de pedidos (Mock: Pagamento Aprovado).");
+            } else {
+                alert("Pedido enviado! Valor pré-autorizado no cartão. Será cobrado apenas se o laboratório aceitar.");
+            }
+            navigate('/my-orders');
+        } else {
+            alert("Falha no pagamento: " + result.message);
+        }
+
+    } catch (error: any) {
         console.error("Erro no checkout:", error);
-        alert("Erro ao enviar arquivos. Tente novamente.");
+        alert("Erro ao processar pedido: " + (error.message || "Tente novamente."));
     } finally {
-        setIsUploading(false);
+        setIsProcessing(false);
     }
   };
 
@@ -128,38 +187,132 @@ export const Cart = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-12">
       {/* Items List */}
-      <div className="lg:col-span-2 space-y-4">
-        <h2 className="text-xl font-bold text-slate-800 mb-4">Itens do Pedido ({cart.length})</h2>
-        {cart.map(item => (
-            <div key={item.cartItemId} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-slate-100 rounded-lg" />
-                    <div>
-                        <h4 className="font-bold text-slate-800">{item.jobType.name}</h4>
-                        <p className="text-sm text-slate-500 line-clamp-1" title={getVariationDetails(item)}>
-                            {getVariationDetails(item)}
-                        </p>
-                        <p className="text-sm font-medium text-slate-600">Qtd: {item.quantity}</p>
+      <div className="lg:col-span-2 space-y-6">
+        <div>
+            <h2 className="text-xl font-bold text-slate-800 mb-4">Itens do Pedido ({cart.length})</h2>
+            <div className="space-y-4">
+                {cart.map(item => (
+                    <div key={item.cartItemId} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 bg-slate-100 rounded-lg" />
+                            <div>
+                                <h4 className="font-bold text-slate-800">{item.jobType.name}</h4>
+                                <p className="text-sm text-slate-500 line-clamp-1" title={getVariationDetails(item)}>
+                                    {getVariationDetails(item)}
+                                </p>
+                                <p className="text-sm font-medium text-slate-600">Qtd: {item.quantity}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="text-right">
+                                <span className="font-bold text-slate-700">R$ {item.finalPrice.toFixed(2)}</span>
+                                <span className="text-xs text-slate-400 block">Un: R$ {item.unitPrice.toFixed(2)}</span>
+                            </div>
+                            <button onClick={() => removeFromCart(item.cartItemId)} className="text-red-400 hover:text-red-600 p-2">
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-center gap-4">
-                    <div className="text-right">
-                        <span className="font-bold text-slate-700">R$ {item.finalPrice.toFixed(2)}</span>
-                        <span className="text-xs text-slate-400 block">Un: R$ {item.unitPrice.toFixed(2)}</span>
-                    </div>
-                    <button onClick={() => removeFromCart(item.cartItemId)} className="text-red-400 hover:text-red-600 p-2">
-                        <Trash2 size={18} />
-                    </button>
-                </div>
+                ))}
             </div>
-        ))}
+        </div>
+
+        {/* PAYMENT SECTION */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <CreditCard className="text-indigo-600"/> Forma de Pagamento
+            </h3>
+            
+            <div className="flex gap-4 mb-6">
+                <button 
+                    type="button" 
+                    onClick={() => setPaymentMethod('CREDIT_CARD')}
+                    className={`flex-1 py-3 rounded-xl border-2 font-bold flex items-center justify-center gap-2 transition-all ${paymentMethod === 'CREDIT_CARD' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                >
+                    <CreditCard size={20}/> Cartão de Crédito
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => setPaymentMethod('PIX')}
+                    className={`flex-1 py-3 rounded-xl border-2 font-bold flex items-center justify-center gap-2 transition-all ${paymentMethod === 'PIX' ? 'border-green-600 bg-green-50 text-green-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                >
+                    <QrCode size={20}/> PIX
+                </button>
+            </div>
+
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">CPF do Titular</label>
+                    <input 
+                        value={cpfCnpj}
+                        onChange={e => setCpfCnpj(e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="000.000.000-00"
+                    />
+                </div>
+
+                {paymentMethod === 'CREDIT_CARD' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Número do Cartão</label>
+                            <input 
+                                value={cardNumber}
+                                onChange={e => setCardNumber(e.target.value)}
+                                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="0000 0000 0000 0000"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Nome no Cartão</label>
+                            <input 
+                                value={cardHolder}
+                                onChange={e => setCardHolder(e.target.value)}
+                                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="COMO NO CARTAO"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Validade</label>
+                                <input 
+                                    value={cardExpiry}
+                                    onChange={e => setCardExpiry(e.target.value)}
+                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    placeholder="MM/AA"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">CVV</label>
+                                <input 
+                                    value={cardCvv}
+                                    onChange={e => setCardCvv(e.target.value)}
+                                    className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                    placeholder="123"
+                                />
+                            </div>
+                        </div>
+                        <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800 flex gap-2 items-start">
+                            <ShieldCheck size={16} className="shrink-0 mt-0.5"/>
+                            <p>O valor será apenas <strong>reservado</strong> no seu limite. A cobrança real só ocorre se o laboratório aceitar o trabalho. Se recusado, o limite é liberado imediatamente.</p>
+                        </div>
+                    </div>
+                )}
+                
+                {paymentMethod === 'PIX' && (
+                    <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-center animate-in fade-in">
+                        <p className="text-green-800 text-sm font-medium mb-2">Ao confirmar, um QR Code será gerado.</p>
+                        <p className="text-xs text-green-700">Se o laboratório recusar o pedido, o valor será estornado automaticamente para sua conta.</p>
+                    </div>
+                )}
+            </div>
+        </div>
       </div>
 
       {/* Checkout Form */}
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-indigo-100 h-fit sticky top-6">
-        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2"><CreditCard className="text-indigo-600" /> Detalhes do Trabalho</h2>
+        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">Detalhes do Envio</h2>
         <form onSubmit={handleCheckout} className="space-y-4">
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Nome do Paciente</label>
@@ -223,10 +376,10 @@ export const Cart = () => {
                 </div>
                 <button 
                     type="submit" 
-                    disabled={isUploading}
-                    className={`w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2 ${isUploading ? 'opacity-70 cursor-wait' : ''}`}
+                    disabled={isProcessing}
+                    className={`w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 ${isProcessing ? 'opacity-70 cursor-wait' : ''}`}
                 >
-                    {isUploading ? <><Loader2 className="animate-spin" /> Enviando Arquivos...</> : 'Enviar Pedido'}
+                    {isProcessing ? <><Loader2 className="animate-spin" /> Processando Pagamento...</> : 'Confirmar e Pagar'}
                 </button>
             </div>
         </form>

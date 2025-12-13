@@ -2,15 +2,16 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, Attachment } from '../types';
 import { BOX_COLORS } from '../services/mockData';
-import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box, Archive, Loader2 } from 'lucide-react';
+import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box, Archive, Loader2, CreditCard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { STLViewer } from '../components/STLViewer';
 import { FeatureLocked } from '../components/FeatureLocked';
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
+import * as api from '../services/firebaseService'; // Import API functions
 
 export const IncomingOrders = () => {
-  const { jobs, updateJob, currentUser, currentPlan } = useApp();
+  const { jobs, updateJob, currentUser, currentPlan, currentOrg } = useApp();
   const navigate = useNavigate();
 
   // --- PLAN CHECK ---
@@ -35,6 +36,7 @@ export const IncomingOrders = () => {
   const [osInput, setOsInput] = useState('');
   const [boxNum, setBoxNum] = useState('');
   const [boxColorId, setBoxColorId] = useState(BOX_COLORS[0].id);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // 3D Viewer State
   const [viewing3DJob, setViewing3DJob] = useState<Job | null>(null);
@@ -54,38 +56,52 @@ export const IncomingOrders = () => {
     setSelectedJob(job);
   };
 
-  const confirmApproval = () => {
-    if (!selectedJob) return;
+  const confirmApproval = async () => {
+    if (!selectedJob || !currentOrg) return;
+    setIsProcessing(true);
     
-    updateJob(selectedJob.id, {
-        status: JobStatus.PENDING,
-        osNumber: osInput,
-        boxNumber: boxNum,
-        boxColor: BOX_COLORS.find(c => c.id === boxColorId),
-        history: [...selectedJob.history, {
-            id: Math.random().toString(),
-            timestamp: new Date(),
-            action: 'Pedido Web Aprovado & OS Atribuída',
-            userId: currentUser.id,
-            userName: currentUser.name,
-            sector: 'Recepção'
-        }]
-    });
-    setSelectedJob(null);
+    try {
+        // CALL BACKEND TO CAPTURE PAYMENT AND UPDATE JOB
+        await api.apiManageOrderDecision(currentOrg.id, selectedJob.id, 'APPROVE');
+        
+        // Update local specific fields that the general backend function might not know (OS/Box)
+        // We do this AFTER ensuring payment capture was successful via the function above
+        await updateJob(selectedJob.id, {
+            osNumber: osInput,
+            boxNumber: boxNum,
+            boxColor: BOX_COLORS.find(c => c.id === boxColorId),
+            history: [...selectedJob.history, {
+                id: Math.random().toString(),
+                timestamp: new Date(),
+                action: `OS ${osInput} Atribuída e Caixa ${boxNum} definida`,
+                userId: currentUser.id,
+                userName: currentUser.name,
+                sector: 'Recepção'
+            }]
+        });
+
+        alert("Pedido aprovado e pagamento capturado com sucesso!");
+        setSelectedJob(null);
+    } catch (error: any) {
+        console.error("Erro ao aprovar:", error);
+        alert("Erro ao aprovar pedido: " + (error.message || "Tente novamente"));
+    } finally {
+        setIsProcessing(false);
+    }
   };
 
-  const handleReject = (job: Job) => {
-      if(window.confirm(`Tem certeza que deseja REJEITAR o pedido de ${job.patientName}? O dentista será notificado.`)) {
-          updateJob(job.id, {
-              status: JobStatus.REJECTED,
-              history: [...job.history, {
-                  id: Math.random().toString(),
-                  timestamp: new Date(),
-                  action: 'Pedido Rejeitado pelo Laboratório',
-                  userId: currentUser.id,
-                  userName: currentUser.name
-              }]
-          });
+  const handleReject = async (job: Job) => {
+      const reason = window.prompt(`Motivo da rejeição para ${job.patientName}? (O valor será estornado ao dentista)`);
+      if (reason === null) return; // Cancelled
+
+      if (!currentOrg) return;
+      
+      try {
+          await api.apiManageOrderDecision(currentOrg.id, job.id, 'REJECT', reason);
+          alert("Pedido rejeitado e estorno realizado.");
+      } catch (error: any) {
+          console.error("Erro ao rejeitar:", error);
+          alert("Erro ao realizar estorno: " + error.message);
       }
   };
 
@@ -168,6 +184,11 @@ export const IncomingOrders = () => {
                                     <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full flex items-center gap-1">
                                         <Clock size={12} /> Aguardando
                                     </span>
+                                    {job.paymentStatus && (
+                                        <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1 border ${job.paymentStatus === 'AUTHORIZED' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
+                                            <CreditCard size={12} /> {job.paymentStatus === 'AUTHORIZED' ? 'Pré-Autorizado' : 'Aguardando Pagamento'}
+                                        </span>
+                                    )}
                                     <span className="text-slate-400 text-sm">Pedido realizado em {new Date(job.createdAt).toLocaleDateString()}</span>
                                 </div>
                                 
@@ -252,14 +273,14 @@ export const IncomingOrders = () => {
                                 onClick={() => handleOpenApprove(job)}
                                 className="px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 flex items-center justify-center gap-2 transition-all transform hover:scale-105"
                             >
-                                <Check size={20} /> Aprovar Entrada
+                                <Check size={20} /> Aprovar & Capturar
                             </button>
                             
                             <button 
                                 onClick={() => handleReject(job)}
                                 className="px-6 py-3 bg-white border-2 border-red-100 text-red-600 font-bold rounded-xl hover:bg-red-50 hover:border-red-200 flex items-center justify-center gap-2 transition-colors"
                             >
-                                <X size={20} /> Rejeitar
+                                <X size={20} /> Rejeitar & Estornar
                             </button>
                         </div>
                     </div>
@@ -275,7 +296,7 @@ export const IncomingOrders = () => {
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900">Oficializar Entrada</h2>
-                        <p className="text-slate-500 text-sm">Atribua OS e Caixa para iniciar produção.</p>
+                        <p className="text-slate-500 text-sm">Ao confirmar, o valor do pedido será cobrado do dentista.</p>
                     </div>
                     <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-lg text-xs font-bold">
                         WEB
@@ -332,15 +353,17 @@ export const IncomingOrders = () => {
                 <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-100">
                     <button 
                         onClick={() => setSelectedJob(null)} 
+                        disabled={isProcessing}
                         className="px-6 py-3 text-slate-500 hover:bg-slate-50 rounded-xl font-bold transition-colors"
                     >
                         Cancelar
                     </button>
                     <button 
                         onClick={confirmApproval} 
-                        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg shadow-blue-200 flex items-center gap-2"
+                        disabled={isProcessing}
+                        className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg shadow-blue-200 flex items-center gap-2 disabled:opacity-70"
                     >
-                        Confirmar & Imprimir <ArrowRight size={18} />
+                        {isProcessing ? <Loader2 className="animate-spin" /> : <><Check size={20} /> Confirmar & Cobrar</>}
                     </button>
                 </div>
             </div>

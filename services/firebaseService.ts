@@ -1,3 +1,4 @@
+
 import { 
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs,
   onSnapshot, Timestamp, query, orderBy, arrayUnion, where
@@ -316,12 +317,10 @@ export const callCreateSubscription = async (orgId: string, planId: string, emai
     }
 
     // --- FALLBACK LOCAL (SIMULAÇÃO ABSOLUTA) ---
-    // Útil se o usuário não tiver deployado as Cloud Functions, configurado chaves ou se o Firestore falhar.
     console.log("Simulando ativação de plano (Fallback Local)...");
     
     try {
         if (db) {
-            // Tenta atualizar o Firestore
             await updateDoc(doc(db, 'organizations', orgId), {
                 subscriptionStatus: 'ACTIVE',
                 planId: planId,
@@ -330,15 +329,30 @@ export const callCreateSubscription = async (orgId: string, planId: string, emai
             });
         }
     } catch (dbError) {
-        console.error("Erro ao atualizar DB no fallback (possível erro de permissão). Ignorando para permitir teste de UI.", dbError);
+        console.error("Erro ao atualizar DB no fallback.", dbError);
     }
 
-    // Retorna sucesso DE QUALQUER FORMA no fallback para não travar o usuário
     return { 
         success: true, 
         paymentLink: 'https://google.com?q=simulacao-sucesso-retornar-ao-app', // Link dummy
         isMock: true
     };
+};
+
+// --- JOB PAYMENT FUNCTIONS ---
+
+export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
+    if (!functions) throw new Error("Functions not initialized");
+    const fn = httpsCallable(functions, 'createOrderPayment');
+    const result: any = await fn({ jobData, paymentData });
+    return result.data;
+};
+
+export const apiManageOrderDecision = async (orgId: string, jobId: string, decision: 'APPROVE' | 'REJECT', rejectionReason?: string) => {
+    if (!functions) throw new Error("Functions not initialized");
+    const fn = httpsCallable(functions, 'manageOrderDecision');
+    const result: any = await fn({ orgId, jobId, decision, rejectionReason });
+    return result.data;
 };
 
 export const uploadJobFile = async (file: File): Promise<string> => {

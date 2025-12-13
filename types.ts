@@ -60,6 +60,7 @@ export interface FinancialSettings {
   bankInfo?: string; // Agency/Account text
   paymentLink?: string; // External link (Mercado Pago, Stripe Link, etc)
   instructions?: string;
+  asaasApiKey?: string; // NEW: Lab's private Asaas Key for split/direct payments
 }
 
 export interface Organization {
@@ -183,6 +184,11 @@ export interface Job {
   totalValue: number;
   notes?: string;
   managerNotes?: string; 
+  
+  // NEW PAYMENT FIELDS
+  paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED' | 'FAILED';
+  paymentMethod?: 'CREDIT_CARD' | 'PIX';
+  paymentId?: string; // Asaas Payment ID
 }
 
 export interface JobAlert {
