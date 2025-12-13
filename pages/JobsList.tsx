@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 
@@ -24,6 +25,10 @@ export const JobsList = () => {
 
   // Print Modal
   const [printModalJob, setPrintModalJob] = useState<Job | null>(null);
+  
+  // PIX Modal
+  const [pixModalJob, setPixModalJob] = useState<Job | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const isClient = currentUser?.role === UserRole.CLIENT;
 
@@ -131,6 +136,12 @@ export const JobsList = () => {
         case JobStatus.REJECTED: return 'Rejeitado';
         default: return status;
       }
+  };
+
+  const copyToClipboard = (text: string) => {
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
   };
 
   const handleExport = () => {
@@ -332,6 +343,15 @@ export const JobsList = () => {
                                     </div>
                                 </td>
                                 <td className="p-4 text-right flex justify-end gap-2">
+                                    {isClient && job.paymentMethod === 'PIX' && job.paymentStatus === 'PENDING' && job.pixQrCode && (
+                                        <button 
+                                            onClick={() => setPixModalJob(job)}
+                                            className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold border border-green-200"
+                                            title="Ver PIX"
+                                        >
+                                            <QrCode size={16} /> Pagar
+                                        </button>
+                                    )}
                                     {!isClient && job.status !== JobStatus.REJECTED && (
                                         <button 
                                             onClick={() => setPrintModalJob(job)}
@@ -407,6 +427,14 @@ export const JobsList = () => {
                     </div>
 
                     <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                         {isClient && job.paymentMethod === 'PIX' && job.paymentStatus === 'PENDING' && job.pixQrCode && (
+                            <button 
+                                onClick={() => setPixModalJob(job)}
+                                className="flex items-center gap-1 text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded border border-green-200"
+                            >
+                                <QrCode size={14} /> Ver PIX
+                            </button>
+                        )}
                          {/* Only allow print if not rejected */}
                         {!isClient && job.status !== JobStatus.REJECTED && (
                             <button 
@@ -460,6 +488,46 @@ export const JobsList = () => {
                 </div>
             </div>
          </div>
+      )}
+
+      {/* PIX Modal */}
+      {pixModalJob && pixModalJob.pixQrCode && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full relative animate-in zoom-in duration-200">
+                  <button onClick={() => setPixModalJob(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                      <X size={20} />
+                  </button>
+                  
+                  <div className="text-center">
+                      <h3 className="font-bold text-lg text-slate-800 mb-1">Pagamento PIX</h3>
+                      <p className="text-sm text-slate-500 mb-4">Escaneie ou copie o código</p>
+                      
+                      <div className="flex justify-center mb-4">
+                          <img src={`data:image/png;base64,${pixModalJob.pixQrCode}`} alt="QR Code PIX" className="w-48 h-48 border rounded-lg" />
+                      </div>
+                      
+                      {pixModalJob.pixCopyPaste && (
+                          <div className="relative mb-4">
+                              <textarea 
+                                  readOnly 
+                                  value={pixModalJob.pixCopyPaste}
+                                  className="w-full h-20 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 resize-none outline-none"
+                              />
+                              <button 
+                                  onClick={() => copyToClipboard(pixModalJob.pixCopyPaste!)}
+                                  className="absolute bottom-2 right-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-md hover:bg-blue-700 flex items-center gap-1 transition-colors"
+                              >
+                                  {copied ? <Check size={12}/> : <Copy size={12}/>} {copied ? 'Copiado' : 'Copiar'}
+                              </button>
+                          </div>
+                      )}
+                      
+                      <div className="bg-yellow-50 text-yellow-800 text-xs p-3 rounded-lg border border-yellow-100">
+                          Após o pagamento, o laboratório será notificado para iniciar a produção.
+                      </div>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );

@@ -194,6 +194,8 @@ export interface Job {
   paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED' | 'FAILED';
   paymentMethod?: 'CREDIT_CARD' | 'PIX';
   paymentId?: string; // Asaas Payment ID
+  pixCopyPaste?: string;
+  pixQrCode?: string; // Base64
 }
 
 export interface JobAlert {

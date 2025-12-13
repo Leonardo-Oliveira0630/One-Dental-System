@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building, ShieldCheck, QrCode } from 'lucide-react';
+import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building, ShieldCheck, QrCode, CheckCircle, Copy, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Attachment, JobStatus, UrgencyLevel } from '../../types';
 import * as api from '../../services/firebaseService';
@@ -25,6 +25,10 @@ export const Cart = () => {
   // File Upload State
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Success Modal State
+  const [successData, setSuccessData] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
 
   const total = cart.reduce((acc, item) => acc + item.finalPrice, 0);
 
@@ -130,12 +134,7 @@ export const Cart = () => {
 
         if (result.success) {
             clearCart();
-            if (paymentMethod === 'PIX') {
-                alert("Código PIX gerado! Copie o código no seu histórico de pedidos (Mock: Pagamento Aprovado).");
-            } else {
-                alert("Pedido enviado! Valor pré-autorizado no cartão. Será cobrado apenas se o laboratório aceitar.");
-            }
-            navigate('/my-orders');
+            setSuccessData(result); // Trigger Success Modal
         } else {
             alert("Falha no pagamento: " + result.message);
         }
@@ -146,6 +145,12 @@ export const Cart = () => {
     } finally {
         setIsProcessing(false);
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+      navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
   };
 
   const getVariationDetails = (item: import('../../types').CartItem) => {
@@ -172,6 +177,63 @@ export const Cart = () => {
 
     return details.join(', ');
   };
+
+  if (successData) {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-4 animate-in zoom-in duration-300">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
+                  <CheckCircle size={40} className="text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Pedido Enviado com Sucesso!</h2>
+              <p className="text-slate-500 mb-8 max-w-md">
+                  Seu pedido foi registrado. Aguarde a aprovação do laboratório para iniciar a produção.
+              </p>
+
+              {paymentMethod === 'PIX' && successData.pixCopyPaste && (
+                  <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 max-w-sm w-full mb-8">
+                      <h3 className="font-bold text-slate-800 mb-4">Pagamento via PIX</h3>
+                      
+                      {successData.pixQrCode && (
+                          <div className="flex justify-center mb-4">
+                              <img src={`data:image/png;base64,${successData.pixQrCode}`} alt="QR Code PIX" className="w-48 h-48 border rounded-lg" />
+                          </div>
+                      )}
+                      
+                      <div className="relative">
+                          <textarea 
+                              readOnly 
+                              value={successData.pixCopyPaste}
+                              className="w-full h-24 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 resize-none outline-none"
+                          />
+                          <button 
+                              onClick={() => copyToClipboard(successData.pixCopyPaste)}
+                              className="absolute bottom-2 right-2 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-md hover:bg-blue-700 flex items-center gap-1 transition-colors"
+                          >
+                              {copied ? <Check size={12}/> : <Copy size={12}/>} {copied ? 'Copiado' : 'Copiar'}
+                          </button>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-2">
+                          Se o laboratório recusar o serviço, o valor será estornado automaticamente.
+                      </p>
+                  </div>
+              )}
+
+              {paymentMethod === 'CREDIT_CARD' && (
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-blue-800 max-w-sm mb-8">
+                      <p className="font-bold mb-1">Pagamento Pré-Autorizado</p>
+                      <p className="text-sm">O valor foi reservado no seu cartão. A cobrança final só ocorre quando o laboratório aceitar o pedido.</p>
+                  </div>
+              )}
+
+              <button 
+                  onClick={() => navigate('/my-orders')}
+                  className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg"
+              >
+                  Ir para Meus Pedidos
+              </button>
+          </div>
+      );
+  }
 
   if (cart.length === 0) {
     return (

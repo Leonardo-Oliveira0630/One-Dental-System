@@ -180,6 +180,11 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
   if (!masterKey || masterKey.includes("AIza")) {
     const mockId = `pay_${Math.random().toString(36).substr(2, 9)}`;
     const jobId = `job_${Date.now()}`;
+    
+    // Mock Pix Data
+    const mockPixQrCode = paymentData.method === "PIX" ? "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" : undefined;
+    const mockPixCopyPaste = paymentData.method === "PIX" ? "00020126360014BR.GOV.BCB.PIX0114+5511999999999520400005303986540510.005802BR5913One Dental6009Sao Paulo62070503***6304E2CA" : undefined;
+
     const newJob = {
       ...jobData,
       id: jobId,
@@ -187,6 +192,8 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
       paymentStatus: paymentData.method === "PIX" ? "PENDING" : "AUTHORIZED",
       paymentMethod: paymentData.method,
       paymentId: mockId,
+      pixQrCode: mockPixQrCode,
+      pixCopyPaste: mockPixCopyPaste,
       createdAt: admin.firestore.Timestamp.now(),
       dueDate: admin.firestore.Timestamp.fromDate(new Date(jobData.dueDate)),
     };
@@ -202,10 +209,8 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
       success: true,
       jobId: jobId,
       paymentId: mockId,
-      pixQrCode: paymentData.method === "PIX" ?
-        "mock_qr_code_base64_string" : undefined,
-      pixCopyPaste: paymentData.method === "PIX" ?
-        "00020126360014BR.GOV.BCB.PIX..." : undefined,
+      pixQrCode: mockPixQrCode,
+      pixCopyPaste: mockPixCopyPaste,
       message: "Pagamento Simulado com Sucesso (MOCK)",
     };
   }
@@ -246,7 +251,7 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
 
     const payRes = await axios.post(`${ASAAS_URL}/payments`, paymentPayload, { headers });
     
-    // 3. Save Job to Firestore
+    // 3. Save Job to Firestore WITH PIX DATA
     const jobId = `job_${Date.now()}`;
     const newJob = {
       ...jobData,
@@ -255,6 +260,8 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
       paymentStatus: paymentData.method === "PIX" ? "PENDING" : "AUTHORIZED", // If CC, Asaas returns status
       paymentMethod: paymentData.method,
       paymentId: payRes.data.id,
+      pixQrCode: payRes.data.encodedImage, // Store Base64 QR
+      pixCopyPaste: payRes.data.payload, // Store CopyPaste Code
       createdAt: admin.firestore.Timestamp.now(),
       dueDate: admin.firestore.Timestamp.fromDate(new Date(jobData.dueDate)),
     };
