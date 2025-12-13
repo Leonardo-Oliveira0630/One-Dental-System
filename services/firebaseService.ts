@@ -1,7 +1,7 @@
 
 import { 
   collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs,
-  onSnapshot, Timestamp, query, orderBy, arrayUnion, where
+  onSnapshot, Timestamp, query, orderBy, arrayUnion, where, QuerySnapshot, DocumentData
 } from 'firebase/firestore';
 import { 
   signInWithEmailAndPassword, 
@@ -50,7 +50,7 @@ export const apiRegisterOrganization = async (email: string, pass: string, owner
       const couponRef = doc(db, 'coupons', couponCode);
       const couponSnap = await getDoc(couponRef);
       if (couponSnap.exists()) {
-          const currentUsage = couponSnap.data().usedCount || 0;
+          const currentUsage = (couponSnap.data() as any).usedCount || 0;
           await updateDoc(couponRef, { usedCount: currentUsage + 1 });
       }
   }
@@ -94,7 +94,7 @@ export const apiRegisterDentist = async (email: string, pass: string, name: stri
       const couponRef = doc(db, 'coupons', couponCode);
       const couponSnap = await getDoc(couponRef);
       if (couponSnap.exists()) {
-          const currentUsage = couponSnap.data().usedCount || 0;
+          const currentUsage = (couponSnap.data() as any).usedCount || 0;
           await updateDoc(couponRef, { usedCount: currentUsage + 1 });
       }
     }
@@ -116,8 +116,8 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 export const subscribeUserConnections = (dentistId: string, callback: (connections: OrganizationConnection[]) => void) => {
     if (!db) return () => {};
     const q = query(collection(db, 'connections'), where('dentistId', '==', dentistId));
-    return onSnapshot(q, (snapshot) => {
-        callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as OrganizationConnection)));
+    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+        callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as OrganizationConnection)));
     });
 };
 
@@ -150,8 +150,8 @@ const getSubDoc = (orgId: string, collName: string, docId: string) => doc(db, 'o
 const subscribeSubCollection = <T>(orgId: string, collName: string, callback: (data: T[]) => void) => {
   if (!db) return () => {};
   const q = query(getSubCollection(orgId, collName));
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as T)));
+  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as T)));
   });
 };
 const apiAddSubDoc = async <T extends {id: string}>(orgId: string, collName: string, data: T) => await setDoc(getSubDoc(orgId, collName, data.id), sanitizeData(data));
@@ -178,7 +178,7 @@ export const apiMarkAlertAsRead = async (orgId: string, alertId: string, userId:
 export const subscribeClinicPatients = (orgId: string, dentistId: string, cb: (d: ClinicPatient[]) => void) => {
     // If the Dentist HAS their own subscription (Organization), they are the "owner", so query all patients in that org
     const q = query(getSubCollection(orgId, 'clinicPatients'));
-    return onSnapshot(q, (snapshot) => cb(snapshot.docs.map(doc => ({...convertDates(doc.data()), id: doc.id} as ClinicPatient))));
+    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => cb(snapshot.docs.map(doc => ({...(convertDates(doc.data()) as any), id: doc.id} as ClinicPatient))));
 };
 export const apiAddPatient = (orgId: string, d: ClinicPatient) => apiAddSubDoc(orgId, 'clinicPatients', d);
 export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => apiUpdateSubDoc(orgId, 'clinicPatients', id, u);
@@ -186,7 +186,7 @@ export const apiDeletePatient = (orgId: string, id: string) => apiDeleteSubDoc(o
 
 export const subscribeAppointments = (orgId: string, dentistId: string, cb: (d: Appointment[]) => void) => {
     const q = query(getSubCollection(orgId, 'appointments'));
-    return onSnapshot(q, (snapshot) => cb(snapshot.docs.map(doc => ({...convertDates(doc.data()), id: doc.id} as Appointment))));
+    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => cb(snapshot.docs.map(doc => ({...(convertDates(doc.data()) as any), id: doc.id} as Appointment))));
 };
 export const apiAddAppointment = (orgId: string, d: Appointment) => apiAddSubDoc(orgId, 'appointments', d);
 export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => apiUpdateSubDoc(orgId, 'appointments', id, u);
@@ -195,8 +195,8 @@ export const apiDeleteAppointment = (orgId: string, id: string) => apiDeleteSubD
 export const subscribeOrgUsers = (orgId: string, callback: (users: User[]) => void) => {
   if (!db) return () => {};
   const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as User)));
+  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as User)));
   });
 };
 export const apiAddUser = async (user: User) => await setDoc(doc(db, 'users', user.id), sanitizeData(user));
@@ -208,8 +208,8 @@ export const apiDeleteUser = async (id: string) => await deleteDoc(doc(db, 'user
 export const subscribeAllOrganizations = (callback: (orgs: Organization[]) => void) => {
   if (!db) return () => {};
   const q = query(collection(db, 'organizations'));
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as Organization)));
+  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as Organization)));
   });
 };
 
@@ -221,8 +221,8 @@ export const apiUpdateOrganization = async (id: string, updates: Partial<Organiz
 export const subscribeSubscriptionPlans = (callback: (plans: SubscriptionPlan[]) => void) => {
   if (!db) return () => {};
   const q = query(collection(db, 'subscriptionPlans'));
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as SubscriptionPlan)));
+  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as SubscriptionPlan)));
   });
 };
 
@@ -242,7 +242,7 @@ export const apiDeleteSubscriptionPlan = async (id: string) => {
 };
 
 export const subscribeAllUsers = (cb: (d: User[]) => void) => {
-    return onSnapshot(query(collection(db, 'users')), (snapshot) => cb(snapshot.docs.map(doc => ({...doc.data(), id: doc.id} as User))));
+    return onSnapshot(query(collection(db, 'users')), (snapshot: QuerySnapshot<DocumentData>) => cb(snapshot.docs.map(doc => ({...(doc.data() as any), id: doc.id} as User))));
 }
 
 // --- COUPONS MANAGEMENT ---
@@ -250,8 +250,8 @@ export const subscribeAllUsers = (cb: (d: User[]) => void) => {
 export const subscribeCoupons = (callback: (coupons: Coupon[]) => void) => {
   if (!db) return () => {};
   const q = query(collection(db, 'coupons'));
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ ...convertDates(doc.data()), id: doc.id } as Coupon)));
+  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as Coupon)));
   });
 };
 
@@ -340,6 +340,13 @@ export const callCreateSubscription = async (orgId: string, planId: string, emai
 };
 
 // --- JOB PAYMENT FUNCTIONS ---
+
+export const apiCreateLabWallet = async (data: { orgId: string, name: string, email: string, cpfCnpj: string, address: string, phone: string }) => {
+    if (!functions) throw new Error("Functions not initialized");
+    const fn = httpsCallable(functions, 'createLabSubAccount');
+    const result: any = await fn(data);
+    return result.data;
+};
 
 export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
     if (!functions) throw new Error("Functions not initialized");

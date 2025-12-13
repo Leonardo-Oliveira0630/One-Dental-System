@@ -55,12 +55,17 @@ export interface Coupon {
 }
 
 export interface FinancialSettings {
+  // Manual Data (Display Only)
   pixKey?: string;
   pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM';
-  bankInfo?: string; // Agency/Account text
-  paymentLink?: string; // External link (Mercado Pago, Stripe Link, etc)
+  bankInfo?: string; 
+  paymentLink?: string; 
   instructions?: string;
-  asaasApiKey?: string; // NEW: Lab's private Asaas Key for split/direct payments
+  
+  // Automated Asaas Data (Sub-account)
+  asaasWalletId?: string; // The Account ID in Asaas (e.g. "acct_12345")
+  asaasApiKey?: string; // The API Key specific for this sub-account
+  walletStatus?: 'PENDING' | 'ACTIVE' | 'REJECTED';
 }
 
 export interface Organization {

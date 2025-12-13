@@ -3,9 +3,10 @@ import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap
+  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import * as api from '../services/firebaseService';
 
 export const Admin = () => {
   const { 
@@ -45,8 +46,15 @@ export const Admin = () => {
   // Financial Settings State
   const [pixKey, setPixKey] = useState('');
   const [bankInfo, setBankInfo] = useState('');
-  const [paymentLink, setPaymentLink] = useState('');
   const [instructions, setInstructions] = useState('');
+  
+  // Wallet State
+  const [walletName, setWalletName] = useState('');
+  const [walletCpfCnpj, setWalletCpfCnpj] = useState('');
+  const [walletEmail, setWalletEmail] = useState('');
+  const [walletPhone, setWalletPhone] = useState('');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
 
   // Subscription State
   const [upgradeCoupon, setUpgradeCoupon] = useState('');
@@ -56,8 +64,11 @@ export const Admin = () => {
       if (currentOrg?.financialSettings) {
           setPixKey(currentOrg.financialSettings.pixKey || '');
           setBankInfo(currentOrg.financialSettings.bankInfo || '');
-          setPaymentLink(currentOrg.financialSettings.paymentLink || '');
           setInstructions(currentOrg.financialSettings.instructions || '');
+      }
+      // Prefill Wallet Data if not set
+      if (currentOrg && !walletName) {
+          setWalletName(currentOrg.name);
       }
   }, [currentOrg]);
 
@@ -65,9 +76,31 @@ export const Admin = () => {
       e.preventDefault();
       if (!currentOrg) return;
       await updateOrganization(currentOrg.id, {
-          financialSettings: { pixKey, bankInfo, paymentLink, instructions }
+          financialSettings: { ...currentOrg.financialSettings, pixKey, bankInfo, instructions }
       });
-      alert("Configurações financeiras salvas!");
+      alert("Configurações manuais salvas!");
+  };
+
+  const handleCreateWallet = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!currentOrg) return;
+      setIsCreatingWallet(true);
+      try {
+          await api.apiCreateLabWallet({
+              orgId: currentOrg.id,
+              name: walletName,
+              email: walletEmail,
+              cpfCnpj: walletCpfCnpj,
+              phone: walletPhone,
+              address: walletAddress
+          });
+          alert("Carteira Digital ativada com sucesso!");
+      } catch (error: any) {
+          console.error(error);
+          alert("Erro ao ativar carteira: " + error.message);
+      } finally {
+          setIsCreatingWallet(false);
+      }
   };
 
   const handleValidateUpgradeCoupon = async () => {
@@ -311,17 +344,73 @@ export const Admin = () => {
 
       {/* FINANCIAL CONTENT */}
       {activeTab === 'FINANCIAL' && (
-         <div className="animate-in fade-in slide-in-from-right-4 duration-300 max-w-4xl mx-auto">
+         <div className="animate-in fade-in slide-in-from-right-4 duration-300 max-w-4xl mx-auto space-y-8">
+             
+             {/* AUTOMATED WALLET SECTION */}
+             <div className="bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-200 p-6 overflow-hidden relative">
+                 <div className="relative z-10">
+                     <div className="flex justify-between items-start mb-4">
+                         <div>
+                             <h3 className="text-xl font-bold flex items-center gap-2"><Wallet /> Carteira Digital One</h3>
+                             <p className="text-indigo-100 text-sm">Receba pagamentos automaticamente dos seus dentistas.</p>
+                         </div>
+                         {currentOrg?.financialSettings?.asaasWalletId ? (
+                             <div className="bg-white/20 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                                 <Check size={14}/> ATIVA
+                             </div>
+                         ) : (
+                             <div className="bg-orange-500/80 px-3 py-1 rounded-lg text-xs font-bold">
+                                 PENDENTE
+                             </div>
+                         )}
+                     </div>
+
+                     {currentOrg?.financialSettings?.asaasWalletId ? (
+                         <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/10">
+                             <p className="text-xs uppercase font-bold text-indigo-200 mb-1">ID da Carteira</p>
+                             <p className="font-mono font-bold text-lg mb-4">{currentOrg.financialSettings.asaasWalletId}</p>
+                             <div className="flex gap-3">
+                                 <button onClick={() => window.open('https://asaas.com', '_blank')} className="px-4 py-2 bg-white text-indigo-600 font-bold rounded-lg text-sm hover:bg-indigo-50">
+                                     Acessar Painel Financeiro
+                                 </button>
+                             </div>
+                         </div>
+                     ) : (
+                         <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/10">
+                             <p className="text-sm mb-4">Ative sua conta para receber via PIX e Cartão diretamente pela plataforma.</p>
+                             <form onSubmit={handleCreateWallet} className="space-y-3">
+                                 <div className="grid grid-cols-2 gap-3">
+                                     <input value={walletName} onChange={e => setWalletName(e.target.value)} placeholder="Nome Completo / Razão Social" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required />
+                                     <input value={walletCpfCnpj} onChange={e => setWalletCpfCnpj(e.target.value)} placeholder="CPF / CNPJ" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required />
+                                 </div>
+                                 <div className="grid grid-cols-2 gap-3">
+                                     <input value={walletEmail} onChange={e => setWalletEmail(e.target.value)} placeholder="Email Financeiro" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required type="email" />
+                                     <input value={walletPhone} onChange={e => setWalletPhone(e.target.value)} placeholder="Celular" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required />
+                                 </div>
+                                 <input value={walletAddress} onChange={e => setWalletAddress(e.target.value)} placeholder="Endereço Completo" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required />
+                                 
+                                 <button type="submit" disabled={isCreatingWallet} className="w-full py-2 bg-green-500 hover:bg-green-400 text-white font-bold rounded-lg text-sm flex items-center justify-center gap-2">
+                                     {isCreatingWallet ? <Loader2 className="animate-spin" size={16}/> : 'Ativar Recebimentos Agora'}
+                                 </button>
+                             </form>
+                         </div>
+                     )}
+                 </div>
+                 <div className="absolute -right-10 -bottom-10 opacity-10">
+                     <Wallet size={200} />
+                 </div>
+             </div>
+
+             {/* MANUAL SETTINGS (Legacy/Backup) */}
              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                     <CreditCard size={20} className="text-indigo-500" /> Dados de Recebimento
+                     <CreditCard size={20} className="text-slate-400" /> Configurações Manuais (Opcional)
                  </h3>
                  <form onSubmit={handleSaveFinancial} className="space-y-6">
-                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Chave PIX (Principal)</label><input value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="CPF, CNPJ, Email ou Celular" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
-                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Link de Pagamento Externo (Opcional)</label><input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} placeholder="https://link.mercadopago.com.br/..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-blue-600" /><p className="text-xs text-slate-400 mt-1">Link do Mercado Pago, Stripe ou outro gateway para cartão.</p></div>
+                     <div><label className="block text-sm font-bold text-slate-700 mb-2">Chave PIX (Backup)</label><input value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="CPF, CNPJ, Email ou Celular" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
                      <div><label className="block text-sm font-bold text-slate-700 mb-2">Dados Bancários / Instruções</label><textarea value={bankInfo} onChange={e => setBankInfo(e.target.value)} rows={3} placeholder="Banco X, Ag: 0000, CC: 00000-0..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
                      <div><label className="block text-sm font-bold text-slate-700 mb-2">Instruções Adicionais</label><textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={2} placeholder="Enviar comprovante para o WhatsApp..." className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
-                     <div className="pt-4 border-t border-slate-100 flex justify-end"><button type="submit" className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">Salvar Configurações</button></div>
+                     <div className="pt-4 border-t border-slate-100 flex justify-end"><button type="submit" className="px-8 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 shadow-lg">Salvar Configurações Manuais</button></div>
                  </form>
              </div>
          </div>

@@ -127,7 +127,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (currentOrg && currentOrg.planId) {
           const planRef = doc(db, 'subscriptionPlans', currentOrg.planId);
           const snap = await getDoc(planRef);
-          if (snap.exists()) setCurrentPlan({ id: snap.id, ...snap.data() } as SubscriptionPlan);
+          if (snap.exists()) setCurrentPlan({ id: snap.id, ...(snap.data() as any) } as SubscriptionPlan);
       } else {
           setCurrentPlan(null);
       }
@@ -140,14 +140,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const orgRef = doc(db, 'organizations', organizationId);
     const orgSnap = await getDoc(orgRef);
     if (orgSnap.exists()) {
-      const orgData = { id: orgSnap.id, ...orgSnap.data() } as Organization;
+      const orgData = { id: orgSnap.id, ...(orgSnap.data() as any) } as Organization;
       setActiveOrganization(orgData);
       
       // When a dentist selects a Lab, we want to know the LAB's features (does it have a store?)
       if (orgData.planId) {
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           getDoc(planRef).then(snap => {
-               if (snap.exists()) setCurrentPlan({ id: snap.id, ...snap.data() } as SubscriptionPlan);
+               if (snap.exists()) setCurrentPlan({ id: snap.id, ...(snap.data() as any) } as SubscriptionPlan);
           });
       }
     }
@@ -200,7 +200,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgRef = doc(db, 'organizations', currentUser.organizationId);
       const unsubOrg = onSnapshot(orgRef, async (docSnap) => {
         if (docSnap.exists()) {
-          const orgData = { id: docSnap.id, ...docSnap.data() } as Organization;
+          const orgData = { id: docSnap.id, ...(docSnap.data() as any) } as Organization;
           setCurrentOrg(orgData);
           
           // If Lab Admin/Manager, active org is their own.
@@ -217,7 +217,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                   if (planSnap.exists()) {
                     // Only update currentPlan if we are NOT viewing a partner lab
                     if (currentUser.role !== UserRole.CLIENT || !activeOrganization) {
-                        setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+                        setCurrentPlan({ id: planSnap.id, ...(planSnap.data() as any) } as SubscriptionPlan);
                     }
                   }
               });
@@ -256,7 +256,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         // Ensure plan is set to own plan
         if (currentOrg?.planId) {
              const planRef = doc(db, 'subscriptionPlans', currentOrg.planId);
-             getDoc(planRef).then(s => s.exists() && setCurrentPlan({ id: s.id, ...s.data() } as SubscriptionPlan));
+             getDoc(planRef).then(s => s.exists() && setCurrentPlan({ id: s.id, ...(s.data() as any) } as SubscriptionPlan));
         }
 
         return () => { unsubPatients(); unsubAppts(); };
@@ -279,7 +279,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             if (od.planId) {
                 const planRef = doc(db, 'subscriptionPlans', od.planId);
                 const planSnap = await getDoc(planRef);
-                if(planSnap.exists()) setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+                if(planSnap.exists()) setCurrentPlan({ id: planSnap.id, ...(planSnap.data() as any) } as SubscriptionPlan);
             }
         }
     });
