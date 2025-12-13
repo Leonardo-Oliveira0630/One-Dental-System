@@ -23,9 +23,10 @@ export const RegisterOrganization = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
-  // Use plans from context (now fetched globally)
-  const publicPlans = allPlans.filter(p => p.isPublic && p.active);
-  // Only fallback if absolutely necessary (should be covered by context now)
+  // Filter plans based on Registration Type (LAB vs CLINIC)
+  const publicPlans = allPlans.filter(p => p.isPublic && p.active && (p.targetAudience === (regType === 'LAB' ? 'LAB' : 'CLINIC')));
+  
+  // Use displayPlans for rendering
   const displayPlans = publicPlans; 
 
   const handleApplyCoupon = async () => {
@@ -47,34 +48,34 @@ export const RegisterOrganization = () => {
     setError('');
 
     try {
+      // If no plan selected, pick the first one available
+      const selectedPlanId = planId || (displayPlans.length > 0 ? displayPlans[0].id : '');
+      if (!selectedPlanId) {
+          throw new Error("Nenhum plano de assinatura disponível.");
+      }
+
+      const plan = displayPlans.find(p => p.id === selectedPlanId);
+      
+      let trialEnd = undefined;
+      if (plan && plan.trialDays && plan.trialDays > 0) {
+          const d = new Date();
+          d.setDate(d.getDate() + plan.trialDays);
+          if (appliedCoupon && appliedCoupon.discountType === 'TRIAL_EXT') {
+              d.setDate(d.getDate() + appliedCoupon.discountValue);
+          }
+          trialEnd = d;
+      }
+      if (appliedCoupon && appliedCoupon.discountType === 'FREE_FOREVER') {
+          const d = new Date(); d.setFullYear(d.getFullYear() + 10); trialEnd = d;
+      }
+
       if (regType === 'LAB') {
-          // If no plan selected, pick the first one available
-          const selectedPlanId = planId || (displayPlans.length > 0 ? displayPlans[0].id : '');
-          if (!selectedPlanId) {
-              throw new Error("Nenhum plano de assinatura disponível.");
-          }
-
-          const plan = displayPlans.find(p => p.id === selectedPlanId);
-          
-          let trialEnd = undefined;
-          if (plan && plan.trialDays && plan.trialDays > 0) {
-              const d = new Date();
-              d.setDate(d.getDate() + plan.trialDays);
-              if (appliedCoupon && appliedCoupon.discountType === 'TRIAL_EXT') {
-                  d.setDate(d.getDate() + appliedCoupon.discountValue);
-              }
-              trialEnd = d;
-          }
-          if (appliedCoupon && appliedCoupon.discountType === 'FREE_FOREVER') {
-              const d = new Date(); d.setFullYear(d.getFullYear() + 10); trialEnd = d;
-          }
-
           await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code);
           navigate('/dashboard');
       } else {
-          // Register Dentist
-          await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular');
-          navigate('/store'); 
+          // Register Dentist (Now includes Plan & Org creation)
+          await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code);
+          navigate('/store'); // Goes to store (or clinic dashboard if feature enabled)
       }
     } catch (err: any) {
       console.error(err);
@@ -94,13 +95,13 @@ export const RegisterOrganization = () => {
                 </div>
                 <h1 className="text-3xl font-bold text-white mb-2">Crie sua Conta</h1>
                 <p className="text-slate-400">
-                    {regType === 'LAB' ? 'Gestão completa para seu Laboratório.' : 'Conecte-se aos melhores laboratórios.'}
+                    {regType === 'LAB' ? 'Gestão completa para seu Laboratório.' : 'Gestão clínica e pedidos para Dentistas.'}
                 </p>
             </div>
 
             <div className="flex bg-slate-900 p-1 rounded-xl mb-6 border border-slate-700">
-                <button type="button" onClick={() => setRegType('LAB')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${regType === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Building size={18} /> Sou Laboratório</button>
-                <button type="button" onClick={() => setRegType('DENTIST')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${regType === 'DENTIST' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Stethoscope size={18} /> Sou Dentista</button>
+                <button type="button" onClick={() => { setRegType('LAB'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${regType === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Building size={18} /> Sou Laboratório</button>
+                <button type="button" onClick={() => { setRegType('DENTIST'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold transition-all ${regType === 'DENTIST' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Stethoscope size={18} /> Sou Dentista</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -149,18 +150,17 @@ export const RegisterOrganization = () => {
                     </div>
                 </div>
 
-                {regType === 'LAB' && (
-                    <div className="flex gap-2 items-end pt-2">
-                        <div className="flex-1">
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Cupom de Desconto</label>
-                            <div className="relative">
-                                <Ticket className="absolute left-3 top-3 text-slate-500" size={16} />
-                                <input value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-blue-500" placeholder="Código Promocional" disabled={!!appliedCoupon} />
-                            </div>
+                {/* Cupom Section Available for BOTH */}
+                <div className="flex gap-2 items-end pt-2">
+                    <div className="flex-1">
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Cupom de Desconto</label>
+                        <div className="relative">
+                            <Ticket className="absolute left-3 top-3 text-slate-500" size={16} />
+                            <input value={couponCode} onChange={e => setCouponCode(e.target.value.toUpperCase())} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-blue-500" placeholder="Código Promocional" disabled={!!appliedCoupon} />
                         </div>
-                        <button type="button" onClick={handleApplyCoupon} disabled={!!appliedCoupon || !couponCode} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-600 disabled:opacity-50 h-[42px]">{appliedCoupon ? 'Aplicado' : 'Validar'}</button>
                     </div>
-                )}
+                    <button type="button" onClick={handleApplyCoupon} disabled={!!appliedCoupon || !couponCode} className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-600 disabled:opacity-50 h-[42px]">{appliedCoupon ? 'Aplicado' : 'Validar'}</button>
+                </div>
                 {appliedCoupon && <div className="text-green-400 text-xs font-bold flex items-center gap-1"><CheckCircle size={12} /> {appliedCoupon.discountType === 'FREE_FOREVER' ? 'Acesso Gratuito Vitalício' : appliedCoupon.discountType === 'TRIAL_EXT' ? `+${appliedCoupon.discountValue} dias de teste` : 'Desconto aplicado'}</div>}
 
                 {error && <div className="p-3 bg-red-500/20 text-red-300 rounded-lg text-sm text-center border border-red-500/30 font-medium">{error}</div>}
@@ -176,65 +176,52 @@ export const RegisterOrganization = () => {
         </div>
 
         {/* Painel Informativo Direito */}
-        {regType === 'LAB' ? (
-            <div className="flex-1 space-y-4">
-                <div className="flex items-center gap-2 text-white mb-4">
-                    <Activity className="text-blue-500"/>
-                    <h3 className="text-xl font-bold">Escolha seu Plano</h3>
+        <div className="flex-1 space-y-4">
+            <div className={`flex items-center gap-2 text-white mb-4 ${regType === 'LAB' ? 'text-blue-100' : 'text-teal-100'}`}>
+                <Activity className={regType === 'LAB' ? 'text-blue-500' : 'text-teal-500'}/>
+                <h3 className="text-xl font-bold">Escolha seu Plano</h3>
+            </div>
+            
+            {displayPlans.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-slate-400 border-2 border-dashed border-slate-700 rounded-2xl">
+                    <Loader2 className="animate-spin mb-2 text-blue-500" />
+                    <p>Carregando planos para {regType === 'LAB' ? 'Laboratórios' : 'Dentistas'}...</p>
                 </div>
-                
-                {displayPlans.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-slate-400 border-2 border-dashed border-slate-700 rounded-2xl">
-                        <Loader2 className="animate-spin mb-2 text-blue-500" />
-                        <p>Carregando planos...</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                        {displayPlans.map(plan => (
-                            <div key={plan.id} onClick={() => setPlanId(plan.id)} className={`cursor-pointer border-2 rounded-2xl p-5 transition-all relative overflow-hidden group ${planId === plan.id || (!planId && plan.id === displayPlans[0].id) ? 'border-blue-500 bg-slate-800 shadow-lg shadow-black/20' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'}`}>
-                                {plan.trialDays && plan.trialDays > 0 && (<div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-sm">{plan.trialDays} DIAS GRÁTIS</div>)}
-                                <div className="flex justify-between items-start mb-3">
-                                    <div>
-                                        <h4 className="text-white font-bold uppercase tracking-wider text-sm">{plan.name}</h4>
-                                        <p className="text-2xl font-bold text-blue-400 mt-1">R$ {plan.price.toFixed(2)}<span className="text-sm text-slate-500 font-normal">/mês</span></p>
-                                    </div>
-                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${planId === plan.id || (!planId && plan.id === displayPlans[0].id) ? 'border-blue-500 bg-blue-500' : 'border-slate-600'}`}>
-                                        {(planId === plan.id || (!planId && plan.id === displayPlans[0].id)) && <CheckCircle size={14} className="text-white" />}
-                                    </div>
+            ) : (
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                    {displayPlans.map(plan => (
+                        <div key={plan.id} onClick={() => setPlanId(plan.id)} className={`cursor-pointer border-2 rounded-2xl p-5 transition-all relative overflow-hidden group ${planId === plan.id || (!planId && plan.id === displayPlans[0].id) ? (regType === 'LAB' ? 'border-blue-500 bg-slate-800' : 'border-teal-500 bg-slate-800') + ' shadow-lg shadow-black/20' : 'border-slate-700 bg-slate-800/50 hover:bg-slate-800'}`}>
+                            {plan.trialDays && plan.trialDays > 0 && (<div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-sm">{plan.trialDays} DIAS GRÁTIS</div>)}
+                            <div className="flex justify-between items-start mb-3">
+                                <div>
+                                    <h4 className="text-white font-bold uppercase tracking-wider text-sm">{plan.name}</h4>
+                                    <p className={`text-2xl font-bold mt-1 ${regType === 'LAB' ? 'text-blue-400' : 'text-teal-400'}`}>R$ {plan.price.toFixed(2)}<span className="text-sm text-slate-500 font-normal">/mês</span></p>
                                 </div>
-                                <div className="space-y-2 text-sm text-slate-400">
-                                    <div className="flex items-center gap-2"><Users size={14} className="text-blue-500"/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
-                                    <div className="flex items-center gap-2"><Database size={14} className="text-blue-500"/>{plan.features.maxStorageGB} GB de Armazenamento</div>
-                                    <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Store size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-600'}/>Loja Virtual</div>
-                                    <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={14} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão Clínica</div>
+                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${planId === plan.id || (!planId && plan.id === displayPlans[0].id) ? (regType === 'LAB' ? 'border-blue-500 bg-blue-500' : 'border-teal-500 bg-teal-500') : 'border-slate-600'}`}>
+                                    {(planId === plan.id || (!planId && plan.id === displayPlans[0].id)) && <CheckCircle size={14} className="text-white" />}
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        ) : (
-            <div className="flex-1 bg-gradient-to-br from-teal-900/50 to-slate-800 rounded-3xl p-8 flex flex-col justify-center items-center text-center border border-teal-500/30">
-                <div className="w-20 h-20 bg-teal-500/10 rounded-full flex items-center justify-center mb-6">
-                    <Stethoscope size={40} className="text-teal-400" />
+                            <div className="space-y-2 text-sm text-slate-400">
+                                {regType === 'LAB' ? (
+                                    <>
+                                        <div className="flex items-center gap-2"><Users size={14} className="text-blue-500"/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
+                                        <div className="flex items-center gap-2"><Database size={14} className="text-blue-500"/>{plan.features.maxStorageGB} GB de Armazenamento</div>
+                                        <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Store size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-600'}/>Loja Virtual</div>
+                                        <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={14} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão Clínica (Demo)</div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center gap-2"><CheckCircle size={14} className="text-teal-500"/>Pedidos Online Ilimitados</div>
+                                        <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={14} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão de Consultório</div>
+                                        <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Users size={14} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Cadastro de Pacientes</div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-2">Área do Dentista</h3>
-                <p className="text-slate-300 leading-relaxed mb-8">
-                    Conecte-se com seus laboratórios parceiros, envie pedidos digitais com arquivos 3D e acompanhe a produção em tempo real.
-                </p>
-                <div className="space-y-3 text-left w-full max-w-xs">
-                    <div className="bg-slate-900/50 p-3 rounded-xl flex items-center gap-3 border border-teal-500/20">
-                        <CheckCircle size={18} className="text-teal-400 shrink-0"/> <span className="text-sm text-teal-100">Envio de STL e Fotos</span>
-                    </div>
-                    <div className="bg-slate-900/50 p-3 rounded-xl flex items-center gap-3 border border-teal-500/20">
-                        <CheckCircle size={18} className="text-teal-400 shrink-0"/> <span className="text-sm text-teal-100">Chat com o Laboratório</span>
-                    </div>
-                    <div className="bg-slate-900/50 p-3 rounded-xl flex items-center gap-3 border border-teal-500/20">
-                        <CheckCircle size={18} className="text-teal-400 shrink-0"/> <span className="text-sm text-teal-100">Agenda Clínica Integrada</span>
-                    </div>
-                </div>
-            </div>
-        )}
+            )}
+        </div>
       </div>
     </div>
   );

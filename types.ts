@@ -11,7 +11,7 @@ export enum UserRole {
 
 export interface User {
   id: string; // Firebase Auth UID
-  organizationId?: string; // ID of the Lab this user belongs to (undefined for SUPER_ADMIN or Independent Dentist)
+  organizationId?: string; // ID of the Lab/Clinic this user belongs to
   name: string;
   email: string;
   role: UserRole;
@@ -38,6 +38,7 @@ export interface SubscriptionPlan {
   trialDays?: number; 
   isPublic: boolean; // If false, only Admin can assign (for Partners/Internal)
   active: boolean;
+  targetAudience: 'LAB' | 'CLINIC'; // NEW: Distinguish plans
 }
 
 // NEW: COUPON STRUCTURE
@@ -63,12 +64,13 @@ export interface FinancialSettings {
 
 export interface Organization {
   id: string;
-  name: string; // Lab's name
+  orgType: 'LAB' | 'CLINIC'; // NEW: Distinguish Organization type
+  name: string; // Lab's or Clinic's name
   ownerId: string; // The first Admin user
   planId: string; // Link to the subscription plan
   subscriptionStatus?: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'TRIAL';
   trialEndsAt?: Date; 
-  financialSettings?: FinancialSettings; // For receiving payments from Dentists
+  financialSettings?: FinancialSettings; // For receiving payments
   appliedCoupon?: string; // Track which coupon was used
   createdAt: Date;
   storageUsageBytes?: number;

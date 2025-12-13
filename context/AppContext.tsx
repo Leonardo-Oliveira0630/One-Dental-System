@@ -35,7 +35,7 @@ interface AppContextType {
   login: (email: string, pass: string) => Promise<void>;
   registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
   registerUserInOrg: (email: string, pass: string, name: string, role: UserRole, clinicName?: string) => Promise<User>;
-  registerDentist: (email: string, pass: string, name: string, clinicName: string) => Promise<User>;
+  registerDentist: (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
   logout: () => void;
   updateUser: (id: string, updates: Partial<User>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -85,6 +85,14 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+};
+
 export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
@@ -113,7 +121,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const switchActiveOrganization = useCallback(async (organizationId: string | null) => {
     if (!organizationId) {
       setActiveOrganization(null);
-      setCurrentPlan(null);
+      // For Client, currentPlan should reflect their own clinic's plan when no lab is selected, OR
+      // we might want to keep currentPlan pointing to the Client's subscription always if they are in "Clinic Management" mode.
+      // But for now, let's keep currentPlan bound to currentOrg (the user's own org) if no partner is active.
+      if (currentOrg && currentOrg.planId) {
+          const planRef = doc(db, 'subscriptionPlans', currentOrg.planId);
+          const snap = await getDoc(planRef);
+          if (snap.exists()) setCurrentPlan({ id: snap.id, ...snap.data() } as SubscriptionPlan);
+      } else {
+          setCurrentPlan(null);
+      }
       return;
     }
     
@@ -126,7 +143,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgData = { id: orgSnap.id, ...orgSnap.data() } as Organization;
       setActiveOrganization(orgData);
       
-      // Fetch plan immediately for the switched org
+      // When a dentist selects a Lab, we want to know the LAB's features (does it have a store?)
       if (orgData.planId) {
           const planRef = doc(db, 'subscriptionPlans', orgData.planId);
           getDoc(planRef).then(snap => {
@@ -134,7 +151,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           });
       }
     }
-  }, [activeOrganization]);
+  }, [activeOrganization, currentOrg]);
 
   const addConnectionByCode = useCallback(async (orgCode: string) => {
     if (currentUser?.role !== UserRole.CLIENT) throw new Error("Only dentists can add partners.");
@@ -168,13 +185,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return () => { unsubPlans(); };
   }, []);
 
-  // Org & Plan Listener (For Lab Staff)
+  // Org & Plan Listener (For Lab Staff & Dentists)
   useEffect(() => {
     if (!db || !currentUser) return;
 
     if (currentUser.role === UserRole.SUPER_ADMIN) {
       const unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
-      // Removed duplicate subscribeSubscriptionPlans from here
       const unsubUsers = api.subscribeAllUsers(setAllUsers);
       const unsubCoupons = api.subscribeCoupons(setCoupons);
       return () => { unsubOrgs(); unsubUsers(); unsubCoupons(); };
@@ -186,16 +202,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         if (docSnap.exists()) {
           const orgData = { id: docSnap.id, ...docSnap.data() } as Organization;
           setCurrentOrg(orgData);
+          
+          // If Lab Admin/Manager, active org is their own.
+          // If Client, active org starts as null (or selected partner).
           if (currentUser.role !== UserRole.CLIENT) {
               setActiveOrganization(orgData);
           }
           
-          // REAL-TIME LISTENER FOR PLAN CHANGES
+          // REAL-TIME LISTENER FOR PLAN CHANGES (Of their OWN subscription)
+          // For Dentists, this updates their ability to see Clinic Module
           if (orgData.planId) {
               const planRef = doc(db, 'subscriptionPlans', orgData.planId);
               onSnapshot(planRef, (planSnap) => {
                   if (planSnap.exists()) {
-                    setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+                    // Only update currentPlan if we are NOT viewing a partner lab
+                    if (currentUser.role !== UserRole.CLIENT || !activeOrganization) {
+                        setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
+                    }
                   }
               });
           }
@@ -203,7 +226,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       });
       return unsubOrg;
     }
-  }, [currentUser]);
+  }, [currentUser, activeOrganization]);
 
   // Connections Listener (Dentists)
   useEffect(() => {
@@ -212,46 +235,54 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsub = api.subscribeUserConnections(currentUser.id, async (connections) => {
       setUserConnections(connections);
       
-      if (connections.length > 0) {
-          setTimeout(() => {
-             setActiveOrganization(prev => {
-                 if (!prev || !connections.some(c => c.organizationId === prev.id)) {
-                     const firstOrgId = connections[0].organizationId;
-                     switchActiveOrganization(firstOrgId);
-                     return prev;
-                 }
-                 return prev;
-             });
-          }, 0);
-      } else {
-          setActiveOrganization(null);
+      // Auto-select ONLY if it's the first time and they have connections
+      if (connections.length > 0 && !activeOrganization) {
+          // Optional: We might want them to stay in "Clinic Mode" by default.
+          // Let's keep it manual for now or select the first one.
+          // switchActiveOrganization(connections[0].organizationId);
       }
     });
     return unsub;
-  }, [currentUser, switchActiveOrganization]);
+  }, [currentUser]); // Removed switchActiveOrganization to prevent loops
 
   // Scoped Data Listener
   useEffect(() => {
+    // If we are a Dentist viewing our own Clinic Data (no active lab selected)
+    if (currentUser?.role === UserRole.CLIENT && !activeOrganization && currentUser.organizationId) {
+        // Fetch own patients/appointments
+        const unsubPatients = api.subscribeClinicPatients(currentUser.organizationId, currentUser.id, setPatients);
+        const unsubAppts = api.subscribeAppointments(currentUser.organizationId, currentUser.id, setAppointments);
+        
+        // Ensure plan is set to own plan
+        if (currentOrg?.planId) {
+             const planRef = doc(db, 'subscriptionPlans', currentOrg.planId);
+             getDoc(planRef).then(s => s.exists() && setCurrentPlan({ id: s.id, ...s.data() } as SubscriptionPlan));
+        }
+
+        return () => { unsubPatients(); unsubAppts(); };
+    }
+
+    // Normal Flow: Active Organization Selected (Lab View or Dentist viewing Lab)
     const targetOrgId = activeOrganization?.id;
     if (!db || !targetOrgId) {
-      setJobs([]); setAllUsers([]); setJobTypes([]); setSectors([]); setAlerts([]); setPatients([]); setAppointments([]);
+      if(currentUser?.role !== UserRole.CLIENT) { // Only clear if not client (clients keep their own data if no lab selected)
+          setJobs([]); setAllUsers([]); setJobTypes([]); setSectors([]); setAlerts([]);
+      }
       return;
     }
     
-    // If client, fetch the plan details for the active org so Layout knows features
-    if (currentUser?.role === UserRole.CLIENT) {
-        const orgRef = doc(db, 'organizations', targetOrgId);
-        getDoc(orgRef).then(async snap => {
-            if(snap.exists()) {
-                const od = snap.data() as Organization;
-                if (od.planId) {
-                    const planRef = doc(db, 'subscriptionPlans', od.planId);
-                    const planSnap = await getDoc(planRef);
-                    if(planSnap.exists()) setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
-                }
+    // Fetch plan details for the active org so Layout knows features
+    const orgRef = doc(db, 'organizations', targetOrgId);
+    getDoc(orgRef).then(async snap => {
+        if(snap.exists()) {
+            const od = snap.data() as Organization;
+            if (od.planId) {
+                const planRef = doc(db, 'subscriptionPlans', od.planId);
+                const planSnap = await getDoc(planRef);
+                if(planSnap.exists()) setCurrentPlan({ id: planSnap.id, ...planSnap.data() } as SubscriptionPlan);
             }
-        });
-    }
+        }
+    });
 
     const unsubJobs = api.subscribeJobs(targetOrgId, setJobs);
     const unsubUsers = api.subscribeOrgUsers(targetOrgId, setAllUsers);
@@ -259,18 +290,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsubSectors = api.subscribeSectors(targetOrgId, setSectors);
     const unsubAlerts = api.subscribeAlerts(targetOrgId, setAlerts);
     
-    let unsubPatients = () => {};
-    let unsubAppts = () => {};
-    if (currentUser?.role === UserRole.CLIENT) {
-        unsubPatients = api.subscribeClinicPatients(targetOrgId, currentUser.id, setPatients);
-        unsubAppts = api.subscribeAppointments(targetOrgId, currentUser.id, setAppointments);
-    }
-
-    return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubAlerts(); unsubPatients(); unsubAppts(); };
-  }, [activeOrganization, currentUser]);
+    return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubAlerts(); };
+  }, [activeOrganization, currentUser, currentOrg]); // Added currentOrg dependency
   
   const orgId = () => { 
       if (activeOrganization?.id) return activeOrganization.id;
+      if (currentUser?.organizationId) return currentUser.organizationId; // Fallback to own org
       if (!db) return 'mock-org'; 
       return undefined as any; 
   };
@@ -360,10 +385,4 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       {children}
     </AppContext.Provider>
   );
-};
-
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error("useApp must be used within AppProvider");
-  return context;
 };

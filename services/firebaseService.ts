@@ -31,6 +31,7 @@ export const apiRegisterOrganization = async (email: string, pass: string, owner
   const orgId = `org_${uid}`;
   const newOrg: Organization = { 
       id: orgId, 
+      orgType: 'LAB',
       name: orgName, 
       ownerId: uid, 
       planId, 
@@ -65,12 +66,38 @@ export const apiRegisterUserInOrg = async (email: string, pass: string, name: st
     return newUser;
 };
 
-export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string): Promise<User> => {
+// MODIFIED: Registers a Dentist AND creates a "Clinic" Organization for them to hold the subscription
+export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
     if (!auth || !db) throw new Error("Firebase not configured");
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     const uid = userCredential.user.uid;
-    const newUser: User = { id: uid, email, name, role: UserRole.CLIENT, clinicName };
+
+    const orgId = `clinic_${uid}`; // Separate ID structure for clinics
+    const newOrg: Organization = {
+        id: orgId,
+        orgType: 'CLINIC',
+        name: clinicName,
+        ownerId: uid,
+        planId: planId,
+        createdAt: new Date(),
+        subscriptionStatus: trialEndsAt ? 'TRIAL' : 'ACTIVE',
+        trialEndsAt: trialEndsAt,
+        appliedCoupon: couponCode
+    };
+    await setDoc(doc(db, 'organizations', orgId), sanitizeData(newOrg));
+
+    const newUser: User = { id: uid, organizationId: orgId, email, name, role: UserRole.CLIENT, clinicName };
     await setDoc(doc(db, 'users', uid), sanitizeData(newUser));
+
+    if (couponCode) {
+      const couponRef = doc(db, 'coupons', couponCode);
+      const couponSnap = await getDoc(couponRef);
+      if (couponSnap.exists()) {
+          const currentUsage = couponSnap.data().usedCount || 0;
+          await updateDoc(couponRef, { usedCount: currentUsage + 1 });
+      }
+    }
+
     return newUser;
 };
 
@@ -99,6 +126,11 @@ export const apiAddConnectionByCode = async (dentistId: string, orgCode: string)
     const orgSnap = await getDoc(orgRef);
     if (!orgSnap.exists()) throw new Error("Código do laboratório inválido ou não encontrado.");
     const orgData = orgSnap.data() as Organization;
+    
+    // Only connect if the target org is a LAB
+    if (orgData.orgType !== 'LAB' && orgData.orgType !== undefined) {
+        throw new Error("Este código não pertence a um laboratório válido.");
+    }
 
     const existingQuery = query(collection(db, 'connections'), where('dentistId', '==', dentistId), where('organizationId', '==', orgCode));
     const existingSnap = await getDocs(existingQuery);
@@ -143,7 +175,8 @@ export const apiAddAlert = (orgId: string, d: JobAlert) => apiAddSubDoc(orgId, '
 export const apiMarkAlertAsRead = async (orgId: string, alertId: string, userId: string) => await updateDoc(getSubDoc(orgId, 'alerts', alertId), { readBy: arrayUnion(userId) });
 
 export const subscribeClinicPatients = (orgId: string, dentistId: string, cb: (d: ClinicPatient[]) => void) => {
-    const q = query(getSubCollection(orgId, 'clinicPatients'), where('dentistId', '==', dentistId));
+    // If the Dentist HAS their own subscription (Organization), they are the "owner", so query all patients in that org
+    const q = query(getSubCollection(orgId, 'clinicPatients'));
     return onSnapshot(q, (snapshot) => cb(snapshot.docs.map(doc => ({...convertDates(doc.data()), id: doc.id} as ClinicPatient))));
 };
 export const apiAddPatient = (orgId: string, d: ClinicPatient) => apiAddSubDoc(orgId, 'clinicPatients', d);
@@ -151,7 +184,7 @@ export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPat
 export const apiDeletePatient = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'clinicPatients', id);
 
 export const subscribeAppointments = (orgId: string, dentistId: string, cb: (d: Appointment[]) => void) => {
-    const q = query(getSubCollection(orgId, 'appointments'), where('dentistId', '==', dentistId));
+    const q = query(getSubCollection(orgId, 'appointments'));
     return onSnapshot(q, (snapshot) => cb(snapshot.docs.map(doc => ({...convertDates(doc.data()), id: doc.id} as Appointment))));
 };
 export const apiAddAppointment = (orgId: string, d: Appointment) => apiAddSubDoc(orgId, 'appointments', d);

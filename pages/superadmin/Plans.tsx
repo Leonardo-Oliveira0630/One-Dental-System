@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SubscriptionPlan } from '../../types';
-import { Plus, Trash2, Edit2, Check, X, Tag, Shield, Store, Activity, Database } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Tag, Shield, Store, Activity, Database, Users, Stethoscope } from 'lucide-react';
 
 export const Plans = () => {
   const { allPlans, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan } = useApp();
@@ -12,6 +12,7 @@ export const Plans = () => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState(0);
   const [isPublic, setIsPublic] = useState(true);
+  const [targetAudience, setTargetAudience] = useState<'LAB' | 'CLINIC'>('LAB');
   
   // Features State
   const [maxUsers, setMaxUsers] = useState(-1);
@@ -23,6 +24,7 @@ export const Plans = () => {
     setName('');
     setPrice(0);
     setIsPublic(true);
+    setTargetAudience('LAB');
     setMaxUsers(-1);
     setMaxStorage(5);
     setHasStore(true);
@@ -37,6 +39,7 @@ export const Plans = () => {
     setName(plan.name);
     setPrice(plan.price);
     setIsPublic(plan.isPublic);
+    setTargetAudience(plan.targetAudience || 'LAB');
     setMaxUsers(plan.features.maxUsers);
     setMaxStorage(plan.features.maxStorageGB);
     setHasStore(plan.features.hasStoreModule);
@@ -51,6 +54,7 @@ export const Plans = () => {
         price,
         isPublic,
         active: true,
+        targetAudience,
         features: {
             maxUsers,
             maxStorageGB: maxStorage,
@@ -78,7 +82,7 @@ export const Plans = () => {
         <div className="flex justify-between items-center">
             <div>
                 <h1 className="text-2xl font-bold text-slate-900">Planos & Assinaturas</h1>
-                <p className="text-slate-500">Configure os níveis de serviço do SaaS.</p>
+                <p className="text-slate-500">Configure os níveis de serviço para Laboratórios e Clínicas.</p>
             </div>
         </div>
 
@@ -89,6 +93,13 @@ export const Plans = () => {
                     <div key={plan.id} className={`bg-white p-6 rounded-2xl border-2 shadow-sm relative ${plan.isPublic ? 'border-slate-100' : 'border-orange-200 bg-orange-50/30'}`}>
                         {!plan.isPublic && <span className="absolute top-4 right-4 bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">Oculto / Parceiro</span>}
                         
+                        <div className="flex justify-between items-start mb-2">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 ${plan.targetAudience === 'CLINIC' ? 'bg-teal-100 text-teal-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {plan.targetAudience === 'CLINIC' ? <Stethoscope size={12}/> : <Store size={12}/>}
+                                {plan.targetAudience === 'CLINIC' ? 'CLÍNICA' : 'LABORATÓRIO'}
+                            </span>
+                        </div>
+
                         <h3 className="text-xl font-bold text-slate-800 mb-1">{plan.name}</h3>
                         <p className="text-2xl font-bold text-blue-600 mb-4">
                             {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}
@@ -137,6 +148,14 @@ export const Plans = () => {
                         <input value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required placeholder="Ex: Profissional" />
                     </div>
                     
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Público Alvo</label>
+                        <div className="flex gap-2 bg-slate-100 p-1 rounded-lg">
+                            <button type="button" onClick={() => setTargetAudience('LAB')} className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${targetAudience === 'LAB' ? 'bg-blue-600 text-white shadow' : 'text-slate-500 hover:bg-slate-200'}`}>Laboratório</button>
+                            <button type="button" onClick={() => setTargetAudience('CLINIC')} className={`flex-1 py-2 text-xs font-bold rounded-md transition-colors ${targetAudience === 'CLINIC' ? 'bg-teal-600 text-white shadow' : 'text-slate-500 hover:bg-slate-200'}`}>Clínica</button>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Preço (R$)</label>
