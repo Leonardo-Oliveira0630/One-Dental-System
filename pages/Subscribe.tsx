@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink } from 'lucide-react';
+import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { UserRole } from '../types';
 
 export const Subscribe = () => {
     const { currentOrg, createSubscription, allPlans, currentUser } = useApp();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     
-    const initialPlanId = searchParams.get('plan') || currentOrg?.planId || 'pro';
+    const initialPlanId = searchParams.get('plan') || currentOrg?.planId || '';
     const initialCoupon = searchParams.get('coupon') || '';
 
     const [loading, setLoading] = useState(false);
@@ -21,18 +22,23 @@ export const Subscribe = () => {
     // State para o link de pagamento gerado
     const [generatedLink, setGeneratedLink] = useState<string | null>(null);
 
-    const publicPlans = allPlans.filter(p => p.isPublic && p.active);
-    const displayPlans = publicPlans.length > 0 ? publicPlans : [
-        { id: 'basic', name: 'Básico', price: 99, features: { maxUsers: 2, maxStorageGB: 5 } },
-        { id: 'pro', name: 'Profissional', price: 199, features: { maxUsers: 10, maxStorageGB: 50 } },
-        { id: 'enterprise', name: 'Enterprise', price: 499, features: { maxUsers: -1, maxStorageGB: 1000 } }
-    ];
+    // Determine target audience based on Org Type or User Role fallback
+    const targetAudience = currentOrg?.orgType || (currentUser?.role === UserRole.CLIENT ? 'CLINIC' : 'LAB');
+
+    const displayPlans = allPlans.filter(p => p.isPublic && p.active && p.targetAudience === targetAudience);
 
     useEffect(() => {
         if (currentUser?.email && !billingEmail) {
             setBillingEmail(currentUser.email);
         }
     }, [currentUser]);
+
+    // Set default selected plan if none selected or if selected is not in list
+    useEffect(() => {
+        if (displayPlans.length > 0 && !displayPlans.find(p => p.id === selectedPlanId)) {
+            setSelectedPlanId(displayPlans[0].id);
+        }
+    }, [displayPlans, selectedPlanId]);
 
     if (!currentOrg) return null;
 
@@ -95,32 +101,46 @@ export const Subscribe = () => {
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
             <div className="max-w-5xl w-full">
-                <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-8 font-bold">
-                    <ArrowLeft size={20}/> Voltar ao Painel
+                <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 mb-8 font-bold">
+                    <ArrowLeft size={20}/> Voltar
                 </button>
 
                 <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">Finalizar Assinatura</h1>
-                    <p className="text-slate-500">Confirme seus dados para ativar o plano.</p>
+                    <p className="text-slate-500 flex items-center justify-center gap-2">
+                        {targetAudience === 'CLINIC' ? <Stethoscope size={16}/> : <Store size={16}/>}
+                        Planos para {targetAudience === 'CLINIC' ? 'Clínicas' : 'Laboratórios'}
+                    </p>
                 </div>
 
                 {/* SELEÇÃO DE PLANOS (Desativada se já gerou link) */}
                 {!generatedLink && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        {displayPlans.map(plan => (
-                            <div 
-                                key={plan.id}
-                                className={`bg-white p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPlanId === plan.id ? 'border-blue-600 shadow-xl ring-2 ring-blue-100 scale-105 z-10' : 'border-slate-100 shadow-sm opacity-80 hover:opacity-100'}`} 
-                                onClick={() => setSelectedPlanId(plan.id)}
-                            >
-                                <h3 className="font-bold text-lg text-slate-800 uppercase tracking-wide">{plan.name}</h3>
-                                <p className="text-3xl font-bold text-slate-900 mt-2">R$ {plan.price}<span className="text-sm text-slate-400 font-normal">/mês</span></p>
-                                <ul className="mt-4 space-y-2 text-sm text-slate-600">
-                                    <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
-                                    <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
-                                </ul>
+                        {displayPlans.length === 0 ? (
+                            <div className="col-span-3 text-center py-8 text-slate-400 border-2 border-dashed rounded-xl">
+                                Nenhum plano disponível para este perfil no momento.
                             </div>
-                        ))}
+                        ) : (
+                            displayPlans.map(plan => (
+                                <div 
+                                    key={plan.id}
+                                    className={`bg-white p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPlanId === plan.id ? 'border-blue-600 shadow-xl ring-2 ring-blue-100 scale-105 z-10' : 'border-slate-100 shadow-sm opacity-80 hover:opacity-100'}`} 
+                                    onClick={() => setSelectedPlanId(plan.id)}
+                                >
+                                    <h3 className="font-bold text-lg text-slate-800 uppercase tracking-wide">{plan.name}</h3>
+                                    <p className="text-3xl font-bold text-slate-900 mt-2">
+                                        {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}
+                                        <span className="text-sm text-slate-400 font-normal">/mês</span>
+                                    </p>
+                                    <ul className="mt-4 space-y-2 text-sm text-slate-600">
+                                        <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
+                                        <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
+                                        {plan.features.hasStoreModule && <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> Loja Virtual</li>}
+                                        {plan.features.hasClinicModule && <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> Gestão Clínica</li>}
+                                    </ul>
+                                </div>
+                            ))
+                        )}
                     </div>
                 )}
 
@@ -167,7 +187,7 @@ export const Subscribe = () => {
                             
                             <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 border border-slate-100">
                                 <p className="flex justify-between font-bold mb-1"><span>Plano Selecionado:</span> <span>{displayPlans.find(p => p.id === selectedPlanId)?.name}</span></p>
-                                <p className="flex justify-between"><span>Valor Mensal:</span> <span>R$ {displayPlans.find(p => p.id === selectedPlanId)?.price.toFixed(2)}</span></p>
+                                <p className="flex justify-between"><span>Valor Mensal:</span> <span>R$ {displayPlans.find(p => p.id === selectedPlanId)?.price.toFixed(2) || '0.00'}</span></p>
                             </div>
 
                             <div>
@@ -210,7 +230,7 @@ export const Subscribe = () => {
 
                             <button 
                                 onClick={handleSubscribe}
-                                disabled={loading}
+                                disabled={loading || displayPlans.length === 0}
                                 className="w-full py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
                             >
                                 {loading ? <Loader2 className="animate-spin" /> : 'Gerar Pagamento'}

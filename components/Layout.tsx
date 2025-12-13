@@ -5,7 +5,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -226,6 +226,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
                 <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Configurações</div>
                 <SidebarItem onClick={closeMobileMenu} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Laboratórios" active={location.pathname === '/dentist/partnerships'} />
+                <SidebarItem onClick={closeMobileMenu} to="/clinic/settings" icon={<Settings size={20} />} label="Minha Assinatura" active={location.pathname === '/clinic/settings'} />
               </>
             )}
 

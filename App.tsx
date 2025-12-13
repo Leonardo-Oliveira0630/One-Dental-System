@@ -17,6 +17,7 @@ import { ProductionCalendar } from './pages/ProductionCalendar';
 import { Profile } from './pages/Profile';
 import { Patients } from './pages/clinic/Patients';
 import { Schedule } from './pages/clinic/Schedule';
+import { ClinicSettings } from './pages/clinic/ClinicSettings';
 import { RegisterOrganization } from './pages/RegisterOrganization';
 import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
 import { Plans } from './pages/superadmin/Plans';
@@ -79,6 +80,7 @@ const AppContent = () => {
       {/* Protected Clinic Routes */}
       <Route path="/clinic/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
       <Route path="/clinic/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
+      <Route path="/clinic/settings" element={<ClientRoute><ClinicSettings /></ClientRoute>} />
       
       {/* Dentist Settings */}
       <Route path="/dentist/partnerships" element={<ClientRoute><Partnerships /></ClientRoute>} />

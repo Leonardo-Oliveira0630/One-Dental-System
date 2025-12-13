@@ -364,13 +364,14 @@ export const Admin = () => {
               </div>
 
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600"/> Upgrade de Plano</h3>
+                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600"/> Upgrade de Plano (Laboratório)</h3>
                   
                   {allPlans.length === 0 ? (
                       <div className="text-center text-slate-400 py-10">Carregando opções de planos...</div>
                   ) : (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                          {allPlans.filter(p => p.isPublic && p.active).map(plan => {
+                          {/* FILTER ONLY LAB PLANS */}
+                          {allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'LAB').map(plan => {
                               const isCurrentPlan = plan.id === activePlan?.id;
                               
                               // Hide plan only if it is the current plan AND the subscription is fully active/paid
