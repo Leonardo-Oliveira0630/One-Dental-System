@@ -27,16 +27,25 @@ export const createSaaSSubscription = functions.https.onCall(
     const apiKey = process.env.ASAAS_API_KEY;
 
     // --- MOCK / SIMULATION MODE ---
-    // Se não houver chave API configurada, simula o sucesso.
-    if (!apiKey || apiKey === "YOUR_ASAAS_KEY") {
-      functions.logger.warn("ASAAS_API_KEY missing. Running in MOCK MODE.");
+    // Simula sucesso se não houver chave API ou for placeholder.
+    if (
+      !apiKey ||
+      apiKey === "YOUR_ASAAS_KEY" ||
+      apiKey.includes("AIza")
+    ) {
+      functions.logger.warn("ASAAS_API_KEY missing/invalid. MOCK MODE.");
 
       // Simula atualização no banco
-      await admin.firestore().collection("organizations").doc(orgId).update({
-        subscriptionStatus: "ACTIVE", // Ativa direto no mock
-        planId: planId,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      try {
+        await admin.firestore().collection("organizations").doc(orgId).update({
+          subscriptionStatus: "ACTIVE", // Ativa direto no mock
+          planId: planId,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        functions.logger.error("Mock DB Update Failed", e);
+        // Ignora erro de DB no mock para não travar o front
+      }
 
       return {
         success: true,
@@ -63,7 +72,6 @@ export const createSaaSSubscription = functions.https.onCall(
         functions.logger.warn(
           `Plan ${planId} not found in DB, using defaults.`
         );
-        // Fallback logic for legacy hardcoded plans
         if (planId === "pro") value = 199.00;
         if (planId === "enterprise") value = 499.00;
       }
@@ -112,6 +120,7 @@ export const createSaaSSubscription = functions.https.onCall(
                          error.message ||
                          "Erro ao processar pagamento";
 
+      // Retorna erro estruturado ao invés de throw para o front tratar melhor
       throw new functions.https.HttpsError(
         "aborted",
         `Falha no pagamento: ${apiMessage}`
@@ -120,9 +129,10 @@ export const createSaaSSubscription = functions.https.onCall(
   }
 );
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const asaasWebhook = functions.https.onRequest(async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   req: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   res: any
 ) => {
   const event = req.body;

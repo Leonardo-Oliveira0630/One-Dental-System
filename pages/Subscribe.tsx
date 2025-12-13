@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText } from 'lucide-react';
+import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const Subscribe = () => {
@@ -14,10 +14,12 @@ export const Subscribe = () => {
     const [loading, setLoading] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
     const [cpfCnpj, setCpfCnpj] = useState('');
-    // Inicializa diretamente com o email do usuário se existir, ou string vazia
     const [billingEmail, setBillingEmail] = useState(currentUser?.email || '');
     const [error, setError] = useState('');
     const [couponCode, setCouponCode] = useState(initialCoupon);
+    
+    // State para o link de pagamento gerado
+    const [generatedLink, setGeneratedLink] = useState<string | null>(null);
 
     const publicPlans = allPlans.filter(p => p.isPublic && p.active);
     const displayPlans = publicPlans.length > 0 ? publicPlans : [
@@ -26,7 +28,6 @@ export const Subscribe = () => {
         { id: 'enterprise', name: 'Enterprise', price: 499, features: { maxUsers: -1, maxStorageGB: 1000 } }
     ];
 
-    // Atualiza o email se o currentUser carregar depois
     useEffect(() => {
         if (currentUser?.email && !billingEmail) {
             setBillingEmail(currentUser.email);
@@ -41,7 +42,6 @@ export const Subscribe = () => {
         if (!cleanCpfCnpj) { setError("Informe CPF ou CNPJ."); return; }
         if (cleanCpfCnpj.length !== 11 && cleanCpfCnpj.length !== 14) { setError("Documento inválido (CPF 11 / CNPJ 14)."); return; }
         
-        // Validação rigorosa do email
         if (!billingEmail || !billingEmail.trim().includes('@')) { 
             setError("O campo de Email é obrigatório e deve ser válido."); 
             return; 
@@ -49,39 +49,43 @@ export const Subscribe = () => {
 
         setLoading(true);
         setError('');
+        setGeneratedLink(null);
 
         try {
-            console.log("Enviando assinatura:", { 
+            console.log("Iniciando processo de assinatura...", { 
                 orgId: currentOrg.id, 
-                plan: selectedPlanId, 
-                email: billingEmail.trim(), 
-                doc: cleanCpfCnpj 
+                plan: selectedPlanId 
             });
 
             const result = await createSubscription(
                 currentOrg.id, 
                 selectedPlanId, 
-                billingEmail.trim(), // Garante que não há espaços
+                billingEmail.trim(), 
                 currentOrg.name, 
                 cleanCpfCnpj
             );
 
-            if (result.success) {
+            console.log("Resultado da Assinatura:", result);
+
+            if (result && result.success) {
                 if (result.isMock) {
-                    alert("Plano ativado em MODO DE TESTE (Simulação). Você não será cobrado.");
+                    alert("Ambiente de Teste: Plano ativado (Simulação).");
                     navigate('/dashboard');
                 } else if (result.paymentLink) {
-                    window.location.href = result.paymentLink;
+                    // UX: Guardamos o link e mostramos o botão em vez de redirecionar forçado
+                    setGeneratedLink(result.paymentLink);
+                    // Opcional: abrir em nova aba automaticamente
+                    window.open(result.paymentLink, '_blank');
                 } else {
-                    setError("Erro desconhecido. Contate o suporte.");
+                    setError("Plano ativado, mas link de pagamento não gerado. Verifique seu painel.");
+                    navigate('/dashboard');
                 }
             } else {
-                setError("Erro ao gerar link de pagamento. Tente novamente.");
+                setError("O sistema retornou uma resposta inválida. Tente novamente ou contate o suporte.");
             }
         } catch (err: any) {
-            console.error("Erro no pagamento:", err);
+            console.error("Erro CRÍTICO no pagamento:", err);
             const message = err.message || "Erro de conexão.";
-            // Mostra mensagem amigável removendo prefixos técnicos
             setError(message.replace('FirebaseError: ', '').replace('Cloud Function Error: ', ''));
         } finally {
             setLoading(false);
@@ -100,80 +104,120 @@ export const Subscribe = () => {
                     <p className="text-slate-500">Confirme seus dados para ativar o plano.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    {displayPlans.map(plan => (
-                        <div 
-                            key={plan.id}
-                            className={`bg-white p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPlanId === plan.id ? 'border-blue-600 shadow-xl ring-2 ring-blue-100 scale-105 z-10' : 'border-slate-100 shadow-sm opacity-80 hover:opacity-100'}`} 
-                            onClick={() => setSelectedPlanId(plan.id)}
-                        >
-                            <h3 className="font-bold text-lg text-slate-800 uppercase tracking-wide">{plan.name}</h3>
-                            <p className="text-3xl font-bold text-slate-900 mt-2">R$ {plan.price}<span className="text-sm text-slate-400 font-normal">/mês</span></p>
-                            <ul className="mt-4 space-y-2 text-sm text-slate-600">
-                                <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
-                                <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
-                            </ul>
-                        </div>
-                    ))}
-                </div>
+                {/* SELEÇÃO DE PLANOS (Desativada se já gerou link) */}
+                {!generatedLink && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        {displayPlans.map(plan => (
+                            <div 
+                                key={plan.id}
+                                className={`bg-white p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPlanId === plan.id ? 'border-blue-600 shadow-xl ring-2 ring-blue-100 scale-105 z-10' : 'border-slate-100 shadow-sm opacity-80 hover:opacity-100'}`} 
+                                onClick={() => setSelectedPlanId(plan.id)}
+                            >
+                                <h3 className="font-bold text-lg text-slate-800 uppercase tracking-wide">{plan.name}</h3>
+                                <p className="text-3xl font-bold text-slate-900 mt-2">R$ {plan.price}<span className="text-sm text-slate-400 font-normal">/mês</span></p>
+                                <ul className="mt-4 space-y-2 text-sm text-slate-600">
+                                    <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
+                                    <li className="flex gap-2"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 max-w-lg mx-auto">
-                    <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><CreditCard /> Dados de Cobrança</h3>
                     
-                    <div className="space-y-6">
-                        <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 border border-slate-100">
-                            <p className="flex justify-between font-bold mb-1"><span>Plano Selecionado:</span> <span>{displayPlans.find(p => p.id === selectedPlanId)?.name}</span></p>
-                            <p className="flex justify-between"><span>Valor Mensal:</span> <span>R$ {displayPlans.find(p => p.id === selectedPlanId)?.price.toFixed(2)}</span></p>
-                        </div>
-
-                        {/* CAMPO DE EMAIL EXPLÍCITO */}
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Email para Fatura (Obrigatório)</label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-3.5 text-slate-400" size={18} />
-                                <input 
-                                    type="email"
-                                    required
-                                    value={billingEmail}
-                                    onChange={e => setBillingEmail(e.target.value)}
-                                    className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 outline-none font-medium ${!billingEmail ? 'border-red-300 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-500'}`}
-                                    placeholder="seuemail@empresa.com"
-                                />
+                    {/* ESTADO: LINK GERADO (SUCESSO) */}
+                    {generatedLink ? (
+                        <div className="text-center space-y-6 animate-in zoom-in duration-300">
+                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <CheckCircle size={32} className="text-green-600" />
                             </div>
-                            <p className="text-xs text-slate-400 mt-1">Este email receberá o boleto e a nota fiscal.</p>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
-                            <div className="relative">
-                                <FileText className="absolute left-3 top-3.5 text-slate-400" size={18} />
-                                <input 
-                                    value={cpfCnpj}
-                                    onChange={e => setCpfCnpj(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
-                                    placeholder="000.000.000-00 (Números)"
-                                />
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800">Fatura Gerada!</h3>
+                                <p className="text-slate-500 text-sm mt-2">
+                                    Sua assinatura foi criada. Para ativar sua conta imediatamente, realize o pagamento no link abaixo.
+                                </p>
                             </div>
-                        </div>
-                        
-                        {couponCode && <div className="bg-green-50 text-green-700 text-sm px-3 py-2 rounded-lg font-bold border border-green-200 text-center">Cupom aplicado: {couponCode}</div>}
-                        
-                        {error && (
-                            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-start gap-2 border border-red-100 font-medium">
-                                <AlertTriangle size={16} className="shrink-0 mt-0.5"/> 
-                                <span>{error}</span>
-                            </div>
-                        )}
+                            
+                            <a 
+                                href={generatedLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="block w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg transition-all flex items-center justify-center gap-2"
+                            >
+                                <CreditCard size={20} /> Acessar Fatura de Pagamento <ExternalLink size={16} />
+                            </a>
 
-                        <button 
-                            onClick={handleSubscribe}
-                            disabled={loading}
-                            className="w-full py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-                        >
-                            {loading ? <Loader2 className="animate-spin" /> : 'Ir para Pagamento Seguro'}
-                        </button>
-                        <p className="text-center text-xs text-slate-400">Ambiente seguro via Asaas.</p>
-                    </div>
+                            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 text-xs text-yellow-800 text-left">
+                                <p className="font-bold mb-1 flex items-center gap-1"><AlertTriangle size={12}/> Atenção (Sandbox/Teste):</p>
+                                <p>Como você está em modo de teste, o pagamento não é automático. Acesse o painel do Asaas Sandbox e aprove a cobrança manualmente para liberar o acesso.</p>
+                            </div>
+
+                            <button 
+                                onClick={() => navigate('/dashboard')}
+                                className="text-slate-400 hover:text-slate-600 text-sm font-bold mt-4"
+                            >
+                                Voltar para o Dashboard (Aguardar liberação)
+                            </button>
+                        </div>
+                    ) : (
+                        /* ESTADO: FORMULÁRIO */
+                        <div className="space-y-6">
+                            <h3 className="font-bold text-lg text-slate-800 mb-6 flex items-center gap-2"><CreditCard /> Dados de Cobrança</h3>
+                            
+                            <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-600 border border-slate-100">
+                                <p className="flex justify-between font-bold mb-1"><span>Plano Selecionado:</span> <span>{displayPlans.find(p => p.id === selectedPlanId)?.name}</span></p>
+                                <p className="flex justify-between"><span>Valor Mensal:</span> <span>R$ {displayPlans.find(p => p.id === selectedPlanId)?.price.toFixed(2)}</span></p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Email para Fatura (Obrigatório)</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-3.5 text-slate-400" size={18} />
+                                    <input 
+                                        type="email"
+                                        required
+                                        value={billingEmail}
+                                        onChange={e => setBillingEmail(e.target.value)}
+                                        className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 outline-none font-medium ${!billingEmail ? 'border-red-300 focus:ring-red-200' : 'border-slate-300 focus:ring-blue-500'}`}
+                                        placeholder="seuemail@empresa.com"
+                                    />
+                                </div>
+                                <p className="text-xs text-slate-400 mt-1">Este email receberá o boleto e a nota fiscal.</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
+                                <div className="relative">
+                                    <FileText className="absolute left-3 top-3.5 text-slate-400" size={18} />
+                                    <input 
+                                        value={cpfCnpj}
+                                        onChange={e => setCpfCnpj(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium"
+                                        placeholder="000.000.000-00 (Números)"
+                                    />
+                                </div>
+                            </div>
+                            
+                            {couponCode && <div className="bg-green-50 text-green-700 text-sm px-3 py-2 rounded-lg font-bold border border-green-200 text-center">Cupom aplicado: {couponCode}</div>}
+                            
+                            {error && (
+                                <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-start gap-2 border border-red-100 font-medium">
+                                    <AlertTriangle size={16} className="shrink-0 mt-0.5"/> 
+                                    <span>{error}</span>
+                                </div>
+                            )}
+
+                            <button 
+                                onClick={handleSubscribe}
+                                disabled={loading}
+                                className="w-full py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                            >
+                                {loading ? <Loader2 className="animate-spin" /> : 'Gerar Pagamento'}
+                            </button>
+                            <p className="text-center text-xs text-slate-400">Ambiente seguro via Asaas.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
