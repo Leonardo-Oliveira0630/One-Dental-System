@@ -55,6 +55,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
 
   const features = currentPlan?.features;
+  
+  // Default fallback if no plan loaded yet
+  const hasStore = features?.hasStoreModule ?? false;
+  const hasClinic = features?.hasClinicModule ?? false;
+
   const bgClass = isClient ? 'bg-store-900' : 'bg-lab-900';
   const logoColor = isClient ? 'text-store-600' : 'text-lab-600';
   const vipCount = jobs.filter(j => j.urgency === 'VIP' && j.status !== 'COMPLETED').length;
@@ -180,7 +185,9 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem onClick={closeMobileMenu} to="/jobs" icon={<List size={20} />} label="Todos os Trabalhos" active={location.pathname === '/jobs'} />
                 <SidebarItem onClick={closeMobileMenu} to="/calendar" icon={<Calendar size={20} />} label="Produção" active={location.pathname === '/calendar'} />
                 <SidebarItem onClick={closeMobileMenu} to="/job-types" icon={<Layers size={20} />} label="Catálogo de Serviços" active={location.pathname === '/job-types'} />
-                {isManager && features?.hasStoreModule && (
+                
+                {/* HIDE INCOMING ORDERS IF NO STORE MODULE */}
+                {isManager && hasStore && (
                    <SidebarItem onClick={closeMobileMenu} to="/incoming" icon={<Inbox size={20} />} label="Pedidos Web" active={location.pathname === '/incoming'} />
                 )}
               </>
@@ -189,8 +196,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             {/* Client View */}
             {isClient && (
               <>
-                {/* Robust Feature Checking for Menu Display */}
-                {(features?.hasClinicModule || !activeOrganization || !currentPlan) && (
+                {/* CHECK FEATURES: Only show Clinic module if Lab plan supports it */}
+                {hasClinic && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-2 px-4">Gestão Clínica</div>
                     <SidebarItem onClick={closeMobileMenu} to="/clinic/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/clinic/schedule'} />
@@ -198,7 +205,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   </>
                 )}
                 
-                {(features?.hasStoreModule || !activeOrganization || !currentPlan) && (
+                {/* CHECK FEATURES: Only show Store module if Lab plan supports it */}
+                {hasStore && (
                   <>
                     <div className="text-xs font-bold text-white/40 uppercase tracking-wider mb-2 mt-6 px-4">Loja & Laboratório</div>
                     <SidebarItem onClick={closeMobileMenu} to="/store" icon={<ShoppingBag size={20} />} label="Catálogo" active={location.pathname === '/store'} />

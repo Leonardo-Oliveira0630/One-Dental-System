@@ -5,10 +5,21 @@ import { BOX_COLORS } from '../services/mockData';
 import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { STLViewer } from '../components/STLViewer';
+import { FeatureLocked } from '../components/FeatureLocked';
 
 export const IncomingOrders = () => {
-  const { jobs, updateJob, currentUser } = useApp();
+  const { jobs, updateJob, currentUser, currentPlan } = useApp();
   const navigate = useNavigate();
+
+  // --- PLAN CHECK ---
+  if (currentPlan && !currentPlan.features.hasStoreModule) {
+      return (
+          <FeatureLocked 
+              title="Módulo de Loja Web Indisponível" 
+              message="Seu plano atual não permite receber pedidos online diretamente dos dentistas. Faça um upgrade para habilitar a Loja Virtual." 
+          />
+      );
+  }
 
   // Redirect if not manager/admin
   if (currentUser?.role !== UserRole.MANAGER && currentUser?.role !== UserRole.ADMIN) {

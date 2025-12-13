@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Plus, Search, ShoppingBag, BadgePercent, Package, X, Building } from 'lucide-react';
 import { JobType, VariationGroup, CartItem } from '../../types';
 import { useNavigate } from 'react-router-dom';
+import { FeatureLocked } from '../../components/FeatureLocked';
 
 // Variation Configuration Modal (Component)
 const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose: () => void; }) => {
@@ -193,7 +194,7 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
 // ... (Catalog export remains) ...
 export const Catalog = () => {
   // (No major changes needed in main Catalog view, logic handles everything)
-  const { jobTypes, currentUser, activeOrganization } = useApp();
+  const { jobTypes, currentUser, activeOrganization, currentPlan } = useApp();
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -220,6 +221,16 @@ export const Catalog = () => {
             </div>
         </div>
     );
+  }
+
+  // --- PLAN CHECK ---
+  if (currentPlan && !currentPlan.features.hasStoreModule) {
+      return (
+          <FeatureLocked 
+              title="Laboratório sem Loja Virtual" 
+              message={`O laboratório ${activeOrganization.name} não possui o módulo de Loja Virtual habilitado no plano atual. Você não pode realizar pedidos online.`} 
+          />
+      );
   }
 
   const categories = Array.from(new Set(jobTypes.map(t => t.category)));

@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Appointment, AppointmentStatus } from '../../types';
 import { Calendar as CalendarIcon, Clock, User, Plus, X, Trash2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FeatureLocked } from '../../components/FeatureLocked';
 
 export const Schedule = () => {
-  const { appointments, patients, addAppointment, updateAppointment, deleteAppointment, currentUser } = useApp();
+  const { appointments, patients, addAppointment, updateAppointment, deleteAppointment, currentUser, currentPlan, activeOrganization } = useApp();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
@@ -16,6 +16,18 @@ export const Schedule = () => {
   const [procedure, setProcedure] = useState('');
   const [duration, setDuration] = useState(60);
   const [notes, setNotes] = useState('');
+
+  // --- PLAN CHECK ---
+  // Se for dentista, o currentPlan reflete o plano do Active Organization selecionado.
+  // Se esse plano não tiver Clinic Module, bloqueia.
+  if (currentPlan && !currentPlan.features.hasClinicModule) {
+      return (
+          <FeatureLocked 
+              title="Gestão Clínica Indisponível" 
+              message={`O laboratório parceiro (${activeOrganization?.name}) não possui o módulo de Clínica disponível no plano atual.`} 
+          />
+      );
+  }
 
   // Calendar Logic
   const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();

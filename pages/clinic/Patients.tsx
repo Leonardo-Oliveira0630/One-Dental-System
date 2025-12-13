@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ClinicPatient } from '../../types';
 import { Plus, Search, Phone, Mail, Edit2, Trash2, X, Save } from 'lucide-react';
+import { FeatureLocked } from '../../components/FeatureLocked';
 
 export const Patients = () => {
-  const { patients, addPatient, updatePatient, deletePatient } = useApp();
+  const { patients, addPatient, updatePatient, deletePatient, currentPlan, activeOrganization } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -15,6 +15,16 @@ export const Patients = () => {
   const [email, setEmail] = useState('');
   const [cpf, setCpf] = useState('');
   const [filter, setFilter] = useState('');
+
+  // --- PLAN CHECK ---
+  if (currentPlan && !currentPlan.features.hasClinicModule) {
+      return (
+          <FeatureLocked 
+              title="Gestão Clínica Indisponível" 
+              message={`O laboratório parceiro (${activeOrganization?.name}) não possui o módulo de Clínica disponível no plano atual.`} 
+          />
+      );
+  }
 
   const handleOpenModal = (patient?: ClinicPatient) => {
     if (patient) {
