@@ -28,10 +28,12 @@ export const createSaaSSubscription = functions.https.onCall(
     // --- MOCK MODE ---
     if (!apiKey || apiKey === "YOUR_ASAAS_KEY" || apiKey.includes("AIza")) {
       try {
-        await admin.firestore().collection("organizations").doc(orgId).update({
+        const db = admin.firestore();
+        const ts = admin.firestore.FieldValue.serverTimestamp();
+        await db.collection("organizations").doc(orgId).update({
           subscriptionStatus: "ACTIVE",
           planId: planId,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: ts,
         });
       } catch (e) {
         // Ignore DB error in mock
@@ -45,7 +47,8 @@ export const createSaaSSubscription = functions.https.onCall(
 
     try {
       // 3. Create/Get Customer
-      const customerRes = await axios.post(`${ASAAS_URL}/customers`,
+      const customerRes = await axios.post(
+        `${ASAAS_URL}/customers`,
         {name, email, cpfCnpj: cleanCpfCnpj},
         {headers: {access_token: apiKey}}
       );
@@ -57,20 +60,25 @@ export const createSaaSSubscription = functions.https.onCall(
       if (planId === "enterprise") value = 499.00;
 
       // 5. Create Subscription
-      const nextDue = new Date(Date.now() + 86400000)
-        .toISOString().split("T")[0];
+      const nextDate = new Date(Date.now() + 86400000);
+      const nextDue = nextDate.toISOString().split("T")[0];
 
-      const subRes = await axios.post(`${ASAAS_URL}/subscriptions`, {
-        customer: customerId,
-        billingType: "BOLETO",
-        value: value,
-        nextDueDate: nextDue,
-        cycle: "MONTHLY",
-        description: `Assinatura One Dental - Plano ${planId}`,
-      }, {headers: {access_token: apiKey}});
+      const subRes = await axios.post(
+        `${ASAAS_URL}/subscriptions`,
+        {
+          customer: customerId,
+          billingType: "BOLETO",
+          value: value,
+          nextDueDate: nextDue,
+          cycle: "MONTHLY",
+          description: `Assinatura One Dental - Plano ${planId}`,
+        },
+        {headers: {access_token: apiKey}}
+      );
 
       // 6. Update Firestore
-      await admin.firestore().collection("organizations").doc(orgId).update({
+      const db = admin.firestore();
+      await db.collection("organizations").doc(orgId).update({
         asaasCustomerId: customerId,
         subscriptionId: subRes.data.id,
         subscriptionStatus: "PENDING",
@@ -78,16 +86,93 @@ export const createSaaSSubscription = functions.https.onCall(
       });
 
       return {success: true, paymentLink: subRes.data.invoiceUrl};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Asaas API Failure", error);
-      const apiMessage = error.response?.data?.errors?.[0]?.description ||
-        error.message || "Erro ao processar pagamento";
+      const resData = error.response?.data;
+      const desc = resData?.errors?.[0]?.description;
+      const apiMessage = desc || error.message || "Erro processamento";
+
       throw new functions.https.HttpsError(
-        "aborted", `Falha no pagamento: ${apiMessage}`
+        "aborted",
+        `Falha no pagamento: ${apiMessage}`
       );
     }
   }
 );
+
+// --- GET SAAS INVOICES (Lista de Boletos do Plano) ---
+export const getSaaSInvoices = functions.https.onCall(async (request) => {
+  const {orgId} = request.data;
+  if (!orgId) {
+    throw new functions.https.HttpsError("invalid-argument", "Falta orgId.");
+  }
+
+  const apiKey = process.env.ASAAS_API_KEY;
+  const db = admin.firestore();
+  const orgDoc = await db.collection("organizations").doc(orgId).get();
+  const orgData = orgDoc.data();
+  const customerId = orgData?.asaasCustomerId;
+
+  // --- MOCK MODE ---
+  if (!apiKey || apiKey.includes("AIza") || !customerId) {
+    // Retorna faturas falsas para teste visual
+    return {
+      invoices: [
+        {
+          id: "pay_mock_1",
+          status: "OVERDUE",
+          dueDate: "2023-10-15",
+          value: 199.00,
+          invoiceUrl: "https://google.com",
+          description: "Mensalidade (Mock Vencido)",
+        },
+        {
+          id: "pay_mock_2",
+          status: "PENDING",
+          dueDate: new Date().toISOString().split("T")[0],
+          value: 199.00,
+          invoiceUrl: "https://google.com",
+          description: "Mensalidade Atual (Mock)",
+        },
+        {
+          id: "pay_mock_3",
+          status: "RECEIVED",
+          dueDate: "2023-09-15",
+          value: 199.00,
+          invoiceUrl: "https://google.com",
+          description: "Mensalidade Paga (Mock)",
+        },
+      ],
+    };
+  }
+
+  try {
+    // Fetch payments from Asaas for this customer
+    const response = await axios.get(
+      `${ASAAS_URL}/payments?customer=${customerId}`,
+      {headers: {access_token: apiKey}}
+    );
+
+    const payments = response.data.data.map((p: any) => ({ // eslint-disable-line
+      id: p.id,
+      status: p.status, // PENDING, RECEIVED, OVERDUE
+      dueDate: p.dueDate,
+      value: p.value,
+      invoiceUrl: p.invoiceUrl || p.bankSlipUrl,
+      description: p.description || "Assinatura One Dental",
+    }));
+
+    return {invoices: payments};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    console.error("Error fetching invoices", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      "Erro ao buscar faturas: " + error.message
+    );
+  }
+});
 
 // --- NEW: CREATE LAB SUB-ACCOUNT (Carteira Digital do Laboratório) ---
 export const createLabSubAccount = functions.https.onCall(async (request) => {
@@ -96,7 +181,8 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
   // Validate Input
   if (!orgId || !name || !cpfCnpj || !email) {
     throw new functions.https.HttpsError(
-      "invalid-argument", "Dados incompletos para criação da conta."
+      "invalid-argument",
+      "Dados incompletos para criação da conta."
     );
   }
 
@@ -107,14 +193,15 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
   if (!masterKey || masterKey.includes("AIza")) {
     const mockWalletId = `acct_${Math.random().toString(36).substr(2, 9)}`;
     const mockApiKey = `ak_live_${Math.random().toString(36)}`;
-    
-    await admin.firestore().collection("organizations").doc(orgId).update({
+
+    const db = admin.firestore();
+    await db.collection("organizations").doc(orgId).update({
       "financialSettings.asaasWalletId": mockWalletId,
-      "financialSettings.asaasApiKey": mockApiKey, // In PROD, store this securely or don't store at all (use OAuth)
-      "financialSettings.walletStatus": "ACTIVE"
+      "financialSettings.asaasApiKey": mockApiKey,
+      "financialSettings.walletStatus": "ACTIVE",
     });
 
-    return { success: true, walletId: mockWalletId, isMock: true };
+    return {success: true, walletId: mockWalletId, isMock: true};
   }
 
   try {
@@ -125,36 +212,38 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
       cpfCnpj: cleanCpfCnpj,
       mobilePhone: phone,
       address,
-      postalCode: "00000-000", // Should come from frontend in real app
-      province: "SP"
+      postalCode: "00000-000",
+      province: "SP",
     };
 
-    const accountRes = await axios.post(`${ASAAS_URL}/accounts`, accountPayload, {
-      headers: { access_token: masterKey }
-    });
+    const accountRes = await axios.post(
+      `${ASAAS_URL}/accounts`,
+      accountPayload,
+      {headers: {access_token: masterKey}}
+    );
 
-    // 2. Get API Key for this new account
-    // Note: In real Asaas White Label, you usually manage sub-accounts via the Master Key 
-    // by sending the walletId in the header, or you generate a key for them.
-    // For simplicity here, we assume we get an ID and will use it or generated key.
-    
-    // Asaas doesn't return the API key in creation. You usually operate "on behalf of".
-    // Strategy: Store the walletId. All future calls will use the walletId.
     const walletId = accountRes.data.id;
-    const walletApiKey = accountRes.data.apiKey; // Depending on Asaas version/config
+    const walletApiKey = accountRes.data.apiKey;
 
-    await admin.firestore().collection("organizations").doc(orgId).update({
+    const db = admin.firestore();
+    const orgRef = db.collection("organizations").doc(orgId);
+
+    const apiKeyVal = walletApiKey || "MANAGED_BY_MASTER";
+    const updateData = {
       "financialSettings.asaasWalletId": walletId,
-      "financialSettings.asaasApiKey": walletApiKey || "MANAGED_BY_MASTER",
-      "financialSettings.walletStatus": "ACTIVE"
-    });
+      "financialSettings.asaasApiKey": apiKeyVal,
+      "financialSettings.walletStatus": "ACTIVE",
+    };
 
-    return { success: true, walletId };
+    await orgRef.update(updateData);
 
+    return {success: true, walletId};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("Asaas Subaccount Create Failed", error.response?.data);
     throw new functions.https.HttpsError(
-      "aborted", "Falha ao criar conta no Asaas: " + error.message
+      "aborted",
+      "Falha ao criar conta no Asaas: " + error.message
     );
   }
 });
@@ -166,12 +255,15 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
 
   if (!jobData || !paymentData) {
     throw new functions.https.HttpsError(
-      "invalid-argument", "Dados inválidos."
+      "invalid-argument",
+      "Dados inválidos."
     );
   }
 
   // 1. Fetch the Lab's Organization to get their Wallet ID
-  const orgDoc = await admin.firestore().collection("organizations").doc(jobData.organizationId).get();
+  const db = admin.firestore();
+  const orgRef = db.collection("organizations").doc(jobData.organizationId);
+  const orgDoc = await orgRef.get();
   const orgData = orgDoc.data();
   const labWalletId = orgData?.financialSettings?.asaasWalletId;
   const masterKey = process.env.ASAAS_API_KEY;
@@ -180,30 +272,33 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
   if (!masterKey || masterKey.includes("AIza")) {
     const mockId = `pay_${Math.random().toString(36).substr(2, 9)}`;
     const jobId = `job_${Date.now()}`;
-    
-    // Mock Pix Data
-    const mockPixQrCode = paymentData.method === "PIX" ? "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" : undefined;
-    const mockPixCopyPaste = paymentData.method === "PIX" ? "00020126360014BR.GOV.BCB.PIX0114+5511999999999520400005303986540510.005802BR5913One Dental6009Sao Paulo62070503***6304E2CA" : undefined;
+
+    const px = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8";
+    const mockPixQrCode = paymentData.method === "PIX" ? px : undefined;
+    const mP = "00020126360014BR.GOV.BCB.PIX...MOCK";
+    const mockPixCopyPaste = paymentData.method === "PIX" ? mP : undefined;
+
+    const d = new Date(jobData.dueDate);
+    const tsDate = admin.firestore.Timestamp.fromDate(d);
+
+    // Shorten expression
+    const isPix = paymentData.method === "PIX";
+    const pStatus = isPix ? "PENDING" : "AUTHORIZED";
 
     const newJob = {
       ...jobData,
       id: jobId,
       status: "WAITING_APPROVAL",
-      paymentStatus: paymentData.method === "PIX" ? "PENDING" : "AUTHORIZED",
+      paymentStatus: pStatus,
       paymentMethod: paymentData.method,
       paymentId: mockId,
       pixQrCode: mockPixQrCode,
       pixCopyPaste: mockPixCopyPaste,
       createdAt: admin.firestore.Timestamp.now(),
-      dueDate: admin.firestore.Timestamp.fromDate(new Date(jobData.dueDate)),
+      dueDate: tsDate,
     };
 
-    await admin.firestore()
-      .collection("organizations")
-      .doc(jobData.organizationId)
-      .collection("jobs")
-      .doc(jobId)
-      .set(newJob);
+    await orgRef.collection("jobs").doc(jobId).set(newJob);
 
     return {
       success: true,
@@ -218,73 +313,88 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
   // --- REAL PAYMENT LOGIC WITH SUB-ACCOUNT ---
   if (!labWalletId) {
     throw new functions.https.HttpsError(
-      "failed-precondition", 
-      "Este laboratório ainda não ativou a carteira digital. Entre em contato com eles."
+      "failed-precondition",
+      "Este laboratório não ativou a carteira digital."
     );
   }
 
   try {
     // 1. Create/Get Customer IN THE LAB'S SUB-ACCOUNT
-    // When using Asaas with sub-accounts, pass the 'walletId' in the header if using Master Key
-    const headers = { 
-        access_token: masterKey,
-        walletId: labWalletId // This directs the operation to the Lab's account
+    const headers = {
+      access_token: masterKey,
+      walletId: labWalletId,
     };
 
     const customerRes = await axios.post(`${ASAAS_URL}/customers`, {
-        name: jobData.patientName, // Ideally should be Dentist Name
-        cpfCnpj: paymentData.cpfCnpj
-    }, { headers });
-    
+      name: jobData.patientName,
+      cpfCnpj: paymentData.cpfCnpj,
+    }, {headers});
+
     const customerId = customerRes.data.id;
 
     // 2. Create Payment
+    const isCC = paymentData.method === "CREDIT_CARD";
+    const bType = paymentData.method === "PIX" ? "PIX" : "CREDIT_CARD";
     const paymentPayload = {
-        customer: customerId,
-        billingType: paymentData.method === "PIX" ? "PIX" : "CREDIT_CARD",
-        value: jobData.totalValue,
-        dueDate: new Date().toISOString().split("T")[0],
-        description: `Pedido ${jobData.patientName}`,
-        creditCard: paymentData.method === "CREDIT_CARD" ? paymentData.creditCard : undefined,
-        creditCardHolderInfo: paymentData.method === "CREDIT_CARD" ? paymentData.creditCardHolderInfo : undefined
+      customer: customerId,
+      billingType: bType,
+      value: jobData.totalValue,
+      dueDate: new Date().toISOString().split("T")[0],
+      description: `Pedido ${jobData.patientName}`,
+      creditCard: isCC ?
+        paymentData.creditCard : undefined,
+      creditCardHolderInfo: isCC ?
+        paymentData.creditCardHolderInfo : undefined,
     };
 
-    const payRes = await axios.post(`${ASAAS_URL}/payments`, paymentPayload, { headers });
-    
+    const payRes = await axios.post(
+      `${ASAAS_URL}/payments`,
+      paymentPayload,
+      {headers}
+    );
+
     // 3. Save Job to Firestore WITH PIX DATA
     const jobId = `job_${Date.now()}`;
+    const d = new Date(jobData.dueDate);
+    const tsDate = admin.firestore.Timestamp.fromDate(d);
+
+    // Shorten expression
+    const isPix = paymentData.method === "PIX";
+    const pStatus = isPix ? "PENDING" : "AUTHORIZED";
+
     const newJob = {
       ...jobData,
       id: jobId,
       status: "WAITING_APPROVAL",
-      paymentStatus: paymentData.method === "PIX" ? "PENDING" : "AUTHORIZED", // If CC, Asaas returns status
+      paymentStatus: pStatus,
       paymentMethod: paymentData.method,
       paymentId: payRes.data.id,
-      pixQrCode: payRes.data.encodedImage, // Store Base64 QR
-      pixCopyPaste: payRes.data.payload, // Store CopyPaste Code
+      pixQrCode: payRes.data.encodedImage,
+      pixCopyPaste: payRes.data.payload,
       createdAt: admin.firestore.Timestamp.now(),
-      dueDate: admin.firestore.Timestamp.fromDate(new Date(jobData.dueDate)),
+      dueDate: tsDate,
     };
 
-    await admin.firestore()
-      .collection("organizations")
-      .doc(jobData.organizationId)
-      .collection("jobs")
+    // Use orgRef defined earlier
+    await orgRef.collection("jobs")
       .doc(jobId)
       .set(newJob);
 
     return {
-        success: true,
-        jobId: jobId,
-        paymentId: payRes.data.id,
-        pixQrCode: payRes.data.encodedImage, // Base64 QR for PIX
-        pixCopyPaste: payRes.data.payload,
-        message: "Cobrança gerada com sucesso."
+      success: true,
+      jobId: jobId,
+      paymentId: payRes.data.id,
+      pixQrCode: payRes.data.encodedImage,
+      pixCopyPaste: payRes.data.payload,
+      message: "Cobrança gerada com sucesso.",
     };
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-      console.error("Payment Creation Failed", error.response?.data || error);
-      throw new functions.https.HttpsError("aborted", "Erro no processamento: " + error.message);
+    console.error("Payment Creation Failed", error.response?.data || error);
+    throw new functions.https.HttpsError(
+      "aborted",
+      "Erro no processamento: " + error.message
+    );
   }
 });
 
@@ -292,8 +402,8 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
 export const manageOrderDecision = functions.https.onCall(async (request) => {
   const {orgId, jobId, decision, rejectionReason} = request.data;
 
-  const jobRef = admin.firestore()
-    .collection("organizations")
+  const db = admin.firestore();
+  const jobRef = db.collection("organizations")
     .doc(orgId)
     .collection("jobs")
     .doc(jobId);
@@ -301,46 +411,41 @@ export const manageOrderDecision = functions.https.onCall(async (request) => {
 
   if (!jobSnap.exists) {
     throw new functions.https.HttpsError(
-      "not-found", "Trabalho não encontrado."
+      "not-found",
+      "Trabalho não encontrado."
     );
   }
 
-  // --- Real Logic for Capture/Refund would use the Sub-account Header too ---
-  // const jobData = jobSnap.data();
-  // const labWalletId = ... fetch from org ...
-  // headers = { access_token: masterKey, walletId: labWalletId }
-  // axios.post(..., { headers })
-
   if (decision === "APPROVE") {
-    // 1. Capture Payment (if CC)
-    // await asaas.capture(job.paymentId);
+    // 1. Capture Payment (if CC) - Logic would be here
 
     // 2. Update Job
+    const actionMsg = "Pedido Aprovado (Pagamento Capturado)";
     await jobRef.update({
-      status: "PENDING", // Moves to production queue
-      paymentStatus: "PAID", // Captured
+      status: "PENDING",
+      paymentStatus: "PAID",
       history: admin.firestore.FieldValue.arrayUnion({
         id: Math.random().toString(),
         timestamp: new Date(),
-        action: "Pedido Aprovado pelo Laboratório (Pagamento Capturado)",
+        action: actionMsg,
         userId: "system",
         userName: "Sistema",
       }),
     });
     return {success: true, status: "APPROVED"};
   } else if (decision === "REJECT") {
-    // 1. Refund Payment
-    // await asaas.refund(job.paymentId);
+    // 1. Refund Payment - Logic would be here
 
     // 2. Update Job
+    const reason = rejectionReason || "Sem motivo";
+    const actionMsg = `Pedido Recusado: ${reason}. Valor estornado.`;
     await jobRef.update({
       status: "REJECTED",
       paymentStatus: "REFUNDED",
       history: admin.firestore.FieldValue.arrayUnion({
         id: Math.random().toString(),
         timestamp: new Date(),
-        action: `Pedido Recusado: ${rejectionReason || "Sem motivo"}. ` +
-          "Valor estornado.",
+        action: actionMsg,
         userId: "system",
         userName: "Sistema",
       }),
@@ -348,7 +453,10 @@ export const manageOrderDecision = functions.https.onCall(async (request) => {
     return {success: true, status: "REJECTED"};
   }
 
-  throw new functions.https.HttpsError("invalid-argument", "Decisão inválida.");
+  throw new functions.https.HttpsError(
+    "invalid-argument",
+    "Decisão inválida."
+  );
 });
 
 // Existing Webhook (kept)

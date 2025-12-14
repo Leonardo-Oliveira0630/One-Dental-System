@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2
+  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -13,7 +14,7 @@ export const Admin = () => {
     sectors, addSector, deleteSector, 
     allUsers, addUser, deleteUser, updateUser,
     jobTypes, currentOrg, currentPlan, updateOrganization, allPlans,
-    validateCoupon, createSubscription 
+    validateCoupon, createSubscription, getSaaSInvoices
   } = useApp();
   const navigate = useNavigate();
 
@@ -59,6 +60,8 @@ export const Admin = () => {
   // Subscription State
   const [upgradeCoupon, setUpgradeCoupon] = useState('');
   const [appliedUpgradeCoupon, setAppliedUpgradeCoupon] = useState<any>(null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
 
   useEffect(() => {
       if (currentOrg?.financialSettings) {
@@ -71,6 +74,17 @@ export const Admin = () => {
           setWalletName(currentOrg.name);
       }
   }, [currentOrg]);
+
+  // Fetch Invoices when Subscription Tab is active
+  useEffect(() => {
+      if (activeTab === 'SUBSCRIPTION' && currentOrg) {
+          setLoadingInvoices(true);
+          getSaaSInvoices(currentOrg.id)
+            .then(data => setInvoices(data))
+            .catch(err => console.error("Falha ao buscar faturas", err))
+            .finally(() => setLoadingInvoices(false));
+      }
+  }, [activeTab, currentOrg]);
 
   const handleSaveFinancial = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -448,6 +462,77 @@ export const Admin = () => {
                           >
                               <Zap size={16} /> Ativar Assinatura Definitiva
                           </button>
+                      </div>
+                  )}
+              </div>
+
+              {/* NEW: INVOICE HISTORY SECTION */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                      <CreditCard className="text-blue-600"/> Minhas Faturas
+                  </h3>
+                  
+                  {loadingInvoices ? (
+                      <div className="text-center py-8"><Loader2 className="animate-spin text-slate-400 mx-auto" /></div>
+                  ) : invoices.length === 0 ? (
+                      <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-xl">
+                          Nenhuma fatura encontrada.
+                      </div>
+                  ) : (
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left">
+                              <thead>
+                                  <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b border-slate-200">
+                                      <th className="p-4">Vencimento</th>
+                                      <th className="p-4">Descrição</th>
+                                      <th className="p-4">Valor</th>
+                                      <th className="p-4">Status</th>
+                                      <th className="p-4 text-right">Ação</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                  {invoices.map((inv) => (
+                                      <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                                          <td className="p-4 font-mono text-sm text-slate-700">
+                                              {new Date(inv.dueDate).toLocaleDateString()}
+                                          </td>
+                                          <td className="p-4 text-sm font-medium text-slate-800">
+                                              {inv.description}
+                                          </td>
+                                          <td className="p-4 font-bold text-slate-700">
+                                              R$ {inv.value.toFixed(2)}
+                                          </td>
+                                          <td className="p-4">
+                                              {inv.status === 'RECEIVED' || inv.status === 'CONFIRMED' ? (
+                                                  <span className="inline-flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">
+                                                      <Check size={12}/> PAGO
+                                                  </span>
+                                              ) : inv.status === 'OVERDUE' ? (
+                                                  <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">
+                                                      <AlertCircle size={12}/> VENCIDO
+                                                  </span>
+                                              ) : (
+                                                  <span className="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs font-bold">
+                                                      A PAGAR
+                                                  </span>
+                                              )}
+                                          </td>
+                                          <td className="p-4 text-right">
+                                              {inv.status !== 'RECEIVED' && inv.status !== 'CONFIRMED' && (
+                                                  <a 
+                                                      href={inv.invoiceUrl} 
+                                                      target="_blank" 
+                                                      rel="noopener noreferrer"
+                                                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors shadow-sm"
+                                                  >
+                                                      <CreditCard size={12}/> Pagar Agora
+                                                  </a>
+                                              )}
+                                          </td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
                       </div>
                   )}
               </div>

@@ -339,6 +339,13 @@ export const callCreateSubscription = async (orgId: string, planId: string, emai
     };
 };
 
+export const apiGetSaaSInvoices = async (orgId: string) => {
+    if (!functions) throw new Error("Functions not initialized");
+    const fn = httpsCallable(functions, 'getSaaSInvoices');
+    const result: any = await fn({ orgId });
+    return result.data.invoices;
+};
+
 // --- JOB PAYMENT FUNCTIONS ---
 
 export const apiCreateLabWallet = async (data: { orgId: string, name: string, email: string, cpfCnpj: string, address: string, phone: string }) => {

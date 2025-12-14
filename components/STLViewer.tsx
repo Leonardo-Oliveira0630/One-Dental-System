@@ -12,8 +12,17 @@ const MeshStandardMaterial = 'meshStandardMaterial' as any;
 const Color = 'color' as any;
 
 // --- Error Boundary for 3D Loading ---
-class ViewerErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, errorMsg: string}> {
-  constructor(props: any) {
+interface ViewerErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ViewerErrorBoundaryState {
+  hasError: boolean;
+  errorMsg: string;
+}
+
+class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
+  constructor(props: ViewerErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, errorMsg: '' };
   }
