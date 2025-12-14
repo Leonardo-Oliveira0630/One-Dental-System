@@ -65,6 +65,7 @@ interface AppContextType {
   
   createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<{success: boolean, paymentLink?: string, isMock?: boolean}>;
   getSaaSInvoices: (orgId: string) => Promise<any[]>;
+  checkSubscriptionStatus: (orgId: string) => Promise<{status: string, updated: boolean}>;
 
   addCoupon: (coupon: Coupon) => Promise<void>;
   updateCoupon: (code: string, updates: Partial<Coupon>) => Promise<void>;
@@ -350,6 +351,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
   const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => await api.callCreateSubscription(orgId, planId, email, name, cpfCnpj);
   const getSaaSInvoices = async (orgId: string) => await api.apiGetSaaSInvoices(orgId);
+  const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);
 
   const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
   const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
@@ -378,7 +380,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addJob, updateJob, addJobType, updateJobType, deleteJobType, addSector, deleteSector,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, updateOrganization,
-      createSubscription, getSaaSInvoices,
+      createSubscription, getSaaSInvoices, checkSubscriptionStatus,
       addCoupon, updateCoupon, deleteCoupon, validateCoupon,
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       createWebOrder, uploadFile,

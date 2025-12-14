@@ -8,6 +8,10 @@ if (admin.apps.length === 0) {
 }
 
 const ASAAS_URL = process.env.ASAAS_URL || "https://api.asaas.com/v3";
+// ID da carteira principal do SaaS para onde vai a comissão
+const PLATFORM_WALLET_ID = process.env.PLATFORM_WALLET_ID ||
+  "DEFINIR_NO_ENV";
+const PLATFORM_FEE_PERCENTAGE = 2.00; // 2% de comissão
 
 // --- SAAS SUBSCRIPTION (Pagamento do Lab para o SaaS) ---
 export const createSaaSSubscription = functions.https.onCall(
@@ -46,6 +50,32 @@ export const createSaaSSubscription = functions.https.onCall(
     }
 
     try {
+      const db = admin.firestore();
+
+      // 1. Fetch Plan Details from Firestore to get Real Price
+      let value = 99.00;
+      let planName = "Plano";
+
+      try {
+        const planDoc = await db.collection("subscriptionPlans")
+          .doc(planId)
+          .get();
+
+        if (planDoc.exists) {
+          const pData = planDoc.data();
+          if (pData) {
+            if (typeof pData.price === "number") value = pData.price;
+            if (pData.name) planName = pData.name;
+          }
+        } else {
+          // Legacy Fallback
+          if (planId === "pro") value = 199.00;
+          if (planId === "enterprise") value = 499.00;
+        }
+      } catch (err) {
+        console.error("Error fetching plan details", err);
+      }
+
       // 3. Create/Get Customer
       const customerRes = await axios.post(
         `${ASAAS_URL}/customers`,
@@ -53,11 +83,6 @@ export const createSaaSSubscription = functions.https.onCall(
         {headers: {access_token: apiKey}}
       );
       const customerId = customerRes.data.id;
-
-      // 4. Define Value
-      let value = 99.00;
-      if (planId === "pro") value = 199.00;
-      if (planId === "enterprise") value = 499.00;
 
       // 5. Create Subscription
       const nextDate = new Date(Date.now() + 86400000);
@@ -71,21 +96,37 @@ export const createSaaSSubscription = functions.https.onCall(
           value: value,
           nextDueDate: nextDue,
           cycle: "MONTHLY",
-          description: `Assinatura One Dental - Plano ${planId}`,
+          description: `Assinatura One Dental - ${planName}`,
         },
         {headers: {access_token: apiKey}}
       );
 
+      const subscriptionId = subRes.data.id;
+      let paymentLink = subRes.data.invoiceUrl; // Fallback
+
+      // Asaas Subscriptions usually don't return invoiceUrl directly.
+      // We must fetch the generated payment for this subscription.
+      try {
+        const paymentsRes = await axios.get(
+          `${ASAAS_URL}/subscriptions/${subscriptionId}/payments`,
+          {headers: {access_token: apiKey}}
+        );
+        if (paymentsRes.data.data && paymentsRes.data.data.length > 0) {
+          paymentLink = paymentsRes.data.data[0].invoiceUrl;
+        }
+      } catch (err) {
+        console.error("Failed to fetch subscription payments", err);
+      }
+
       // 6. Update Firestore
-      const db = admin.firestore();
       await db.collection("organizations").doc(orgId).update({
         asaasCustomerId: customerId,
-        subscriptionId: subRes.data.id,
+        subscriptionId: subscriptionId,
         subscriptionStatus: "PENDING",
         planId: planId,
       });
 
-      return {success: true, paymentLink: subRes.data.invoiceUrl};
+      return {success: true, paymentLink: paymentLink};
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error("Asaas API Failure", error);
@@ -97,6 +138,67 @@ export const createSaaSSubscription = functions.https.onCall(
         "aborted",
         `Falha no pagamento: ${apiMessage}`
       );
+    }
+  }
+);
+
+// --- SYNC/CHECK SUBSCRIPTION STATUS (Manual Trigger) ---
+export const checkSubscriptionStatus = functions.https.onCall(
+  async (request) => {
+    const {orgId} = request.data;
+    if (!orgId) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "OrgId required"
+      );
+    }
+
+    const db = admin.firestore();
+    const orgRef = db.collection("organizations").doc(orgId);
+    const orgDoc = await orgRef.get();
+
+    if (!orgDoc.exists) {
+      throw new functions.https.HttpsError(
+        "not-found",
+        "Organization not found"
+      );
+    }
+
+    const orgData = orgDoc.data();
+    const customerId = orgData?.asaasCustomerId;
+    const apiKey = process.env.ASAAS_API_KEY;
+
+    if (!customerId || !apiKey || apiKey.includes("AIza")) {
+      return {status: "MOCK_ACTIVE", updated: false};
+    }
+
+    try {
+      // Get payments for this customer
+      const response = await axios.get(
+        `${ASAAS_URL}/payments?customer=${customerId}`,
+        {headers: {access_token: apiKey}}
+      );
+
+      const payments = response.data.data;
+      // Check if ANY payment is RECEIVED or CONFIRMED
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hasPaid = payments.some((p: any) =>
+        p.status === "RECEIVED" || p.status === "CONFIRMED"
+      );
+
+      if (hasPaid) {
+        await orgRef.update({
+          subscriptionStatus: "ACTIVE",
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return {status: "ACTIVE", updated: true};
+      } else {
+        return {status: "PENDING", updated: false};
+      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      console.error("Sync Error", error);
+      throw new functions.https.HttpsError("internal", error.message);
     }
   }
 );
@@ -332,15 +434,29 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
 
     const customerId = customerRes.data.id;
 
-    // 2. Create Payment
+    // 2. Create Payment WITH SPLIT
     const isCC = paymentData.method === "CREDIT_CARD";
     const bType = paymentData.method === "PIX" ? "PIX" : "CREDIT_CARD";
+
+    // --- SPLIT LOGIC ---
+    // If PLATFORM_WALLET_ID is set, we add the split configuration
+    let splitConfig;
+    if (PLATFORM_WALLET_ID && PLATFORM_WALLET_ID !== "DEFINIR_NO_ENV") {
+      splitConfig = [
+        {
+          walletId: PLATFORM_WALLET_ID,
+          percent: PLATFORM_FEE_PERCENTAGE,
+        },
+      ];
+    }
+
     const paymentPayload = {
       customer: customerId,
       billingType: bType,
       value: jobData.totalValue,
       dueDate: new Date().toISOString().split("T")[0],
       description: `Pedido ${jobData.patientName}`,
+      split: splitConfig, // Add the split here
       creditCard: isCC ?
         paymentData.creditCard : undefined,
       creditCardHolderInfo: isCC ?

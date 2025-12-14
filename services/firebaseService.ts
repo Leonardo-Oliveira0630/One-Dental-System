@@ -339,6 +339,13 @@ export const callCreateSubscription = async (orgId: string, planId: string, emai
     };
 };
 
+export const apiCheckSubscriptionStatus = async (orgId: string) => {
+    if (!functions) throw new Error("Functions not initialized");
+    const fn = httpsCallable(functions, 'checkSubscriptionStatus');
+    const result: any = await fn({ orgId });
+    return result.data as { status: string; updated: boolean };
+};
+
 export const apiGetSaaSInvoices = async (orgId: string) => {
     if (!functions) throw new Error("Functions not initialized");
     const fn = httpsCallable(functions, 'getSaaSInvoices');

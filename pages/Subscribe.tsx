@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store } from 'lucide-react';
+import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store, RefreshCw } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserRole } from '../types';
 
 export const Subscribe = () => {
-    const { currentOrg, createSubscription, allPlans, currentUser } = useApp();
+    const { currentOrg, createSubscription, allPlans, currentUser, checkSubscriptionStatus } = useApp();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     
@@ -13,6 +14,7 @@ export const Subscribe = () => {
     const initialCoupon = searchParams.get('coupon') || '';
 
     const [loading, setLoading] = useState(false);
+    const [verifying, setVerifying] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
     const [cpfCnpj, setCpfCnpj] = useState('');
     const [billingEmail, setBillingEmail] = useState(currentUser?.email || '');
@@ -98,6 +100,25 @@ export const Subscribe = () => {
         }
     };
 
+    const handleVerifyPayment = async () => {
+        if (!currentOrg) return;
+        setVerifying(true);
+        try {
+            const result = await checkSubscriptionStatus(currentOrg.id);
+            if (result.status === 'ACTIVE') {
+                alert("Pagamento confirmado! Sua assinatura está ativa.");
+                navigate('/dashboard');
+            } else {
+                alert("O pagamento ainda não foi identificado. Aguarde alguns instantes e tente novamente.");
+            }
+        } catch (error: any) {
+            console.error("Erro ao verificar:", error);
+            alert("Erro ao verificar pagamento: " + error.message);
+        } finally {
+            setVerifying(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
             <div className="max-w-5xl w-full">
@@ -163,21 +184,29 @@ export const Subscribe = () => {
                                 href={generatedLink} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
-                                className="block w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg transition-all flex items-center justify-center gap-2"
+                                className="block w-full py-4 bg-blue-600 text-white font-bold rounded-xl text-center hover:bg-blue-700 shadow-lg transition-all flex items-center justify-center gap-2"
                             >
                                 <CreditCard size={20} /> Acessar Fatura de Pagamento <ExternalLink size={16} />
                             </a>
 
                             <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 text-xs text-yellow-800 text-left">
-                                <p className="font-bold mb-1 flex items-center gap-1"><AlertTriangle size={12}/> Atenção (Sandbox/Teste):</p>
-                                <p>Como você está em modo de teste, o pagamento não é automático. Acesse o painel do Asaas Sandbox e aprove a cobrança manualmente para liberar o acesso.</p>
+                                <p className="font-bold mb-1 flex items-center gap-1"><AlertTriangle size={12}/> Atenção:</p>
+                                <p>Após pagar, clique no botão abaixo para forçar a atualização do sistema caso não ocorra automaticamente.</p>
                             </div>
+
+                            <button 
+                                onClick={handleVerifyPayment}
+                                disabled={verifying}
+                                className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                            >
+                                {verifying ? <Loader2 className="animate-spin" /> : <><RefreshCw size={18}/> Já Paguei / Validar Agora</>}
+                            </button>
 
                             <button 
                                 onClick={() => navigate('/dashboard')}
                                 className="text-slate-400 hover:text-slate-600 text-sm font-bold mt-4"
                             >
-                                Voltar para o Dashboard (Aguardar liberação)
+                                Voltar para o Dashboard (Aguardar)
                             </button>
                         </div>
                     ) : (

@@ -77,14 +77,14 @@ export const Admin = () => {
 
   // Fetch Invoices when Subscription Tab is active
   useEffect(() => {
-      if (activeTab === 'SUBSCRIPTION' && currentOrg) {
+      if (activeTab === 'SUBSCRIPTION' && currentOrg?.id) {
           setLoadingInvoices(true);
           getSaaSInvoices(currentOrg.id)
             .then(data => setInvoices(data))
             .catch(err => console.error("Falha ao buscar faturas", err))
             .finally(() => setLoadingInvoices(false));
       }
-  }, [activeTab, currentOrg]);
+  }, [activeTab, currentOrg?.id]); // FIX: Only reload if ID changes, not object reference
 
   const handleSaveFinancial = async (e: React.FormEvent) => {
       e.preventDefault();
