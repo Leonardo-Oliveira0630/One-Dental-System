@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, AlertCircle, ExternalLink, Link
+  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, AlertCircle, ExternalLink, Link, HelpCircle, LogIn
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -100,7 +100,7 @@ export const Admin = () => {
   const handleSaveManualWallet = async () => {
       if (!currentOrg || !manualWalletId) return;
       if (!manualWalletId.startsWith('acct_')) {
-          alert("O ID da carteira geralmente começa com 'acct_'. Verifique o código.");
+          alert("O ID da carteira geralmente começa com 'acct_'. Verifique o código no painel do Asaas (Minha Conta > Integração).");
           return;
       }
       
@@ -132,7 +132,7 @@ export const Admin = () => {
               phone: walletPhone,
               address: walletAddress
           });
-          alert("Carteira Digital ativada com sucesso!");
+          alert("Carteira Digital ativada com sucesso! Verifique seu email para definir a senha de acesso ao Asaas.");
       } catch (error: any) {
           console.error(error);
           alert("Erro ao ativar carteira: " + error.message);
@@ -404,64 +404,100 @@ export const Admin = () => {
                      </div>
 
                      {currentOrg?.financialSettings?.asaasWalletId ? (
+                         /* --- STATE 1: WALLET CONNECTED --- */
                          <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/10">
-                             <p className="text-xs uppercase font-bold text-indigo-200 mb-1">ID da Carteira</p>
-                             <p className="font-mono font-bold text-lg mb-4">{currentOrg.financialSettings.asaasWalletId}</p>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                 <div>
+                                     <p className="text-xs uppercase font-bold text-indigo-200 mb-1">ID da Carteira</p>
+                                     <p className="font-mono font-bold text-lg">{currentOrg.financialSettings.asaasWalletId}</p>
+                                 </div>
+                                 <div className="md:text-right">
+                                     <p className="text-xs uppercase font-bold text-indigo-200 mb-1">Status</p>
+                                     <p className="font-bold text-lg text-green-300">Operacional</p>
+                                 </div>
+                             </div>
+                             
+                             <div className="bg-black/20 p-3 rounded-lg text-sm mb-4">
+                                 <p className="flex items-start gap-2">
+                                     <LogIn size={16} className="mt-0.5 shrink-0" />
+                                     <span>
+                                         Para acessar seu saldo e sacar valores, faça login no Asaas usando o email cadastrado.
+                                         Se for seu primeiro acesso, verifique sua caixa de entrada para definir a senha.
+                                     </span>
+                                 </p>
+                             </div>
+
                              <div className="flex gap-3">
-                                 <button onClick={() => window.open('https://asaas.com', '_blank')} className="px-4 py-2 bg-white text-indigo-600 font-bold rounded-lg text-sm hover:bg-indigo-50">
-                                     Acessar Painel Financeiro
+                                 <button onClick={() => window.open('https://www.asaas.com/login', '_blank')} className="px-6 py-2 bg-white text-indigo-600 font-bold rounded-lg text-sm hover:bg-indigo-50 flex items-center gap-2">
+                                     <ExternalLink size={16}/> Acessar Painel Financeiro
                                  </button>
                              </div>
                          </div>
                      ) : (
-                         <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/10">
-                             <p className="text-sm mb-4">Ative sua conta para receber via PIX e Cartão diretamente pela plataforma.</p>
-                             <form onSubmit={handleCreateWallet} className="space-y-3">
-                                 <div className="grid grid-cols-2 gap-3">
-                                     <input value={walletName} onChange={e => setWalletName(e.target.value)} placeholder="Nome Completo / Razão Social" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required />
-                                     <input value={walletCpfCnpj} onChange={e => setWalletCpfCnpj(e.target.value)} placeholder="CPF / CNPJ" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required />
+                         /* --- STATE 2: WALLET NOT CONNECTED --- */
+                         <div className="bg-white rounded-xl text-slate-800 overflow-hidden shadow-lg">
+                             <div className="p-1 bg-slate-100 flex gap-1 m-1 rounded-lg">
+                                 <div className="flex-1 py-2 text-center text-xs font-bold bg-white shadow-sm rounded text-slate-800">
+                                     Configurar Recebimentos
                                  </div>
-                                 <div className="grid grid-cols-2 gap-3">
-                                     <input value={walletEmail} onChange={e => setWalletEmail(e.target.value)} placeholder="Email Financeiro" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required type="email" />
-                                     <input value={walletPhone} onChange={e => setWalletPhone(e.target.value)} placeholder="Celular" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required />
+                             </div>
+                             
+                             <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 relative">
+                                 {/* Option A: Create Auto */}
+                                 <div className="space-y-4">
+                                     <div>
+                                         <h4 className="font-bold text-indigo-600 mb-1">Criar Nova Conta</h4>
+                                         <p className="text-xs text-slate-500">Crie uma sub-conta automática no Asaas para receber pagamentos.</p>
+                                     </div>
+                                     <form onSubmit={handleCreateWallet} className="space-y-3">
+                                         <input value={walletName} onChange={e => setWalletName(e.target.value)} placeholder="Nome Completo / Razão" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                         <input value={walletCpfCnpj} onChange={e => setWalletCpfCnpj(e.target.value)} placeholder="CPF / CNPJ" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                         <input value={walletEmail} onChange={e => setWalletEmail(e.target.value)} placeholder="Email Financeiro" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required type="email" />
+                                         <div className="grid grid-cols-2 gap-2">
+                                             <input value={walletPhone} onChange={e => setWalletPhone(e.target.value)} placeholder="Celular" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                             <input value={walletAddress} onChange={e => setWalletAddress(e.target.value)} placeholder="Endereço" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                         </div>
+                                         <button type="submit" disabled={isCreatingWallet} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2">
+                                             {isCreatingWallet ? <Loader2 className="animate-spin" size={14}/> : 'Criar Conta Agora'}
+                                         </button>
+                                     </form>
                                  </div>
-                                 <input value={walletAddress} onChange={e => setWalletAddress(e.target.value)} placeholder="Endereço Completo" className="w-full px-3 py-2 rounded-lg text-slate-800 text-sm outline-none" required />
-                                 
-                                 <button type="submit" disabled={isCreatingWallet} className="w-full py-2 bg-green-500 hover:bg-green-400 text-white font-bold rounded-lg text-sm flex items-center justify-center gap-2">
-                                     {isCreatingWallet ? <Loader2 className="animate-spin" size={16}/> : 'Ativar Recebimentos Agora'}
-                                 </button>
-                             </form>
+
+                                 {/* Vertical Divider for Desktop */}
+                                 <div className="hidden md:block absolute left-1/2 top-4 bottom-4 w-px bg-slate-200"></div>
+
+                                 {/* Option B: Manual Input */}
+                                 <div className="flex flex-col justify-center space-y-4">
+                                     <div>
+                                         <h4 className="font-bold text-slate-700 mb-1 flex items-center gap-2"><ExternalLink size={14}/> Já tenho conta Asaas</h4>
+                                         <p className="text-xs text-slate-500">Cole o ID da sua conta existente para integrar.</p>
+                                     </div>
+                                     
+                                     <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100 text-[10px] text-yellow-800">
+                                         <p className="font-bold flex items-center gap-1 mb-1"><HelpCircle size={10}/> Onde achar o ID?</p>
+                                         <p>No painel do Asaas, vá em <strong>Minha Conta {'>'} Integração</strong>. O ID começa com <code>acct_</code>.</p>
+                                     </div>
+
+                                     <div className="space-y-2">
+                                         <input 
+                                             value={manualWalletId}
+                                             onChange={e => setManualWalletId(e.target.value)}
+                                             placeholder="Cole o ID (ex: acct_1234...)"
+                                             className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-500"
+                                         />
+                                         <button 
+                                             onClick={handleSaveManualWallet}
+                                             disabled={!manualWalletId}
+                                             className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg text-xs disabled:opacity-50"
+                                         >
+                                             Vincular Conta Existente
+                                         </button>
+                                     </div>
+                                 </div>
+                             </div>
                          </div>
                      )}
                  </div>
-                 
-                 {/* MANUAL INPUT FOR EXISTING WALLET */}
-                 {!currentOrg?.financialSettings?.asaasWalletId && (
-                     <div className="relative z-10 mt-6 pt-6 border-t border-white/10">
-                         <div className="flex flex-col md:flex-row items-end gap-3">
-                             <div className="flex-1 w-full">
-                                 <p className="text-sm font-bold text-indigo-100 mb-2 flex items-center gap-1">
-                                     <ExternalLink size={14}/> Já tem conta no Asaas? Integre Manualmente
-                                 </p>
-                                 <input 
-                                     value={manualWalletId}
-                                     onChange={e => setManualWalletId(e.target.value)}
-                                     placeholder="Cole o ID da Carteira (ex: acct_123...)"
-                                     className="w-full px-4 py-2 rounded-lg text-slate-800 text-sm outline-none bg-white/90 focus:bg-white"
-                                 />
-                             </div>
-                             <button 
-                                 onClick={handleSaveManualWallet}
-                                 className="px-4 py-2 bg-white text-indigo-600 font-bold rounded-lg hover:bg-indigo-50 text-sm"
-                             >
-                                 Salvar ID
-                             </button>
-                         </div>
-                         <p className="text-[10px] text-indigo-200 mt-2">
-                             * Informe o ID da sua conta para que possamos realizar o split de pagamentos automaticamente.
-                         </p>
-                     </div>
-                 )}
 
                  <div className="absolute -right-10 -bottom-10 opacity-10">
                      <Wallet size={200} />
