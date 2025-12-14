@@ -179,10 +179,9 @@ export const checkSubscriptionStatus = functions.https.onCall(
         {headers: {access_token: apiKey}}
       );
 
-      const payments = response.data.data;
-      // Check if ANY payment is RECEIVED or CONFIRMED
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hasPaid = payments.some((p: any) =>
+      const payments = response.data.data as any[];
+      const hasPaid = payments.some((p) =>
         p.status === "RECEIVED" || p.status === "CONFIRMED"
       );
 
@@ -412,7 +411,7 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
     };
   }
 
-  // --- REAL PAYMENT LOGIC WITH SUB-ACCOUNT ---
+  // --- REAL PAYMENT LOGIC ---
   if (!labWalletId) {
     throw new functions.https.HttpsError(
       "failed-precondition",
@@ -421,33 +420,76 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
   }
 
   try {
-    // 1. Create/Get Customer IN THE LAB'S SUB-ACCOUNT
-    const headers = {
+    // 2. Determine Payment Strategy (Sub-account vs External Wallet)
+    // By default, assume it's a Sub-account created by us.
+    // Try to create customer on the Sub-account.
+
+    let customerId;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let headers: any = {
       access_token: masterKey,
       walletId: labWalletId,
     };
 
-    const customerRes = await axios.post(`${ASAAS_URL}/customers`, {
-      name: jobData.patientName,
-      cpfCnpj: paymentData.cpfCnpj,
-    }, {headers});
+    let isExternalWallet = false;
 
-    const customerId = customerRes.data.id;
+    try {
+      const customerRes = await axios.post(`${ASAAS_URL}/customers`, {
+        name: jobData.patientName,
+        cpfCnpj: paymentData.cpfCnpj,
+      }, {headers});
+      customerId = customerRes.data.id;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      // If 401/403, it means the walletId is not a sub-account of MasterKey.
+      // Fallback to "External Wallet Split" strategy.
+      console.warn(
+        "Wallet access failed, switching to external split strategy."
+      );
+      isExternalWallet = true;
 
-    // 2. Create Payment WITH SPLIT
+      // Reset headers to use Master Key only
+      headers = {
+        access_token: masterKey,
+        // walletId: undefined as any // Clear walletId
+      };
+
+      // Create Customer on Master Account instead
+      const customerRes = await axios.post(`${ASAAS_URL}/customers`, {
+        name: jobData.patientName,
+        cpfCnpj: paymentData.cpfCnpj,
+      }, {headers});
+      customerId = customerRes.data.id;
+    }
+
+    // 3. Configure Split
     const isCC = paymentData.method === "CREDIT_CARD";
     const bType = paymentData.method === "PIX" ? "PIX" : "CREDIT_CARD";
-
-    // --- SPLIT LOGIC ---
-    // If PLATFORM_WALLET_ID is set, we add the split configuration
     let splitConfig;
-    if (PLATFORM_WALLET_ID && PLATFORM_WALLET_ID !== "DEFINIR_NO_ENV") {
+
+    if (isExternalWallet) {
+      // STRATEGY B: External Wallet
+      // Charge on Platform Account -> Split 98% to Lab Wallet
+      // Fixed fee for example or % -> Remove unused
+      const splitPercent = 100 - PLATFORM_FEE_PERCENTAGE;
+
       splitConfig = [
         {
-          walletId: PLATFORM_WALLET_ID,
-          percent: PLATFORM_FEE_PERCENTAGE,
+          walletId: labWalletId,
+          percent: splitPercent,
         },
       ];
+    } else {
+      // STRATEGY A: Sub-account
+      // Charge on Lab Account -> Split 2% to Platform Wallet
+      if (PLATFORM_WALLET_ID && PLATFORM_WALLET_ID !== "DEFINIR_NO_ENV") {
+        splitConfig = [
+          {
+            walletId: PLATFORM_WALLET_ID,
+            percent: PLATFORM_FEE_PERCENTAGE,
+          },
+        ];
+      }
     }
 
     const paymentPayload = {
@@ -469,7 +511,7 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
       {headers}
     );
 
-    // 3. Save Job to Firestore WITH PIX DATA
+    // 4. Save Job to Firestore
     const jobId = `job_${Date.now()}`;
     const d = new Date(jobData.dueDate);
     const tsDate = admin.firestore.Timestamp.fromDate(d);

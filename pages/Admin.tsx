@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, AlertCircle, ExternalLink
+  Stethoscope, Building, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, AlertCircle, ExternalLink, Link
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -56,6 +56,7 @@ export const Admin = () => {
   const [walletPhone, setWalletPhone] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
+  const [manualWalletId, setManualWalletId] = useState('');
 
   // Subscription State
   const [upgradeCoupon, setUpgradeCoupon] = useState('');
@@ -68,6 +69,7 @@ export const Admin = () => {
           setPixKey(currentOrg.financialSettings.pixKey || '');
           setBankInfo(currentOrg.financialSettings.bankInfo || '');
           setInstructions(currentOrg.financialSettings.instructions || '');
+          setManualWalletId(currentOrg.financialSettings.asaasWalletId || '');
       }
       // Prefill Wallet Data if not set
       if (currentOrg && !walletName) {
@@ -93,6 +95,28 @@ export const Admin = () => {
           financialSettings: { ...currentOrg.financialSettings, pixKey, bankInfo, instructions }
       });
       alert("Configurações manuais salvas!");
+  };
+
+  const handleSaveManualWallet = async () => {
+      if (!currentOrg || !manualWalletId) return;
+      if (!manualWalletId.startsWith('acct_')) {
+          alert("O ID da carteira geralmente começa com 'acct_'. Verifique o código.");
+          return;
+      }
+      
+      try {
+          await updateOrganization(currentOrg.id, {
+              financialSettings: { 
+                  ...currentOrg.financialSettings, 
+                  asaasWalletId: manualWalletId,
+                  walletStatus: 'ACTIVE' // Assume active if manually entered
+              }
+          });
+          alert("ID da Carteira vinculado com sucesso!");
+      } catch (error: any) {
+          console.error(error);
+          alert("Erro ao salvar ID: " + error.message);
+      }
   };
 
   const handleCreateWallet = async (e: React.FormEvent) => {
@@ -410,6 +434,35 @@ export const Admin = () => {
                          </div>
                      )}
                  </div>
+                 
+                 {/* MANUAL INPUT FOR EXISTING WALLET */}
+                 {!currentOrg?.financialSettings?.asaasWalletId && (
+                     <div className="relative z-10 mt-6 pt-6 border-t border-white/10">
+                         <div className="flex flex-col md:flex-row items-end gap-3">
+                             <div className="flex-1 w-full">
+                                 <p className="text-sm font-bold text-indigo-100 mb-2 flex items-center gap-1">
+                                     <ExternalLink size={14}/> Já tem conta no Asaas? Integre Manualmente
+                                 </p>
+                                 <input 
+                                     value={manualWalletId}
+                                     onChange={e => setManualWalletId(e.target.value)}
+                                     placeholder="Cole o ID da Carteira (ex: acct_123...)"
+                                     className="w-full px-4 py-2 rounded-lg text-slate-800 text-sm outline-none bg-white/90 focus:bg-white"
+                                 />
+                             </div>
+                             <button 
+                                 onClick={handleSaveManualWallet}
+                                 className="px-4 py-2 bg-white text-indigo-600 font-bold rounded-lg hover:bg-indigo-50 text-sm"
+                             >
+                                 Salvar ID
+                             </button>
+                         </div>
+                         <p className="text-[10px] text-indigo-200 mt-2">
+                             * Informe o ID da sua conta para que possamos realizar o split de pagamentos automaticamente.
+                         </p>
+                     </div>
+                 )}
+
                  <div className="absolute -right-10 -bottom-10 opacity-10">
                      <Wallet size={200} />
                  </div>
