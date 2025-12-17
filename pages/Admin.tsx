@@ -54,7 +54,14 @@ export const Admin = () => {
   const [walletCpfCnpj, setWalletCpfCnpj] = useState('');
   const [walletEmail, setWalletEmail] = useState('');
   const [walletPhone, setWalletPhone] = useState('');
+  
+  // Wallet Address State
   const [walletAddress, setWalletAddress] = useState('');
+  const [walletNumber, setWalletNumber] = useState('');
+  const [walletPostalCode, setWalletPostalCode] = useState('');
+  const [walletProvince, setWalletProvince] = useState(''); // State (UF)
+  const [walletCity, setWalletCity] = useState('');
+
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
   const [manualWalletId, setManualWalletId] = useState('');
 
@@ -122,6 +129,13 @@ export const Admin = () => {
   const handleCreateWallet = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!currentOrg) return;
+      
+      // Basic Validation
+      if (!walletPostalCode || walletPostalCode.length < 8) {
+          alert("CEP inválido.");
+          return;
+      }
+
       setIsCreatingWallet(true);
       try {
           await api.apiCreateLabWallet({
@@ -130,7 +144,10 @@ export const Admin = () => {
               email: walletEmail,
               cpfCnpj: walletCpfCnpj,
               phone: walletPhone,
-              address: walletAddress
+              address: walletAddress,
+              addressNumber: walletNumber,
+              province: walletProvince,
+              postalCode: walletPostalCode
           });
           alert("Carteira Digital ativada com sucesso! Verifique seu email para definir a senha de acesso ao Asaas.");
       } catch (error: any) {
@@ -447,17 +464,29 @@ export const Admin = () => {
                                  <div className="space-y-4">
                                      <div>
                                          <h4 className="font-bold text-indigo-600 mb-1">Criar Nova Conta</h4>
-                                         <p className="text-xs text-slate-500">Crie uma sub-conta automática no Asaas para receber pagamentos.</p>
+                                         <p className="text-xs text-slate-500">Crie uma sub-conta automática no Asaas.</p>
                                      </div>
                                      <form onSubmit={handleCreateWallet} className="space-y-3">
-                                         <input value={walletName} onChange={e => setWalletName(e.target.value)} placeholder="Nome Completo / Razão" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
-                                         <input value={walletCpfCnpj} onChange={e => setWalletCpfCnpj(e.target.value)} placeholder="CPF / CNPJ" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
-                                         <input value={walletEmail} onChange={e => setWalletEmail(e.target.value)} placeholder="Email Financeiro" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required type="email" />
-                                         <div className="grid grid-cols-2 gap-2">
-                                             <input value={walletPhone} onChange={e => setWalletPhone(e.target.value)} placeholder="Celular" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
-                                             <input value={walletAddress} onChange={e => setWalletAddress(e.target.value)} placeholder="Endereço" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                         <div className="grid grid-cols-2 gap-3">
+                                            <input value={walletName} onChange={e => setWalletName(e.target.value)} placeholder="Nome / Razão" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                            <input value={walletCpfCnpj} onChange={e => setWalletCpfCnpj(e.target.value)} placeholder="CPF / CNPJ" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
                                          </div>
-                                         <button type="submit" disabled={isCreatingWallet} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2">
+                                         <div className="grid grid-cols-2 gap-3">
+                                            <input value={walletEmail} onChange={e => setWalletEmail(e.target.value)} placeholder="Email Financeiro" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required type="email" />
+                                            <input value={walletPhone} onChange={e => setWalletPhone(e.target.value)} placeholder="Celular" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                         </div>
+                                         <div className="grid grid-cols-2 gap-3">
+                                            <input value={walletPostalCode} onChange={e => setWalletPostalCode(e.target.value)} placeholder="CEP (00000-000)" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                            <input value={walletNumber} onChange={e => setWalletNumber(e.target.value)} placeholder="Número" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                         </div>
+                                         <input value={walletAddress} onChange={e => setWalletAddress(e.target.value)} placeholder="Endereço (Rua, Av...)" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                         
+                                         <div className="grid grid-cols-2 gap-3">
+                                            <input value={walletCity} onChange={e => setWalletCity(e.target.value)} placeholder="Cidade" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required />
+                                            <input value={walletProvince} onChange={e => setWalletProvince(e.target.value)} placeholder="UF (ex: SP)" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none" required maxLength={2} />
+                                         </div>
+
+                                         <button type="submit" disabled={isCreatingWallet} className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2 mt-2">
                                              {isCreatingWallet ? <Loader2 className="animate-spin" size={14}/> : 'Criar Conta Agora'}
                                          </button>
                                      </form>

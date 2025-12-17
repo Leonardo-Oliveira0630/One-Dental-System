@@ -277,17 +277,21 @@ export const getSaaSInvoices = functions.https.onCall(async (request) => {
 
 // --- NEW: CREATE LAB SUB-ACCOUNT (Carteira Digital do Laboratório) ---
 export const createLabSubAccount = functions.https.onCall(async (request) => {
-  const {orgId, name, email, cpfCnpj, address, phone} = request.data;
+  const {
+    orgId, name, email, cpfCnpj, address, phone,
+    addressNumber, province, postalCode,
+  } = request.data;
 
   // Validate Input
-  if (!orgId || !name || !cpfCnpj || !email) {
+  if (!orgId || !name || !cpfCnpj || !email || !postalCode) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "Dados incompletos para criação da conta."
+      "Dados incompletos para criação da conta (Nome, CPF/CNPJ, Email, CEP)."
     );
   }
 
   const cleanCpfCnpj = String(cpfCnpj).replace(/\D/g, "");
+  const cleanPostalCode = String(postalCode).replace(/\D/g, "");
   const masterKey = process.env.ASAAS_API_KEY;
 
   // --- MOCK MODE ---
@@ -313,8 +317,9 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
       cpfCnpj: cleanCpfCnpj,
       mobilePhone: phone,
       address,
-      postalCode: "00000-000",
-      province: "SP",
+      addressNumber,
+      postalCode: cleanPostalCode,
+      province,
     };
 
     const accountRes = await axios.post(
@@ -342,9 +347,10 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error("Asaas Subaccount Create Failed", error.response?.data);
+    const apiError = error.response?.data?.errors?.[0]?.description;
     throw new functions.https.HttpsError(
       "aborted",
-      "Falha ao criar conta no Asaas: " + error.message
+      "Falha ao criar conta no Asaas: " + (apiError || error.message)
     );
   }
 });

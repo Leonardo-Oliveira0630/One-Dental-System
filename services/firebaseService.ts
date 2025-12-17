@@ -355,7 +355,17 @@ export const apiGetSaaSInvoices = async (orgId: string) => {
 
 // --- JOB PAYMENT FUNCTIONS ---
 
-export const apiCreateLabWallet = async (data: { orgId: string, name: string, email: string, cpfCnpj: string, address: string, phone: string }) => {
+export const apiCreateLabWallet = async (data: { 
+    orgId: string, 
+    name: string, 
+    email: string, 
+    cpfCnpj: string, 
+    address: string, 
+    phone: string,
+    addressNumber: string,
+    province: string,
+    postalCode: string
+}) => {
     if (!functions) throw new Error("Functions not initialized");
     const fn = httpsCallable(functions, 'createLabSubAccount');
     const result: any = await fn(data);

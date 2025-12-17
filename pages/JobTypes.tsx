@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
@@ -315,21 +316,44 @@ export const JobTypes = () => {
                                                             </div>
                                                         </div>
                                                         <div className="pl-1">
-                                                            <label className="text-[10px] text-slate-500 font-bold block">Condicionais: Desabilitar OPÇÕES...</label>
-                                                            <select 
-                                                                multiple 
-                                                                value={option.disablesOptions || []}
-                                                                onChange={e => updateOption(group.id, option.id, { disablesOptions: [...e.target.selectedOptions].map(opt => opt.value) })}
-                                                                className="w-full text-xs p-1 border rounded bg-slate-50 max-h-24"
-                                                            >
+                                                            <label className="text-[10px] text-slate-500 font-bold block mb-1 flex items-center gap-1">
+                                                                <AlertCircle size={10} className="text-orange-500" />
+                                                                Se esta opção for escolhida, DESABILITAR as seguintes opções:
+                                                            </label>
+                                                            
+                                                            {/* SUBSTITUIÇÃO DO SELECT POR CHECKBOXES */}
+                                                            <div className="w-full border rounded bg-slate-50 max-h-32 overflow-y-auto p-2">
+                                                                {variationGroups.filter(g => g.id !== group.id).length === 0 && (
+                                                                    <p className="text-[10px] text-slate-400 italic p-1">Crie outros grupos para condicionar.</p>
+                                                                )}
                                                                 {variationGroups.filter(g => g.id !== group.id).map(otherGroup => (
-                                                                    <optgroup key={otherGroup.id} label={otherGroup.name}>
-                                                                        {(otherGroup.options || []).map(otherOption => (
-                                                                            <option key={otherOption.id} value={otherOption.id}>{otherOption.name}</option>
-                                                                        ))}
-                                                                    </optgroup>
+                                                                    <div key={otherGroup.id} className="mb-2">
+                                                                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-1 sticky top-0 bg-slate-50">{otherGroup.name}</p>
+                                                                        <div className="space-y-1 pl-1">
+                                                                            {(otherGroup.options || []).map(otherOption => {
+                                                                                const isChecked = (option.disablesOptions || []).includes(otherOption.id);
+                                                                                return (
+                                                                                    <label key={otherOption.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 rounded p-1">
+                                                                                        <input 
+                                                                                            type="checkbox" 
+                                                                                            checked={isChecked}
+                                                                                            onChange={() => {
+                                                                                                const current = option.disablesOptions || [];
+                                                                                                const newList = isChecked 
+                                                                                                    ? current.filter(id => id !== otherOption.id) 
+                                                                                                    : [...current, otherOption.id];
+                                                                                                updateOption(group.id, option.id, { disablesOptions: newList });
+                                                                                            }}
+                                                                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3 h-3"
+                                                                                        />
+                                                                                        <span className="text-xs text-slate-700">{otherOption.name}</span>
+                                                                                    </label>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
                                                                 ))}
-                                                            </select>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
