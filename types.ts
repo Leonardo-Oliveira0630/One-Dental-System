@@ -139,7 +139,9 @@ export interface JobType {
   name: string;
   category: string;
   basePrice: number;
-  variationGroups: VariationGroup[]; 
+  variationGroups: VariationGroup[];
+  isVisibleInStore?: boolean; // NEW: Control store visibility
+  imageUrl?: string; // NEW: Product image URL
 }
 
 export interface JobItem {

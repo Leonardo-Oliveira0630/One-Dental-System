@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Plus, Search, ShoppingBag, BadgePercent, Package, X, Building } from 'lucide-react';
@@ -233,9 +234,12 @@ export const Catalog = () => {
       );
   }
 
-  const categories = Array.from(new Set(jobTypes.map(t => t.category)));
+  // Filter products visible in store
+  const visibleProducts = jobTypes.filter(t => t.isVisibleInStore !== false); // Default to true if undefined
 
-  const products = jobTypes.filter(t => {
+  const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
+
+  const products = visibleProducts.filter(t => {
       const matchesTerm = t.name.toLowerCase().includes(term.toLowerCase());
       const matchesCat = selectedCategory === 'ALL' || t.category === selectedCategory;
       return matchesTerm && matchesCat;
@@ -296,7 +300,20 @@ export const Catalog = () => {
                     const { price, isCustom } = getPrice(product);
                     return (
                         <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col">
-                            <div className="h-48 bg-slate-50 flex items-center justify-center relative overflow-hidden"><Package size={64} className="relative z-10 text-slate-300 group-hover:text-indigo-500 transition-colors duration-300" />{isCustom && (<div className="absolute top-3 right-3 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-md z-20"><BadgePercent size={10} /> OFERTA</div>)}<div className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-slate-600 uppercase tracking-wider">{product.category}</div></div>
+                            <div className="h-48 bg-slate-50 flex items-center justify-center relative overflow-hidden">
+                                {product.imageUrl ? (
+                                    <img 
+                                        src={product.imageUrl} 
+                                        alt={product.name} 
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    />
+                                ) : (
+                                    <Package size={64} className="relative z-10 text-slate-300 group-hover:text-indigo-500 transition-colors duration-300" />
+                                )}
+                                
+                                {isCustom && (<div className="absolute top-3 right-3 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-md z-20"><BadgePercent size={10} /> OFERTA</div>)}
+                                <div className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-slate-600 uppercase tracking-wider z-20">{product.category}</div>
+                            </div>
                             <div className="p-6 flex flex-col flex-1">
                                 <div className="mb-4 flex-1"><h3 className="font-bold text-slate-900 text-lg leading-tight mb-2 group-hover:text-indigo-700 transition-colors">{product.name}</h3></div>
                                 <div className="pt-4 border-t border-slate-100">

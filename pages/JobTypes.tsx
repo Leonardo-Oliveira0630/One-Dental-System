@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -12,7 +12,7 @@ const generateFirestoreId = (prefix: string) => {
 };
 
 export const JobTypes = () => {
-  const { jobTypes, addJobType, updateJobType, deleteJobType } = useApp();
+  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile } = useApp();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -23,6 +23,10 @@ export const JobTypes = () => {
   const [category, setCategory] = useState('');
   const [basePrice, setBasePrice] = useState(0);
   const [variationGroups, setVariationGroups] = useState<VariationGroup[]>([]);
+  const [isVisibleInStore, setIsVisibleInStore] = useState(true);
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const resetForm = () => {
@@ -30,6 +34,10 @@ export const JobTypes = () => {
     setCategory('');
     setBasePrice(0);
     setVariationGroups([]);
+    setIsVisibleInStore(true);
+    setImageUrl('');
+    setImageFile(null);
+    setPreviewUrl('');
     setIsEditing(false);
     setEditingId(null);
     setActiveTab('BASIC');
@@ -42,7 +50,19 @@ export const JobTypes = () => {
     setCategory(type.category);
     setBasePrice(type.basePrice);
     setVariationGroups(type.variationGroups || []);
+    setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
+    setImageUrl(type.imageUrl || '');
+    setPreviewUrl(type.imageUrl || '');
+    setImageFile(null);
     setActiveTab('BASIC');
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          setImageFile(file);
+          setPreviewUrl(URL.createObjectURL(file));
+      }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -54,11 +74,22 @@ export const JobTypes = () => {
     
     setIsSaving(true);
     try {
+      let finalImageUrl = imageUrl;
+
+      // Upload image if selected
+      if (imageFile) {
+          finalImageUrl = await uploadFile(imageFile);
+      }
+
       if (isEditing && editingId) {
-          await updateJobType(editingId, { name, category, basePrice, variationGroups });
+          await updateJobType(editingId, { 
+              name, category, basePrice, variationGroups, 
+              isVisibleInStore, imageUrl: finalImageUrl 
+          });
       } else {
           const newType: Omit<JobType, 'id'> = {
-              name, category, basePrice, variationGroups
+              name, category, basePrice, variationGroups,
+              isVisibleInStore, imageUrl: finalImageUrl
           };
           await addJobType(newType);
       }
@@ -98,7 +129,6 @@ export const JobTypes = () => {
           priceModifier: 0,
           disablesOptions: []
       };
-      // FIX: Ensure options array exists with fallback to []
       const group = variationGroups.find(g => g.id === groupId);
       const currentOptions = group?.options || []; 
       
@@ -108,7 +138,6 @@ export const JobTypes = () => {
   const updateOption = (groupId: string, optionId: string, updates: Partial<VariationOption>) => {
       const group = variationGroups.find(g => g.id === groupId);
       if (!group) return;
-      // FIX: Ensure options array exists
       const currentOptions = group.options || [];
       const updatedOptions = currentOptions.map(o => o.id === optionId ? { ...o, ...updates } : o);
       updateGroup(groupId, { options: updatedOptions });
@@ -117,7 +146,6 @@ export const JobTypes = () => {
   const deleteOption = (groupId: string, optionId: string) => {
       const group = variationGroups.find(g => g.id === groupId);
       if (!group) return;
-      // FIX: Ensure options array exists
       const currentOptions = group.options || [];
       updateGroup(groupId, { options: currentOptions.filter(o => o.id !== optionId) });
   };
@@ -170,26 +198,45 @@ export const JobTypes = () => {
                                 : 'bg-white border-slate-100 shadow-sm hover:border-blue-200'
                         }`}
                     >
-                        <div className="flex justify-between items-start mb-2">
-                            <h3 className={`font-bold ${editingId === type.id ? 'text-blue-800' : 'text-slate-800'}`}>
-                                {type.name}
-                            </h3>
-                            {editingId !== type.id && (
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); deleteJobType(type.id); }} 
-                                    className="text-slate-300 hover:text-red-500"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                        <div className="flex gap-3">
+                            {/* Thumbnail */}
+                            <div className="w-12 h-12 rounded-lg bg-slate-100 shrink-0 overflow-hidden border border-slate-200 flex items-center justify-center">
+                                {type.imageUrl ? (
+                                    <img src={type.imageUrl} alt={type.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <Package size={20} className="text-slate-300" />
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start mb-1">
+                                    <h3 className={`font-bold truncate ${editingId === type.id ? 'text-blue-800' : 'text-slate-800'}`}>
+                                        {type.name}
+                                    </h3>
+                                    {editingId !== type.id && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); deleteJobType(type.id); }} 
+                                            className="text-slate-300 hover:text-red-500"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-semibold uppercase truncate max-w-[80px]">{type.category}</span>
+                                    <span className="font-bold text-slate-700">R$ {type.basePrice.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                            <div className="text-xs text-slate-400 flex items-center gap-1">
+                                <Layers size={12} />
+                                {type.variationGroups.length} grupos
+                            </div>
+                            {type.isVisibleInStore === false && (
+                                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                    <EyeOff size={10} /> Oculto na Loja
+                                </span>
                             )}
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-semibold uppercase">{type.category}</span>
-                            <span className="font-bold text-slate-700">R$ {type.basePrice.toFixed(2)}</span>
-                        </div>
-                        <div className="mt-2 text-xs text-slate-400 flex items-center gap-1">
-                            <Layers size={12} />
-                            {type.variationGroups.length} grupos
                         </div>
                     </div>
                 ))}
@@ -225,21 +272,75 @@ export const JobTypes = () => {
                 <form onSubmit={handleSave} className="p-6">
                     {activeTab === 'BASIC' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
-                             <h2 className="text-xl font-bold text-slate-800">
-                                {isEditing ? `Editando: ${name}` : 'Novo Tipo de Trabalho'}
-                            </h2>
-                            <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Serviço</label>
-                                <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
-                            </div>
-                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
-                                <input value={category} onChange={e => setCategory(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
-                            </div>
-                             <div>
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Preço Base (R$)</label>
-                                <input type="number" step="0.01" value={basePrice} onChange={e => setBasePrice(parseFloat(e.target.value))} required className="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
-                            </div>
+                             <div className="flex justify-between items-center">
+                                <h2 className="text-xl font-bold text-slate-800">
+                                    {isEditing ? `Editando: ${name}` : 'Novo Tipo de Trabalho'}
+                                </h2>
+                             </div>
+                             
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Serviço</label>
+                                        <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
+                                        <input value={category} onChange={e => setCategory(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Prótese Fixa"/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Preço Base (R$)</label>
+                                        <input type="number" step="0.01" value={basePrice} onChange={e => setBasePrice(parseFloat(e.target.value))} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
+                                    </div>
+                                </div>
+
+                                {/* Store Configuration */}
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                                    <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2">
+                                        <Store size={18} className="text-indigo-500" /> Exibição na Loja
+                                    </h3>
+                                    
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm font-medium text-slate-600">Disponível no Catálogo Web</label>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setIsVisibleInStore(!isVisibleInStore)}
+                                            className={`relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out ${isVisibleInStore ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                        >
+                                            <span className={`block w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInStore ? 'translate-x-6' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Imagem do Produto</label>
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-20 h-20 bg-white border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden relative group">
+                                                {previewUrl ? (
+                                                    <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <ImageIcon className="text-slate-300" />
+                                                )}
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <UploadCloud className="text-white" size={20} />
+                                                </div>
+                                                <input 
+                                                    type="file" 
+                                                    accept="image/*" 
+                                                    onChange={handleImageSelect}
+                                                    className="absolute inset-0 opacity-0 cursor-pointer"
+                                                />
+                                            </div>
+                                            <div className="flex-1 text-xs text-slate-500">
+                                                <p>Clique na imagem para enviar.</p>
+                                                <p>Formatos: PNG, JPG.</p>
+                                                {previewUrl && (
+                                                    <button type="button" onClick={() => { setPreviewUrl(''); setImageFile(null); setImageUrl(''); }} className="text-red-500 hover:underline mt-1">Remover Imagem</button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                             </div>
                         </div>
                     )}
                     
