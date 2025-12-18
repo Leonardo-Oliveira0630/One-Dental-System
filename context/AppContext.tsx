@@ -61,7 +61,7 @@ interface AppContextType {
   switchActiveOrganization: (id: string | null) => void;
   userConnections: OrganizationConnection[];
 
-  // --- Missing SaaS & Management Methods ---
+  // --- SaaS & Management Methods ---
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
   validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
   createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<any>;
@@ -159,14 +159,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubComms(); unsubPatients(); unsubAppointments(); unsubAlerts(); };
   }, [currentUser, activeOrganization]);
 
-  const login = async (email: string, pass: string) => await api.apiLogin(email, pass);
-  const logout = async () => await api.apiLogout();
-  const updateUser = async (id: string, u: Partial<User>) => await api.apiUpdateUser(id, u);
-  const addUser = async (u: User) => await api.apiAddUser(u);
-  const deleteUser = async (id: string) => await api.apiDeleteUser(id);
+  // Fix: Force login to return Promise<void> by wrapping the api call and not returning its value
+  const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
+  
+  const logout = () => { api.apiLogout(); };
+  
+  const updateUser = async (id: string, u: Partial<User>) => { await api.apiUpdateUser(id, u); };
+  const addUser = async (u: User) => { await api.apiAddUser(u); };
+  const deleteUser = async (id: string) => { await api.apiDeleteUser(id); };
 
-  const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => await api.apiAddJob(orgId(), { ...j, id: `job_${Date.now()}`, organizationId: orgId() } as Job);
-  const updateJob = async (id: string, u: Partial<Job>) => await api.apiUpdateJob(orgId(), id, u);
+  const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => { await api.apiAddJob(orgId(), { ...j, id: `job_${Date.now()}`, organizationId: orgId() } as Job); };
+  const updateJob = async (id: string, u: Partial<Job>) => { await api.apiUpdateJob(orgId(), id, u); };
 
   const addCommissionRecord = async (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => {
       await api.apiAddCommission(orgId(), { ...rec, id: `comm_${Date.now()}`, organizationId: orgId() } as CommissionRecord);
@@ -175,37 +178,42 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiUpdateCommission(orgId(), id, { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined });
   };
 
-  const addJobType = async (jt: Omit<JobType, 'id'>) => await api.apiAddJobType(orgId(), { ...jt, id: `jtype_${Date.now()}` } as JobType);
-  const updateJobType = async (id: string, u: Partial<JobType>) => await api.apiUpdateJobType(orgId(), id, u);
-  const deleteJobType = async (id: string) => await api.apiDeleteJobType(orgId(), id);
-  const addSector = async (name: string) => await api.apiAddSector(orgId(), { id: `sector_${Date.now()}`, name });
-  const deleteSector = async (id: string) => await api.apiDeleteSector(orgId(), id);
+  const addJobType = async (jt: Omit<JobType, 'id'>) => { await api.apiAddJobType(orgId(), { ...jt, id: `jtype_${Date.now()}` } as JobType); };
+  const updateJobType = async (id: string, u: Partial<JobType>) => { await api.apiUpdateJobType(orgId(), id, u); };
+  const deleteJobType = async (id: string) => { await api.apiDeleteJobType(orgId(), id); };
+  const addSector = async (name: string) => { await api.apiAddSector(orgId(), { id: `sector_${Date.now()}`, name }); };
+  const deleteSector = async (id: string) => { await api.apiDeleteSector(orgId(), id); };
 
-  // --- Implementation of missing methods ---
-  const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
+  const updateOrganization = async (id: string, u: Partial<Organization>) => { await api.apiUpdateOrganization(id, u); };
   const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
   const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => await api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj);
   const getSaaSInvoices = async (orgId: string) => await api.apiGetSaaSInvoices(orgId);
   const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);
-  const addAlert = async (a: JobAlert) => await api.apiAddAlert(orgId(), a);
-  const dismissAlert = async (id: string) => await api.apiMarkAlertAsRead(orgId(), id, currentUser?.id || '');
-  const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => await api.apiAddPatient(orgId(), { ...p, id: `pat_${Date.now()}`, organizationId: orgId() } as ClinicPatient);
-  const updatePatient = async (id: string, u: Partial<ClinicPatient>) => await api.apiUpdatePatient(orgId(), id, u);
-  const deletePatient = async (id: string) => await api.apiDeletePatient(orgId(), id);
-  const addAppointment = async (a: Omit<Appointment, 'id' | 'organizationId'>) => await api.apiAddAppointment(orgId(), { ...a, id: `app_${Date.now()}`, organizationId: orgId() } as Appointment);
-  const updateAppointment = async (id: string, u: Partial<Appointment>) => await api.apiUpdateAppointment(orgId(), id, u);
-  const deleteAppointment = async (id: string) => await api.apiDeleteAppointment(orgId(), id);
+  
+  const addAlert = async (a: JobAlert) => { await api.apiAddAlert(orgId(), a); };
+  const dismissAlert = async (id: string) => { await api.apiMarkAlertAsRead(orgId(), id, currentUser?.id || ''); };
+  
+  const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => { await api.apiAddPatient(orgId(), { ...p, id: `pat_${Date.now()}`, organizationId: orgId() } as ClinicPatient); };
+  const updatePatient = async (id: string, u: Partial<ClinicPatient>) => { await api.apiUpdatePatient(orgId(), id, u); };
+  const deletePatient = async (id: string) => { await api.apiDeletePatient(orgId(), id); };
+  
+  const addAppointment = async (a: Omit<Appointment, 'id' | 'organizationId'>) => { await api.apiAddAppointment(orgId(), { ...a, id: `app_${Date.now()}`, organizationId: orgId() } as Appointment); };
+  const updateAppointment = async (id: string, u: Partial<Appointment>) => { await api.apiUpdateAppointment(orgId(), id, u); };
+  const deleteAppointment = async (id: string) => { await api.apiDeleteAppointment(orgId(), id); };
+  
   const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c);
   const registerDentist = async (e: string, p: string, n: string, cn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterDentist(e, p, n, cn, pid, t, c);
-  const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
-  const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
-  const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
-  const addConnectionByCode = async (code: string) => await api.apiAddConnectionByCode(orgId(), currentUser?.id || '', code);
-  const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
-  const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
-  const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
+  
+  const addSubscriptionPlan = async (p: SubscriptionPlan) => { await api.apiAddSubscriptionPlan(p); };
+  const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => { await api.apiUpdateSubscriptionPlan(id, u); };
+  const deleteSubscriptionPlan = async (id: string) => { await api.apiDeleteSubscriptionPlan(id); };
+  
+  const addConnectionByCode = async (code: string) => { await api.apiAddConnectionByCode(orgId(), currentUser?.id || '', code); };
+  
+  const addCoupon = async (c: Coupon) => { await api.apiAddCoupon(c); };
+  const updateCoupon = async (id: string, u: Partial<Coupon>) => { await api.apiUpdateCoupon(id, u); };
+  const deleteCoupon = async (id: string) => { await api.apiDeleteCoupon(id); };
 
-  // --- Fixed switchActiveOrganization ---
   const switchActiveOrganization = (id: string | null) => {
     if (!id) {
         setActiveOrganization(null);
