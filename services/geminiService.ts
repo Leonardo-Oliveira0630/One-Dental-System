@@ -2,26 +2,15 @@
 import { GoogleGenAI } from "@google/genai";
 import { Job, JobStatus, UrgencyLevel } from "../types";
 
-const initGenAI = () => {
-  // In Vite, process.env.API_KEY is replaced by a string literal at build time.
-  // We access it directly to ensure the replacement works.
-  // Checking 'typeof process' is unnecessary and causes issues in the browser.
-  const apiKey = process.env.API_KEY;
-  if (apiKey) {
-     return new GoogleGenAI({ apiKey });
-  }
-  
-  console.warn("Gemini API Key is missing.");
-  return null;
-};
-
+// getProductionInsights provides industrial manager expert advice based on current production data.
 export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
-  const ai = initGenAI();
-  if (!ai) return "Serviço de IA Indisponível (Falta Chave API ou Configuração).";
+  // Always obtain the API key from process.env.API_KEY and create a new instance right before making an API call.
+  // This ensures the client uses the most up-to-date configuration.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Prepare data summary for the AI
   const totalJobs = jobs.length;
-  const delayed = jobs.filter(j => j.dueDate < new Date() && j.status !== JobStatus.COMPLETED).length;
+  const delayed = jobs.filter(j => new Date(j.dueDate) < new Date() && j.status !== JobStatus.COMPLETED).length;
   const vip = jobs.filter(j => j.urgency === UrgencyLevel.VIP && j.status !== JobStatus.COMPLETED).length;
   
   // Group by sector (mock logic for sector distribution)
@@ -49,11 +38,12 @@ export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
   `;
 
   try {
-    // Corrected model name according to guidelines
+    // Generate content using the specified model and prompt as per updated coding guidelines
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
+    // Use the .text property to access the generated string directly
     return response.text || "Nenhum insight gerado.";
   } catch (error) {
     console.error("Gemini Error:", error);
