@@ -12,18 +12,8 @@ import { NewJob } from './pages/NewJob';
 import { JobTypes } from './pages/JobTypes';
 import { Admin } from './pages/Admin';
 import { JobDetails } from './pages/JobDetails';
-import { PromisedJobs } from './pages/PromisedJobs';
-import { ProductionCalendar } from './pages/ProductionCalendar';
+import { Commissions } from './pages/Commissions';
 import { Profile } from './pages/Profile';
-import { Patients } from './pages/clinic/Patients';
-import { Schedule } from './pages/clinic/Schedule';
-import { ClinicSettings } from './pages/clinic/ClinicSettings';
-import { RegisterOrganization } from './pages/RegisterOrganization';
-import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
-import { Plans } from './pages/superadmin/Plans';
-import { Coupons } from './pages/superadmin/Coupons';
-import { Partnerships } from './pages/dentist/Partnerships';
-import { Subscribe } from './pages/Subscribe';
 import { Loader2 } from 'lucide-react';
 import { UserRole } from './types';
 
@@ -34,56 +24,22 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   return <Layout>{children}</Layout>;
 };
 
-const SuperAdminRoute = ({ children }: { children?: React.ReactNode }) => {
-  const { currentUser, isLoadingAuth } = useApp();
-  if (isLoadingAuth) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 text-blue-600 animate-spin" /></div>;
-  if (currentUser?.role !== UserRole.SUPER_ADMIN) return <Navigate to="/dashboard" replace />;
-  return <Layout>{children}</Layout>;
-};
-
-const ClientRoute = ({ children }: { children?: React.ReactNode }) => {
-  const { currentUser, isLoadingAuth } = useApp();
-  if (isLoadingAuth) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 text-blue-600 animate-spin" /></div>;
-  if (currentUser?.role !== UserRole.CLIENT) return <Navigate to="/dashboard" replace />;
-  return <Layout>{children}</Layout>;
-};
-
 const AppContent = () => {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
-      <Route path="/register-lab" element={<RegisterOrganization />} />
-      
-      {/* Super Admin Routes */}
-      <Route path="/superadmin" element={<SuperAdminRoute><SuperAdminDashboard /></SuperAdminRoute>} />
-      <Route path="/superadmin/plans" element={<SuperAdminRoute><Plans /></SuperAdminRoute>} />
-      <Route path="/superadmin/coupons" element={<SuperAdminRoute><Coupons /></SuperAdminRoute>} />
-
-      {/* Protected Lab Routes */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><JobsList /></ProtectedRoute>} />
       <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
-      <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
-      <Route path="/incoming" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
-      <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
+      <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
+      <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
-
-      {/* Protected Store Routes */}
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
-      <Route path="/my-orders" element={<ProtectedRoute><JobsList /></ProtectedRoute>} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
-
-      {/* Protected Clinic Routes */}
-      <Route path="/clinic/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
-      <Route path="/clinic/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
-      <Route path="/clinic/settings" element={<ClientRoute><ClinicSettings /></ClientRoute>} />
-      
-      {/* Dentist Settings */}
-      <Route path="/dentist/partnerships" element={<ClientRoute><Partnerships /></ClientRoute>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

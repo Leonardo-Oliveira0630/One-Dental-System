@@ -2,82 +2,108 @@
 // --- USER & AUTH ---
 
 export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN', // SaaS Owner
-  ADMIN = 'ADMIN', // Lab Owner/Admin
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
   MANAGER = 'MANAGER',
   COLLABORATOR = 'COLLABORATOR',
-  CLIENT = 'CLIENT' // Dentist
+  CLIENT = 'CLIENT'
+}
+
+export interface UserCommissionSetting {
+  jobTypeId: string;
+  value: number;
+  type: 'FIXED' | 'PERCENTAGE';
 }
 
 export interface User {
-  id: string; // Firebase Auth UID
-  organizationId?: string; // ID of the Lab/Clinic this user belongs to
+  id: string;
+  organizationId?: string;
   name: string;
   email: string;
   role: UserRole;
   clinicName?: string; 
   sector?: string; 
   customPrices?: CustomPrice[]; 
+  commissionSettings?: UserCommissionSetting[]; // Configurações de comissão
+}
+
+// --- COMMISSIONS ---
+
+export enum CommissionStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  CANCELLED = 'CANCELLED'
+}
+
+export interface CommissionRecord {
+  id: string;
+  organizationId: string;
+  userId: string;
+  userName: string;
+  jobId: string;
+  osNumber: string;
+  patientName: string;
+  amount: number;
+  status: CommissionStatus;
+  createdAt: Date;
+  paidAt?: Date;
+  sector: string;
 }
 
 // --- SAAS STRUCTURE ---
 
 export interface SubscriptionPlanFeatures {
-  maxUsers: number; // -1 for unlimited
+  maxUsers: number;
   maxStorageGB: number;
   hasStoreModule: boolean;
   hasClinicModule: boolean;
 }
 
 export interface SubscriptionPlan {
-  id: string; // e.g., 'basic', 'pro', 'partner_vip'
+  id: string;
   name: string;
-  price: number; // 0 for free
+  price: number;
   description?: string;
   features: SubscriptionPlanFeatures;
   trialDays?: number; 
-  isPublic: boolean; // If false, only Admin can assign (for Partners/Internal)
+  isPublic: boolean;
   active: boolean;
-  targetAudience: 'LAB' | 'CLINIC'; // NEW: Distinguish plans
+  targetAudience: 'LAB' | 'CLINIC';
 }
 
-// NEW: COUPON STRUCTURE
 export interface Coupon {
-  id: string; // The code itself (e.g., "PROMO2024")
+  id: string;
   code: string;
   discountType: 'PERCENTAGE' | 'FIXED' | 'TRIAL_EXT' | 'FREE_FOREVER';
-  discountValue: number; // % off, $ off, or days added
+  discountValue: number;
   validUntil?: Date;
   maxUses?: number;
   usedCount: number;
   active: boolean;
-  applicablePlans?: string[]; // IDs of plans this coupon works for (empty = all)
+  applicablePlans?: string[];
 }
 
 export interface FinancialSettings {
-  // Manual Data (Display Only)
   pixKey?: string;
   pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM';
   bankInfo?: string; 
   paymentLink?: string; 
   instructions?: string;
-  
-  // Automated Asaas Data (Sub-account)
-  asaasWalletId?: string; // The Account ID in Asaas (e.g. "acct_12345")
-  asaasApiKey?: string; // The API Key specific for this sub-account
+  asaasWalletId?: string;
+  asaasApiKey?: string;
   walletStatus?: 'PENDING' | 'ACTIVE' | 'REJECTED';
 }
 
 export interface Organization {
   id: string;
-  orgType: 'LAB' | 'CLINIC'; // NEW: Distinguish Organization type
-  name: string; // Lab's or Clinic's name
-  ownerId: string; // The first Admin user
-  planId: string; // Link to the subscription plan
+  orgType: 'LAB' | 'CLINIC';
+  name: string;
+  ownerId: string;
+  planId: string;
   subscriptionStatus?: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'TRIAL';
   trialEndsAt?: Date; 
-  financialSettings?: FinancialSettings; // For receiving payments
-  appliedCoupon?: string; // Track which coupon was used
+  financialSettings?: FinancialSettings;
+  appliedCoupon?: string;
   createdAt: Date;
   storageUsageBytes?: number;
 }
@@ -90,8 +116,6 @@ export interface OrganizationConnection {
   status: 'active' | 'pending' | 'revoked';
   createdAt: Date;
 }
-
-// --- LAB & CLINIC DATA (Now scoped by Organization) ---
 
 export enum JobStatus {
   WAITING_APPROVAL = 'WAITING_APPROVAL', 
@@ -140,8 +164,8 @@ export interface JobType {
   category: string;
   basePrice: number;
   variationGroups: VariationGroup[];
-  isVisibleInStore?: boolean; // NEW: Control store visibility
-  imageUrl?: string; // NEW: Product image URL
+  isVisibleInStore?: boolean;
+  imageUrl?: string;
 }
 
 export interface JobItem {
@@ -173,7 +197,7 @@ export interface Attachment {
 
 export interface Job {
   id: string; 
-  organizationId: string; // Data Scoping
+  organizationId: string;
   osNumber?: string; 
   patientName: string;
   dentistId: string;
@@ -191,18 +215,16 @@ export interface Job {
   totalValue: number;
   notes?: string;
   managerNotes?: string; 
-  
-  // NEW PAYMENT FIELDS
   paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED' | 'FAILED';
   paymentMethod?: 'CREDIT_CARD' | 'PIX';
-  paymentId?: string; // Asaas Payment ID
+  paymentId?: string;
   pixCopyPaste?: string;
-  pixQrCode?: string; // Base64
+  pixQrCode?: string;
 }
 
 export interface JobAlert {
   id: string;
-  organizationId: string; // Data Scoping
+  organizationId: string;
   jobId: string;
   osNumber: string;
   message: string;
@@ -231,7 +253,7 @@ export interface CartItem {
 
 export interface ClinicPatient {
   id: string;
-  organizationId: string; // Data Scoping
+  organizationId: string;
   dentistId: string; 
   name: string;
   cpf?: string;
@@ -253,7 +275,7 @@ export enum AppointmentStatus {
 
 export interface Appointment {
   id: string;
-  organizationId: string; // Data Scoping
+  organizationId: string;
   dentistId: string;
   patientId: string;
   patientName: string; 

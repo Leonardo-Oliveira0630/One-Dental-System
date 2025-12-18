@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ClinicPatient } from '../../types';
@@ -5,7 +6,8 @@ import { Plus, Search, Phone, Mail, Edit2, Trash2, X, Save } from 'lucide-react'
 import { FeatureLocked } from '../../components/FeatureLocked';
 
 export const Patients = () => {
-  const { patients, addPatient, updatePatient, deletePatient, currentPlan, activeOrganization } = useApp();
+  // Added currentUser to useApp hook to obtain dentistId
+  const { patients, addPatient, updatePatient, deletePatient, currentPlan, activeOrganization, currentUser } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
@@ -48,7 +50,15 @@ export const Patients = () => {
     if (editingId) {
         await updatePatient(editingId, { name, phone, email, cpf });
     } else {
-        await addPatient({ name, phone, email, cpf, createdAt: new Date() });
+        // Added missing dentistId property required by Omit<ClinicPatient, "id" | "organizationId">
+        await addPatient({ 
+          name, 
+          phone, 
+          email, 
+          cpf, 
+          createdAt: new Date(), 
+          dentistId: currentUser?.id || '' 
+        });
     }
     setIsModalOpen(false);
   };

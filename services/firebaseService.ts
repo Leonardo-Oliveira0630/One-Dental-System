@@ -13,7 +13,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, auth, storage, functions } from './firebaseConfig';
 import { 
   Job, User, JobType, Sector, UserRole, JobAlert, ClinicPatient, Appointment, 
-  Organization, SubscriptionPlan, OrganizationConnection, Coupon
+  Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord
 } from '../types';
 
 // --- HELPERS ---
@@ -67,13 +67,12 @@ export const apiRegisterUserInOrg = async (email: string, pass: string, name: st
     return newUser;
 };
 
-// MODIFIED: Registers a Dentist AND creates a "Clinic" Organization for them to hold the subscription
 export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
     if (!auth || !db) throw new Error("Firebase not configured");
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     const uid = userCredential.user.uid;
 
-    const orgId = `clinic_${uid}`; // Separate ID structure for clinics
+    const orgId = `clinic_${uid}`;
     const newOrg: Organization = {
         id: orgId,
         orgType: 'CLINIC',
@@ -90,15 +89,6 @@ export const apiRegisterDentist = async (email: string, pass: string, name: stri
     const newUser: User = { id: uid, organizationId: orgId, email, name, role: UserRole.CLIENT, clinicName };
     await setDoc(doc(db, 'users', uid), sanitizeData(newUser));
 
-    if (couponCode) {
-      const couponRef = doc(db, 'coupons', couponCode);
-      const couponSnap = await getDoc(couponRef);
-      if (couponSnap.exists()) {
-          const currentUsage = (couponSnap.data() as any).usedCount || 0;
-          await updateDoc(couponRef, { usedCount: currentUsage + 1 });
-      }
-    }
-
     return newUser;
 };
 
@@ -112,41 +102,15 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
   return null;
 };
 
-// --- CONNECTIONS ---
-export const subscribeUserConnections = (dentistId: string, callback: (connections: OrganizationConnection[]) => void) => {
-    if (!db) return () => {};
-    const q = query(collection(db, 'connections'), where('dentistId', '==', dentistId));
-    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-        callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as OrganizationConnection)));
-    });
-};
-
-export const apiAddConnectionByCode = async (dentistId: string, orgCode: string): Promise<void> => {
-    if (!db) throw new Error("Database not connected");
-    const orgRef = doc(db, 'organizations', orgCode);
-    const orgSnap = await getDoc(orgRef);
-    if (!orgSnap.exists()) throw new Error("Código do laboratório inválido ou não encontrado.");
-    const orgData = orgSnap.data() as Organization;
-    
-    // Only connect if the target org is a LAB
-    if (orgData.orgType !== 'LAB' && orgData.orgType !== undefined) {
-        throw new Error("Este código não pertence a um laboratório válido.");
-    }
-
-    const existingQuery = query(collection(db, 'connections'), where('dentistId', '==', dentistId), where('organizationId', '==', orgCode));
-    const existingSnap = await getDocs(existingQuery);
-    if (!existingSnap.empty) throw new Error("Você já tem parceria com este laboratório.");
-    
-    const connectionId = `conn_${dentistId}_${orgCode}`;
-    const newConnection: OrganizationConnection = {
-        id: connectionId, dentistId, organizationId: orgCode, organizationName: orgData.name, status: 'active', createdAt: new Date()
-    };
-    await setDoc(doc(db, 'connections', connectionId), newConnection);
-};
+// --- COMMISSIONS ---
+export const subscribeCommissions = (orgId: string, cb: (d: CommissionRecord[]) => void) => subscribeSubCollection<CommissionRecord>(orgId, 'commissions', cb);
+export const apiAddCommission = (orgId: string, d: CommissionRecord) => apiAddSubDoc(orgId, 'commissions', d);
+export const apiUpdateCommission = (orgId: string, id: string, u: Partial<CommissionRecord>) => apiUpdateSubDoc(orgId, 'commissions', id, u);
 
 // --- DATA FUNCTIONS ---
 const getSubCollection = (orgId: string, collName: string) => collection(db, 'organizations', orgId, collName);
 const getSubDoc = (orgId: string, collName: string, docId: string) => doc(db, 'organizations', orgId, collName, docId);
+
 const subscribeSubCollection = <T>(orgId: string, collName: string, callback: (data: T[]) => void) => {
   if (!db) return () => {};
   const q = query(getSubCollection(orgId, collName));
@@ -154,10 +118,12 @@ const subscribeSubCollection = <T>(orgId: string, collName: string, callback: (d
     callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as T)));
   });
 };
+
 const apiAddSubDoc = async <T extends {id: string}>(orgId: string, collName: string, data: T) => await setDoc(getSubDoc(orgId, collName, data.id), sanitizeData(data));
 const apiUpdateSubDoc = async <T>(orgId: string, collName: string, docId: string, updates: Partial<T>) => await updateDoc(getSubDoc(orgId, collName, docId), sanitizeData(updates));
 const apiDeleteSubDoc = async (orgId: string, collName: string, docId: string) => await deleteDoc(getSubDoc(orgId, collName, docId));
 
+// --- JOBS & ASSETS ---
 export const subscribeJobs = (orgId: string, cb: (d: Job[]) => void) => subscribeSubCollection<Job>(orgId, 'jobs', cb);
 export const apiAddJob = (orgId: string, d: Job) => apiAddSubDoc(orgId, 'jobs', d);
 export const apiUpdateJob = (orgId: string, id: string, u: Partial<Job>) => apiUpdateSubDoc(orgId, 'jobs', id, u);
@@ -175,23 +141,6 @@ export const subscribeAlerts = (orgId: string, cb: (d: JobAlert[]) => void) => s
 export const apiAddAlert = (orgId: string, d: JobAlert) => apiAddSubDoc(orgId, 'alerts', d);
 export const apiMarkAlertAsRead = async (orgId: string, alertId: string, userId: string) => await updateDoc(getSubDoc(orgId, 'alerts', alertId), { readBy: arrayUnion(userId) });
 
-export const subscribeClinicPatients = (orgId: string, dentistId: string, cb: (d: ClinicPatient[]) => void) => {
-    // If the Dentist HAS their own subscription (Organization), they are the "owner", so query all patients in that org
-    const q = query(getSubCollection(orgId, 'clinicPatients'));
-    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => cb(snapshot.docs.map(doc => ({...(convertDates(doc.data()) as any), id: doc.id} as ClinicPatient))));
-};
-export const apiAddPatient = (orgId: string, d: ClinicPatient) => apiAddSubDoc(orgId, 'clinicPatients', d);
-export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => apiUpdateSubDoc(orgId, 'clinicPatients', id, u);
-export const apiDeletePatient = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'clinicPatients', id);
-
-export const subscribeAppointments = (orgId: string, dentistId: string, cb: (d: Appointment[]) => void) => {
-    const q = query(getSubCollection(orgId, 'appointments'));
-    return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => cb(snapshot.docs.map(doc => ({...(convertDates(doc.data()) as any), id: doc.id} as Appointment))));
-};
-export const apiAddAppointment = (orgId: string, d: Appointment) => apiAddSubDoc(orgId, 'appointments', d);
-export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => apiUpdateSubDoc(orgId, 'appointments', id, u);
-export const apiDeleteAppointment = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'appointments', id);
-
 export const subscribeOrgUsers = (orgId: string, callback: (users: User[]) => void) => {
   if (!db) return () => {};
   const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
@@ -203,20 +152,100 @@ export const apiAddUser = async (user: User) => await setDoc(doc(db, 'users', us
 export const apiUpdateUser = async (id: string, updates: Partial<User>) => await updateDoc(doc(db, 'users', id), sanitizeData(updates));
 export const apiDeleteUser = async (id: string) => await deleteDoc(doc(db, 'users', id));
 
-// --- ORGANIZATION & PLANS MANAGEMENT ---
-
-export const subscribeAllOrganizations = (callback: (orgs: Organization[]) => void) => {
-  if (!db) return () => {};
-  const q = query(collection(db, 'organizations'));
-  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as Organization)));
-  });
+// --- CLOUD FUNCTIONS CALLS ---
+export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
+    const fn = httpsCallable(functions, 'createOrderPayment');
+    const result: any = await fn({ jobData, paymentData });
+    return result.data;
 };
 
-export const apiUpdateOrganization = async (id: string, updates: Partial<Organization>) => {
-    if (!db) return;
-    await updateDoc(doc(db, 'organizations', id), sanitizeData(updates));
+export const apiManageOrderDecision = async (orgId: string, jobId: string, decision: 'APPROVE' | 'REJECT', rejectionReason?: string) => {
+    const fn = httpsCallable(functions, 'manageOrderDecision');
+    const result: any = await fn({ orgId, jobId, decision, rejectionReason });
+    return result.data;
 };
+
+export const apiCreateSaaSSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => {
+    const fn = httpsCallable(functions, 'createSaaSSubscription');
+    const result: any = await fn({ orgId, planId, email, name, cpfCnpj });
+    return result.data;
+};
+
+export const apiCheckSubscriptionStatus = async (orgId: string) => {
+    const fn = httpsCallable(functions, 'checkSubscriptionStatus');
+    const result: any = await fn({ orgId });
+    return result.data;
+};
+
+export const apiGetSaaSInvoices = async (orgId: string) => {
+    const fn = httpsCallable(functions, 'getSaaSInvoices');
+    const result: any = await fn({ orgId });
+    return result.data;
+};
+
+// --- ADDITIONAL SUBSCRIPTIONS ---
+export const subscribeAllOrganizations = (cb: (d: Organization[]) => void) => {
+    if (!db) return () => {};
+    const q = query(collection(db, 'organizations'));
+    return onSnapshot(q, (snapshot) => {
+        cb(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as Organization)));
+    });
+};
+
+export const subscribePatients = (orgId: string, cb: (d: ClinicPatient[]) => void) => subscribeSubCollection<ClinicPatient>(orgId, 'patients', cb);
+export const apiAddPatient = (orgId: string, d: ClinicPatient) => apiAddSubDoc(orgId, 'patients', d);
+export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => apiUpdateSubDoc(orgId, 'patients', id, u);
+export const apiDeletePatient = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'patients', id);
+
+export const subscribeAppointments = (orgId: string, cb: (d: Appointment[]) => void) => subscribeSubCollection<Appointment>(orgId, 'appointments', cb);
+export const apiAddAppointment = (orgId: string, d: Appointment) => apiAddSubDoc(orgId, 'appointments', d);
+export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => apiUpdateSubDoc(orgId, 'appointments', id, u);
+export const apiDeleteAppointment = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'appointments', id);
+
+export const subscribeCoupons = (cb: (d: Coupon[]) => void) => {
+    if (!db) return () => {};
+    const q = query(collection(db, 'coupons'));
+    return onSnapshot(q, (snapshot) => {
+        cb(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as Coupon)));
+    });
+};
+
+export const apiAddCoupon = async (c: Coupon) => await setDoc(doc(db, 'coupons', c.id), sanitizeData(c));
+export const apiUpdateCoupon = async (id: string, updates: Partial<Coupon>) => await updateDoc(doc(db, 'coupons', id), sanitizeData(updates));
+export const apiDeleteCoupon = async (id: string) => await deleteDoc(doc(db, 'coupons', id));
+
+export const apiValidateCoupon = async (code: string, planId: string): Promise<Coupon | null> => {
+    if (!db) return null;
+    const docSnap = await getDoc(doc(db, 'coupons', code.toUpperCase()));
+    if (docSnap.exists()) {
+        const c = convertDates(docSnap.data()) as Coupon;
+        if (!c.active) return null;
+        if (c.validUntil && c.validUntil < new Date()) return null;
+        if (c.maxUses && c.usedCount >= c.maxUses) return null;
+        if (c.applicablePlans && planId !== 'ANY' && !c.applicablePlans.includes(planId)) return null;
+        return c;
+    }
+    return null;
+};
+
+export const apiAddConnectionByCode = async (orgId: string, dentistId: string, organizationId: string) => {
+    const orgSnap = await getDoc(doc(db, 'organizations', organizationId));
+    if (!orgSnap.exists()) throw new Error("Laboratório não encontrado.");
+    const orgData = orgSnap.data() as Organization;
+    
+    const connId = `conn_${dentistId}_${organizationId}`;
+    const conn: OrganizationConnection = {
+        id: connId,
+        dentistId,
+        organizationId,
+        organizationName: orgData.name,
+        status: 'active',
+        createdAt: new Date()
+    };
+    await setDoc(doc(db, 'organizations', orgId, 'connections', connId), sanitizeData(conn));
+};
+
+export const apiUpdateOrganization = async (id: string, updates: Partial<Organization>) => await updateDoc(doc(db, 'organizations', id), sanitizeData(updates));
 
 export const subscribeSubscriptionPlans = (callback: (plans: SubscriptionPlan[]) => void) => {
   if (!db) return () => {};
@@ -239,151 +268,6 @@ export const apiUpdateSubscriptionPlan = async (id: string, updates: Partial<Sub
 export const apiDeleteSubscriptionPlan = async (id: string) => {
   if (!db) return;
   await deleteDoc(doc(db, 'subscriptionPlans', id));
-};
-
-export const subscribeAllUsers = (cb: (d: User[]) => void) => {
-    return onSnapshot(query(collection(db, 'users')), (snapshot: QuerySnapshot<DocumentData>) => cb(snapshot.docs.map(doc => ({...(doc.data() as any), id: doc.id} as User))));
-}
-
-// --- COUPONS MANAGEMENT ---
-
-export const subscribeCoupons = (callback: (coupons: Coupon[]) => void) => {
-  if (!db) return () => {};
-  const q = query(collection(db, 'coupons'));
-  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as Coupon)));
-  });
-};
-
-export const apiAddCoupon = async (coupon: Coupon) => {
-  if (!db) return;
-  await setDoc(doc(db, 'coupons', coupon.code.toUpperCase()), sanitizeData(coupon));
-};
-
-export const apiUpdateCoupon = async (code: string, updates: Partial<Coupon>) => {
-  if (!db) return;
-  await updateDoc(doc(db, 'coupons', code.toUpperCase()), sanitizeData(updates));
-};
-
-export const apiDeleteCoupon = async (code: string) => {
-  if (!db) return;
-  await deleteDoc(doc(db, 'coupons', code.toUpperCase()));
-};
-
-export const apiValidateCoupon = async (code: string, planId: string): Promise<Coupon | null> => {
-    if (!db) return null;
-    const docRef = doc(db, 'coupons', code.toUpperCase());
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    
-    // Ensure all dates are converted properly from Timestamp
-    const coupon = { ...convertDates(snap.data()), id: snap.id } as Coupon;
-    
-    if (!coupon.active) return null;
-    
-    // Check Date
-    if (coupon.validUntil && new Date() > coupon.validUntil) return null;
-    
-    // Check Uses
-    if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) return null;
-    
-    // Check Plan match (If 'ANY', we skip checking applicablePlans)
-    if (planId !== 'ANY' && coupon.applicablePlans && coupon.applicablePlans.length > 0 && !coupon.applicablePlans.includes(planId)) return null;
-    
-    return coupon;
-};
-
-// --- PAYMENT & SUBSCRIPTIONS ---
-export const callCreateSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => {
-    // Tenta chamar a Cloud Function Real
-    if (functions) {
-        try {
-            console.log("Chamando Cloud Function: createSaaSSubscription");
-            const createSub = httpsCallable(functions, 'createSaaSSubscription');
-            const cleanEmail = email ? email.trim() : '';
-            const result: any = await createSub({ orgId, planId, email: cleanEmail, name, cpfCnpj });
-            
-            // Sucesso da Cloud Function
-            if (result && result.data) {
-                return result.data as { success: boolean; paymentLink?: string; isMock?: boolean };
-            }
-            console.warn("Função retornou sem dados. Usando fallback.");
-        } catch (error: any) {
-            console.warn("Cloud Function falhou (Ambiente Dev ou Erro Config). Usando Fallback.", error);
-            // Fallback ocorre abaixo
-        }
-    } else {
-        console.warn("Functions não inicializado. Usando fallback.");
-    }
-
-    // --- FALLBACK LOCAL (SIMULAÇÃO ABSOLUTA) ---
-    console.log("Simulando ativação de plano (Fallback Local)...");
-    
-    try {
-        if (db) {
-            await updateDoc(doc(db, 'organizations', orgId), {
-                subscriptionStatus: 'ACTIVE',
-                planId: planId,
-                updatedAt: new Date(),
-                fallbackMode: true
-            });
-        }
-    } catch (dbError) {
-        console.error("Erro ao atualizar DB no fallback.", dbError);
-    }
-
-    return { 
-        success: true, 
-        paymentLink: 'https://google.com?q=simulacao-sucesso-retornar-ao-app', // Link dummy
-        isMock: true
-    };
-};
-
-export const apiCheckSubscriptionStatus = async (orgId: string) => {
-    if (!functions) throw new Error("Functions not initialized");
-    const fn = httpsCallable(functions, 'checkSubscriptionStatus');
-    const result: any = await fn({ orgId });
-    return result.data as { status: string; updated: boolean };
-};
-
-export const apiGetSaaSInvoices = async (orgId: string) => {
-    if (!functions) throw new Error("Functions not initialized");
-    const fn = httpsCallable(functions, 'getSaaSInvoices');
-    const result: any = await fn({ orgId });
-    return result.data.invoices;
-};
-
-// --- JOB PAYMENT FUNCTIONS ---
-
-export const apiCreateLabWallet = async (data: { 
-    orgId: string, 
-    name: string, 
-    email: string, 
-    cpfCnpj: string, 
-    address: string, 
-    phone: string,
-    addressNumber: string,
-    province: string,
-    postalCode: string
-}) => {
-    if (!functions) throw new Error("Functions not initialized");
-    const fn = httpsCallable(functions, 'createLabSubAccount');
-    const result: any = await fn(data);
-    return result.data;
-};
-
-export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
-    if (!functions) throw new Error("Functions not initialized");
-    const fn = httpsCallable(functions, 'createOrderPayment');
-    const result: any = await fn({ jobData, paymentData });
-    return result.data;
-};
-
-export const apiManageOrderDecision = async (orgId: string, jobId: string, decision: 'APPROVE' | 'REJECT', rejectionReason?: string) => {
-    if (!functions) throw new Error("Functions not initialized");
-    const fn = httpsCallable(functions, 'manageOrderDecision');
-    const result: any = await fn({ orgId, jobId, decision, rejectionReason });
-    return result.data;
 };
 
 export const uploadJobFile = async (file: File): Promise<string> => {
