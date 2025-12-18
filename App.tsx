@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -13,7 +14,10 @@ import { JobTypes } from './pages/JobTypes';
 import { Admin } from './pages/Admin';
 import { JobDetails } from './pages/JobDetails';
 import { Commissions } from './pages/Commissions';
+import { PromisedJobs } from './pages/PromisedJobs';
+import { ProductionCalendar } from './pages/ProductionCalendar';
 import { Profile } from './pages/Profile';
+import { Subscribe } from './pages/Subscribe';
 import { Loader2 } from 'lucide-react';
 import { UserRole } from './types';
 
@@ -32,6 +36,8 @@ const AppContent = () => {
       <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><JobsList /></ProtectedRoute>} />
       <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
+      <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
+      <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
       <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
@@ -39,6 +45,7 @@ const AppContent = () => {
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
+      <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

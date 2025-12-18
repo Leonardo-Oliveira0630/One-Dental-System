@@ -1,5 +1,5 @@
 
-import React, { useState, Suspense, useEffect, Component, ReactNode } from 'react';
+import React, { useState, Suspense, useEffect, ReactNode } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid, Html, useProgress, Center } from '@react-three/drei';
 import { STLLoader } from 'three-stdlib';
@@ -14,7 +14,6 @@ const Color = 'color' as any;
 
 // --- Error Boundary for 3D Loading ---
 interface ViewerErrorBoundaryProps {
-  // Fix: Make children optional to avoid "Property 'children' is missing" error when using JSX children
   children?: ReactNode;
 }
 
@@ -23,16 +22,13 @@ interface ViewerErrorBoundaryState {
   errorMsg: string;
 }
 
-// Fix: Import Component directly and extend it. Explicitly type the class.
-class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
-  // Fix: Explicitly declare state to resolve "Property 'state' does not exist" error
-  state: ViewerErrorBoundaryState = { hasError: false, errorMsg: '' };
-
-  constructor(props: ViewerErrorBoundaryProps) {
-    super(props);
-    // Fix: Redundant initialization since state is declared above, but keep it for clarity with super(props)
-    this.state = { hasError: false, errorMsg: '' };
-  }
+// Fixed ViewerErrorBoundary using React.Component directly to ensure correct type inheritance.
+class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
+  // Use property initialization for state to ensure TypeScript correctly tracks it
+  state: ViewerErrorBoundaryState = { 
+    hasError: false, 
+    errorMsg: '' 
+  };
 
   static getDerivedStateFromError(error: any) {
     return { hasError: true, errorMsg: error.message };
@@ -43,7 +39,7 @@ class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErro
   }
 
   render() {
-    // Fix: state property access should work now that it's explicitly declared
+    // Access internal component state via this.state
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-white p-8 text-center bg-slate-900">
@@ -71,7 +67,7 @@ class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErro
       );
     }
 
-    // Fix: props property access should work now that Component is correctly extended and typed
+    // Access component props via this.props, which is correctly inherited from React.Component
     return this.props.children;
   }
 }
@@ -186,7 +182,6 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
             <X size={24} />
         </button>
 
-        {/* Fix: ViewerErrorBoundary now correctly accepts children through optional prop definition */}
         <ViewerErrorBoundary>
             <Canvas shadows camera={{ position: [0, 0, 100], fov: 50 }}>
             <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}

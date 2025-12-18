@@ -171,6 +171,12 @@ export const apiCreateSaaSSubscription = async (orgId: string, planId: string, e
     return result.data;
 };
 
+export const apiCreateLabSubAccount = async (payload: any) => {
+    const fn = httpsCallable(functions, 'createLabSubAccount');
+    const result: any = await fn(payload);
+    return result.data;
+};
+
 export const apiCheckSubscriptionStatus = async (orgId: string) => {
     const fn = httpsCallable(functions, 'checkSubscriptionStatus');
     const result: any = await fn({ orgId });

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -5,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, AlertTriangle
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -94,11 +95,15 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />
                 
                 {isManager && (
+                   <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<AlertTriangle size={20} />} label="Prometidos" active={location.pathname === '/promised'} />
+                )}
+
+                {isManager && (
                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Catálogo" active={location.pathname === '/job-types'} />
                 )}
 
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<DollarSign size={20} />} label="Comissões" active={location.pathname === '/commissions'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Produção" active={location.pathname === '/calendar'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />
               </>
             )}
 

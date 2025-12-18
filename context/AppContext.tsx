@@ -65,6 +65,7 @@ interface AppContextType {
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
   validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
   createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<any>;
+  createLabWallet: (payload: any) => Promise<any>;
   getSaaSInvoices: (orgId: string) => Promise<any>;
   checkSubscriptionStatus: (orgId: string) => Promise<any>;
   addAlert: (alert: JobAlert) => Promise<void>;
@@ -127,8 +128,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (user) {
         const profile = await api.getUserProfile(user.uid);
         setCurrentUser(profile);
+        
+        if (profile?.organizationId) {
+            const orgRef = doc(db, 'organizations', profile.organizationId);
+            const unsubOrg = onSnapshot(orgRef, (snap) => {
+                if (snap.exists()) {
+                    const oData = { id: snap.id, ...snap.data() } as Organization;
+                    setCurrentOrg(oData);
+                    
+                    const planRef = doc(db, 'subscriptionPlans', oData.planId);
+                    getDoc(planRef).then(pSnap => {
+                        if (pSnap.exists()) setCurrentPlan({ id: pSnap.id, ...pSnap.data() } as SubscriptionPlan);
+                    });
+                }
+            });
+            return () => unsubOrg();
+        }
       } else {
         setCurrentUser(null);
+        setCurrentOrg(null);
+        setCurrentPlan(null);
       }
       setIsLoadingAuth(false);
     });
@@ -149,21 +168,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsubAppointments = api.subscribeAppointments(targetOrgId, setAppointments);
     const unsubAlerts = api.subscribeAlerts(targetOrgId, setAlerts);
 
+    // Plans are now available to all authenticated managers/admins
+    const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
+
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         const unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
-        const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
         const unsubCoupons = api.subscribeCoupons(setCoupons);
         return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubComms(); unsubPatients(); unsubAppointments(); unsubAlerts(); unsubOrgs(); unsubPlans(); unsubCoupons(); };
     }
 
-    return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubComms(); unsubPatients(); unsubAppointments(); unsubAlerts(); };
+    return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubComms(); unsubPatients(); unsubAppointments(); unsubAlerts(); unsubPlans(); };
   }, [currentUser, activeOrganization]);
 
-  // Fix: Force login to return Promise<void> by wrapping the api call and not returning its value
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
-  
   const logout = () => { api.apiLogout(); };
-  
   const updateUser = async (id: string, u: Partial<User>) => { await api.apiUpdateUser(id, u); };
   const addUser = async (u: User) => { await api.apiAddUser(u); };
   const deleteUser = async (id: string) => { await api.apiDeleteUser(id); };
@@ -187,6 +205,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateOrganization = async (id: string, u: Partial<Organization>) => { await api.apiUpdateOrganization(id, u); };
   const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
   const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => await api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj);
+  const createLabWallet = async (p: any) => await api.apiCreateLabSubAccount(p);
   const getSaaSInvoices = async (orgId: string) => await api.apiGetSaaSInvoices(orgId);
   const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);
   
@@ -236,7 +255,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       uploadFile: api.uploadJobFile,
       printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), clearPrint: () => setPrintData(null),
       activeOrganization, switchActiveOrganization, userConnections: [],
-      updateOrganization, validateCoupon, createSubscription, getSaaSInvoices, checkSubscriptionStatus,
+      updateOrganization, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
       addConnectionByCode, addCoupon, updateCoupon, deleteCoupon

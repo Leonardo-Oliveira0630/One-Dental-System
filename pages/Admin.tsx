@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { UserRole, User, CustomPrice, UserCommissionSetting } from '../types';
+import { UserRole, User, CustomPrice, UserCommissionSetting, SubscriptionPlan } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, ExternalLink, HelpCircle, LogIn, Percent
+  Stethoscope, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, ExternalLink, HelpCircle, LogIn, Percent, Phone, Home, Hash, CheckCircle, Clock, FileText, ChevronRight, RefreshCw, Database, Calendar
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -13,12 +14,27 @@ export const Admin = () => {
     sectors, addSector, deleteSector, 
     allUsers, addUser, deleteUser, updateUser,
     jobTypes, currentOrg, currentPlan, updateOrganization, allPlans,
-    validateCoupon, createSubscription, getSaaSInvoices
+    validateCoupon, createSubscription, getSaaSInvoices, createLabWallet
   } = useApp();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'COMMISSIONS' | 'FINANCIAL' | 'SUBSCRIPTION'>('SECTORS');
-  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  // Invoices State
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+
+  // Financial Wallet Form
+  const [walletName, setWalletName] = useState('');
+  const [walletEmail, setWalletEmail] = useState('');
+  const [walletCpfCnpj, setWalletCpfCnpj] = useState('');
+  const [walletPhone, setWalletPhone] = useState('');
+  const [walletPostalCode, setWalletPostalCode] = useState('');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [walletNumber, setWalletNumber] = useState('');
+  const [walletProvince, setWalletProvince] = useState('');
 
   // Form States
   const [newSectorName, setNewSectorName] = useState('');
@@ -33,13 +49,67 @@ export const Admin = () => {
   const [configUser, setConfigUser] = useState<User | null>(null);
   const [tempCommissions, setTempCommissions] = useState<UserCommissionSetting[]>([]);
 
-  // Financial States
+  // Simple Financial States
   const [pixKey, setPixKey] = useState(currentOrg?.financialSettings?.pixKey || '');
   const [bankInfo, setBankInfo] = useState(currentOrg?.financialSettings?.bankInfo || '');
   const [instructions, setInstructions] = useState(currentOrg?.financialSettings?.instructions || '');
   const [paymentLink, setPaymentLink] = useState(currentOrg?.financialSettings?.paymentLink || '');
 
-  // Handlers
+  // Fetch invoices when subscription tab is active
+  useEffect(() => {
+    if (activeTab === 'SUBSCRIPTION' && currentOrg) {
+        loadInvoices();
+    }
+  }, [activeTab, currentOrg]);
+
+  const loadInvoices = async () => {
+      if (!currentOrg) return;
+      setLoadingInvoices(true);
+      try {
+          const res = await getSaaSInvoices(currentOrg.id);
+          if (res.invoices) setInvoices(res.invoices);
+      } catch (err) {
+          console.error("Erro ao carregar faturas", err);
+      } finally {
+          setLoadingInvoices(false);
+      }
+  };
+
+  const copyLabCode = () => {
+      if (currentOrg) {
+          navigator.clipboard.writeText(currentOrg.id);
+          setCopiedCode(true);
+          setTimeout(() => setCopiedCode(false), 2000);
+      }
+  };
+
+  const handleCreateWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrg) return;
+    setLoading(true);
+    try {
+        const payload = {
+            orgId: currentOrg.id,
+            name: walletName,
+            email: walletEmail,
+            cpfCnpj: walletCpfCnpj,
+            phone: walletPhone,
+            postalCode: walletPostalCode,
+            address: walletAddress,
+            addressNumber: walletNumber,
+            province: walletProvince
+        };
+        const res = await createLabWallet(payload);
+        if (res.success) {
+            alert("Carteira digital ativada com sucesso!");
+        }
+    } catch (err: any) {
+        alert("Erro ao criar carteira: " + err.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
   const handleAddSector = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newSectorName.trim()) {
@@ -93,8 +163,33 @@ export const Admin = () => {
       alert("Configurações financeiras salvas!");
   };
 
+  const walletStatus = currentOrg?.financialSettings?.walletStatus;
+
   return (
     <div className="space-y-6 pb-12">
+      {/* Lab Code Highlight Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-lg text-white flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-md">
+                  <Share2 size={24} />
+              </div>
+              <div>
+                  <h2 className="font-bold text-lg">Conectar Dentistas</h2>
+                  <p className="text-blue-100 text-sm">Forneça o código abaixo para que seus clientes vinculem as contas.</p>
+              </div>
+          </div>
+          <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20">
+              <code className="font-mono font-black text-xl tracking-wider uppercase">{currentOrg?.id || '---'}</code>
+              <button 
+                  onClick={copyLabCode}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-2 font-bold text-sm"
+              >
+                  {copiedCode ? <Check size={18} className="text-green-300" /> : <Copy size={18} />}
+                  {copiedCode ? 'Copiado!' : 'Copiar'}
+              </button>
+          </div>
+      </div>
+
       {/* Commission Modal */}
       {configUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -143,7 +238,7 @@ export const Admin = () => {
           </div>
       )}
 
-      {/* Tabs */}
+      {/* Tabs Navigation */}
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar">
         <button onClick={() => setActiveTab('SECTORS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SECTORS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Building2 size={18} /> Setores</button>
         <button onClick={() => setActiveTab('USERS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'USERS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Users size={18} /> Equipe</button>
@@ -277,9 +372,95 @@ export const Admin = () => {
 
       {/* FINANCIAL CONTENT */}
       {activeTab === 'FINANCIAL' && (
-          <div className="animate-in fade-in slide-in-from-left-4 space-y-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-                  <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> Dados para Recebimento</h3>
+          <div className="animate-in fade-in slide-in-from-left-4 space-y-8">
+              {/* Seção de Onboarding Asaas */}
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                  <div className="flex items-center justify-between mb-8">
+                      <div>
+                          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CreditCard className="text-blue-600"/> Recebimento Online (Asaas)</h3>
+                          <p className="text-sm text-slate-500">Configure sua carteira digital para aceitar Cartão e PIX dos seus clientes.</p>
+                      </div>
+                      {walletStatus === 'ACTIVE' && (
+                          <div className="bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold flex items-center gap-2">
+                              <CheckCircle size={20}/> CONTA ATIVA
+                          </div>
+                      )}
+                  </div>
+
+                  {walletStatus !== 'ACTIVE' ? (
+                      <form onSubmit={handleCreateWallet} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="md:col-span-2 bg-blue-50 p-4 rounded-xl text-blue-800 text-sm mb-2">
+                              <strong>Atenção:</strong> Estes dados serão usados para criar sua subconta no processador de pagamentos Asaas. O laboratório deve ser o titular dos dados.
+                          </div>
+                          <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">Nome/Razão Social</label>
+                              <div className="relative">
+                                  <Building2 className="absolute left-3 top-3 text-slate-400" size={18}/>
+                                  <input required value={walletName} onChange={e => setWalletName(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="Nome Completo ou Empresa"/>
+                              </div>
+                          </div>
+                          <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro</label>
+                              <div className="relative">
+                                  <Mail className="absolute left-3 top-3 text-slate-400" size={18}/>
+                                  <input required type="email" value={walletEmail} onChange={e => setWalletEmail(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="financeiro@empresa.com"/>
+                              </div>
+                          </div>
+                          <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
+                              <div className="relative">
+                                  <Hash className="absolute left-3 top-3 text-slate-400" size={18}/>
+                                  <input required value={walletCpfCnpj} onChange={e => setWalletCpfCnpj(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="00.000.000/0000-00"/>
+                              </div>
+                          </div>
+                          <div>
+                              <label className="block text-sm font-bold text-slate-700 mb-1">Telefone/WhatsApp</label>
+                              <div className="relative">
+                                  <Phone className="absolute left-3 top-3 text-slate-400" size={18}/>
+                                  <input required value={walletPhone} onChange={e => setWalletPhone(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="(00) 00000-0000"/>
+                              </div>
+                          </div>
+                          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-100">
+                              <div>
+                                  <label className="block text-sm font-bold text-slate-700 mb-1">CEP</label>
+                                  <input required value={walletPostalCode} onChange={e => setWalletPostalCode(e.target.value)} className="w-full px-4 py-2 border rounded-xl" placeholder="00000-000"/>
+                              </div>
+                              <div className="md:col-span-2">
+                                  <label className="block text-sm font-bold text-slate-700 mb-1">Endereço (Logradouro)</label>
+                                  <div className="relative">
+                                      <Home className="absolute left-3 top-3 text-slate-400" size={18}/>
+                                      <input required value={walletAddress} onChange={e => setWalletAddress(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="Rua, Av..."/>
+                                  </div>
+                              </div>
+                              <div>
+                                  <label className="block text-sm font-bold text-slate-700 mb-1">Número</label>
+                                  <input required value={walletNumber} onChange={e => setWalletNumber(e.target.value)} className="w-full px-4 py-2 border rounded-xl" placeholder="123"/>
+                              </div>
+                              <div className="md:col-span-2">
+                                  <label className="block text-sm font-bold text-slate-700 mb-1">Estado (UF)</label>
+                                  <input required value={walletProvince} onChange={e => setWalletProvince(e.target.value.toUpperCase())} maxLength={2} className="w-full px-4 py-2 border rounded-xl" placeholder="Ex: SP"/>
+                              </div>
+                          </div>
+                          <button type="submit" disabled={loading} className="md:col-span-2 py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">
+                              {loading ? <Loader2 className="animate-spin"/> : <><Zap size={20}/> Ativar Minha Carteira Digital</>}
+                          </button>
+                      </form>
+                  ) : (
+                      <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                           <div className="flex items-center gap-4 text-slate-600">
+                               <CheckCircle className="text-green-500" size={32}/>
+                               <div>
+                                   <p className="font-bold">Conta Vinculada com Sucesso!</p>
+                                   <p className="text-sm">Seus recebimentos da Loja Virtual cairão diretamente nesta conta Asaas.</p>
+                               </div>
+                           </div>
+                      </div>
+                  )}
+              </div>
+
+              {/* Seção de Dados Manuais */}
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+                  <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> Dados para Recebimento Manual</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                           <label className="block text-sm font-bold text-slate-700 mb-1">Chave PIX</label>
@@ -301,35 +482,119 @@ export const Admin = () => {
 
       {/* SUBSCRIPTION CONTENT */}
       {activeTab === 'SUBSCRIPTION' && (
-          <div className="animate-in fade-in slide-in-from-left-4 space-y-6">
-              <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-2xl shadow-xl text-white">
-                  <div className="flex justify-between items-start">
-                      <div>
-                          <p className="text-slate-400 text-sm font-bold uppercase mb-1">Seu Plano Atual</p>
-                          <h2 className="text-3xl font-bold">{currentPlan?.name || 'Carregando...'}</h2>
-                          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-bold border border-green-500/30">
+          <div className="animate-in fade-in slide-in-from-left-4 space-y-8">
+              {/* Plano Atual Card */}
+              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-8 rounded-3xl shadow-xl text-white relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-8 opacity-10">
+                      <Crown size={120} />
+                  </div>
+                  <div className="relative z-10">
+                      <p className="text-indigo-300 text-sm font-bold uppercase tracking-widest mb-1">Seu Plano Atual</p>
+                      <h2 className="text-4xl font-black">{currentPlan?.name || 'Carregando...'}</h2>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-bold border border-green-500/30">
                               <Check size={12}/> ASSINATURA ATIVA
                           </div>
-                      </div>
-                      <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md">
-                          <Crown size={32} className="text-yellow-400" />
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white/80 text-xs font-bold border border-white/10">
+                              <Database size={12}/> {currentPlan?.features.maxStorageGB}GB STORAGE
+                          </div>
                       </div>
                   </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {allPlans.filter(p => p.targetAudience === 'LAB').map(plan => (
-                      <div key={plan.id} className={`bg-white p-6 rounded-2xl border-2 transition-all ${plan.id === currentOrg?.planId ? 'border-blue-500 shadow-xl' : 'border-slate-100 opacity-60 hover:opacity-100'}`}>
-                          <h4 className="font-bold text-slate-800 uppercase text-xs">{plan.name}</h4>
-                          <p className="text-2xl font-bold text-blue-600 mt-2">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400">/mês</span></p>
-                          <ul className="mt-4 space-y-2 text-xs text-slate-500">
-                              <li>• {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
-                              <li>• {plan.features.maxStorageGB}GB Armazenamento</li>
-                          </ul>
-                          {plan.id !== currentOrg?.planId && (
-                              <button onClick={() => navigate('/subscribe')} className="w-full mt-6 py-2 bg-slate-100 hover:bg-blue-600 hover:text-white text-slate-600 font-bold rounded-lg transition-all">Alterar Plano</button>
-                          )}
+
+              {/* Upgrade de Plano */}
+              <div className="space-y-4">
+                  <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><ArrowUpCircle className="text-blue-600"/> Upgrade de Plano</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {allPlans.filter(p => p.targetAudience === 'LAB' && p.active).map(plan => {
+                          const isCurrent = plan.id === currentOrg?.planId;
+                          return (
+                            <div key={plan.id} className={`bg-white p-6 rounded-2xl border-2 transition-all group flex flex-col ${isCurrent ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100 hover:border-blue-200'}`}>
+                                <div className="flex justify-between items-start mb-4">
+                                    <h4 className="font-bold text-slate-800 uppercase text-xs tracking-widest">{plan.name}</h4>
+                                    {isCurrent && <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">ATUAL</span>}
+                                </div>
+                                <p className="text-3xl font-black text-slate-900">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400 font-normal">/mês</span></p>
+                                <ul className="mt-6 space-y-3 flex-1">
+                                    <li className="flex items-center gap-2 text-sm text-slate-600">
+                                        <Check size={14} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}
+                                    </li>
+                                    <li className="flex items-center gap-2 text-sm text-slate-600">
+                                        <Check size={14} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento
+                                    </li>
+                                    <li className={`flex items-center gap-2 text-sm ${plan.features.hasStoreModule ? 'text-slate-600' : 'text-slate-300'}`}>
+                                        <Check size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-300'}/> Loja Virtual
+                                    </li>
+                                </ul>
+                                {!isCurrent && (
+                                    <button 
+                                        onClick={() => navigate(`/subscribe?plan=${plan.id}`)} 
+                                        className="w-full mt-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95"
+                                    >
+                                        Mudar para este
+                                    </button>
+                                )}
+                            </div>
+                          );
+                      })}
+                  </div>
+              </div>
+
+              {/* Histórico de Faturas */}
+              <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                      <div>
+                          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><FileText className="text-blue-600"/> Histórico de Faturas</h3>
+                          <p className="text-sm text-slate-500">Acesse seus boletos e notas fiscais das mensalidades.</p>
                       </div>
-                  ))}
+                      <button onClick={loadInvoices} className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-blue-600 transition-colors">
+                          <RefreshCw size={20} className={loadingInvoices ? "animate-spin" : ""} />
+                      </button>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                      {loadingInvoices ? (
+                          <div className="p-12 text-center text-slate-400">
+                              <Loader2 className="animate-spin mx-auto mb-2"/> Carregando histórico...
+                          </div>
+                      ) : invoices.length === 0 ? (
+                          <div className="p-12 text-center text-slate-400">Nenhuma fatura encontrada.</div>
+                      ) : (
+                          invoices.map(inv => (
+                              <div key={inv.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+                                  <div className="flex items-center gap-4">
+                                      <div className={`p-3 rounded-xl ${inv.status === 'RECEIVED' ? 'bg-green-100 text-green-600' : inv.status === 'OVERDUE' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                                          <CreditCard size={20} />
+                                      </div>
+                                      <div>
+                                          <p className="font-bold text-slate-800">{inv.description}</p>
+                                          <p className="text-xs text-slate-400 flex items-center gap-2">
+                                              <Calendar size={12}/> Vencimento: {new Date(inv.dueDate).toLocaleDateString()}
+                                          </p>
+                                      </div>
+                                  </div>
+                                  <div className="flex items-center gap-6">
+                                      <div className="text-right">
+                                          <p className="font-black text-slate-800 text-lg">R$ {inv.value.toFixed(2)}</p>
+                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${inv.status === 'RECEIVED' ? 'bg-green-100 text-green-700' : inv.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                              {inv.status === 'RECEIVED' ? 'Paga' : inv.status === 'OVERDUE' ? 'Atrasada' : 'Pendente'}
+                                          </span>
+                                      </div>
+                                      {inv.invoiceUrl && (
+                                          <a 
+                                              href={inv.invoiceUrl} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer" 
+                                              className="p-3 bg-white border border-slate-200 rounded-xl text-blue-600 hover:border-blue-300 hover:shadow-md transition-all"
+                                          >
+                                              <ExternalLink size={20} />
+                                          </a>
+                                      )}
+                                  </div>
+                              </div>
+                          ))
+                      )}
+                  </div>
               </div>
           </div>
       )}
