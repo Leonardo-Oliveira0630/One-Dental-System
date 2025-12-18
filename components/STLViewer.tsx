@@ -1,4 +1,3 @@
-
 import React, { useState, Suspense, useEffect, ReactNode, Component } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid, Html, useProgress, Center } from '@react-three/drei';
@@ -22,13 +21,17 @@ interface ViewerErrorBoundaryState {
   errorMsg: string;
 }
 
-// Fixed ViewerErrorBoundary using Component explicitly to ensure correct type inheritance for 'props'.
-class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
-  // Use property initialization for state to ensure TypeScript correctly tracks it
-  state: ViewerErrorBoundaryState = { 
-    hasError: false, 
-    errorMsg: '' 
-  };
+// Fixed ViewerErrorBoundary using React.Component explicitly to ensure correct type inheritance for 'props'.
+// This fix addresses the error: Property 'props' does not exist on type 'ViewerErrorBoundary'.
+class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
+  // Use constructor to ensure props and state are correctly initialized for TypeScript
+  constructor(props: ViewerErrorBoundaryProps) {
+    super(props);
+    this.state = { 
+      hasError: false, 
+      errorMsg: '' 
+    };
+  }
 
   static getDerivedStateFromError(error: any) {
     return { hasError: true, errorMsg: error.message };
@@ -67,7 +70,8 @@ class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErro
       );
     }
 
-    // Access component props via this.props inherited from Component base class
+    // Access component props via this.props inherited from React.Component base class
+    // Corrected to ensure TypeScript recognizes 'props' property from React.Component
     return this.props.children;
   }
 }

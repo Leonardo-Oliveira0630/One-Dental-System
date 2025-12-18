@@ -6,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, AlertTriangle
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, AlertTriangle, Activity, Database
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -51,13 +51,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isClient = currentUser?.role === UserRole.CLIENT;
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
   
   // Contagem de pedidos aguardando aprovação
   const pendingOrdersCount = jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length;
 
-  const bgClass = isClient ? 'bg-store-900' : 'bg-lab-900';
-  const logoColor = isClient ? 'text-store-600' : 'text-lab-600';
+  const bgClass = isSuperAdmin ? 'bg-slate-900' : (isClient ? 'bg-store-900' : 'bg-lab-900');
+  const logoColor = isSuperAdmin ? 'text-indigo-500' : (isClient ? 'text-store-600' : 'text-lab-600');
 
   const handleLogout = () => { logout(); navigate('/'); };
 
@@ -83,7 +84,18 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
 
           <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
-            {!isClient && currentUser?.role !== UserRole.SUPER_ADMIN && (
+            {/* MENU SUPER ADMIN */}
+            {isSuperAdmin && (
+              <>
+                <div className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">SaaS Master</div>
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/superadmin" icon={<LayoutDashboard size={20} />} label="Painel Geral" active={location.pathname === '/superadmin'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/superadmin/plans" icon={<Crown size={20} />} label="Gerenciar Planos" active={location.pathname === '/superadmin/plans'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons & Descontos" active={location.pathname === '/superadmin/coupons'} />
+              </>
+            )}
+
+            {/* MENU LABORATÓRIO */}
+            {!isClient && !isSuperAdmin && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
                 
@@ -107,6 +119,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             )}
 
+            {/* MENU DENTISTA */}
             {isClient && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Virtual" active={location.pathname === '/store'} />
