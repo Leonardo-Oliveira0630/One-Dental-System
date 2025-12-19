@@ -124,13 +124,18 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Virtual" active={location.pathname === '/store'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/jobs'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Laboratórios" active={location.pathname === '/dentist/partnerships'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
+                
+                <div className="px-4 py-2 mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Minha Clínica</div>
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/my-patients" icon={<Users size={20} />} label="Pacientes" active={location.pathname === '/my-patients'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
               </>
             )}
 
             <div className="pt-8 mt-8 border-t border-white/10">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-              {isManager && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin'} />}
+              {(isManager || isClient) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={isClient ? "/clinic-settings" : "/admin"} icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin' || location.pathname === '/clinic-settings'} />}
             </div>
           </nav>
 

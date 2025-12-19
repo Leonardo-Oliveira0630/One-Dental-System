@@ -26,6 +26,10 @@ export const Admin = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
 
+  // Subscription/Coupon State
+  const [upgradeCoupon, setUpgradeCoupon] = useState('');
+  const [appliedUpgradeCoupon, setAppliedUpgradeCoupon] = useState<any>(null);
+
   // Financial Wallet Form
   const [walletName, setWalletName] = useState('');
   const [walletEmail, setWalletEmail] = useState('');
@@ -73,6 +77,18 @@ export const Admin = () => {
       } finally {
           setLoadingInvoices(false);
       }
+  };
+
+  const handleValidateUpgradeCoupon = async () => {
+    if (!upgradeCoupon) return;
+    const coupon = await validateCoupon(upgradeCoupon, 'ANY');
+    if (coupon) {
+        setAppliedUpgradeCoupon(coupon);
+        alert("Cupom validado! O desconto será aplicado no checkout.");
+    } else {
+        alert("Cupom inválido ou expirado.");
+        setAppliedUpgradeCoupon(null);
+    }
   };
 
   const copyLabCode = () => {
@@ -503,8 +519,9 @@ export const Admin = () => {
               </div>
 
               {/* Upgrade de Plano */}
-              <div className="space-y-4">
+              <div className="space-y-6">
                   <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><ArrowUpCircle className="text-blue-600"/> Upgrade de Plano</h3>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {allPlans.filter(p => p.targetAudience === 'LAB' && p.active).map(plan => {
                           const isCurrent = plan.id === currentOrg?.planId;
@@ -528,7 +545,7 @@ export const Admin = () => {
                                 </ul>
                                 {!isCurrent && (
                                     <button 
-                                        onClick={() => navigate(`/subscribe?plan=${plan.id}`)} 
+                                        onClick={() => navigate(`/subscribe?plan=${plan.id}${appliedUpgradeCoupon ? `&coupon=${appliedUpgradeCoupon.code}` : ''}`)} 
                                         className="w-full mt-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95"
                                     >
                                         Mudar para este
@@ -537,6 +554,28 @@ export const Admin = () => {
                             </div>
                           );
                       })}
+                  </div>
+
+                  {/* CUPOM PARA LABS */}
+                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-md">
+                      <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Ticket size={18} className="text-indigo-600"/> Possui um Cupom?</h4>
+                      <div className="flex gap-2">
+                          <input 
+                              value={upgradeCoupon}
+                              onChange={e => setUpgradeCoupon(e.target.value.toUpperCase())}
+                              placeholder="CÓDIGO"
+                              className="flex-1 px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                              disabled={!!appliedUpgradeCoupon}
+                          />
+                          <button 
+                             onClick={handleValidateUpgradeCoupon}
+                             disabled={!!appliedUpgradeCoupon}
+                             className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                          >
+                              {appliedUpgradeCoupon ? 'Aplicado' : 'Validar'}
+                          </button>
+                      </div>
+                      {appliedUpgradeCoupon && <p className="text-xs text-green-600 mt-2 font-bold flex items-center gap-1"><Check size={12}/> Cupom {appliedUpgradeCoupon.code} pronto para uso!</p>}
                   </div>
               </div>
 

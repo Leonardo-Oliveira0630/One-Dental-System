@@ -168,16 +168,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsubAppointments = api.subscribeAppointments(targetOrgId, setAppointments);
     const unsubAlerts = api.subscribeAlerts(targetOrgId, setAlerts);
 
-    // Plans are now available to all authenticated managers/admins
+    // Conexões do Dentista
+    let unsubConns = () => {};
+    if (currentUser.role === UserRole.CLIENT && currentUser.organizationId) {
+        unsubConns = api.subscribeUserConnections(currentUser.organizationId, setUserConnections);
+    }
+
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
 
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         const unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
         const unsubCoupons = api.subscribeCoupons(setCoupons);
-        return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubComms(); unsubPatients(); unsubAppointments(); unsubAlerts(); unsubOrgs(); unsubPlans(); unsubCoupons(); };
+        return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubComms(); unsubPatients(); unsubAppointments(); unsubAlerts(); unsubOrgs(); unsubPlans(); unsubCoupons(); unsubConns(); };
     }
 
-    return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubComms(); unsubPatients(); unsubAppointments(); unsubAlerts(); unsubPlans(); };
+    return () => { unsubJobs(); unsubUsers(); unsubJobTypes(); unsubSectors(); unsubComms(); unsubPatients(); unsubAppointments(); unsubAlerts(); unsubPlans(); unsubConns(); };
   }, [currentUser, activeOrganization]);
 
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
@@ -214,11 +219,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   
   const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => { await api.apiAddPatient(orgId(), { ...p, id: `pat_${Date.now()}`, organizationId: orgId() } as ClinicPatient); };
   const updatePatient = async (id: string, u: Partial<ClinicPatient>) => { await api.apiUpdatePatient(orgId(), id, u); };
-  const deletePatient = async (id: string) => { await api.apiDeletePatient(orgId(), id); };
+  const borderDeletePatient = (id: string) => { api.apiDeletePatient(orgId(), id); };
   
   const addAppointment = async (a: Omit<Appointment, 'id' | 'organizationId'>) => { await api.apiAddAppointment(orgId(), { ...a, id: `app_${Date.now()}`, organizationId: orgId() } as Appointment); };
   const updateAppointment = async (id: string, u: Partial<Appointment>) => { await api.apiUpdateAppointment(orgId(), id, u); };
-  const deleteAppointment = async (id: string) => { await api.apiDeleteAppointment(orgId(), id); };
+  const borderDeleteAppointment = (id: string) => { api.apiDeleteAppointment(orgId(), id); };
   
   const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c);
   const registerDentist = async (e: string, p: string, n: string, cn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterDentist(e, p, n, cn, pid, t, c);
@@ -227,7 +232,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => { await api.apiUpdateSubscriptionPlan(id, u); };
   const deleteSubscriptionPlan = async (id: string) => { await api.apiDeleteSubscriptionPlan(id); };
   
-  const addConnectionByCode = async (code: string) => { await api.apiAddConnectionByCode(orgId(), currentUser?.id || '', code); };
+  const addConnectionByCode = async (code: string) => { 
+      if(!currentUser?.organizationId) return;
+      await api.apiAddConnectionByCode(currentUser.organizationId, currentUser?.id || '', code); 
+  };
   
   const addCoupon = async (c: Coupon) => { await api.apiAddCoupon(c); };
   const updateCoupon = async (id: string, u: Partial<Coupon>) => { await api.apiUpdateCoupon(id, u); };
@@ -254,9 +262,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       uploadFile: api.uploadJobFile,
       printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), clearPrint: () => setPrintData(null),
-      activeOrganization, switchActiveOrganization, userConnections: [],
+      activeOrganization, switchActiveOrganization, userConnections,
       updateOrganization, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
-      addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
+      addAlert, dismissAlert, addPatient, updatePatient, deletePatient: borderDeletePatient, addAppointment, updateAppointment, deleteAppointment: borderDeleteAppointment,
       registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
       addConnectionByCode, addCoupon, updateCoupon, deleteCoupon
     }}>

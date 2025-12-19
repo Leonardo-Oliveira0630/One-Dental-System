@@ -234,21 +234,26 @@ export const apiValidateCoupon = async (code: string, planId: string): Promise<C
     return null;
 };
 
-export const apiAddConnectionByCode = async (orgId: string, dentistId: string, organizationId: string) => {
-    const orgSnap = await getDoc(doc(db, 'organizations', organizationId));
+export const apiAddConnectionByCode = async (orgId: string, dentistId: string, targetOrgId: string) => {
+    const orgSnap = await getDoc(doc(db, 'organizations', targetOrgId));
     if (!orgSnap.exists()) throw new Error("Laboratório não encontrado.");
     const orgData = orgSnap.data() as Organization;
     
-    const connId = `conn_${dentistId}_${organizationId}`;
+    const connId = `conn_${dentistId}_${targetOrgId}`;
     const conn: OrganizationConnection = {
         id: connId,
         dentistId,
-        organizationId,
+        organizationId: targetOrgId,
         organizationName: orgData.name,
         status: 'active',
         createdAt: new Date()
     };
+    // Salva na subcoleção de conexões da organização do DENTISTA
     await setDoc(doc(db, 'organizations', orgId, 'connections', connId), sanitizeData(conn));
+};
+
+export const subscribeUserConnections = (orgId: string, cb: (d: OrganizationConnection[]) => void) => {
+    return subscribeSubCollection<OrganizationConnection>(orgId, 'connections', cb);
 };
 
 export const apiUpdateOrganization = async (id: string, updates: Partial<Organization>) => await updateDoc(doc(db, 'organizations', id), sanitizeData(updates));
