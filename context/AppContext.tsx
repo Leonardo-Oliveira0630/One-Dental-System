@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
@@ -219,11 +218,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   
   const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => { await api.apiAddPatient(orgId(), { ...p, id: `pat_${Date.now()}`, organizationId: orgId() } as ClinicPatient); };
   const updatePatient = async (id: string, u: Partial<ClinicPatient>) => { await api.apiUpdatePatient(orgId(), id, u); };
-  const borderDeletePatient = (id: string) => { api.apiDeletePatient(orgId(), id); };
+  
+  // FIX: Adicionado async/await para satisfazer Promise<void>
+  const borderDeletePatient = async (id: string) => { await api.apiDeletePatient(orgId(), id); };
   
   const addAppointment = async (a: Omit<Appointment, 'id' | 'organizationId'>) => { await api.apiAddAppointment(orgId(), { ...a, id: `app_${Date.now()}`, organizationId: orgId() } as Appointment); };
   const updateAppointment = async (id: string, u: Partial<Appointment>) => { await api.apiUpdateAppointment(orgId(), id, u); };
-  const borderDeleteAppointment = (id: string) => { api.apiDeleteAppointment(orgId(), id); };
+  
+  // FIX: Adicionado async/await para satisfazer Promise<void>
+  const borderDeleteAppointment = async (id: string) => { await api.apiDeleteAppointment(orgId(), id); };
   
   const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c);
   const registerDentist = async (e: string, p: string, n: string, cn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterDentist(e, p, n, cn, pid, t, c);
