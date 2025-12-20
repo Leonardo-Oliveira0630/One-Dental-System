@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { UserRole, User, CustomPrice, UserCommissionSetting, SubscriptionPlan } from '../types';
+import { UserRole, User, CustomPrice, UserCommissionSetting, Coupon, SubscriptionPlan } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, ExternalLink, HelpCircle, LogIn, Percent, Phone, Home, Hash, CheckCircle, Clock, FileText, ChevronRight, RefreshCw, Database, Calendar
+  Stethoscope, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, ExternalLink, HelpCircle, LogIn, Percent, Building, Phone, CheckCircle, Database, Store, Briefcase
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -14,31 +13,12 @@ export const Admin = () => {
     sectors, addSector, deleteSector, 
     allUsers, addUser, deleteUser, updateUser,
     jobTypes, currentOrg, currentPlan, updateOrganization, allPlans,
-    validateCoupon, createSubscription, getSaaSInvoices, createLabWallet
+    validateCoupon, createSubscription, createLabWallet
   } = useApp();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'COMMISSIONS' | 'FINANCIAL' | 'SUBSCRIPTION'>('SECTORS');
-  const [loading, setLoading] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
-
-  // Invoices State
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [loadingInvoices, setLoadingInvoices] = useState(false);
-
-  // Subscription/Coupon State
-  const [upgradeCoupon, setUpgradeCoupon] = useState('');
-  const [appliedUpgradeCoupon, setAppliedUpgradeCoupon] = useState<any>(null);
-
-  // Financial Wallet Form
-  const [walletName, setWalletName] = useState('');
-  const [walletEmail, setWalletEmail] = useState('');
-  const [walletCpfCnpj, setWalletCpfCnpj] = useState('');
-  const [walletPhone, setWalletPhone] = useState('');
-  const [walletPostalCode, setWalletPostalCode] = useState('');
-  const [walletAddress, setWalletAddress] = useState('');
-  const [walletNumber, setWalletNumber] = useState('');
-  const [walletProvince, setWalletProvince] = useState('');
+  const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'COMMISSIONS' | 'FINANCIAL' | 'SUBSCRIPTION'>('SECTORS');
+  const [copied, setCopied] = useState(false);
 
   // Form States
   const [newSectorName, setNewSectorName] = useState('');
@@ -49,82 +29,32 @@ export const Admin = () => {
   const [userSector, setUserSector] = useState('');
   const [isAddingUser, setIsAddingUser] = useState(false);
   
+  // Wallet Registration State
+  const [isRegisteringWallet, setIsRegisteringWallet] = useState(false);
+  const [walletForm, setWalletForm] = useState({
+    name: currentOrg?.name || '',
+    email: '',
+    cpfCnpj: '',
+    phone: '',
+    postalCode: '',
+    address: '',
+    addressNumber: '',
+    province: ''
+  });
+
   // Commission Config State
   const [configUser, setConfigUser] = useState<User | null>(null);
   const [tempCommissions, setTempCommissions] = useState<UserCommissionSetting[]>([]);
 
-  // Simple Financial States
+  // Financial States
   const [pixKey, setPixKey] = useState(currentOrg?.financialSettings?.pixKey || '');
   const [bankInfo, setBankInfo] = useState(currentOrg?.financialSettings?.bankInfo || '');
   const [instructions, setInstructions] = useState(currentOrg?.financialSettings?.instructions || '');
   const [paymentLink, setPaymentLink] = useState(currentOrg?.financialSettings?.paymentLink || '');
 
-  // Fetch invoices when subscription tab is active
-  useEffect(() => {
-    if (activeTab === 'SUBSCRIPTION' && currentOrg) {
-        loadInvoices();
-    }
-  }, [activeTab, currentOrg]);
-
-  const loadInvoices = async () => {
-      if (!currentOrg) return;
-      setLoadingInvoices(true);
-      try {
-          const res = await getSaaSInvoices(currentOrg.id);
-          if (res.invoices) setInvoices(res.invoices);
-      } catch (err) {
-          console.error("Erro ao carregar faturas", err);
-      } finally {
-          setLoadingInvoices(false);
-      }
-  };
-
-  const handleValidateUpgradeCoupon = async () => {
-    if (!upgradeCoupon) return;
-    const coupon = await validateCoupon(upgradeCoupon, 'ANY');
-    if (coupon) {
-        setAppliedUpgradeCoupon(coupon);
-        alert("Cupom validado! O desconto será aplicado no checkout.");
-    } else {
-        alert("Cupom inválido ou expirado.");
-        setAppliedUpgradeCoupon(null);
-    }
-  };
-
-  const copyLabCode = () => {
-      if (currentOrg) {
-          navigator.clipboard.writeText(currentOrg.id);
-          setCopiedCode(true);
-          setTimeout(() => setCopiedCode(false), 2000);
-      }
-  };
-
-  const handleCreateWallet = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentOrg) return;
-    setLoading(true);
-    try {
-        const payload = {
-            orgId: currentOrg.id,
-            name: walletName,
-            email: walletEmail,
-            cpfCnpj: walletCpfCnpj,
-            phone: walletPhone,
-            postalCode: walletPostalCode,
-            address: walletAddress,
-            addressNumber: walletNumber,
-            province: walletProvince
-        };
-        const res = await createLabWallet(payload);
-        if (res.success) {
-            alert("Carteira digital ativada com sucesso!");
-        }
-    } catch (err: any) {
-        alert("Erro ao criar carteira: " + err.message);
-    } finally {
-        setLoading(false);
-    }
-  };
+  // Subscription State
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
   const handleAddSector = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,26 +76,29 @@ export const Admin = () => {
     }
   };
 
-  const openCommissionModal = (user: User) => {
-      setConfigUser(user);
-      setTempCommissions(user.commissionSettings || []);
+  const handleRegisterWallet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrg) return;
+    setIsRegisteringWallet(true);
+    try {
+      await createLabWallet({ ...walletForm, orgId: currentOrg.id });
+      alert("Sua conta digital One Dental foi criada com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao criar conta: " + err.message);
+    } finally {
+      setIsRegisteringWallet(false);
+    }
   };
 
-  const handleCommChange = (jobTypeId: string, value: string, type: 'FIXED' | 'PERCENTAGE') => {
-      const val = parseFloat(value);
-      setTempCommissions(prev => {
-          const exists = prev.find(p => p.jobTypeId === jobTypeId);
-          if (exists) return prev.map(p => p.jobTypeId === jobTypeId ? { ...p, value: val, type } : p);
-          return [...prev, { jobTypeId, value: val, type }];
-      });
-  };
-
-  const saveCommissions = async () => {
-      if (configUser) {
-          await updateUser(configUser.id, { commissionSettings: tempCommissions });
-          setConfigUser(null);
-          alert("Tabela de comissão atualizada!");
-      }
+  const handleApplyCoupon = async () => {
+    const coupon = await validateCoupon(couponCode, 'ANY');
+    if (coupon) {
+      setAppliedCoupon(coupon);
+      alert("Cupom validado!");
+    } else {
+      alert("Cupom inválido.");
+      setAppliedCoupon(null);
+    }
   };
 
   const handleSaveFinancial = async () => {
@@ -179,82 +112,61 @@ export const Admin = () => {
       alert("Configurações financeiras salvas!");
   };
 
-  const walletStatus = currentOrg?.financialSettings?.walletStatus;
+  const openCommissionModal = (user: User) => {
+    setConfigUser(user);
+    setTempCommissions(user.commissionSettings || []);
+  };
+
+  const handleCommChange = (jobTypeId: string, value: string, type: 'FIXED' | 'PERCENTAGE') => {
+    const val = parseFloat(value);
+    setTempCommissions(prev => {
+        const exists = prev.find(p => p.jobTypeId === jobTypeId);
+        if (exists) return prev.map(p => p.jobTypeId === jobTypeId ? { ...p, value: val, type } : p);
+        return [...prev, { jobTypeId, value: val, type }];
+    });
+  };
+
+  const saveCommissions = async () => {
+      if (configUser) {
+          await updateUser(configUser.id, { commissionSettings: tempCommissions });
+          setConfigUser(null);
+          alert("Tabela de comissão atualizada!");
+      }
+  };
+
+  const copyOrgId = () => {
+    if (currentOrg?.id) {
+      navigator.clipboard.writeText(currentOrg.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  // Filtragem de planos de laboratório para a aba de assinatura
+  const labPlans = allPlans.filter(p => p.targetAudience === 'LAB');
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Lab Code Highlight Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-2xl shadow-lg text-white flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-md">
-                  <Share2 size={24} />
-              </div>
-              <div>
-                  <h2 className="font-bold text-lg">Conectar Dentistas</h2>
-                  <p className="text-blue-100 text-sm">Forneça o código abaixo para que seus clientes vinculem as contas.</p>
-              </div>
+      {/* ID Section */}
+      <div className="bg-slate-900 text-white p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl">
+        <div>
+          <h2 className="text-xl font-bold">{currentOrg?.name}</h2>
+          <div className="flex items-center gap-2 mt-1 text-slate-400 font-mono text-sm">
+            <span>ID do Laboratório:</span>
+            <span className="bg-white/10 px-2 py-0.5 rounded select-all">{currentOrg?.id}</span>
+            <button onClick={copyOrgId} className="p-1 hover:text-white transition-colors">
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
           </div>
-          <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20">
-              <code className="font-mono font-black text-xl tracking-wider uppercase">{currentOrg?.id || '---'}</code>
-              <button 
-                  onClick={copyLabCode}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-2 font-bold text-sm"
-              >
-                  {copiedCode ? <Check size={18} className="text-green-300" /> : <Copy size={18} />}
-                  {copiedCode ? 'Copiado!' : 'Copiar'}
-              </button>
-          </div>
+        </div>
+        <div className="flex items-center gap-4">
+           <div className="bg-blue-600 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+              <Crown size={14} /> Plano {currentPlan?.name || 'Carregando...'}
+           </div>
+        </div>
       </div>
 
-      {/* Commission Modal */}
-      {configUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                  <div className="p-6 border-b border-slate-100">
-                      <h3 className="text-xl font-bold text-slate-800">Comissões: {configUser.name}</h3>
-                      <p className="text-sm text-slate-500">Defina quanto o colaborador ganha por peça concluída.</p>
-                  </div>
-                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
-                      {jobTypes.map(type => {
-                          const comm = tempCommissions.find(c => c.jobTypeId === type.id);
-                          return (
-                              <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                  <div className="flex-1">
-                                      <p className="font-bold text-slate-700">{type.name}</p>
-                                      <p className="text-xs text-slate-400">Preço Base: R$ {type.basePrice.toFixed(2)}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <input 
-                                        type="number" 
-                                        value={comm?.value || ''} 
-                                        placeholder="0.00"
-                                        onChange={e => handleCommChange(type.id, e.target.value, comm?.type || 'FIXED')}
-                                        className="w-24 px-3 py-2 border rounded-lg text-right font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-                                      />
-                                      <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-                                          <button 
-                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'FIXED')}
-                                            className={`p-1.5 rounded ${comm?.type === 'FIXED' || !comm?.type ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
-                                          ><DollarSign size={14}/></button>
-                                          <button 
-                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'PERCENTAGE')}
-                                            className={`p-1.5 rounded ${comm?.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
-                                          ><Percent size={14}/></button>
-                                      </div>
-                                  </div>
-                              </div>
-                          );
-                      })}
-                  </div>
-                  <div className="p-6 border-t bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
-                      <button onClick={() => setConfigUser(null)} className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl">Cancelar</button>
-                      <button onClick={saveCommissions} className="px-8 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700">Salvar Tabela</button>
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* Tabs Navigation */}
+      {/* Tabs */}
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar">
         <button onClick={() => setActiveTab('SECTORS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SECTORS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Building2 size={18} /> Setores</button>
         <button onClick={() => setActiveTab('USERS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'USERS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Users size={18} /> Equipe</button>
@@ -330,310 +242,280 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* MODAL NOVO USUÁRIO */}
-      {isAddingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
-                  <h3 className="text-xl font-bold mb-6">Cadastrar Colaborador</h3>
-                  <form onSubmit={handleAddUser} className="space-y-4">
-                      <input required value={userName} onChange={e => setUserName(e.target.value)} placeholder="Nome Completo" className="w-full px-4 py-2 border rounded-xl" />
-                      <input required type="email" value={userEmail} onChange={e => setUserEmail(e.target.value)} placeholder="Email" className="w-full px-4 py-2 border rounded-xl" />
-                      <input required type="password" value={userPass} onChange={e => setUserPass(e.target.value)} placeholder="Senha Inicial" className="w-full px-4 py-2 border rounded-xl" minLength={6} />
-                      <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border rounded-xl bg-white">
-                          <option value={UserRole.COLLABORATOR}>Colaborador / Técnico</option>
-                          <option value={UserRole.MANAGER}>Gestor / Supervisor</option>
-                          <option value={UserRole.ADMIN}>Administrador</option>
-                      </select>
-                      <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border rounded-xl bg-white">
-                          <option value="">Setor: Nenhum (Geral)</option>
-                          {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                      </select>
-                      <div className="flex gap-3 mt-6">
-                          <button type="button" onClick={() => setIsAddingUser(false)} className="flex-1 py-2 font-bold text-slate-500">Cancelar</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg">Criar Conta</button>
-                      </div>
-                  </form>
-              </div>
-          </div>
-      )}
-
-      {/* COMMISSIONS CONTENT */}
+      {/* COMMISSIONS TAB - REFORÇADO */}
       {activeTab === 'COMMISSIONS' && (
-          <div className="grid gap-4 animate-in fade-in slide-in-from-left-4">
-              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex items-center gap-4">
-                  <div className="bg-blue-600 p-3 rounded-xl text-white"><DollarSign size={24}/></div>
-                  <div>
-                      <h3 className="font-bold text-blue-900">Regras de Ganhos</h3>
-                      <p className="text-sm text-blue-700">Configure as comissões por colaborador.</p>
-                  </div>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                  <div className="divide-y divide-slate-100">
-                      {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
-                          <div key={user.id} className="p-4 flex items-center justify-between hover:bg-slate-50">
-                              <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400">{user.name.charAt(0)}</div>
-                                  <div>
-                                      <p className="font-bold text-slate-800">{user.name}</p>
-                                      <p className="text-xs text-blue-600 font-bold">{user.sector || 'Geral'}</p>
-                                  </div>
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Tabelas de Comissão por Técnico</h3>
+              <p className="text-sm text-slate-500 mb-6">Configure o valor ou percentual que cada técnico recebe por serviço finalizado.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
+                      <div key={user.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-500 transition-all bg-slate-50 group">
+                          <div className="flex items-center gap-3 mb-4">
+                              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center font-bold text-blue-600 shadow-sm border border-slate-100 text-lg">
+                                  {user.name.charAt(0)}
                               </div>
-                              <button onClick={() => openCommissionModal(user)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-bold flex items-center gap-2 transition-colors"><Edit size={16} /> Configurar Tabela</button>
+                              <div className="overflow-hidden">
+                                  <p className="font-bold text-slate-800 truncate">{user.name}</p>
+                                  <p className="text-[10px] bg-white border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase w-fit">{user.role}</p>
+                              </div>
                           </div>
-                      ))}
-                  </div>
+                          <button 
+                            onClick={() => openCommissionModal(user)}
+                            className="w-full py-2.5 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                          >
+                              <Edit size={14}/> Definir Ganhos
+                          </button>
+                      </div>
+                  ))}
+                  {allUsers.filter(u => u.role !== UserRole.CLIENT).length === 0 && (
+                      <div className="col-span-full py-12 text-center text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed flex flex-col items-center gap-2">
+                          <Users size={32} className="opacity-20" />
+                          <p>Nenhum colaborador cadastrado. Vá em "Equipe" para adicionar.</p>
+                      </div>
+                  )}
               </div>
           </div>
+        </div>
       )}
 
       {/* FINANCIAL CONTENT */}
       {activeTab === 'FINANCIAL' && (
-          <div className="animate-in fade-in slide-in-from-left-4 space-y-8">
-              {/* Seção de Onboarding Asaas */}
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                  <div className="flex items-center justify-between mb-8">
-                      <div>
-                          <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><CreditCard className="text-blue-600"/> Recebimento Online (Asaas)</h3>
-                          <p className="text-sm text-slate-500">Configure sua carteira digital para aceitar Cartão e PIX dos seus clientes.</p>
-                      </div>
-                      {walletStatus === 'ACTIVE' && (
-                          <div className="bg-green-100 text-green-700 px-4 py-2 rounded-full font-bold flex items-center gap-2">
-                              <CheckCircle size={20}/> CONTA ATIVA
-                          </div>
-                      )}
+        <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
+          
+          {/* DIGITAL ACCOUNT STATUS */}
+          {currentOrg?.financialSettings?.walletStatus !== 'ACTIVE' ? (
+            <div className="bg-indigo-600 text-white p-8 rounded-3xl shadow-xl shadow-indigo-100 flex flex-col md:flex-row justify-between items-center gap-8">
+               <div className="flex-1">
+                  <h3 className="text-2xl font-bold mb-2 flex items-center gap-2"><Wallet /> Ative sua Conta Digital</h3>
+                  <p className="text-indigo-100 text-sm">Receba pagamentos via PIX e Cartão de seus clientes diretamente no One Dental. Taxas exclusivas de 2%.</p>
+               </div>
+            </div>
+          ) : (
+            <div className="bg-green-50 border border-green-200 p-6 rounded-2xl flex items-center justify-between">
+               <div className="flex items-center gap-4">
+                  <div className="bg-green-600 p-3 rounded-full text-white"><CheckCircle /></div>
+                  <div>
+                    <p className="font-bold text-green-900 text-lg">Conta Digital One Dental Ativa</p>
+                    <p className="text-green-700 text-sm font-mono">{currentOrg.financialSettings.asaasWalletId}</p>
                   </div>
+               </div>
+               <span className="px-4 py-1 bg-green-100 text-green-700 rounded-full font-bold text-xs">CONECTADO</span>
+            </div>
+          )}
 
-                  {walletStatus !== 'ACTIVE' ? (
-                      <form onSubmit={handleCreateWallet} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="md:col-span-2 bg-blue-50 p-4 rounded-xl text-blue-800 text-sm mb-2">
-                              <strong>Atenção:</strong> Estes dados serão usados para criar sua subconta no processador de pagamentos Asaas. O laboratório deve ser o titular dos dados.
+          {/* ASSET CREATION FORM */}
+          {currentOrg?.financialSettings?.walletStatus !== 'ACTIVE' && (
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+               <h3 className="font-bold text-xl mb-6 flex items-center gap-2"><Briefcase className="text-blue-500" /> Cadastro para Recebimentos</h3>
+               <form onSubmit={handleRegisterWallet} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Nome da Empresa / Razão Social</label>
+                    <input required value={walletForm.name} onChange={e => setWalletForm({...walletForm, name: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro</label>
+                    <input required type="email" value={walletForm.email} onChange={e => setWalletForm({...walletForm, email: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
+                    <input required value={walletForm.cpfCnpj} onChange={e => setWalletForm({...walletForm, cpfCnpj: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Telefone / Celular</label>
+                    <input required value={walletForm.phone} onChange={e => setWalletForm({...walletForm, phone: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                  </div>
+                  <div className="md:col-span-2 grid grid-cols-3 gap-4">
+                    <div className="col-span-1">
+                      <label className="block text-sm font-bold text-slate-700 mb-1">CEP</label>
+                      <input required value={walletForm.postalCode} onChange={e => setWalletForm({...walletForm, postalCode: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Endereço</label>
+                      <input required value={walletForm.address} onChange={e => setWalletForm({...walletForm, address: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                  </div>
+                  <button 
+                    type="submit" 
+                    disabled={isRegisteringWallet}
+                    className="md:col-span-2 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 transition-all"
+                  >
+                    {isRegisteringWallet ? <Loader2 className="animate-spin"/> : <><CheckCircle size={20}/> Criar Conta One Dental System</>}
+                  </button>
+               </form>
+            </div>
+          )}
+
+          {/* MANUAL PAYMENTS SETTINGS */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> Dados para Pagamento Manual (Backup)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Chave PIX</label>
+                      <input value={pixKey} onChange={e => setPixKey(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Chave CNPJ..." />
+                  </div>
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Link Externo (Checkout)</label>
+                      <input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Link do MercadoPago, PicPay..." />
+                  </div>
+                  <div className="md:col-span-2">
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Instruções ou Dados Bancários</label>
+                      <textarea value={bankInfo} onChange={e => setBankInfo(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" rows={3} placeholder="Instruções para o dentista pagar manualmente..." />
+                  </div>
+              </div>
+              <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 hover:bg-blue-700"><Save size={20}/> Salvar Dados Financeiros</button>
+          </div>
+        </div>
+      )}
+
+      {/* SUBSCRIPTION CONTENT - FIXED FILTER */}
+      {activeTab === 'SUBSCRIPTION' && (
+          <div className="animate-in fade-in slide-in-from-left-4 space-y-6">
+              <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-2xl shadow-xl text-white flex justify-between items-center">
+                  <div>
+                      <p className="text-slate-400 text-sm font-bold uppercase mb-1">Plano Atual</p>
+                      <h2 className="text-3xl font-bold">{currentPlan?.name || 'SaaS Básico'}</h2>
+                      <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-bold border border-green-500/30">
+                          <Check size={12}/> {currentOrg?.subscriptionStatus === 'ACTIVE' ? 'ASSINATURA ATIVA' : (currentOrg?.subscriptionStatus || 'STATUS: OK')}
+                      </div>
+                  </div>
+                  <Crown size={64} className="text-yellow-400 opacity-20" />
+              </div>
+
+              {/* Coupon Section */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Ticket size={18} className="text-blue-500" /> Possui um Cupom?</h4>
+                <div className="flex gap-2 max-w-md">
+                   <input 
+                      value={couponCode} 
+                      onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                      className="flex-1 px-4 py-2 border rounded-xl font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="DIGITE O CÓDIGO"
+                   />
+                   <button onClick={handleApplyCoupon} className="px-6 py-2 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors">Validar</button>
+                </div>
+                {appliedCoupon && <p className="mt-2 text-green-600 text-sm font-bold flex items-center gap-1"><CheckCircle size={14}/> Cupom {appliedCoupon.code} aplicado com sucesso!</p>}
+              </div>
+
+              {/* Plans Selection - REMOVIDO FILTRO ACTIVE PARA GARANTIR EXIBIÇÃO */}
+              <h3 className="font-bold text-xl text-slate-800 mt-8 mb-4 flex items-center gap-2"><ArrowUpCircle className="text-blue-600" /> Opções de Upgrade</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {labPlans.length > 0 ? labPlans.map(plan => (
+                      <div key={plan.id} className={`bg-white p-6 rounded-3xl border-2 transition-all flex flex-col shadow-sm ${plan.id === currentOrg?.planId ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100 hover:border-blue-200'}`}>
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start">
+                                <h4 className="font-black text-slate-800 uppercase text-xs tracking-widest">{plan.name}</h4>
+                                {plan.id === currentOrg?.planId && <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">ATUAL</span>}
+                            </div>
+                            <p className="text-3xl font-black text-slate-900 mt-2">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400">/mês</span></p>
+                            <ul className="mt-6 space-y-3 text-xs text-slate-500 font-medium">
+                                <li className="flex items-center gap-2"><Users size={14} className="text-blue-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
+                                <li className="flex items-center gap-2"><Database size={14} className="text-blue-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
+                                <li className="flex items-center gap-2"><Store size={14} className={plan.features.hasStoreModule ? "text-green-500" : "text-slate-300"}/> Módulo de Loja Web</li>
+                            </ul>
                           </div>
-                          <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-1">Nome/Razão Social</label>
-                              <div className="relative">
-                                  <Building2 className="absolute left-3 top-3 text-slate-400" size={18}/>
-                                  <input required value={walletName} onChange={e => setWalletName(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="Nome Completo ou Empresa"/>
-                              </div>
-                          </div>
-                          <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro</label>
-                              <div className="relative">
-                                  <Mail className="absolute left-3 top-3 text-slate-400" size={18}/>
-                                  <input required type="email" value={walletEmail} onChange={e => setWalletEmail(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="financeiro@empresa.com"/>
-                              </div>
-                          </div>
-                          <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
-                              <div className="relative">
-                                  <Hash className="absolute left-3 top-3 text-slate-400" size={18}/>
-                                  <input required value={walletCpfCnpj} onChange={e => setWalletCpfCnpj(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="00.000.000/0000-00"/>
-                              </div>
-                          </div>
-                          <div>
-                              <label className="block text-sm font-bold text-slate-700 mb-1">Telefone/WhatsApp</label>
-                              <div className="relative">
-                                  <Phone className="absolute left-3 top-3 text-slate-400" size={18}/>
-                                  <input required value={walletPhone} onChange={e => setWalletPhone(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="(00) 00000-0000"/>
-                              </div>
-                          </div>
-                          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-100">
-                              <div>
-                                  <label className="block text-sm font-bold text-slate-700 mb-1">CEP</label>
-                                  <input required value={walletPostalCode} onChange={e => setWalletPostalCode(e.target.value)} className="w-full px-4 py-2 border rounded-xl" placeholder="00000-000"/>
-                              </div>
-                              <div className="md:col-span-2">
-                                  <label className="block text-sm font-bold text-slate-700 mb-1">Endereço (Logradouro)</label>
-                                  <div className="relative">
-                                      <Home className="absolute left-3 top-3 text-slate-400" size={18}/>
-                                      <input required value={walletAddress} onChange={e => setWalletAddress(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-xl" placeholder="Rua, Av..."/>
-                                  </div>
-                              </div>
-                              <div>
-                                  <label className="block text-sm font-bold text-slate-700 mb-1">Número</label>
-                                  <input required value={walletNumber} onChange={e => setWalletNumber(e.target.value)} className="w-full px-4 py-2 border rounded-xl" placeholder="123"/>
-                              </div>
-                              <div className="md:col-span-2">
-                                  <label className="block text-sm font-bold text-slate-700 mb-1">Estado (UF)</label>
-                                  <input required value={walletProvince} onChange={e => setWalletProvince(e.target.value.toUpperCase())} maxLength={2} className="w-full px-4 py-2 border rounded-xl" placeholder="Ex: SP"/>
-                              </div>
-                          </div>
-                          <button type="submit" disabled={loading} className="md:col-span-2 py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">
-                              {loading ? <Loader2 className="animate-spin"/> : <><Zap size={20}/> Ativar Minha Carteira Digital</>}
-                          </button>
-                      </form>
-                  ) : (
-                      <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                           <div className="flex items-center gap-4 text-slate-600">
-                               <CheckCircle className="text-green-500" size={32}/>
-                               <div>
-                                   <p className="font-bold">Conta Vinculada com Sucesso!</p>
-                                   <p className="text-sm">Seus recebimentos da Loja Virtual cairão diretamente nesta conta Asaas.</p>
-                               </div>
-                           </div>
+                          
+                          {plan.id !== currentOrg?.planId ? (
+                              <button 
+                                onClick={() => navigate(`/subscribe?plan=${plan.id}${appliedCoupon ? `&coupon=${appliedCoupon.code}` : ''}`)} 
+                                className="w-full mt-8 py-4 bg-slate-900 hover:bg-blue-600 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg"
+                              >
+                                 <ArrowUpCircle size={18}/> ALTERAR PLANO
+                              </button>
+                          ) : (
+                             <div className="w-full mt-8 py-4 bg-blue-50 text-blue-700 font-black rounded-2xl text-center border border-blue-100">
+                               PLANO EM USO
+                             </div>
+                          )}
+                      </div>
+                  )) : (
+                      <div className="col-span-full py-16 text-center text-slate-400 bg-slate-50 border-2 border-dashed rounded-3xl flex flex-col items-center gap-3">
+                          <Loader2 className="animate-spin text-blue-500" size={32} />
+                          <p className="font-medium text-slate-600">Carregando planos disponíveis no servidor...</p>
                       </div>
                   )}
               </div>
-
-              {/* Seção de Dados Manuais */}
-              <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-                  <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> Dados para Recebimento Manual</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          </div>
+      )}
+      
+      {/* Modal de Comissões */}
+      {configUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-start">
                       <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-1">Chave PIX</label>
-                          <input value={pixKey} onChange={e => setPixKey(e.target.value)} className="w-full px-4 py-2 border rounded-xl" placeholder="CPF, Email, Celular..." />
+                        <h3 className="text-xl font-bold text-slate-800">Comissões: {configUser.name}</h3>
+                        <p className="text-sm text-slate-500">Defina os ganhos para cada serviço concluído.</p>
                       </div>
-                      <div>
-                          <label className="block text-sm font-bold text-slate-700 mb-1">Link Externo de Pagamento</label>
-                          <input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} className="w-full px-4 py-2 border rounded-xl" placeholder="Link do MercadoPago, PicPay..." />
-                      </div>
-                      <div className="md:col-span-2">
-                          <label className="block text-sm font-bold text-slate-700 mb-1">Dados Bancários / Instruções</label>
-                          <textarea value={bankInfo} onChange={e => setBankInfo(e.target.value)} className="w-full px-4 py-2 border rounded-xl" rows={3} placeholder="Banco, Agência, Conta..." />
-                      </div>
+                      <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X /></button>
                   </div>
-                  <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2"><Save size={20}/> Salvar Configurações</button>
+                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                      {jobTypes.map(type => {
+                          const comm = tempCommissions.find(c => c.jobTypeId === type.id);
+                          return (
+                              <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                  <div className="flex-1">
+                                      <p className="font-bold text-slate-700">{type.name}</p>
+                                      <p className="text-xs text-slate-400">Preço Base: R$ {type.basePrice.toFixed(2)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                      <input 
+                                        type="number" 
+                                        value={comm?.value || ''} 
+                                        placeholder="0.00"
+                                        onChange={e => handleCommChange(type.id, e.target.value, comm?.type || 'FIXED')}
+                                        className="w-24 px-3 py-2 border rounded-lg text-right font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                                      />
+                                      <div className="flex bg-white rounded-lg border border-slate-200 p-1">
+                                          <button 
+                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'FIXED')}
+                                            className={`p-1.5 rounded ${comm?.type === 'FIXED' || !comm?.type ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
+                                            title="Valor Fixo"
+                                          ><DollarSign size={14}/></button>
+                                          <button 
+                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'PERCENTAGE')}
+                                            className={`p-1.5 rounded ${comm?.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
+                                            title="Percentual"
+                                          ><Percent size={14}/></button>
+                                      </div>
+                                  </div>
+                              </div>
+                          );
+                      })}
+                      {jobTypes.length === 0 && <p className="text-center py-4 text-slate-400 italic">Cadastre serviços antes de definir comissões.</p>}
+                  </div>
+                  <div className="p-6 border-t bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
+                      <button onClick={() => setConfigUser(null)} className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl">Cancelar</button>
+                      <button onClick={saveCommissions} className="px-8 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700">Salvar Alterações</button>
+                  </div>
               </div>
           </div>
       )}
 
-      {/* SUBSCRIPTION CONTENT */}
-      {activeTab === 'SUBSCRIPTION' && (
-          <div className="animate-in fade-in slide-in-from-left-4 space-y-8">
-              {/* Plano Atual Card */}
-              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-8 rounded-3xl shadow-xl text-white relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 opacity-10">
-                      <Crown size={120} />
-                  </div>
-                  <div className="relative z-10">
-                      <p className="text-indigo-300 text-sm font-bold uppercase tracking-widest mb-1">Seu Plano Atual</p>
-                      <h2 className="text-4xl font-black">{currentPlan?.name || 'Carregando...'}</h2>
-                      <div className="mt-4 flex flex-wrap gap-3">
-                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-bold border border-green-500/30">
-                              <Check size={12}/> ASSINATURA ATIVA
-                          </div>
-                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white/80 text-xs font-bold border border-white/10">
-                              <Database size={12}/> {currentPlan?.features.maxStorageGB}GB STORAGE
-                          </div>
+      {/* NOVO USUÁRIO MODAL */}
+      {isAddingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><UserPlus className="text-blue-600" /> Cadastrar Colaborador</h3>
+                  <form onSubmit={handleAddUser} className="space-y-4">
+                      <input required value={userName} onChange={e => setUserName(e.target.value)} placeholder="Nome Completo" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input required type="email" value={userEmail} onChange={e => setUserEmail(e.target.value)} placeholder="Email" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input required type="password" value={userPass} onChange={e => setUserPass(e.target.value)} placeholder="Senha Inicial" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" minLength={6} />
+                      <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                          <option value={UserRole.COLLABORATOR}>Colaborador / Técnico</option>
+                          <option value={UserRole.MANAGER}>Gestor / Supervisor</option>
+                          <option value={UserRole.ADMIN}>Administrador</option>
+                      </select>
+                      <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                          <option value="">Setor: Nenhum (Geral)</option>
+                          {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      </select>
+                      <div className="flex gap-3 mt-6">
+                          <button type="button" onClick={() => setIsAddingUser(false)} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
+                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Criar Acesso</button>
                       </div>
-                  </div>
-              </div>
-
-              {/* Upgrade de Plano */}
-              <div className="space-y-6">
-                  <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><ArrowUpCircle className="text-blue-600"/> Upgrade de Plano</h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {allPlans.filter(p => p.targetAudience === 'LAB' && p.active).map(plan => {
-                          const isCurrent = plan.id === currentOrg?.planId;
-                          return (
-                            <div key={plan.id} className={`bg-white p-6 rounded-2xl border-2 transition-all group flex flex-col ${isCurrent ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100 hover:border-blue-200'}`}>
-                                <div className="flex justify-between items-start mb-4">
-                                    <h4 className="font-bold text-slate-800 uppercase text-xs tracking-widest">{plan.name}</h4>
-                                    {isCurrent && <span className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">ATUAL</span>}
-                                </div>
-                                <p className="text-3xl font-black text-slate-900">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400 font-normal">/mês</span></p>
-                                <ul className="mt-6 space-y-3 flex-1">
-                                    <li className="flex items-center gap-2 text-sm text-slate-600">
-                                        <Check size={14} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}
-                                    </li>
-                                    <li className="flex items-center gap-2 text-sm text-slate-600">
-                                        <Check size={14} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento
-                                    </li>
-                                    <li className={`flex items-center gap-2 text-sm ${plan.features.hasStoreModule ? 'text-slate-600' : 'text-slate-300'}`}>
-                                        <Check size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-300'}/> Loja Virtual
-                                    </li>
-                                </ul>
-                                {!isCurrent && (
-                                    <button 
-                                        onClick={() => navigate(`/subscribe?plan=${plan.id}${appliedUpgradeCoupon ? `&coupon=${appliedUpgradeCoupon.code}` : ''}`)} 
-                                        className="w-full mt-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95"
-                                    >
-                                        Mudar para este
-                                    </button>
-                                )}
-                            </div>
-                          );
-                      })}
-                  </div>
-
-                  {/* CUPOM PARA LABS */}
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-w-md">
-                      <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2"><Ticket size={18} className="text-indigo-600"/> Possui um Cupom?</h4>
-                      <div className="flex gap-2">
-                          <input 
-                              value={upgradeCoupon}
-                              onChange={e => setUpgradeCoupon(e.target.value.toUpperCase())}
-                              placeholder="CÓDIGO"
-                              className="flex-1 px-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
-                              disabled={!!appliedUpgradeCoupon}
-                          />
-                          <button 
-                             onClick={handleValidateUpgradeCoupon}
-                             disabled={!!appliedUpgradeCoupon}
-                             className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                          >
-                              {appliedUpgradeCoupon ? 'Aplicado' : 'Validar'}
-                          </button>
-                      </div>
-                      {appliedUpgradeCoupon && <p className="text-xs text-green-600 mt-2 font-bold flex items-center gap-1"><Check size={12}/> Cupom {appliedUpgradeCoupon.code} pronto para uso!</p>}
-                  </div>
-              </div>
-
-              {/* Histórico de Faturas */}
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                      <div>
-                          <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><FileText className="text-blue-600"/> Histórico de Faturas</h3>
-                          <p className="text-sm text-slate-500">Acesse seus boletos e notas fiscais das mensalidades.</p>
-                      </div>
-                      <button onClick={loadInvoices} className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-blue-600 transition-colors">
-                          <RefreshCw size={20} className={loadingInvoices ? "animate-spin" : ""} />
-                      </button>
-                  </div>
-
-                  <div className="divide-y divide-slate-100">
-                      {loadingInvoices ? (
-                          <div className="p-12 text-center text-slate-400">
-                              <Loader2 className="animate-spin mx-auto mb-2"/> Carregando histórico...
-                          </div>
-                      ) : invoices.length === 0 ? (
-                          <div className="p-12 text-center text-slate-400">Nenhuma fatura encontrada.</div>
-                      ) : (
-                          invoices.map(inv => (
-                              <div key={inv.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                                  <div className="flex items-center gap-4">
-                                      <div className={`p-3 rounded-xl ${inv.status === 'RECEIVED' ? 'bg-green-100 text-green-600' : inv.status === 'OVERDUE' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                                          <CreditCard size={20} />
-                                      </div>
-                                      <div>
-                                          <p className="font-bold text-slate-800">{inv.description}</p>
-                                          <p className="text-xs text-slate-400 flex items-center gap-2">
-                                              <Calendar size={12}/> Vencimento: {new Date(inv.dueDate).toLocaleDateString()}
-                                          </p>
-                                      </div>
-                                  </div>
-                                  <div className="flex items-center gap-6">
-                                      <div className="text-right">
-                                          <p className="font-black text-slate-800 text-lg">R$ {inv.value.toFixed(2)}</p>
-                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${inv.status === 'RECEIVED' ? 'bg-green-100 text-green-700' : inv.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                                              {inv.status === 'RECEIVED' ? 'Paga' : inv.status === 'OVERDUE' ? 'Atrasada' : 'Pendente'}
-                                          </span>
-                                      </div>
-                                      {inv.invoiceUrl && (
-                                          <a 
-                                              href={inv.invoiceUrl} 
-                                              target="_blank" 
-                                              rel="noopener noreferrer" 
-                                              className="p-3 bg-white border border-slate-200 rounded-xl text-blue-600 hover:border-blue-300 hover:shadow-md transition-all"
-                                          >
-                                              <ExternalLink size={20} />
-                                          </a>
-                                      )}
-                                  </div>
-                              </div>
-                          ))
-                      )}
-                  </div>
+                  </form>
               </div>
           </div>
       )}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -6,7 +5,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, AlertTriangle, Activity, Database
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -51,14 +50,12 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isClient = currentUser?.role === UserRole.CLIENT;
-  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
   
-  // Contagem de pedidos aguardando aprovação
   const pendingOrdersCount = jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length;
 
-  const bgClass = isSuperAdmin ? 'bg-slate-900' : (isClient ? 'bg-store-900' : 'bg-lab-900');
-  const logoColor = isSuperAdmin ? 'text-indigo-500' : (isClient ? 'text-store-600' : 'text-lab-600');
+  const bgClass = isClient ? 'bg-indigo-900' : 'bg-slate-900';
+  const logoColor = isClient ? 'text-indigo-500' : 'text-blue-500';
 
   const handleLogout = () => { logout(); navigate('/'); };
 
@@ -78,24 +75,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                 <span className={`font-bold text-xl ${logoColor}`}>O</span>
               </div>
-              <span className="text-lg font-bold tracking-tight">ONE DENTAL</span>
+              <span className="text-lg font-bold tracking-tight">One Dental</span>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white"><X size={24} /></button>
           </div>
 
           <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
-            {/* MENU SUPER ADMIN */}
-            {isSuperAdmin && (
-              <>
-                <div className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">SaaS Master</div>
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/superadmin" icon={<LayoutDashboard size={20} />} label="Painel Geral" active={location.pathname === '/superadmin'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/superadmin/plans" icon={<Crown size={20} />} label="Gerenciar Planos" active={location.pathname === '/superadmin/plans'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons & Descontos" active={location.pathname === '/superadmin/coupons'} />
-              </>
-            )}
-
-            {/* MENU LABORATÓRIO */}
-            {!isClient && !isSuperAdmin && (
+            {!isClient && currentUser?.role !== UserRole.SUPER_ADMIN && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
                 
@@ -107,35 +93,26 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />
                 
                 {isManager && (
-                   <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<AlertTriangle size={20} />} label="Prometidos" active={location.pathname === '/promised'} />
+                   <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />
                 )}
 
-                {isManager && (
-                   <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Catálogo" active={location.pathname === '/job-types'} />
-                )}
-
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<DollarSign size={20} />} label="Comissões" active={location.pathname === '/commissions'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Activity size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<DollarSign size={20} />} label="Comissões" active={location.pathname === '/commissions'} />
               </>
             )}
 
-            {/* MENU DENTISTA */}
             {isClient && (
               <>
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Virtual" active={location.pathname === '/store'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Fazer Pedido" active={location.pathname === '/store'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/jobs'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Laboratórios" active={location.pathname === '/dentist/partnerships'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
-                
-                <div className="px-4 py-2 mt-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Minha Clínica</div>
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/my-patients" icon={<Users size={20} />} label="Pacientes" active={location.pathname === '/my-patients'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
               </>
             )}
 
             <div className="pt-8 mt-8 border-t border-white/10">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-              {(isManager || isClient) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={isClient ? "/clinic-settings" : "/admin"} icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin' || location.pathname === '/clinic-settings'} />}
+              {isManager && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin'} />}
             </div>
           </nav>
 
@@ -151,7 +128,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-2">
              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
-             <span className="font-bold text-slate-800">ONE DENTAL</span>
+             <span className="font-bold text-slate-800">One Dental</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
         </header>

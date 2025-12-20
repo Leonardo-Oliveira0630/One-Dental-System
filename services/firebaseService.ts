@@ -171,12 +171,6 @@ export const apiCreateSaaSSubscription = async (orgId: string, planId: string, e
     return result.data;
 };
 
-export const apiCreateLabSubAccount = async (payload: any) => {
-    const fn = httpsCallable(functions, 'createLabSubAccount');
-    const result: any = await fn(payload);
-    return result.data;
-};
-
 export const apiCheckSubscriptionStatus = async (orgId: string) => {
     const fn = httpsCallable(functions, 'checkSubscriptionStatus');
     const result: any = await fn({ orgId });
@@ -186,6 +180,13 @@ export const apiCheckSubscriptionStatus = async (orgId: string) => {
 export const apiGetSaaSInvoices = async (orgId: string) => {
     const fn = httpsCallable(functions, 'getSaaSInvoices');
     const result: any = await fn({ orgId });
+    return result.data;
+};
+
+/* Added missing apiCreateLabSubAccount to fix context/AppContext.tsx error */
+export const apiCreateLabSubAccount = async (payload: any) => {
+    const fn = httpsCallable(functions, 'createLabSubAccount');
+    const result: any = await fn(payload);
     return result.data;
 };
 
@@ -234,26 +235,21 @@ export const apiValidateCoupon = async (code: string, planId: string): Promise<C
     return null;
 };
 
-export const apiAddConnectionByCode = async (orgId: string, dentistId: string, targetOrgId: string) => {
-    const orgSnap = await getDoc(doc(db, 'organizations', targetOrgId));
+export const apiAddConnectionByCode = async (orgId: string, dentistId: string, organizationId: string) => {
+    const orgSnap = await getDoc(doc(db, 'organizations', organizationId));
     if (!orgSnap.exists()) throw new Error("Laboratório não encontrado.");
     const orgData = orgSnap.data() as Organization;
     
-    const connId = `conn_${dentistId}_${targetOrgId}`;
+    const connId = `conn_${dentistId}_${organizationId}`;
     const conn: OrganizationConnection = {
         id: connId,
         dentistId,
-        organizationId: targetOrgId,
+        organizationId,
         organizationName: orgData.name,
         status: 'active',
         createdAt: new Date()
     };
-    // Salva na subcoleção de conexões da organização do DENTISTA
     await setDoc(doc(db, 'organizations', orgId, 'connections', connId), sanitizeData(conn));
-};
-
-export const subscribeUserConnections = (orgId: string, cb: (d: OrganizationConnection[]) => void) => {
-    return subscribeSubCollection<OrganizationConnection>(orgId, 'connections', cb);
 };
 
 export const apiUpdateOrganization = async (id: string, updates: Partial<Organization>) => await updateDoc(doc(db, 'organizations', id), sanitizeData(updates));

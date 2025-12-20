@@ -2,15 +2,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { Job, JobStatus, UrgencyLevel } from "../types";
 
-// getProductionInsights provides industrial manager expert advice based on current production data.
 export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
-  // Always obtain the API key from process.env.API_KEY and create a new instance right before making an API call.
-  // This ensures the client uses the most up-to-date configuration.
+  /* Following @google/genai guidelines: Always use the direct initialization format with process.env.API_KEY. Assume the key is pre-configured and accessible. */
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   // Prepare data summary for the AI
   const totalJobs = jobs.length;
-  const delayed = jobs.filter(j => new Date(j.dueDate) < new Date() && j.status !== JobStatus.COMPLETED).length;
+  const delayed = jobs.filter(j => j.dueDate < new Date() && j.status !== JobStatus.COMPLETED).length;
   const vip = jobs.filter(j => j.urgency === UrgencyLevel.VIP && j.status !== JobStatus.COMPLETED).length;
   
   // Group by sector (mock logic for sector distribution)
@@ -38,12 +36,11 @@ export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
   `;
 
   try {
-    // Generate content using the specified model and prompt as per updated coding guidelines
+    // Corrected model name according to guidelines
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
     });
-    // Use the .text property to access the generated string directly
     return response.text || "Nenhum insight gerado.";
   } catch (error) {
     console.error("Gemini Error:", error);

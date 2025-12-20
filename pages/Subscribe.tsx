@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store, RefreshCw, Ticket, Check } from 'lucide-react';
+import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store, RefreshCw } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { UserRole, Coupon } from '../types';
+import { UserRole } from '../types';
 
 export const Subscribe = () => {
-    const { currentOrg, createSubscription, allPlans, currentUser, checkSubscriptionStatus, validateCoupon } = useApp();
+    const { currentOrg, createSubscription, allPlans, currentUser, checkSubscriptionStatus } = useApp();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     
@@ -15,13 +15,11 @@ export const Subscribe = () => {
 
     const [loading, setLoading] = useState(false);
     const [verifying, setVerifying] = useState(false);
-    const [validatingCoupon, setValidatingCoupon] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId);
     const [cpfCnpj, setCpfCnpj] = useState('');
     const [billingEmail, setBillingEmail] = useState(currentUser?.email || '');
     const [error, setError] = useState('');
     const [couponCode, setCouponCode] = useState(initialCoupon);
-    const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
     
     // State para o link de pagamento gerado
     const [generatedLink, setGeneratedLink] = useState<string | null>(null);
@@ -44,35 +42,7 @@ export const Subscribe = () => {
         }
     }, [displayPlans, selectedPlanId]);
 
-    // Auto-validate coupon if coming from URL
-    useEffect(() => {
-        if (initialCoupon) {
-            handleApplyCoupon(initialCoupon);
-        }
-    }, [initialCoupon]);
-
     if (!currentOrg) return null;
-
-    const handleApplyCoupon = async (codeOverride?: string) => {
-        const codeToUse = codeOverride || couponCode;
-        if (!codeToUse) return;
-        
-        setValidatingCoupon(true);
-        try {
-            const coupon = await validateCoupon(codeToUse.toUpperCase(), selectedPlanId || 'ANY');
-            if (coupon) {
-                setAppliedCoupon(coupon);
-                setCouponCode(coupon.code);
-            } else {
-                alert("Cupom inválido para este plano ou expirado.");
-                setAppliedCoupon(null);
-            }
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setValidatingCoupon(false);
-        }
-    };
 
     const handleSubscribe = async () => {
         const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
@@ -92,11 +62,9 @@ export const Subscribe = () => {
         try {
             console.log("Iniciando processo de assinatura...", { 
                 orgId: currentOrg.id, 
-                plan: selectedPlanId,
-                coupon: appliedCoupon?.code
+                plan: selectedPlanId 
             });
 
-            // O backend precisa suportar o envio do cupom se quisermos o desconto real na fatura do Asaas
             const result = await createSubscription(
                 currentOrg.id, 
                 selectedPlanId, 
@@ -112,7 +80,9 @@ export const Subscribe = () => {
                     alert("Ambiente de Teste: Plano ativado (Simulação).");
                     navigate('/dashboard');
                 } else if (result.paymentLink) {
+                    // UX: Guardamos o link e mostramos o botão em vez de redirecionar forçado
                     setGeneratedLink(result.paymentLink);
+                    // Opcional: abrir em nova aba automaticamente
                     window.open(result.paymentLink, '_blank');
                 } else {
                     setError("Plano ativado, mas link de pagamento não gerado. Verifique seu painel.");
@@ -176,10 +146,7 @@ export const Subscribe = () => {
                                 <div 
                                     key={plan.id}
                                     className={`bg-white p-6 rounded-2xl border-2 cursor-pointer transition-all ${selectedPlanId === plan.id ? 'border-blue-600 shadow-xl ring-2 ring-blue-100 scale-105 z-10' : 'border-slate-100 shadow-sm opacity-80 hover:opacity-100'}`} 
-                                    onClick={() => {
-                                        setSelectedPlanId(plan.id);
-                                        setAppliedCoupon(null); // Reset coupon if plan changes as it might not be applicable
-                                    }}
+                                    onClick={() => setSelectedPlanId(plan.id)}
                                 >
                                     <h3 className="font-bold text-lg text-slate-800 uppercase tracking-wide">{plan.name}</h3>
                                     <p className="text-3xl font-bold text-slate-900 mt-2">
@@ -280,36 +247,8 @@ export const Subscribe = () => {
                                     />
                                 </div>
                             </div>
-
-                            {/* CAMPO DE CUPOM NO CHECKOUT */}
-                            <div className="pt-2">
-                                <label className="block text-sm font-bold text-slate-700 mb-1 flex items-center gap-2">
-                                    <Ticket size={16} className="text-blue-600"/> Cupom de Desconto
-                                </label>
-                                <div className="flex gap-2">
-                                    <input 
-                                        value={couponCode}
-                                        onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                                        placeholder="CÓDIGO"
-                                        className="flex-1 px-4 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
-                                        disabled={!!appliedCoupon || validatingCoupon}
-                                    />
-                                    <button 
-                                        type="button"
-                                        onClick={() => handleApplyCoupon()}
-                                        disabled={!!appliedCoupon || validatingCoupon || !couponCode}
-                                        className="px-4 py-2 bg-slate-100 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-200 font-bold text-sm transition-colors disabled:opacity-50"
-                                    >
-                                        {validatingCoupon ? <Loader2 size={16} className="animate-spin"/> : (appliedCoupon ? <Check size={16} className="text-green-600"/> : 'Aplicar')}
-                                    </button>
-                                </div>
-                                {appliedCoupon && (
-                                    <div className="mt-2 flex items-center justify-between bg-green-50 p-2 rounded border border-green-200">
-                                        <span className="text-xs text-green-700 font-bold">Cupom {appliedCoupon.code} aplicado!</span>
-                                        <button onClick={() => {setAppliedCoupon(null); setCouponCode('');}} className="text-[10px] text-red-500 font-bold hover:underline">Remover</button>
-                                    </div>
-                                )}
-                            </div>
+                            
+                            {couponCode && <div className="bg-green-50 text-green-700 text-sm px-3 py-2 rounded-lg font-bold border border-green-200 text-center">Cupom aplicado: {couponCode}</div>}
                             
                             {error && (
                                 <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-start gap-2 border border-red-100 font-medium">
