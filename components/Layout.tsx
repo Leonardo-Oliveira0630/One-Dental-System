@@ -11,6 +11,7 @@ import {
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
+import { AlertPopup } from './AlertSystem';
 
 interface SidebarItemProps {
   to: string;
@@ -62,9 +63,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const handleLogout = () => { logout(); navigate('/'); };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans">
+    <div className="min-h-screen flex bg-slate-50 font-sans relative">
       <GlobalScanner />
       <PrintOverlay />
+      <AlertPopup />
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
 

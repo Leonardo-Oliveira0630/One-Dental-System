@@ -124,10 +124,38 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<{ job: Job, mode: 'SHEET' | 'LABEL' } | null>(null);
 
-  // Helper para decidir qual Org ID usar no carregamento de dados (Jobs e Catálogo)
   const targetOrgId = () => activeOrganization?.id || (currentUser?.role !== UserRole.CLIENT ? currentUser?.organizationId : null) || null;
 
-  // --- GLOBAL SUBSCRIPTIONS ---
+  // --- LÓGICA DE DETECÇÃO DE ALERTAS ---
+  useEffect(() => {
+      if (!currentUser || alerts.length === 0) {
+          setActiveAlert(null);
+          return;
+      }
+
+      const checkAlerts = () => {
+          const now = new Date();
+          // Encontrar o primeiro alerta que o usuário deva ver agora
+          const alertToShow = alerts.find(a => {
+              const isScheduled = new Date(a.scheduledFor) <= now;
+              const notRead = !a.readBy?.includes(currentUser.id);
+              const forMe = (a.targetUserId === currentUser.id) || (a.targetSector && a.targetSector === currentUser.sector);
+              
+              return isScheduled && notRead && forMe;
+          });
+
+          if (alertToShow && (!activeAlert || activeAlert.id !== alertToShow.id)) {
+              setActiveAlert(alertToShow);
+          } else if (!alertToShow) {
+              setActiveAlert(null);
+          }
+      };
+
+      checkAlerts();
+      const interval = setInterval(checkAlerts, 10000); // Checa a cada 10s
+      return () => clearInterval(interval);
+  }, [alerts, currentUser, activeAlert]);
+
   useEffect(() => {
     if (!db) return;
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
@@ -285,6 +313,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const createLabWallet = async (p: any) => await api.apiCreateLabSubAccount(p);
   const getSaaSInvoices = async (orgId: string) => await api.apiGetSaaSInvoices(orgId);
   const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);
+  
   const addAlert = async (a: JobAlert) => {
       const orgId = currentUser?.organizationId;
       if(!orgId) return;
@@ -292,8 +321,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }
   const dismissAlert = async (id: string) => {
       const orgId = currentUser?.organizationId;
-      if(!orgId) return;
-      await api.apiMarkAlertAsRead(orgId, id, currentUser?.id || '');
+      if(!orgId || !currentUser) return;
+      await api.apiMarkAlertAsRead(orgId, id, currentUser.id);
+      setActiveAlert(null); // Fecha localmente imediatamente
   }
   const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => {
       const orgId = currentUser?.organizationId;
@@ -339,7 +369,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
   const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
-  // Fixed: using api.apiDeleteCoupon to fix missing deleteDoc error
   const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
 
   const addManualDentist = async (d: Omit<ManualDentist, 'id' | 'organizationId'>) => {
