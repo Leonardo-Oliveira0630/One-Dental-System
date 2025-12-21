@@ -23,6 +23,7 @@ import { Patients } from './pages/clinic/Patients';
 import { Schedule } from './pages/clinic/Schedule';
 import { ClinicSettings } from './pages/clinic/ClinicSettings';
 import { Partnerships } from './pages/dentist/Partnerships';
+import { Dentists } from './pages/lab/Dentists';
 import { Loader2 } from 'lucide-react';
 import { UserRole } from './types';
 
@@ -49,6 +50,9 @@ const AppContent = () => {
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
+      {/* Lab Exclusive */}
+      <Route path="/lab/dentists" element={<ProtectedRoute><Dentists /></ProtectedRoute>} />
+
       {/* Clinic / Dentist Routes */}
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />

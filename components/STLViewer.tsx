@@ -1,5 +1,5 @@
 
-import React, { useState, Suspense, useEffect, Component, ReactNode } from 'react';
+import React, { useState, Suspense, useEffect, ReactNode } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid, Html, useProgress, Center } from '@react-three/drei';
 import { STLLoader } from 'three-stdlib';
@@ -22,8 +22,8 @@ interface ViewerErrorBoundaryState {
   errorMsg: string;
 }
 
-// Fixed ViewerErrorBoundary by using the explicitly imported Component class to ensure standard inheritance and property access for state and props.
-class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
+// Fixed ViewerErrorBoundary by using React.Component explicitly to ensure property access for state and props.
+class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
   constructor(props: ViewerErrorBoundaryProps) {
     super(props);
     // Properly initializing state property inherited from Component

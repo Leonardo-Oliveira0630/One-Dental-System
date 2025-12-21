@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, User, CustomPrice, UserCommissionSetting, Coupon, SubscriptionPlan } from '../types';
@@ -398,7 +399,7 @@ export const Admin = () => {
                 {appliedCoupon && <p className="mt-2 text-green-600 text-sm font-bold flex items-center gap-1"><CheckCircle size={14}/> Cupom {appliedCoupon.code} aplicado com sucesso!</p>}
               </div>
 
-              {/* Plans Selection - REMOVIDO FILTRO ACTIVE PARA GARANTIR EXIBIÇÃO */}
+              {/* Plans Selection */}
               <h3 className="font-bold text-xl text-slate-800 mt-8 mb-4 flex items-center gap-2"><ArrowUpCircle className="text-blue-600" /> Opções de Upgrade</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {labPlans.length > 0 ? labPlans.map(plan => (

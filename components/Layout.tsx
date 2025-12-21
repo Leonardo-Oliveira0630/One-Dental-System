@@ -6,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Building, Briefcase
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Building, Briefcase, Stethoscope
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -134,7 +134,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
                 
                 {isManager && (
-                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
+                  <>
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Meus Clientes" active={location.pathname === '/lab/dentists'} />
+                  </>
                 )}
 
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />

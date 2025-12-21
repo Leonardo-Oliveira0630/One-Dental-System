@@ -102,11 +102,12 @@ export const Login = () => {
             </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center border-t border-slate-700 pt-6">
             <p className="text-slate-400 text-sm">
-                Não tem uma conta? 
-                <Link to="/register-lab" className="font-bold ml-2 text-blue-400 hover:underline">
-                    Cadastre seu Laboratório
+                Não tem uma conta ainda?
+                <br />
+                <Link to="/register-lab" className="font-bold text-blue-400 hover:underline inline-flex items-center gap-1 mt-2">
+                    Criar nova conta (Lab ou Dentista)
                 </Link>
             </p>
         </div>
