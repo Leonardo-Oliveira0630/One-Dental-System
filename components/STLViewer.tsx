@@ -1,5 +1,5 @@
 
-import React, { useState, Suspense, useEffect } from 'react';
+import React, { useState, Suspense, useEffect, Component, ReactNode } from 'react';
 import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid, Html, useProgress, Center } from '@react-three/drei';
 import { STLLoader } from 'three-stdlib';
@@ -14,7 +14,7 @@ const Color = 'color' as any;
 
 // --- Error Boundary for 3D Loading ---
 interface ViewerErrorBoundaryProps {
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 interface ViewerErrorBoundaryState {
@@ -22,11 +22,11 @@ interface ViewerErrorBoundaryState {
   errorMsg: string;
 }
 
-/* Fixed ViewerErrorBoundary to resolve state and props missing errors by explicitly extending React.Component. This ensures that the 'props' property is available and correctly typed within the class. */
-class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
+/* Fixed ViewerErrorBoundary by explicitly extending the Component class from React with generic Props and State parameters. This resolves the TypeScript error regarding the 'props' property missing on the class instance by ensuring standard inheritance. */
+class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
   public state: ViewerErrorBoundaryState = { hasError: false, errorMsg: '' };
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: any): ViewerErrorBoundaryState {
     return { hasError: true, errorMsg: error.message };
   }
 
@@ -62,7 +62,7 @@ class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, View
       );
     }
 
-    // Fixed access to props by ensuring correct inheritance from React.Component
+    /* Fixed property 'props' access by correctly inheriting from React.Component */
     return this.props.children;
   }
 }
@@ -177,13 +177,13 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
             <X size={24} />
         </button>
 
-        {/* Fixed usage of ViewerErrorBoundary to provide children which avoids missing property children error */}
+        {/* Wrapping the Canvas in ViewerErrorBoundary to catch 3D rendering or model loading issues */}
         <ViewerErrorBoundary>
             <Canvas shadows camera={{ position: [0, 0, 100], fov: 50 }}>
             <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
             
             <Suspense fallback={<Loader />}>
-                {/* Stage fornece iluminação padrão. Center garante que o modelo esteja no foco da câmera */}
+                {/* Stage provides default environment lighting. Center ensures model is in camera focus. */}
                 <Stage environment="city" intensity={0.6} adjustCamera={false}>
                     <Center>
                         {meshes.map((mesh) => (
@@ -201,7 +201,7 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
             
             <Grid 
                 renderOrder={-1} 
-                position={[0, -50, 0]} // Grid abaixo do modelo
+                position={[0, -50, 0]} // Grid below the model
                 infiniteGrid 
                 cellSize={10} 
                 sectionSize={50} 

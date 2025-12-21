@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -5,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Building, Briefcase
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -48,6 +49,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLabSelectorOpen, setIsLabSelectorOpen] = useState(false);
 
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isManager = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
@@ -80,6 +82,52 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white"><X size={24} /></button>
           </div>
 
+          {/* DENTIST LAB SELECTOR */}
+          {isClient && (
+             <div className="mb-6 px-2 relative">
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2">Laboratório Ativo</p>
+                <button 
+                   onClick={() => setIsLabSelectorOpen(!isLabSelectorOpen)}
+                   className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 group"
+                >
+                   <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shrink-0">
+                         <Building size={16} />
+                      </div>
+                      <span className="font-bold text-sm truncate">{activeOrganization?.name || 'Selecione...'}</span>
+                   </div>
+                   <ChevronsUpDown size={14} className="text-slate-500 group-hover:text-white" />
+                </button>
+
+                {isLabSelectorOpen && (
+                   <div className="absolute top-full left-2 right-2 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                      <div className="max-h-48 overflow-y-auto">
+                        {userConnections.map(conn => (
+                           <button 
+                              key={conn.organizationId}
+                              onClick={() => { switchActiveOrganization(conn.organizationId); setIsLabSelectorOpen(false); }}
+                              className={`w-full text-left p-3 text-sm hover:bg-white/5 flex items-center justify-between ${activeOrganization?.id === conn.organizationId ? 'text-indigo-400 bg-white/5' : 'text-slate-300'}`}
+                           >
+                              <span className="truncate">{conn.organizationName}</span>
+                              {activeOrganization?.id === conn.organizationId && <div className="w-2 h-2 bg-indigo-400 rounded-full"></div>}
+                           </button>
+                        ))}
+                        {userConnections.length === 0 && (
+                            <div className="p-4 text-xs text-slate-500 text-center italic">Nenhuma parceria ativa</div>
+                        )}
+                      </div>
+                      <Link 
+                        to="/dentist/partnerships" 
+                        onClick={() => setIsLabSelectorOpen(false)}
+                        className="block w-full p-3 text-center text-xs font-bold bg-white/5 hover:bg-white/10 border-t border-slate-700 text-indigo-400"
+                      >
+                         + Nova Parceria
+                      </Link>
+                   </div>
+                )}
+             </div>
+          )}
+
           <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
             {!isClient && currentUser?.role !== UserRole.SUPER_ADMIN && (
               <>
@@ -107,12 +155,17 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Fazer Pedido" active={location.pathname === '/store'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/jobs'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
+                <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Parcerias" active={location.pathname === '/dentist/partnerships'} />
               </>
             )}
 
             <div className="pt-8 mt-8 border-t border-white/10">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
               {isManager && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin'} />}
+              {isClient && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic-settings" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/clinic-settings'} />}
             </div>
           </nav>
 

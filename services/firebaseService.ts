@@ -102,11 +102,6 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
   return null;
 };
 
-// --- COMMISSIONS ---
-export const subscribeCommissions = (orgId: string, cb: (d: CommissionRecord[]) => void) => subscribeSubCollection<CommissionRecord>(orgId, 'commissions', cb);
-export const apiAddCommission = (orgId: string, d: CommissionRecord) => apiAddSubDoc(orgId, 'commissions', d);
-export const apiUpdateCommission = (orgId: string, id: string, u: Partial<CommissionRecord>) => apiUpdateSubDoc(orgId, 'commissions', id, u);
-
 // --- DATA FUNCTIONS ---
 const getSubCollection = (orgId: string, collName: string) => collection(db, 'organizations', orgId, collName);
 const getSubDoc = (orgId: string, collName: string, docId: string) => doc(db, 'organizations', orgId, collName, docId);
@@ -152,6 +147,30 @@ export const apiAddUser = async (user: User) => await setDoc(doc(db, 'users', us
 export const apiUpdateUser = async (id: string, updates: Partial<User>) => await updateDoc(doc(db, 'users', id), sanitizeData(updates));
 export const apiDeleteUser = async (id: string) => await deleteDoc(doc(db, 'users', id));
 
+// --- CONNECTIONS (Dentist x Lab) ---
+export const subscribeUserConnections = (orgId: string, cb: (d: OrganizationConnection[]) => void) => {
+    return subscribeSubCollection<OrganizationConnection>(orgId, 'connections', cb);
+};
+
+export const apiAddConnectionByCode = async (dentistOrgId: string, dentistId: string, targetLabId: string) => {
+    if (!db) return;
+    const orgSnap = await getDoc(doc(db, 'organizations', targetLabId));
+    if (!orgSnap.exists()) throw new Error("Laboratório não encontrado com este ID.");
+    const orgData = orgSnap.data() as Organization;
+    if (orgData.orgType !== 'LAB') throw new Error("O ID informado não pertence a um laboratório.");
+
+    const connId = `conn_${targetLabId}`;
+    const conn: OrganizationConnection = {
+        id: connId,
+        dentistId,
+        organizationId: targetLabId,
+        organizationName: orgData.name,
+        status: 'active',
+        createdAt: new Date()
+    };
+    await setDoc(getSubDoc(dentistOrgId, 'connections', connId), sanitizeData(conn));
+};
+
 // --- CLOUD FUNCTIONS CALLS ---
 export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
     const fn = httpsCallable(functions, 'createOrderPayment');
@@ -183,7 +202,6 @@ export const apiGetSaaSInvoices = async (orgId: string) => {
     return result.data;
 };
 
-/* Added missing apiCreateLabSubAccount to fix context/AppContext.tsx error */
 export const apiCreateLabSubAccount = async (payload: any) => {
     const fn = httpsCallable(functions, 'createLabSubAccount');
     const result: any = await fn(payload);
@@ -235,23 +253,6 @@ export const apiValidateCoupon = async (code: string, planId: string): Promise<C
     return null;
 };
 
-export const apiAddConnectionByCode = async (orgId: string, dentistId: string, organizationId: string) => {
-    const orgSnap = await getDoc(doc(db, 'organizations', organizationId));
-    if (!orgSnap.exists()) throw new Error("Laboratório não encontrado.");
-    const orgData = orgSnap.data() as Organization;
-    
-    const connId = `conn_${dentistId}_${organizationId}`;
-    const conn: OrganizationConnection = {
-        id: connId,
-        dentistId,
-        organizationId,
-        organizationName: orgData.name,
-        status: 'active',
-        createdAt: new Date()
-    };
-    await setDoc(doc(db, 'organizations', orgId, 'connections', connId), sanitizeData(conn));
-};
-
 export const apiUpdateOrganization = async (id: string, updates: Partial<Organization>) => await updateDoc(doc(db, 'organizations', id), sanitizeData(updates));
 
 export const subscribeSubscriptionPlans = (callback: (plans: SubscriptionPlan[]) => void) => {
@@ -283,3 +284,7 @@ export const uploadJobFile = async (file: File): Promise<string> => {
   await uploadBytes(storageRef, file);
   return await getDownloadURL(storageRef);
 };
+
+export const subscribeCommissions = (orgId: string, cb: (d: CommissionRecord[]) => void) => subscribeSubCollection<CommissionRecord>(orgId, 'commissions', cb);
+export const apiAddCommission = (orgId: string, d: CommissionRecord) => apiAddSubDoc(orgId, 'commissions', d);
+export const apiUpdateCommission = (orgId: string, id: string, u: Partial<CommissionRecord>) => apiUpdateSubDoc(orgId, 'commissions', id, u);
