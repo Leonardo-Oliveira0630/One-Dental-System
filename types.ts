@@ -1,167 +1,56 @@
 
-// --- USER & AUTH ---
-
-export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  ADMIN = 'ADMIN',
-  MANAGER = 'MANAGER',
-  COLLABORATOR = 'COLLABORATOR',
-  CLIENT = 'CLIENT'
-}
-
-export interface UserCommissionSetting {
-  jobTypeId: string;
-  value: number;
-  type: 'FIXED' | 'PERCENTAGE';
-}
-
-export interface User {
-  id: string;
-  organizationId?: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  clinicName?: string; 
-  sector?: string; 
-  customPrices?: CustomPrice[]; 
-  commissionSettings?: UserCommissionSetting[]; 
-}
-
-export interface ManualDentist {
-  id: string;
-  organizationId: string;
-  name: string;
-  clinicName?: string;
-  email?: string;
-  phone?: string;
-  totalOwed?: number; // Saldo devedor total acumulado
-  createdAt: Date;
-}
-
-// --- COMMISSIONS ---
-
-export enum CommissionStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID',
-  CANCELLED = 'CANCELLED'
-}
-
-export interface CommissionRecord {
-  id: string;
-  organizationId: string;
-  userId: string;
-  userName: string;
-  jobId: string;
-  osNumber: string;
-  patientName: string;
-  amount: number;
-  status: CommissionStatus;
-  createdAt: Date;
-  paidAt?: Date;
-  sector: string;
-}
-
-// --- FINANCE MODULE ---
-
 export type TransactionType = 'INCOME' | 'EXPENSE';
-export type TransactionCategory = 'PRODUCTION' | 'STORE' | 'SUPPLIES' | 'RENT' | 'SALARY' | 'MARKETING' | 'OTHER';
-
-export interface FinancialTransaction {
-  id: string;
-  organizationId: string;
-  type: TransactionType;
-  category: TransactionCategory;
-  amount: number;
-  description: string;
-  date: Date;
-  relatedId?: string; // ID do Job ou da Despesa
-  dentistId?: string; // Se for entrada, a quem pertence
-  paymentMethod?: string;
-}
+export type TransactionCategory = 
+  | 'PRODUCTION' 
+  | 'STORE' 
+  | 'SUPPLIES' // Insumos (Cerâmica, Gesso, etc)
+  | 'RENT' 
+  | 'SALARY' 
+  | 'MARKETING' 
+  | 'TAX'
+  | 'OFFICE'   // Material de escritório
+  | 'OTHER';
 
 export interface Expense {
   id: string;
   organizationId: string;
   description: string;
-  category: TransactionCategory;
   amount: number;
+  category: TransactionCategory;
   date: Date;
   status: 'PENDING' | 'PAID';
-  dueDate?: Date;
-  attachmentUrl?: string; // Comprovante de compra/NFe
-}
-
-// --- SAAS STRUCTURE ---
-
-export interface SubscriptionPlanFeatures {
-  maxUsers: number;
-  maxStorageGB: number;
-  hasStoreModule: boolean;
-  hasClinicModule: boolean;
-}
-
-export interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: number;
-  description?: string;
-  features: SubscriptionPlanFeatures;
-  trialDays?: number; 
-  isPublic: boolean;
-  active: boolean;
-  targetAudience: 'LAB' | 'CLINIC';
-}
-
-export interface Coupon {
-  id: string;
-  code: string;
-  discountType: 'PERCENTAGE' | 'FIXED' | 'TRIAL_EXT' | 'FREE_FOREVER';
-  discountValue: number;
-  validUntil?: Date;
-  maxUses?: number;
-  usedCount: number;
-  active: boolean;
-  applicablePlans?: string[];
-}
-
-export interface FinancialSettings {
-  pixKey?: string;
-  pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM';
-  bankInfo?: string; 
-  paymentLink?: string; 
-  instructions?: string;
-  asaasWalletId?: string;
-  asaasApiKey?: string;
-  walletStatus?: 'PENDING' | 'ACTIVE' | 'REJECTED';
-}
-
-export interface Organization {
-  id: string;
-  orgType: 'LAB' | 'CLINIC';
-  name: string;
-  ownerId: string;
-  planId: string;
-  subscriptionStatus?: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'TRIAL';
-  trialEndsAt?: Date; 
-  financialSettings?: FinancialSettings;
-  appliedCoupon?: string;
+  attachmentUrl?: string;
   createdAt: Date;
-  storageUsageBytes?: number;
 }
 
-export interface OrganizationConnection {
+export interface BillingBatch {
   id: string;
-  dentistId: string;
   organizationId: string;
-  organizationName: string; 
-  status: 'active' | 'pending' | 'revoked';
+  dentistId: string;
+  dentistName: string;
+  jobIds: string[];
+  totalAmount: number;
+  status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+  dueDate: Date;
+  invoiceUrl?: string; 
+  nfeUrl?: string;     
+  nfeNumber?: string;
   createdAt: Date;
+}
+
+// Added missing Enums
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
+  COLLABORATOR = 'COLLABORATOR',
+  CLIENT = 'CLIENT',
+  SUPER_ADMIN = 'SUPER_ADMIN'
 }
 
 export enum JobStatus {
-  WAITING_APPROVAL = 'WAITING_APPROVAL', 
-  PENDING = 'PENDING', 
+  PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
+  WAITING_APPROVAL = 'WAITING_APPROVAL',
   COMPLETED = 'COMPLETED',
   DELIVERED = 'DELIVERED',
   REJECTED = 'REJECTED'
@@ -171,13 +60,71 @@ export enum UrgencyLevel {
   LOW = 'LOW',
   NORMAL = 'NORMAL',
   HIGH = 'HIGH',
-  VIP = 'VIP' 
+  VIP = 'VIP'
+}
+
+export type JobNature = 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
+
+// Added missing Interfaces
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  uploadedAt: Date;
 }
 
 export interface BoxColor {
   id: string;
   name: string;
   hex: string;
+}
+
+export interface JobItem {
+  id: string;
+  jobTypeId: string;
+  name: string;
+  quantity: number;
+  price: number;
+  nature: JobNature;
+  selectedVariationIds: string[];
+  variationValues?: Record<string, string>;
+  commissionDisabled?: boolean;
+}
+
+export interface JobHistory {
+  id: string;
+  timestamp: Date;
+  action: string;
+  userId: string;
+  userName: string;
+  sector?: string;
+}
+
+export interface Job {
+  id: string;
+  organizationId: string;
+  osNumber?: string;
+  patientName: string;
+  dentistId: string;
+  dentistName: string;
+  status: JobStatus;
+  urgency: UrgencyLevel;
+  items: JobItem[];
+  history: JobHistory[];
+  createdAt: Date;
+  dueDate: Date;
+  boxNumber?: string;
+  boxColor?: BoxColor;
+  currentSector?: string;
+  totalValue: number;
+  notes?: string;
+  managerNotes?: string;
+  attachments?: Attachment[];
+  paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED';
+  paymentMethod?: 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'CASH' | 'TRANSFER';
+  pixQrCode?: string;
+  pixCopyPaste?: string;
+  batchId?: string;
 }
 
 export interface Sector {
@@ -189,7 +136,7 @@ export interface VariationOption {
   id: string;
   name: string;
   priceModifier: number;
-  disablesOptions?: string[]; 
+  disablesOptions?: string[];
 }
 
 export interface VariationGroup {
@@ -209,61 +156,32 @@ export interface JobType {
   imageUrl?: string;
 }
 
-export type JobNature = 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
-
-export interface JobItem {
-  id: string;
+export interface UserCommissionSetting {
   jobTypeId: string;
-  name: string;
-  quantity: number;
-  price: number; 
-  nature: JobNature;
-  selectedVariationIds?: string[];
-  variationValues?: Record<string, string>;
-  commissionDisabled?: boolean; 
+  value: number;
+  type: 'FIXED' | 'PERCENTAGE';
 }
 
-export interface JobHistoryEvent {
-  id:string;
-  timestamp: Date;
-  action: string;
-  userId: string;
-  userName: string;
-  sector?: string;
-}
-
-export interface Attachment {
+export interface User {
   id: string;
   name: string;
-  url: string;
-  uploadedAt: Date;
+  email: string;
+  role: UserRole;
+  organizationId?: string;
+  sector?: string;
+  clinicName?: string;
+  commissionSettings?: UserCommissionSetting[];
+  customPrices?: { jobTypeId: string; price: number }[];
 }
 
-export interface Job {
-  id: string; 
-  organizationId: string;
-  osNumber?: string; 
-  patientName: string;
-  dentistId: string;
-  dentistName: string;
-  status: JobStatus;
-  urgency: UrgencyLevel;
-  items: JobItem[];
-  history: JobHistoryEvent[];
-  attachments?: Attachment[]; 
-  createdAt: Date;
-  dueDate: Date;
-  boxNumber?: string;
-  boxColor?: BoxColor;
-  currentSector?: string;
-  totalValue: number;
-  notes?: string;
-  managerNotes?: string; 
-  paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED' | 'FAILED';
-  paymentMethod?: 'CREDIT_CARD' | 'PIX' | 'BOLETO' | 'TRANSFER' | 'CASH';
-  paymentId?: string;
-  pixCopyPaste?: string;
-  pixQrCode?: string;
+export interface CartItem {
+  cartItemId: string;
+  jobType: JobType;
+  quantity: number;
+  unitPrice: number;
+  finalPrice: number;
+  selectedVariationIds: string[];
+  variationValues?: Record<string, string>;
 }
 
 export interface JobAlert {
@@ -272,40 +190,22 @@ export interface JobAlert {
   jobId: string;
   osNumber: string;
   message: string;
-  targetSector?: string; 
-  targetUserId?: string; 
+  targetSector?: string;
+  targetUserId?: string;
   scheduledFor: Date;
   createdBy: string;
   createdAt: Date;
-  readBy: string[]; 
-}
-
-export interface CustomPrice {
-  jobTypeId: string;
-  price: number;
-}
-
-export interface CartItem {
-  cartItemId: string; 
-  jobType: JobType;
-  quantity: number;
-  unitPrice: number; 
-  finalPrice: number; 
-  selectedVariationIds: string[];
-  variationValues?: Record<string, string>;
+  readBy: string[];
 }
 
 export interface ClinicPatient {
   id: string;
   organizationId: string;
-  dentistId: string; 
+  dentistId: string;
   name: string;
-  cpf?: string;
   phone: string;
   email?: string;
-  birthDate?: Date;
-  address?: string;
-  anamnesis?: string;
+  cpf?: string;
   createdAt: Date;
 }
 
@@ -313,8 +213,7 @@ export enum AppointmentStatus {
   SCHEDULED = 'SCHEDULED',
   CONFIRMED = 'CONFIRMED',
   COMPLETED = 'COMPLETED',
-  CANCELED = 'CANCELED',
-  NO_SHOW = 'NO_SHOW'
+  CANCELED = 'CANCELED'
 }
 
 export interface Appointment {
@@ -322,10 +221,93 @@ export interface Appointment {
   organizationId: string;
   dentistId: string;
   patientId: string;
-  patientName: string; 
+  patientName: string;
   date: Date;
-  durationMinutes: number; 
+  durationMinutes: number;
   procedure: string;
-  notes?: string;
   status: AppointmentStatus;
+  notes?: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  planId: string;
+  subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING';
+  trialEndsAt?: Date;
+  createdAt: Date;
+  orgType?: 'LAB' | 'CLINIC';
+  financialSettings?: {
+    pixKey?: string;
+    bankInfo?: string;
+    instructions?: string;
+    paymentLink?: string;
+    asaasWalletId?: string;
+    walletStatus?: string;
+  };
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  isPublic: boolean;
+  active: boolean;
+  targetAudience?: 'LAB' | 'CLINIC';
+  trialDays?: number;
+  features: {
+    maxUsers: number;
+    maxStorageGB: number;
+    hasStoreModule: boolean;
+    hasClinicModule: boolean;
+  };
+}
+
+export interface OrganizationConnection {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  status: 'ACTIVE' | 'PENDING';
+  createdAt: Date;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED' | 'TRIAL_EXT' | 'FREE_FOREVER';
+  discountValue: number;
+  validUntil?: Date;
+  maxUses?: number;
+  usedCount: number;
+  active: boolean;
+  applicablePlans?: string[];
+}
+
+export enum CommissionStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID'
+}
+
+export interface CommissionRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  jobId: string;
+  osNumber: string;
+  patientName: string;
+  amount: number;
+  status: CommissionStatus;
+  createdAt: Date;
+  sector: string;
+  paidAt?: Date;
+}
+
+export interface ManualDentist {
+  id: string;
+  organizationId: string;
+  name: string;
+  clinicName?: string;
+  email?: string;
+  phone?: string;
+  createdAt: Date;
 }

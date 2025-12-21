@@ -1,296 +1,352 @@
 
 import { 
-  collection, doc, setDoc, updateDoc, deleteDoc, getDoc, getDocs,
-  onSnapshot, Timestamp, query, orderBy, arrayUnion, where, QuerySnapshot, DocumentData
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
+  onSnapshot, query, where, Timestamp, arrayUnion, orderBy 
 } from 'firebase/firestore';
 import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut 
+  signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword 
 } from 'firebase/auth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, storage, functions } from './firebaseConfig';
 import { 
-  Job, User, JobType, Sector, UserRole, JobAlert, ClinicPatient, Appointment, 
-  Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, ManualDentist
+  User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
+  Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
+  Coupon, CommissionRecord, CommissionStatus, ManualDentist, Expense, BillingBatch 
 } from '../types';
 
-// --- HELPERS ---
-const convertDates = (data: any): any => { if (!data) return data; if (data instanceof Timestamp) return data.toDate(); if (Array.isArray(data)) return data.map(item => convertDates(item)); if (typeof data === 'object' && data !== null) { const newData: any = {}; for (const key in data) newData[key] = convertDates(data[key]); return newData; } return data; };
-const sanitizeData = (data: any): any => { if (data instanceof Date) return data; if (Array.isArray(data)) return data.map(item => sanitizeData(item)); else if (data !== null && typeof data === 'object') { const newObj: any = {}; Object.keys(data).forEach(key => { const value = data[key]; if (value !== undefined) newObj[key] = sanitizeData(value); }); return newObj; } return data; };
+// Helper for dates to ensure proper conversion from Firestore Timestamps
+const toDate = (val: any) => val instanceof Timestamp ? val.toDate() : val;
 
 // --- AUTH ---
-export const apiLogin = async (email: string, pass: string) => await signInWithEmailAndPassword(auth, email, pass);
-export const apiLogout = async () => { if (auth) await signOut(auth); };
-
-export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
-  if (!auth || !db) throw new Error("Firebase not configured");
-  const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-  const uid = userCredential.user.uid;
-
-  const orgId = `org_${uid}`;
-  const newOrg: Organization = { 
-      id: orgId, 
-      orgType: 'LAB',
-      name: orgName, 
-      ownerId: uid, 
-      planId, 
-      createdAt: new Date(), 
-      subscriptionStatus: trialEndsAt ? 'TRIAL' : 'ACTIVE',
-      trialEndsAt: trialEndsAt,
-      appliedCoupon: couponCode
-  };
-  await setDoc(doc(db, 'organizations', orgId), sanitizeData(newOrg));
-
-  const newUser: User = { id: uid, organizationId: orgId, email, name: ownerName, role: UserRole.ADMIN };
-  await setDoc(doc(db, 'users', uid), sanitizeData(newUser));
-  
-  if (couponCode) {
-      const couponRef = doc(db, 'coupons', couponCode);
-      const couponSnap = await getDoc(couponRef);
-      if (couponSnap.exists()) {
-          const currentUsage = (couponSnap.data() as any).usedCount || 0;
-          await updateDoc(couponRef, { usedCount: currentUsage + 1 });
-      }
-  }
-  
-  return newUser;
-};
-
-export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string, clinicName?: string) => {
-    if (!auth || !db) throw new Error("Firebase not configured");
-    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-    const uid = userCredential.user.uid;
-    const newUser: User = { id: uid, organizationId, email, name, role, clinicName };
-    await setDoc(doc(db, 'users', uid), sanitizeData(newUser));
-    return newUser;
-};
-
-export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
-    if (!auth || !db) throw new Error("Firebase not configured");
-    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-    const uid = userCredential.user.uid;
-
-    const orgId = `clinic_${uid}`;
-    const newOrg: Organization = {
-        id: orgId,
-        orgType: 'CLINIC',
-        name: clinicName,
-        ownerId: uid,
-        planId: planId,
-        createdAt: new Date(),
-        subscriptionStatus: trialEndsAt ? 'TRIAL' : 'ACTIVE',
-        trialEndsAt: trialEndsAt,
-        appliedCoupon: couponCode
-    };
-    await setDoc(doc(db, 'organizations', orgId), sanitizeData(newOrg));
-
-    const newUser: User = { id: uid, organizationId: orgId, email, name, role: UserRole.CLIENT, clinicName };
-    await setDoc(doc(db, 'users', uid), sanitizeData(newUser));
-
-    return newUser;
-};
+export const apiLogin = (email: string, pass: string) => signInWithEmailAndPassword(auth, email, pass);
+export const apiLogout = () => signOut(auth);
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
-  if (!db) return null;
-  const docRef = doc(db, 'users', uid);
-  const docSnap = await getDoc(docRef);
-  if (docSnap.exists()) {
-    return { id: docSnap.id, ...docSnap.data() } as User;
-  }
-  return null;
+    if (!db) return null;
+    const d = await getDoc(doc(db, 'users', uid));
+    return d.exists() ? { id: d.id, ...d.data() } as User : null;
 };
 
-// --- DATA FUNCTIONS ---
-const getSubCollection = (orgId: string, collName: string) => collection(db, 'organizations', orgId, collName);
-const getSubDoc = (orgId: string, collName: string, docId: string) => doc(db, 'organizations', orgId, collName, docId);
+export const apiUpdateUser = (id: string, updates: Partial<User>) => updateDoc(doc(db, 'users', id), updates);
+export const apiAddUser = (user: User) => setDoc(doc(db, 'users', user.id), user);
+export const apiDeleteUser = (id: string) => deleteDoc(doc(db, 'users', id));
 
-const subscribeSubCollection = <T>(orgId: string, collName: string, callback: (data: T[]) => void) => {
-  if (!db) return () => {};
-  const q = query(getSubCollection(orgId, collName));
-  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as T)));
-  });
+// --- JOBS ---
+export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
+    const q = collection(db, 'organizations', orgId, 'jobs');
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ 
+            id: d.id, 
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt),
+            dueDate: toDate(d.data().dueDate),
+            history: (d.data().history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) }))
+        } as Job)));
+    });
 };
 
-const apiAddSubDoc = async <T extends {id: string}>(orgId: string, collName: string, data: T) => await setDoc(getSubDoc(orgId, collName, data.id), sanitizeData(data));
-const apiUpdateSubDoc = async <T>(orgId: string, collName: string, docId: string, updates: Partial<T>) => await updateDoc(getSubDoc(orgId, collName, docId), sanitizeData(updates));
-const apiDeleteSubDoc = async (orgId: string, collName: string, docId: string) => await deleteDoc(getSubDoc(orgId, collName, docId));
+export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, 'organizations', orgId, 'jobs', job.id), job);
+export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) => updateDoc(doc(db, 'organizations', orgId, 'jobs', id), updates);
 
-// --- JOBS & ASSETS ---
-export const subscribeJobs = (orgId: string, cb: (d: Job[]) => void) => subscribeSubCollection<Job>(orgId, 'jobs', cb);
-export const apiAddJob = (orgId: string, d: Job) => apiAddSubDoc(orgId, 'jobs', d);
-export const apiUpdateJob = (orgId: string, id: string, u: Partial<Job>) => apiUpdateSubDoc(orgId, 'jobs', id, u);
-
-export const subscribeJobTypes = (orgId: string, cb: (d: JobType[]) => void) => subscribeSubCollection<JobType>(orgId, 'jobTypes', cb);
-export const apiAddJobType = (orgId: string, d: JobType) => apiAddSubDoc(orgId, 'jobTypes', d);
-export const apiUpdateJobType = (orgId: string, id: string, u: Partial<JobType>) => apiUpdateSubDoc(orgId, 'jobTypes', id, u);
-export const apiDeleteJobType = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'jobTypes', id);
-
-export const subscribeSectors = (orgId: string, cb: (d: Sector[]) => void) => subscribeSubCollection<Sector>(orgId, 'sectors', cb);
-export const apiAddSector = (orgId: string, d: Sector) => apiAddSubDoc(orgId, 'sectors', d);
-export const apiDeleteSector = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'sectors', id);
-
-export const subscribeAlerts = (orgId: string, cb: (d: JobAlert[]) => void) => subscribeSubCollection<JobAlert>(orgId, 'alerts', cb);
-export const apiAddAlert = (orgId: string, d: JobAlert) => apiAddSubDoc(orgId, 'alerts', d);
-export const apiMarkAlertAsRead = async (orgId: string, alertId: string, userId: string) => await updateDoc(getSubDoc(orgId, 'alerts', alertId), { readBy: arrayUnion(userId) });
-
-export const subscribeOrgUsers = (orgId: string, callback: (users: User[]) => void) => {
-  if (!db) return () => {};
-  const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
-  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as User)));
-  });
-};
-export const apiAddUser = async (user: User) => await setDoc(doc(db, 'users', user.id), sanitizeData(user));
-export const apiUpdateUser = async (id: string, updates: Partial<User>) => await updateDoc(doc(db, 'users', id), sanitizeData(updates));
-export const apiDeleteUser = async (id: string) => await deleteDoc(doc(db, 'users', id));
-
-// --- MANUAL DENTISTS (Clientes Internos) ---
-export const subscribeManualDentists = (orgId: string, cb: (d: ManualDentist[]) => void) => subscribeSubCollection<ManualDentist>(orgId, 'manualDentists', cb);
-export const apiAddManualDentist = (orgId: string, d: ManualDentist) => apiAddSubDoc(orgId, 'manualDentists', d);
-export const apiUpdateManualDentist = (orgId: string, id: string, u: Partial<ManualDentist>) => apiUpdateSubDoc(orgId, 'manualDentists', id, u);
-export const apiDeleteManualDentist = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'manualDentists', id);
-
-// --- CONNECTIONS (Dentist x Lab) ---
-export const subscribeUserConnections = (orgId: string, cb: (d: OrganizationConnection[]) => void) => {
-    return subscribeSubCollection<OrganizationConnection>(orgId, 'connections', cb);
+// --- CATALOG / JOB TYPES ---
+export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void) => {
+    const q = collection(db, 'organizations', orgId, 'jobTypes');
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as JobType)));
+    });
 };
 
-export const apiAddConnectionByCode = async (dentistOrgId: string, dentistId: string, targetLabId: string) => {
-    if (!db) return;
-    const orgSnap = await getDoc(doc(db, 'organizations', targetLabId));
-    if (!orgSnap.exists()) throw new Error("Laboratório não encontrado com este ID.");
-    const orgData = orgSnap.data() as Organization;
-    if (orgData.orgType !== 'LAB') throw new Error("O ID informado não pertence a um laboratório.");
+export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, 'organizations', orgId, 'jobTypes', type.id), type);
+export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, 'organizations', orgId, 'jobTypes', id), updates);
+export const apiDeleteJobType = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'jobTypes', id));
 
-    const connId = `conn_${targetLabId}`;
-    const conn: OrganizationConnection = {
-        id: connId,
-        dentistId,
-        organizationId: targetLabId,
-        organizationName: orgData.name,
-        status: 'active',
-        createdAt: new Date()
-    };
-    await setDoc(getSubDoc(dentistOrgId, 'connections', connId), sanitizeData(conn));
+// --- SECTORS ---
+export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void) => {
+    const q = collection(db, 'organizations', orgId, 'sectors');
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as Sector)));
+    });
 };
 
-// --- CLOUD FUNCTIONS CALLS ---
-export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
-    const fn = httpsCallable(functions, 'createOrderPayment');
-    const result: any = await fn({ jobData, paymentData });
-    return result.data;
+export const apiAddSector = (orgId: string, sector: { id: string, name: string }) => setDoc(doc(db, 'organizations', orgId, 'sectors', sector.id), sector);
+export const apiDeleteSector = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'sectors', id));
+
+// --- COMMISSIONS ---
+export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) => void) => {
+    const q = collection(db, 'organizations', orgId, 'commissions');
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ 
+            id: d.id, 
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt),
+            paidAt: d.data().paidAt ? toDate(d.data().paidAt) : undefined
+        } as CommissionRecord)));
+    });
 };
 
-export const apiManageOrderDecision = async (orgId: string, jobId: string, decision: 'APPROVE' | 'REJECT', rejectionReason?: string) => {
-    const fn = httpsCallable(functions, 'manageOrderDecision');
-    const result: any = await fn({ orgId, jobId, decision, rejectionReason });
-    return result.data;
+export const apiAddCommission = (orgId: string, rec: CommissionRecord) => setDoc(doc(db, 'organizations', orgId, 'commissions', rec.id), rec);
+export const apiUpdateCommission = (orgId: string, id: string, updates: Partial<CommissionRecord>) => updateDoc(doc(db, 'organizations', orgId, 'commissions', id), updates);
+
+// --- ALERTS ---
+export const subscribeAlerts = (orgId: string, cb: (a: JobAlert[]) => void) => {
+    const q = collection(db, 'organizations', orgId, 'alerts');
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ 
+            id: d.id, 
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt),
+            scheduledFor: toDate(d.data().scheduledFor)
+        } as JobAlert)));
+    });
 };
 
+export const apiAddAlert = (orgId: string, alert: JobAlert) => setDoc(doc(db, 'organizations', orgId, 'alerts', alert.id), alert);
+export const apiMarkAlertAsRead = (orgId: string, id: string, userId: string) => updateDoc(doc(db, 'organizations', orgId, 'alerts', id), {
+    readBy: arrayUnion(userId)
+});
+
+// --- CLINIC DATA ---
+export const subscribePatients = (orgId: string, cb: (p: ClinicPatient[]) => void) => {
+    const q = collection(db, 'organizations', orgId, 'patients');
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: toDate(d.data().createdAt) } as ClinicPatient)));
+    });
+};
+
+export const apiAddPatient = (orgId: string, p: ClinicPatient) => setDoc(doc(db, 'organizations', orgId, 'patients', p.id), p);
+export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => updateDoc(doc(db, 'organizations', orgId, 'patients', id), u);
+export const apiDeletePatient = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'patients', id));
+
+export const subscribeAppointments = (orgId: string, cb: (a: Appointment[]) => void) => {
+    const q = collection(db, 'organizations', orgId, 'appointments');
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data(), date: toDate(d.data().date) } as Appointment)));
+    });
+};
+
+export const apiAddAppointment = (orgId: string, a: Appointment) => setDoc(doc(db, 'organizations', orgId, 'appointments', a.id), a);
+export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => updateDoc(doc(db, 'organizations', orgId, 'appointments', id), u);
+export const apiDeleteAppointment = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'appointments', id));
+
+// --- SAAS / SUPER ADMIN ---
+export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
+    return onSnapshot(collection(db, 'organizations'), (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: toDate(d.data().createdAt) } as Organization)));
+    });
+};
+
+export const subscribeSubscriptionPlans = (cb: (p: SubscriptionPlan[]) => void) => {
+    return onSnapshot(collection(db, 'subscriptionPlans'), (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as SubscriptionPlan)));
+    });
+};
+
+export const subscribeCoupons = (cb: (c: Coupon[]) => void) => {
+    return onSnapshot(collection(db, 'coupons'), (snap) => {
+        cb(snap.docs.map(d => ({ 
+            id: d.id, 
+            ...d.data(),
+            validUntil: d.data().validUntil ? toDate(d.data().validUntil) : undefined
+        } as Coupon)));
+    });
+};
+
+export const apiUpdateOrganization = (id: string, u: Partial<Organization>) => updateDoc(doc(db, 'organizations', id), u);
+
+export const apiValidateCoupon = async (code: string, planId: string): Promise<Coupon | null> => {
+    const q = query(collection(db, 'coupons'), where('code', '==', code.toUpperCase()), where('active', '==', true));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const c = { id: snap.docs[0].id, ...snap.docs[0].data() } as Coupon;
+    if (c.validUntil && toDate(c.validUntil) < new Date()) return null;
+    if (c.maxUses && c.usedCount >= c.maxUses) return null;
+    if (c.applicablePlans && !c.applicablePlans.includes(planId) && planId !== 'ANY') return null;
+    return c;
+};
+
+// Cloud Functions Callers
 export const apiCreateSaaSSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => {
     const fn = httpsCallable(functions, 'createSaaSSubscription');
-    const result: any = await fn({ orgId, planId, email, name, cpfCnpj });
-    return result.data;
-};
-
-export const apiCheckSubscriptionStatus = async (orgId: string) => {
-    const fn = httpsCallable(functions, 'checkSubscriptionStatus');
-    const result: any = await fn({ orgId });
-    return result.data;
-};
-
-export const apiGetSaaSInvoices = async (orgId: string) => {
-    const fn = httpsCallable(functions, 'getSaaSInvoices');
-    const result: any = await fn({ orgId });
-    return result.data;
+    const res = await fn({ orgId, planId, email, name, cpfCnpj });
+    return res.data;
 };
 
 export const apiCreateLabSubAccount = async (payload: any) => {
     const fn = httpsCallable(functions, 'createLabSubAccount');
-    const result: any = await fn(payload);
-    return result.data;
+    const res = await fn(payload);
+    return res.data;
 };
 
-// --- ADDITIONAL SUBSCRIPTIONS ---
-export const subscribeAllOrganizations = (cb: (d: Organization[]) => void) => {
-    if (!db) return () => {};
-    const q = query(collection(db, 'organizations'));
-    return onSnapshot(q, (snapshot) => {
-        cb(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as Organization)));
+export const apiGetSaaSInvoices = async (orgId: string) => {
+    const fn = httpsCallable(functions, 'getSaaSInvoices');
+    const res = await fn({ orgId });
+    return res.data;
+};
+
+export const apiCheckSubscriptionStatus = async (orgId: string) => {
+    const fn = httpsCallable(functions, 'checkSubscriptionStatus');
+    const res = await fn({ orgId });
+    return res.data;
+};
+
+// Registration flows
+export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
+    const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+    const orgId = `org_${Date.now()}`;
+    
+    const org: Organization = {
+        id: orgId,
+        name: orgName,
+        planId,
+        subscriptionStatus: trialEndsAt ? 'TRIAL' : 'PENDING',
+        trialEndsAt,
+        createdAt: new Date(),
+        orgType: 'LAB'
+    };
+    await setDoc(doc(db, 'organizations', orgId), org);
+    
+    const profile: User = {
+        id: userCred.user.uid,
+        name: ownerName,
+        email,
+        role: UserRole.ADMIN,
+        organizationId: orgId
+    };
+    await setDoc(doc(db, 'users', userCred.user.uid), profile);
+    return profile;
+};
+
+export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
+    const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+    const orgId = `clinic_${Date.now()}`;
+    
+    const org: Organization = {
+        id: orgId,
+        name: clinicName,
+        planId,
+        subscriptionStatus: trialEndsAt ? 'TRIAL' : 'PENDING',
+        trialEndsAt,
+        createdAt: new Date(),
+        orgType: 'CLINIC'
+    };
+    await setDoc(doc(db, 'organizations', orgId), org);
+
+    const profile: User = {
+        id: userCred.user.uid,
+        name,
+        email,
+        role: UserRole.CLIENT,
+        organizationId: orgId,
+        clinicName
+    };
+    await setDoc(doc(db, 'users', userCred.user.uid), profile);
+    return profile;
+};
+
+export const apiAddSubscriptionPlan = (p: SubscriptionPlan) => setDoc(doc(db, 'subscriptionPlans', p.id), p);
+export const apiUpdateSubscriptionPlan = (id: string, u: Partial<SubscriptionPlan>) => updateDoc(doc(db, 'subscriptionPlans', id), u);
+export const apiDeleteSubscriptionPlan = (id: string) => deleteDoc(doc(db, 'subscriptionPlans', id));
+
+export const apiAddConnectionByCode = async (clinicOrgId: string, dentistId: string, code: string) => {
+    const orgSnap = await getDoc(doc(db, 'organizations', code));
+    if (!orgSnap.exists()) throw new Error("Laboratório não encontrado.");
+    const orgData = orgSnap.data();
+    
+    const conn: OrganizationConnection = {
+        id: `conn_${Date.now()}`,
+        organizationId: code,
+        organizationName: orgData.name,
+        status: 'ACTIVE',
+        createdAt: new Date()
+    };
+    await setDoc(doc(db, 'organizations', clinicOrgId, 'connections', conn.id), conn);
+};
+
+export const subscribeUserConnections = (orgId: string, cb: (c: OrganizationConnection[]) => void) => {
+    return onSnapshot(collection(db, 'organizations', orgId, 'connections'), (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: toDate(d.data().createdAt) } as OrganizationConnection)));
     });
 };
 
-export const subscribePatients = (orgId: string, cb: (d: ClinicPatient[]) => void) => subscribeSubCollection<ClinicPatient>(orgId, 'patients', cb);
-export const apiAddPatient = (orgId: string, d: ClinicPatient) => apiAddSubDoc(orgId, 'patients', d);
-export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => apiUpdateSubDoc(orgId, 'patients', id, u);
-export const apiDeletePatient = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'patients', id);
+export const apiAddCoupon = (c: Coupon) => setDoc(doc(db, 'coupons', c.id), c);
+export const apiUpdateCoupon = (id: string, u: Partial<Coupon>) => updateDoc(doc(db, 'coupons', id), u);
+export const apiDeleteCoupon = (id: string) => deleteDoc(doc(db, 'coupons', id));
 
-export const subscribeAppointments = (orgId: string, cb: (d: Appointment[]) => void) => subscribeSubCollection<Appointment>(orgId, 'appointments', cb);
-export const apiAddAppointment = (orgId: string, d: Appointment) => apiAddSubDoc(orgId, 'appointments', d);
-export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => apiUpdateSubDoc(orgId, 'appointments', id, u);
-export const apiDeleteAppointment = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'appointments', id);
+export const apiAddManualDentist = (orgId: string, d: ManualDentist) => setDoc(doc(db, 'organizations', orgId, 'manualDentists', d.id), d);
+export const apiUpdateManualDentist = (orgId: string, id: string, u: Partial<ManualDentist>) => updateDoc(doc(db, 'organizations', orgId, 'manualDentists', id), u);
+export const apiDeleteManualDentist = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'manualDentists', id));
 
-export const subscribeCoupons = (cb: (d: Coupon[]) => void) => {
-    if (!db) return () => {};
-    const q = query(collection(db, 'coupons'));
-    return onSnapshot(q, (snapshot) => {
-        cb(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as Coupon)));
+export const subscribeManualDentists = (orgId: string, cb: (d: ManualDentist[]) => void) => {
+    return onSnapshot(collection(db, 'organizations', orgId, 'manualDentists'), (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: toDate(d.data().createdAt) } as ManualDentist)));
     });
 };
 
-export const apiAddCoupon = async (c: Coupon) => await setDoc(doc(db, 'coupons', c.id), sanitizeData(c));
-export const apiUpdateCoupon = async (id: string, updates: Partial<Coupon>) => await updateDoc(doc(db, 'coupons', id), sanitizeData(updates));
-export const apiDeleteCoupon = async (id: string) => await deleteDoc(doc(db, 'coupons', id));
-
-export const apiValidateCoupon = async (code: string, planId: string): Promise<Coupon | null> => {
-    if (!db) return null;
-    const docSnap = await getDoc(doc(db, 'coupons', code.toUpperCase()));
-    if (docSnap.exists()) {
-        const c = convertDates(docSnap.data()) as Coupon;
-        if (!c.active) return null;
-        if (c.validUntil && c.validUntil < new Date()) return null;
-        if (c.maxUses && c.usedCount >= c.maxUses) return null;
-        if (c.applicablePlans && planId !== 'ANY' && !c.applicablePlans.includes(planId)) return null;
-        return c;
-    }
-    return null;
-};
-
-export const apiUpdateOrganization = async (id: string, updates: Partial<Organization>) => await updateDoc(doc(db, 'organizations', id), sanitizeData(updates));
-
-export const subscribeSubscriptionPlans = (callback: (plans: SubscriptionPlan[]) => void) => {
-  if (!db) return () => {};
-  const q = query(collection(db, 'subscriptionPlans'));
-  return onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-    callback(snapshot.docs.map(doc => ({ ...(convertDates(doc.data()) as any), id: doc.id } as SubscriptionPlan)));
-  });
-};
-
-export const apiAddSubscriptionPlan = async (plan: SubscriptionPlan) => {
-  if (!db) return;
-  await setDoc(doc(db, 'subscriptionPlans', plan.id), sanitizeData(plan));
-};
-
-export const apiUpdateSubscriptionPlan = async (id: string, updates: Partial<SubscriptionPlan>) => {
-  if (!db) return;
-  await updateDoc(doc(db, 'subscriptionPlans', id), sanitizeData(updates));
-};
-
-export const apiDeleteSubscriptionPlan = async (id: string) => {
-  if (!db) return;
-  await deleteDoc(doc(db, 'subscriptionPlans', id));
-};
-
+// --- FILE STORAGE ---
 export const uploadJobFile = async (file: File): Promise<string> => {
-  if (!storage) throw new Error("Firebase Storage not configured.");
-  const storageRef = ref(storage, `job_attachments/${Date.now()}_${file.name}`);
-  await uploadBytes(storageRef, file);
-  return await getDownloadURL(storageRef);
+    const fileRef = ref(storage, `jobs/${Date.now()}_${file.name}`);
+    await uploadBytes(fileRef, file);
+    return getDownloadURL(fileRef);
 };
 
-export const subscribeCommissions = (orgId: string, cb: (d: CommissionRecord[]) => void) => subscribeSubCollection<CommissionRecord>(orgId, 'commissions', cb);
-export const apiAddCommission = (orgId: string, d: CommissionRecord) => apiAddSubDoc(orgId, 'commissions', d);
-export const apiUpdateCommission = (orgId: string, id: string, u: Partial<CommissionRecord>) => apiUpdateSubDoc(orgId, 'commissions', id, u);
+// --- ORDER & PAYMENT DECISIONS ---
+export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
+    const fn = httpsCallable(functions, 'createOrderPayment');
+    const res = await fn({ jobData, paymentData });
+    return res.data as any;
+};
+
+export const apiManageOrderDecision = async (orgId: string, jobId: string, decision: 'APPROVE' | 'REJECT', reason?: string) => {
+    const fn = httpsCallable(functions, 'manageOrderDecision');
+    const res = await fn({ orgId, jobId, decision, reason });
+    return res.data;
+};
+
+// --- ORG USERS MANAGEMENT ---
+export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string) => {
+    const fn = httpsCallable(functions, 'registerUserInOrg');
+    const res = await fn({ email, pass, name, role, organizationId });
+    return res.data;
+};
+
+export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
+    const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
+    });
+};
+
+// --- BILLING BATCHES ---
+export const subscribeBillingBatches = (orgId: string, cb: (b: BillingBatch[]) => void) => {
+    return onSnapshot(collection(db, 'organizations', orgId, 'billingBatches'), (snap) => {
+        cb(snap.docs.map(d => ({ 
+            id: d.id, 
+            ...d.data(), 
+            createdAt: toDate(d.data().createdAt),
+            dueDate: toDate(d.data().dueDate)
+        } as BillingBatch)));
+    });
+};
+
+export const apiGenerateBatchBoleto = async (orgId: string, dentistId: string, jobIds: string[], dueDate: Date) => {
+    const fn = httpsCallable(functions, 'generateBatchBoleto');
+    const res = await fn({ orgId, dentistId, jobIds, dueDate });
+    return res.data;
+};
+
+// --- EXPENSES ---
+export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => {
+    const q = collection(db, 'organizations', orgId, 'expenses');
+    return onSnapshot(q, (snap) => {
+        cb(snap.docs.map(d => ({ 
+            id: d.id, 
+            ...d.data(),
+            date: toDate(d.data().date),
+            createdAt: toDate(d.data().createdAt)
+        } as Expense)));
+    });
+};
+
+export const apiAddExpense = (orgId: string, expense: Expense) => setDoc(doc(db, 'organizations', orgId, 'expenses', expense.id), expense);
+export const apiDeleteExpense = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'expenses', id));
