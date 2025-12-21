@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { UserRole, User, CustomPrice, UserCommissionSetting, Coupon, SubscriptionPlan, ManualDentist } from '../types';
+import { UserRole, User, UserCommissionSetting, Coupon, SubscriptionPlan, ManualDentist } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, ExternalLink, HelpCircle, LogIn, Percent, Building, Phone, CheckCircle, Database, Store, Briefcase, Search
+  Stethoscope, Edit, X, DollarSign, Copy, Check, Crown, ArrowUpCircle, 
+  Ticket, Wallet, Loader2, Percent, CheckCircle, Briefcase, Search
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -12,35 +13,47 @@ import * as api from '../services/firebaseService';
 export const Admin = () => {
   const { 
     sectors, addSector, deleteSector, 
-    allUsers, addUser, deleteUser, updateUser,
+    allUsers, deleteUser, updateUser,
     jobTypes, currentOrg, currentPlan, updateOrganization, allPlans,
-    validateCoupon, createSubscription, createLabWallet,
-    manualDentists, addManualDentist, deleteManualDentist, updateManualDentist
+    validateCoupon, createLabWallet,
+    manualDentists, addManualDentist, deleteManualDentist
   } = useApp();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'COMMISSIONS' | 'FINANCIAL' | 'SUBSCRIPTION'>('SECTORS');
   const [copied, setCopied] = useState(false);
 
-  // Form States
+  // --- FORM STATES ---
+  
+  // Setores
   const [newSectorName, setNewSectorName] = useState('');
+  
+  // Usuários (Equipe)
+  const [isAddingUser, setIsAddingUser] = useState(false);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [userPass, setUserPass] = useState('');
   const [userRole, setUserRole] = useState<UserRole>(UserRole.COLLABORATOR);
   const [userSector, setUserSector] = useState('');
-  const [isAddingUser, setIsAddingUser] = useState(false);
 
-  // Manual Dentist Form State
+  // Clientes (Dentistas Manuais)
   const [isAddingDentist, setIsAddingDentist] = useState(false);
   const [dentistName, setDentistName] = useState('');
   const [dentistClinic, setDentistClinic] = useState('');
   const [dentistEmail, setDentistEmail] = useState('');
   const [dentistPhone, setDentistPhone] = useState('');
   const [dentistSearch, setDentistSearch] = useState('');
-  
-  // Wallet Registration State
+
+  // Comissões
+  const [configUser, setConfigUser] = useState<User | null>(null);
+  const [tempCommissions, setTempCommissions] = useState<UserCommissionSetting[]>([]);
+
+  // Financeiro
   const [isRegisteringWallet, setIsRegisteringWallet] = useState(false);
+  const [pixKey, setPixKey] = useState(currentOrg?.financialSettings?.pixKey || '');
+  const [bankInfo, setBankInfo] = useState(currentOrg?.financialSettings?.bankInfo || '');
+  const [instructions, setInstructions] = useState(currentOrg?.financialSettings?.instructions || '');
+  const [paymentLink, setPaymentLink] = useState(currentOrg?.financialSettings?.paymentLink || '');
   const [walletForm, setWalletForm] = useState({
     name: currentOrg?.name || '',
     email: '',
@@ -52,19 +65,11 @@ export const Admin = () => {
     province: ''
   });
 
-  // Commission Config State
-  const [configUser, setConfigUser] = useState<User | null>(null);
-  const [tempCommissions, setTempCommissions] = useState<UserCommissionSetting[]>([]);
-
-  // Financial States
-  const [pixKey, setPixKey] = useState(currentOrg?.financialSettings?.pixKey || '');
-  const [bankInfo, setBankInfo] = useState(currentOrg?.financialSettings?.bankInfo || '');
-  const [instructions, setInstructions] = useState(currentOrg?.financialSettings?.instructions || '');
-  const [paymentLink, setPaymentLink] = useState(currentOrg?.financialSettings?.paymentLink || '');
-
-  // Subscription State
+  // Assinatura
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+
+  // --- HANDLERS ---
 
   const handleAddSector = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +103,28 @@ export const Admin = () => {
       });
       setIsAddingDentist(false);
       setDentistName(''); setDentistClinic(''); setDentistEmail(''); setDentistPhone('');
+  };
+
+  const openCommissionModal = (user: User) => {
+    setConfigUser(user);
+    setTempCommissions(user.commissionSettings || []);
+  };
+
+  const handleCommChange = (jobTypeId: string, value: string, type: 'FIXED' | 'PERCENTAGE') => {
+    const val = parseFloat(value) || 0;
+    setTempCommissions(prev => {
+        const exists = prev.find(p => p.jobTypeId === jobTypeId);
+        if (exists) return prev.map(p => p.jobTypeId === jobTypeId ? { ...p, value: val, type } : p);
+        return [...prev, { jobTypeId, value: val, type }];
+    });
+  };
+
+  const saveCommissions = async () => {
+      if (configUser) {
+          await updateUser(configUser.id, { commissionSettings: tempCommissions });
+          setConfigUser(null);
+          alert("Tabela de comissão atualizada!");
+      }
   };
 
   const handleRegisterWallet = async (e: React.FormEvent) => {
@@ -136,28 +163,6 @@ export const Admin = () => {
       alert("Configurações financeiras salvas!");
   };
 
-  const openCommissionModal = (user: User) => {
-    setConfigUser(user);
-    setTempCommissions(user.commissionSettings || []);
-  };
-
-  const handleCommChange = (jobTypeId: string, value: string, type: 'FIXED' | 'PERCENTAGE') => {
-    const val = parseFloat(value);
-    setTempCommissions(prev => {
-        const exists = prev.find(p => p.jobTypeId === jobTypeId);
-        if (exists) return prev.map(p => p.jobTypeId === jobTypeId ? { ...p, value: val, type } : p);
-        return [...prev, { jobTypeId, value: val, type }];
-    });
-  };
-
-  const saveCommissions = async () => {
-      if (configUser) {
-          await updateUser(configUser.id, { commissionSettings: tempCommissions });
-          setConfigUser(null);
-          alert("Tabela de comissão atualizada!");
-      }
-  };
-
   const copyOrgId = () => {
     if (currentOrg?.id) {
       navigator.clipboard.writeText(currentOrg.id);
@@ -174,7 +179,7 @@ export const Admin = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* ID Section */}
+      {/* HEADER ID */}
       <div className="bg-slate-900 text-white p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl">
         <div>
           <h2 className="text-xl font-bold">{currentOrg?.name}</h2>
@@ -193,7 +198,7 @@ export const Admin = () => {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* TABS */}
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar">
         <button onClick={() => setActiveTab('SECTORS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SECTORS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Building2 size={18} /> Setores</button>
         <button onClick={() => setActiveTab('USERS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'USERS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Users size={18} /> Equipe</button>
@@ -203,7 +208,7 @@ export const Admin = () => {
         <button onClick={() => setActiveTab('SUBSCRIPTION')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SUBSCRIPTION' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Crown size={18} /> Assinatura</button>
       </div>
 
-      {/* SECTORS CONTENT */}
+      {/* CONTENT: SECTORS */}
       {activeTab === 'SECTORS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -227,12 +232,12 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* USERS CONTENT */}
+      {/* CONTENT: USERS (EQUIPE) */}
       {activeTab === 'USERS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-slate-800 text-lg">Colaboradores do Laboratório</h3>
-            <button onClick={() => setIsAddingUser(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2"><UserPlus size={20}/> Novo Usuário</button>
+            <button onClick={() => setIsAddingUser(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"><UserPlus size={20}/> Novo Usuário</button>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -270,7 +275,7 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* DENTISTS (CLIENTS) TAB - NOVO */}
+      {/* CONTENT: DENTISTS (CLIENTES MANUAIS) */}
       {activeTab === 'DENTISTS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -328,7 +333,7 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* COMMISSIONS TAB */}
+      {/* CONTENT: COMMISSIONS */}
       {activeTab === 'COMMISSIONS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -360,10 +365,9 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* FINANCIAL CONTENT */}
+      {/* CONTENT: FINANCIAL */}
       {activeTab === 'FINANCIAL' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
-          
           {currentOrg?.financialSettings?.walletStatus !== 'ACTIVE' ? (
             <div className="bg-indigo-600 text-white p-8 rounded-3xl shadow-xl shadow-indigo-100 flex flex-col md:flex-row justify-between items-center gap-8">
                <div className="flex-1">
@@ -404,7 +408,7 @@ export const Admin = () => {
                     <label className="block text-sm font-bold text-slate-700 mb-1">Telefone</label>
                     <input required value={walletForm.phone} onChange={e => setWalletForm({...walletForm, phone: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
                   </div>
-                  <button type="submit" disabled={isRegisteringWallet} className="md:col-span-2 py-4 bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+                  <button type="submit" disabled={isRegisteringWallet} className="md:col-span-2 py-4 bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-200">
                     {isRegisteringWallet ? <Loader2 className="animate-spin"/> : 'Criar Conta One Dental System'}
                   </button>
                </form>
@@ -423,12 +427,12 @@ export const Admin = () => {
                       <input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl" placeholder="Link externo..." />
                   </div>
               </div>
-              <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl"><Save size={20}/></button>
+              <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2"><Save size={20}/> Salvar Dados</button>
           </div>
         </div>
       )}
 
-      {/* SUBSCRIPTION CONTENT */}
+      {/* CONTENT: SUBSCRIPTION */}
       {activeTab === 'SUBSCRIPTION' && (
           <div className="animate-in fade-in slide-in-from-left-4 space-y-6">
               <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-2xl shadow-xl text-white flex justify-between items-center">
@@ -444,14 +448,14 @@ export const Admin = () => {
                       <div key={plan.id} className={`bg-white p-6 rounded-3xl border-2 transition-all flex flex-col shadow-sm ${plan.id === currentOrg?.planId ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100 hover:border-blue-200'}`}>
                           <h4 className="font-black text-slate-800 uppercase text-xs tracking-widest">{plan.name}</h4>
                           <p className="text-3xl font-black text-slate-900 mt-2">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400">/mês</span></p>
-                          <button onClick={() => navigate(`/subscribe?plan=${plan.id}`)} className="w-full mt-8 py-4 bg-slate-900 hover:bg-blue-600 text-white font-black rounded-2xl transition-all">ALTERAR PLANO</button>
+                          <button onClick={() => navigate(`/subscribe?plan=${plan.id}`)} className="w-full mt-8 py-4 bg-slate-900 hover:bg-blue-600 text-white font-black rounded-2xl transition-all shadow-lg">ALTERAR PLANO</button>
                       </div>
                   ))}
               </div>
           </div>
       )}
-      
-      {/* MODAL CADASTRAR DENTISTA (MANUAL) */}
+
+      {/* MODAL: CADASTRAR DENTISTA (MANUAL) */}
       {isAddingDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
               <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
@@ -482,7 +486,86 @@ export const Admin = () => {
           </div>
       )}
 
-      {/* MODAIS EXISTENTES (COMISSÃO, USUÁRIO) ... */}
+      {/* MODAL: NOVO USUÁRIO (EQUIPE) */}
+      {isAddingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><UserPlus className="text-blue-600" /> Cadastrar Colaborador</h3>
+                  <form onSubmit={handleAddUser} className="space-y-4">
+                      <input required value={userName} onChange={e => setUserName(e.target.value)} placeholder="Nome Completo" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input required type="email" value={userEmail} onChange={e => setUserEmail(e.target.value)} placeholder="Email" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input required type="password" value={userPass} onChange={e => setUserPass(e.target.value)} placeholder="Senha Inicial" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" minLength={6} />
+                      <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                          <option value={UserRole.COLLABORATOR}>Colaborador / Técnico</option>
+                          <option value={UserRole.MANAGER}>Gestor / Supervisor</option>
+                          <option value={UserRole.ADMIN}>Administrador</option>
+                      </select>
+                      <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
+                          <option value="">Setor: Nenhum (Geral)</option>
+                          {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                      </select>
+                      <div className="flex gap-3 mt-6">
+                          <button type="button" onClick={() => setIsAddingUser(false)} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
+                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Criar Acesso</button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL: CONFIGURAR COMISSÕES */}
+      {configUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-start">
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-800">Comissões: {configUser.name}</h3>
+                        <p className="text-sm text-slate-500">Defina os ganhos para cada serviço concluído.</p>
+                      </div>
+                      <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X /></button>
+                  </div>
+                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                      {jobTypes.map(type => {
+                          const comm = tempCommissions.find(c => c.jobTypeId === type.id);
+                          return (
+                              <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                  <div className="flex-1">
+                                      <p className="font-bold text-slate-700">{type.name}</p>
+                                      <p className="text-xs text-slate-400">Preço Base: R$ {type.basePrice.toFixed(2)}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                      <input 
+                                        type="number" 
+                                        value={comm?.value || ''} 
+                                        placeholder="0.00"
+                                        onChange={e => handleCommChange(type.id, e.target.value, comm?.type || 'FIXED')}
+                                        className="w-24 px-3 py-2 border rounded-lg text-right font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                                      />
+                                      <div className="flex bg-white rounded-lg border border-slate-200 p-1">
+                                          <button 
+                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'FIXED')}
+                                            className={`p-1.5 rounded ${comm?.type === 'FIXED' || !comm?.type ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
+                                            title="Valor Fixo"
+                                          ><DollarSign size={14}/></button>
+                                          <button 
+                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'PERCENTAGE')}
+                                            className={`p-1.5 rounded ${comm?.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
+                                            title="Percentual"
+                                          ><Percent size={14}/></button>
+                                      </div>
+                                  </div>
+                              </div>
+                          );
+                      })}
+                      {jobTypes.length === 0 && <p className="text-center py-4 text-slate-400 italic">Cadastre serviços antes de definir comissões.</p>}
+                  </div>
+                  <div className="p-6 border-t bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
+                      <button onClick={() => setConfigUser(null)} className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl">Cancelar</button>
+                      <button onClick={saveCommissions} className="px-8 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700">Salvar Alterações</button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
