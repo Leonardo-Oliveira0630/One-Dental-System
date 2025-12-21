@@ -24,7 +24,18 @@ export interface User {
   clinicName?: string; 
   sector?: string; 
   customPrices?: CustomPrice[]; 
-  commissionSettings?: UserCommissionSetting[]; // Configurações de comissão
+  commissionSettings?: UserCommissionSetting[]; 
+}
+
+// Novo: Para dentistas que o lab cadastra mas não possuem conta própria no sistema
+export interface ManualDentist {
+  id: string;
+  organizationId: string;
+  name: string;
+  clinicName?: string;
+  email?: string;
+  phone?: string;
+  createdAt: Date;
 }
 
 // --- COMMISSIONS ---

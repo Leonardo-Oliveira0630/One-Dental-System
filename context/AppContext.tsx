@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -27,6 +27,7 @@ interface AppContextType {
   coupons: Coupon[];
   patients: ClinicPatient[];
   appointments: Appointment[];
+  manualDentists: ManualDentist[];
   activeAlert: JobAlert | null;
 
   login: (email: string, pass: string) => Promise<void>;
@@ -84,6 +85,9 @@ interface AppContextType {
   addCoupon: (c: Coupon) => Promise<void>;
   updateCoupon: (code: string, updates: Partial<Coupon>) => Promise<void>;
   deleteCoupon: (id: string) => Promise<void>;
+  addManualDentist: (d: Omit<ManualDentist, 'id' | 'organizationId'>) => Promise<void>;
+  updateManualDentist: (id: string, updates: Partial<ManualDentist>) => Promise<void>;
+  deleteManualDentist: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -112,6 +116,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
 
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
@@ -122,7 +127,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Helper para decidir qual Org ID usar no carregamento de dados (Jobs e Catálogo)
   const targetOrgId = () => activeOrganization?.id || (currentUser?.role !== UserRole.CLIENT ? currentUser?.organizationId : null) || null;
 
-  // --- GLOBAL SUBSCRIPTIONS (Independente de login) ---
+  // --- GLOBAL SUBSCRIPTIONS ---
   useEffect(() => {
     if (!db) return;
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
@@ -196,12 +201,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     let unsubSectors = () => {};
     let unsubComms = () => {};
     let unsubAlerts = () => {};
+    let unsubManualD = () => {};
 
     if (labOrgId) {
         unsubUsers = api.subscribeOrgUsers(labOrgId, setAllUsers);
         unsubSectors = api.subscribeSectors(labOrgId, setSectors);
         unsubComms = api.subscribeCommissions(labOrgId, setCommissions);
         unsubAlerts = api.subscribeAlerts(labOrgId, setAlerts);
+        unsubManualD = api.subscribeManualDentists(labOrgId, setManualDentists);
     }
 
     let unsubOrgs = () => {};
@@ -211,7 +218,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     return () => { 
         unsubJobs(); unsubJobTypes(); unsubPatients(); unsubAppointments(); 
-        unsubUsers(); unsubSectors(); unsubComms(); unsubAlerts(); unsubOrgs();
+        unsubUsers(); unsubSectors(); unsubComms(); unsubAlerts(); unsubOrgs(); unsubManualD();
     };
   }, [currentUser, activeOrganization]);
 
@@ -332,7 +339,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
   const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
+  // Fixed: using api.apiDeleteCoupon to fix missing deleteDoc error
   const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
+
+  const addManualDentist = async (d: Omit<ManualDentist, 'id' | 'organizationId'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddManualDentist(orgId, { ...d, id: `man_dent_${Date.now()}`, organizationId: orgId } as ManualDentist);
+  };
+  const updateManualDentist = async (id: string, u: Partial<ManualDentist>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateManualDentist(orgId, id, u);
+  };
+  const deleteManualDentist = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteManualDentist(orgId, id);
+  };
 
   const switchActiveOrganization = (id: string | null) => {
     if (!id) {
@@ -351,7 +375,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth,
       allUsers, jobs, jobTypes, sectors, alerts, commissions,
-      allOrganizations, allPlans, coupons, patients, appointments, activeAlert,
+      allOrganizations, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
       addJobType, updateJobType, deleteJobType, addSector, deleteSector,
@@ -362,7 +386,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       updateOrganization, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
-      addConnectionByCode, addCoupon, updateCoupon, deleteCoupon
+      addConnectionByCode, addCoupon, updateCoupon, deleteCoupon,
+      addManualDentist, updateManualDentist, deleteManualDentist
     }}>
       {children}
     </AppContext.Provider>

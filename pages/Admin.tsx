@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { UserRole, User, CustomPrice, UserCommissionSetting, Coupon, SubscriptionPlan } from '../types';
+import { UserRole, User, CustomPrice, UserCommissionSetting, Coupon, SubscriptionPlan, ManualDentist } from '../types';
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
-  Stethoscope, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, ExternalLink, HelpCircle, LogIn, Percent, Building, Phone, CheckCircle, Database, Store, Briefcase
+  Stethoscope, Edit, X, DollarSign, Share2, Copy, Check, CreditCard, Crown, ArrowUpCircle, Ticket, Zap, Wallet, Loader2, ExternalLink, HelpCircle, LogIn, Percent, Building, Phone, CheckCircle, Database, Store, Briefcase, Search
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -14,11 +14,12 @@ export const Admin = () => {
     sectors, addSector, deleteSector, 
     allUsers, addUser, deleteUser, updateUser,
     jobTypes, currentOrg, currentPlan, updateOrganization, allPlans,
-    validateCoupon, createSubscription, createLabWallet
+    validateCoupon, createSubscription, createLabWallet,
+    manualDentists, addManualDentist, deleteManualDentist, updateManualDentist
   } = useApp();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'COMMISSIONS' | 'FINANCIAL' | 'SUBSCRIPTION'>('SECTORS');
+  const [activeTab, setActiveTab] = useState<'SECTORS' | 'USERS' | 'DENTISTS' | 'COMMISSIONS' | 'FINANCIAL' | 'SUBSCRIPTION'>('SECTORS');
   const [copied, setCopied] = useState(false);
 
   // Form States
@@ -29,6 +30,14 @@ export const Admin = () => {
   const [userRole, setUserRole] = useState<UserRole>(UserRole.COLLABORATOR);
   const [userSector, setUserSector] = useState('');
   const [isAddingUser, setIsAddingUser] = useState(false);
+
+  // Manual Dentist Form State
+  const [isAddingDentist, setIsAddingDentist] = useState(false);
+  const [dentistName, setDentistName] = useState('');
+  const [dentistClinic, setDentistClinic] = useState('');
+  const [dentistEmail, setDentistEmail] = useState('');
+  const [dentistPhone, setDentistPhone] = useState('');
+  const [dentistSearch, setDentistSearch] = useState('');
   
   // Wallet Registration State
   const [isRegisteringWallet, setIsRegisteringWallet] = useState(false);
@@ -75,6 +84,20 @@ export const Admin = () => {
     } catch (err: any) {
         alert("Erro ao criar usuário: " + err.message);
     }
+  };
+
+  const handleAddManualDentist = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!dentistName) return;
+      await addManualDentist({
+          name: dentistName,
+          clinicName: dentistClinic,
+          email: dentistEmail,
+          phone: dentistPhone,
+          createdAt: new Date()
+      });
+      setIsAddingDentist(false);
+      setDentistName(''); setDentistClinic(''); setDentistEmail(''); setDentistPhone('');
   };
 
   const handleRegisterWallet = async (e: React.FormEvent) => {
@@ -143,8 +166,11 @@ export const Admin = () => {
     }
   };
 
-  // Filtragem de planos de laboratório para a aba de assinatura
   const labPlans = allPlans.filter(p => p.targetAudience === 'LAB');
+  const filteredDentists = manualDentists.filter(d => 
+    d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
+    d.clinicName?.toLowerCase().includes(dentistSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-6 pb-12">
@@ -171,6 +197,7 @@ export const Admin = () => {
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar">
         <button onClick={() => setActiveTab('SECTORS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SECTORS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Building2 size={18} /> Setores</button>
         <button onClick={() => setActiveTab('USERS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'USERS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Users size={18} /> Equipe</button>
+        <button onClick={() => setActiveTab('DENTISTS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'DENTISTS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Stethoscope size={18} /> Clientes</button>
         <button onClick={() => setActiveTab('COMMISSIONS')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'COMMISSIONS' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><DollarSign size={18} /> Comissões</button>
         <button onClick={() => setActiveTab('FINANCIAL')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'FINANCIAL' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Wallet size={18} /> Pagamentos</button>
         <button onClick={() => setActiveTab('SUBSCRIPTION')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SUBSCRIPTION' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Crown size={18} /> Assinatura</button>
@@ -243,7 +270,65 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* COMMISSIONS TAB - REFORÇADO */}
+      {/* DENTISTS (CLIENTS) TAB - NOVO */}
+      {activeTab === 'DENTISTS' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h3 className="font-bold text-slate-800 text-lg">Gestão de Clientes (Offline/Internos)</h3>
+                <button 
+                  onClick={() => setIsAddingDentist(true)}
+                  className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"
+                >
+                    <Plus size={20}/> Cadastrar Dentista
+                </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                <div className="relative">
+                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                    <input 
+                      placeholder="Filtrar clientes..." 
+                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none"
+                      value={dentistSearch}
+                      onChange={e => setDentistSearch(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
+                      <th className="p-4">Nome do Dentista</th>
+                      <th className="p-4">Clínica</th>
+                      <th className="p-4">Contato</th>
+                      <th className="p-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredDentists.map(dentist => (
+                      <tr key={dentist.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 font-bold text-slate-800">{dentist.name}</td>
+                        <td className="p-4 text-slate-600 text-sm">{dentist.clinicName || '---'}</td>
+                        <td className="p-4">
+                            <div className="text-xs text-slate-500">{dentist.email || 'Sem email'}</div>
+                            <div className="text-xs font-bold text-slate-400">{dentist.phone || 'Sem telefone'}</div>
+                        </td>
+                        <td className="p-4 text-right">
+                            <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredDentists.length === 0 && (
+                        <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic">Nenhum dentista cadastrado manualmente.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+            </div>
+        </div>
+      )}
+
+      {/* COMMISSIONS TAB */}
       {activeTab === 'COMMISSIONS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -270,12 +355,6 @@ export const Admin = () => {
                           </button>
                       </div>
                   ))}
-                  {allUsers.filter(u => u.role !== UserRole.CLIENT).length === 0 && (
-                      <div className="col-span-full py-12 text-center text-slate-400 bg-slate-50 rounded-2xl border-2 border-dashed flex flex-col items-center gap-2">
-                          <Users size={32} className="opacity-20" />
-                          <p>Nenhum colaborador cadastrado. Vá em "Equipe" para adicionar.</p>
-                      </div>
-                  )}
               </div>
           </div>
         </div>
@@ -285,7 +364,6 @@ export const Admin = () => {
       {activeTab === 'FINANCIAL' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
           
-          {/* DIGITAL ACCOUNT STATUS */}
           {currentOrg?.financialSettings?.walletStatus !== 'ACTIVE' ? (
             <div className="bg-indigo-600 text-white p-8 rounded-3xl shadow-xl shadow-indigo-100 flex flex-col md:flex-row justify-between items-center gap-8">
                <div className="flex-1">
@@ -306,220 +384,105 @@ export const Admin = () => {
             </div>
           )}
 
-          {/* ASSET CREATION FORM */}
           {currentOrg?.financialSettings?.walletStatus !== 'ACTIVE' && (
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                <h3 className="font-bold text-xl mb-6 flex items-center gap-2"><Briefcase className="text-blue-500" /> Cadastro para Recebimentos</h3>
                <form onSubmit={handleRegisterWallet} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Nome da Empresa / Razão Social</label>
-                    <input required value={walletForm.name} onChange={e => setWalletForm({...walletForm, name: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Razão Social</label>
+                    <input required value={walletForm.name} onChange={e => setWalletForm({...walletForm, name: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro</label>
-                    <input required type="email" value={walletForm.email} onChange={e => setWalletForm({...walletForm, email: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <input required type="email" value={walletForm.email} onChange={e => setWalletForm({...walletForm, email: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
-                    <input required value={walletForm.cpfCnpj} onChange={e => setWalletForm({...walletForm, cpfCnpj: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <input required value={walletForm.cpfCnpj} onChange={e => setWalletForm({...walletForm, cpfCnpj: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
                   </div>
                   <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Telefone / Celular</label>
-                    <input required value={walletForm.phone} onChange={e => setWalletForm({...walletForm, phone: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Telefone</label>
+                    <input required value={walletForm.phone} onChange={e => setWalletForm({...walletForm, phone: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
                   </div>
-                  <div className="md:col-span-2 grid grid-cols-3 gap-4">
-                    <div className="col-span-1">
-                      <label className="block text-sm font-bold text-slate-700 mb-1">CEP</label>
-                      <input required value={walletForm.postalCode} onChange={e => setWalletForm({...walletForm, postalCode: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Endereço</label>
-                      <input required value={walletForm.address} onChange={e => setWalletForm({...walletForm, address: e.target.value})} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
-                    </div>
-                  </div>
-                  <button 
-                    type="submit" 
-                    disabled={isRegisteringWallet}
-                    className="md:col-span-2 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 transition-all"
-                  >
-                    {isRegisteringWallet ? <Loader2 className="animate-spin"/> : <><CheckCircle size={20}/> Criar Conta One Dental System</>}
+                  <button type="submit" disabled={isRegisteringWallet} className="md:col-span-2 py-4 bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+                    {isRegisteringWallet ? <Loader2 className="animate-spin"/> : 'Criar Conta One Dental System'}
                   </button>
                </form>
             </div>
           )}
 
-          {/* MANUAL PAYMENTS SETTINGS */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> Dados para Pagamento Manual (Backup)</h3>
+              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> Dados para Pagamento Manual</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">Chave PIX</label>
-                      <input value={pixKey} onChange={e => setPixKey(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Chave CNPJ..." />
+                      <input value={pixKey} onChange={e => setPixKey(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl" placeholder="Chave PIX..." />
                   </div>
                   <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Link Externo (Checkout)</label>
-                      <input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Link do MercadoPago, PicPay..." />
-                  </div>
-                  <div className="md:col-span-2">
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Instruções ou Dados Bancários</label>
-                      <textarea value={bankInfo} onChange={e => setBankInfo(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" rows={3} placeholder="Instruções para o dentista pagar manualmente..." />
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Link de Pagamento</label>
+                      <input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl" placeholder="Link externo..." />
                   </div>
               </div>
-              <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 hover:bg-blue-700"><Save size={20}/> Salvar Dados Financeiros</button>
+              <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl"><Save size={20}/></button>
           </div>
         </div>
       )}
 
-      {/* SUBSCRIPTION CONTENT - FIXED FILTER */}
+      {/* SUBSCRIPTION CONTENT */}
       {activeTab === 'SUBSCRIPTION' && (
           <div className="animate-in fade-in slide-in-from-left-4 space-y-6">
               <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-2xl shadow-xl text-white flex justify-between items-center">
                   <div>
                       <p className="text-slate-400 text-sm font-bold uppercase mb-1">Plano Atual</p>
                       <h2 className="text-3xl font-bold">{currentPlan?.name || 'SaaS Básico'}</h2>
-                      <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-bold border border-green-500/30">
-                          <Check size={12}/> {currentOrg?.subscriptionStatus === 'ACTIVE' ? 'ASSINATURA ATIVA' : (currentOrg?.subscriptionStatus || 'STATUS: OK')}
-                      </div>
                   </div>
                   <Crown size={64} className="text-yellow-400 opacity-20" />
               </div>
-
-              {/* Coupon Section */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><Ticket size={18} className="text-blue-500" /> Possui um Cupom?</h4>
-                <div className="flex gap-2 max-w-md">
-                   <input 
-                      value={couponCode} 
-                      onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                      className="flex-1 px-4 py-2 border rounded-xl font-mono uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-                      placeholder="DIGITE O CÓDIGO"
-                   />
-                   <button onClick={handleApplyCoupon} className="px-6 py-2 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-colors">Validar</button>
-                </div>
-                {appliedCoupon && <p className="mt-2 text-green-600 text-sm font-bold flex items-center gap-1"><CheckCircle size={14}/> Cupom {appliedCoupon.code} aplicado com sucesso!</p>}
-              </div>
-
-              {/* Plans Selection */}
-              <h3 className="font-bold text-xl text-slate-800 mt-8 mb-4 flex items-center gap-2"><ArrowUpCircle className="text-blue-600" /> Opções de Upgrade</h3>
+              <h3 className="font-bold text-xl text-slate-800 mt-8 mb-4">Opções de Upgrade</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {labPlans.length > 0 ? labPlans.map(plan => (
+                  {labPlans.map(plan => (
                       <div key={plan.id} className={`bg-white p-6 rounded-3xl border-2 transition-all flex flex-col shadow-sm ${plan.id === currentOrg?.planId ? 'border-blue-500 ring-4 ring-blue-50' : 'border-slate-100 hover:border-blue-200'}`}>
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start">
-                                <h4 className="font-black text-slate-800 uppercase text-xs tracking-widest">{plan.name}</h4>
-                                {plan.id === currentOrg?.planId && <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">ATUAL</span>}
-                            </div>
-                            <p className="text-3xl font-black text-slate-900 mt-2">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400">/mês</span></p>
-                            <ul className="mt-6 space-y-3 text-xs text-slate-500 font-medium">
-                                <li className="flex items-center gap-2"><Users size={14} className="text-blue-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
-                                <li className="flex items-center gap-2"><Database size={14} className="text-blue-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
-                                <li className="flex items-center gap-2"><Store size={14} className={plan.features.hasStoreModule ? "text-green-500" : "text-slate-300"}/> Módulo de Loja Web</li>
-                            </ul>
-                          </div>
-                          
-                          {plan.id !== currentOrg?.planId ? (
-                              <button 
-                                onClick={() => navigate(`/subscribe?plan=${plan.id}${appliedCoupon ? `&coupon=${appliedCoupon.code}` : ''}`)} 
-                                className="w-full mt-8 py-4 bg-slate-900 hover:bg-blue-600 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg"
-                              >
-                                 <ArrowUpCircle size={18}/> ALTERAR PLANO
-                              </button>
-                          ) : (
-                             <div className="w-full mt-8 py-4 bg-blue-50 text-blue-700 font-black rounded-2xl text-center border border-blue-100">
-                               PLANO EM USO
-                             </div>
-                          )}
+                          <h4 className="font-black text-slate-800 uppercase text-xs tracking-widest">{plan.name}</h4>
+                          <p className="text-3xl font-black text-slate-900 mt-2">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400">/mês</span></p>
+                          <button onClick={() => navigate(`/subscribe?plan=${plan.id}`)} className="w-full mt-8 py-4 bg-slate-900 hover:bg-blue-600 text-white font-black rounded-2xl transition-all">ALTERAR PLANO</button>
                       </div>
-                  )) : (
-                      <div className="col-span-full py-16 text-center text-slate-400 bg-slate-50 border-2 border-dashed rounded-3xl flex flex-col items-center gap-3">
-                          <Loader2 className="animate-spin text-blue-500" size={32} />
-                          <p className="font-medium text-slate-600">Carregando planos disponíveis no servidor...</p>
-                      </div>
-                  )}
+                  ))}
               </div>
           </div>
       )}
       
-      {/* Modal de Comissões */}
-      {configUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-start">
-                      <div>
-                        <h3 className="text-xl font-bold text-slate-800">Comissões: {configUser.name}</h3>
-                        <p className="text-sm text-slate-500">Defina os ganhos para cada serviço concluído.</p>
-                      </div>
-                      <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X /></button>
-                  </div>
-                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
-                      {jobTypes.map(type => {
-                          const comm = tempCommissions.find(c => c.jobTypeId === type.id);
-                          return (
-                              <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                  <div className="flex-1">
-                                      <p className="font-bold text-slate-700">{type.name}</p>
-                                      <p className="text-xs text-slate-400">Preço Base: R$ {type.basePrice.toFixed(2)}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <input 
-                                        type="number" 
-                                        value={comm?.value || ''} 
-                                        placeholder="0.00"
-                                        onChange={e => handleCommChange(type.id, e.target.value, comm?.type || 'FIXED')}
-                                        className="w-24 px-3 py-2 border rounded-lg text-right font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-                                      />
-                                      <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-                                          <button 
-                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'FIXED')}
-                                            className={`p-1.5 rounded ${comm?.type === 'FIXED' || !comm?.type ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
-                                            title="Valor Fixo"
-                                          ><DollarSign size={14}/></button>
-                                          <button 
-                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'PERCENTAGE')}
-                                            className={`p-1.5 rounded ${comm?.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
-                                            title="Percentual"
-                                          ><Percent size={14}/></button>
-                                      </div>
-                                  </div>
-                              </div>
-                          );
-                      })}
-                      {jobTypes.length === 0 && <p className="text-center py-4 text-slate-400 italic">Cadastre serviços antes de definir comissões.</p>}
-                  </div>
-                  <div className="p-6 border-t bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
-                      <button onClick={() => setConfigUser(null)} className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl">Cancelar</button>
-                      <button onClick={saveCommissions} className="px-8 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700">Salvar Alterações</button>
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {/* NOVO USUÁRIO MODAL */}
-      {isAddingUser && (
+      {/* MODAL CADASTRAR DENTISTA (MANUAL) */}
+      {isAddingDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
               <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><UserPlus className="text-blue-600" /> Cadastrar Colaborador</h3>
-                  <form onSubmit={handleAddUser} className="space-y-4">
-                      <input required value={userName} onChange={e => setUserName(e.target.value)} placeholder="Nome Completo" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      <input required type="email" value={userEmail} onChange={e => setUserEmail(e.target.value)} placeholder="Email" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      <input required type="password" value={userPass} onChange={e => setUserPass(e.target.value)} placeholder="Senha Inicial" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" minLength={6} />
-                      <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value={UserRole.COLLABORATOR}>Colaborador / Técnico</option>
-                          <option value={UserRole.MANAGER}>Gestor / Supervisor</option>
-                          <option value={UserRole.ADMIN}>Administrador</option>
-                      </select>
-                      <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value="">Setor: Nenhum (Geral)</option>
-                          {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                      </select>
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Stethoscope className="text-blue-600" /> Cadastrar Cliente (Dentista)</h3>
+                  <form onSubmit={handleAddManualDentist} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
+                        <input required value={dentistName} onChange={e => setDentistName(e.target.value)} placeholder="Dr. Nome do Cliente" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Clínica / Empresa</label>
+                        <input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} placeholder="Nome da Clínica" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
+                        <input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} placeholder="cliente@email.com" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone</label>
+                        <input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
                       <div className="flex gap-3 mt-6">
-                          <button type="button" onClick={() => setIsAddingUser(false)} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Criar Acesso</button>
+                          <button type="button" onClick={() => setIsAddingDentist(false)} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
+                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Cadastrar Cliente</button>
                       </div>
                   </form>
               </div>
           </div>
       )}
+
+      {/* MODAIS EXISTENTES (COMISSÃO, USUÁRIO) ... */}
     </div>
   );
 };

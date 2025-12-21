@@ -13,7 +13,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, auth, storage, functions } from './firebaseConfig';
 import { 
   Job, User, JobType, Sector, UserRole, JobAlert, ClinicPatient, Appointment, 
-  Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord
+  Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, ManualDentist
 } from '../types';
 
 // --- HELPERS ---
@@ -146,6 +146,12 @@ export const subscribeOrgUsers = (orgId: string, callback: (users: User[]) => vo
 export const apiAddUser = async (user: User) => await setDoc(doc(db, 'users', user.id), sanitizeData(user));
 export const apiUpdateUser = async (id: string, updates: Partial<User>) => await updateDoc(doc(db, 'users', id), sanitizeData(updates));
 export const apiDeleteUser = async (id: string) => await deleteDoc(doc(db, 'users', id));
+
+// --- MANUAL DENTISTS (Clientes Internos) ---
+export const subscribeManualDentists = (orgId: string, cb: (d: ManualDentist[]) => void) => subscribeSubCollection<ManualDentist>(orgId, 'manualDentists', cb);
+export const apiAddManualDentist = (orgId: string, d: ManualDentist) => apiAddSubDoc(orgId, 'manualDentists', d);
+export const apiUpdateManualDentist = (orgId: string, id: string, u: Partial<ManualDentist>) => apiUpdateSubDoc(orgId, 'manualDentists', id, u);
+export const apiDeleteManualDentist = (orgId: string, id: string) => apiDeleteSubDoc(orgId, 'manualDentists', id);
 
 // --- CONNECTIONS (Dentist x Lab) ---
 export const subscribeUserConnections = (orgId: string, cb: (d: OrganizationConnection[]) => void) => {

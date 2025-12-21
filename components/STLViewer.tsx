@@ -24,8 +24,13 @@ interface ViewerErrorBoundaryState {
 
 // Fixed ViewerErrorBoundary by using React.Component explicitly to ensure property access for state and props.
 class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
+  // Explicitly declare state and props to fix TypeScript property access errors
+  state: ViewerErrorBoundaryState = { hasError: false, errorMsg: '' };
+  props: ViewerErrorBoundaryProps;
+
   constructor(props: ViewerErrorBoundaryProps) {
     super(props);
+    this.props = props;
     // Properly initializing state property inherited from Component
     this.state = { hasError: false, errorMsg: '' };
   }
