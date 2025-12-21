@@ -140,7 +140,8 @@ export const MOCK_JOBS: Job[] = [
     dentistName: 'Dr. Silva',
     status: JobStatus.IN_PROGRESS,
     urgency: UrgencyLevel.NORMAL,
-    items: [{ ...JOB_TYPES[0], quantity: 1, id: 'i1', jobTypeId: 't1', price: JOB_TYPES[0].basePrice, selectedVariationIds: [] }],
+    // Added required nature property
+    items: [{ ...JOB_TYPES[0], quantity: 1, id: 'i1', jobTypeId: 't1', price: JOB_TYPES[0].basePrice, nature: 'NORMAL', selectedVariationIds: [] }],
     history: [],
     createdAt: yesterday,
     dueDate: tomorrow,
@@ -158,7 +159,8 @@ export const MOCK_JOBS: Job[] = [
     dentistName: 'Dr. Silva',
     status: JobStatus.WAITING_APPROVAL,
     urgency: UrgencyLevel.NORMAL,
-    items: [{ ...JOB_TYPES[1], quantity: 2, id: 'i2', jobTypeId: 't2', price: JOB_TYPES[1].basePrice, selectedVariationIds: [] }],
+    // Added required nature property
+    items: [{ ...JOB_TYPES[1], quantity: 2, id: 'i2', jobTypeId: 't2', price: JOB_TYPES[1].basePrice, nature: 'NORMAL', selectedVariationIds: [] }],
     history: [],
     createdAt: today,
     dueDate: new Date(today.getTime() + 86400000 * 5),
@@ -173,7 +175,8 @@ export const MOCK_JOBS: Job[] = [
     dentistName: 'Dr. Silva',
     status: JobStatus.PENDING,
     urgency: UrgencyLevel.VIP,
-    items: [{ ...JOB_TYPES[2], quantity: 1, id: 'i3', jobTypeId: 't3', price: JOB_TYPES[2].basePrice, selectedVariationIds: [] }],
+    // Added required nature property
+    items: [{ ...JOB_TYPES[2], quantity: 1, id: 'i3', jobTypeId: 't3', price: JOB_TYPES[2].basePrice, nature: 'NORMAL', selectedVariationIds: [] }],
     history: [],
     createdAt: yesterday,
     dueDate: today,

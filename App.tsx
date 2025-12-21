@@ -24,6 +24,7 @@ import { Schedule } from './pages/clinic/Schedule';
 import { ClinicSettings } from './pages/clinic/ClinicSettings';
 import { Partnerships } from './pages/dentist/Partnerships';
 import { Dentists } from './pages/lab/Dentists';
+import { Finance } from './pages/lab/Finance';
 import { Loader2 } from 'lucide-react';
 import { UserRole } from './types';
 
@@ -52,6 +53,7 @@ const AppContent = () => {
       
       {/* Lab Exclusive */}
       <Route path="/lab/dentists" element={<ProtectedRoute><Dentists /></ProtectedRoute>} />
+      <Route path="/lab/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
 
       {/* Clinic / Dentist Routes */}
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />

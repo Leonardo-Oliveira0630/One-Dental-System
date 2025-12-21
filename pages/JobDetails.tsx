@@ -28,7 +28,6 @@ export const JobDetails = () => {
   const canManage = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
 
-  // ... (Edit state logic same as before) ...
   const [editDueDate, setEditDueDate] = useState('');
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
@@ -48,8 +47,7 @@ export const JobDetails = () => {
 
   if (!job) return <div className="flex flex-col items-center justify-center h-[60vh]"><h2 className="text-2xl font-bold text-slate-800">Trabalho não encontrado</h2><button onClick={() => navigate('/jobs')} className="mt-4 text-blue-600 hover:underline">Voltar para lista</button></div>;
 
-  // ... (Handlers same as before) ...
-  const handleAddItemToJob = () => { const type = jobTypes.find(t => t.id === newItemTypeId); if (!type) return; const newItem: JobItem = { id: Math.random().toString(), jobTypeId: type.id, name: type.name, quantity: newItemQty, price: type.basePrice, selectedVariationIds: [] }; setEditItems([...editItems, newItem]); };
+  const handleAddItemToJob = () => { const type = jobTypes.find(t => t.id === newItemTypeId); if (!type) return; const newItem: JobItem = { id: Math.random().toString(), jobTypeId: type.id, name: type.name, quantity: newItemQty, price: type.basePrice, selectedVariationIds: [], nature: 'NORMAL' }; setEditItems([...editItems, newItem]); };
   const handleRemoveItemFromJob = (itemId: string) => { setEditItems(editItems.filter(i => i.id !== itemId)); };
   const handleSaveChanges = () => { const newTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0); const dateParts = editDueDate.split('-'); const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2])); updateJob(job.id, { dueDate: adjustedDate, urgency: editUrgency, notes: editNotes, items: editItems, totalValue: newTotal, history: [...job.history, { id: Math.random().toString(), timestamp: new Date(), action: 'Ficha Editada Manualmente (Itens/Datas)', userId: currentUser?.id || 'admin', userName: currentUser?.name || 'Admin' }] }); setShowEditModal(false); };
   const getStatusColor = (status: JobStatus) => { switch(status) { case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border-green-200'; case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border-blue-200'; case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border-purple-200'; default: return 'bg-slate-100 text-slate-700 border-slate-200'; } };
@@ -78,7 +76,7 @@ export const JobDetails = () => {
       {/* Payment Modal */}
       {showPaymentModal && activeOrganization?.financialSettings && (
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-in zoom-in duration-200">
+             <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-md animate-in zoom-in duration-200">
                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                       <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                           <DollarSign size={24} className="text-green-600" /> Realizar Pagamento

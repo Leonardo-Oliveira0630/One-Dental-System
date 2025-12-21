@@ -128,13 +128,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              </div>
           )}
 
-          <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
+          <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar no-scrollbar">
             {!isClient && currentUser?.role !== UserRole.SUPER_ADMIN && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
                 
                 {isManager && (
                   <>
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Meus Clientes" active={location.pathname === '/lab/dentists'} />
                   </>

@@ -27,7 +27,6 @@ export interface User {
   commissionSettings?: UserCommissionSetting[]; 
 }
 
-// Novo: Para dentistas que o lab cadastra mas não possuem conta própria no sistema
 export interface ManualDentist {
   id: string;
   organizationId: string;
@@ -35,6 +34,7 @@ export interface ManualDentist {
   clinicName?: string;
   email?: string;
   phone?: string;
+  totalOwed?: number; // Saldo devedor total acumulado
   createdAt: Date;
 }
 
@@ -59,6 +59,36 @@ export interface CommissionRecord {
   createdAt: Date;
   paidAt?: Date;
   sector: string;
+}
+
+// --- FINANCE MODULE ---
+
+export type TransactionType = 'INCOME' | 'EXPENSE';
+export type TransactionCategory = 'PRODUCTION' | 'STORE' | 'SUPPLIES' | 'RENT' | 'SALARY' | 'MARKETING' | 'OTHER';
+
+export interface FinancialTransaction {
+  id: string;
+  organizationId: string;
+  type: TransactionType;
+  category: TransactionCategory;
+  amount: number;
+  description: string;
+  date: Date;
+  relatedId?: string; // ID do Job ou da Despesa
+  dentistId?: string; // Se for entrada, a quem pertence
+  paymentMethod?: string;
+}
+
+export interface Expense {
+  id: string;
+  organizationId: string;
+  description: string;
+  category: TransactionCategory;
+  amount: number;
+  date: Date;
+  status: 'PENDING' | 'PAID';
+  dueDate?: Date;
+  attachmentUrl?: string; // Comprovante de compra/NFe
 }
 
 // --- SAAS STRUCTURE ---
@@ -179,12 +209,15 @@ export interface JobType {
   imageUrl?: string;
 }
 
+export type JobNature = 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
+
 export interface JobItem {
   id: string;
   jobTypeId: string;
   name: string;
   quantity: number;
   price: number; 
+  nature: JobNature;
   selectedVariationIds?: string[];
   variationValues?: Record<string, string>;
   commissionDisabled?: boolean; 
@@ -227,7 +260,7 @@ export interface Job {
   notes?: string;
   managerNotes?: string; 
   paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED' | 'FAILED';
-  paymentMethod?: 'CREDIT_CARD' | 'PIX';
+  paymentMethod?: 'CREDIT_CARD' | 'PIX' | 'BOLETO' | 'TRANSFER' | 'CASH';
   paymentId?: string;
   pixCopyPaste?: string;
   pixQrCode?: string;
