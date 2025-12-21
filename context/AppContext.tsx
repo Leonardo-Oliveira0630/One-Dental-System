@@ -119,8 +119,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<{ job: Job, mode: 'SHEET' | 'LABEL' } | null>(null);
 
-  // Helper para decidir qual Org ID usar no carregamento de dados
-  const targetOrgId = () => activeOrganization?.id || currentUser?.organizationId || null;
+  // Helper para decidir qual Org ID usar no carregamento de dados (Jobs e Catálogo)
+  const targetOrgId = () => activeOrganization?.id || (currentUser?.role !== UserRole.CLIENT ? currentUser?.organizationId : null) || null;
 
   useEffect(() => {
     if (!auth) { setIsLoadingAuth(false); return; }
@@ -147,7 +147,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             if (profile.role === UserRole.CLIENT) {
                 api.subscribeUserConnections(profile.organizationId, (conns) => {
                     setUserConnections(conns);
-                    // Se ainda não tiver uma org ativa, pega a primeira da lista
+                    // Se ainda não tiver uma org ativa, tenta pegar a primeira da lista
                     if (conns.length > 0 && !activeOrganization) {
                          const firstOrgId = conns[0].organizationId;
                          getDoc(doc(db, 'organizations', firstOrgId)).then(snap => {
@@ -167,18 +167,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       setIsLoadingAuth(false);
     });
     return unsub;
-  }, [activeOrganization]);
+  }, []); // Removido activeOrganization da dependência para evitar loop, a troca é manual
 
   useEffect(() => {
     if (!db || !currentUser) return;
     const orgId = targetOrgId();
-    if (!orgId) return;
-
-    // Se for CLIENT (dentista), ele vê JOBS e JOBTYPES do laboratório ativo
-    // Se for STAFF (lab), ele vê JOBS e JOBTYPES da própria org
-    const unsubJobs = api.subscribeJobs(orgId, setJobs);
-    const unsubJobTypes = api.subscribeJobTypes(orgId, setJobTypes);
     
+    // Inscrições dependentes da Organização Alvo (Jobs e Catálogo)
+    let unsubJobs = () => {};
+    let unsubJobTypes = () => {};
+
+    if (orgId) {
+        unsubJobs = api.subscribeJobs(orgId, setJobs);
+        unsubJobTypes = api.subscribeJobTypes(orgId, setJobTypes);
+    }
+
     // Dados específicos da clínica (sempre da org do dentista)
     const clinicOrgId = currentUser.organizationId || '';
     const unsubPatients = api.subscribePatients(clinicOrgId, setPatients);
@@ -208,7 +211,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return () => { unsubJobs(); unsubJobTypes(); unsubPatients(); unsubAppointments(); unsubUsers(); unsubSectors(); unsubComms(); unsubAlerts(); };
   }, [currentUser, activeOrganization]);
 
-  const login = async (email: string, pass: string) => await api.apiLogin(email, pass);
+  // CORREÇÃO DO ERRO TS2322: login deve retornar Promise<void>
+  const login = async (email: string, pass: string) => {
+    await api.apiLogin(email, pass);
+  };
+
   const logout = async () => await api.apiLogout();
   const updateUser = async (id: string, u: Partial<User>) => await api.apiUpdateUser(id, u);
   const addUser = async (u: User) => await api.apiAddUser(u);

@@ -22,9 +22,12 @@ interface ViewerErrorBoundaryState {
   errorMsg: string;
 }
 
-/* Fixed ViewerErrorBoundary by explicitly extending the Component class from React with generic Props and State parameters. This resolves the TypeScript error regarding the 'props' property missing on the class instance by ensuring standard inheritance. */
-class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
-  public state: ViewerErrorBoundaryState = { hasError: false, errorMsg: '' };
+// Fixed ViewerErrorBoundary by using the full React.Component reference and explicit constructor to ensure standard inheritance and property access.
+class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
+  constructor(props: ViewerErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, errorMsg: '' };
+  }
 
   static getDerivedStateFromError(error: any): ViewerErrorBoundaryState {
     return { hasError: true, errorMsg: error.message };
@@ -62,7 +65,7 @@ class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErro
       );
     }
 
-    /* Fixed property 'props' access by correctly inheriting from React.Component */
+    // Standard access to this.props.children supported by React.Component base class
     return this.props.children;
   }
 }
