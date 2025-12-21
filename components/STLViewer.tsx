@@ -22,10 +22,11 @@ interface ViewerErrorBoundaryState {
   errorMsg: string;
 }
 
-// Fixed ViewerErrorBoundary by using the full React.Component reference and explicit constructor to ensure standard inheritance and property access.
-class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
+// Fixed ViewerErrorBoundary by using the explicitly imported Component class to ensure standard inheritance and property access for state and props.
+class ViewerErrorBoundary extends Component<ViewerErrorBoundaryProps, ViewerErrorBoundaryState> {
   constructor(props: ViewerErrorBoundaryProps) {
     super(props);
+    // Properly initializing state property inherited from Component
     this.state = { hasError: false, errorMsg: '' };
   }
 
@@ -38,6 +39,7 @@ class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, View
   }
 
   render() {
+    // Accessing this.state inherited from Component
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-white p-8 text-center bg-slate-900">
@@ -65,7 +67,7 @@ class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, View
       );
     }
 
-    // Standard access to this.props.children supported by React.Component base class
+    // Accessing this.props inherited from Component
     return this.props.children;
   }
 }

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -17,6 +18,11 @@ import { Profile } from './pages/Profile';
 import { ProductionCalendar } from './pages/ProductionCalendar';
 import { PromisedJobs } from './pages/PromisedJobs';
 import { Subscribe } from './pages/Subscribe';
+import { RegisterOrganization } from './pages/RegisterOrganization';
+import { Patients } from './pages/clinic/Patients';
+import { Schedule } from './pages/clinic/Schedule';
+import { ClinicSettings } from './pages/clinic/ClinicSettings';
+import { Partnerships } from './pages/dentist/Partnerships';
 import { Loader2 } from 'lucide-react';
 import { UserRole } from './types';
 
@@ -31,6 +37,8 @@ const AppContent = () => {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+      <Route path="/register-lab" element={<RegisterOrganization />} />
+      
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><JobsList /></ProtectedRoute>} />
@@ -40,11 +48,19 @@ const AppContent = () => {
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      
+      {/* Clinic / Dentist Routes */}
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
+      <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
+      <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
+      <Route path="/clinic-settings" element={<ProtectedRoute><ClinicSettings /></ProtectedRoute>} />
+      <Route path="/dentist/partnerships" element={<ProtectedRoute><Partnerships /></ProtectedRoute>} />
+
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
       <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
+      
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
