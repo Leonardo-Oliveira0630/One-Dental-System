@@ -169,7 +169,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const profile = await api.getUserProfile(user.uid);
         setCurrentUser(profile);
 
-        if (profile?.organizationId) {
+        if (profile?.organizationId && profile.organizationId.trim() !== '') {
             const orgRef = doc(db, 'organizations', profile.organizationId);
             onSnapshot(orgRef, (snap) => {
                 if (snap.exists()) {
@@ -210,19 +210,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     if (!db || !currentUser) return;
     
-    // Lista de unsubs para limpeza
     const unsubs: (() => void)[] = [];
 
     // Org Ativa (Para Dentistas visualizarem Lab ou Lab visualizar si mesmo)
-    const orgId = targetOrgId();
-    if (orgId) {
-        unsubs.push(api.subscribeJobs(orgId, setJobs));
-        unsubs.push(api.subscribeJobTypes(orgId, setJobTypes));
+    const activeId = targetOrgId();
+    if (activeId && typeof activeId === 'string' && activeId.trim() !== '') {
+        unsubs.push(api.subscribeJobs(activeId, setJobs));
+        unsubs.push(api.subscribeJobTypes(activeId, setJobTypes));
     }
 
     // Org Própria (Clínica ou Laboratório)
     const myOrgId = currentUser.organizationId;
-    if (myOrgId) {
+    if (myOrgId && typeof myOrgId === 'string' && myOrgId.trim() !== '') {
         // Dados de Clínica
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
@@ -237,12 +236,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
     }
 
-    // Super Admin
+    // Super Admin - Visualização Global de Org, Planos e Cupons
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
 
-    return () => unsubs.forEach(unsub => unsub());
+    return () => unsubs.forEach(unsub => {
+        try { unsub(); } catch(e) {}
+    });
   }, [currentUser, activeOrganization]);
 
   const login = async (email: string, pass: string) => {

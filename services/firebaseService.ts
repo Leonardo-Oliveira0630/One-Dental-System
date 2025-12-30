@@ -34,6 +34,7 @@ export const apiDeleteUser = (id: string) => deleteDoc(doc(db, 'users', id));
 
 // --- JOBS ---
 export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
+    if (!orgId) return () => {};
     const q = collection(db, 'organizations', orgId, 'jobs');
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ 
@@ -51,6 +52,7 @@ export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) =
 
 // --- CATALOG / JOB TYPES ---
 export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void) => {
+    if (!orgId) return () => {};
     const q = collection(db, 'organizations', orgId, 'jobTypes');
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as JobType)));
@@ -63,6 +65,7 @@ export const apiDeleteJobType = (orgId: string, id: string) => deleteDoc(doc(db,
 
 // --- SECTORS ---
 export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void) => {
+    if (!orgId) return () => {};
     const q = collection(db, 'organizations', orgId, 'sectors');
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as Sector)));
@@ -74,6 +77,7 @@ export const apiDeleteSector = (orgId: string, id: string) => deleteDoc(doc(db, 
 
 // --- COMMISSIONS ---
 export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) => void) => {
+    if (!orgId) return () => {};
     const q = collection(db, 'organizations', orgId, 'commissions');
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ 
@@ -90,6 +94,7 @@ export const apiUpdateCommission = (orgId: string, id: string, updates: Partial<
 
 // --- ALERTS ---
 export const subscribeAlerts = (orgId: string, cb: (a: JobAlert[]) => void) => {
+    if (!orgId) return () => {};
     const q = collection(db, 'organizations', orgId, 'alerts');
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ 
@@ -108,6 +113,7 @@ export const apiMarkAlertAsRead = (orgId: string, id: string, userId: string) =>
 
 // --- CLINIC DATA ---
 export const subscribePatients = (orgId: string, cb: (p: ClinicPatient[]) => void) => {
+    if (!orgId) return () => {};
     const q = collection(db, 'organizations', orgId, 'patients');
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: toDate(d.data().createdAt) } as ClinicPatient)));
@@ -119,6 +125,7 @@ export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPat
 export const apiDeletePatient = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'patients', id));
 
 export const subscribeAppointments = (orgId: string, cb: (a: Appointment[]) => void) => {
+    if (!orgId) return () => {};
     const q = collection(db, 'organizations', orgId, 'appointments');
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ id: d.id, ...d.data(), date: toDate(d.data().date) } as Appointment)));
@@ -264,6 +271,7 @@ export const apiAddConnectionByCode = async (clinicOrgId: string, dentistId: str
 };
 
 export const subscribeUserConnections = (orgId: string, cb: (c: OrganizationConnection[]) => void) => {
+    if (!orgId) return () => {};
     return onSnapshot(collection(db, 'organizations', orgId, 'connections'), (snap) => {
         cb(snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: toDate(d.data().createdAt) } as OrganizationConnection)));
     });
@@ -278,6 +286,7 @@ export const apiUpdateManualDentist = (orgId: string, id: string, u: Partial<Man
 export const apiDeleteManualDentist = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'manualDentists', id));
 
 export const subscribeManualDentists = (orgId: string, cb: (d: ManualDentist[]) => void) => {
+    if (!orgId) return () => {};
     return onSnapshot(collection(db, 'organizations', orgId, 'manualDentists'), (snap) => {
         cb(snap.docs.map(d => ({ id: d.id, ...d.data(), createdAt: toDate(d.data().createdAt) } as ManualDentist)));
     });
@@ -311,6 +320,7 @@ export const apiRegisterUserInOrg = async (email: string, pass: string, name: st
 };
 
 export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
+    if (!orgId) return () => {};
     const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
@@ -319,6 +329,7 @@ export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
 
 // --- BILLING BATCHES ---
 export const subscribeBillingBatches = (orgId: string, cb: (b: BillingBatch[]) => void) => {
+    if (!orgId) return () => {};
     return onSnapshot(collection(db, 'organizations', orgId, 'billingBatches'), (snap) => {
         cb(snap.docs.map(d => ({ 
             id: d.id, 
@@ -337,11 +348,12 @@ export const apiGenerateBatchBoleto = async (orgId: string, dentistId: string, j
 
 // --- EXPENSES ---
 export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => {
+    if (!orgId) return () => {};
     const q = collection(db, 'organizations', orgId, 'expenses');
     return onSnapshot(q, (snap) => {
         cb(snap.docs.map(d => ({ 
             id: d.id, 
-            ...d.data(),
+            ...d.data(), 
             date: toDate(d.data().date),
             createdAt: toDate(d.data().createdAt)
         } as Expense)));

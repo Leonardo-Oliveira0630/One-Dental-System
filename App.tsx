@@ -25,6 +25,9 @@ import { ClinicSettings } from './pages/clinic/ClinicSettings';
 import { Partnerships } from './pages/dentist/Partnerships';
 import { Dentists } from './pages/lab/Dentists';
 import { Finance } from './pages/lab/Finance';
+import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
+import { Plans } from './pages/superadmin/Plans';
+import { Coupons } from './pages/superadmin/Coupons';
 import { Loader2 } from 'lucide-react';
 import { UserRole } from './types';
 
@@ -66,6 +69,11 @@ const AppContent = () => {
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
       <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
+
+      {/* Super Admin Routes */}
+      <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
+      <Route path="/superadmin/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
+      <Route path="/superadmin/coupons" element={<ProtectedRoute><Coupons /></ProtectedRoute>} />
       
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
