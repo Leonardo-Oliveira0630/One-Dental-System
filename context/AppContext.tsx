@@ -135,7 +135,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
       const checkAlerts = () => {
           const now = new Date();
-          // Encontrar o primeiro alerta que o usuário deva ver agora
           const alertToShow = alerts.find(a => {
               const isScheduled = new Date(a.scheduledFor) <= now;
               const notRead = !a.readBy?.includes(currentUser.id);
@@ -152,7 +151,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       };
 
       checkAlerts();
-      const interval = setInterval(checkAlerts, 10000); // Checa a cada 10s
+      const interval = setInterval(checkAlerts, 10000);
       return () => clearInterval(interval);
   }, [alerts, currentUser, activeAlert]);
 
@@ -210,44 +209,40 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   useEffect(() => {
     if (!db || !currentUser) return;
-    const orgId = targetOrgId();
     
-    let unsubJobs = () => {};
-    let unsubJobTypes = () => {};
+    // Lista de unsubs para limpeza
+    const unsubs: (() => void)[] = [];
 
+    // Org Ativa (Para Dentistas visualizarem Lab ou Lab visualizar si mesmo)
+    const orgId = targetOrgId();
     if (orgId) {
-        unsubJobs = api.subscribeJobs(orgId, setJobs);
-        unsubJobTypes = api.subscribeJobTypes(orgId, setJobTypes);
+        unsubs.push(api.subscribeJobs(orgId, setJobs));
+        unsubs.push(api.subscribeJobTypes(orgId, setJobTypes));
     }
 
-    const clinicOrgId = currentUser.organizationId || '';
-    const unsubPatients = api.subscribePatients(clinicOrgId, setPatients);
-    const unsubAppointments = api.subscribeAppointments(clinicOrgId, setAppointments);
+    // Org Própria (Clínica ou Laboratório)
+    const myOrgId = currentUser.organizationId;
+    if (myOrgId) {
+        // Dados de Clínica
+        unsubs.push(api.subscribePatients(myOrgId, setPatients));
+        unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
 
-    const labOrgId = currentUser.role !== UserRole.CLIENT ? (currentUser.organizationId || '') : null;
-    let unsubUsers = () => {};
-    let unsubSectors = () => {};
-    let unsubComms = () => {};
-    let unsubAlerts = () => {};
-    let unsubManualD = () => {};
-
-    if (labOrgId) {
-        unsubUsers = api.subscribeOrgUsers(labOrgId, setAllUsers);
-        unsubSectors = api.subscribeSectors(labOrgId, setSectors);
-        unsubComms = api.subscribeCommissions(labOrgId, setCommissions);
-        unsubAlerts = api.subscribeAlerts(labOrgId, setAlerts);
-        unsubManualD = api.subscribeManualDentists(labOrgId, setManualDentists);
+        // Dados de Laboratório (Apenas se não for cliente)
+        if (currentUser.role !== UserRole.CLIENT) {
+            unsubs.push(api.subscribeOrgUsers(myOrgId, setAllUsers));
+            unsubs.push(api.subscribeSectors(myOrgId, setSectors));
+            unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
+            unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
+            unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
+        }
     }
 
-    let unsubOrgs = () => {};
+    // Super Admin
     if (currentUser.role === UserRole.SUPER_ADMIN) {
-        unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
+        unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
 
-    return () => { 
-        unsubJobs(); unsubJobTypes(); unsubPatients(); unsubAppointments(); 
-        unsubUsers(); unsubSectors(); unsubComms(); unsubAlerts(); unsubOrgs(); unsubManualD();
-    };
+    return () => unsubs.forEach(unsub => unsub());
   }, [currentUser, activeOrganization]);
 
   const login = async (email: string, pass: string) => {
@@ -323,7 +318,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = currentUser?.organizationId;
       if(!orgId || !currentUser) return;
       await api.apiMarkAlertAsRead(orgId, id, currentUser.id);
-      setActiveAlert(null); // Fecha localmente imediatamente
+      setActiveAlert(null); 
   }
   const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => {
       const orgId = currentUser?.organizationId;
