@@ -6,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Building, Briefcase, Stethoscope
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Building, Briefcase, Stethoscope, Globe
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -52,19 +52,20 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLabSelectorOpen, setIsLabSelectorOpen] = useState(false);
 
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isManager = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
   
   const pendingOrdersCount = jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length;
 
-  const bgClass = isClient ? 'bg-indigo-900' : 'bg-slate-900';
-  const logoColor = isClient ? 'text-indigo-500' : 'text-blue-500';
+  const bgClass = isSuperAdmin ? 'bg-slate-950' : (isClient ? 'bg-indigo-900' : 'bg-slate-900');
+  const logoColor = isSuperAdmin ? 'text-amber-500' : (isClient ? 'text-indigo-500' : 'text-blue-500');
 
   const handleLogout = () => { logout(); navigate('/'); };
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans relative">
-      <GlobalScanner />
+      {!isSuperAdmin && <GlobalScanner />}
       <PrintOverlay />
       <AlertPopup />
       
@@ -83,6 +84,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white"><X size={24} /></button>
           </div>
+
+          {/* SAAS ADMIN SELECTOR INFO */}
+          {isSuperAdmin && (
+             <div className="mb-6 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Painel de Controle</p>
+                <p className="text-sm font-bold text-amber-200">SaaS Master Admin</p>
+             </div>
+          )}
 
           {/* DENTIST LAB SELECTOR */}
           {isClient && (
@@ -114,9 +123,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                               {activeOrganization?.id === conn.organizationId && <div className="w-2 h-2 bg-indigo-400 rounded-full"></div>}
                            </button>
                         ))}
-                        {userConnections.length === 0 && (
-                            <div className="p-4 text-xs text-slate-500 text-center italic">Nenhuma parceria ativa</div>
-                        )}
                       </div>
                       <Link 
                         to="/dentist/partnerships" 
@@ -130,8 +136,20 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              </div>
           )}
 
-          <nav className="space-y-1 flex-1 overflow-y-auto custom-scrollbar no-scrollbar">
-            {!isClient && currentUser?.role !== UserRole.SUPER_ADMIN && (
+          <nav className="space-y-1 flex-1 overflow-y-auto no-scrollbar">
+            {/* SUPER ADMIN MENU */}
+            {isSuperAdmin && (
+              <>
+                <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
+                <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label="Gerenciar Planos" active={location.pathname === '/superadmin/plans'} />
+                <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons & Ofertas" active={location.pathname === '/superadmin/coupons'} />
+                <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
+                <SidebarItem to="/dashboard" icon={<Globe size={20} />} label="Ver como Lab" active={location.pathname === '/dashboard'} />
+              </>
+            )}
+
+            {/* LAB MENU */}
+            {!isClient && !isSuperAdmin && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
                 
@@ -156,6 +174,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             )}
 
+            {/* DENTIST MENU */}
             {isClient && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Fazer Pedido" active={location.pathname === '/store'} />
@@ -171,7 +190,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <div className="pt-8 mt-8 border-t border-white/10">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
               {isManager && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin'} />}
-              {isClient && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic-settings" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/clinic-settings'} />}
             </div>
           </nav>
 
@@ -186,7 +204,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <main className="flex-1 md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
         <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-2">
-             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
+             <div className={`w-8 h-8 ${isSuperAdmin ? 'bg-slate-900' : (isClient ? 'bg-indigo-600' : 'bg-blue-600')} rounded-lg flex items-center justify-center text-white font-bold`}>O</div>
              <span className="font-bold text-slate-800">One Dental</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
