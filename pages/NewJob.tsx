@@ -69,33 +69,44 @@ export const NewJob = () => {
     ).slice(0, 8); 
   }, [dentistSearchQuery, connectedDentists, manualDentists]);
 
-  // Lógica de cálculo de preço automático considerando descontos do dentista
+  // Lógica de cálculo de preço automático considerando descontos do dentista e isenções
   const calculatedBasePrice = useMemo(() => {
     if (!activeJobType) return 0;
     
-    let basePrice = activeJobType.basePrice;
+    let discountableSum = activeJobType.basePrice;
+    let exemptSum = 0;
 
-    // Apply dentist discounts if available
-    if (selectedDentistObj) {
-        const custom = selectedDentistObj.customPrices?.find(p => p.jobTypeId === activeJobType.id);
-        if (custom) {
-            if (custom.price !== undefined) basePrice = custom.price;
-            else if (custom.discountPercent !== undefined) basePrice = activeJobType.basePrice * (1 - custom.discountPercent / 100);
-        } else if (selectedDentistObj.globalDiscountPercent) {
-            basePrice = activeJobType.basePrice * (1 - selectedDentistObj.globalDiscountPercent / 100);
-        }
-    }
-
-    let variationsTotal = 0;
-    const allSelectedOptionIds = Object.values(selectedVariations).flat();
+    // Processar variações selecionadas
+    const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
     allSelectedOptionIds.forEach(selectedId => {
       activeJobType.variationGroups.forEach(group => {
         const option = group.options.find(opt => opt.id === selectedId);
-        if (option) variationsTotal += option.priceModifier;
+        if (option) {
+            if (option.isDiscountExempt) exemptSum += option.priceModifier;
+            else discountableSum += option.priceModifier;
+        }
       });
     });
 
-    return basePrice + variationsTotal;
+    // Determinar taxa de desconto do dentista
+    let dentistDiscountRate = 0;
+    if (selectedDentistObj) {
+        const custom = selectedDentistObj.customPrices?.find(p => p.jobTypeId === activeJobType.id);
+        if (custom) {
+            if (custom.discountPercent !== undefined) {
+                dentistDiscountRate = custom.discountPercent / 100;
+            } else if (custom.price !== undefined) {
+                // Se preço fixo na tabela, ele substitui a soma descontável
+                discountableSum = custom.price;
+                dentistDiscountRate = 0;
+            }
+        } else if (selectedDentistObj.globalDiscountPercent) {
+            dentistDiscountRate = selectedDentistObj.globalDiscountPercent / 100;
+        }
+    }
+
+    // Retorna a soma do que tem desconto + o que é fixo/isento
+    return (discountableSum * (1 - dentistDiscountRate)) + exemptSum;
   }, [selectedVariations, activeJobType, selectedDentistObj]);
 
   const finalItemPrice = useMemo(() => {
@@ -470,6 +481,7 @@ export const NewJob = () => {
                                                     <button key={option.id} type="button" disabled={isDis} onClick={() => handleVariationChange(group, option.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${isDis ? 'opacity-20 cursor-not-allowed bg-slate-100' : isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'}`}>
                                                         {option.name}
                                                         {option.priceModifier !== 0 && (<span className={`ml-1 text-[9px] ${isSelected ? 'text-blue-100' : 'text-green-600'}`}>{option.priceModifier > 0 ? `+R$${option.priceModifier}` : `-R$${Math.abs(option.priceModifier)}`}</span>)}
+                                                        {option.isDiscountExempt && <span className="ml-1 text-[8px] px-1 bg-orange-100 text-orange-600 rounded">FIXO</span>}
                                                     </button>
                                                 );
                                             })}

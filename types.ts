@@ -141,6 +141,7 @@ export interface VariationOption {
   name: string;
   priceModifier: number;
   disablesOptions?: string[];
+  isDiscountExempt?: boolean; // Nova propriedade
 }
 
 export interface VariationGroup {
@@ -175,11 +176,11 @@ export interface User {
   sector?: string;
   clinicName?: string;
   commissionSettings?: UserCommissionSetting[];
-  globalDiscountPercent?: number; // Desconto em % aplicado a todos os serviços
+  globalDiscountPercent?: number; 
   customPrices?: { 
     jobTypeId: string; 
     price?: number; 
-    discountPercent?: number; // Desconto específico para este item
+    discountPercent?: number; 
   }[];
 }
 

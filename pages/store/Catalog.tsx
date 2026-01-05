@@ -14,37 +14,65 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
 
     // Logic to calculate final price for a product based on user discounts
-    const calculateEffectiveBasePrice = (type: JobType) => {
-        if (!currentUser) return type.basePrice;
-        
-        // 1. Check for specific item discount
-        const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
-        
-        if (custom) {
-            if (custom.price !== undefined) return custom.price;
-            if (custom.discountPercent !== undefined) return type.basePrice * (1 - custom.discountPercent / 100);
+    // IMPORTANT: It now splits the cost between discountable and exempt
+    const calculateFinalUnitPrice = (type: JobType, selectedIds: string[]) => {
+        if (!currentUser) {
+            // No discount, just sum everything
+            let total = type.basePrice;
+            selectedIds.forEach(id => {
+                type.variationGroups.forEach(g => {
+                    const opt = g.options.find(o => o.id === id);
+                    if (opt) total += opt.priceModifier;
+                });
+            });
+            return total;
         }
+        
+        // 1. Identify which variations are exempt from discount
+        let discountableTotal = type.basePrice;
+        let exemptTotal = 0;
 
-        // 2. Check for global discount
-        if (currentUser.globalDiscountPercent) {
-            return type.basePrice * (1 - currentUser.globalDiscountPercent / 100);
-        }
-
-        return type.basePrice;
-    };
-
-    // Price calculation logic including variations
-    const unitPrice = useMemo(() => {
-        let price = calculateEffectiveBasePrice(product);
-
-        const allSelectedOptionIds = Object.values(selectedVariations).flat();
-        allSelectedOptionIds.forEach(optId => {
-            product.variationGroups.forEach(group => {
-                const option = group.options.find(opt => opt.id === optId);
-                if (option) price += option.priceModifier;
+        selectedIds.forEach(id => {
+            type.variationGroups.forEach(g => {
+                const opt = g.options.find(o => o.id === id);
+                if (opt) {
+                    if (opt.isDiscountExempt) exemptTotal += opt.priceModifier;
+                    else discountableTotal += opt.priceModifier;
+                }
             });
         });
-        return price;
+
+        // 2. Determine the discount rate
+        let discountRate = 0; // e.g. 0.1 for 10%
+        
+        const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
+        if (custom) {
+            // Specific item logic
+            if (custom.discountPercent !== undefined) {
+                discountRate = custom.discountPercent / 100;
+            } else if (custom.price !== undefined) {
+                // If the user defined a fixed custom price, we treat the difference as the "discount"
+                // but simpler: we replace the basePrice component only? No, usually custom price 
+                // in the table means "Base Price is now X". 
+                // Let's assume for this logic that if they set a specific price, it overrides the "discountable" sum.
+                discountableTotal = custom.price;
+                discountRate = 0; // Override applied
+            }
+        } else if (currentUser.globalDiscountPercent) {
+            discountRate = currentUser.globalDiscountPercent / 100;
+        }
+
+        // 3. Apply discount ONLY to discountable sum
+        const discountedSum = discountableTotal * (1 - discountRate);
+
+        // 4. Final price is Discounted + Exempt (untouched)
+        return discountedSum + exemptTotal;
+    };
+
+    // Use current selections to calculate
+    const unitPrice = useMemo(() => {
+        const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
+        return calculateFinalUnitPrice(product, allSelectedOptionIds);
     }, [selectedVariations, product, currentUser]);
 
     const finalPrice = unitPrice * quantity;
@@ -52,7 +80,7 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     // --- Conditional Logic ---
     const disabledOptions = useMemo(() => {
         const disabled = new Set<string>();
-        const allSelectedOptionIds = Object.values(selectedVariations).flat();
+        const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
         allSelectedOptionIds.forEach(selectedId => {
             product.variationGroups.forEach(group => {
                 const option = group.options.find(opt => opt.id === selectedId);
@@ -178,7 +206,10 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
                                                 <div className={`w-4 h-4 border border-slate-300 flex items-center justify-center ${group.selectionType === 'SINGLE' ? 'rounded-full' : 'rounded'}`}>
                                                     {isSelected && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
                                                 </div>
-                                                <span className={isSelected ? 'font-bold text-indigo-800' : 'text-slate-600'}>{option.name}</span>
+                                                <div>
+                                                    <span className={isSelected ? 'font-bold text-indigo-800' : 'text-slate-600'}>{option.name}</span>
+                                                    {option.isDiscountExempt && <span className="ml-2 text-[9px] font-black uppercase text-orange-500 bg-orange-50 px-1 rounded">Preço Fixo</span>}
+                                                </div>
                                             </div>
                                             <span className="text-xs font-semibold">{option.priceModifier > 0 ? `+ R$ ${option.priceModifier.toFixed(2)}` : ''}</span>
                                         </div>
@@ -190,16 +221,18 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
                 </div>
                 <div className="p-4 bg-slate-50 border-t border-slate-200 mt-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <label className="text-sm font-bold">Qtd:</label>
-                        <input type="number" min="1" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value)))}
-                            className="w-20 px-2 py-1 border border-slate-300 rounded-md text-center" />
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-bold">Qtd:</label>
+                            <input type="number" min="1" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value)))}
+                                className="w-16 px-2 py-1 border border-slate-300 rounded-md text-center" />
+                        </div>
                         <div className="text-right">
-                             <span className="text-xs text-slate-500">Total</span>
-                             <p className="font-bold text-xl text-indigo-700">R$ {finalPrice.toFixed(2)}</p>
+                             <span className="text-xs text-slate-500 uppercase font-bold tracking-tighter">Total Unitário</span>
+                             <p className="font-bold text-xl text-indigo-700">R$ {unitPrice.toFixed(2)}</p>
                         </div>
                     </div>
                     <button onClick={handleAddToCart}
-                        className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">
+                        className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg transition-all active:scale-95">
                         Adicionar ao Pedido
                     </button>
                 </div>

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -127,7 +127,8 @@ export const JobTypes = () => {
           id: generateFirestoreId('opt'),
           name: 'Nova Opção',
           priceModifier: 0,
-          disablesOptions: []
+          disablesOptions: [],
+          isDiscountExempt: false
       };
       const group = variationGroups.find(g => g.id === groupId);
       const currentOptions = group?.options || []; 
@@ -167,7 +168,6 @@ export const JobTypes = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* ... (Header remains the same) ... */}
        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 className="text-2xl font-bold text-slate-900">Catálogo de Serviços</h1>
@@ -393,13 +393,13 @@ export const JobTypes = () => {
                                                 {(group.options || []).map(option => (
                                                     <div key={option.id} className="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
                                                         <div className="grid grid-cols-12 gap-2 items-end">
-                                                            <div className="col-span-12 sm:col-span-7">
+                                                            <div className="col-span-12 sm:col-span-6">
                                                                 <label className="text-[10px] text-slate-500 font-bold block">
                                                                     {group.selectionType === 'TEXT' ? 'Rótulo do Campo (ex: Cor)' : 'Nome da Opção'}
                                                                 </label>
                                                                 <input value={option.name} onChange={e => updateOption(group.id, option.id, { name: e.target.value })} className="w-full p-2 text-sm rounded bg-slate-50 focus:bg-white outline-none focus:ring-1 ring-slate-200 focus:ring-indigo-400" placeholder={group.selectionType === 'TEXT' ? "Ex: Especifique a cor" : "Ex: Zircônia Translúcida"} />
                                                             </div>
-                                                            <div className="col-span-8 sm:col-span-4">
+                                                            <div className="col-span-6 sm:col-span-3">
                                                                 <label className="text-[10px] text-slate-500 font-bold block">Acréscimo (R$)</label>
                                                                 <div className="relative">
                                                                     <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">R$</span>
@@ -412,7 +412,18 @@ export const JobTypes = () => {
                                                                     />
                                                                 </div>
                                                             </div>
-                                                            <div className="col-span-4 sm:col-span-1 flex justify-end">
+                                                            <div className="col-span-4 sm:col-span-2 flex flex-col items-center">
+                                                                <label className="text-[10px] text-slate-500 font-bold block mb-1">Isento de Desconto</label>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={() => updateOption(group.id, option.id, { isDiscountExempt: !option.isDiscountExempt })}
+                                                                    className={`p-2 rounded-lg border transition-all ${option.isDiscountExempt ? 'bg-orange-100 border-orange-400 text-orange-600 shadow-inner' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                                                                    title={option.isDiscountExempt ? 'Valor fixo (não aceita descontos)' : 'Valor descontável'}
+                                                                >
+                                                                    <PercentCircle size={18} />
+                                                                </button>
+                                                            </div>
+                                                            <div className="col-span-2 sm:col-span-1 flex justify-end pb-2">
                                                                 <button type="button" onClick={() => deleteOption(group.id, option.id)} className="text-slate-300 hover:text-red-500 p-2"><X size={16} /></button>
                                                             </div>
                                                         </div>
@@ -422,7 +433,6 @@ export const JobTypes = () => {
                                                                 Se esta opção for escolhida, DESABILITAR as seguintes opções:
                                                             </label>
                                                             
-                                                            {/* SUBSTITUIÇÃO DO SELECT POR CHECKBOXES */}
                                                             <div className="w-full border rounded bg-slate-50 max-h-32 overflow-y-auto p-2">
                                                                 {variationGroups.filter(g => g.id !== group.id).length === 0 && (
                                                                     <p className="text-[10px] text-slate-400 italic p-1">Crie outros grupos para condicionar.</p>
