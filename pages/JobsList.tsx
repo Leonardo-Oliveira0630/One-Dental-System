@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 
@@ -22,6 +22,7 @@ export const JobsList = () => {
   const [filterUrgency, setFilterUrgency] = useState('');
   const [filterJobType, setFilterJobType] = useState('');
   const [filterCollaborator, setFilterCollaborator] = useState('');
+  const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'WEB' | 'MANUAL'>('ALL');
 
   // Print Modal
   const [printModalJob, setPrintModalJob] = useState<Job | null>(null);
@@ -89,13 +90,20 @@ export const JobsList = () => {
     // 6. Urgency Filter
     if (filterUrgency && job.urgency !== filterUrgency) return false;
 
-    // 7. Job Type Filter (Check if ANY item in the job matches the type)
+    // 7. Origin Filter (Web vs Manual)
+    if (filterOrigin !== 'ALL') {
+        const isWeb = job.history.some(h => h.action.toLowerCase().includes('loja virtual'));
+        if (filterOrigin === 'WEB' && !isWeb) return false;
+        if (filterOrigin === 'MANUAL' && isWeb) return false;
+    }
+
+    // 8. Job Type Filter (Check if ANY item in the job matches the type)
     if (filterJobType) {
         const hasType = job.items.some(item => item.jobTypeId === filterJobType);
         if (!hasType) return false;
     }
 
-    // 8. Collaborator Filter (Check History - Has this person touched the job?)
+    // 9. Collaborator Filter (Check History - Has this person touched the job?)
     if (filterCollaborator) {
         const hasHistory = job.history.some(h => h.userId === filterCollaborator);
         if (!hasHistory) return false;
@@ -113,6 +121,7 @@ export const JobsList = () => {
       setFilterUrgency('');
       setFilterJobType('');
       setFilterCollaborator('');
+      setFilterOrigin('ALL');
   };
 
   const getStatusColor = (status: JobStatus) => {
@@ -199,6 +208,24 @@ export const JobsList = () => {
         {/* Advanced Filters Panel */}
         {showFilters && (
             <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-2">
+                
+                {/* Origin Filter */}
+                <div>
+                    <label className="text-xs font-bold text-slate-500 mb-1 block">Origem do Pedido</label>
+                    <div className="relative">
+                        <Globe size={16} className="absolute left-3 top-2.5 text-slate-400" />
+                        <select 
+                            value={filterOrigin}
+                            onChange={(e) => setFilterOrigin(e.target.value as any)}
+                            className="w-full pl-9 pr-4 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium"
+                        >
+                            <option value="ALL">Todas as Origens</option>
+                            <option value="WEB">🌐 Somente Web (Loja)</option>
+                            <option value="MANUAL">📝 Somente Manuais</option>
+                        </select>
+                    </div>
+                </div>
+
                 {/* Status */}
                 <div>
                     <label className="text-xs font-bold text-slate-500 mb-1 block">Status</label>
@@ -274,7 +301,7 @@ export const JobsList = () => {
                     </div>
                 </div>
 
-                <div className="sm:col-span-2 lg:col-span-1 flex items-end">
+                <div className="sm:col-span-2 lg:col-span-2 flex items-end">
                     <button 
                         onClick={clearFilters}
                         className="w-full py-2 bg-slate-100 text-slate-600 font-bold rounded-lg hover:bg-slate-200 flex items-center justify-center gap-2 text-sm transition-colors"
@@ -297,7 +324,7 @@ export const JobsList = () => {
                         <th className="p-4 font-semibold">Paciente</th>
                         {!isClient && <th className="p-4 font-semibold">Dentista</th>}
                         <th className="p-4 font-semibold">Status</th>
-                        <th className="p-4 font-semibold">Setor</th>
+                        <th className="p-4 font-semibold text-center">Origem</th>
                         <th className="p-4 font-semibold">Entrega</th>
                         <th className="p-4 font-semibold text-right">Ações</th>
                     </tr>
@@ -306,71 +333,84 @@ export const JobsList = () => {
                     {filteredJobs.length === 0 ? (
                         <tr><td colSpan={8} className="p-8 text-center text-slate-400">Nenhum trabalho encontrado.</td></tr>
                     ) : (
-                        filteredJobs.map(job => (
-                            <tr key={job.id} className="hover:bg-slate-50 transition-colors">
-                                <td className="p-4 font-mono font-medium text-slate-700">
-                                    {job.osNumber || <span className="text-xs text-purple-400 italic">WEB</span>}
-                                </td>
-                                {!isClient && (
-                                    <td className="p-4">
-                                        {job.boxNumber ? (
-                                            <div 
-                                                className="w-8 h-8 rounded flex items-center justify-center font-bold text-sm shadow-sm border border-black/10"
-                                                style={{ 
-                                                    backgroundColor: job.boxColor?.hex || '#ccc',
-                                                    color: getContrastColor(job.boxColor?.hex || '#ccc')
-                                                }}
-                                            >
-                                                {job.boxNumber}
-                                            </div>
-                                        ) : <span className="text-slate-300">-</span>}
+                        filteredJobs.map(job => {
+                            const isWeb = job.history.some(h => h.action.toLowerCase().includes('loja virtual'));
+                            return (
+                                <tr key={job.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-4 font-mono font-medium text-slate-700">
+                                        {job.osNumber || <span className="text-xs text-purple-400 italic">WEB</span>}
                                     </td>
-                                )}
-                                <td className="p-4 font-medium text-slate-900">{job.patientName}</td>
-                                {!isClient && <td className="p-4 text-slate-600">{job.dentistName}</td>}
-                                <td className="p-4">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(job.status)}`}>
-                                        {getTranslatedStatus(job.status)}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-sm text-slate-500">
-                                    {job.status === JobStatus.REJECTED ? <Ban size={16} className="text-red-400"/> : (job.currentSector || 'Início')}
-                                </td>
-                                <td className="p-4 text-slate-600">
-                                    <div className="flex items-center gap-1">
-                                        {job.urgency === UrgencyLevel.VIP && <AlertCircle size={16} className="text-red-500" />}
-                                        {new Date(job.dueDate).toLocaleDateString()}
-                                    </div>
-                                </td>
-                                <td className="p-4 text-right flex justify-end gap-2">
-                                    {isClient && job.paymentMethod === 'PIX' && job.paymentStatus === 'PENDING' && job.pixQrCode && (
-                                        <button 
-                                            onClick={() => setPixModalJob(job)}
-                                            className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold border border-green-200"
-                                            title="Ver PIX"
-                                        >
-                                            <QrCode size={16} /> Pagar
-                                        </button>
+                                    {!isClient && (
+                                        <td className="p-4">
+                                            {job.boxNumber ? (
+                                                <div 
+                                                    className="w-8 h-8 rounded flex items-center justify-center font-bold text-sm shadow-sm border border-black/10"
+                                                    style={{ 
+                                                        backgroundColor: job.boxColor?.hex || '#ccc',
+                                                        color: getContrastColor(job.boxColor?.hex || '#ccc')
+                                                    }}
+                                                >
+                                                    {job.boxNumber}
+                                                </div>
+                                            ) : <span className="text-slate-300">-</span>}
+                                        </td>
                                     )}
-                                    {!isClient && job.status !== JobStatus.REJECTED && (
+                                    <td className="p-4 font-medium text-slate-900">{job.patientName}</td>
+                                    {!isClient && <td className="p-4 text-slate-600">{job.dentistName}</td>}
+                                    <td className="p-4">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(job.status)}`}>
+                                            {getTranslatedStatus(job.status)}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-center">
+                                        {isWeb ? (
+                                            <div className="flex flex-col items-center gap-0.5" title="Vindo da Loja Virtual">
+                                                <Globe size={16} className="text-blue-500" />
+                                                <span className="text-[9px] font-black text-blue-600 uppercase">Web</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center gap-0.5" title="Lançado manualmente no Lab">
+                                                <HardDrive size={16} className="text-slate-400" />
+                                                <span className="text-[9px] font-black text-slate-500 uppercase">Manual</span>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="p-4 text-slate-600">
+                                        <div className="flex items-center gap-1">
+                                            {job.urgency === UrgencyLevel.VIP && <AlertCircle size={16} className="text-red-500" />}
+                                            {new Date(job.dueDate).toLocaleDateString()}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-right flex justify-end gap-2">
+                                        {isClient && job.paymentMethod === 'PIX' && job.paymentStatus === 'PENDING' && job.pixQrCode && (
+                                            <button 
+                                                onClick={() => setPixModalJob(job)}
+                                                className="text-green-600 hover:bg-green-50 p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold border border-green-200"
+                                                title="Ver PIX"
+                                            >
+                                                <QrCode size={16} /> Pagar
+                                            </button>
+                                        )}
+                                        {!isClient && job.status !== JobStatus.REJECTED && (
+                                            <button 
+                                                onClick={() => setPrintModalJob(job)}
+                                                className="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                                                title="Imprimir"
+                                            >
+                                                <Printer size={18} />
+                                            </button>
+                                        )}
                                         <button 
-                                            onClick={() => setPrintModalJob(job)}
-                                            className="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100 transition-colors"
-                                            title="Imprimir"
+                                            onClick={() => navigate(`/jobs/${job.id}`)}
+                                            className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                                            title="Ver Detalhes"
                                         >
-                                            <Printer size={18} />
+                                            <Eye size={18} />
                                         </button>
-                                    )}
-                                    <button 
-                                        onClick={() => navigate(`/jobs/${job.id}`)}
-                                        className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                                        title="Ver Detalhes"
-                                    >
-                                        <Eye size={18} />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))
+                                    </td>
+                                </tr>
+                            );
+                        })
                     )}
                 </tbody>
             </table>
@@ -384,82 +424,86 @@ export const JobsList = () => {
                 Nenhum trabalho encontrado.
             </div>
         ) : (
-            filteredJobs.map(job => (
-                <div key={job.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden">
-                    <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-start gap-3">
-                            {/* Box Badge for Mobile */}
-                            {!isClient && job.boxNumber && (
-                                <div 
-                                    className="w-10 h-10 rounded flex items-center justify-center font-bold shadow-sm border border-black/10 shrink-0"
-                                    style={{ 
-                                        backgroundColor: job.boxColor?.hex || '#ccc',
-                                        color: getContrastColor(job.boxColor?.hex || '#ccc')
-                                    }}
-                                >
-                                    {job.boxNumber}
+            filteredJobs.map(job => {
+                const isWeb = job.history.some(h => h.action.toLowerCase().includes('loja virtual'));
+                return (
+                    <div key={job.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative overflow-hidden">
+                        <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-start gap-3">
+                                {/* Box Badge for Mobile */}
+                                {!isClient && job.boxNumber && (
+                                    <div 
+                                        className="w-10 h-10 rounded flex items-center justify-center font-bold shadow-sm border border-black/10 shrink-0"
+                                        style={{ 
+                                            backgroundColor: job.boxColor?.hex || '#ccc',
+                                            color: getContrastColor(job.boxColor?.hex || '#ccc')
+                                        }}
+                                    >
+                                        {job.boxNumber}
+                                    </div>
+                                )}
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-mono font-bold text-lg text-slate-800">
+                                            {job.osNumber || 'WEB'}
+                                        </span>
+                                        {job.urgency === UrgencyLevel.VIP && <AlertCircle size={16} className="text-red-500" />}
+                                        {isWeb ? <Globe size={14} className="text-blue-500" /> : <HardDrive size={14} className="text-slate-400" />}
+                                    </div>
+                                    <h3 className="font-bold text-slate-900 leading-tight">{job.patientName}</h3>
                                 </div>
-                            )}
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-mono font-bold text-lg text-slate-800">
-                                        {job.osNumber || 'WEB'}
-                                    </span>
-                                    {job.urgency === UrgencyLevel.VIP && <AlertCircle size={16} className="text-red-500" />}
-                                </div>
-                                <h3 className="font-bold text-slate-900 leading-tight">{job.patientName}</h3>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${getStatusColor(job.status)}`}>
+                                {getTranslatedStatus(job.status)}
+                            </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 mb-3">
+                             <div className="flex items-center gap-1">
+                                <Clock size={14} className="text-slate-400" />
+                                <span>{new Date(job.dueDate).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex items-center gap-1 col-span-2">
+                                 <MapPin size={14} className="text-slate-400" />
+                                 <span>{job.status === JobStatus.REJECTED ? 'Cancelado' : (job.currentSector || 'Recepção')}</span>
                             </div>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${getStatusColor(job.status)}`}>
-                            {getTranslatedStatus(job.status)}
-                        </span>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 text-sm text-slate-600 mb-3">
-                         <div className="flex items-center gap-1">
-                            <Clock size={14} className="text-slate-400" />
-                            <span>{new Date(job.dueDate).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center gap-1 col-span-2">
-                             <MapPin size={14} className="text-slate-400" />
-                             <span>{job.status === JobStatus.REJECTED ? 'Cancelado' : (job.currentSector || 'Recepção')}</span>
-                        </div>
-                    </div>
 
-                    <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-                         {isClient && job.paymentMethod === 'PIX' && job.paymentStatus === 'PENDING' && job.pixQrCode && (
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                             {isClient && job.paymentMethod === 'PIX' && job.paymentStatus === 'PENDING' && job.pixQrCode && (
+                                <button 
+                                    onClick={() => setPixModalJob(job)}
+                                    className="flex items-center gap-1 text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded border border-green-200"
+                                >
+                                    <QrCode size={14} /> Ver PIX
+                                </button>
+                            )}
+                             {/* Only allow print if not rejected */}
+                            {!isClient && job.status !== JobStatus.REJECTED && (
+                                <button 
+                                    onClick={() => setPrintModalJob(job)}
+                                    className="text-slate-400 hover:text-slate-700 p-2"
+                                >
+                                    <Printer size={18} />
+                                </button>
+                            )}
                             <button 
-                                onClick={() => setPixModalJob(job)}
-                                className="flex items-center gap-1 text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded border border-green-200"
+                                onClick={() => navigate(`/jobs/${job.id}`)}
+                                className="flex items-center gap-1 text-blue-600 font-medium text-sm hover:underline ml-auto"
                             >
-                                <QrCode size={14} /> Ver PIX
+                                Ver Detalhes <ChevronRight size={16} />
                             </button>
-                        )}
-                         {/* Only allow print if not rejected */}
-                        {!isClient && job.status !== JobStatus.REJECTED && (
-                            <button 
-                                onClick={() => setPrintModalJob(job)}
-                                className="text-slate-400 hover:text-slate-700 p-2"
-                            >
-                                <Printer size={18} />
-                            </button>
-                        )}
-                        <button 
-                            onClick={() => navigate(`/jobs/${job.id}`)}
-                            className="flex items-center gap-1 text-blue-600 font-medium text-sm hover:underline ml-auto"
-                        >
-                            Ver Detalhes <ChevronRight size={16} />
-                        </button>
+                        </div>
                     </div>
-                </div>
-            ))
+                );
+            })
         )}
       </div>
 
       {/* Print Selection Modal */}
       {printModalJob && (
          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full relative">
+            <div className="bg-white rounded-2xl shadow-xl p-6 max-sm w-full relative">
                  <button onClick={() => setPrintModalJob(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                     <X size={20} />
                 </button>
@@ -493,7 +537,7 @@ export const JobsList = () => {
       {/* PIX Modal */}
       {pixModalJob && pixModalJob.pixQrCode && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full relative animate-in zoom-in duration-200">
+              <div className="bg-white rounded-2xl shadow-xl p-6 max-sm w-full relative animate-in zoom-in duration-200">
                   <button onClick={() => setPixModalJob(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
                       <X size={20} />
                   </button>

@@ -315,7 +315,6 @@ export const Admin = () => {
               <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
                   <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                     <Stethoscope className="text-blue-600" /> 
-                    {/* Fixed Error on line 318: Changed 'editingId' to 'editingDentistId' */}
                     {editingDentistId ? 'Editar Cliente Interno' : 'Cadastrar Cliente Interno'}
                   </h3>
                   <form onSubmit={handleSaveManualDentist} className="space-y-4">
@@ -325,7 +324,8 @@ export const Admin = () => {
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Clínica / Empresa</label>
-                        <input value={dentistClinic} onChange={e => setClinicName(e.target.value)} placeholder="Nome da Clínica" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                        {/* Fix: Changed setClinicName to setDentistClinic. */}
+                        <input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} placeholder="Nome da Clínica" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
