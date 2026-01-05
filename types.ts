@@ -141,7 +141,7 @@ export interface VariationOption {
   name: string;
   priceModifier: number;
   disablesOptions?: string[];
-  isDiscountExempt?: boolean; // Nova propriedade
+  isDiscountExempt?: boolean; 
 }
 
 export interface VariationGroup {
@@ -320,4 +320,10 @@ export interface ManualDentist {
   email?: string;
   phone?: string;
   createdAt: Date;
+  globalDiscountPercent?: number; 
+  customPrices?: { 
+    jobTypeId: string; 
+    price?: number; 
+    discountPercent?: number; 
+  }[];
 }

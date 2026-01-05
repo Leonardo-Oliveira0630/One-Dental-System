@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { UserRole, ManualDentist } from '../../types';
+import { UserRole, ManualDentist, User } from '../../types';
 import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,7 +11,7 @@ export const Dentists = () => {
     const [searchTerm, setSearchTerm] = useState('');
     
     // Modal State
-    const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean } | null>(null);
+    const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean, originalData: any } | null>(null);
     const [globalDiscount, setGlobalDiscount] = useState<number>(0);
     const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
     const [isSaving, setIsSaving] = useState(false);
@@ -28,6 +28,7 @@ export const Dentists = () => {
                 isManual: false,
                 globalDiscountPercent: u.globalDiscountPercent || 0,
                 customPrices: u.customPrices || [],
+                originalData: u
             }));
 
         const internal = manualDentists.map(d => ({
@@ -38,6 +39,7 @@ export const Dentists = () => {
             isManual: true,
             globalDiscountPercent: d.globalDiscountPercent || 0,
             customPrices: d.customPrices || [],
+            originalData: d
         }));
 
         return [...online, ...internal].sort((a, b) => a.name.localeCompare(b.name));
@@ -47,7 +49,8 @@ export const Dentists = () => {
         setSelectedClient({
             id: client.id,
             name: client.name,
-            isManual: client.isManual
+            isManual: client.isManual,
+            originalData: client.originalData
         });
         setGlobalDiscount(client.globalDiscountPercent || 0);
         
@@ -83,7 +86,7 @@ export const Dentists = () => {
                 await updateUser(selectedClient.id, updates);
             }
 
-            alert("Tabela de preços atualizada com sucesso!");
+            alert("Tabela de preços personalizada salva!");
             setSelectedClient(null);
         } catch (error) {
             console.error("Erro ao salvar preços:", error);
@@ -103,39 +106,39 @@ export const Dentists = () => {
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Gestão de Clientes</h1>
-                    <p className="text-slate-500">Configure descontos personalizados para clientes Web e Internos.</p>
+                    <h1 className="text-2xl font-bold text-slate-900">Meus Clientes</h1>
+                    <p className="text-slate-500 font-medium">Gestão de tabelas de preços e extratos de clientes Internos e Web.</p>
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                <div className="relative">
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
+                <div className="relative flex-1">
                     <Search className="absolute left-3 top-3 text-slate-400" size={20} />
                     <input 
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="Buscar por nome, clínica ou email..."
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Pesquisar por nome, clínica ou email..."
+                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                     />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filtered.map(client => (
-                    <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group">
+                    <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group flex flex-col">
                         <div className="flex items-start gap-4 mb-6">
                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${client.isManual ? 'bg-slate-100 text-slate-500' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
                                 <Stethoscope size={28} />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <h3 className="font-bold text-slate-900 text-lg truncate" title={client.name}>{client.name}</h3>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="font-bold text-slate-900 text-lg truncate max-w-[150px]" title={client.name}>{client.name}</h3>
                                     {client.isManual ? (
-                                        <span className="bg-slate-200 text-slate-600 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                                        <span className="bg-slate-100 text-slate-500 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 border border-slate-200">
                                             <HardDrive size={10} /> INTERNO
                                         </span>
                                     ) : (
-                                        <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                                        <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1">
                                             <Globe size={10} /> WEB
                                         </span>
                                     )}
@@ -147,7 +150,7 @@ export const Dentists = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-3 py-4 border-y border-slate-50">
+                        <div className="space-y-3 py-4 border-y border-slate-50 flex-1">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-slate-500">Desconto Global:</span>
                                 <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{client.globalDiscountPercent}%</span>
@@ -161,15 +164,15 @@ export const Dentists = () => {
                         <div className="grid grid-cols-2 gap-3 mt-6">
                             <button 
                                 onClick={() => handleOpenPricing(client)}
-                                className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-sm"
+                                className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-xs"
                             >
-                                <Tag size={16} /> Tabela
+                                <Tag size={14} /> Tabela de Preços
                             </button>
                             <button 
                                 onClick={() => navigate(`/jobs?dentist=${client.id}`)}
-                                className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-sm"
+                                className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs"
                             >
-                                Pedidos <ArrowRight size={16} />
+                                Ver Pedidos <ArrowRight size={14} />
                             </button>
                         </div>
                     </div>
@@ -181,23 +184,23 @@ export const Dentists = () => {
                 )}
             </div>
 
-            {/* MODAL DE TABELA DE PREÇOS */}
+            {/* MODAL DE TABELA DE PREÇOS (IDÊNTICO PARA OS DOIS TIPOS) */}
             {selectedClient && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
                             <div>
-                                <h3 className="text-xl font-black text-slate-800">Tabela de Preços: {selectedClient.name}</h3>
-                                <p className="text-xs text-slate-500 font-bold uppercase">Personalize os descontos para este cliente</p>
+                                <h3 className="text-xl font-black text-slate-800">Tabela Especial: {selectedClient.name}</h3>
+                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Configure os descontos deste cliente</p>
                             </div>
                             <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                            <div className="bg-green-50 p-6 rounded-2xl border border-green-100 shadow-inner">
                                 <div className="flex items-center gap-3 mb-4 text-green-800">
                                     <Percent size={24} />
-                                    <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global em Tudo</h4>
+                                    <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global (%)</h4>
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <input 
@@ -210,11 +213,12 @@ export const Dentists = () => {
                                     />
                                     <span className="font-black text-2xl text-green-700 w-16 text-right">{globalDiscount}%</span>
                                 </div>
+                                <p className="text-[10px] text-green-600 font-bold mt-2 uppercase tracking-tighter">Aplica-se a todos os serviços sem desconto individual.</p>
                             </div>
 
                             <div className="space-y-4">
                                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                    <DollarSign size={14}/> Descontos por Serviço Individual
+                                    <DollarSign size={14}/> Descontos por Serviço
                                 </h4>
                                 
                                 <div className="space-y-3">
@@ -224,11 +228,11 @@ export const Dentists = () => {
                                             <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
                                                 <div className="mb-2 sm:mb-0">
                                                     <p className="font-bold text-slate-800">{type.name}</p>
-                                                    <p className="text-xs text-slate-400">Preço Padrão: R$ {type.basePrice.toFixed(2)}</p>
+                                                    <p className="text-[10px] text-slate-400 uppercase font-bold">Preço Base: R$ {type.basePrice.toFixed(2)}</p>
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-right">
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço Final</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço p/ Este Cliente</p>
                                                         <p className="font-black text-blue-700">R$ {(type.basePrice * (1 - (value || globalDiscount) / 100)).toFixed(2)}</p>
                                                     </div>
                                                     <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -241,7 +245,7 @@ export const Dentists = () => {
                                                             className="w-16 px-3 py-2 font-bold text-center outline-none"
                                                             placeholder="0"
                                                         />
-                                                        <div className="bg-slate-100 px-3 py-2 border-l border-slate-200 text-slate-500 font-bold">%</div>
+                                                        <div className="bg-slate-100 px-3 py-2 border-l border-slate-200 text-slate-500 font-bold text-xs">%</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -256,10 +260,10 @@ export const Dentists = () => {
                             <button 
                                 onClick={handleSavePricing}
                                 disabled={isSaving}
-                                className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                                className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-                                SALVAR TABELA
+                                ATUALIZAR TABELA
                             </button>
                         </div>
                     </div>
