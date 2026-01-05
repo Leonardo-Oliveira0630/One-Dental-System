@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { User, UserRole, ManualDentist } from '../../types';
+import { UserRole, ManualDentist } from '../../types';
 import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,7 +16,7 @@ export const Dentists = () => {
     const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
     const [isSaving, setIsSaving] = useState(false);
 
-    // Unifica usuários do sistema (role CLIENT) com dentistas manuais
+    // Unifica usuários do sistema (role CLIENT) com dentistas manuais (internos)
     const combinedClients = useMemo(() => {
         const online = allUsers
             .filter(u => u.role === UserRole.CLIENT)
@@ -104,7 +104,7 @@ export const Dentists = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Gestão de Clientes</h1>
-                    <p className="text-slate-500">Configure tabelas de preços personalizadas para clientes internos e web.</p>
+                    <p className="text-slate-500">Configure descontos personalizados para clientes Web e Internos.</p>
                 </div>
             </div>
 
@@ -163,7 +163,7 @@ export const Dentists = () => {
                                 onClick={() => handleOpenPricing(client)}
                                 className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-sm"
                             >
-                                <Tag size={16} /> Preços
+                                <Tag size={16} /> Tabela
                             </button>
                             <button 
                                 onClick={() => navigate(`/jobs?dentist=${client.id}`)}
@@ -176,7 +176,7 @@ export const Dentists = () => {
                 ))}
                 {filtered.length === 0 && (
                     <div className="col-span-full py-20 text-center text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                        Nenhum cliente encontrado na sua base de dados.
+                        Nenhum cliente encontrado.
                     </div>
                 )}
             </div>
@@ -194,7 +194,6 @@ export const Dentists = () => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            {/* Desconto Global */}
                             <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
                                 <div className="flex items-center gap-3 mb-4 text-green-800">
                                     <Percent size={24} />
@@ -211,10 +210,8 @@ export const Dentists = () => {
                                     />
                                     <span className="font-black text-2xl text-green-700 w-16 text-right">{globalDiscount}%</span>
                                 </div>
-                                <p className="text-[10px] text-green-600 font-bold mt-2 uppercase">Aplica-se a todos os serviços que não tenham desconto individual definido.</p>
                             </div>
 
-                            {/* Descontos Individuais */}
                             <div className="space-y-4">
                                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                     <DollarSign size={14}/> Descontos por Serviço Individual
@@ -255,12 +252,7 @@ export const Dentists = () => {
                         </div>
 
                         <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
-                            <button 
-                                onClick={() => setSelectedClient(null)}
-                                className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all"
-                            >
-                                Cancelar
-                            </button>
+                            <button onClick={() => setSelectedClient(null)} className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">Cancelar</button>
                             <button 
                                 onClick={handleSavePricing}
                                 disabled={isSaving}

@@ -123,15 +123,15 @@ export const Admin = () => {
       try {
           if (editingDentistId) {
               await updateManualDentist(editingDentistId, data);
-              alert("Cliente atualizado!");
+              alert("Dados do cliente atualizados!");
           } else {
               await addManualDentist({ ...data, createdAt: new Date() });
-              alert("Cliente cadastrado!");
+              alert("Cliente interno cadastrado com sucesso!");
           }
           setIsAddingDentist(false);
           resetDentistForm();
       } catch (err) {
-          alert("Erro ao salvar cliente.");
+          alert("Erro ao salvar cliente. Tente novamente.");
       }
   };
 
@@ -238,7 +238,122 @@ export const Admin = () => {
         <button onClick={() => setActiveTab('SUBSCRIPTION')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SUBSCRIPTION' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Crown size={18} /> Assinatura</button>
       </div>
 
-      {/* CONTENT: SECTORS */}
+      {/* CONTENT: DENTISTS (CLIENTES MANUAIS) */}
+      {activeTab === 'DENTISTS' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <h3 className="font-bold text-slate-800 text-lg">Gerenciar Clientes Internos (Offline)</h3>
+                <button 
+                  onClick={() => { resetDentistForm(); setIsAddingDentist(true); }}
+                  className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-colors"
+                >
+                    <Plus size={20}/> Novo Cliente Interno
+                </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                <div className="relative">
+                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                    <input 
+                      placeholder="Pesquisar por nome ou clínica..." 
+                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                      value={dentistSearch}
+                      onChange={e => setDentistSearch(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
+                      <th className="p-4">Nome do Dentista</th>
+                      <th className="p-4">Clínica / Consultório</th>
+                      <th className="p-4">Contato</th>
+                      <th className="p-4 text-right">Gerenciar</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredDentists.map(dentist => (
+                      <tr key={dentist.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 font-bold text-slate-800">{dentist.name}</td>
+                        <td className="p-4 text-slate-600 text-sm">{dentist.clinicName || 'Não informado'}</td>
+                        <td className="p-4">
+                            <div className="text-xs text-slate-500 flex items-center gap-1"><Mail size={12} className="text-slate-400"/> {dentist.email || 'N/A'}</div>
+                            <div className="text-xs font-bold text-slate-400 flex items-center gap-1 mt-1"><Phone size={12} className="text-slate-400"/> {dentist.phone || 'N/A'}</div>
+                        </td>
+                        <td className="p-4 text-right">
+                            <div className="flex justify-end gap-1">
+                                <button 
+                                    onClick={() => handleOpenEditDentist(dentist)} 
+                                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Editar Dados"
+                                >
+                                    <Edit size={18}/>
+                                </button>
+                                <button 
+                                    onClick={() => { if(confirm(`Excluir ${dentist.name}?`)) deleteManualDentist(dentist.id); }} 
+                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Excluir"
+                                >
+                                    <Trash2 size={18}/>
+                                </button>
+                            </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {filteredDentists.length === 0 && (
+                        <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic">Nenhum cliente interno encontrado.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+            </div>
+        </div>
+      )}
+
+      {/* MODAL: CADASTRAR/EDITAR DENTISTA (MANUAL) */}
+      {isAddingDentist && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                        <Stethoscope className="text-blue-600" /> 
+                        {editingDentistId ? 'Editar Cliente Interno' : 'Cadastrar Cliente Interno'}
+                    </h3>
+                    <button onClick={() => { setIsAddingDentist(false); resetDentistForm(); }} className="text-slate-400 hover:text-slate-600"><X /></button>
+                  </div>
+
+                  <form onSubmit={handleSaveManualDentist} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
+                        <input required value={dentistName} onChange={e => setDentistName(e.target.value)} placeholder="Dr. Nome do Cliente" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Clínica / Consultório</label>
+                        <input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} placeholder="Nome da Clínica (opcional)" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email de Contato</label>
+                            <input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} placeholder="cliente@email.com" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone / WhatsApp</label>
+                            <input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                      </div>
+                      <div className="flex gap-3 mt-6">
+                          <button type="button" onClick={() => { setIsAddingDentist(false); resetDentistForm(); }} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors border border-slate-200">Cancelar</button>
+                          <button type="submit" className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all transform active:scale-95">
+                            {editingDentistId ? 'Salvar Alterações' : 'Cadastrar Agora'}
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {/* --- MANTENDO OS OUTROS CONTEÚDOS DAS TABS --- */}
       {activeTab === 'SECTORS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -262,7 +377,6 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* CONTENT: USERS (EQUIPE) */}
       {activeTab === 'USERS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
           <div className="flex justify-between items-center">
@@ -295,7 +409,7 @@ export const Admin = () => {
                     <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">{user.role}</span></td>
                     <td className="p-4 text-slate-600 text-sm font-medium">{user.sector || 'Geral'}</td>
                     <td className="p-4 text-right">
-                        <button onClick={() => deleteUser(user.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>
+                        <button onClick={() => { if(confirm(`Excluir ${user.name}?`)) deleteUser(user.id); }} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
                     </td>
                   </tr>
                 ))}
@@ -305,66 +419,6 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* CONTENT: DENTISTS (CLIENTES MANUAIS) */}
-      {activeTab === 'DENTISTS' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
-           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h3 className="font-bold text-slate-800 text-lg">Gestão de Clientes Internos</h3>
-                <button 
-                  onClick={() => { resetDentistForm(); setIsAddingDentist(true); }}
-                  className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"
-                >
-                    <Plus size={20}/> Novo Cliente
-                </button>
-            </div>
-
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                <div className="relative">
-                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-                    <input 
-                      placeholder="Filtrar clientes..." 
-                      className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none"
-                      value={dentistSearch}
-                      onChange={e => setDentistSearch(e.target.value)}
-                    />
-                </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
-                      <th className="p-4">Nome do Dentista</th>
-                      <th className="p-4">Clínica</th>
-                      <th className="p-4">Contato</th>
-                      <th className="p-4 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredDentists.map(dentist => (
-                      <tr key={dentist.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-4 font-bold text-slate-800">{dentist.name}</td>
-                        <td className="p-4 text-slate-600 text-sm">{dentist.clinicName || '---'}</td>
-                        <td className="p-4">
-                            <div className="text-xs text-slate-500">{dentist.email || 'Sem email'}</div>
-                            <div className="text-xs font-bold text-slate-400">{dentist.phone || 'Sem telefone'}</div>
-                        </td>
-                        <td className="p-4 text-right flex justify-end gap-2">
-                            <button onClick={() => handleOpenEditDentist(dentist)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Edit size={18}/></button>
-                            <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredDentists.length === 0 && (
-                        <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic">Nenhum cliente interno cadastrado.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-            </div>
-        </div>
-      )}
-
-      {/* CONTENT: COMMISSIONS */}
       {activeTab === 'COMMISSIONS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -396,7 +450,6 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* CONTENT: FINANCIAL */}
       {activeTab === 'FINANCIAL' && (
         <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
           {currentOrg?.financialSettings?.walletStatus !== 'ACTIVE' ? (
@@ -419,51 +472,23 @@ export const Admin = () => {
             </div>
           )}
 
-          {currentOrg?.financialSettings?.walletStatus !== 'ACTIVE' && (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-               <h3 className="font-bold text-xl mb-6 flex items-center gap-2"><Briefcase className="text-blue-500" /> Cadastro para Recebimentos</h3>
-               <form onSubmit={handleRegisterWallet} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Razão Social</label>
-                    <input required value={walletForm.name} onChange={e => setWalletForm({...walletForm, name: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Email Financeiro</label>
-                    <input required type="email" value={walletForm.email} onChange={e => setWalletForm({...walletForm, email: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">CPF ou CNPJ</label>
-                    <input required value={walletForm.cpfCnpj} onChange={e => setWalletForm({...walletForm, cpfCnpj: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Telefone</label>
-                    <input required value={walletForm.phone} onChange={e => setWalletForm({...walletForm, phone: e.target.value})} className="w-full px-4 py-2 border rounded-lg outline-none" />
-                  </div>
-                  <button type="submit" disabled={isRegisteringWallet} className="md:col-span-2 py-4 bg-indigo-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-200">
-                    {isRegisteringWallet ? <Loader2 className="animate-spin"/> : 'Criar Conta One Dental System'}
-                  </button>
-               </form>
-            </div>
-          )}
-
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
               <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> Dados para Pagamento Manual</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">Chave PIX</label>
-                      <input value={pixKey} onChange={e => setPixKey(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl" placeholder="Chave PIX..." />
+                      <input value={pixKey} onChange={e => setPixKey(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Chave PIX..." />
                   </div>
                   <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">Link de Pagamento</label>
-                      <input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl" placeholder="Link externo..." />
+                      <input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="Link externo..." />
                   </div>
               </div>
-              <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2"><Save size={20}/> Salvar Dados</button>
+              <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"><Save size={20}/> Salvar Dados</button>
           </div>
         </div>
       )}
 
-      {/* CONTENT: SUBSCRIPTION */}
       {activeTab === 'SUBSCRIPTION' && (
           <div className="animate-in fade-in slide-in-from-left-4 space-y-6">
               <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-2xl shadow-xl text-white flex justify-between items-center">
@@ -486,71 +511,7 @@ export const Admin = () => {
           </div>
       )}
 
-      {/* MODAL: CADASTRAR/EDITAR DENTISTA (MANUAL) */}
-      {isAddingDentist && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <Stethoscope className="text-blue-600" /> 
-                    {editingDentistId ? 'Editar Cliente Interno' : 'Cadastrar Cliente Interno'}
-                  </h3>
-                  <form onSubmit={handleSaveManualDentist} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
-                        <input required value={dentistName} onChange={e => setDentistName(e.target.value)} placeholder="Dr. Nome do Cliente" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Clínica / Empresa</label>
-                        {/* Fix: use setDentistClinic instead of setClinicName which doesn't exist */}
-                        <input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} placeholder="Nome da Clínica" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
-                        <input type="email" value={dentistEmail} onChange={e => setEditEmail(e.target.value)} placeholder="cliente@email.com" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone</label>
-                        <input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div className="flex gap-3 mt-6">
-                          <button type="button" onClick={() => { setIsAddingDentist(false); resetDentistForm(); }} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">
-                            {editingDentistId ? 'Salvar Alterações' : 'Cadastrar Cliente'}
-                          </button>
-                      </div>
-                  </form>
-              </div>
-          </div>
-      )}
-
-      {/* MODAL: NOVO USUÁRIO (EQUIPE) */}
-      {isAddingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><UserPlus className="text-blue-600" /> Cadastrar Colaborador</h3>
-                  <form onSubmit={handleAddUser} className="space-y-4">
-                      <input required value={userName} onChange={e => setUserName(e.target.value)} placeholder="Nome Completo" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      <input required type="email" value={userEmail} onChange={e => setUserEmail(e.target.value)} placeholder="Email" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      <input required type="password" value={userPass} onChange={e => setUserPass(e.target.value)} placeholder="Senha Inicial" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" minLength={6} />
-                      <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value={UserRole.COLLABORATOR}>Colaborador / Técnico</option>
-                          <option value={UserRole.MANAGER}>Gestor / Supervisor</option>
-                          <option value={UserRole.ADMIN}>Administrador</option>
-                      </select>
-                      <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white outline-none focus:ring-2 focus:ring-blue-500">
-                          <option value="">Setor: Nenhum (Geral)</option>
-                          {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                      </select>
-                      <div className="flex gap-3 mt-6">
-                          <button type="button" onClick={() => setIsAddingUser(false)} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Criar Acesso</button>
-                      </div>
-                  </form>
-              </div>
-          </div>
-      )}
-
-      {/* MODAL: CONFIGURAR COMISSÕES */}
+      {/* MODAL: CONFIGURAR COMISSÕES (DETALHE) */}
       {configUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
@@ -594,11 +555,10 @@ export const Admin = () => {
                               </div>
                           );
                       })}
-                      {jobTypes.length === 0 && <p className="text-center py-4 text-slate-400 italic">Cadastre serviços antes de definir comissões.</p>}
                   </div>
                   <div className="p-6 border-t bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
                       <button onClick={() => setConfigUser(null)} className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl">Cancelar</button>
-                      <button onClick={saveCommissions} className="px-8 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700">Salvar Alterações</button>
+                      <button onClick={saveCommissions} className="px-8 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Salvar Alterações</button>
                   </div>
               </div>
           </div>
