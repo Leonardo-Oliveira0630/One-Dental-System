@@ -123,10 +123,10 @@ export const Admin = () => {
       try {
           if (editingDentistId) {
               await updateManualDentist(editingDentistId, data);
-              alert("Dados salvos com sucesso!");
+              alert("Dados do cliente atualizados!");
           } else {
               await addManualDentist({ ...data, createdAt: new Date() });
-              alert("Cliente cadastrado com sucesso!");
+              alert("Cliente interno cadastrado com sucesso!");
           }
           setIsAddingDentist(false);
           resetDentistForm();
@@ -238,73 +238,6 @@ export const Admin = () => {
         <button onClick={() => setActiveTab('SUBSCRIPTION')} className={`px-6 py-4 text-sm font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SUBSCRIPTION' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700'}`}><Crown size={18} /> Assinatura</button>
       </div>
 
-      {/* CONTENT: SECTORS */}
-      {activeTab === 'SECTORS' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h3 className="font-bold text-slate-800 mb-4">Novo Setor de Produção</h3>
-            <form onSubmit={handleAddSector} className="flex gap-2">
-              <input value={newSectorName} onChange={e => setNewSectorName(e.target.value)} placeholder="Ex: Cerâmica, Gesso..." className="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
-              <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700"><Plus size={20}/></button>
-            </form>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sectors.map(s => (
-              <div key={s.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center group">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><MapPin size={20}/></div>
-                    <span className="font-bold text-slate-700">{s.name}</span>
-                </div>
-                <button onClick={() => deleteSector(s.id)} className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18}/></button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* CONTENT: USERS (EQUIPE) */}
-      {activeTab === 'USERS' && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
-          <div className="flex justify-between items-center">
-            <h3 className="font-bold text-slate-800 text-lg">Colaboradores do Laboratório</h3>
-            <button onClick={() => setIsAddingUser(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"><UserPlus size={20}/> Novo Usuário</button>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
-                  <th className="p-4">Nome</th>
-                  <th className="p-4">Cargo</th>
-                  <th className="p-4">Setor Principal</th>
-                  <th className="p-4 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
-                  <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400">{user.name.charAt(0)}</div>
-                            <div>
-                                <p className="font-bold text-slate-800">{user.name}</p>
-                                <p className="text-xs text-slate-400">{user.email}</p>
-                            </div>
-                        </div>
-                    </td>
-                    <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">{user.role}</span></td>
-                    <td className="p-4 text-slate-600 text-sm font-medium">{user.sector || 'Geral'}</td>
-                    <td className="p-4 text-right">
-                        <button onClick={() => deleteUser(user.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {/* CONTENT: DENTISTS (CLIENTES MANUAIS / OFFLINE) */}
       {activeTab === 'DENTISTS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
@@ -376,7 +309,107 @@ export const Admin = () => {
         </div>
       )}
 
-      {/* CONTENT: COMMISSIONS */}
+      {/* MODAL: CADASTRAR/EDITAR DENTISTA (MANUAL) */}
+      {isAddingDentist && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <Stethoscope className="text-blue-600" /> 
+                    {/* Fixed Error on line 318: Changed 'editingId' to 'editingDentistId' */}
+                    {editingDentistId ? 'Editar Cliente Interno' : 'Cadastrar Cliente Interno'}
+                  </h3>
+                  <form onSubmit={handleSaveManualDentist} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
+                        <input required value={dentistName} onChange={e => setDentistName(e.target.value)} placeholder="Dr. Nome do Cliente" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Clínica / Empresa</label>
+                        <input value={dentistClinic} onChange={e => setClinicName(e.target.value)} placeholder="Nome da Clínica" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
+                        <input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} placeholder="cliente@email.com" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone</label>
+                        <input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                      <div className="flex gap-3 mt-6">
+                          <button type="button" onClick={() => { setIsAddingDentist(false); resetDentistForm(); }} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
+                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Salvar Dados</button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {/* --- OUTRAS TABS MANTIDAS PARA INTEGRIDADE --- */}
+      {activeTab === 'SECTORS' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h3 className="font-bold text-slate-800 mb-4">Novo Setor de Produção</h3>
+            <form onSubmit={handleAddSector} className="flex gap-2">
+              <input value={newSectorName} onChange={e => setNewSectorName(e.target.value)} placeholder="Ex: Cerâmica, Gesso..." className="flex-1 px-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700"><Plus size={20}/></button>
+            </form>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sectors.map(s => (
+              <div key={s.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center group">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><MapPin size={20}/></div>
+                    <span className="font-bold text-slate-700">{s.name}</span>
+                </div>
+                <button onClick={() => deleteSector(s.id)} className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18}/></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'USERS' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-bold text-slate-800 text-lg">Colaboradores do Laboratório</h3>
+            <button onClick={() => setIsAddingUser(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"><UserPlus size={20}/> Novo Usuário</button>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
+                  <th className="p-4">Nome</th>
+                  <th className="p-4">Cargo</th>
+                  <th className="p-4">Setor Principal</th>
+                  <th className="p-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
+                  <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400">{user.name.charAt(0)}</div>
+                            <div>
+                                <p className="font-bold text-slate-800">{user.name}</p>
+                                <p className="text-xs text-slate-400">{user.email}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">{user.role}</span></td>
+                    <td className="p-4 text-slate-600 text-sm font-medium">{user.sector || 'Geral'}</td>
+                    <td className="p-4 text-right">
+                        <button onClick={() => deleteUser(user.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'COMMISSIONS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -406,133 +439,6 @@ export const Admin = () => {
               </div>
           </div>
         </div>
-      )}
-
-      {/* CONTENT: FINANCIAL */}
-      {activeTab === 'FINANCIAL' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-left-4">
-          {currentOrg?.financialSettings?.walletStatus !== 'ACTIVE' ? (
-            <div className="bg-indigo-600 text-white p-8 rounded-3xl shadow-xl shadow-indigo-100 flex flex-col md:flex-row justify-between items-center gap-8">
-               <div className="flex-1">
-                  <h3 className="text-2xl font-bold mb-2 flex items-center gap-2"><Wallet /> Ative sua Conta Digital</h3>
-                  <p className="text-indigo-100 text-sm">Receba pagamentos via PIX e Cartão de seus clientes diretamente no One Dental. Taxas exclusivas de 2%.</p>
-               </div>
-            </div>
-          ) : (
-            <div className="bg-green-50 border border-green-200 p-6 rounded-2xl flex items-center justify-between">
-               <div className="flex items-center gap-4">
-                  <div className="bg-green-600 p-3 rounded-full text-white"><CheckCircle /></div>
-                  <div>
-                    <p className="font-bold text-green-900 text-lg">Conta Digital One Dental Ativa</p>
-                    <p className="text-green-700 text-sm font-mono">{currentOrg.financialSettings.asaasWalletId}</p>
-                  </div>
-               </div>
-               <span className="px-4 py-1 bg-green-100 text-green-700 rounded-full font-bold text-xs">CONECTADO</span>
-            </div>
-          )}
-
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-6">
-              <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><DollarSign className="text-green-600"/> Dados para Pagamento Manual</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Chave PIX</label>
-                      <input value={pixKey} onChange={e => setPixKey(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl" placeholder="Chave PIX..." />
-                  </div>
-                  <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Link de Pagamento</label>
-                      <input value={paymentLink} onChange={e => setPaymentLink(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-xl" placeholder="Link externo..." />
-                  </div>
-              </div>
-              <button onClick={handleSaveFinancial} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2"><Save size={20}/> Salvar Dados</button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: CADASTRAR/EDITAR DENTISTA (MANUAL) */}
-      {isAddingDentist && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                    <Stethoscope className="text-blue-600" /> 
-                    {editingDentistId ? 'Editar Cliente Interno' : 'Cadastrar Cliente Interno'}
-                  </h3>
-                  <form onSubmit={handleSaveManualDentist} className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
-                        <input required value={dentistName} onChange={e => setDentistName(e.target.value)} placeholder="Dr. Nome do Cliente" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Clínica / Empresa</label>
-                        <input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} placeholder="Nome da Clínica" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
-                        <input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} placeholder="cliente@email.com" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone</label>
-                        <input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                      </div>
-                      <div className="flex gap-3 mt-6">
-                          <button type="button" onClick={() => { setIsAddingDentist(false); resetDentistForm(); }} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Salvar Dados</button>
-                      </div>
-                  </form>
-              </div>
-          </div>
-      )}
-
-      {/* MODAL: CONFIGURAR COMISSÕES (DETALHE) */}
-      {configUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-start">
-                      <div>
-                        <h3 className="text-xl font-bold text-slate-800">Comissões: {configUser.name}</h3>
-                        <p className="text-sm text-slate-500">Defina os ganhos para cada serviço concluído.</p>
-                      </div>
-                      <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X /></button>
-                  </div>
-                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
-                      {jobTypes.map(type => {
-                          const comm = tempCommissions.find(c => c.jobTypeId === type.id);
-                          return (
-                              <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                  <div className="flex-1">
-                                      <p className="font-bold text-slate-700">{type.name}</p>
-                                      <p className="text-[10px] text-slate-400 uppercase font-bold">Preço Base: R$ {type.basePrice.toFixed(2)}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                      <input 
-                                        type="number" 
-                                        value={comm?.value || ''} 
-                                        placeholder="0.00"
-                                        onChange={e => handleCommChange(type.id, e.target.value, comm?.type || 'FIXED')}
-                                        className="w-24 px-3 py-2 border rounded-lg text-right font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-                                      />
-                                      <div className="flex bg-white rounded-lg border border-slate-200 p-1">
-                                          <button 
-                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'FIXED')}
-                                            className={`p-1.5 rounded ${comm?.type === 'FIXED' || !comm?.type ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
-                                            title="Valor Fixo"
-                                          ><DollarSign size={14}/></button>
-                                          <button 
-                                            onClick={() => handleCommChange(type.id, (comm?.value || 0).toString(), 'PERCENTAGE')}
-                                            className={`p-1.5 rounded ${comm?.type === 'PERCENTAGE' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}
-                                            title="Percentual"
-                                          ><Percent size={14}/></button>
-                                      </div>
-                                  </div>
-                              </div>
-                          );
-                      })}
-                  </div>
-                  <div className="p-6 border-t bg-slate-50 flex justify-end gap-3 rounded-b-2xl">
-                      <button onClick={() => setConfigUser(null)} className="px-6 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-xl">Cancelar</button>
-                      <button onClick={saveCommissions} className="px-8 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Salvar Alterações</button>
-                  </div>
-              </div>
-          </div>
       )}
     </div>
   );

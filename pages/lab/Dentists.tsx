@@ -1,56 +1,64 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { UserRole, ManualDentist, User } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive } from 'lucide-react';
+import { UserRole, ManualDentist, Job } from '../../types';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dentists = () => {
-    const { jobTypes, updateUser, allUsers, manualDentists, updateManualDentist } = useApp();
+    const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs } = useApp();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     
     // Modal State
-    const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean, originalData: any } | null>(null);
+    const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean } | null>(null);
     const [globalDiscount, setGlobalDiscount] = useState<number>(0);
     const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
     const [isSaving, setIsSaving] = useState(false);
 
-    // Unifica usuários do sistema (role CLIENT) com dentistas manuais (internos)
+    // UNIFICAÇÃO DOS CLIENTES
     const combinedClients = useMemo(() => {
-        const online = allUsers
-            .filter(u => u.role === UserRole.CLIENT)
-            .map(u => ({
-                id: u.id,
-                name: u.name,
-                clinicName: u.clinicName,
-                email: u.email,
-                isManual: false,
-                globalDiscountPercent: u.globalDiscountPercent || 0,
-                customPrices: u.customPrices || [],
-                originalData: u
-            }));
+        const clientMap = new Map<string, any>();
 
-        const internal = manualDentists.map(d => ({
-            id: d.id,
-            name: d.name,
-            clinicName: d.clinicName,
-            email: d.email,
-            isManual: true,
-            globalDiscountPercent: d.globalDiscountPercent || 0,
-            customPrices: d.customPrices || [],
-            originalData: d
-        }));
+        // 1. Adiciona os Dentistas Manuais (Offline) - Prioridade de Cadastro
+        manualDentists.forEach(d => {
+            clientMap.set(d.id, {
+                id: d.id,
+                name: d.name,
+                clinicName: d.clinicName,
+                email: d.email,
+                isManual: true,
+                globalDiscountPercent: d.globalDiscountPercent || 0,
+                customPrices: d.customPrices || [],
+            });
+        });
 
-        return [...online, ...internal].sort((a, b) => a.name.localeCompare(b.name));
-    }, [allUsers, manualDentists]);
+        // 2. Identifica Dentistas Online através do histórico de Pedidos (Jobs)
+        jobs.forEach(job => {
+            // Se o dentista não estiver no mapa (não é manual) e não for um ID genérico
+            if (!clientMap.has(job.dentistId) && job.dentistId !== 'manual-entry') {
+                clientMap.set(job.dentistId, {
+                    id: job.dentistId,
+                    name: job.dentistName,
+                    clinicName: 'Cliente Web',
+                    email: '', // Email não disponível diretamente no Job por segurança
+                    isManual: false,
+                    // Buscaremos os dados de desconto se o usuário for carregado, 
+                    // mas por padrão iniciamos zerado para a interface
+                    globalDiscountPercent: 0, 
+                    customPrices: [],
+                });
+            }
+        });
+
+        return Array.from(clientMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [manualDentists, jobs]);
 
     const handleOpenPricing = (client: any) => {
         setSelectedClient({
             id: client.id,
             name: client.name,
-            isManual: client.isManual,
-            originalData: client.originalData
+            isManual: client.isManual
         });
         setGlobalDiscount(client.globalDiscountPercent || 0);
         
@@ -83,14 +91,16 @@ export const Dentists = () => {
             if (selectedClient.isManual) {
                 await updateManualDentist(selectedClient.id, updates);
             } else {
+                // Para clientes online, atualizamos o perfil do usuário globalmente
+                // Nota: Requer que o laboratório tenha permissão de escrita em customPrices do usuário
                 await updateUser(selectedClient.id, updates);
             }
 
-            alert("Tabela de preços personalizada salva!");
+            alert("Tabela de preços atualizada!");
             setSelectedClient(null);
         } catch (error) {
             console.error("Erro ao salvar preços:", error);
-            alert("Erro ao salvar preços.");
+            alert("Erro ao salvar preços. Verifique suas permissões.");
         } finally {
             setIsSaving(false);
         }
@@ -98,48 +108,47 @@ export const Dentists = () => {
 
     const filtered = combinedClients.filter(d => 
         d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (d.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (d.email || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (d.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Meus Clientes</h1>
-                    <p className="text-slate-500 font-medium">Gestão de tabelas de preços e extratos de clientes Internos e Web.</p>
+                    <h1 className="text-2xl font-bold text-slate-900">Gestão de Clientes</h1>
+                    <p className="text-slate-500">Administre as tabelas de preços de todos os seus dentistas.</p>
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className="relative flex-1">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                <div className="relative">
                     <Search className="absolute left-3 top-3 text-slate-400" size={20} />
                     <input 
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="Pesquisar por nome, clínica ou email..."
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        placeholder="Pesquisar em todos os clientes (Web e Internos)..."
+                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filtered.map(client => (
-                    <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group flex flex-col">
+                    <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group">
                         <div className="flex items-start gap-4 mb-6">
                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${client.isManual ? 'bg-slate-100 text-slate-500' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
-                                <Stethoscope size={28} />
+                                {client.isManual ? <HardDrive size={28} /> : <Globe size={28} />}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <h3 className="font-bold text-slate-900 text-lg truncate max-w-[150px]" title={client.name}>{client.name}</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-bold text-slate-900 text-lg truncate" title={client.name}>{client.name}</h3>
                                     {client.isManual ? (
-                                        <span className="bg-slate-100 text-slate-500 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 border border-slate-200">
-                                            <HardDrive size={10} /> INTERNO
+                                        <span className="bg-slate-200 text-slate-600 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                                            INTERNO
                                         </span>
                                     ) : (
-                                        <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1">
-                                            <Globe size={10} /> WEB
+                                        <span className="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                                            WEB
                                         </span>
                                     )}
                                 </div>
@@ -150,14 +159,14 @@ export const Dentists = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-3 py-4 border-y border-slate-50 flex-1">
+                        <div className="space-y-3 py-4 border-y border-slate-50">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-slate-500">Desconto Global:</span>
                                 <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{client.globalDiscountPercent}%</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Preços Customizados:</span>
-                                <span className="font-bold text-blue-600">{client.customPrices.length} itens</span>
+                                <span className="text-slate-500">Preços Específicos:</span>
+                                <span className="font-bold text-blue-600">{client.customPrices?.length || 0} itens</span>
                             </div>
                         </div>
 
@@ -166,41 +175,41 @@ export const Dentists = () => {
                                 onClick={() => handleOpenPricing(client)}
                                 className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-xs"
                             >
-                                <Tag size={14} /> Tabela de Preços
+                                <Tag size={16} /> Tabela Preços
                             </button>
                             <button 
                                 onClick={() => navigate(`/jobs?dentist=${client.id}`)}
-                                className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs"
+                                className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs shadow-lg shadow-blue-100"
                             >
-                                Ver Pedidos <ArrowRight size={14} />
+                                Extrato <ArrowRight size={16} />
                             </button>
                         </div>
                     </div>
                 ))}
                 {filtered.length === 0 && (
                     <div className="col-span-full py-20 text-center text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                        Nenhum cliente encontrado.
+                        Nenhum cliente encontrado na sua base de dados.
                     </div>
                 )}
             </div>
 
-            {/* MODAL DE TABELA DE PREÇOS (IDÊNTICO PARA OS DOIS TIPOS) */}
+            {/* MODAL DE TABELA DE PREÇOS */}
             {selectedClient && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
                             <div>
-                                <h3 className="text-xl font-black text-slate-800">Tabela Especial: {selectedClient.name}</h3>
-                                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Configure os descontos deste cliente</p>
+                                <h3 className="text-xl font-black text-slate-800">Tabela de Preços: {selectedClient.name}</h3>
+                                <p className="text-xs text-slate-500 font-bold uppercase">Personalize os descontos para este cliente</p>
                             </div>
                             <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            <div className="bg-green-50 p-6 rounded-2xl border border-green-100 shadow-inner">
+                            <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
                                 <div className="flex items-center gap-3 mb-4 text-green-800">
                                     <Percent size={24} />
-                                    <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global (%)</h4>
+                                    <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Automático</h4>
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <input 
@@ -213,12 +222,11 @@ export const Dentists = () => {
                                     />
                                     <span className="font-black text-2xl text-green-700 w-16 text-right">{globalDiscount}%</span>
                                 </div>
-                                <p className="text-[10px] text-green-600 font-bold mt-2 uppercase tracking-tighter">Aplica-se a todos os serviços sem desconto individual.</p>
                             </div>
 
                             <div className="space-y-4">
                                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                    <DollarSign size={14}/> Descontos por Serviço
+                                    <DollarSign size={14}/> Descontos Individuais por Serviço
                                 </h4>
                                 
                                 <div className="space-y-3">
@@ -228,11 +236,11 @@ export const Dentists = () => {
                                             <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
                                                 <div className="mb-2 sm:mb-0">
                                                     <p className="font-bold text-slate-800">{type.name}</p>
-                                                    <p className="text-[10px] text-slate-400 uppercase font-bold">Preço Base: R$ {type.basePrice.toFixed(2)}</p>
+                                                    <p className="text-xs text-slate-400">Preço Padrão: R$ {type.basePrice.toFixed(2)}</p>
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-right">
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço p/ Este Cliente</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço Final</p>
                                                         <p className="font-black text-blue-700">R$ {(type.basePrice * (1 - (value || globalDiscount) / 100)).toFixed(2)}</p>
                                                     </div>
                                                     <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
@@ -263,7 +271,7 @@ export const Dentists = () => {
                                 className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-                                ATUALIZAR TABELA
+                                SALVAR TABELA
                             </button>
                         </div>
                     </div>
