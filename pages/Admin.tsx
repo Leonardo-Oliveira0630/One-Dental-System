@@ -92,6 +92,14 @@ export const Admin = () => {
     }
   };
 
+  const resetDentistForm = () => {
+      setEditingDentistId(null);
+      setDentistName('');
+      setDentistClinic('');
+      setDentistEmail('');
+      setDentistPhone('');
+  };
+
   const handleOpenEditDentist = (d: ManualDentist) => {
       setEditingDentistId(d.id);
       setDentistName(d.name);
@@ -112,15 +120,19 @@ export const Admin = () => {
           phone: dentistPhone
       };
 
-      if (editingDentistId) {
-          await updateManualDentist(editingDentistId, data);
-      } else {
-          await addManualDentist({ ...data, createdAt: new Date() });
+      try {
+          if (editingDentistId) {
+              await updateManualDentist(editingDentistId, data);
+              alert("Cliente atualizado!");
+          } else {
+              await addManualDentist({ ...data, createdAt: new Date() });
+              alert("Cliente cadastrado!");
+          }
+          setIsAddingDentist(false);
+          resetDentistForm();
+      } catch (err) {
+          alert("Erro ao salvar cliente.");
       }
-
-      setIsAddingDentist(false);
-      setEditingDentistId(null);
-      setDentistName(''); setDentistClinic(''); setDentistEmail(''); setDentistPhone('');
   };
 
   const openCommissionModal = (user: User) => {
@@ -192,7 +204,7 @@ export const Admin = () => {
   const labPlans = allPlans.filter(p => p.targetAudience === 'LAB');
   const filteredDentists = manualDentists.filter(d => 
     d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
-    d.clinicName?.toLowerCase().includes(dentistSearch.toLowerCase())
+    (d.clinicName || '').toLowerCase().includes(dentistSearch.toLowerCase())
   );
 
   return (
@@ -299,7 +311,7 @@ export const Admin = () => {
            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h3 className="font-bold text-slate-800 text-lg">Gestão de Clientes Internos</h3>
                 <button 
-                  onClick={() => { resetForm(); setIsAddingDentist(true); }}
+                  onClick={() => { resetDentistForm(); setIsAddingDentist(true); }}
                   className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"
                 >
                     <Plus size={20}/> Novo Cliente
@@ -478,7 +490,10 @@ export const Admin = () => {
       {isAddingDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
               <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cliente' : 'Cadastrar Cliente Interno'}</h3>
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                    <Stethoscope className="text-blue-600" /> 
+                    {editingDentistId ? 'Editar Cliente Interno' : 'Cadastrar Cliente Interno'}
+                  </h3>
                   <form onSubmit={handleSaveManualDentist} className="space-y-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
@@ -486,19 +501,22 @@ export const Admin = () => {
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Clínica / Empresa</label>
+                        {/* Fix: use setDentistClinic instead of setClinicName which doesn't exist */}
                         <input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} placeholder="Nome da Clínica" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
-                        <input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} placeholder="cliente@email.com" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                        <input type="email" value={dentistEmail} onChange={e => setEditEmail(e.target.value)} placeholder="cliente@email.com" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone</label>
                         <input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div className="flex gap-3 mt-6">
-                          <button type="button" onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Salvar Alterações</button>
+                          <button type="button" onClick={() => { setIsAddingDentist(false); resetDentistForm(); }} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
+                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">
+                            {editingDentistId ? 'Salvar Alterações' : 'Cadastrar Cliente'}
+                          </button>
                       </div>
                   </form>
               </div>
@@ -588,5 +606,3 @@ export const Admin = () => {
     </div>
   );
 };
-
-const resetForm = () => {}; // Placeholder for safety, but we'll use state resets
