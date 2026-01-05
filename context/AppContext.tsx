@@ -2,19 +2,25 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
 import { JobStatus, UrgencyLevel } from '../types';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+
+// Fix: Using namespace imports to resolve "has no exported member" errors in problematic environments
+import * as authPkg from 'firebase/auth';
+import * as firestorePkg from 'firebase/firestore';
+
+const { onAuthStateChanged } = authPkg as any;
+const { doc, getDoc, onSnapshot } = firestorePkg as any;
 
 interface AppContextType {
   currentUser: User | null;
   currentOrg: Organization | null;
   currentPlan: SubscriptionPlan | null;
   isLoadingAuth: boolean;
+  globalSettings: GlobalSettings | null;
   
   allUsers: User[]; 
   jobs: Job[];
@@ -63,6 +69,7 @@ interface AppContextType {
   userConnections: OrganizationConnection[];
 
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
+  updateGlobalSettings: (updates: Partial<GlobalSettings>) => Promise<void>;
   validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
   createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<any>;
   createLabWallet: (payload: any) => Promise<any>;
@@ -103,6 +110,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
   const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
   
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -126,70 +134,63 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const targetOrgId = () => activeOrganization?.id || (currentUser?.role !== UserRole.CLIENT ? currentUser?.organizationId : null) || null;
 
-  // --- LÓGICA DE DETECÇÃO DE ALERTAS ---
   useEffect(() => {
-      if (!currentUser || alerts.length === 0) {
-          setActiveAlert(null);
-          return;
-      }
-
-      const checkAlerts = () => {
-          const now = new Date();
-          const alertToShow = alerts.find(a => {
-              const isScheduled = new Date(a.scheduledFor) <= now;
-              const notRead = !a.readBy?.includes(currentUser.id);
-              const forMe = (a.targetUserId === currentUser.id) || (a.targetSector && a.targetSector === currentUser.sector);
-              
-              return isScheduled && notRead && forMe;
-          });
-
-          if (alertToShow && (!activeAlert || activeAlert.id !== alertToShow.id)) {
-              setActiveAlert(alertToShow);
-          } else if (!alertToShow) {
-              setActiveAlert(null);
-          }
-      };
-
-      checkAlerts();
-      const interval = setInterval(checkAlerts, 10000);
-      return () => clearInterval(interval);
+    if (!currentUser || alerts.length === 0) {
+        setActiveAlert(null);
+        return;
+    }
+    const checkAlerts = () => {
+        const now = new Date();
+        const alertToShow = alerts.find(a => {
+            const isScheduled = new Date(a.scheduledFor) <= now;
+            const notRead = !a.readBy?.includes(currentUser.id);
+            const forMe = (a.targetUserId === currentUser.id) || (a.targetSector && a.targetSector === currentUser.sector);
+            return isScheduled && notRead && forMe;
+        });
+        if (alertToShow && (!activeAlert || activeAlert.id !== alertToShow.id)) {
+            setActiveAlert(alertToShow);
+        } else if (!alertToShow) {
+            setActiveAlert(null);
+        }
+    };
+    checkAlerts();
+    const interval = setInterval(checkAlerts, 10000);
+    return () => clearInterval(interval);
   }, [alerts, currentUser, activeAlert]);
 
   useEffect(() => {
     if (!db) return;
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
     const unsubCoupons = api.subscribeCoupons(setCoupons);
-    return () => { unsubPlans(); unsubCoupons(); };
+    const unsubSettings = api.subscribeGlobalSettings(setGlobalSettings);
+    return () => { unsubPlans(); unsubCoupons(); unsubSettings(); };
   }, []);
 
   useEffect(() => {
     if (!auth) { setIsLoadingAuth(false); return; }
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
         const profile = await api.getUserProfile(user.uid);
         setCurrentUser(profile);
-
         if (profile?.organizationId && profile.organizationId.trim() !== '') {
             const orgRef = doc(db, 'organizations', profile.organizationId);
-            onSnapshot(orgRef, (snap) => {
+            onSnapshot(orgRef, (snap: any) => {
                 if (snap.exists()) {
-                    const oData = { id: snap.id, ...snap.data() } as Organization;
+                    const oData = { id: snap.id, ...snap.data() as any } as Organization;
                     setCurrentOrg(oData);
-                    
                     const planRef = doc(db, 'subscriptionPlans', oData.planId);
-                    getDoc(planRef).then(pSnap => {
-                        if (pSnap.exists()) setCurrentPlan({ id: pSnap.id, ...pSnap.data() } as SubscriptionPlan);
+                    getDoc(planRef).then((pSnap: any) => {
+                        if (pSnap.exists()) setCurrentPlan({ id: pSnap.id, ...pSnap.data() as any } as SubscriptionPlan);
                     });
                 }
             });
-
             if (profile.role === UserRole.CLIENT) {
                 api.subscribeUserConnections(profile.organizationId, (conns) => {
                     setUserConnections(conns);
                     if (conns.length > 0 && !activeOrganization) {
                          const firstOrgId = conns[0].organizationId;
-                         getDoc(doc(db, 'organizations', firstOrgId)).then(snap => {
-                             if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() } as Organization);
+                         getDoc(doc(db, 'organizations', firstOrgId)).then((snap: any) => {
+                             if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);
                          });
                     }
                 });
@@ -209,24 +210,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   useEffect(() => {
     if (!db || !currentUser) return;
-    
     const unsubs: (() => void)[] = [];
-
-    // Org Ativa (Para Dentistas visualizarem Lab ou Lab visualizar si mesmo)
     const activeId = targetOrgId();
     if (activeId && typeof activeId === 'string' && activeId.trim() !== '') {
         unsubs.push(api.subscribeJobs(activeId, setJobs));
         unsubs.push(api.subscribeJobTypes(activeId, setJobTypes));
     }
-
-    // Org Própria (Clínica ou Laboratório)
     const myOrgId = currentUser.organizationId;
     if (myOrgId && typeof myOrgId === 'string' && myOrgId.trim() !== '') {
-        // Dados de Clínica
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
-
-        // Dados de Laboratório (Apenas se não for cliente)
         if (currentUser.role !== UserRole.CLIENT) {
             unsubs.push(api.subscribeOrgUsers(myOrgId, setAllUsers));
             unsubs.push(api.subscribeSectors(myOrgId, setSectors));
@@ -235,21 +228,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
         }
     }
-
-    // Super Admin - Visualização Global de Org, Planos e Cupons
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
-
     return () => unsubs.forEach(unsub => {
         try { unsub(); } catch(e) {}
     });
   }, [currentUser, activeOrganization]);
 
-  const login = async (email: string, pass: string) => {
-    await api.apiLogin(email, pass);
-  };
-
+  const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => await api.apiLogout();
   const updateUser = async (id: string, u: Partial<User>) => await api.apiUpdateUser(id, u);
   const addUser = async (u: User) => await api.apiAddUser(u);
@@ -304,6 +291,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }
 
   const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
+  const updateGlobalSettings = async (u: Partial<GlobalSettings>) => await api.apiUpdateGlobalSettings({ ...u, updatedAt: new Date(), updatedBy: currentUser?.name || 'unknown' });
   const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
   const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => await api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj);
   const createLabWallet = async (p: any) => await api.apiCreateLabSubAccount(p);
@@ -390,15 +378,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
     const found = userConnections.find(o => o.organizationId === id);
     if (found) {
-        getDoc(doc(db, 'organizations', id)).then(snap => {
-             if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() } as Organization);
+        getDoc(doc(db, 'organizations', id)).then((snap: any) => {
+             if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);
         });
     }
   };
 
   return (
     <AppContext.Provider value={{
-      currentUser, currentOrg, currentPlan, isLoadingAuth,
+      currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
       allUsers, jobs, jobTypes, sectors, alerts, commissions,
       allOrganizations, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
       login, logout, updateUser, addUser, deleteUser,
@@ -408,7 +396,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       uploadFile: api.uploadJobFile,
       printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), clearPrint: () => setPrintData(null),
       activeOrganization, switchActiveOrganization, userConnections,
-      updateOrganization, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
+      updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
       addConnectionByCode, addCoupon, updateCoupon, deleteCoupon,

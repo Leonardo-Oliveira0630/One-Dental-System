@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Plus, Search, ShoppingBag, BadgePercent, Package, X, Building } from 'lucide-react';
+import { Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag } from 'lucide-react';
 import { JobType, VariationGroup, CartItem } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { FeatureLocked } from '../../components/FeatureLocked';
@@ -11,13 +11,31 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     const { addToCart, currentUser } = useApp();
     const [quantity, setQuantity] = useState(1);
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
-    const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); // Text state
+    const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
 
-    // Price calculation logic
+    // Logic to calculate final price for a product based on user discounts
+    const calculateEffectiveBasePrice = (type: JobType) => {
+        if (!currentUser) return type.basePrice;
+        
+        // 1. Check for specific item discount
+        const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
+        
+        if (custom) {
+            if (custom.price !== undefined) return custom.price;
+            if (custom.discountPercent !== undefined) return type.basePrice * (1 - custom.discountPercent / 100);
+        }
+
+        // 2. Check for global discount
+        if (currentUser.globalDiscountPercent) {
+            return type.basePrice * (1 - currentUser.globalDiscountPercent / 100);
+        }
+
+        return type.basePrice;
+    };
+
+    // Price calculation logic including variations
     const unitPrice = useMemo(() => {
-        let price = product.basePrice;
-        const custom = currentUser?.customPrices?.find(p => p.jobTypeId === product.id);
-        if (custom) price = custom.price;
+        let price = calculateEffectiveBasePrice(product);
 
         const allSelectedOptionIds = Object.values(selectedVariations).flat();
         allSelectedOptionIds.forEach(optId => {
@@ -105,7 +123,7 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
             unitPrice,
             finalPrice,
             selectedVariationIds: Object.values(selectedVariations).flat() as string[],
-            variationValues: variationTextValues // Store text
+            variationValues: variationTextValues 
         };
         addToCart(newItem);
         onClose();
@@ -119,7 +137,6 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
                 </div>
                 <div className="p-6 overflow-y-auto space-y-4">
-                    {/* Variation Groups */}
                     {product.variationGroups.map(group => (
                         <div key={group.id} className="p-3 rounded-lg border bg-white border-slate-200">
                             <div className="flex justify-between items-center mb-2">
@@ -171,7 +188,6 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
                         </div>
                     ))}
                 </div>
-                {/* ... (Footer logic remains) ... */}
                 <div className="p-4 bg-slate-50 border-t border-slate-200 mt-auto flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         <label className="text-sm font-bold">Qtd:</label>
@@ -192,16 +208,13 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     );
 };
 
-// ... (Catalog export remains) ...
 export const Catalog = () => {
-  // (No major changes needed in main Catalog view, logic handles everything)
   const { jobTypes, currentUser, activeOrganization, currentPlan } = useApp();
   const navigate = useNavigate();
   const [term, setTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
 
-  // --- SAFEGUARD: DENTIST WITHOUT ACTIVE LAB ---
   if (!activeOrganization) {
     return (
         <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
@@ -224,7 +237,6 @@ export const Catalog = () => {
     );
   }
 
-  // --- PLAN CHECK ---
   if (currentPlan && !currentPlan.features.hasStoreModule) {
       return (
           <FeatureLocked 
@@ -234,9 +246,7 @@ export const Catalog = () => {
       );
   }
 
-  // Filter products visible in store
-  const visibleProducts = jobTypes.filter(t => t.isVisibleInStore !== false); // Default to true if undefined
-
+  const visibleProducts = jobTypes.filter(t => t.isVisibleInStore !== false);
   const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
 
   const products = visibleProducts.filter(t => {
@@ -246,9 +256,20 @@ export const Catalog = () => {
   });
 
   const getPrice = (type: JobType) => {
-    if (!currentUser?.customPrices) return { price: type.basePrice, isCustom: false };
-    const custom = currentUser.customPrices.find(c => c.jobTypeId === type.id);
-    if (custom) return { price: custom.price, isCustom: true };
+    if (!currentUser) return { price: type.basePrice, isCustom: false };
+
+    // Priority 1: Specific customPrice object
+    const custom = currentUser.customPrices?.find(c => c.jobTypeId === type.id);
+    if (custom) {
+        if (custom.price !== undefined) return { price: custom.price, isCustom: true };
+        if (custom.discountPercent !== undefined) return { price: type.basePrice * (1 - custom.discountPercent / 100), isCustom: true };
+    }
+
+    // Priority 2: Global discount
+    if (currentUser.globalDiscountPercent) {
+        return { price: type.basePrice * (1 - currentUser.globalDiscountPercent / 100), isCustom: true };
+    }
+
     return { price: type.basePrice, isCustom: false };
   };
 
@@ -258,7 +279,7 @@ export const Catalog = () => {
        <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row justify-between items-center gap-6">
             <div>
                 <h1 className="text-3xl font-bold mb-2">Catálogo de Próteses</h1>
-                <p className="text-indigo-100 max-w-lg">Selecione e configure os serviços para montar seu pedido.</p>
+                <p className="text-indigo-100 max-w-lg">Preços personalizados aplicados automaticamente.</p>
             </div>
             <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/20">
                 <ShoppingBag size={48} className="text-white opacity-80" />
@@ -317,7 +338,13 @@ export const Catalog = () => {
                             <div className="p-6 flex flex-col flex-1">
                                 <div className="mb-4 flex-1"><h3 className="font-bold text-slate-900 text-lg leading-tight mb-2 group-hover:text-indigo-700 transition-colors">{product.name}</h3></div>
                                 <div className="pt-4 border-t border-slate-100">
-                                    <div className="flex justify-between items-end mb-4"><span className="text-xs text-slate-400 font-medium uppercase">A partir de</span><div className="text-right">{isCustom && (<span className="text-xs text-slate-400 line-through block">R$ {product.basePrice.toFixed(2)}</span>)}<span className={`font-bold text-xl ${isCustom ? 'text-green-600' : 'text-slate-800'}`}>R$ {price.toFixed(2)}</span></div></div>
+                                    <div className="flex justify-between items-end mb-4">
+                                        <span className="text-xs text-slate-400 font-medium uppercase">{isCustom ? 'Seu Preço' : 'A partir de'}</span>
+                                        <div className="text-right">
+                                            {isCustom && (<span className="text-xs text-slate-400 line-through block">R$ {product.basePrice.toFixed(2)}</span>)}
+                                            <span className={`font-bold text-xl ${isCustom ? 'text-green-600' : 'text-slate-800'}`}>R$ {price.toFixed(2)}</span>
+                                        </div>
+                                    </div>
                                     <button onClick={() => setConfiguringProduct(product)}
                                         className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all">
                                         <Plus size={18} /> Configurar e Comprar

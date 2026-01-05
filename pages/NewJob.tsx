@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist } from '../types';
+import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { BOX_COLORS } from '../services/mockData';
-import { Plus, Trash2, Save, User, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon } from 'lucide-react';
+import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag } from 'lucide-react';
 
 type EntryType = 'NEW' | 'CONTINUATION';
 
@@ -16,6 +16,7 @@ export const NewJob = () => {
   // --- Global States ---
   const [entryType, setEntryType] = useState<EntryType>('NEW');
   const [patientName, setPatientName] = useState('');
+  const [selectedDentistObj, setSelectedDentistObj] = useState<User | null>(null);
   const [selectedDentistId, setSelectedDentistId] = useState('');
   const [dentistName, setDentistName] = useState('');
   const [dentistSearchQuery, setDentistSearchQuery] = useState('');
@@ -60,27 +61,42 @@ export const NewJob = () => {
     if (!dentistSearchQuery) return [];
     const query = dentistSearchQuery.toLowerCase();
     
-    const online = connectedDentists.map(d => ({ id: d.id, name: d.name, clinic: d.clinicName, type: 'ONLINE' }));
-    const offline = manualDentists.map(d => ({ id: d.id, name: d.name, clinic: d.clinicName, type: 'OFFLINE' }));
+    const online = connectedDentists.map(d => ({ ...d, type: 'ONLINE' }));
+    const offline = manualDentists.map(d => ({ ...d, type: 'OFFLINE' }));
     
     return [...online, ...offline].filter(d => 
-        d.name.toLowerCase().includes(query) || (d.clinic && d.clinic.toLowerCase().includes(query))
-    ).slice(0, 8); // Limitar a 8 sugestões
+        d.name.toLowerCase().includes(query) || (d.clinicName && d.clinicName.toLowerCase().includes(query))
+    ).slice(0, 8); 
   }, [dentistSearchQuery, connectedDentists, manualDentists]);
 
-  // Lógica de cálculo de preço automático
+  // Lógica de cálculo de preço automático considerando descontos do dentista
   const calculatedBasePrice = useMemo(() => {
     if (!activeJobType) return 0;
-    let price = activeJobType.basePrice;
+    
+    let basePrice = activeJobType.basePrice;
+
+    // Apply dentist discounts if available
+    if (selectedDentistObj) {
+        const custom = selectedDentistObj.customPrices?.find(p => p.jobTypeId === activeJobType.id);
+        if (custom) {
+            if (custom.price !== undefined) basePrice = custom.price;
+            else if (custom.discountPercent !== undefined) basePrice = activeJobType.basePrice * (1 - custom.discountPercent / 100);
+        } else if (selectedDentistObj.globalDiscountPercent) {
+            basePrice = activeJobType.basePrice * (1 - selectedDentistObj.globalDiscountPercent / 100);
+        }
+    }
+
+    let variationsTotal = 0;
     const allSelectedOptionIds = Object.values(selectedVariations).flat();
     allSelectedOptionIds.forEach(selectedId => {
       activeJobType.variationGroups.forEach(group => {
         const option = group.options.find(opt => opt.id === selectedId);
-        if (option) price += option.priceModifier;
+        if (option) variationsTotal += option.priceModifier;
       });
     });
-    return price;
-  }, [selectedVariations, activeJobType]);
+
+    return basePrice + variationsTotal;
+  }, [selectedVariations, activeJobType, selectedDentistObj]);
 
   const finalItemPrice = useMemo(() => {
     let price = manualPrice !== null ? manualPrice : calculatedBasePrice;
@@ -139,6 +155,7 @@ export const NewJob = () => {
         setPatientName('');
         setDentistName('');
         setSelectedDentistId('');
+        setSelectedDentistObj(null);
         setDentistSearchQuery('');
         setNotes('');
     }
@@ -149,6 +166,7 @@ export const NewJob = () => {
 
   const selectDentist = (dentist: any) => {
     setSelectedDentistId(dentist.id);
+    setSelectedDentistObj(dentist.type === 'ONLINE' ? dentist : null);
     setDentistName(dentist.name);
     setDentistSearchQuery(dentist.name);
     setShowDentistSuggestions(false);
@@ -156,6 +174,7 @@ export const NewJob = () => {
 
   const handleManualDentistEntry = () => {
     setSelectedDentistId('manual-entry');
+    setSelectedDentistObj(null);
     setDentistName(dentistSearchQuery);
     setShowDentistSuggestions(false);
   };
@@ -261,8 +280,17 @@ export const NewJob = () => {
     }
   };
 
+  const currentPricingStatus = useMemo(() => {
+    if (!selectedDentistObj) return null;
+    const hasGlobal = !!selectedDentistObj.globalDiscountPercent;
+    const hasCustom = !!selectedDentistObj.customPrices?.length;
+    if (hasCustom || hasGlobal) return { global: selectedDentistObj.globalDiscountPercent || 0, items: selectedDentistObj.customPrices?.length || 0 };
+    return null;
+  }, [selectedDentistObj]);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
+        {/* ... (Success modal code remains the same) ... */}
         {lastCreatedJob && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
@@ -296,7 +324,7 @@ export const NewJob = () => {
                 
                 {/* IDENTIFICAÇÃO */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                  <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><User size={18} className="text-blue-500" /> Identificação do Caso</h2>
+                  <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><UserIcon size={18} className="text-blue-500" /> Identificação do Caso</h2>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
                         <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Nº Ordem Serviço</label>
@@ -325,7 +353,7 @@ export const NewJob = () => {
                         {dentistSearchQuery && (
                             <button 
                                 type="button"
-                                onClick={() => { setDentistSearchQuery(''); setSelectedDentistId(''); setDentistName(''); }}
+                                onClick={() => { setDentistSearchQuery(''); setSelectedDentistId(''); setDentistName(''); setSelectedDentistObj(null); }}
                                 className="absolute right-3 top-3 text-slate-400 hover:text-red-500"
                             >
                                 <X size={18} />
@@ -333,7 +361,6 @@ export const NewJob = () => {
                         )}
                       </div>
 
-                      {/* Dropdown de Sugestões */}
                       {showDentistSuggestions && dentistSearchQuery.length > 0 && (
                           <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
                              <div className="max-h-60 overflow-y-auto">
@@ -350,7 +377,7 @@ export const NewJob = () => {
                                             </div>
                                             <div>
                                                 <p className="font-bold text-slate-800 text-sm group-hover:text-blue-700">{d.name}</p>
-                                                {d.clinic && <p className="text-[10px] text-slate-500 uppercase font-medium">{d.clinic}</p>}
+                                                {d.clinicName && <p className="text-[10px] text-slate-500 uppercase font-medium">{d.clinicName}</p>}
                                             </div>
                                         </div>
                                         <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${d.type === 'ONLINE' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
@@ -358,8 +385,6 @@ export const NewJob = () => {
                                         </span>
                                     </button>
                                 ))}
-                                
-                                {/* Opção de Entrada Avulsa */}
                                 <button
                                     type="button"
                                     onClick={handleManualDentistEntry}
@@ -378,9 +403,17 @@ export const NewJob = () => {
                       )}
                       
                       {selectedDentistId && (
-                          <p className="mt-2 text-[10px] font-bold text-green-600 flex items-center gap-1 animate-in slide-in-from-left-2">
-                             <CheckCircle size={10} /> Dentista vinculado com sucesso: <strong>{dentistName}</strong>
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mt-2 px-2">
+                          <p className="text-[10px] font-bold text-green-600 flex items-center gap-1 animate-in slide-in-from-left-2">
+                             <CheckCircle size={10} /> Dentista vinculado: <strong>{dentistName}</strong>
                           </p>
+                          {currentPricingStatus && (
+                              <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg border border-blue-100 animate-in slide-in-from-right-2">
+                                  <Tag size={10}/>
+                                  <span className="text-[9px] font-black uppercase tracking-tighter">Tabela Especial: {currentPricingStatus.global}% Global | {currentPricingStatus.items} itens</span>
+                              </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -391,28 +424,31 @@ export const NewJob = () => {
                     <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Layers size={18} className="text-blue-500" /> Especificações Técnicas</h2>
                     
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-6">
-                        <div className="space-y-2">
-                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Natureza deste Item:</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                <button type="button" onClick={() => setItemNature('NORMAL')} className={`py-2.5 rounded-lg border-2 font-bold text-xs transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>Normal</button>
-                                <button type="button" onClick={() => setItemNature('REPETITION')} className={`py-2.5 rounded-lg border-2 font-bold text-xs transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>Repetição</button>
-                                <button type="button" onClick={() => setItemNature('ADJUSTMENT')} className={`py-2.5 rounded-lg border-2 font-bold text-xs transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
+                        {/* Natureza e Tipo */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Natureza deste Item:</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button type="button" onClick={() => setItemNature('NORMAL')} className={`py-2.5 rounded-lg border-2 font-bold text-xs transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>Normal</button>
+                                    <button type="button" onClick={() => setItemNature('REPETITION')} className={`py-2.5 rounded-lg border-2 font-bold text-xs transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>Repetição</button>
+                                    <button type="button" onClick={() => setItemNature('ADJUSTMENT')} className={`py-2.5 rounded-lg border-2 font-bold text-xs transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
+                                </div>
+                            </div>
+                            <div className="flex gap-4 items-end">
+                                <div className="flex-1">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Serviço</label>
+                                    <select value={selectedTypeId} onChange={e => setSelectedTypeId(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700">
+                                        {jobTypes.map(type => (<option key={type.id} value={type.id}>{type.name}</option>))}
+                                    </select>
+                                </div>
+                                <div className="w-20">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Qtd</label>
+                                    <input type="number" min="1" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-bold" />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                            <div className="md:col-span-10">
-                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Tipo de Trabalho / Serviço</label>
-                                <select value={selectedTypeId} onChange={e => setSelectedTypeId(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700">
-                                    {jobTypes.map(type => (<option key={type.id} value={type.id}>{type.name}</option>))}
-                                </select>
-                            </div>
-                            <div className="md:col-span-2">
-                                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Qtd</label>
-                                <input type="number" min="1" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-bold" />
-                            </div>
-                        </div>
-
+                        {/* Variações */}
                         {activeJobType && activeJobType.variationGroups && activeJobType.variationGroups.length > 0 && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-200">
                                 {activeJobType.variationGroups.map(group => (
@@ -443,8 +479,15 @@ export const NewJob = () => {
                             </div>
                         )}
 
+                        {/* Preço e Ajustes */}
                         <div className="pt-4 border-t border-slate-200 space-y-4">
-                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><DollarSign size={14} className="text-green-600" /> Ajuste de Valor do Item</h4>
+                            <div className="flex justify-between items-center">
+                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><DollarSign size={14} className="text-green-600" /> Ajuste de Valor do Item</h4>
+                                {selectedDentistObj && (
+                                     <span className="text-[10px] font-bold text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded">Tabela Cliente Ativa</span>
+                                )}
+                            </div>
+                            
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Preço Final Unitário (R$)</label>
@@ -455,7 +498,7 @@ export const NewJob = () => {
                                     {itemNature === 'REPETITION' && <p className="text-[9px] text-red-500 mt-1 font-bold italic flex items-center gap-1"><ShieldAlert size={10}/> Repetição: Defina o valor parcial ou zero.</p>}
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Desconto (%)</label>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Desconto Extra (%)</label>
                                     <div className="relative">
                                         <Percent size={14} className="absolute left-3 top-2.5 text-slate-400" />
                                         <input type="number" max="100" min="0" value={discountPercent} onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))} className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -463,9 +506,9 @@ export const NewJob = () => {
                                 </div>
                             </div>
                             <div className="bg-blue-900/5 p-3 rounded-xl flex justify-between items-center border border-blue-100">
-                                <span className="text-xs font-bold text-blue-700">Resumo: <span className="uppercase">{itemNature}</span></span>
+                                <span className="text-xs font-bold text-blue-700 uppercase">{itemNature}</span>
                                 <div className="text-right">
-                                    <span className="text-[10px] text-slate-400 line-through mr-2">R$ {calculatedBasePrice.toFixed(2)}</span>
+                                    <span className="text-[10px] text-slate-400 line-through mr-2">R$ {activeJobType?.basePrice.toFixed(2)}</span>
                                     <span className="font-black text-blue-900">R$ {finalItemPrice.toFixed(2)}</span>
                                 </div>
                             </div>

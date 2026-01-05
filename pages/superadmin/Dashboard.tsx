@@ -1,16 +1,36 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Building, Crown, Users, Ticket, ArrowRight, Activity, Calendar } from 'lucide-react';
+import { Building, Crown, Users, Ticket, ArrowRight, Activity, Calendar, Settings, Percent, Save, Loader2, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const SuperAdminDashboard = () => {
-    const { allOrganizations, allPlans, allUsers, coupons } = useApp();
+    const { allOrganizations, allPlans, allUsers, coupons, globalSettings, updateGlobalSettings } = useApp();
     const navigate = useNavigate();
+
+    // Settings Form State
+    const [platformComm, setPlatformComm] = useState(globalSettings?.platformCommission || 5);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (globalSettings) setPlatformComm(globalSettings.platformCommission);
+    }, [globalSettings]);
 
     // Stats
     const totalLabs = allOrganizations.filter(o => o.orgType === 'LAB').length;
     const totalClinics = allOrganizations.filter(o => o.orgType === 'CLINIC').length;
+
+    const handleSaveSettings = async () => {
+        setIsSaving(true);
+        try {
+            await updateGlobalSettings({ platformCommission: platformComm });
+            alert("Configurações salvas!");
+        } catch (err) {
+            alert("Erro ao salvar.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -75,35 +95,63 @@ export const SuperAdminDashboard = () => {
                 </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button 
-                    onClick={() => navigate('/superadmin/plans')}
-                    className="flex items-center justify-between p-6 bg-slate-900 text-white rounded-3xl hover:bg-slate-800 transition-all group"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="p-4 bg-white/10 rounded-2xl"><Crown /></div>
-                        <div className="text-left">
-                            <p className="font-bold text-lg">Gerenciar Planos</p>
-                            <p className="text-sm text-slate-400">Criar, editar e precificar planos.</p>
-                        </div>
+            {/* Global Settings Section */}
+            <div className="bg-white rounded-3xl shadow-lg border-2 border-blue-50 overflow-hidden">
+                <div className="p-6 bg-blue-50/50 border-b border-blue-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Settings className="text-blue-600" />
+                        <h2 className="font-black text-slate-800 text-lg uppercase tracking-tight">Configurações Globais da Plataforma</h2>
                     </div>
-                    <ArrowRight className="text-slate-500 group-hover:translate-x-2 transition-transform" />
-                </button>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Aplica-se a todos os laboratórios</div>
+                </div>
+                <div className="p-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                        <div className="space-y-4">
+                            <label className="block">
+                                <span className="text-sm font-black text-slate-700 uppercase flex items-center gap-2 mb-2">
+                                    <Percent size={16} className="text-blue-500"/> Taxa de Split (Comissão do App)
+                                </span>
+                                <div className="flex gap-4">
+                                    <div className="relative flex-1">
+                                        <input 
+                                            type="number" 
+                                            value={platformComm}
+                                            onChange={e => setPlatformComm(parseFloat(e.target.value))}
+                                            className="w-full pl-4 pr-12 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-2xl font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl font-bold text-slate-400">%</span>
+                                    </div>
+                                    <button 
+                                        onClick={handleSaveSettings}
+                                        disabled={isSaving}
+                                        className="px-8 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isSaving ? <Loader2 className="animate-spin"/> : <Save />}
+                                        SALVAR
+                                    </button>
+                                </div>
+                            </label>
+                            <p className="text-xs text-slate-400 leading-relaxed italic">
+                                * Esta taxa será deduzida automaticamente de cada venda realizada na Loja Virtual de qualquer laboratório cadastrado que utilize a Conta Digital ProTrack.
+                            </p>
+                        </div>
 
-                <button 
-                    onClick={() => navigate('/superadmin/coupons')}
-                    className="flex items-center justify-between p-6 bg-white border border-slate-200 rounded-3xl hover:border-amber-500 transition-all group"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="p-4 bg-amber-50 text-amber-600 rounded-2xl"><Ticket /></div>
-                        <div className="text-left">
-                            <p className="font-bold text-lg text-slate-800">Gerenciar Cupons</p>
-                            <p className="text-sm text-slate-500">Campanhas de marketing e descontos.</p>
+                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-3">
+                            <h4 className="font-bold text-amber-800 flex items-center gap-2 text-sm uppercase">
+                                <Info size={16}/> Configuração de Webhooks (Asaas)
+                            </h4>
+                            <p className="text-xs text-amber-700 leading-relaxed">
+                                Para que o sistema funcione corretamente, acesse o painel do Asaas e configure a URL do seu Webhook assinando os eventos:
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <span className="text-[10px] font-black bg-white/50 p-1.5 rounded border border-amber-200 text-amber-800">PAYMENT_RECEIVED</span>
+                                <span className="text-[10px] font-black bg-white/50 p-1.5 rounded border border-amber-200 text-amber-800">PAYMENT_CONFIRMED</span>
+                                <span className="text-[10px] font-black bg-white/50 p-1.5 rounded border border-amber-200 text-amber-800">PAYMENT_REFUNDED</span>
+                                <span className="text-[10px] font-black bg-white/50 p-1.5 rounded border border-amber-200 text-amber-800">SUBSCRIPTION_DELETED</span>
+                            </div>
                         </div>
                     </div>
-                    <ArrowRight className="text-slate-300 group-hover:text-amber-500 group-hover:translate-x-2 transition-transform" />
-                </button>
+                </div>
             </div>
 
             {/* Subscribers Table */}

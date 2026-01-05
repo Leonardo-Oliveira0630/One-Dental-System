@@ -3,13 +3,19 @@ export type TransactionType = 'INCOME' | 'EXPENSE';
 export type TransactionCategory = 
   | 'PRODUCTION' 
   | 'STORE' 
-  | 'SUPPLIES' // Insumos (Cerâmica, Gesso, etc)
+  | 'SUPPLIES' 
   | 'RENT' 
   | 'SALARY' 
   | 'MARKETING' 
   | 'TAX'
-  | 'OFFICE'   // Material de escritório
+  | 'OFFICE'   
   | 'OTHER';
+
+export interface GlobalSettings {
+  platformCommission: number;
+  updatedAt: Date;
+  updatedBy: string;
+}
 
 export interface Expense {
   id: string;
@@ -38,7 +44,6 @@ export interface BillingBatch {
   createdAt: Date;
 }
 
-// Added missing Enums
 export enum UserRole {
   ADMIN = 'ADMIN',
   MANAGER = 'MANAGER',
@@ -65,7 +70,6 @@ export enum UrgencyLevel {
 
 export type JobNature = 'NORMAL' | 'REPETITION' | 'ADJUSTMENT';
 
-// Added missing Interfaces
 export interface Attachment {
   id: string;
   name: string;
@@ -171,7 +175,12 @@ export interface User {
   sector?: string;
   clinicName?: string;
   commissionSettings?: UserCommissionSetting[];
-  customPrices?: { jobTypeId: string; price: number }[];
+  globalDiscountPercent?: number; // Desconto em % aplicado a todos os serviços
+  customPrices?: { 
+    jobTypeId: string; 
+    price?: number; 
+    discountPercent?: number; // Desconto específico para este item
+  }[];
 }
 
 export interface CartItem {
