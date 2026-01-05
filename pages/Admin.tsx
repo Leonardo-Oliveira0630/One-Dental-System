@@ -5,7 +5,7 @@ import { UserRole, User, UserCommissionSetting, Coupon, SubscriptionPlan, Manual
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
   Stethoscope, Edit, X, DollarSign, Copy, Check, Crown, ArrowUpCircle, 
-  Ticket, Wallet, Loader2, Percent, CheckCircle, Briefcase, Search
+  Ticket, Wallet, Loader2, Percent, CheckCircle, Briefcase, Search, Phone
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -16,7 +16,7 @@ export const Admin = () => {
     allUsers, deleteUser, updateUser,
     jobTypes, currentOrg, currentPlan, updateOrganization, allPlans,
     validateCoupon, createLabWallet,
-    manualDentists, addManualDentist, deleteManualDentist
+    manualDentists, addManualDentist, deleteManualDentist, updateManualDentist
   } = useApp();
   const navigate = useNavigate();
 
@@ -38,6 +38,7 @@ export const Admin = () => {
 
   // Clientes (Dentistas Manuais)
   const [isAddingDentist, setIsAddingDentist] = useState(false);
+  const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
   const [dentistName, setDentistName] = useState('');
   const [dentistClinic, setDentistClinic] = useState('');
   const [dentistEmail, setDentistEmail] = useState('');
@@ -91,17 +92,34 @@ export const Admin = () => {
     }
   };
 
-  const handleAddManualDentist = async (e: React.FormEvent) => {
+  const handleOpenEditDentist = (d: ManualDentist) => {
+      setEditingDentistId(d.id);
+      setDentistName(d.name);
+      setDentistClinic(d.clinicName || '');
+      setDentistEmail(d.email || '');
+      setDentistPhone(d.phone || '');
+      setIsAddingDentist(true);
+  };
+
+  const handleSaveManualDentist = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!dentistName) return;
-      await addManualDentist({
+
+      const data = {
           name: dentistName,
           clinicName: dentistClinic,
           email: dentistEmail,
-          phone: dentistPhone,
-          createdAt: new Date()
-      });
+          phone: dentistPhone
+      };
+
+      if (editingDentistId) {
+          await updateManualDentist(editingDentistId, data);
+      } else {
+          await addManualDentist({ ...data, createdAt: new Date() });
+      }
+
       setIsAddingDentist(false);
+      setEditingDentistId(null);
       setDentistName(''); setDentistClinic(''); setDentistEmail(''); setDentistPhone('');
   };
 
@@ -279,12 +297,12 @@ export const Admin = () => {
       {activeTab === 'DENTISTS' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h3 className="font-bold text-slate-800 text-lg">Gestão de Clientes (Offline/Internos)</h3>
+                <h3 className="font-bold text-slate-800 text-lg">Gestão de Clientes Internos</h3>
                 <button 
-                  onClick={() => setIsAddingDentist(true)}
+                  onClick={() => { resetForm(); setIsAddingDentist(true); }}
                   className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"
                 >
-                    <Plus size={20}/> Cadastrar Dentista
+                    <Plus size={20}/> Novo Cliente
                 </button>
             </div>
 
@@ -319,13 +337,14 @@ export const Admin = () => {
                             <div className="text-xs text-slate-500">{dentist.email || 'Sem email'}</div>
                             <div className="text-xs font-bold text-slate-400">{dentist.phone || 'Sem telefone'}</div>
                         </td>
-                        <td className="p-4 text-right">
-                            <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>
+                        <td className="p-4 text-right flex justify-end gap-2">
+                            <button onClick={() => handleOpenEditDentist(dentist)} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Edit size={18}/></button>
+                            <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
                         </td>
                       </tr>
                     ))}
                     {filteredDentists.length === 0 && (
-                        <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic">Nenhum dentista cadastrado manualmente.</td></tr>
+                        <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic">Nenhum cliente interno cadastrado.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -455,12 +474,12 @@ export const Admin = () => {
           </div>
       )}
 
-      {/* MODAL: CADASTRAR DENTISTA (MANUAL) */}
+      {/* MODAL: CADASTRAR/EDITAR DENTISTA (MANUAL) */}
       {isAddingDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
               <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
-                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Stethoscope className="text-blue-600" /> Cadastrar Cliente (Dentista)</h3>
-                  <form onSubmit={handleAddManualDentist} className="space-y-4">
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cliente' : 'Cadastrar Cliente Interno'}</h3>
+                  <form onSubmit={handleSaveManualDentist} className="space-y-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo</label>
                         <input required value={dentistName} onChange={e => setDentistName(e.target.value)} placeholder="Dr. Nome do Cliente" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
@@ -478,8 +497,8 @@ export const Admin = () => {
                         <input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div className="flex gap-3 mt-6">
-                          <button type="button" onClick={() => setIsAddingDentist(false)} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Cadastrar Cliente</button>
+                          <button type="button" onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="flex-1 py-2 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
+                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-colors">Salvar Alterações</button>
                       </div>
                   </form>
               </div>
@@ -569,3 +588,5 @@ export const Admin = () => {
     </div>
   );
 };
+
+const resetForm = () => {}; // Placeholder for safety, but we'll use state resets

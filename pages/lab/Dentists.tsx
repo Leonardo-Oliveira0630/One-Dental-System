@@ -1,51 +1,61 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db } from '../../services/firebaseConfig';
-import * as firestorePkg from 'firebase/firestore';
-import { User, UserRole, JobType } from '../../types';
-import { Stethoscope, Mail, Phone, Search, Building, User as UserIcon, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign } from 'lucide-react';
+import { User, UserRole, JobType, ManualDentist } from '../../types';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, hardDrive } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const { collection, query, where, getDocs } = firestorePkg as any;
-
 export const Dentists = () => {
-    const { currentOrg, jobTypes, updateUser } = useApp();
+    const { currentOrg, jobTypes, updateUser, allUsers, manualDentists, updateManualDentist } = useApp();
     const navigate = useNavigate();
-    const [connectedDentists, setConnectedDentists] = useState<User[]>([]);
-    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     
     // Modal State
-    const [selectedDentist, setSelectedDentist] = useState<User | null>(null);
+    const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean, data: any } | null>(null);
     const [globalDiscount, setGlobalDiscount] = useState<number>(0);
     const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
     const [isSaving, setIsSaving] = useState(false);
 
-    useEffect(() => {
-        const fetchConnectedDentists = async () => {
-            if (!currentOrg) return;
-            setLoading(true);
-            try {
-                const q = query(collection(db, 'users'), where('role', '==', UserRole.CLIENT));
-                const snap = await getDocs(q);
-                const list = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() as any } as User));
-                setConnectedDentists(list);
-            } catch (error) {
-                console.error("Erro ao carregar dentistas:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchConnectedDentists();
-    }, [currentOrg]);
+    // Combinar as duas fontes de clientes
+    const combinedClients = useMemo(() => {
+        const online = allUsers
+            .filter(u => u.role === UserRole.CLIENT)
+            .map(u => ({
+                id: u.id,
+                name: u.name,
+                clinicName: u.clinicName,
+                email: u.email,
+                isManual: false,
+                globalDiscountPercent: u.globalDiscountPercent || 0,
+                customPrices: u.customPrices || [],
+                originalData: u
+            }));
 
-    const handleOpenPricing = (dentist: User) => {
-        setSelectedDentist(dentist);
-        setGlobalDiscount(dentist.globalDiscountPercent || 0);
+        const internal = manualDentists.map(d => ({
+            id: d.id,
+            name: d.name,
+            clinicName: d.clinicName,
+            email: d.email,
+            isManual: true,
+            globalDiscountPercent: d.globalDiscountPercent || 0,
+            customPrices: d.customPrices || [],
+            originalData: d
+        }));
+
+        return [...online, ...internal].sort((a, b) => a.name.localeCompare(b.name));
+    }, [allUsers, manualDentists]);
+
+    const handleOpenPricing = (client: any) => {
+        setSelectedClient({
+            id: client.id,
+            name: client.name,
+            isManual: client.isManual,
+            data: client.originalData
+        });
+        setGlobalDiscount(client.globalDiscountPercent || 0);
         
         const discounts: Record<string, number> = {};
-        dentist.customPrices?.forEach(cp => {
+        client.customPrices?.forEach((cp: any) => {
             if (cp.discountPercent !== undefined) {
                 discounts[cp.jobTypeId] = cp.discountPercent;
             }
@@ -54,11 +64,10 @@ export const Dentists = () => {
     };
 
     const handleSavePricing = async () => {
-        if (!selectedDentist) return;
+        if (!selectedClient) return;
         setIsSaving(true);
         
         try {
-            // Fix: Explicitly casting Object.entries(customDiscounts) to [string, number][] to fix the 'unknown' operator error
             const customPrices = (Object.entries(customDiscounts) as [string, number][])
                 .filter(([_, val]) => val > 0)
                 .map(([jobTypeId, discountPercent]) => ({
@@ -66,20 +75,19 @@ export const Dentists = () => {
                     discountPercent
                 }));
 
-            await updateUser(selectedDentist.id, {
+            const updates = {
                 globalDiscountPercent: globalDiscount,
                 customPrices: customPrices
-            });
+            };
 
-            // Update local state
-            setConnectedDentists(prev => prev.map(d => 
-                d.id === selectedDentist.id 
-                    ? { ...d, globalDiscountPercent: globalDiscount, customPrices: customPrices } 
-                    : d
-            ));
+            if (selectedClient.isManual) {
+                await updateManualDentist(selectedClient.id, updates);
+            } else {
+                await updateUser(selectedClient.id, updates);
+            }
 
             alert("Tabela de preços atualizada com sucesso!");
-            setSelectedDentist(null);
+            setSelectedClient(null);
         } catch (error) {
             alert("Erro ao salvar preços.");
         } finally {
@@ -87,27 +95,18 @@ export const Dentists = () => {
         }
     };
 
-    const filtered = connectedDentists.filter(d => 
+    const filtered = combinedClients.filter(d => 
         d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         d.clinicName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        d.email.toLowerCase().includes(searchTerm.toLowerCase())
+        (d.email && d.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-
-    if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[60vh]">
-                <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
-                <p className="text-slate-500 font-medium">Carregando seus clientes...</p>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Gestão de Clientes</h1>
-                    <p className="text-slate-500">Configure tabelas de preços e acompanhe conexões.</p>
+                    <p className="text-slate-500">Configuração de preços para clientes internos e externos.</p>
                 </div>
             </div>
 
@@ -123,65 +122,75 @@ export const Dentists = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filtered.map(dentist => (
-                    <div key={dentist.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group">
-                        <div className="flex items-start gap-4 mb-6">
-                            <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                                <Stethoscope size={28} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-slate-900 text-lg truncate" title={dentist.name}>{dentist.name}</h3>
-                                <div className="flex items-center gap-1.5 text-slate-500 text-sm mt-0.5">
-                                    <Building size={14} className="shrink-0" />
-                                    <span className="truncate">{dentist.clinicName || 'Consultório Particular'}</span>
+            {filtered.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+                    Nenhum cliente encontrado.
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filtered.map(client => (
+                        <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group">
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${client.isManual ? 'bg-slate-100 text-slate-500' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
+                                    <Stethoscope size={28} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="font-bold text-slate-900 text-lg truncate" title={client.name}>{client.name}</h3>
+                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 ${client.isManual ? 'bg-slate-200 text-slate-600' : 'bg-blue-600 text-white'}`}>
+                                            {client.isManual ? 'INTERNO' : 'WEB'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-slate-500 text-sm mt-0.5">
+                                        <Building size={14} className="shrink-0" />
+                                        <span className="truncate">{client.clinicName || 'Consultório Particular'}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="space-y-3 py-4 border-y border-slate-50">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Desconto Global:</span>
-                                <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{dentist.globalDiscountPercent || 0}%</span>
+                            <div className="space-y-3 py-4 border-y border-slate-50">
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-slate-500">Desconto Global:</span>
+                                    <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{client.globalDiscountPercent}%</span>
+                                </div>
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-slate-500">Itens com preço custom:</span>
+                                    <span className="font-bold text-blue-600">{client.customPrices.length}</span>
+                                </div>
                             </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Preços Individuais:</span>
-                                <span className="font-bold text-blue-600">{(dentist.customPrices || []).length} itens</span>
-                            </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-3 mt-6">
-                            <button 
-                                onClick={() => handleOpenPricing(dentist)}
-                                className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-sm"
-                            >
-                                <Tag size={16} /> Preços
-                            </button>
-                            <button 
-                                onClick={() => navigate(`/jobs?dentist=${dentist.id}`)}
-                                className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-sm"
-                            >
-                                Pedidos <ArrowRight size={16} />
-                            </button>
+                            <div className="grid grid-cols-2 gap-3 mt-6">
+                                <button 
+                                    onClick={() => handleOpenPricing(client)}
+                                    className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-sm"
+                                >
+                                    <Tag size={16} /> Preços
+                                </button>
+                                <button 
+                                    onClick={() => navigate(`/jobs?dentist=${client.id}`)}
+                                    className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-sm"
+                                >
+                                    Pedidos <ArrowRight size={16} />
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {/* MODAL DE TABELA DE PREÇOS */}
-            {selectedDentist && (
+            {selectedClient && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
                             <div>
-                                <h3 className="text-xl font-black text-slate-800">Tabela de Preços: {selectedDentist.name}</h3>
+                                <h3 className="text-xl font-black text-slate-800">Tabela: {selectedClient.name}</h3>
                                 <p className="text-xs text-slate-500 font-bold uppercase">Personalize os descontos para este cliente</p>
                             </div>
-                            <button onClick={() => setSelectedDentist(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
+                            <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            {/* Desconto Global */}
                             <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
                                 <div className="flex items-center gap-3 mb-4 text-green-800">
                                     <Percent size={24} />
@@ -198,13 +207,11 @@ export const Dentists = () => {
                                     />
                                     <span className="font-black text-2xl text-green-700 w-16 text-right">{globalDiscount}%</span>
                                 </div>
-                                <p className="text-[10px] text-green-600 font-bold mt-2 uppercase">Aplica-se a todos os serviços que não tenham desconto individual definido.</p>
                             </div>
 
-                            {/* Descontos Individuais */}
                             <div className="space-y-4">
                                 <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                    <DollarSign size={14}/> Descontos por Serviço Individual
+                                    <DollarSign size={14}/> Descontos Individuais
                                 </h4>
                                 
                                 <div className="space-y-3">
@@ -242,12 +249,7 @@ export const Dentists = () => {
                         </div>
 
                         <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
-                            <button 
-                                onClick={() => setSelectedDentist(null)}
-                                className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all"
-                            >
-                                Cancelar
-                            </button>
+                            <button onClick={() => setSelectedClient(null)} className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">Cancelar</button>
                             <button 
                                 onClick={handleSavePricing}
                                 disabled={isSaving}
