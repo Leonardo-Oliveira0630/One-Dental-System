@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job } from '../types';
 import { 
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
@@ -17,7 +17,7 @@ const STLViewer = React.lazy(() => import('../components/STLViewer').then(module
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, activeOrganization, uploadFile } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,25 +25,20 @@ export const JobDetails = () => {
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [show3DViewer, setShow3DViewer] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [copiedPix, setCopiedPix] = useState(false);
-
-  // Rating State
-  const [ratingScore, setRatingScore] = useState(0);
-  const [ratingComment, setRatingComment] = useState('');
-  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   const job = jobs.find(j => j.id === id);
+  
+  // Roles
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
   const isTech = currentUser?.role === UserRole.COLLABORATOR;
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = isAdmin || isManager || isTech;
   const canEdit = isAdmin || isManager;
-  const canUpload = isAdmin || isManager || isTech;
 
+  // Edit Form State
   const [editDueDate, setEditDueDate] = useState('');
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
@@ -63,44 +58,68 @@ export const JobDetails = () => {
 
   if (!job) return <div className="flex flex-col items-center justify-center h-[60vh]"><h2 className="text-2xl font-bold text-slate-800">Trabalho não encontrado</h2><button onClick={() => navigate('/jobs')} className="mt-4 text-blue-600 hover:underline">Voltar para lista</button></div>;
 
-  const handleAddItemToJob = () => { const type = jobTypes.find(t => t.id === newItemTypeId); if (!type) return; const newItem: JobItem = { id: Math.random().toString(), jobTypeId: type.id, name: type.name, quantity: newItemQty, price: type.basePrice, selectedVariationIds: [], nature: 'NORMAL' }; setEditItems([...editItems, newItem]); };
-  const handleRemoveItemFromJob = (itemId: string) => { setEditItems(editItems.filter(i => i.id !== itemId)); };
-  
-  const handleSaveChanges = async () => { 
-    if (!currentUser) return;
-    const newTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0); 
-    const dateParts = editDueDate.split('-'); 
-    const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2])); 
-    
-    await updateJob(job.id, { 
-      dueDate: adjustedDate, 
-      urgency: editUrgency, 
-      notes: editNotes, 
-      items: editItems, 
-      totalValue: newTotal, 
-      history: [...job.history, { 
-        id: Math.random().toString(), 
-        timestamp: new Date(), 
-        action: 'Dados da Ficha editados manualmente (Prazos/Itens/Obs)', 
-        userId: currentUser.id, 
-        userName: currentUser.name,
-        sector: currentUser.sector || 'Gestão'
-      }] 
-    }); 
-    setShowEditModal(false); 
+  const handleAddItemToJob = () => {
+      const type = jobTypes.find(t => t.id === newItemTypeId);
+      if (!type) return;
+      const newItem: JobItem = {
+          id: `item_edit_${Date.now()}`,
+          jobTypeId: type.id,
+          name: type.name,
+          quantity: newItemQty,
+          price: type.basePrice,
+          selectedVariationIds: [],
+          nature: 'NORMAL'
+      };
+      setEditItems([...editItems, newItem]);
   };
-  
+
+  const handleRemoveItemFromJob = (itemId: string) => {
+      setEditItems(editItems.filter(i => i.id !== itemId));
+  };
+
+  const handleSaveChanges = async () => {
+    if (!currentUser || !job) return;
+    setIsUpdatingStatus(true);
+    try {
+        const newTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+        const dateParts = editDueDate.split('-');
+        const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+
+        await updateJob(job.id, {
+            dueDate: adjustedDate,
+            urgency: editUrgency,
+            notes: editNotes,
+            items: editItems,
+            totalValue: newTotal,
+            history: [...job.history, {
+                id: `hist_edit_${Date.now()}`,
+                timestamp: new Date(),
+                action: 'Ficha editada manualmente (Datas/Itens/Obs)',
+                userId: currentUser.id,
+                userName: currentUser.name,
+                sector: 'Gestão'
+            }]
+        });
+        setShowEditModal(false);
+        alert("Alterações salvas com sucesso!");
+    } catch (err) {
+        alert("Erro ao salvar edições.");
+    } finally {
+        setIsUpdatingStatus(false);
+    }
+  };
+
   const handleFinalizeJob = async () => {
     if (!currentUser || isUpdatingStatus) return;
-    if (!window.confirm("Finalizar este caso agora?")) return;
+    if (!window.confirm("Finalizar este caso agora? O trabalho será enviado para o financeiro como débito do dentista.")) return;
     setIsUpdatingStatus(true);
     try {
         await updateJob(job.id, {
             status: JobStatus.COMPLETED,
             history: [...job.history, {
-                id: Math.random().toString(),
+                id: `hist_fin_${Date.now()}`,
                 timestamp: new Date(),
-                action: `Trabalho Concluído/Finalizado para Entrega`,
+                action: `Trabalho Finalizado e Conferido (Pronto para Entrega/Faturamento)`,
                 userId: currentUser.id,
                 userName: currentUser.name,
                 sector: 'Expedição'
@@ -116,7 +135,7 @@ export const JobDetails = () => {
         await updateJob(job.id, {
             status: newStatus,
             history: [...job.history, {
-                id: Math.random().toString(),
+                id: `hist_stat_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Status alterado para: ${newStatus}`,
                 userId: currentUser.id,
@@ -127,54 +146,99 @@ export const JobDetails = () => {
     } finally { setIsUpdatingStatus(false); }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !currentUser) return;
-    setIsUploading(true);
-    try {
-        const newAttachments = [...(job.attachments || [])];
-        const newHistory = [...job.history];
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const url = await uploadFile(file);
-            newAttachments.push({ id: `att_${Date.now()}_${i}`, name: file.name, url: url, uploadedAt: new Date() });
-            newHistory.push({ id: `hist_att_${Date.now()}_${i}`, timestamp: new Date(), action: `Arquivo anexado: ${file.name}`, userId: currentUser.id, userName: currentUser.name, sector: currentUser.sector || 'Técnico' });
-        }
-        await updateJob(job.id, { attachments: newAttachments, history: newHistory });
-    } catch (err) { alert("Erro ao fazer upload."); } finally {
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+  const getStatusColor = (status: JobStatus) => {
+      switch(status) {
+          case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border-green-200';
+          case JobStatus.DELIVERED: return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+          case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border-blue-200';
+          case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border-purple-200';
+          default: return 'bg-slate-100 text-slate-700 border-slate-200';
+      }
   };
 
-  const handleSendRating = async () => {
-      if (ratingScore === 0 || !currentUser) return;
-      setIsSubmittingRating(true);
-      try {
-          const rating: LabRating = { id: `rate_${Date.now()}`, labId: job.organizationId, dentistId: currentUser.id, dentistName: currentUser.name, jobId: job.id, score: ratingScore, comment: ratingComment, createdAt: new Date() };
-          await api.apiAddLabRating(rating);
-          alert("Avaliação enviada!");
-      } catch (e) { alert("Erro."); } finally { setIsSubmittingRating(false); }
-  };
-
-  const getStatusColor = (status: JobStatus) => { switch(status) { case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border border-green-200'; case JobStatus.DELIVERED: return 'bg-emerald-100 text-emerald-700 border border-emerald-200'; case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border border-blue-200'; case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border border-purple-200'; default: return 'bg-slate-100 text-slate-700 border border-slate-200'; } };
-  const getTimelineIcon = (action: string) => { const lower = action.toLowerCase(); if (lower.includes('entrada')) return <LogIn size={16} className="text-blue-600" />; if (lower.includes('saída')) return <LogOut size={16} className="text-orange-600" />; if (lower.includes('concluído') || lower.includes('finalizado') || lower.includes('status')) return <CheckCircle size={16} className="text-green-600" />; if (lower.includes('criado') || lower.includes('cadastro')) return <Flag size={16} className="text-purple-600" />; if (lower.includes('aprovado')) return <CheckSquare size={16} className="text-teal-600" />; if (lower.includes('anexado') || lower.includes('arquivo')) return <UploadCloud size={16} className="text-indigo-600" />; if (lower.includes('editados')) return <Edit size={16} className="text-amber-600" />; return <Clock size={16} className="text-slate-500" />; };
   const sortedHistory = [...job.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  const hasStl = job.attachments?.some(a => a.name.toLowerCase().endsWith('.stl'));
   const isFinished = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
   const canFinalize = isLabStaff && !isFinished && job.status !== JobStatus.REJECTED;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {show3DViewer && job.attachments && (<Suspense fallback={<div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2"/> Carregando 3D...</div>}><STLViewer files={job.attachments} onClose={() => setShow3DViewer(false)} /></Suspense>)}
+      {show3DViewer && job.attachments && (
+          <Suspense fallback={<div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2"/> Carregando 3D...</div>}>
+              <STLViewer files={job.attachments} onClose={() => setShow3DViewer(false)} />
+          </Suspense>
+      )}
+
       {showAlertModal && <CreateAlertModal job={job} onClose={() => setShowAlertModal(false)} />}
       
-      {/* Edit Modal (Omitido para brevidade, permanece igual) */}
+      {/* MODAL DE EDIÇÃO COMPLETA */}
+      {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-200">
+                  <div className="p-6 border-b flex justify-between items-center bg-slate-50">
+                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Ordem de Serviço</h3>
+                      <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nova Data de Entrega</label>
+                              <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl" />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Prioridade</label>
+                              <select value={editUrgency} onChange={e => setEditUrgency(e.target.value as UrgencyLevel)} className="w-full px-4 py-2 border rounded-xl bg-white">
+                                  <option value={UrgencyLevel.LOW}>Baixa</option>
+                                  <option value={UrgencyLevel.NORMAL}>Normal</option>
+                                  <option value={UrgencyLevel.HIGH}>Alta</option>
+                                  <option value={UrgencyLevel.VIP}>VIP / Urgente</option>
+                              </select>
+                          </div>
+                      </div>
 
-      {/* Header */}
+                      <div className="space-y-3">
+                          <h4 className="font-bold text-slate-700 text-sm border-b pb-1 uppercase">Itens da OS</h4>
+                          <div className="space-y-2">
+                              {editItems.map(item => (
+                                  <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border">
+                                      <div className="text-sm font-bold text-slate-700">{item.quantity}x {item.name}</div>
+                                      <button onClick={() => handleRemoveItemFromJob(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={18}/></button>
+                                  </div>
+                              ))}
+                          </div>
+                          <div className="flex gap-2 items-end pt-2">
+                              <div className="flex-1">
+                                  <label className="text-[10px] font-bold text-slate-400 block mb-1 uppercase">Adicionar Serviço</label>
+                                  <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                                      {jobTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                  </select>
+                              </div>
+                              <div className="w-16">
+                                  <label className="text-[10px] font-bold text-slate-400 block mb-1 uppercase">Qtd</label>
+                                  <input type="number" value={newItemQty} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 border rounded-lg text-sm" />
+                              </div>
+                              <button onClick={handleAddItemToJob} className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"><Plus size={20}/></button>
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observações / Instruções</label>
+                          <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={4} className="w-full px-4 py-3 border rounded-xl resize-none" placeholder="Atualize as instruções para os técnicos..."></textarea>
+                      </div>
+                  </div>
+                  <div className="p-6 border-t bg-slate-50 flex justify-end gap-3">
+                      <button onClick={() => setShowEditModal(false)} className="px-6 py-2 font-bold text-slate-500">Cancelar</button>
+                      <button onClick={handleSaveChanges} disabled={isUpdatingStatus} className="px-8 py-2 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center gap-2">
+                          {isUpdatingStatus ? <Loader2 className="animate-spin" /> : <><Save size={18} /> Salvar Alterações</>}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Header com Botões de Impressão */}
       <div className="flex justify-between items-center">
-          <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors"><ArrowLeft size={20} /> Voltar</button>
+          <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors"><ArrowLeft size={20} /> Voltar para Lista</button>
           <div className="flex gap-2">
               {!isClient && job.status !== JobStatus.REJECTED && (
                   <>
@@ -217,6 +281,7 @@ export const JobDetails = () => {
                     <div className="flex items-center justify-end gap-2 text-lg font-bold text-slate-800"><Calendar size={18} className="text-blue-600" /> {new Date(job.dueDate).toLocaleDateString()}</div>
                 </div>
                 
+                {/* BOTÕES DE AÇÃO PRINCIPAIS */}
                 <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
                     {canFinalize && (
                          <button 
@@ -227,18 +292,29 @@ export const JobDetails = () => {
                             {isUpdatingStatus ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={20} /> FINALIZAR CASO</>}
                         </button>
                     )}
-                    {isClient && !isFinished && (
-                        <button onClick={() => setShowPaymentModal(true)} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 text-sm"><DollarSign size={16} /> Pagar</button>
+                    
+                    {isLabStaff && (
+                         <button 
+                            onClick={() => setShowAlertModal(true)}
+                            className="px-4 py-3 bg-red-50 border border-red-200 text-red-600 rounded-xl font-bold flex items-center gap-2 text-sm transition-colors hover:bg-red-100 shadow-sm"
+                        >
+                            <Bell size={18} /> Alerta
+                        </button>
                     )}
+
                     {canEdit && (
-                        <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg font-bold flex items-center gap-2 text-sm transition-colors"><Edit size={16} /> Editar</button>
+                        <button 
+                            onClick={() => setShowEditModal(true)} 
+                            className="px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl font-bold flex items-center gap-2 text-sm transition-colors hover:bg-blue-100 shadow-sm"
+                        >
+                            <Edit size={18} /> Editar Ficha
+                        </button>
                     )}
                 </div>
             </div>
          </div>
       </div>
 
-      {/* Tabs and content follow as existing, focusing on the summary and production updates above */}
       <div className="flex border-b border-slate-200">
          <button onClick={() => setActiveTab('SUMMARY')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><FileText size={18} /> Resumo do Pedido</button>
          <button onClick={() => setActiveTab('PRODUCTION')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><ListChecks size={18} /> Produção & Rastreio</button>
@@ -252,12 +328,96 @@ export const JobDetails = () => {
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4"><div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign size={24} /></div><div><p className="text-xs text-slate-400 uppercase font-bold">Valor Total</p><p className="font-bold text-lg text-slate-800">R$ {job.totalValue.toFixed(2)}</p></div></div>
             </div>
 
-            <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><FileText size={20} className="text-blue-500" /> Itens e Serviços</h3>
+            <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden p-6">
+                    <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><FileText size={20} className="text-blue-500" /> Itens e Serviços</h3>
+                    <div className="divide-y divide-slate-100">
+                        {job.items.map((item, idx) => (
+                            <div key={idx} className="py-4 flex justify-between items-center">
+                                <div>
+                                    <p className="font-bold text-slate-800"><span className="text-blue-600 mr-1">{item.quantity}x</span> {item.name}</p>
+                                    <p className="text-xs text-slate-400 uppercase font-bold">{item.nature}</p>
+                                </div>
+                                <p className="font-black text-slate-700">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-100 text-right">
+                        <span className="text-sm font-bold text-slate-500 mr-2">TOTAL DA OS:</span>
+                        <span className="text-2xl font-black text-slate-900">R$ {job.totalValue.toFixed(2)}</span>
+                    </div>
                 </div>
-                <div className="divide-y divide-slate-100">{job.items.map((item, idx) => (<div key={idx} className="py-4 flex justify-between items-center"><div><p className="font-bold text-slate-800"><span className="text-blue-600 mr-1">{item.quantity}x</span> {item.name}</p><p className="text-xs text-slate-400 uppercase font-bold">{item.nature}</p></div><p className="font-black text-slate-700">R$ {(item.price * item.quantity).toFixed(2)}</p></div>))}</div>
-                <div className="mt-4 pt-4 border-t border-slate-100 text-right"><span className="text-sm font-bold text-slate-500 mr-2">TOTAL:</span><span className="text-2xl font-black text-slate-900">R$ {job.totalValue.toFixed(2)}</span></div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4">Observações do Caso</h3>
+                    <div className="bg-slate-50 p-4 rounded-xl text-slate-600 text-sm whitespace-pre-wrap min-h-[100px]">
+                        {job.notes || "Nenhuma observação técnica cadastrada."}
+                    </div>
+                </div>
+            </div>
+
+            <div className="lg:col-span-1 space-y-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><File size={20} className="text-blue-500" /> Anexos Digitais</h3>
+                    <div className="space-y-3">
+                        {job.attachments?.map(att => (
+                            <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-blue-50 transition-colors group">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <File size={18} className="text-slate-400 group-hover:text-blue-500" />
+                                    <span className="text-sm font-bold text-slate-700 truncate">{att.name}</span>
+                                </div>
+                                <Download size={16} className="text-slate-400" />
+                            </a>
+                        ))}
+                        {(!job.attachments || job.attachments.length === 0) && <p className="text-sm text-slate-400 text-center py-4 italic">Nenhum arquivo anexado.</p>}
+                        
+                        {job.attachments && job.attachments.some(a => a.name.toLowerCase().endsWith('.stl')) && (
+                            <button onClick={() => setShow3DViewer(true)} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all mt-4">
+                                <Box size={18} /> Visualizador 3D (STL)
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {activeTab === 'PRODUCTION' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in duration-300">
+            <div className="lg:col-span-2">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ListChecks size={20} className="text-blue-500" /> Linha do Tempo</h3>
+                    <div className="space-y-6 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                        {sortedHistory.map((h, idx) => (
+                            <div key={idx} className="flex gap-4 relative">
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 z-10 border-4 border-white ${idx === 0 ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-400'}`}>
+                                    {h.action.toLowerCase().includes('concluído') ? <Check size={16} /> : idx === 0 ? <Clock size={16} /> : <div className="w-2 h-2 bg-slate-300 rounded-full" />}
+                                </div>
+                                <div className="flex-1 pb-6 border-b border-slate-50 last:border-0 last:pb-0">
+                                    <div className="flex justify-between items-start">
+                                        <p className={`font-bold ${idx === 0 ? 'text-blue-600' : 'text-slate-800'}`}>{h.action}</p>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded">{new Date(h.timestamp).toLocaleDateString()} {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-2">
+                                        <div className="flex items-center gap-1 text-xs text-slate-500"><User size={12} /> {h.userName}</div>
+                                        {h.sector && <div className="flex items-center gap-1 text-xs font-black text-slate-400 uppercase tracking-tighter bg-slate-100 px-1.5 rounded">{h.sector}</div>}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            
+            <div className="lg:col-span-1 space-y-6">
+                 <div className="bg-indigo-900 rounded-2xl shadow-xl p-6 text-white overflow-hidden relative">
+                    <div className="absolute top-0 right-0 p-4 opacity-10"><Flag size={80} /></div>
+                    <h4 className="font-bold text-lg mb-2 flex items-center gap-2"><MapPin size={18} /> Estágio Atual</h4>
+                    <p className="text-3xl font-black mb-4 uppercase">{job.currentSector || 'Triagem / Entrada'}</p>
+                    <div className="bg-white/10 p-3 rounded-xl border border-white/10 text-sm">
+                        <p className="text-indigo-200">Aguardando saída deste setor via scanner ou atualização manual.</p>
+                    </div>
+                </div>
             </div>
         </div>
       )}
