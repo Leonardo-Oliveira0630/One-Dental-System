@@ -17,6 +17,29 @@ export interface GlobalSettings {
   updatedBy: string;
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  logoUrl?: string; // Novo campo para personalização de marca
+  planId: string;
+  subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING';
+  trialEndsAt?: Date;
+  createdAt: Date;
+  orgType?: 'LAB' | 'CLINIC';
+  ratingAverage?: number;
+  ratingCount?: number;
+  financialSettings?: {
+    pixKey?: string;
+    bankInfo?: string;
+    instructions?: string;
+    paymentLink?: string;
+    asaasWalletId?: string;
+    asaasWalletStatus?: string;
+    asaasAccountNumber?: string;
+    businessData?: any;
+  };
+}
+
 export interface Expense {
   id: string;
   organizationId: string;
@@ -265,28 +288,6 @@ export interface Appointment {
   procedure: string;
   status: AppointmentStatus;
   notes?: string;
-}
-
-export interface Organization {
-  id: string;
-  name: string;
-  planId: string;
-  subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING';
-  trialEndsAt?: Date;
-  createdAt: Date;
-  orgType?: 'LAB' | 'CLINIC';
-  ratingAverage?: number;
-  ratingCount?: number;
-  financialSettings?: {
-    pixKey?: string;
-    bankInfo?: string;
-    instructions?: string;
-    paymentLink?: string;
-    asaasWalletId?: string;
-    asaasWalletStatus?: string;
-    asaasAccountNumber?: string;
-    businessData?: any;
-  };
 }
 
 export interface SubscriptionPlan {

@@ -3,7 +3,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { NavLink, Outlet } from 'react-router-dom';
 import { 
-  Building2, Users, Stethoscope, DollarSign, Wallet, Crown, Copy, Check, ShieldCheck 
+  Building2, Users, Stethoscope, DollarSign, Wallet, Crown, Copy, Check, ShieldCheck, Briefcase 
 } from 'lucide-react';
 
 export const AdminLayout = () => {
@@ -19,7 +19,8 @@ export const AdminLayout = () => {
   };
 
   const navItems = [
-    { to: '/admin/setores', icon: <Building2 size={18} />, label: 'Setores' },
+    { to: '/admin/organizacao', icon: <Building2 size={18} />, label: 'Organização' },
+    { to: '/admin/setores', icon: <Briefcase size={18} />, label: 'Setores' },
     { to: '/admin/equipe', icon: <Users size={18} />, label: 'Equipe' },
     { to: '/admin/clientes', icon: <Stethoscope size={18} />, label: 'Clientes' },
     { to: '/admin/comissoes', icon: <DollarSign size={18} />, label: 'Comissões' },
@@ -31,23 +32,34 @@ export const AdminLayout = () => {
     <div className="space-y-6 pb-12 animate-in fade-in duration-500">
       {/* HEADER ID */}
       <div className="bg-slate-900 text-white p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl">
-        <div>
-          <h2 className="text-xl font-bold">{currentOrg?.name}</h2>
-          <div className="flex items-center gap-2 mt-1 text-slate-400 font-mono text-sm">
-            <span>ID do Laboratório:</span>
-            <span className="bg-white/10 px-2 py-0.5 rounded select-all">{currentOrg?.id}</span>
-            <button onClick={copyOrgId} className="p-1 hover:text-white transition-colors">
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-            </button>
+        <div className="flex items-center gap-4">
+          {currentOrg?.logoUrl ? (
+            <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center overflow-hidden border-2 border-white/20">
+               <img src={currentOrg.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center font-bold text-3xl">
+              {currentOrg?.name.charAt(0)}
+            </div>
+          )}
+          <div>
+            <h2 className="text-xl font-bold">{currentOrg?.name}</h2>
+            <div className="flex items-center gap-2 mt-1 text-slate-400 font-mono text-sm">
+              <span>ID do Laboratório:</span>
+              <span className="bg-white/10 px-2 py-0.5 rounded select-all">{currentOrg?.id}</span>
+              <button onClick={copyOrgId} className="p-1 hover:text-white transition-colors">
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+              </button>
+            </div>
           </div>
         </div>
-        <div className="bg-blue-600 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+        <div className="bg-blue-600 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-blue-900/40">
           <Crown size={14} /> Plano {currentPlan?.name || '---'}
         </div>
       </div>
 
       {/* TABS NAVIGATION */}
-      <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar bg-white rounded-t-xl px-2">
+      <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar bg-white rounded-t-xl px-2 shadow-sm">
         {navItems.map((item) => (
           <NavLink
             key={item.to}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import Barcode from 'react-barcode';
 import { useApp } from '../context/AppContext';
@@ -5,7 +6,7 @@ import { UrgencyLevel } from '../types';
 import { Printer, X } from 'lucide-react';
 
 export const PrintOverlay = () => {
-  const { printData, clearPrint } = useApp();
+  const { printData, clearPrint, currentOrg } = useApp();
 
   if (!printData) return null;
 
@@ -16,8 +17,11 @@ export const PrintOverlay = () => {
     window.print();
   };
 
+  const labName = currentOrg?.name || 'ONE DENTAL SYSTEM';
+  const labLogo = currentOrg?.logoUrl;
+
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm print:bg-white print:static print:block">
+    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
       
       {/* Control Bar (Hidden on Print) */}
       <div className="w-full max-w-4xl flex justify-between items-center p-4 text-white print:hidden">
@@ -58,11 +62,17 @@ export const PrintOverlay = () => {
               {/* Header */}
               <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-6">
                 <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-black text-white flex items-center justify-center font-bold text-2xl rounded">
-                        OD
-                    </div>
+                    {labLogo ? (
+                        <div className="w-16 h-16 bg-white flex items-center justify-center rounded overflow-hidden border border-black/10">
+                            <img src={labLogo} alt="Lab Logo" className="w-full h-full object-contain" />
+                        </div>
+                    ) : (
+                        <div className="w-16 h-16 bg-black text-white flex items-center justify-center font-bold text-2xl rounded">
+                            {labName.charAt(0)}
+                        </div>
+                    )}
                     <div>
-                        <h1 className="text-2xl font-bold uppercase tracking-wide">ONE DENTAL SYSTEM</h1>
+                        <h1 className="text-2xl font-bold uppercase tracking-wide">{labName}</h1>
                         <p className="text-sm">Ficha de Produção Interna</p>
                     </div>
                 </div>
@@ -115,7 +125,7 @@ export const PrintOverlay = () => {
                         <tr className="border-b border-gray-300">
                             <th className="py-2">Qtd</th>
                             <th className="py-2">Descrição</th>
-                            <th className="py-2">Variações/Obs</th>
+                            <th className="py-2">Natureza</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -124,9 +134,7 @@ export const PrintOverlay = () => {
                                 <td className="py-3 font-bold align-top text-lg w-16">{item.quantity}x</td>
                                 <td className="py-3 align-top font-bold text-base">{item.name}</td>
                                 <td className="py-3 align-top text-gray-600">
-                                    {item.selectedVariationIds && item.selectedVariationIds.length > 0 
-                                        ? 'Com variações selecionadas' 
-                                        : '-'}
+                                    <span className="text-xs font-bold uppercase">{item.nature}</span>
                                 </td>
                             </tr>
                         ))}
@@ -142,7 +150,7 @@ export const PrintOverlay = () => {
 
               {/* Footer text only */}
               <div className="text-center mt-auto pt-4 border-t border-dashed border-gray-400">
-                 <p className="text-xs text-gray-500">Documento Interno - ONE DENTAL SYSTEM</p>
+                 <p className="text-xs text-gray-500">Documento de Uso Interno - Gerado via ProTrack System</p>
               </div>
             </div>
           )}
@@ -180,6 +188,7 @@ export const PrintOverlay = () => {
                <div className="w-full flex justify-between items-end border-t border-black pt-1 px-1">
                    <div className="text-[10px] leading-tight">
                        <p>E: {new Date(job.createdAt).toLocaleDateString()}</p>
+                       <p className="font-black text-[8px]">{labName}</p>
                    </div>
                    <div className="text-xs font-bold leading-tight">
                        <p>S: {new Date(job.dueDate).toLocaleDateString()}</p>

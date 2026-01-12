@@ -37,6 +37,7 @@ import { DentistsTab } from './pages/admin/DentistsTab';
 import { CommissionsTab } from './pages/admin/CommissionsTab';
 import { FinancialTab } from './pages/admin/FinancialTab';
 import { SubscriptionTab } from './pages/admin/SubscriptionTab';
+import { OrganizationTab } from './pages/admin/OrganizationTab';
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, isLoadingAuth } = useApp();
@@ -61,7 +62,8 @@ const AppContent = () => {
       
       {/* ADMIN ROUTES RESTRUCTURED */}
       <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-        <Route index element={<Navigate to="setores" replace />} />
+        <Route index element={<Navigate to="organizacao" replace />} />
+        <Route path="organizacao" element={<OrganizationTab />} />
         <Route path="setores" element={<SectorsTab />} />
         <Route path="equipe" element={<UsersTab />} />
         <Route path="clientes" element={<DentistsTab />} />

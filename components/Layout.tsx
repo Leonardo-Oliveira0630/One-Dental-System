@@ -56,7 +56,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   
-  // Helper para verificar permissão rápida
   const hasPerm = (key: PermissionKey) => {
       if (isAdmin || isSuperAdmin) return true;
       return currentUser?.permissions?.includes(key) || false;
@@ -67,6 +66,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const logoColor = isSuperAdmin ? 'text-amber-500' : (isClient ? 'text-indigo-500' : 'text-blue-500');
 
   const handleLogout = () => { logout(); navigate('/'); };
+
+  // Helper para obter o nome e a logo a exibir
+  const displayBrand = isClient && activeOrganization 
+    ? { name: activeOrganization.name, logo: activeOrganization.logoUrl } 
+    : { name: currentOrg?.name || 'One Dental', logo: currentOrg?.logoUrl };
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans relative">
@@ -81,16 +85,24 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       }`}>
         <div className="p-6 h-full flex flex-col">
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <span className={`font-bold text-xl ${logoColor}`}>O</span>
+            <div className="flex items-center gap-3 overflow-hidden">
+              {displayBrand.logo ? (
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-lg border border-white/20">
+                  <img src={displayBrand.logo} alt="Logo" className="w-full h-full object-contain" />
+                </div>
+              ) : (
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 shadow-lg">
+                  <span className={`font-black text-2xl ${logoColor}`}>O</span>
+                </div>
+              )}
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-black tracking-tight leading-none truncate uppercase">{displayBrand.name}</span>
+                {!isClient && !isSuperAdmin && <span className="text-[10px] text-slate-400 font-bold tracking-widest mt-1">PROTRACK SYSTEM</span>}
               </div>
-              <span className="text-lg font-bold tracking-tight">One Dental</span>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white"><X size={24} /></button>
           </div>
 
-          {/* SAAS ADMIN SELECTOR INFO */}
           {isSuperAdmin && (
              <div className="mb-6 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                 <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Painel de Controle</p>
@@ -98,7 +110,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              </div>
           )}
 
-          {/* DENTIST LAB SELECTOR */}
           {isClient && (
              <div className="mb-6 px-2 relative">
                 <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2">Laboratório Ativo</p>
@@ -142,7 +153,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           )}
 
           <nav className="space-y-1 flex-1 overflow-y-auto no-scrollbar">
-            {/* SUPER ADMIN MENU */}
             {isSuperAdmin && (
               <>
                 <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
@@ -153,7 +163,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             )}
 
-            {/* LAB MENU */}
             {!isClient && !isSuperAdmin && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
@@ -196,7 +205,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             )}
 
-            {/* DENTIST MENU */}
             {isClient && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Fazer Pedido" active={location.pathname === '/store'} />
@@ -227,7 +235,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-2">
              <div className={`w-8 h-8 ${isSuperAdmin ? 'bg-slate-900' : (isClient ? 'bg-indigo-600' : 'bg-blue-600')} rounded-lg flex items-center justify-center text-white font-bold`}>O</div>
-             <span className="font-bold text-slate-800">One Dental</span>
+             <span className="font-bold text-slate-800">{displayBrand.name}</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
         </header>
