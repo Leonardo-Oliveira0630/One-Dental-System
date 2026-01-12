@@ -11,7 +11,7 @@ const {
 } = firestorePkg as any;
 
 const { 
-  signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword 
+  signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, sendPasswordResetEmail
 } = authPkg as any;
 
 const { ref, uploadBytes, getDownloadURL } = storagePkg as any;
@@ -29,6 +29,12 @@ const toDate = (val: any) => val instanceof Timestamp ? val.toDate() : val;
 
 export const apiLogin = (email: string, pass: string) => signInWithEmailAndPassword(auth, email, pass);
 export const apiLogout = () => signOut(auth);
+
+/**
+ * Envia um e-mail de redefinição de senha para o usuário.
+ * O link no e-mail levará o usuário para uma página segura do Firebase para cadastrar a nova senha.
+ */
+export const apiResetPassword = (email: string) => sendPasswordResetEmail(auth, email);
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     if (!db) return null;
