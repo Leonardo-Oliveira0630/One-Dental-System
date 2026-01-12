@@ -21,7 +21,7 @@ import { db, auth, storage, functions } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor 
 } from '../types';
 
 const toDate = (val: any) => val instanceof Timestamp ? val.toDate() : val;
@@ -106,6 +106,17 @@ export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void)
 export const apiAddSector = (orgId: string, sector: { id: string, name: string }) => setDoc(doc(db, 'organizations', orgId, 'sectors', sector.id), sector);
 export const apiUpdateSector = (orgId: string, id: string, name: string) => updateDoc(doc(db, 'organizations', orgId, 'sectors', id), { name });
 export const apiDeleteSector = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'sectors', id));
+
+export const subscribeBoxColors = (orgId: string, cb: (colors: BoxColor[]) => void) => {
+  if (!orgId) return () => {};
+  const q = collection(db, 'organizations', orgId, 'boxColors');
+  return onSnapshot(q, (snap: any) => {
+    cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as BoxColor)));
+  });
+};
+
+export const apiAddBoxColor = (orgId: string, color: BoxColor) => setDoc(doc(db, 'organizations', orgId, 'boxColors', color.id), color);
+export const apiDeleteBoxColor = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'boxColors', id));
 
 export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) => void) => {
     if (!orgId) return () => {};

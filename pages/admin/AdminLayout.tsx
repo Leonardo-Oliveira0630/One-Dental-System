@@ -3,7 +3,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { NavLink, Outlet } from 'react-router-dom';
 import { 
-  Building2, Users, Stethoscope, DollarSign, Wallet, Crown, Copy, Check, ShieldCheck, Briefcase 
+  Building2, Users, Stethoscope, DollarSign, Wallet, Crown, Copy, Check, ShieldCheck, Briefcase, Box 
 } from 'lucide-react';
 
 export const AdminLayout = () => {
@@ -21,6 +21,7 @@ export const AdminLayout = () => {
   const navItems = [
     { to: '/admin/organizacao', icon: <Building2 size={18} />, label: 'Organização' },
     { to: '/admin/setores', icon: <Briefcase size={18} />, label: 'Setores' },
+    { to: '/admin/caixas', icon: <Box size={18} />, label: 'Caixas' },
     { to: '/admin/equipe', icon: <Users size={18} />, label: 'Equipe' },
     { to: '/admin/clientes', icon: <Stethoscope size={18} />, label: 'Clientes' },
     { to: '/admin/comissoes', icon: <DollarSign size={18} />, label: 'Comissões' },

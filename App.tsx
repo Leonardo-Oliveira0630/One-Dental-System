@@ -38,6 +38,7 @@ import { CommissionsTab } from './pages/admin/CommissionsTab';
 import { FinancialTab } from './pages/admin/FinancialTab';
 import { SubscriptionTab } from './pages/admin/SubscriptionTab';
 import { OrganizationTab } from './pages/admin/OrganizationTab';
+import { BoxColorsTab } from './pages/admin/BoxColorsTab';
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, isLoadingAuth } = useApp();
@@ -64,6 +65,7 @@ const AppContent = () => {
         <Route index element={<Navigate to="organizacao" replace />} />
         <Route path="organizacao" element={<OrganizationTab />} />
         <Route path="setores" element={<SectorsTab />} />
+        <Route path="caixas" element={<BoxColorsTab />} />
         <Route path="equipe" element={<UsersTab />} />
         <Route path="clientes" element={<DentistsTab />} />
         <Route path="comissoes" element={<CommissionsTab />} />

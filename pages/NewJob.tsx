@@ -3,13 +3,13 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
-import { BOX_COLORS } from '../services/mockData';
+import { getContrastColor } from '../services/mockData';
 import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag } from 'lucide-react';
 
 type EntryType = 'NEW' | 'CONTINUATION';
 
 export const NewJob = () => {
-  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists } = useApp();
+  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors } = useApp();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -24,11 +24,18 @@ export const NewJob = () => {
   const [osNumber, setOsNumber] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [boxNumber, setBoxNumber] = useState('');
-  const [selectedColorId, setSelectedColorId] = useState(BOX_COLORS[0].id);
+  const [selectedColorId, setSelectedColorId] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [notes, setNotes] = useState('');
   const [addedItems, setAddedItems] = useState<JobItem[]>([]);
   const [lastCreatedJob, setLastCreatedJob] = useState<Job | null>(null);
+
+  // Define a primeira cor disponível por padrão quando a lista carregar
+  useEffect(() => {
+    if (boxColors.length > 0 && !selectedColorId) {
+        setSelectedColorId(boxColors[0].id);
+    }
+  }, [boxColors]);
 
   // --- Item Builder State ---
   const [itemNature, setItemNature] = useState<JobNature>('NORMAL');
@@ -256,7 +263,7 @@ export const NewJob = () => {
     if (!dentistName) { alert("Por favor, identifique o dentista solicitante."); return; }
     
     const totalValue = addedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const boxColor = BOX_COLORS.find(c => c.id === selectedColorId);
+    const boxColor = boxColors.find(c => c.id === selectedColorId);
     
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
         osNumber, 
@@ -301,7 +308,6 @@ export const NewJob = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
-        {/* ... (Success modal code remains the same) ... */}
         {lastCreatedJob && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
@@ -587,8 +593,15 @@ export const NewJob = () => {
                     <div>
                         <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Cor da Caixa</label>
                         <div className="flex flex-wrap gap-2 justify-center">
-                            {BOX_COLORS.map(color => (
-                                <button key={color.id} type="button" onClick={() => setSelectedColorId(color.id)} className={`w-7 h-7 rounded-full border-2 transition-all ${selectedColorId === color.id ? 'border-slate-900 scale-125 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`} style={{ backgroundColor: color.hex }} title={color.name} />
+                            {boxColors.map(color => (
+                                <button 
+                                  key={color.id} 
+                                  type="button" 
+                                  onClick={() => setSelectedColorId(color.id)} 
+                                  className={`w-7 h-7 rounded-full border-2 transition-all ${selectedColorId === color.id ? 'border-slate-900 scale-125 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`} 
+                                  style={{ backgroundColor: color.hex }} 
+                                  title={color.name} 
+                                />
                             ))}
                         </div>
                     </div>

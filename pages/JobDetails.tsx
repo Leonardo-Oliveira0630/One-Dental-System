@@ -2,22 +2,24 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute } from '../types';
 import { 
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import * as api from '../services/firebaseService';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
 
 // LAZY LOAD 3D VIEWER
 const STLViewer = React.lazy(() => import('../components/STLViewer').then(module => ({ default: module.STLViewer })));
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile, addJobToRoute } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile, addJobToRoute, currentOrg } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,6 +30,9 @@ export const JobDetails = () => {
   const [show3DViewer, setShow3DViewer] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  
+  // Logistics Info State
+  const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
 
   // Route Form State
   const [routeDriver, setRouteDriver] = useState('');
@@ -36,6 +41,26 @@ export const JobDetails = () => {
 
   const job = jobs.find(j => j.id === id);
   
+  // Fetch route details if job is assigned to a route
+  useEffect(() => {
+      if (job?.routeId && currentOrg) {
+          const routeRef = doc(db, 'organizations', currentOrg.id, 'routes', job.routeId);
+          const unsub = onSnapshot(routeRef, (snap) => {
+              if (snap.exists()) {
+                  const data = snap.data();
+                  setRouteInfo({
+                      id: snap.id,
+                      ...data,
+                      date: data.date?.toDate ? data.date.toDate() : data.date
+                  } as DeliveryRoute);
+              }
+          });
+          return () => unsub();
+      } else {
+          setRouteInfo(null);
+      }
+  }, [job?.routeId, currentOrg]);
+
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
   const isTech = currentUser?.role === UserRole.COLLABORATOR;
@@ -390,6 +415,46 @@ export const JobDetails = () => {
             </div>
 
             <div className="lg:col-span-2 space-y-6">
+                {/* LOGISTICS CARD (NEW) */}
+                {routeInfo && (
+                    <div className="bg-indigo-50 rounded-2xl shadow-sm border border-indigo-200 overflow-hidden animate-in slide-in-from-top-4">
+                        <div className="bg-indigo-600 px-6 py-3 text-white flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <Truck size={20} />
+                                <h3 className="font-black text-sm uppercase tracking-widest">Logística de Entrega</h3>
+                            </div>
+                            <span className={`px-2 py-1 rounded text-[10px] font-black uppercase ${
+                                routeInfo.status === 'COMPLETED' ? 'bg-green-500' : 
+                                routeInfo.status === 'IN_TRANSIT' ? 'bg-orange-500 animate-pulse' : 'bg-indigo-400'
+                            }`}>
+                                {routeInfo.status === 'COMPLETED' ? 'Finalizada' : 
+                                 routeInfo.status === 'IN_TRANSIT' ? 'Em Rota' : 'Aguardando Saída'}
+                            </span>
+                        </div>
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-white rounded-xl shadow-sm text-indigo-600 border border-indigo-100"><User size={24}/></div>
+                                <div>
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase">Entregador Responsável</p>
+                                    <p className="font-black text-indigo-900 text-lg uppercase">{routeInfo.driverName}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-white rounded-xl shadow-sm text-indigo-600 border border-indigo-100"><Navigation size={24}/></div>
+                                <div>
+                                    <p className="text-[10px] font-black text-indigo-400 uppercase">Programação</p>
+                                    <p className="font-black text-indigo-900 text-lg">
+                                        {new Date(routeInfo.date).toLocaleDateString()} • {routeInfo.shift === 'MORNING' ? 'Manhã' : 'Tarde'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="px-6 pb-6 text-[10px] text-indigo-400 italic">
+                            Este trabalho foi vinculado a uma rota de logística e aguarda conclusão do motorista.
+                        </div>
+                    </div>
+                )}
+
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden p-6">
                     <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><FileText size={20} className="text-blue-500" /> Itens e Serviços</h3>
                     <div className="divide-y divide-slate-100">

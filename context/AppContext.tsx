@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -25,6 +25,7 @@ interface AppContextType {
   jobs: Job[];
   jobTypes: JobType[];
   sectors: Sector[];
+  boxColors: BoxColor[];
   alerts: JobAlert[];
   commissions: CommissionRecord[];
   allOrganizations: Organization[];
@@ -54,6 +55,9 @@ interface AppContextType {
   addSector: (name: string) => Promise<void>;
   deleteSector: (id: string) => Promise<void>;
   
+  addBoxColor: (color: Omit<BoxColor, 'id'>) => Promise<void>;
+  deleteBoxColor: (id: string) => Promise<void>;
+
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
   removeFromCart: (cartItemId: string) => void;
@@ -119,6 +123,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobTypes, setJobTypes] = useState<JobType[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
+  const [boxColors, setBoxColors] = useState<BoxColor[]>([]);
   const [alerts, setAlerts] = useState<JobAlert[]>([]);
   const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
   
@@ -234,6 +239,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             } catch(e) { console.warn("Erro ao carregar usuários (Permissão):", e); }
             
             unsubs.push(api.subscribeSectors(myOrgId, setSectors));
+            unsubs.push(api.subscribeBoxColors(myOrgId, setBoxColors));
             unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
             unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
@@ -309,6 +315,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if(!orgId) return;
       await api.apiDeleteSector(orgId, id);
   }
+
+  const addBoxColor = async (color: Omit<BoxColor, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if (!orgId) return;
+      await api.apiAddBoxColor(orgId, { ...color, id: `color_${Date.now()}` } as BoxColor);
+  };
+  const deleteBoxColor = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if (!orgId) return;
+      await api.apiDeleteBoxColor(orgId, id);
+  };
 
   const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
   const updateGlobalSettings = async (u: Partial<GlobalSettings>) => await api.apiUpdateGlobalSettings({ ...u, updatedAt: new Date(), updatedBy: currentUser?.name || 'unknown' });
@@ -447,11 +464,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   return (
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
-      allUsers, jobs, jobTypes, sectors, alerts, commissions,
+      allUsers, jobs, jobTypes, sectors, boxColors, alerts, commissions,
       allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
-      addJobType, updateJobType, deleteJobType, addSector, deleteSector,
+      addJobType, updateJobType, deleteJobType, addSector, deleteSector, addBoxColor, deleteBoxColor,
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       uploadFile: api.uploadJobFile,
       printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), 

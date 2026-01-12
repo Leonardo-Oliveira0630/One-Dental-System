@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
 // Added missing Loader2 to imports from lucide-react
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2 } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 
@@ -115,7 +115,7 @@ export const JobsList = () => {
     switch(status) {
         case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border border-green-200';
         case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border border-blue-200';
-        case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border-purple-200';
+        case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border border-purple-200';
         case JobStatus.PENDING: return 'bg-slate-100 text-slate-700 border border-slate-200';
         case JobStatus.REJECTED: return 'bg-red-100 text-red-700 border border-red-200';
         case JobStatus.DELIVERED: return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
@@ -188,7 +188,23 @@ export const JobsList = () => {
                         return (
                             <tr key={job.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="p-4 font-mono font-bold text-slate-700">{job.osNumber || '---'}</td>
-                                {!isClient && <td className="p-4">{job.boxNumber || '-'}</td>}
+                                {!isClient && (
+                                    <td className="p-4">
+                                        {job.boxNumber ? (
+                                            <div 
+                                                className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs shadow-sm border border-black/10"
+                                                style={{ 
+                                                    backgroundColor: job.boxColor?.hex || '#f1f5f9',
+                                                    color: job.boxColor ? getContrastColor(job.boxColor.hex) : '#64748b'
+                                                }}
+                                            >
+                                                {job.boxNumber}
+                                            </div>
+                                        ) : (
+                                            <span className="text-slate-300">-</span>
+                                        )}
+                                    </td>
+                                )}
                                 <td className="p-4 font-bold text-slate-900">{job.patientName}</td>
                                 <td className="p-4">
                                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${getStatusColor(job.status)}`}>
