@@ -1,5 +1,3 @@
-
-
 export type TransactionType = 'INCOME' | 'EXPENSE';
 export type TransactionCategory = 
   | 'PRODUCTION' 
@@ -354,6 +352,8 @@ export interface ManualDentist {
   clinicName?: string;
   email?: string;
   phone?: string;
+  cpfCnpj?: string;
+  cro?: string;
   createdAt: Date;
   globalDiscountPercent?: number; 
   customPrices?: { 
