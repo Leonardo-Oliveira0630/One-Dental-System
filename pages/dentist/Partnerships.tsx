@@ -1,7 +1,9 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Handshake, Plus, Trash2, Loader2, Building, CheckCircle, Search, MapPin, Globe, Filter, Link as LinkIcon, Star } from 'lucide-react';
+import { Handshake, Plus, Trash2, Loader2, Building, CheckCircle, Search, MapPin, Globe, Filter, Link as LinkIcon, Star, X, MessageSquare, Calendar } from 'lucide-react';
+import * as api from '../../services/firebaseService';
+import { LabRating, Organization } from '../../types';
 
 export const Partnerships = () => {
     const { userConnections, addConnectionByCode, allLaboratories } = useApp();
@@ -12,6 +14,22 @@ export const Partnerships = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    // Review Modal State
+    const [viewingReviewsLab, setViewingReviewsLab] = useState<Organization | null>(null);
+    const [labReviews, setLabReviews] = useState<LabRating[]>([]);
+    const [loadingReviews, setLoadingReviews] = useState(false);
+
+    useEffect(() => {
+        if (viewingReviewsLab) {
+            setLoadingReviews(true);
+            const unsub = api.subscribeLabRatings(viewingReviewsLab.id, (reviews) => {
+                setLabReviews(reviews);
+                setLoadingReviews(false);
+            });
+            return () => unsub();
+        }
+    }, [viewingReviewsLab]);
+
     const handleAdd = async (code: string) => {
         setLoading(true);
         setError('');
@@ -20,7 +38,6 @@ export const Partnerships = () => {
             await addConnectionByCode(code);
             setSuccess('Parceria firmada com sucesso!');
             setOrgCode('');
-            // Opcional: Voltar para a aba de parcerias após sucesso
             setTimeout(() => {
                 setActiveTab('MY_PARTNERS');
                 setSuccess('');
@@ -69,14 +86,13 @@ export const Partnerships = () => {
             {/* TAB CONTENT: MY PARTNERS */}
             {activeTab === 'MY_PARTNERS' && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Add by Code (Quick Action) */}
                     <div className="md:col-span-1 space-y-6">
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-fit">
                             <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-slate-800">
                                 <LinkIcon className="text-blue-600" size={20}/> Conexão Direta
                             </h3>
                             <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                                Se você já possui o código enviado pelo seu laboratório, cole-o abaixo para conectar instantaneamente.
+                                Se você já possui o código enviado pelo seu laboratório, cole-o abaixo.
                             </p>
                             <form onSubmit={(e) => { e.preventDefault(); handleAdd(orgCode); }} className="space-y-3">
                                 <input 
@@ -86,28 +102,20 @@ export const Partnerships = () => {
                                     className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-mono"
                                     required
                                 />
-                                
                                 {error && activeTab === 'MY_PARTNERS' && <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100">{error}</div>}
                                 {success && activeTab === 'MY_PARTNERS' && <div className="p-3 bg-green-50 text-green-600 text-xs rounded-lg border border-green-100 flex items-center gap-2"><CheckCircle size={14}/> {success}</div>}
-
-                                <button 
-                                    type="submit" 
-                                    disabled={loading} 
-                                    className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-2 transition-all shadow-lg"
-                                >
+                                <button type="submit" disabled={loading} className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-2 transition-all shadow-lg">
                                     {loading ? <Loader2 className="animate-spin" size={18} /> : 'Vincular por Código'}
                                 </button>
                             </form>
                         </div>
                     </div>
 
-                    {/* List of Connected Partners */}
                     <div className="md:col-span-2">
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[400px]">
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-slate-800">
                                 <Handshake className="text-teal-600" size={20}/> Parceiros Ativos ({userConnections.length})
                             </h3>
-                            
                             {userConnections.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-3xl">
                                     <Globe size={48} className="mb-4 opacity-20" />
@@ -129,9 +137,6 @@ export const Partnerships = () => {
                                                         <span className="text-[10px] text-green-600 font-black uppercase tracking-tighter">Parceria Ativa</span>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="absolute top-0 right-0 p-2 opacity-5 text-blue-900 pointer-events-none">
-                                                <Building size={64} />
                                             </div>
                                         </div>
                                     ))}
@@ -155,13 +160,7 @@ export const Partnerships = () => {
                                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all"
                             />
                         </div>
-                        <div className="flex items-center gap-2 bg-slate-100 p-2 rounded-2xl px-4 text-slate-500 text-sm font-bold">
-                            <Filter size={16} /> Todos os Labs
-                        </div>
                     </div>
-
-                    {error && activeTab === 'EXPLORE' && <div className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 font-bold text-center">{error}</div>}
-                    {success && activeTab === 'EXPLORE' && <div className="p-4 bg-green-50 text-green-600 rounded-2xl border border-green-100 font-bold text-center flex items-center justify-center gap-2"><CheckCircle size={20}/> {success}</div>}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {exploreLabs.map(lab => (
@@ -170,15 +169,18 @@ export const Partnerships = () => {
                                     <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                                         <Building size={32} />
                                     </div>
-                                    <div className="text-right">
+                                    <button 
+                                        onClick={() => setViewingReviewsLab(lab)}
+                                        className="text-right hover:scale-105 transition-transform"
+                                    >
                                         <div className="flex items-center gap-1 text-yellow-500 font-black text-sm mb-1 justify-end">
                                             <Star size={16} className="fill-yellow-500" />
                                             {lab.ratingAverage ? lab.ratingAverage.toFixed(1) : 'S/N'}
                                         </div>
-                                        <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-1 rounded">
-                                            {lab.ratingCount || 0} Avaliações
+                                        <span className="text-[9px] font-black text-blue-400 uppercase bg-blue-50 px-2 py-1 rounded flex items-center gap-1">
+                                            <MessageSquare size={10}/> {lab.ratingCount || 0} Avaliações
                                         </span>
-                                    </div>
+                                    </button>
                                 </div>
                                 
                                 <div className="flex-1">
@@ -187,7 +189,7 @@ export const Partnerships = () => {
                                         <MapPin size={14} className="shrink-0" />
                                         <span className="truncate">Atendimento Digital & Nacional</span>
                                     </div>
-                                    <p className="text-xs text-slate-400 line-clamp-2 italic mb-4">"Um laboratório de excelência focado em tecnologia digital e prazos curtos."</p>
+                                    <p className="text-xs text-slate-400 line-clamp-2 italic mb-4">"Membro ProTrack com infraestrutura digital completa."</p>
                                 </div>
 
                                 <div className="pt-6 border-t border-slate-50 mt-auto">
@@ -201,14 +203,65 @@ export const Partnerships = () => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
 
-                        {exploreLabs.length === 0 && !loading && (
-                            <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                                <Search size={48} className="mx-auto text-slate-200 mb-4" />
-                                <h3 className="text-xl font-bold text-slate-800">Nenhum novo laboratório encontrado</h3>
-                                <p className="text-slate-500 max-w-xs mx-auto mt-1">Verifique o nome ou tente uma nova busca para encontrar parceiros.</p>
+            {/* MODAL: REVIEWS DETAIL */}
+            {viewingReviewsLab && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-600 text-white rounded-xl"><MessageSquare size={20}/></div>
+                                <div>
+                                    <h3 className="font-bold text-slate-800">{viewingReviewsLab.name}</h3>
+                                    <div className="flex items-center gap-1 text-yellow-500 text-xs font-bold">
+                                        <Star size={12} className="fill-yellow-500"/> {viewingReviewsLab.ratingAverage?.toFixed(1) || '0.0'} • {viewingReviewsLab.ratingCount || 0} avaliações
+                                    </div>
+                                </div>
                             </div>
-                        )}
+                            <button onClick={() => setViewingReviewsLab(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            {loadingReviews ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                                    <Loader2 className="animate-spin mb-2" />
+                                    <p className="text-sm font-medium">Carregando depoimentos...</p>
+                                </div>
+                            ) : labReviews.length === 0 ? (
+                                <div className="text-center py-12 text-slate-400 italic">
+                                    Este laboratório ainda não recebeu comentários detalhados.
+                                </div>
+                            ) : (
+                                labReviews.map(review => (
+                                    <div key={review.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-xs font-bold text-blue-600 border border-slate-200 uppercase">
+                                                    {review.dentistName.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-bold text-slate-800">{review.dentistName}</p>
+                                                    <div className="flex gap-0.5">
+                                                        {[1,2,3,4,5].map(s => (
+                                                            <Star key={s} size={10} className={`${review.score >= s ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                <Calendar size={10}/> {new Date(review.createdAt).toLocaleDateString()}
+                                            </div>
+                                        </div>
+                                        {review.comment && (
+                                            <p className="text-sm text-slate-600 leading-relaxed italic">"{review.comment}"</p>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
