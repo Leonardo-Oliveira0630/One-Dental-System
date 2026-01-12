@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { ManualDentist } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
-  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, AlertCircle, Save, FileText, BadgeCheck, Phone, Mail, IdCard 
+  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, AlertCircle, Save, FileText, BadgeCheck, Phone, Mail
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
@@ -104,7 +104,6 @@ export const DentistsTab = () => {
   };
 
   const analyzeColumnsWithAI = async (sampleData: any[]) => {
-    // Initializing Gemini client as per guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `
       Você é um especialista em extração de dados. Analise o cabeçalho e as primeiras linhas desta planilha de laboratório odontológico.
@@ -137,13 +136,12 @@ export const DentistsTab = () => {
         contents: prompt,
         config: { 
             responseMimeType: "application/json",
-            temperature: 0.1 // Mais determinístico
+            temperature: 0.1 
         }
       });
       return JSON.parse(response.text || '{}');
     } catch (error) {
       console.error("AI Error:", error);
-      // Fallback básico para chaves comuns
       const keys = Object.keys(sampleData[0] || {});
       const findKey = (search: string[]) => keys.find(k => search.some(s => k.toLowerCase().includes(s))) || '';
       return {
@@ -280,7 +278,7 @@ export const DentistsTab = () => {
         {isAddingDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
-                  <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-100">
+                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                       <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cliente' : 'Novo Cliente'}</h3>
                       <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
@@ -396,7 +394,6 @@ export const DentistsTab = () => {
                               <td className="p-4 text-xs text-slate-500">{item.email || '---'}</td>
                               <td className="p-4 text-xs text-slate-500 font-bold">{item.phone || '---'}</td>
                               <td className="p-4 text-center">
-                                {/* Fix: Removed invalid title prop from X icon and wrapped in span */}
                                 {item.isValid ? <Check size={18} className="text-green-500 mx-auto"/> : <span title="Sem nome"><X size={18} className="text-red-500 mx-auto" /></span>}
                               </td>
                             </tr>
