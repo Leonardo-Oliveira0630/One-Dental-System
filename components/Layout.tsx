@@ -67,13 +67,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const handleLogout = () => { logout(); navigate('/'); };
 
   // --- LÓGICA DE BRANDING DA SIDEBAR (TOP LEFT) ---
-  // Se for dentista e estiver vendo um laboratório específico, mostra o lab.
-  // Caso contrário, mostra o nome do sistema ou da clínica dele.
   const isViewingLabContext = isClient && (location.pathname.startsWith('/store') || location.pathname.startsWith('/jobs') || location.pathname.startsWith('/cart'));
   
   const displayBrand = isViewingLabContext && activeOrganization 
     ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
-    : { name: currentOrg?.name || 'ProTrack', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'ProTrack System' };
+    : { name: currentOrg?.name || 'MY TOOTH', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'MY TOOTH SYSTEM' };
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans relative">
@@ -160,7 +158,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <>
                 <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
                 <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label="Gerenciar Planos" active={location.pathname === '/superadmin/plans'} />
-                {/* Added Ticket to imports on line 11 to resolve error on line 163 */}
                 <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/superadmin/coupons'} />
               </>
             )}
@@ -216,8 +213,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              
              {/* App Identity (Visible for all) */}
              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-sm">P</div>
-                <span className="font-black text-slate-900 tracking-tighter text-lg hidden sm:inline">PROTRACK <span className="text-blue-600">SYSTEM</span></span>
+                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-sm">M</div>
+                <span className="font-black text-slate-900 tracking-tighter text-lg hidden sm:inline">MY TOOTH <span className="text-blue-600">SYSTEM</span></span>
              </div>
           </div>
 

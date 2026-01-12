@@ -37,7 +37,7 @@ export const SuperAdminDashboard = () => {
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">SaaS Command Center</h1>
-                    <p className="text-slate-500">Visão global do ecossistema One Dental System.</p>
+                    <p className="text-slate-500">Visão global do ecossistema MY TOOTH.</p>
                 </div>
                 <div className="bg-slate-900 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2">
                     <Activity size={14} className="text-green-400" /> Sistema Online
@@ -132,7 +132,7 @@ export const SuperAdminDashboard = () => {
                                 </div>
                             </label>
                             <p className="text-xs text-slate-400 leading-relaxed italic">
-                                * Esta taxa será deduzida automaticamente de cada venda realizada na Loja Virtual de qualquer laboratório cadastrado que utilize a Conta Digital ProTrack.
+                                * Esta taxa será deduzida automaticamente de cada venda realizada na Loja Virtual de qualquer laboratório cadastrado que utilize a Conta Digital MY TOOTH.
                             </p>
                         </div>
 

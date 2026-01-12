@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
@@ -224,7 +225,7 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
       value: jobData.totalValue,
       dueDate: new Date().toISOString().split("T")[0],
       externalReference: externalRef,
-      description: `Pedido One Dental: ${jobData.patientName}`,
+      description: `Pedido MY TOOTH: ${jobData.patientName}`,
     };
     if (walletId) {
       const split = {walletId: walletId, percentualValue: 100 - splitPercent};
@@ -298,7 +299,7 @@ export const createSaaSSubscription = functions.https.onCall(
         value: 199.00,
         nextDueDate: tomorrow.toISOString().split("T")[0],
         cycle: "MONTHLY",
-        description: `SaaS One Dental - ${planId}`,
+        description: `SaaS MY TOOTH - ${planId}`,
       }, {headers: {access_token: key}});
       await db.collection("organizations").doc(orgId).update({
         subscriptionId: subRes.data.id,

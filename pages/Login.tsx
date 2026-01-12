@@ -133,7 +133,7 @@ export const Login = () => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="bg-slate-800 w-full max-w-md p-8 rounded-3xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in duration-300">
         <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2 tracking-tighter">ONE DENTAL</h1>
+            <h1 className="text-3xl font-bold text-white mb-2 tracking-tighter">MY TOOTH</h1>
             <p className="text-slate-400 text-sm">Ecossistema Digital para Prótese Dentária</p>
         </div>
 

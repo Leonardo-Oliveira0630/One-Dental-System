@@ -17,7 +17,7 @@ export const PrintOverlay = () => {
     window.print();
   };
 
-  const labName = currentOrg?.name || 'ONE DENTAL SYSTEM';
+  const labName = currentOrg?.name || 'MY TOOTH SYSTEM';
   const labLogo = currentOrg?.logoUrl;
 
   return (
@@ -150,7 +150,7 @@ export const PrintOverlay = () => {
 
               {/* Footer text only */}
               <div className="text-center mt-auto pt-4 border-t border-dashed border-gray-400">
-                 <p className="text-xs text-gray-500">Documento de Uso Interno - Gerado via ProTrack System</p>
+                 <p className="text-xs text-gray-500">Documento de Uso Interno - Gerado via MY TOOTH</p>
               </div>
             </div>
           )}
