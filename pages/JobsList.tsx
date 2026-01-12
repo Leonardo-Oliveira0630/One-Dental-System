@@ -190,6 +190,7 @@ export const JobsList = () => {
                         <th className="p-4">OS #</th>
                         {!isClient && <th className="p-4">Caixa</th>}
                         <th className="p-4">Paciente</th>
+                        <th className="p-4">Dentista</th>
                         <th className="p-4">Status</th>
                         <th className="p-4">Entrega</th>
                         <th className="p-4 text-right">Ações</th>
@@ -222,6 +223,9 @@ export const JobsList = () => {
                                     </td>
                                 )}
                                 <td className="p-4 font-bold text-slate-900">{job.patientName}</td>
+                                <td className="p-4">
+                                    <div className="text-sm font-medium text-slate-700">{job.dentistName}</div>
+                                </td>
                                 <td className="p-4">
                                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${getStatusColor(job.status)}`}>
                                         {getTranslatedStatus(job.status)}
