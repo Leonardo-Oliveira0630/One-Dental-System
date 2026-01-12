@@ -5,7 +5,7 @@ import { UserRole, User, UserCommissionSetting, Coupon, SubscriptionPlan, Manual
 import { 
   Building2, Users, Plus, Trash2, MapPin, Mail, UserPlus, Save, 
   Stethoscope, Edit, X, DollarSign, Copy, Check, Crown, ArrowUpCircle, 
-  Ticket, Wallet, Loader2, Percent, CheckCircle, Briefcase, Search, Phone, ShieldCheck, Lock, Eye, Activity, Package, Zap
+  Ticket, Wallet, Loader2, Percent, CheckCircle, Briefcase, Search, Phone, ShieldCheck, Lock, Eye, Activity, Package, Zap, AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../services/firebaseService';
@@ -121,7 +121,8 @@ export const Admin = () => {
         setUserName(''); setUserEmail(''); setUserPass('');
         alert("Usuário criado com sucesso!");
     } catch (err: any) {
-        alert("Erro ao criar usuário: " + err.message);
+        console.error("Erro Function:", err);
+        alert("Erro ao criar usuário: " + (err.message || "Falha na comunicação com o servidor. Verifique o CORS ou se a função está implantada."));
     } finally {
         setIsSubmitting(false);
     }
@@ -220,7 +221,8 @@ export const Admin = () => {
 
   const copyOrgId = () => { if (currentOrg?.id) { navigator.clipboard.writeText(currentOrg.id); setCopied(true); setTimeout(() => setCopied(false), 2000); } };
 
-  const filteredDentists = manualDentists.filter(d => d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || (d.clinicName || '').toLowerCase().includes(dentistSearch.toLowerCase()));
+  const safeUsers = allUsers || [];
+  const filteredDentists = (manualDentists || []).filter(d => d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || (d.clinicName || '').toLowerCase().includes(dentistSearch.toLowerCase()));
 
   return (
     <div className="space-y-6 pb-12">
@@ -260,7 +262,6 @@ export const Admin = () => {
                   <form onSubmit={handleSaveManualDentist} className="space-y-4">
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Dentista</label><input required value={dentistName} onChange={e => setDentistName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Clínica</label><input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
-                      {/* Fix Error: setEmail setter was used instead of setDentistEmail for the dentist modal form */}
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label><input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone</label><input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
                       <button type="submit" className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all">Salvar Cliente</button>
@@ -281,7 +282,7 @@ export const Admin = () => {
                       <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24}/></button>
                   </div>
                   <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                      {jobTypes.map(type => {
+                      {(jobTypes || []).map(type => {
                           const setting = tempCommissions.find(s => s.jobTypeId === type.id);
                           return (
                               <div key={type.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -341,7 +342,7 @@ export const Admin = () => {
                           <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor Principal</label>
                               <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border rounded-xl bg-white">
                                   <option value="">Geral</option>
-                                  {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                                  {(sectors || []).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                               </select>
                           </div>
                       </div>
@@ -349,79 +350,6 @@ export const Admin = () => {
                           {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta de Acesso'}
                       </button>
                   </form>
-              </div>
-          </div>
-      )}
-
-      {/* MODAL: EDITAR USUÁRIO */}
-      {editingUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
-                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Colaborador</h3>
-                      <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
-                  </div>
-                  <form onSubmit={handleUpdateUserInfo} className="space-y-4">
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label><input required value={userName} onChange={e => setUserName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label><input disabled value={userEmail} className="w-full px-4 py-2 border rounded-xl bg-slate-50 text-slate-400" /></div>
-                      <div className="grid grid-cols-2 gap-4">
-                          <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label>
-                              <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border rounded-xl bg-white">
-                                  <option value={UserRole.COLLABORATOR}>Técnico</option>
-                                  <option value={UserRole.MANAGER}>Gestor</option>
-                                  <option value={UserRole.ADMIN}>Administrador</option>
-                              </select>
-                          </div>
-                          <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor Principal</label>
-                              <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border rounded-xl bg-white">
-                                  <option value="">Geral</option>
-                                  {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                              </select>
-                          </div>
-                      </div>
-                      <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2 mt-4">
-                          {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
-                      </button>
-                  </form>
-              </div>
-          </div>
-      )}
-
-      {/* MODAL: GERENCIAR PERMISSÕES */}
-      {selectedUserForPerms && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
-                      <div>
-                          <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><ShieldCheck className="text-blue-600" /> Controle de Acesso</h3>
-                          <p className="text-xs text-slate-500 font-bold uppercase">Permissões para {selectedUserForPerms.name}</p>
-                      </div>
-                      <button onClick={() => setSelectedUserForPerms(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          {Array.from(new Set(AVAILABLE_PERMISSIONS.map(p => p.category))).map(cat => (
-                              <div key={cat} className="space-y-3">
-                                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-100">{cat}</h4>
-                                  <div className="space-y-2">
-                                      {AVAILABLE_PERMISSIONS.filter(p => p.category === cat).map(perm => (
-                                          <label key={perm.key} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-blue-50 transition-all cursor-pointer group">
-                                              <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${tempPerms.includes(perm.key) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
-                                                  {tempPerms.includes(perm.key) && <Check size={14} className="text-white" />}
-                                              </div>
-                                              <input type="checkbox" className="hidden" checked={tempPerms.includes(perm.key)} onChange={() => togglePermission(perm.key)} />
-                                              <span className={`text-sm font-bold ${tempPerms.includes(perm.key) ? 'text-blue-800' : 'text-slate-600'}`}>{perm.label}</span>
-                                          </label>
-                                      ))}
-                                  </div>
-                              </div>
-                          ))}
-                      </div>
-                  </div>
-                  <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
-                      <button onClick={() => setSelectedUserForPerms(null)} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
-                      <button onClick={handleSavePermissions} className="px-10 py-3 bg-slate-900 text-white font-black rounded-xl shadow-xl hover:bg-slate-800 flex items-center justify-center gap-2"><Save size={18} /> SALVAR PERMISSÕES</button>
-                  </div>
               </div>
           </div>
       )}
@@ -439,7 +367,7 @@ export const Admin = () => {
             </form>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sectors.map(s => (
+            {(sectors || []).map(s => (
               <div key={s.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center group">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><MapPin size={20}/></div>
@@ -467,27 +395,37 @@ export const Admin = () => {
             <button onClick={() => setIsAddingUser(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"><UserPlus size={20}/> Novo Usuário</button>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
-                <tr><th className="p-4">Nome</th><th className="p-4">Cargo</th><th className="p-4">Setor Principal</th><th className="p-4 text-right">Ações</th></tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
-                  <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="p-4"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400">{user.name.charAt(0)}</div><div><p className="font-bold text-slate-800">{user.name}</p><p className="text-xs text-slate-400">{user.email}</p></div></div></td>
-                    <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">{user.role}</span></td>
-                    <td className="p-4 text-slate-600 text-sm font-medium">{user.sector || 'Geral'}</td>
-                    <td className="p-4 text-right">
-                        <div className="flex justify-end gap-2">
-                             <button onClick={() => openEditUser(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Editar Perfil"><Edit size={18}/></button>
-                             <button onClick={() => handleOpenPermissions(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Gerenciar Acessos"><Lock size={18}/></button>
-                             <button onClick={() => deleteUser(user.id)} className="p-2 text-slate-300 hover:text-red-500 rounded-lg transition-all"><Trash2 size={18}/></button>
-                        </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {safeUsers.length === 0 ? (
+                <div className="p-12 text-center text-slate-400 flex flex-col items-center gap-3">
+                    <AlertCircle size={40} className="text-slate-300" />
+                    <div>
+                        <p className="font-bold">Acesso aos dados de usuários negado.</p>
+                        <p className="text-xs">Verifique as permissões no Firestore ou cadastre novos técnicos.</p>
+                    </div>
+                </div>
+            ) : (
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
+                    <tr><th className="p-4">Nome</th><th className="p-4">Cargo</th><th className="p-4">Setor Principal</th><th className="p-4 text-right">Ações</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {safeUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
+                      <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
+                        <td className="p-4"><div className="flex items-center gap-3"><div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400">{user.name.charAt(0)}</div><div><p className="font-bold text-slate-800">{user.name}</p><p className="text-xs text-slate-400">{user.email}</p></div></div></td>
+                        <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">{user.role}</span></td>
+                        <td className="p-4 text-slate-600 text-sm font-medium">{user.sector || 'Geral'}</td>
+                        <td className="p-4 text-right">
+                            <div className="flex justify-end gap-2">
+                                <button onClick={() => openEditUser(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Editar Perfil"><Edit size={18}/></button>
+                                <button onClick={() => handleOpenPermissions(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Gerenciar Acessos"><Lock size={18}/></button>
+                                <button onClick={() => deleteUser(user.id)} className="p-2 text-slate-300 hover:text-red-500 rounded-lg transition-all"><Trash2 size={18}/></button>
+                            </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+            )}
           </div>
         </div>
       )}
@@ -528,7 +466,7 @@ export const Admin = () => {
               <h3 className="text-lg font-bold text-slate-800 mb-2">Tabelas de Comissão por Técnico</h3>
               <p className="text-sm text-slate-500 mb-6">Configure o valor ou percentual que cada técnico recebe por serviço finalizado.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
+                  {safeUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
                       <div key={user.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-500 transition-all bg-slate-50 group">
                           <div className="flex items-center gap-3 mb-4">
                               <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center font-bold text-blue-600 shadow-sm border border-slate-100 text-lg">{user.name.charAt(0)}</div>
@@ -540,6 +478,9 @@ export const Admin = () => {
                           <button onClick={() => openCommissionModal(user)} className="w-full py-2.5 bg-slate-900 text-white text-sm font-bold rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"><Edit size={14}/> Definir Ganhos</button>
                       </div>
                   ))}
+                  {safeUsers.filter(u => u.role !== UserRole.CLIENT).length === 0 && (
+                      <div className="col-span-full py-12 text-center text-slate-400">Nenhum colaborador encontrado para configurar comissão.</div>
+                  )}
               </div>
           </div>
         </div>
@@ -585,13 +526,13 @@ export const Admin = () => {
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
              <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600" /> Upgrade de Plano</h3>
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'LAB').map(plan => (
+                {(allPlans || []).filter(p => p.isPublic && p.active && p.targetAudience === 'LAB').map(plan => (
                   <div key={plan.id} className={`p-6 rounded-2xl border-2 transition-all flex flex-col ${plan.id === currentOrg?.planId ? 'border-blue-600 bg-blue-50/30' : 'border-slate-100 hover:border-blue-200'}`}>
                     <h4 className="font-bold text-slate-800 uppercase tracking-tight mb-1">{plan.name}</h4>
                     <p className="text-2xl font-black text-slate-900 mb-4">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400 font-normal">/mês</span></p>
                     <ul className="text-xs space-y-2 text-slate-500 flex-1 mb-6">
                        <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Ilimitados' : plan.features.maxUsers} Usuários</li>
-                       <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> {plan.features.maxStorageGB} Armazenamento</li>
+                       <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
                        <li className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-800' : 'text-slate-300 line-through'}`}><Check size={14} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-300'}/> Loja Virtual</li>
                     </ul>
                     <button 

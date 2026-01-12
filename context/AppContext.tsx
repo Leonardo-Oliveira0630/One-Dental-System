@@ -226,7 +226,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
         if (currentUser.role !== UserRole.CLIENT) {
-            unsubs.push(api.subscribeOrgUsers(myOrgId, setAllUsers));
+            // FIX: Adicionado tratamento de erro nos listeners para evitar crash por falta de permissão (Firestore Rules)
+            try {
+              unsubs.push(api.subscribeOrgUsers(myOrgId, (users: User[]) => {
+                  setAllUsers(users || []);
+              }));
+            } catch(e) { console.warn("Erro ao carregar usuários (Permissão):", e); }
+            
             unsubs.push(api.subscribeSectors(myOrgId, setSectors));
             unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
             unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
