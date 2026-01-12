@@ -6,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, 
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -66,7 +66,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   
   const handleLogout = () => { logout(); navigate('/'); };
 
-  // --- LÓGICA DE BRANDING DA SIDEBAR (TOP LEFT) ---
   const isViewingLabContext = isClient && (location.pathname.startsWith('/store') || location.pathname.startsWith('/jobs') || location.pathname.startsWith('/cart'));
   
   const displayBrand = isViewingLabContext && activeOrganization 
@@ -81,12 +80,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
 
-      {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         <div className="p-6 h-full flex flex-col">
-          {/* Logo Contextual (Top Left) */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3 overflow-hidden">
               {displayBrand.logo ? (
@@ -106,7 +103,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white"><X size={24} /></button>
           </div>
 
-          {/* Seletor de Lab (Apenas para Dentistas) */}
           {isClient && (
              <div className="mb-6 px-2 relative">
                 <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2">Selecionar Laboratório</p>
@@ -168,6 +164,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
                 {hasPerm('clients:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
+                {hasPerm('logistics:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas / Rotas" active={location.pathname === '/lab/logistics'} />}
                 {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
                 {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
@@ -202,23 +199,16 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
       <main className="flex-1 md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
-        
-        {/* GLOBAL HEADER (TOP RIGHT IDENTITY) */}
         <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-4">
-             {/* Mobile Menu Button */}
              <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
-             
-             {/* App Identity (Visible for all) */}
              <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-sm">M</div>
                 <span className="font-black text-slate-900 tracking-tighter text-lg hidden sm:inline">MY TOOTH <span className="text-blue-600">SYSTEM</span></span>
              </div>
           </div>
 
-          {/* User Profile Info (Upper Right) */}
           <div className="flex items-center gap-4">
               <div className="hidden sm:flex flex-col items-end">
                   <span className="text-sm font-bold text-slate-800 leading-none">{currentUser?.name}</span>

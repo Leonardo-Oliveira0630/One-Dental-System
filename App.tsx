@@ -24,12 +24,12 @@ import { ClinicSettings } from './pages/clinic/ClinicSettings';
 import { Partnerships } from './pages/dentist/Partnerships';
 import { Dentists } from './pages/lab/Dentists';
 import { Finance } from './pages/lab/Finance';
+import { RoutePlanner } from './pages/lab/RoutePlanner';
 import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
 import { Plans } from './pages/superadmin/Plans';
 import { Coupons } from './pages/superadmin/Coupons';
 import { Loader2 } from 'lucide-react';
 
-// Admin Sub-pages
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { SectorsTab } from './pages/admin/SectorsTab';
 import { UsersTab } from './pages/admin/UsersTab';
@@ -60,7 +60,6 @@ const AppContent = () => {
       <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
       
-      {/* ADMIN ROUTES RESTRUCTURED */}
       <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="organizacao" replace />} />
         <Route path="organizacao" element={<OrganizationTab />} />
@@ -74,11 +73,10 @@ const AppContent = () => {
 
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
-      {/* Lab Exclusive */}
       <Route path="/lab/dentists" element={<ProtectedRoute><Dentists /></ProtectedRoute>} />
       <Route path="/lab/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
+      <Route path="/lab/logistics" element={<ProtectedRoute><RoutePlanner /></ProtectedRoute>} />
 
-      {/* Clinic / Dentist Routes */}
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
       <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
@@ -90,7 +88,6 @@ const AppContent = () => {
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
       <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
 
-      {/* Super Admin Routes */}
       <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
       <Route path="/superadmin/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
       <Route path="/superadmin/coupons" element={<ProtectedRoute><Coupons /></ProtectedRoute>} />

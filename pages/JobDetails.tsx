@@ -7,7 +7,7 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import * as api from '../services/firebaseService';
@@ -17,20 +17,25 @@ const STLViewer = React.lazy(() => import('../components/STLViewer').then(module
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile, addJobToRoute } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION'>('SUMMARY');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showRouteModal, setShowRouteModal] = useState(false);
   const [show3DViewer, setShow3DViewer] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+  // Route Form State
+  const [routeDriver, setRouteDriver] = useState('');
+  const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
+  const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
+
   const job = jobs.find(j => j.id === id);
   
-  // Roles
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
   const isTech = currentUser?.role === UserRole.COLLABORATOR;
@@ -38,7 +43,6 @@ export const JobDetails = () => {
   const isLabStaff = isAdmin || isManager || isTech;
   const canEdit = isAdmin || isManager;
 
-  // Edit Form State
   const [editDueDate, setEditDueDate] = useState('');
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
@@ -128,6 +132,18 @@ export const JobDetails = () => {
     } finally { setIsUpdatingStatus(false); }
   };
 
+  const handleAddToRoute = async () => {
+    if (!routeDriver) { alert("Informe o nome do motorista."); return; }
+    setIsUpdatingStatus(true);
+    try {
+        await addJobToRoute(job, routeDriver, routeShift, new Date(routeDate));
+        setShowRouteModal(false);
+        alert("Trabalho adicionado ao roteiro!");
+    } catch (err) {
+        alert("Erro ao adicionar à rota.");
+    } finally { setIsUpdatingStatus(false); }
+  };
+
   const handleQuickStatusUpdate = async (newStatus: JobStatus) => {
     if (!currentUser || isUpdatingStatus) return;
     setIsUpdatingStatus(true);
@@ -171,7 +187,6 @@ export const JobDetails = () => {
 
       {showAlertModal && <CreateAlertModal job={job} onClose={() => setShowAlertModal(false)} />}
       
-      {/* MODAL DE EDIÇÃO COMPLETA */}
       {showEditModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-200">
@@ -236,7 +251,45 @@ export const JobDetails = () => {
           </div>
       )}
 
-      {/* Header com Botões de Impressão */}
+      {/* MODAL: ADICIONAR À ROTA */}
+      {showRouteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Truck className="text-indigo-600" /> Escalar para Entrega</h3>
+                      <button onClick={() => setShowRouteModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                  </div>
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data da Rota</label>
+                          <input type="date" value={routeDate} onChange={e => setRouteDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl outline-none" />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turno</label>
+                          <div className="grid grid-cols-2 gap-2">
+                              <button onClick={() => setRouteShift('MORNING')} className={`py-2 text-xs font-bold rounded-xl border-2 transition-all ${routeShift === 'MORNING' ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'border-slate-100 text-slate-400'}`}>Manhã</button>
+                              <button onClick={() => setRouteShift('AFTERNOON')} className={`py-2 text-xs font-bold rounded-xl border-2 transition-all ${routeShift === 'AFTERNOON' ? 'bg-indigo-50 border-indigo-600 text-indigo-700' : 'border-slate-100 text-slate-400'}`}>Tarde</button>
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Entregador / Motoboy</label>
+                          <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" />
+                      </div>
+
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                          <p className="text-[10px] font-black text-slate-400 uppercase">Destinatário</p>
+                          <p className="font-bold text-slate-800">{job.dentistName}</p>
+                          <p className="text-xs text-slate-500 line-clamp-1">{job.patientName ? `Paciente: ${job.patientName}` : 'Sem paciente vinculado'}</p>
+                      </div>
+
+                      <button onClick={handleAddToRoute} disabled={isUpdatingStatus} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
+                          {isUpdatingStatus ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={20} /> CONFIRMAR NO ROTEIRO</>}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       <div className="flex justify-between items-center">
           <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors"><ArrowLeft size={20} /> Voltar para Lista</button>
           <div className="flex gap-2">
@@ -281,7 +334,6 @@ export const JobDetails = () => {
                     <div className="flex items-center justify-end gap-2 text-lg font-bold text-slate-800"><Calendar size={18} className="text-blue-600" /> {new Date(job.dueDate).toLocaleDateString()}</div>
                 </div>
                 
-                {/* BOTÕES DE AÇÃO PRINCIPAIS */}
                 <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
                     {canFinalize && (
                          <button 
@@ -290,6 +342,15 @@ export const JobDetails = () => {
                             className="px-6 py-3 bg-green-600 text-white font-black rounded-xl hover:bg-green-700 shadow-xl shadow-green-200 flex items-center justify-center gap-2 transition-all transform hover:scale-105 active:scale-95"
                         >
                             {isUpdatingStatus ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={20} /> FINALIZAR CASO</>}
+                        </button>
+                    )}
+
+                    {isFinished && isLabStaff && !job.routeId && (
+                        <button 
+                            onClick={() => setShowRouteModal(true)}
+                            className="px-6 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 transition-all transform hover:scale-105"
+                        >
+                            <Truck size={20} /> ADICIONAR À ROTA
                         </button>
                     )}
                     

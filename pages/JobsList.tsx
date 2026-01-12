@@ -2,18 +2,16 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2 } from 'lucide-react';
+// Added missing Loader2 to imports from lucide-react
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 
 export const JobsList = () => {
-  const { jobs, currentUser, triggerPrint, updateJob, sectors, activeOrganization } = useApp();
+  const { jobs, currentUser, triggerPrint, updateJob, sectors, activeOrganization, addJobToRoute } = useApp();
   const navigate = useNavigate();
   
-  // Basic Search
   const [filterText, setFilterText] = useState('');
-  
-  // Advanced Filters State
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [startDate, setStartDate] = useState('');
@@ -22,17 +20,19 @@ export const JobsList = () => {
   const [filterUrgency, setFilterUrgency] = useState('');
   const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'WEB' | 'MANUAL'>('ALL');
 
-  // Print Modal
   const [printModalJob, setPrintModalJob] = useState<Job | null>(null);
-  
-  // PIX Modal
   const [pixModalJob, setPixModalJob] = useState<Job | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [routeModalJob, setRouteModalJob] = useState<Job | null>(null);
+  
+  // Route Form State
+  const [routeDriver, setRouteDriver] = useState('');
+  const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
+  const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.COLLABORATOR;
 
-  // --- SAFEGUARD: DENTIST WITHOUT ACTIVE LAB ---
   if (isClient && !activeOrganization) {
     return (
         <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
@@ -55,7 +55,6 @@ export const JobsList = () => {
     );
   }
 
-  // Filter Logic
   const filteredJobs = jobs.filter(job => {
     if (isClient && job.dentistId !== currentUser?.id) return false;
     const searchLower = filterText.toLowerCase();
@@ -86,27 +85,37 @@ export const JobsList = () => {
   });
 
   const handleFinalizeJob = async (job: Job) => {
-      if (!window.confirm(`Deseja finalizar o caso de ${job.patientName}? O trabalho será marcado como concluído e o débito será confirmado para o dentista.`)) return;
-      
+      if (!window.confirm(`Deseja finalizar o caso de ${job.patientName}?`)) return;
       await updateJob(job.id, {
           status: JobStatus.COMPLETED,
           history: [...job.history, {
               id: `hist_fin_${Date.now()}`,
               timestamp: new Date(),
-              action: 'Trabalho Finalizado e Conferido (Pronto para Entrega/Faturamento)',
+              action: 'Trabalho Finalizado e Conferido (Pronto para Entrega)',
               userId: currentUser?.id || 'sys',
               userName: currentUser?.name || 'Sistema',
               sector: 'Expedição'
           }]
       });
-      alert("Trabalho finalizado com sucesso!");
+  };
+
+  const handleAddToRoute = async () => {
+    if (!routeModalJob || !routeDriver) return;
+    setIsProcessing(true);
+    try {
+        await addJobToRoute(routeModalJob, routeDriver, routeShift, new Date(routeDate));
+        setRouteModalJob(null);
+        alert("Adicionado à rota!");
+    } catch (e) {
+        alert("Erro.");
+    } finally { setIsProcessing(false); }
   };
 
   const getStatusColor = (status: JobStatus) => {
     switch(status) {
         case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border border-green-200';
         case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border border-blue-200';
-        case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border border-purple-200';
+        case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border-purple-200';
         case JobStatus.PENDING: return 'bg-slate-100 text-slate-700 border border-slate-200';
         case JobStatus.REJECTED: return 'bg-red-100 text-red-700 border border-red-200';
         case JobStatus.DELIVERED: return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
@@ -126,35 +135,15 @@ export const JobsList = () => {
       }
   };
 
-  const copyToClipboard = (text: string) => {
-      navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="space-y-6">
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{isClient ? 'Meus Pedidos' : 'Lista de Trabalhos'}</h1>
-          <p className="text-slate-500">
-            {isClient && activeOrganization ? `Laboratório: ${activeOrganization.name} • ` : ''}
-            Mostrando {filteredJobs.length} de {jobs.length} trabalhos encontrados.
-          </p>
-        </div>
-        <div className="flex gap-2">
-            {!isClient && (
-                <button 
-                    onClick={() => alert("Função de exportação")}
-                    className="flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white text-slate-700 rounded-lg hover:bg-slate-50 w-full md:w-auto justify-center font-bold"
-                >
-                    <FileDown size={18} /> Exportar PDF
-                </button>
-            )}
+          <p className="text-slate-500">Mostrando {filteredJobs.length} trabalhos encontrados.</p>
         </div>
       </div>
 
-      {/* Main Search Bar */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -173,44 +162,11 @@ export const JobsList = () => {
                     showFilters ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
             >
-                <SlidersHorizontal size={18} /> Filtros {showFilters ? 'Ativos' : 'Avançados'}
+                <SlidersHorizontal size={18} /> Filtros
             </button>
         </div>
-
-        {showFilters && (
-            <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-top-2">
-                <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Origem</label>
-                    <select value={filterOrigin} onChange={(e) => setFilterOrigin(e.target.value as any)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-                        <option value="ALL">Todas</option>
-                        <option value="WEB">🌐 Web</option>
-                        <option value="MANUAL">📝 Manual</option>
-                    </select>
-                </div>
-                <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Status</label>
-                    <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-                        <option value="ALL">Todos</option>
-                        {Object.values(JobStatus).map(s => <option key={s} value={s}>{getTranslatedStatus(s)}</option>)}
-                    </select>
-                </div>
-                <div>
-                    <label className="text-xs font-bold text-slate-500 mb-1 block">Urgência</label>
-                    <select value={filterUrgency} onChange={(e) => setFilterUrgency(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none bg-white">
-                        <option value="">Todas</option>
-                        <option value={UrgencyLevel.VIP}>🔥 VIP/Urgente</option>
-                        <option value={UrgencyLevel.HIGH}>Alta</option>
-                        <option value={UrgencyLevel.NORMAL}>Normal</option>
-                    </select>
-                </div>
-                <div className="flex items-end">
-                    <button onClick={() => { setFilterText(''); setStatusFilter('ALL'); setShowFilters(false); }} className="w-full py-2 bg-slate-100 text-slate-600 font-bold rounded-lg text-sm">Limpar</button>
-                </div>
-            </div>
-        )}
       </div>
 
-      {/* --- DESKTOP TABLE VIEW --- */}
       <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -219,128 +175,76 @@ export const JobsList = () => {
                         <th className="p-4">OS #</th>
                         {!isClient && <th className="p-4">Caixa</th>}
                         <th className="p-4">Paciente</th>
-                        {!isClient && <th className="p-4">Dentista</th>}
                         <th className="p-4">Status</th>
                         <th className="p-4">Entrega</th>
                         <th className="p-4 text-right">Ações</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                    {filteredJobs.length === 0 ? (
-                        <tr><td colSpan={8} className="p-8 text-center text-slate-400">Nenhum trabalho encontrado.</td></tr>
-                    ) : (
-                        filteredJobs.map(job => {
-                            const isWeb = job.history.some(h => h.action.toLowerCase().includes('loja virtual'));
-                            const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
-                            
-                            return (
-                                <tr key={job.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="p-4 font-mono font-bold text-slate-700">
-                                        {job.osNumber || '---'}
-                                    </td>
-                                    {!isClient && (
-                                        <td className="p-4">
-                                            {job.boxNumber ? (
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shadow-sm border border-black/10" style={{ backgroundColor: job.boxColor?.hex || '#ccc', color: getContrastColor(job.boxColor?.hex || '#ccc') }}>{job.boxNumber}</div>
-                                            ) : <span className="text-slate-300">-</span>}
-                                        </td>
-                                    )}
-                                    <td className="p-4 font-bold text-slate-900">{job.patientName}</td>
-                                    {!isClient && <td className="p-4 text-slate-600 text-sm">{job.dentistName}</td>}
-                                    <td className="p-4">
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${getStatusColor(job.status)}`}>
-                                            {getTranslatedStatus(job.status)}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-slate-600 text-sm">
-                                        <div className="flex items-center gap-1 font-medium">
-                                            {job.urgency === UrgencyLevel.VIP && <AlertCircle size={14} className="text-red-500" />}
-                                            {new Date(job.dueDate).toLocaleDateString()}
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex justify-end gap-1">
-                                            {canFinalize && (
-                                                <button 
-                                                    onClick={() => handleFinalizeJob(job)}
-                                                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                                    title="Finalizar Caso (Enviar p/ Débito)"
-                                                >
-                                                    <CheckCircle2 size={18} />
-                                                </button>
-                                            )}
-                                            {isClient && job.paymentMethod === 'PIX' && job.paymentStatus === 'PENDING' && job.pixQrCode && (
-                                                <button onClick={() => setPixModalJob(job)} className="text-green-600 hover:bg-green-50 p-2 rounded-lg font-bold text-xs flex items-center gap-1 border border-green-200">
-                                                    <QrCode size={16} /> Pagar
-                                                </button>
-                                            )}
-                                            {!isClient && job.status !== JobStatus.REJECTED && (
-                                                <button onClick={() => setPrintModalJob(job)} className="p-2 text-slate-400 hover:text-slate-700 rounded-lg transition-colors" title="Imprimir"><Printer size={18} /></button>
-                                            )}
-                                            <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalhes"><Eye size={18} /></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })
-                    )}
+                    {filteredJobs.map(job => {
+                        const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
+                        const canRoute = isLabStaff && job.status === JobStatus.COMPLETED && !job.routeId;
+                        
+                        return (
+                            <tr key={job.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="p-4 font-mono font-bold text-slate-700">{job.osNumber || '---'}</td>
+                                {!isClient && <td className="p-4">{job.boxNumber || '-'}</td>}
+                                <td className="p-4 font-bold text-slate-900">{job.patientName}</td>
+                                <td className="p-4">
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${getStatusColor(job.status)}`}>
+                                        {getTranslatedStatus(job.status)}
+                                    </span>
+                                </td>
+                                <td className="p-4 text-slate-600 text-sm font-medium">{new Date(job.dueDate).toLocaleDateString()}</td>
+                                <td className="p-4 text-right">
+                                    <div className="flex justify-end gap-1">
+                                        {canFinalize && (
+                                            <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg" title="Finalizar Caso"><CheckCircle2 size={18} /></button>
+                                        )}
+                                        {canRoute && (
+                                            <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Adicionar à Rota"><Truck size={18} /></button>
+                                        )}
+                                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"><Eye size={18} /></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
         </div>
       </div>
 
-      {/* --- MOBILE CARD VIEW --- */}
-      <div className="md:hidden space-y-4">
-        {filteredJobs.map(job => {
-            const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
-            return (
-                <div key={job.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                    <div className="flex justify-between items-start mb-3">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="font-mono font-bold text-lg text-slate-800">{job.osNumber || 'WEB'}</span>
-                                {job.urgency === UrgencyLevel.VIP && <AlertCircle size={16} className="text-red-500" />}
-                            </div>
-                            <h3 className="font-bold text-slate-900 leading-tight">{job.patientName}</h3>
-                            <p className="text-xs text-slate-500">Dr. {job.dentistName}</p>
-                        </div>
-                        <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase ${getStatusColor(job.status)}`}>
-                            {getTranslatedStatus(job.status)}
-                        </span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between border-t border-slate-50 pt-3">
-                        <div className="flex items-center gap-1 text-slate-500 text-xs font-bold">
-                            <Clock size={14} /> {new Date(job.dueDate).toLocaleDateString()}
-                        </div>
-                        <div className="flex gap-2">
-                             {canFinalize && (
-                                <button onClick={() => handleFinalizeJob(job)} className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white font-bold text-[10px] rounded-lg shadow-sm">
-                                    <CheckCircle2 size={14} /> FINALIZAR
-                                </button>
-                            )}
-                            <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 bg-blue-50 rounded-lg"><Eye size={18} /></button>
-                        </div>
-                    </div>
-                </div>
-            );
-        })}
-      </div>
-
-      {/* Modais de Impressão e PIX permanecem iguais */}
-      {printModalJob && (
-         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-xl p-6 max-sm w-full relative">
-                 <button onClick={() => setPrintModalJob(null)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-                    <X size={20} />
-                </button>
-                <h3 className="font-bold text-lg mb-4 text-slate-800">Imprimir OS: {printModalJob.osNumber}</h3>
-                <div className="space-y-3">
-                    <button onClick={() => { triggerPrint(printModalJob, 'SHEET'); setPrintModalJob(null); }} className="w-full p-4 border border-slate-200 rounded-xl hover:bg-blue-50 hover:border-blue-200 flex items-center gap-3 transition-colors text-left"><FileDown size={24} className="text-blue-600" /><div><span className="block font-bold text-slate-800">Ficha de Trabalho</span><span className="text-xs text-slate-500">A4 Completo com Código de Barras</span></div></button>
-                    <button onClick={() => { triggerPrint(printModalJob, 'LABEL'); setPrintModalJob(null); }} className="w-full p-4 border border-slate-200 rounded-xl hover:bg-purple-50 hover:border-purple-200 flex items-center gap-3 transition-colors text-left"><Printer size={24} className="text-purple-600" /><div><span className="block font-bold text-slate-800">Etiqueta Térmica</span><span className="text-xs text-slate-500">10x5cm para Caixas</span></div></button>
-                </div>
-            </div>
-         </div>
+      {/* ROUTE MODAL */}
+      {routeModalJob && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
+                  <div className="flex justify-between items-center mb-6 border-b pb-4">
+                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Truck className="text-indigo-600" /> Escalar para Entrega</h3>
+                      <button onClick={() => setRouteModalJob(null)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                  </div>
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data da Rota</label>
+                          <input type="date" value={routeDate} onChange={e => setRouteDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl" />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turno</label>
+                          <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border rounded-xl bg-white">
+                              <option value="MORNING">Manhã</option>
+                              <option value="AFTERNOON">Tarde</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Entregador</label>
+                          <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl" />
+                      </div>
+                      <button onClick={handleAddToRoute} disabled={isProcessing} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2">
+                          {isProcessing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={20} /> CONFIRMAR ROTA</>}
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );

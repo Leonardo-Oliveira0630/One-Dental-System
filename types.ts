@@ -20,7 +20,7 @@ export interface GlobalSettings {
 export interface Organization {
   id: string;
   name: string;
-  logoUrl?: string; // Novo campo para personalização de marca
+  logoUrl?: string; 
   planId: string;
   subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING';
   trialEndsAt?: Date;
@@ -38,6 +38,29 @@ export interface Organization {
     asaasAccountNumber?: string;
     businessData?: any;
   };
+}
+
+export interface DeliveryRoute {
+  id: string;
+  organizationId: string;
+  date: Date;
+  shift: 'MORNING' | 'AFTERNOON';
+  driverName: string;
+  status: 'OPEN' | 'IN_TRANSIT' | 'COMPLETED';
+  createdAt: Date;
+}
+
+export interface RouteItem {
+  id: string;
+  routeId: string;
+  jobId?: string;
+  dentistId: string;
+  dentistName: string;
+  clinicName?: string;
+  patientName?: string;
+  address: string;
+  type: 'DELIVERY' | 'PICKUP';
+  order: number;
 }
 
 export interface Expense {
@@ -88,7 +111,8 @@ export type PermissionKey =
   | 'users:manage'
   | 'vip:view'
   | 'calendar:view'
-  | 'commissions:view';
+  | 'commissions:view'
+  | 'logistics:manage';
 
 export enum JobStatus {
   PENDING = 'PENDING',
@@ -148,7 +172,7 @@ export interface LabRating {
   dentistId: string;
   dentistName: string;
   jobId: string;
-  score: number; // 1 to 5
+  score: number; 
   comment?: string;
   createdAt: Date;
 }
@@ -179,6 +203,7 @@ export interface Job {
   pixCopyPaste?: string;
   batchId?: string;
   ratingId?: string; 
+  routeId?: string;
 }
 
 export interface Sector {
@@ -233,6 +258,10 @@ export interface User {
     price?: number; 
     discountPercent?: number; 
   }[];
+  address?: string;
+  city?: string;
+  state?: string;
+  cep?: string;
 }
 
 export interface CartItem {

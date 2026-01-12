@@ -1,13 +1,13 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
 import { JobStatus, UrgencyLevel } from '../types';
 
-// Fix: Using namespace imports to resolve "has no exported member" errors in problematic environments
 import * as authPkg from 'firebase/auth';
 import * as firestorePkg from 'firebase/firestore';
 
@@ -28,7 +28,7 @@ interface AppContextType {
   alerts: JobAlert[];
   commissions: CommissionRecord[];
   allOrganizations: Organization[];
-  allLaboratories: Organization[]; // Adicionado para dentistas
+  allLaboratories: Organization[]; 
   allPlans: SubscriptionPlan[];
   coupons: Coupon[];
   patients: ClinicPatient[];
@@ -60,8 +60,9 @@ interface AppContextType {
   clearCart: () => void;
   uploadFile: (file: File) => Promise<string>;
 
-  printData: { job: Job, mode: 'SHEET' | 'LABEL' } | null;
+  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
   triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL') => void;
+  triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => void;
   clearPrint: () => void;
   
   activeOrganization: Organization | null;
@@ -95,6 +96,8 @@ interface AppContextType {
   addManualDentist: (d: Omit<ManualDentist, 'id' | 'organizationId'>) => Promise<void>;
   updateManualDentist: (id: string, updates: Partial<ManualDentist>) => Promise<void>;
   deleteManualDentist: (id: string) => Promise<void>;
+
+  addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -131,7 +134,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
   const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [printData, setPrintData] = useState<{ job: Job, mode: 'SHEET' | 'LABEL' } | null>(null);
+  const [printData, setPrintData] = useState<AppContextType['printData']>(null);
 
   const targetOrgId = () => activeOrganization?.id || (currentUser?.role !== UserRole.CLIENT ? currentUser?.organizationId : null) || null;
 
@@ -195,7 +198,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                          });
                     }
                 });
-                // Carregar laboratórios para descoberta
                 api.subscribeAllLaboratories(setAllLaboratories);
             }
         }
@@ -225,7 +227,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
         if (currentUser.role !== UserRole.CLIENT) {
-            // FIX: Adicionado tratamento de erro nos listeners para evitar crash por falta de permissão (Firestore Rules)
             try {
               unsubs.push(api.subscribeOrgUsers(myOrgId, (users: User[]) => {
                   setAllUsers(users || []);
@@ -249,11 +250,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => await api.apiLogout();
 
-  /**
-   * ATUALIZAR USUÁRIO
-   * Se for o próprio usuário, usa apiUpdateUser (Firestore).
-   * Se for outro usuário (Admin editando), usa apiUpdateUserAdmin (Cloud Function).
-   */
   const updateUser = async (id: string, u: Partial<User>) => {
     if (!currentUser) return;
     if (id === currentUser.id) {
@@ -365,7 +361,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }
   
   const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c);
-  const registerDentist = async (e: string, p: string, n: string, cn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterDentist(e, p, n, cn, pid, t, c);
+  const registerDentist = async (e: string, p: string, n: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => await api.apiRegisterDentist(e, p, n, clinicName, planId, trialEndsAt, couponCode);
   const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
   const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
   const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
@@ -408,6 +404,46 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => {
+      const orgId = currentUser?.organizationId;
+      if (!orgId) return;
+
+      const dateStr = date.toISOString().split('T')[0];
+      const routeId = `route_${dateStr}_${shift}_${driver.replace(/\s+/g, '_')}`;
+      
+      const routeSnap = await getDoc(doc(db, 'organizations', orgId, 'routes', routeId));
+      if (!routeSnap.exists()) {
+          await api.apiAddRoute(orgId, {
+              id: routeId,
+              organizationId: orgId,
+              date: date,
+              shift: shift,
+              driverName: driver,
+              status: 'OPEN',
+              createdAt: new Date()
+          });
+      }
+
+      const dentist = manualDentists.find(d => d.id === job.dentistId);
+      const onlineDentist = allUsers.find(u => u.id === job.dentistId);
+      const address = dentist ? `${dentist.address}, ${dentist.number} - ${dentist.city}` : (onlineDentist?.address || 'Endereço não cadastrado');
+
+      const routeItem: RouteItem = {
+          id: `item_${Date.now()}`,
+          routeId: routeId,
+          jobId: job.id,
+          dentistId: job.dentistId,
+          dentistName: job.dentistName,
+          patientName: job.patientName,
+          address: address,
+          type: 'DELIVERY',
+          order: Date.now() 
+      };
+
+      await api.apiAddRouteItem(orgId, routeId, routeItem);
+      await api.apiUpdateJob(orgId, job.id, { routeId });
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
@@ -418,13 +454,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addJobType, updateJobType, deleteJobType, addSector, deleteSector,
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       uploadFile: api.uploadJobFile,
-      printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), clearPrint: () => setPrintData(null),
+      printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), 
+      triggerRoutePrint: (items, driver, shift, date) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
+      clearPrint: () => setPrintData(null),
       activeOrganization, switchActiveOrganization, userConnections,
       updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
       addConnectionByCode, addCoupon, updateCoupon, deleteCoupon,
-      addManualDentist, updateManualDentist, deleteManualDentist
+      addManualDentist, updateManualDentist, deleteManualDentist, addJobToRoute
     }}>
       {children}
     </AppContext.Provider>

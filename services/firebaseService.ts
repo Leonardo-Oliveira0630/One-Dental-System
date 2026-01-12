@@ -1,9 +1,9 @@
+
 import * as firestorePkg from 'firebase/firestore';
 import * as authPkg from 'firebase/auth';
 import * as storagePkg from 'firebase/storage';
 import * as functionsPkg from 'firebase/functions';
 
-// Fix: Explicitly resolving exports via any-cast to bypass environment-specific resolution failures
 const { 
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
   onSnapshot, query, where, Timestamp, arrayUnion, orderBy, limit, increment
@@ -21,18 +21,13 @@ import { db, auth, storage, functions } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem 
 } from '../types';
 
 const toDate = (val: any) => val instanceof Timestamp ? val.toDate() : val;
 
 export const apiLogin = (email: string, pass: string) => signInWithEmailAndPassword(auth, email, pass);
 export const apiLogout = () => signOut(auth);
-
-/**
- * Envia um e-mail de redefinição de senha para o usuário.
- * O link no e-mail levará o usuário para uma página segura do Firebase para cadastrar a nova senha.
- */
 export const apiResetPassword = (email: string) => sendPasswordResetEmail(auth, email);
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
@@ -44,10 +39,6 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 
 export const apiUpdateUser = (id: string, updates: Partial<User>) => updateDoc(doc(db, 'users', id), updates);
 
-/**
- * Chama a Cloud Function para atualizar dados administrativos de um usuário (Role/Perms).
- * Ignora Security Rules do cliente.
- */
 export const apiUpdateUserAdmin = async (targetUserId: string, updates: Partial<User>) => {
   const fn = httpsCallable(functions, 'updateUserAdmin');
   const res = await fn({ targetUserId, updates });
@@ -71,7 +62,6 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
 
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
 
-// --- JOBS ---
 export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
     if (!orgId) return () => {};
     const q = query(
@@ -360,8 +350,6 @@ export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => 
 export const apiAddExpense = (orgId: string, expense: Expense) => setDoc(doc(db, 'organizations', orgId, 'expenses', expense.id), expense);
 export const apiDeleteExpense = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'expenses', id));
 
-// --- REPUTATION SYSTEM ---
-
 export const apiAddLabRating = async (rating: LabRating) => {
     const labRef = doc(db, 'organizations', rating.labId);
     const ratingRef = doc(db, 'organizations', rating.labId, 'ratings', rating.id);
@@ -391,3 +379,29 @@ export const subscribeLabRatings = (labId: string, cb: (r: LabRating[]) => void)
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as LabRating)));
     });
 };
+
+// --- LOGISTICS & ROUTES ---
+
+export const subscribeRoutes = (orgId: string, cb: (routes: DeliveryRoute[]) => void) => {
+  if (!orgId) return () => {};
+  const q = query(collection(db, 'organizations', orgId, 'routes'), orderBy('date', 'desc'), limit(50));
+  return onSnapshot(q, (snap: any) => {
+    cb(snap.docs.map((d: any) => ({ 
+      id: d.id, ...d.data() as any, date: toDate(d.data().date), createdAt: toDate(d.data().createdAt) 
+    } as DeliveryRoute)));
+  });
+};
+
+export const apiAddRoute = (orgId: string, route: DeliveryRoute) => setDoc(doc(db, 'organizations', orgId, 'routes', route.id), route);
+export const apiUpdateRoute = (orgId: string, id: string, updates: Partial<DeliveryRoute>) => updateDoc(doc(db, 'organizations', orgId, 'routes', id), updates);
+
+export const subscribeRouteItems = (orgId: string, routeId: string, cb: (items: RouteItem[]) => void) => {
+  if (!orgId || !routeId) return () => {};
+  const q = query(collection(db, 'organizations', orgId, 'routes', routeId, 'items'), orderBy('order', 'asc'));
+  return onSnapshot(q, (snap: any) => {
+    cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as RouteItem)));
+  });
+};
+
+export const apiAddRouteItem = (orgId: string, routeId: string, item: RouteItem) => setDoc(doc(db, 'organizations', orgId, 'routes', routeId, 'items', item.id), item);
+export const apiDeleteRouteItem = (orgId: string, routeId: string, itemId: string) => deleteDoc(doc(db, 'organizations', orgId, 'routes', routeId, 'items', itemId));
