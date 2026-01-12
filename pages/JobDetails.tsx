@@ -7,7 +7,7 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import * as api from '../services/firebaseService';
@@ -154,6 +154,26 @@ export const JobDetails = () => {
                 sector: 'Expedição'
             }]
         });
+    } finally { setIsUpdatingStatus(false); }
+  };
+
+  const handleReopenJob = async () => {
+    if (!currentUser || isUpdatingStatus) return;
+    if (!window.confirm("Deseja reabrir este caso? O status voltará para 'Em Produção' e ele sairá da lista de concluídos.")) return;
+    setIsUpdatingStatus(true);
+    try {
+        await updateJob(job.id, {
+            status: JobStatus.IN_PROGRESS,
+            history: [...job.history, {
+                id: `hist_reopen_${Date.now()}`,
+                timestamp: new Date(),
+                action: `Trabalho REABERTO (Retorno à Produção)`,
+                userId: currentUser.id,
+                userName: currentUser.name,
+                sector: currentUser.sector || 'Gestão'
+            }]
+        });
+        alert("Caso reaberto com sucesso!");
     } finally { setIsUpdatingStatus(false); }
   };
 
@@ -318,6 +338,16 @@ export const JobDetails = () => {
       <div className="flex justify-between items-center">
           <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold transition-colors"><ArrowLeft size={20} /> Voltar para Lista</button>
           <div className="flex gap-2">
+              {isFinished && isLabStaff && (
+                  <button 
+                    onClick={handleReopenJob} 
+                    disabled={isUpdatingStatus}
+                    className="px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-100 font-bold flex items-center gap-2 text-xs transition-all shadow-sm"
+                  >
+                    {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <RotateCcw size={16} />} 
+                    REABRIR CASO
+                  </button>
+              )}
               {!isClient && job.status !== JobStatus.REJECTED && (
                   <>
                       <button onClick={() => triggerPrint(job, 'SHEET')} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-2 text-xs"><Printer size={16} /> Ficha A4</button>

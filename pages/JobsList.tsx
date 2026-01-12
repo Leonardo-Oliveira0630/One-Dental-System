@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
 // Added missing Loader2 to imports from lucide-react
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 
@@ -99,6 +99,21 @@ export const JobsList = () => {
       });
   };
 
+  const handleReopenJob = async (job: Job) => {
+      if (!window.confirm(`Deseja reabrir o caso de ${job.patientName}? Ele retornará para "Em Produção".`)) return;
+      await updateJob(job.id, {
+          status: JobStatus.IN_PROGRESS,
+          history: [...job.history, {
+              id: `hist_reopen_${Date.now()}`,
+              timestamp: new Date(),
+              action: 'Trabalho REABERTO via lista rápida',
+              userId: currentUser?.id || 'sys',
+              userName: currentUser?.name || 'Sistema',
+              sector: currentUser?.sector || 'Gestão'
+          }]
+      });
+  };
+
   const handleAddToRoute = async () => {
     if (!routeModalJob || !routeDriver) return;
     setIsProcessing(true);
@@ -184,6 +199,7 @@ export const JobsList = () => {
                     {filteredJobs.map(job => {
                         const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
                         const canRoute = isLabStaff && job.status === JobStatus.COMPLETED && !job.routeId;
+                        const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED);
                         
                         return (
                             <tr key={job.id} className="hover:bg-slate-50 transition-colors">
@@ -216,6 +232,9 @@ export const JobsList = () => {
                                     <div className="flex justify-end gap-1">
                                         {canFinalize && (
                                             <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg" title="Finalizar Caso"><CheckCircle2 size={18} /></button>
+                                        )}
+                                        {canReopen && (
+                                            <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg" title="Reabrir Caso"><RotateCcw size={18} /></button>
                                         )}
                                         {canRoute && (
                                             <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg" title="Adicionar à Rota"><Truck size={18} /></button>
