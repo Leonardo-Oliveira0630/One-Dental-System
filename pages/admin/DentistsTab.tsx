@@ -1,9 +1,10 @@
+
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ManualDentist } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
-  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, AlertCircle, Save, FileText, BadgeCheck, Phone, Mail
+  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
@@ -12,7 +13,7 @@ export const DentistsTab = () => {
   const { manualDentists, addManualDentist, updateManualDentist, deleteManualDentist } = useApp();
   const [isAddingDentist, setIsAddingDentist] = useState(false);
   const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
-  const [dentistSearch, setDentistSearch] = useState('');
+  const [dentistSearch, setSearchTerm] = useState('');
 
   // AI Import States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -21,38 +22,56 @@ export const DentistsTab = () => {
   const [importStatus, setImportStatus] = useState<'IDLE' | 'ANALYZING' | 'PREVIEW' | 'SAVING'>('IDLE');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Form State
-  const [dentistName, setDentistName] = useState('');
-  const [dentistClinic, setDentistClinic] = useState('');
-  const [dentistEmail, setDentistEmail] = useState('');
-  const [dentistPhone, setDentistPhone] = useState('');
-  const [dentistCpfCnpj, setDentistCpfCnpj] = useState('');
-  const [dentistCro, setDentistCro] = useState('');
+  // Form State (Expanded)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    cpfCnpj: '',
+    cro: '',
+    birthDate: '',
+    approvalDate: '',
+    cep: '',
+    address: '',
+    number: '',
+    complement: '',
+    neighborhood: '',
+    city: '',
+    state: '',
+    country: 'Brasil',
+    clinicName: ''
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSaveManualDentist = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!dentistName) return;
-      const data = { 
-        name: dentistName, 
-        clinicName: dentistClinic, 
-        email: dentistEmail, 
-        phone: dentistPhone,
-        cpfCnpj: dentistCpfCnpj,
-        cro: dentistCro
-      };
+      if (!formData.name) return;
       try {
           if (editingDentistId) {
-              await updateManualDentist(editingDentistId, data);
+              await updateManualDentist(editingDentistId, formData);
           } else {
-              await addManualDentist({ ...data, createdAt: new Date() });
+              await addManualDentist({ ...formData, createdAt: new Date() });
           }
           setIsAddingDentist(false);
           setEditingDentistId(null);
-          setDentistName(''); setDentistClinic(''); setDentistEmail(''); setDentistPhone(''); setDentistCpfCnpj(''); setDentistCro('');
+          resetForm();
       } catch (err) { alert("Erro ao salvar cliente."); }
   };
 
-  // --- AI IMPORT LOGIC ---
+  const resetForm = () => {
+    setFormData({
+      name: '', email: '', phone: '', cpfCnpj: '', cro: '',
+      birthDate: '', approvalDate: '', cep: '', address: '',
+      number: '', complement: '', neighborhood: '', city: '',
+      state: '', country: 'Brasil', clinicName: ''
+    });
+  };
+
+  // --- AI IMPORT LOGIC (EXPANDED) ---
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -76,25 +95,32 @@ export const DentistsTab = () => {
           return;
         }
 
-        // Usar Gemini para interpretar as colunas com foco nos campos solicitados
         const aiMapping = await analyzeColumnsWithAI(data.slice(0, 5));
         
-        // Processar todos os dados com o mapeamento da IA
         const processedData = data.map((row: any) => ({
           name: row[aiMapping.name] || '',
           email: row[aiMapping.email] || '',
           phone: row[aiMapping.phone] || '',
           cpfCnpj: row[aiMapping.cpfCnpj] || '',
           cro: row[aiMapping.cro] || '',
+          birthDate: row[aiMapping.birthDate] || '',
+          approvalDate: row[aiMapping.approvalDate] || '',
+          cep: row[aiMapping.cep] || '',
+          address: row[aiMapping.address] || '',
+          number: row[aiMapping.number] || '',
+          complement: row[aiMapping.complement] || '',
+          neighborhood: row[aiMapping.neighborhood] || '',
+          city: row[aiMapping.city] || '',
+          state: row[aiMapping.state] || '',
+          country: row[aiMapping.country] || 'Brasil',
           clinicName: row[aiMapping.clinicName] || '',
-          isValid: !!row[aiMapping.name] // Apenas o nome é obrigatório
+          isValid: !!row[aiMapping.name]
         }));
 
         setImportPreview(processedData);
         setImportStatus('PREVIEW');
       } catch (err) {
-        console.error(err);
-        alert("Erro ao processar arquivo Excel.");
+        alert("Erro ao processar arquivo.");
         setImportStatus('IDLE');
       } finally {
         setIsAnalyzing(false);
@@ -106,52 +132,43 @@ export const DentistsTab = () => {
   const analyzeColumnsWithAI = async (sampleData: any[]) => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `
-      Você é um especialista em extração de dados. Analise o cabeçalho e as primeiras linhas desta planilha de laboratório odontológico.
-      Identifique quais colunas originais correspondem aos nossos campos internos:
+      Você é um especialista em mapeamento de dados. Analise este JSON de exemplo de uma planilha Excel e identifique as colunas que correspondem aos nossos campos internos.
       
-      1. 'name': Nome do dentista, cliente ou doutor (MUITO IMPORTANTE).
-      2. 'email': E-mail de contato.
-      3. 'phone': Telefone, Celular ou WhatsApp.
-      4. 'cpfCnpj': Documento, CPF, CNPJ ou Identificação Fiscal.
-      5. 'cro': Registro Profissional ou CRO.
-      6. 'clinicName': Nome da clínica ou consultório.
+      CAMPOS DESEJADOS:
+      - name: Nome do cliente, dentista ou profissional.
+      - email: Endereço de e-mail.
+      - birthDate: Data de nascimento.
+      - phone: Telefone, celular ou whatsapp.
+      - cpfCnpj: Documento, CPF, CNPJ ou Identidade.
+      - cro: Registro Profissional ou CRO.
+      - approvalDate: Data de aprovação ou cadastro.
+      - cep: CEP ou Código Postal.
+      - address: Logradouro, Rua ou Endereço.
+      - number: Número da residência/prédio.
+      - complement: Complemento, sala ou apartamento.
+      - neighborhood: Bairro.
+      - city: Cidade.
+      - state: Estado ou UF.
+      - country: País.
+      - clinicName: Nome da Clínica.
 
-      JSON de amostra para análise: ${JSON.stringify(sampleData)}
+      AMOSTRA: ${JSON.stringify(sampleData)}
 
-      Retorne APENAS um objeto JSON puro com este formato:
-      { 
-        "name": "nome_da_coluna_no_excel", 
-        "email": "nome_da_coluna_no_excel", 
-        "phone": "nome_da_coluna_no_excel", 
-        "cpfCnpj": "nome_da_coluna_no_excel", 
-        "cro": "nome_da_coluna_no_excel",
-        "clinicName": "nome_da_coluna_no_excel"
-      }
-      Se não houver uma coluna correspondente clara, retorne string vazia como valor.
+      Retorne APENAS um JSON puro com o mapeamento:
+      { "name": "coluna_excel", "email": "coluna_excel", ... }
     `;
 
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
-        config: { 
-            responseMimeType: "application/json",
-            temperature: 0.1 
-        }
+        config: { responseMimeType: "application/json", temperature: 0.1 }
       });
       return JSON.parse(response.text || '{}');
     } catch (error) {
-      console.error("AI Error:", error);
+      // Fallback manual básico se a IA falhar
       const keys = Object.keys(sampleData[0] || {});
-      const findKey = (search: string[]) => keys.find(k => search.some(s => k.toLowerCase().includes(s))) || '';
-      return {
-        name: findKey(['nome', 'cliente', 'dr', 'doutor']) || keys[0],
-        email: findKey(['email', 'e-mail', 'contato']),
-        phone: findKey(['tel', 'cel', 'whats', 'fone']),
-        cpfCnpj: findKey(['cpf', 'cnpj', 'doc', 'documento']),
-        cro: findKey(['cro', 'registro']),
-        clinicName: findKey(['clínica', 'consultório', 'empresa'])
-      };
+      return { name: keys[0] || 'Nome' };
     }
   };
 
@@ -162,12 +179,8 @@ export const DentistsTab = () => {
       let count = 0;
       for (const item of validItems) {
         await addManualDentist({
-          name: item.name,
-          email: item.email || '',
+          ...item,
           phone: String(item.phone || ''),
-          cpfCnpj: String(item.cpfCnpj || ''),
-          cro: String(item.cro || ''),
-          clinicName: item.clinicName || '',
           createdAt: new Date()
         });
         count++;
@@ -177,32 +190,26 @@ export const DentistsTab = () => {
       setImportPreview([]);
       setImportStatus('IDLE');
     } catch (err) {
-      alert("Erro ao salvar dados importados.");
+      alert("Erro ao salvar dados.");
       setImportStatus('PREVIEW');
     }
   };
 
   const filteredDentists = manualDentists.filter(d => 
     d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
-    (d.clinicName || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
-    (d.cro || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
-    (d.cpfCnpj || '').toLowerCase().includes(dentistSearch.toLowerCase())
+    (d.cro || '').includes(dentistSearch) ||
+    (d.cpfCnpj || '').includes(dentistSearch)
   );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-              Clientes Internos (Offline)
-            </h3>
+            <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">Clientes Internos (Offline)</h3>
             <div className="flex gap-2 w-full md:w-auto">
-                <button 
-                  onClick={() => setIsImportModalOpen(true)}
-                  className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200"
-                >
-                    <FileSpreadsheet size={18}/> Importar Planilha IA
+                <button onClick={() => setIsImportModalOpen(true)} className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200">
+                    <FileSpreadsheet size={18}/> Importar Completo (IA)
                 </button>
-                <button onClick={() => setIsAddingDentist(true)} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all">
+                <button onClick={() => { resetForm(); setIsAddingDentist(true); }} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-all">
                     <Plus size={20}/> Novo Cadastro
                 </button>
             </div>
@@ -212,10 +219,10 @@ export const DentistsTab = () => {
             <div className="relative">
                 <Search className="absolute left-3 top-3 text-slate-400" size={18} />
                 <input 
-                    placeholder="Filtrar por nome, clínica, CRO ou documento..." 
+                    placeholder="Filtrar por nome, CRO ou documento..." 
                     className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
                     value={dentistSearch} 
-                    onChange={e => setDentistSearch(e.target.value)}
+                    onChange={e => setSearchTerm(e.target.value)}
                 />
             </div>
         </div>
@@ -227,43 +234,40 @@ export const DentistsTab = () => {
                   <tr>
                     <th className="p-4">Nome / Clínica</th>
                     <th className="p-4">Documento / CRO</th>
+                    <th className="p-4">Cidade / UF</th>
                     <th className="p-4">Contato</th>
                     <th className="p-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredDentists.length === 0 ? (
-                    <tr><td colSpan={4} className="p-12 text-center text-slate-400 italic font-medium">Nenhum cliente cadastrado. Use o botão acima para adicionar ou importar.</td></tr>
+                    <tr><td colSpan={5} className="p-12 text-center text-slate-400 italic">Nenhum cliente cadastrado.</td></tr>
                   ) : (
                     filteredDentists.map(dentist => (
                       <tr key={dentist.id} className="hover:bg-slate-50 transition-colors group">
                         <td className="p-4">
                           <div className="font-bold text-slate-800">{dentist.name}</div>
-                          <div className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">{dentist.clinicName || '---'}</div>
+                          <div className="text-[10px] text-slate-400 font-black uppercase">{dentist.clinicName || '---'}</div>
+                        </td>
+                        <td className="p-4 text-xs">
+                          <div className="font-bold text-slate-700">{dentist.cpfCnpj || '---'}</div>
+                          <div className="text-[10px] text-blue-600 font-bold uppercase">CRO: {dentist.cro || '---'}</div>
+                        </td>
+                        <td className="p-4 text-xs font-medium text-slate-600">
+                          {dentist.city ? `${dentist.city} / ${dentist.state || ''}` : '---'}
                         </td>
                         <td className="p-4">
-                          <div className="text-xs font-bold text-slate-700">{dentist.cpfCnpj || '---'}</div>
-                          {dentist.cro && (
-                            <div className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-black w-fit mt-1 uppercase tracking-tighter">CRO: {dentist.cro}</div>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <div className="text-xs text-slate-500 font-medium flex items-center gap-1"><Mail size={12} className="text-slate-300"/> {dentist.email || '---'}</div>
-                          <div className="text-xs font-black text-slate-400 uppercase tracking-tighter flex items-center gap-1"><Phone size={12} className="text-slate-300"/> {dentist.phone || '---'}</div>
+                          <div className="text-xs text-slate-500 flex items-center gap-1"><Mail size={12}/> {dentist.email || '---'}</div>
+                          <div className="text-xs font-bold text-slate-400 flex items-center gap-1"><Phone size={12}/> {dentist.phone || '---'}</div>
                         </td>
                         <td className="p-4 text-right">
-                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex justify-end gap-2">
                                 <button onClick={() => {
                                     setEditingDentistId(dentist.id);
-                                    setDentistName(dentist.name);
-                                    setDentistClinic(dentist.clinicName || '');
-                                    setDentistEmail(dentist.email || '');
-                                    setDentistPhone(dentist.phone || '');
-                                    setDentistCpfCnpj(dentist.cpfCnpj || '');
-                                    setDentistCro(dentist.cro || '');
+                                    setFormData({ ...dentist } as any);
                                     setIsAddingDentist(true);
-                                }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Edit size={18}/></button>
-                                <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                                }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit size={18}/></button>
+                                <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>
                             </div>
                         </td>
                       </tr>
@@ -274,109 +278,149 @@ export const DentistsTab = () => {
             </div>
         </div>
 
-        {/* MODAL: NOVO/EDITAR CLIENTE */}
+        {/* MODAL: CADASTRO MANUAL (REORGANIZADO) */}
         {isAddingDentist && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
-                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                      <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cliente' : 'Novo Cliente'}</h3>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                      <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cadastro' : 'Ficha de Cliente'}</h3>
                       <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
-                  <form onSubmit={handleSaveManualDentist} className="space-y-4">
-                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Nome Completo</label><input required value={dentistName} onChange={e => setDentistName(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">CPF / CNPJ</label><input value={dentistCpfCnpj} onChange={e => setDentistCpfCnpj(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
-                        <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">CRO</label><input value={dentistCro} onChange={e => setDentistCro(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
+                  <form onSubmit={handleSaveManualDentist} className="p-6 space-y-6">
+                      {/* Seção 1: Dados Pessoais */}
+                      <div>
+                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">1. Identificação e Contato</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Nome Completo *</label>
+                            <input name="name" required value={formData.name} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">E-mail</label>
+                            <input name="email" type="email" value={formData.email} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Telefone / WhatsApp</label>
+                            <input name="phone" value={formData.phone} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Data de Nascimento</label>
+                            <input name="birthDate" type="date" value={formData.birthDate} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Clínica</label>
+                            <input name="clinicName" value={formData.clinicName} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                        </div>
                       </div>
-                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">E-mail</label><input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
-                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Telefone / WhatsApp</label><input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
-                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Clínica / Obs</label><input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
-                      <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all transform active:scale-95">SALVAR CADASTRO</button>
+
+                      {/* Seção 2: Documentação */}
+                      <div>
+                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">2. Documentação e Registro</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CPF / CNPJ</label>
+                            <input name="cpfCnpj" value={formData.cpfCnpj} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CRO</label>
+                            <input name="cro" value={formData.cro} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Data Aprovação</label>
+                            <input name="approvalDate" type="date" value={formData.approvalDate} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Seção 3: Endereço */}
+                      <div>
+                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">3. Localização</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CEP</label>
+                            <input name="cep" value={formData.cep} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Logradouro</label>
+                            <input name="address" value={formData.address} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Número</label>
+                            <input name="number" value={formData.number} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Bairro</label>
+                            <input name="neighborhood" value={formData.neighborhood} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Cidade</label>
+                            <input name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Estado (UF)</label>
+                            <input name="state" value={formData.state} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">País</label>
+                            <input name="country" value={formData.country} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all transform active:scale-95">SALVAR FICHA COMPLETA</button>
                   </form>
               </div>
           </div>
         )}
 
-        {/* MODAL: IMPORTAR EXCEL IA */}
+        {/* MODAL: IMPORTAR EXCEL IA (EXPANDIDO) */}
         {isImportModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
-            <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
-              {/* Header */}
-              <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
-                    <Sparkles size={24} />
-                  </div>
+                  <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Sparkles size={24} /></div>
                   <div>
-                    <h2 className="text-2xl font-black text-slate-800">Agente de Importação IA</h2>
-                    <p className="text-slate-500 text-sm font-medium">Extraímos automaticamente Nome, Documento, CRO, E-mail e Telefone.</p>
+                    <h2 className="text-2xl font-black text-slate-800">Agente de Importação Inteligente</h2>
+                    <p className="text-slate-500 text-sm font-medium">Extraímos automaticamente todos os 15 campos de cadastro e endereço.</p>
                   </div>
                 </div>
                 <button onClick={() => { setIsImportModalOpen(false); setImportStatus('IDLE'); }} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={28} className="text-slate-400"/></button>
               </div>
 
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30">
+              <div className="flex-1 overflow-y-auto p-8">
                 {importStatus === 'IDLE' && (
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-4 border-dashed border-slate-200 rounded-[24px] p-20 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-all cursor-pointer group"
-                  >
-                    <input 
-                      type="file" 
-                      accept=".xlsx, .xls, .csv" 
-                      className="hidden" 
-                      ref={fileInputRef} 
-                      onChange={handleFileUpload} 
-                    />
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                        <UploadCloud size={40} />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-slate-700">Selecione seu arquivo de clientes</h3>
-                        <p className="text-slate-400 mt-1">Excel ou CSV - Não importa a ordem das colunas, a IA resolve.</p>
-                      </div>
-                    </div>
+                  <div onClick={() => fileInputRef.current?.click()} className="border-4 border-dashed border-slate-200 rounded-[24px] p-20 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-all cursor-pointer group">
+                    <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                    <UploadCloud size={48} className="mx-auto text-slate-300 mb-4 group-hover:text-indigo-500" />
+                    <h3 className="text-xl font-bold text-slate-700">Arraste sua planilha completa aqui</h3>
+                    <p className="text-slate-400 mt-2 italic">A IA identificará Nome, Endereço, Documentos e Datas automaticamente.</p>
                   </div>
                 )}
 
                 {importStatus === 'ANALYZING' && (
                   <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
-                    <div className="relative">
-                      <Loader2 size={64} className="text-indigo-600 animate-spin" />
-                      <Sparkles size={24} className="text-amber-500 absolute top-0 right-0 animate-pulse" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-black text-slate-800">Agente IA Identificando Colunas...</h3>
-                      <p className="text-slate-500 max-w-sm mx-auto mt-2">
-                        Estou lendo os cabeçalhos para encontrar Nomes, Documentos, CROs e Contatos.
-                      </p>
-                    </div>
+                    <Loader2 size={64} className="text-indigo-600 animate-spin" />
+                    <h3 className="text-xl font-black text-slate-800">Mapeando Colunas com IA...</h3>
                   </div>
                 )}
 
                 {importStatus === 'PREVIEW' && (
                   <div className="space-y-6">
-                    <div className="bg-white p-5 rounded-2xl border border-indigo-100 flex items-start gap-4 shadow-sm">
-                      <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                        <BadgeCheck size={24}/>
-                      </div>
-                      <div>
-                        <p className="font-bold text-indigo-900">Mapeamento Concluído!</p>
-                        <p className="text-xs text-indigo-700">Confira os dados extraídos. O sistema aceitará o cadastro mesmo que Documento, CRO ou Email não estejam preenchidos.</p>
-                      </div>
+                    <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-center gap-4 text-indigo-700">
+                      <BadgeCheck size={24}/> <p className="font-bold">Mapeamento concluído! Verifique os dados abaixo antes de salvar.</p>
                     </div>
 
                     <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white overflow-x-auto">
-                      <table className="w-full text-left min-w-[900px]">
+                      <table className="w-full text-left min-w-[1200px]">
                         <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
                           <tr>
-                            <th className="p-4">Cliente (Obrigatório)</th>
-                            <th className="p-4">Documento</th>
-                            <th className="p-4">CRO</th>
-                            <th className="p-4">E-mail</th>
-                            <th className="p-4">Telefone</th>
+                            <th className="p-4">Cliente</th>
+                            <th className="p-4">Nascimento / Aprovação</th>
+                            <th className="p-4">Docs / CRO</th>
+                            <th className="p-4">Endereço Completo Extraído</th>
+                            <th className="p-4">Contatos</th>
                             <th className="p-4 text-center">Status</th>
                           </tr>
                         </thead>
@@ -384,15 +428,26 @@ export const DentistsTab = () => {
                           {importPreview.slice(0, 100).map((item, idx) => (
                             <tr key={idx} className={item.isValid ? 'bg-white' : 'bg-red-50'}>
                               <td className="p-4">
-                                <div className="font-bold text-sm text-slate-700">{item.name || 'NOME AUSENTE'}</div>
+                                <div className="font-bold text-sm text-slate-700">{item.name || '---'}</div>
                                 <div className="text-[9px] text-slate-400 font-bold uppercase">{item.clinicName}</div>
                               </td>
-                              <td className="p-4 text-sm text-slate-600 font-medium font-mono">{item.cpfCnpj || '---'}</td>
-                              <td className="p-4">
-                                {item.cro ? <span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-0.5 rounded font-black border border-blue-100">{item.cro}</span> : <span className="text-slate-300">---</span>}
+                              <td className="p-4 text-xs font-medium text-slate-600">
+                                <div>Nasc: {item.birthDate || '---'}</div>
+                                <div>Aprov: {item.approvalDate || '---'}</div>
                               </td>
-                              <td className="p-4 text-xs text-slate-500">{item.email || '---'}</td>
-                              <td className="p-4 text-xs text-slate-500 font-bold">{item.phone || '---'}</td>
+                              <td className="p-4 text-xs">
+                                <div>Doc: {item.cpfCnpj || '---'}</div>
+                                <div className="text-blue-600 font-bold">CRO: {item.cro || '---'}</div>
+                              </td>
+                              <td className="p-4 text-[10px] leading-tight text-slate-500 max-w-xs">
+                                <p className="font-bold text-slate-700">{item.address}, {item.number}</p>
+                                <p>{item.neighborhood} - {item.city}/{item.state}</p>
+                                <p>CEP: {item.cep} | {item.country}</p>
+                              </td>
+                              <td className="p-4 text-xs">
+                                <div>{item.email || '---'}</div>
+                                <div className="font-bold">{item.phone || '---'}</div>
+                              </td>
                               <td className="p-4 text-center">
                                 {item.isValid ? <Check size={18} className="text-green-500 mx-auto"/> : <span title="Sem nome"><X size={18} className="text-red-500 mx-auto" /></span>}
                               </td>
@@ -400,30 +455,15 @@ export const DentistsTab = () => {
                           ))}
                         </tbody>
                       </table>
-                      {importPreview.length > 100 && (
-                        <div className="p-4 text-center bg-slate-50 text-[10px] font-black text-slate-400 uppercase">
-                          + {importPreview.length - 100} registros ocultos (serão importados em lote)
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Footer */}
-              <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-                 <button 
-                  onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }}
-                  className="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 transition-colors"
-                 >
-                    Cancelar
-                 </button>
+              <div className="p-8 bg-slate-50 border-t flex justify-between items-center">
+                 <button onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
                  {(importStatus === 'PREVIEW' || importStatus === 'SAVING') && (
-                   <button 
-                    onClick={saveImportedData}
-                    disabled={importStatus === 'SAVING'}
-                    className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
-                   >
+                   <button onClick={saveImportedData} disabled={importStatus === 'SAVING'} className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center gap-2 transition-all disabled:opacity-50">
                      {importStatus === 'SAVING' ? <Loader2 className="animate-spin" /> : <><Save size={20}/> CONFIRMAR CADASTRO EM LOTE</>}
                    </button>
                  )}

@@ -1,3 +1,4 @@
+
 export type TransactionType = 'INCOME' | 'EXPENSE';
 export type TransactionCategory = 
   | 'PRODUCTION' 
@@ -51,7 +52,6 @@ export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN'
 }
 
-// Chaves de permissão para controle granular
 export type PermissionKey = 
   | 'jobs:create' 
   | 'jobs:edit' 
@@ -155,7 +155,7 @@ export interface Job {
   pixQrCode?: string;
   pixCopyPaste?: string;
   batchId?: string;
-  ratingId?: string; // ID da avaliação caso já tenha sido feita
+  ratingId?: string; 
 }
 
 export interface Sector {
@@ -201,7 +201,7 @@ export interface User {
   role: UserRole;
   organizationId?: string;
   sector?: string;
-  permissions?: PermissionKey[]; // Lista de chaves de acesso
+  permissions?: PermissionKey[]; 
   clinicName?: string;
   commissionSettings?: UserCommissionSetting[];
   globalDiscountPercent?: number; 
@@ -277,7 +277,6 @@ export interface Organization {
   orgType?: 'LAB' | 'CLINIC';
   ratingAverage?: number;
   ratingCount?: number;
-  // Fix: Renamed walletStatus to asaasWalletStatus and added missing properties to match backend/Admin.tsx expectations
   financialSettings?: {
     pixKey?: string;
     bankInfo?: string;
@@ -354,6 +353,16 @@ export interface ManualDentist {
   phone?: string;
   cpfCnpj?: string;
   cro?: string;
+  birthDate?: string;
+  approvalDate?: string;
+  cep?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   createdAt: Date;
   globalDiscountPercent?: number; 
   customPrices?: { 
