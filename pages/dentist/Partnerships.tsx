@@ -124,22 +124,29 @@ export const Partnerships = () => {
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {userConnections.map(conn => (
-                                        <div key={conn.id} className="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group relative overflow-hidden">
-                                            <div className="flex items-center gap-4 relative z-10">
-                                                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm border border-slate-100">
-                                                    <Building size={24} />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="font-bold text-slate-800 truncate">{conn.organizationName}</p>
-                                                    <div className="flex items-center gap-1 mt-1">
-                                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                                                        <span className="text-[10px] text-green-600 font-black uppercase tracking-tighter">Parceria Ativa</span>
+                                    {userConnections.map(conn => {
+                                        const labInfo = allLaboratories.find(l => l.id === conn.organizationId);
+                                        return (
+                                            <div key={conn.id} className="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group relative overflow-hidden">
+                                                <div className="flex items-center gap-4 relative z-10">
+                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm border border-slate-100 overflow-hidden">
+                                                        {labInfo?.logoUrl ? (
+                                                          <img src={labInfo.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                                        ) : (
+                                                          <Building size={24} />
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-slate-800 truncate">{conn.organizationName}</p>
+                                                        <div className="flex items-center gap-1 mt-1">
+                                                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                                                            <span className="text-[10px] text-green-600 font-black uppercase tracking-tighter">Parceria Ativa</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -166,8 +173,12 @@ export const Partnerships = () => {
                         {exploreLabs.map(lab => (
                             <div key={lab.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col">
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-                                        <Building size={32} />
+                                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 overflow-hidden">
+                                        {lab.logoUrl ? (
+                                          <img src={lab.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                        ) : (
+                                          <Building size={32} />
+                                        )}
                                     </div>
                                     <button 
                                         onClick={() => setViewingReviewsLab(lab)}
@@ -213,7 +224,13 @@ export const Partnerships = () => {
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-600 text-white rounded-xl"><MessageSquare size={20}/></div>
+                                <div className="p-2 bg-blue-600 text-white rounded-xl overflow-hidden flex items-center justify-center">
+                                    {viewingReviewsLab.logoUrl ? (
+                                      <img src={viewingReviewsLab.logoUrl} className="w-8 h-8 object-contain" />
+                                    ) : (
+                                      <MessageSquare size={20}/>
+                                    )}
+                                </div>
                                 <div>
                                     <h3 className="font-bold text-slate-800">{viewingReviewsLab.name}</h3>
                                     <div className="flex items-center gap-1 text-yellow-500 text-xs font-bold">

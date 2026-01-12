@@ -118,8 +118,12 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 group"
                 >
                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shrink-0">
-                         <Building size={16} />
+                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                         {activeOrganization?.logoUrl ? (
+                           <img src={activeOrganization.logoUrl} alt="Lab Logo" className="w-full h-full object-contain" />
+                         ) : (
+                           <Building size={16} className="text-indigo-500" />
+                         )}
                       </div>
                       <span className="font-bold text-sm truncate">{activeOrganization?.name || 'Selecione...'}</span>
                    </div>
@@ -234,7 +238,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <main className="flex-1 md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
         <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-2">
-             <div className={`w-8 h-8 ${isSuperAdmin ? 'bg-slate-900' : (isClient ? 'bg-indigo-600' : 'bg-blue-600')} rounded-lg flex items-center justify-center text-white font-bold`}>O</div>
+             <div className={`w-8 h-8 ${isSuperAdmin ? 'bg-slate-900' : (isClient ? 'bg-indigo-600' : 'bg-blue-600')} rounded-lg flex items-center justify-center text-white font-bold overflow-hidden`}>
+                {displayBrand.logo ? (
+                  <img src={displayBrand.logo} alt="Logo" className="w-full h-full object-contain" />
+                ) : 'O'}
+             </div>
              <span className="font-bold text-slate-800">{displayBrand.name}</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
