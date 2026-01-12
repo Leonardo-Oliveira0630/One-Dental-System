@@ -38,12 +38,9 @@ export const Admin = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- FORM STATES ---
-  
-  // Setores
   const [newSectorName, setNewSectorName] = useState('');
   const [editingSector, setEditingSector] = useState<Sector | null>(null);
   
-  // Usuários (Equipe)
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userName, setUserName] = useState('');
@@ -52,11 +49,9 @@ export const Admin = () => {
   const [userRole, setUserRole] = useState<UserRole>(UserRole.COLLABORATOR);
   const [userSector, setUserSector] = useState('');
 
-  // Permissions Modal
   const [selectedUserForPerms, setSelectedUserForPerms] = useState<User | null>(null);
   const [tempPerms, setTempPerms] = useState<PermissionKey[]>([]);
 
-  // Clientes (Dentistas Manuais)
   const [isAddingDentist, setIsAddingDentist] = useState(false);
   const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
   const [dentistName, setDentistName] = useState('');
@@ -65,21 +60,36 @@ export const Admin = () => {
   const [dentistPhone, setDentistPhone] = useState('');
   const [dentistSearch, setDentistSearch] = useState('');
 
-  // Comissões
   const [configUser, setConfigUser] = useState<User | null>(null);
   const [tempCommissions, setTempCommissions] = useState<UserCommissionSetting[]>([]);
 
-  // Financeiro
   const [pixKey, setPixKey] = useState(currentOrg?.financialSettings?.pixKey || '');
   const [bankInfo, setBankInfo] = useState(currentOrg?.financialSettings?.bankInfo || '');
   const [instructions, setInstructions] = useState(currentOrg?.financialSettings?.instructions || '');
   const [paymentLink, setPaymentLink] = useState(currentOrg?.financialSettings?.paymentLink || '');
 
-  // Assinatura
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
   // --- HANDLERS ---
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userName || !userEmail || !userPass || !currentOrg) return;
+    setIsSubmitting(true);
+    try {
+        // Chamando a Cloud Function para criar o usuário no Auth e no Firestore
+        await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id);
+        setIsAddingUser(false);
+        setUserName(''); setUserEmail(''); setUserPass('');
+        alert("Colaborador cadastrado com sucesso! Ele já pode acessar o sistema.");
+    } catch (err: any) {
+        console.error("Erro ao registrar:", err);
+        alert("Erro ao criar usuário. Verifique se a Cloud Function está implantada ou se houve erro de permissão.");
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
 
   const handleOpenPermissions = (user: User) => {
       setSelectedUserForPerms(user);
@@ -109,23 +119,6 @@ export const Admin = () => {
       if (!editingSector || !currentOrg) return;
       await api.apiUpdateSector(currentOrg.id, editingSector.id, editingSector.name);
       setEditingSector(null);
-  };
-
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userName || !userEmail || !userPass || !currentOrg) return;
-    setIsSubmitting(true);
-    try {
-        await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id);
-        setIsAddingUser(false);
-        setUserName(''); setUserEmail(''); setUserPass('');
-        alert("Usuário criado com sucesso!");
-    } catch (err: any) {
-        console.error("Erro Function:", err);
-        alert("Erro ao criar usuário: " + (err.message || "Falha na comunicação com o servidor. Verifique o CORS ou se a função está implantada."));
-    } finally {
-        setIsSubmitting(false);
-    }
   };
 
   const openEditUser = (user: User) => {
@@ -203,12 +196,6 @@ export const Admin = () => {
           setConfigUser(null);
           alert("Comissões salvas!");
       }
-  };
-
-  const handleApplyCoupon = async () => {
-    const coupon = await validateCoupon(couponCode, 'ANY');
-    if (coupon) { setAppliedCoupon(coupon); alert("Cupom validado!"); }
-    else { alert("Cupom inválido."); setAppliedCoupon(null); }
   };
 
   const handleSaveFinancial = async () => {
@@ -354,6 +341,79 @@ export const Admin = () => {
           </div>
       )}
 
+      {/* MODAL: EDITAR USUÁRIO */}
+      {editingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Colaborador</h3>
+                      <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                  </div>
+                  <form onSubmit={handleUpdateUserInfo} className="space-y-4">
+                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label><input required value={userName} onChange={e => setUserName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
+                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label><input disabled value={userEmail} className="w-full px-4 py-2 border rounded-xl bg-slate-50 text-slate-400" /></div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label>
+                              <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border rounded-xl bg-white">
+                                  <option value={UserRole.COLLABORATOR}>Técnico</option>
+                                  <option value={UserRole.MANAGER}>Gestor</option>
+                                  <option value={UserRole.ADMIN}>Administrador</option>
+                              </select>
+                          </div>
+                          <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor Principal</label>
+                              <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border rounded-xl bg-white">
+                                  <option value="">Geral</option>
+                                  {(sectors || []).map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                              </select>
+                          </div>
+                      </div>
+                      <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2 mt-4">
+                          {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Alterações'}
+                      </button>
+                  </form>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL: GERENCIAR PERMISSÕES */}
+      {selectedUserForPerms && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                      <div>
+                          <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><ShieldCheck className="text-blue-600" /> Controle de Acesso</h3>
+                          <p className="text-xs text-slate-500 font-bold uppercase">Permissões para {selectedUserForPerms.name}</p>
+                      </div>
+                      <button onClick={() => setSelectedUserForPerms(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {Array.from(new Set(AVAILABLE_PERMISSIONS.map(p => p.category))).map(cat => (
+                              <div key={cat} className="space-y-3">
+                                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest pb-2 border-b border-slate-100">{cat}</h4>
+                                  <div className="space-y-2">
+                                      {AVAILABLE_PERMISSIONS.filter(p => p.category === cat).map(perm => (
+                                          <label key={perm.key} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:bg-blue-50 transition-all cursor-pointer group">
+                                              <div className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-all ${tempPerms.includes(perm.key) ? 'bg-blue-600 border-blue-600' : 'border-slate-300'}`}>
+                                                  {tempPerms.includes(perm.key) && <Check size={14} className="text-white" />}
+                                              </div>
+                                              <input type="checkbox" className="hidden" checked={tempPerms.includes(perm.key)} onChange={() => togglePermission(perm.key)} />
+                                              <span className={`text-sm font-bold ${tempPerms.includes(perm.key) ? 'text-blue-800' : 'text-slate-600'}`}>{perm.label}</span>
+                                          </label>
+                                      ))}
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+                  <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
+                      <button onClick={() => setSelectedUserForPerms(null)} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
+                      <button onClick={handleSavePermissions} className="px-10 py-3 bg-slate-900 text-white font-black rounded-xl shadow-xl hover:bg-slate-800 flex items-center justify-center gap-2"><Save size={18} /> SALVAR PERMISSÕES</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* --- CONTENT BY TAB --- */}
 
       {/* SECTORS TAB */}
@@ -400,7 +460,7 @@ export const Admin = () => {
                     <AlertCircle size={40} className="text-slate-300" />
                     <div>
                         <p className="font-bold">Acesso aos dados de usuários negado.</p>
-                        <p className="text-xs">Verifique as permissões no Firestore ou cadastre novos técnicos.</p>
+                        <p className="text-xs">Verifique as permissões no Firestore Rules.</p>
                     </div>
                 </div>
             ) : (

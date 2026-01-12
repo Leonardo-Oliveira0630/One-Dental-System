@@ -2,22 +2,15 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
-import { UserCircle, Mail, Shield, Building, MapPin, Briefcase, Zap, Key, CheckCircle, Loader2 } from 'lucide-react';
+import { UserCircle, Mail, Shield, Building, MapPin, Briefcase, Key, CheckCircle, Loader2 } from 'lucide-react';
 import * as api from '../services/firebaseService';
 
 export const Profile = () => {
-  const { currentUser, updateUser } = useApp();
+  const { currentUser } = useApp();
   const [loadingReset, setLoadingReset] = useState(false);
   const [resetRequested, setResetRequested] = useState(false);
 
   if (!currentUser) return null;
-
-  const handleBecomeAdmin = () => {
-    if (confirm("ATENÇÃO: Isso dará acesso total ao sistema (Modo Desenvolvedor). Continuar?")) {
-        updateUser(currentUser.id, { role: UserRole.ADMIN });
-        alert("Permissões atualizadas! Recarregue a página se os menus não aparecerem imediatamente.");
-    }
-  };
 
   const handleRequestPasswordReset = async () => {
       setLoadingReset(true);
@@ -144,28 +137,6 @@ export const Profile = () => {
                     </div>
                 )}
             </div>
-
-            {currentUser.role !== UserRole.ADMIN && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6 text-sm text-yellow-800 space-y-4">
-                    <div className="flex items-start gap-3">
-                        <Shield size={24} className="shrink-0 text-yellow-600" />
-                        <div>
-                            <p className="font-bold uppercase text-[10px] tracking-widest text-yellow-700 mb-1">Acesso Limitado</p>
-                            <p className="text-xs leading-relaxed">
-                                Você possui permissões de nível <strong>{getRoleLabel(currentUser.role)}</strong>. Para elevar seu nível de acesso, contate o administrador do laboratório.
-                            </p>
-                        </div>
-                    </div>
-                    
-                    {/* DEV BUTTON TO FORCE ADMIN */}
-                    <button 
-                        onClick={handleBecomeAdmin}
-                        className="w-full py-2 bg-yellow-200 hover:bg-yellow-300 text-yellow-900 rounded-lg text-xs font-black flex items-center justify-center gap-2 transition-colors border border-yellow-300 uppercase"
-                    >
-                        <Zap size={14} /> Ativar Modo Admin (Dev)
-                    </button>
-                </div>
-            )}
         </div>
 
       </div>
