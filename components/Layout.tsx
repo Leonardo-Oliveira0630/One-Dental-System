@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
-  Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Building, Briefcase, Stethoscope, Globe
+  PlusCircle, Layers, X, Building, 
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -62,15 +62,18 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   };
 
   const pendingOrdersCount = jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length;
-  const bgClass = isSuperAdmin ? 'bg-slate-950' : (isClient ? 'bg-indigo-900' : 'bg-slate-900');
-  const logoColor = isSuperAdmin ? 'text-amber-500' : (isClient ? 'text-indigo-500' : 'text-blue-500');
-
+  const bgClass = isSuperAdmin ? 'bg-slate-950' : (isClient ? 'bg-indigo-950' : 'bg-slate-900');
+  
   const handleLogout = () => { logout(); navigate('/'); };
 
-  // Helper para obter o nome e a logo a exibir
-  const displayBrand = isClient && activeOrganization 
-    ? { name: activeOrganization.name, logo: activeOrganization.logoUrl } 
-    : { name: currentOrg?.name || 'One Dental', logo: currentOrg?.logoUrl };
+  // --- LÓGICA DE BRANDING DA SIDEBAR (TOP LEFT) ---
+  // Se for dentista e estiver vendo um laboratório específico, mostra o lab.
+  // Caso contrário, mostra o nome do sistema ou da clínica dele.
+  const isViewingLabContext = isClient && (location.pathname.startsWith('/store') || location.pathname.startsWith('/jobs') || location.pathname.startsWith('/cart'));
+  
+  const displayBrand = isViewingLabContext && activeOrganization 
+    ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
+    : { name: currentOrg?.name || 'ProTrack', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'ProTrack System' };
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans relative">
@@ -80,39 +83,35 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
 
+      {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         <div className="p-6 h-full flex flex-col">
+          {/* Logo Contextual (Top Left) */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3 overflow-hidden">
               {displayBrand.logo ? (
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-lg border border-white/20">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-lg">
                   <img src={displayBrand.logo} alt="Logo" className="w-full h-full object-contain" />
                 </div>
               ) : (
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 shadow-lg">
-                  <span className={`font-black text-2xl ${logoColor}`}>O</span>
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg font-black text-xl">
+                  {displayBrand.name.charAt(0)}
                 </div>
               )}
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-black tracking-tight leading-none truncate uppercase">{displayBrand.name}</span>
-                {!isClient && !isSuperAdmin && <span className="text-[10px] text-slate-400 font-bold tracking-widest mt-1">PROTRACK SYSTEM</span>}
+                <span className="text-xs font-black tracking-tight leading-none truncate uppercase">{displayBrand.name}</span>
+                <span className="text-[9px] text-slate-400 font-bold tracking-widest mt-1 uppercase truncate">{displayBrand.sub}</span>
               </div>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white"><X size={24} /></button>
           </div>
 
-          {isSuperAdmin && (
-             <div className="mb-6 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Painel de Controle</p>
-                <p className="text-sm font-bold text-amber-200">SaaS Master Admin</p>
-             </div>
-          )}
-
+          {/* Seletor de Lab (Apenas para Dentistas) */}
           {isClient && (
              <div className="mb-6 px-2 relative">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2">Laboratório Ativo</p>
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2">Selecionar Laboratório</p>
                 <button 
                    onClick={() => setIsLabSelectorOpen(!isLabSelectorOpen)}
                    className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 group"
@@ -161,51 +160,22 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <>
                 <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
                 <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label="Gerenciar Planos" active={location.pathname === '/superadmin/plans'} />
-                <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons & Ofertas" active={location.pathname === '/superadmin/coupons'} />
-                <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
-                <SidebarItem to="/dashboard" icon={<Globe size={20} />} label="Ver como Lab" active={location.pathname === '/dashboard'} />
+                {/* Added Ticket to imports on line 11 to resolve error on line 163 */}
+                <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/superadmin/coupons'} />
               </>
             )}
 
             {!isClient && !isSuperAdmin && (
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
-                
-                {hasPerm('finance:view') && (
-                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />
-                )}
-
-                {hasPerm('catalog:manage') && (
-                   <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
-                )}
-                
-                {hasPerm('clients:manage') && (
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Meus Clientes" active={location.pathname === '/lab/dentists'} />
-                )}
-
-                {hasPerm('jobs:create') && (
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />
-                )}
-
-                {hasPerm('jobs:view') && (
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />
-                )}
-                
-                {hasPerm('catalog:manage') && (
-                   <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />
-                )}
-
-                {hasPerm('vip:view') && (
-                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Activity size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />
-                )}
-                
-                {hasPerm('calendar:view') && (
-                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />
-                )}
-                
-                {hasPerm('commissions:view') && (
-                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<DollarSign size={20} />} label="Comissões" active={location.pathname === '/commissions'} />
-                )}
+                {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
+                {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
+                {hasPerm('clients:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
+                {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
+                {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
+                {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
+                {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Activity size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
+                {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
               </>
             )}
 
@@ -216,7 +186,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
                 <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Minha Agenda" active={location.pathname === '/schedule'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Parcerias" active={location.pathname === '/dentist/partnerships'} />
               </>
             )}
@@ -235,18 +205,36 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
+      {/* MAIN CONTENT AREA */}
       <main className="flex-1 md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
-        <header className="md:hidden bg-white border-b border-slate-200 p-4 flex items-center justify-between sticky top-0 z-30 print:hidden">
-          <div className="flex items-center gap-2">
-             <div className={`w-8 h-8 ${isSuperAdmin ? 'bg-slate-900' : (isClient ? 'bg-indigo-600' : 'bg-blue-600')} rounded-lg flex items-center justify-center text-white font-bold overflow-hidden`}>
-                {displayBrand.logo ? (
-                  <img src={displayBrand.logo} alt="Logo" className="w-full h-full object-contain" />
-                ) : 'O'}
+        
+        {/* GLOBAL HEADER (TOP RIGHT IDENTITY) */}
+        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 print:hidden">
+          <div className="flex items-center gap-4">
+             {/* Mobile Menu Button */}
+             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
+             
+             {/* App Identity (Visible for all) */}
+             <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-sm">P</div>
+                <span className="font-black text-slate-900 tracking-tighter text-lg hidden sm:inline">PROTRACK <span className="text-blue-600">SYSTEM</span></span>
              </div>
-             <span className="font-bold text-slate-800">{displayBrand.name}</span>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
+
+          {/* User Profile Info (Upper Right) */}
+          <div className="flex items-center gap-4">
+              <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-sm font-bold text-slate-800 leading-none">{currentUser?.name}</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                      {isClient ? 'Cirurgião-Dentista' : (currentUser?.sector || 'Gestão')}
+                  </span>
+              </div>
+              <Link to="/profile" className="w-10 h-10 bg-slate-100 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors overflow-hidden">
+                  {currentUser?.name.charAt(0)}
+              </Link>
+          </div>
         </header>
+
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full print:p-0 flex-1">{children}</div>
       </main>
     </div>
