@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { ManualDentist } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
-  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, AlertCircle, Save, FileText, BadgeCheck 
+  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, AlertCircle, Save, FileText, BadgeCheck, Phone, Mail, IdCard 
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
@@ -76,18 +76,18 @@ export const DentistsTab = () => {
           return;
         }
 
-        // Usar Gemini para interpretar as colunas (incluindo Documento e CRO)
+        // Usar Gemini para interpretar as colunas com foco nos campos solicitados
         const aiMapping = await analyzeColumnsWithAI(data.slice(0, 5));
         
         // Processar todos os dados com o mapeamento da IA
         const processedData = data.map((row: any) => ({
           name: row[aiMapping.name] || '',
-          clinicName: row[aiMapping.clinicName] || '',
           email: row[aiMapping.email] || '',
           phone: row[aiMapping.phone] || '',
           cpfCnpj: row[aiMapping.cpfCnpj] || '',
           cro: row[aiMapping.cro] || '',
-          isValid: !!row[aiMapping.name] // Validação frouxa: só precisa do nome
+          clinicName: row[aiMapping.clinicName] || '',
+          isValid: !!row[aiMapping.name] // Apenas o nome é obrigatório
         }));
 
         setImportPreview(processedData);
@@ -104,42 +104,55 @@ export const DentistsTab = () => {
   };
 
   const analyzeColumnsWithAI = async (sampleData: any[]) => {
+    // Initializing Gemini client as per guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `
-      Analise este array JSON que representa as primeiras linhas de uma planilha de clientes de laboratório de prótese.
-      Seu objetivo é identificar quais chaves (nomes das colunas) correspondem aos campos do nosso sistema:
-      1. 'name': O nome do dentista, cliente ou doutor (MUITO IMPORTANTE).
-      2. 'clinicName': O nome da clínica ou consultório.
-      3. 'email': O email de contato.
-      4. 'phone': O telefone ou whatsapp.
-      5. 'cpfCnpj': Documento de identificação, CPF ou CNPJ.
-      6. 'cro': O registro profissional do dentista (CRO).
+      Você é um especialista em extração de dados. Analise o cabeçalho e as primeiras linhas desta planilha de laboratório odontológico.
+      Identifique quais colunas originais correspondem aos nossos campos internos:
+      
+      1. 'name': Nome do dentista, cliente ou doutor (MUITO IMPORTANTE).
+      2. 'email': E-mail de contato.
+      3. 'phone': Telefone, Celular ou WhatsApp.
+      4. 'cpfCnpj': Documento, CPF, CNPJ ou Identificação Fiscal.
+      5. 'cro': Registro Profissional ou CRO.
+      6. 'clinicName': Nome da clínica ou consultório.
 
-      JSON de amostra: ${JSON.stringify(sampleData)}
+      JSON de amostra para análise: ${JSON.stringify(sampleData)}
 
       Retorne APENAS um objeto JSON puro com este formato:
-      { "name": "chave_original", "clinicName": "chave_original", "email": "chave_original", "phone": "chave_original", "cpfCnpj": "chave_original", "cro": "chave_original" }
-      Se não encontrar uma coluna correspondente, retorne string vazia para o valor daquela chave.
+      { 
+        "name": "nome_da_coluna_no_excel", 
+        "email": "nome_da_coluna_no_excel", 
+        "phone": "nome_da_coluna_no_excel", 
+        "cpfCnpj": "nome_da_coluna_no_excel", 
+        "cro": "nome_da_coluna_no_excel",
+        "clinicName": "nome_da_coluna_no_excel"
+      }
+      Se não houver uma coluna correspondente clara, retorne string vazia como valor.
     `;
 
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
-        config: { responseMimeType: "application/json" }
+        config: { 
+            responseMimeType: "application/json",
+            temperature: 0.1 // Mais determinístico
+        }
       });
       return JSON.parse(response.text || '{}');
     } catch (error) {
       console.error("AI Error:", error);
-      // Fallback básico
+      // Fallback básico para chaves comuns
       const keys = Object.keys(sampleData[0] || {});
+      const findKey = (search: string[]) => keys.find(k => search.some(s => k.toLowerCase().includes(s))) || '';
       return {
-        name: keys.find(k => k.toLowerCase().includes('nome') || k.toLowerCase().includes('cliente') || k.toLowerCase().includes('dr')) || keys[0],
-        clinicName: keys.find(k => k.toLowerCase().includes('clínica') || k.toLowerCase().includes('consultório')) || '',
-        email: keys.find(k => k.toLowerCase().includes('email')) || '',
-        phone: keys.find(k => k.toLowerCase().includes('tel') || k.toLowerCase().includes('whats')) || '',
-        cpfCnpj: keys.find(k => k.toLowerCase().includes('documento') || k.toLowerCase().includes('cpf') || k.toLowerCase().includes('cnpj')) || '',
-        cro: keys.find(k => k.toLowerCase().includes('cro')) || ''
+        name: findKey(['nome', 'cliente', 'dr', 'doutor']) || keys[0],
+        email: findKey(['email', 'e-mail', 'contato']),
+        phone: findKey(['tel', 'cel', 'whats', 'fone']),
+        cpfCnpj: findKey(['cpf', 'cnpj', 'doc', 'documento']),
+        cro: findKey(['cro', 'registro']),
+        clinicName: findKey(['clínica', 'consultório', 'empresa'])
       };
     }
   };
@@ -148,18 +161,20 @@ export const DentistsTab = () => {
     setImportStatus('SAVING');
     try {
       const validItems = importPreview.filter(p => p.isValid);
+      let count = 0;
       for (const item of validItems) {
         await addManualDentist({
           name: item.name,
-          clinicName: item.clinicName,
-          email: item.email,
-          phone: String(item.phone),
-          cpfCnpj: String(item.cpfCnpj),
-          cro: String(item.cro),
+          email: item.email || '',
+          phone: String(item.phone || ''),
+          cpfCnpj: String(item.cpfCnpj || ''),
+          cro: String(item.cro || ''),
+          clinicName: item.clinicName || '',
           createdAt: new Date()
         });
+        count++;
       }
-      alert(`${validItems.length} clientes importados com sucesso!`);
+      alert(`${count} clientes cadastrados com sucesso!`);
       setIsImportModalOpen(false);
       setImportPreview([]);
       setImportStatus('IDLE');
@@ -172,7 +187,8 @@ export const DentistsTab = () => {
   const filteredDentists = manualDentists.filter(d => 
     d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
     (d.clinicName || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
-    (d.cro || '').toLowerCase().includes(dentistSearch.toLowerCase())
+    (d.cro || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
+    (d.cpfCnpj || '').toLowerCase().includes(dentistSearch.toLowerCase())
   );
 
   return (
@@ -186,10 +202,10 @@ export const DentistsTab = () => {
                   onClick={() => setIsImportModalOpen(true)}
                   className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200"
                 >
-                    <FileSpreadsheet size={18}/> Importar Excel/IA
+                    <FileSpreadsheet size={18}/> Importar Planilha IA
                 </button>
                 <button onClick={() => setIsAddingDentist(true)} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all">
-                    <Plus size={20}/> Novo Cliente
+                    <Plus size={20}/> Novo Cadastro
                 </button>
             </div>
         </div>
@@ -197,7 +213,12 @@ export const DentistsTab = () => {
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
             <div className="relative">
                 <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-                <input placeholder="Filtrar por nome, clínica ou CRO..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none" value={dentistSearch} onChange={e => setDentistSearch(e.target.value)}/>
+                <input 
+                    placeholder="Filtrar por nome, clínica, CRO ou documento..." 
+                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+                    value={dentistSearch} 
+                    onChange={e => setDentistSearch(e.target.value)}
+                />
             </div>
         </div>
 
@@ -220,17 +241,17 @@ export const DentistsTab = () => {
                       <tr key={dentist.id} className="hover:bg-slate-50 transition-colors group">
                         <td className="p-4">
                           <div className="font-bold text-slate-800">{dentist.name}</div>
-                          <div className="text-xs text-slate-500 font-medium">{dentist.clinicName || 'Sem clínica'}</div>
+                          <div className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">{dentist.clinicName || '---'}</div>
                         </td>
                         <td className="p-4">
-                          <div className="text-xs font-black text-slate-700 uppercase tracking-tighter">{dentist.cpfCnpj || '---'}</div>
+                          <div className="text-xs font-bold text-slate-700">{dentist.cpfCnpj || '---'}</div>
                           {dentist.cro && (
-                            <div className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold w-fit mt-1">CRO: {dentist.cro}</div>
+                            <div className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-black w-fit mt-1 uppercase tracking-tighter">CRO: {dentist.cro}</div>
                           )}
                         </td>
                         <td className="p-4">
-                          <div className="text-xs text-slate-500 font-medium">{dentist.email || 'Sem email'}</div>
-                          <div className="text-xs font-black text-slate-400 uppercase tracking-tighter">{dentist.phone || 'Sem telefone'}</div>
+                          <div className="text-xs text-slate-500 font-medium flex items-center gap-1"><Mail size={12} className="text-slate-300"/> {dentist.email || '---'}</div>
+                          <div className="text-xs font-black text-slate-400 uppercase tracking-tighter flex items-center gap-1"><Phone size={12} className="text-slate-300"/> {dentist.phone || '---'}</div>
                         </td>
                         <td className="p-4 text-right">
                             <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -261,18 +282,18 @@ export const DentistsTab = () => {
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-100">
                       <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cliente' : 'Novo Cliente'}</h3>
-                      <button onClick={() => setIsAddingDentist(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                      <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
                   <form onSubmit={handleSaveManualDentist} className="space-y-4">
-                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Nome do Dentista / Cliente</label><input required value={dentistName} onChange={e => setDentistName(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
-                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Clínica</label><input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
+                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Nome Completo</label><input required value={dentistName} onChange={e => setDentistName(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
                       <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">CPF / CNPJ</label><input value={dentistCpfCnpj} onChange={e => setDentistCpfCnpj(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
                         <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">CRO</label><input value={dentistCro} onChange={e => setDentistCro(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
                       </div>
-                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Email</label><input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
-                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Telefone</label><input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
-                      <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all transform active:scale-95">SALVAR CLIENTE</button>
+                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">E-mail</label><input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
+                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Telefone / WhatsApp</label><input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
+                      <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Clínica / Obs</label><input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all" /></div>
+                      <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all transform active:scale-95">SALVAR CADASTRO</button>
                   </form>
               </div>
           </div>
@@ -290,14 +311,14 @@ export const DentistsTab = () => {
                   </div>
                   <div>
                     <h2 className="text-2xl font-black text-slate-800">Agente de Importação IA</h2>
-                    <p className="text-slate-500 text-sm font-medium">Extraia clientes automaticamente de qualquer planilha.</p>
+                    <p className="text-slate-500 text-sm font-medium">Extraímos automaticamente Nome, Documento, CRO, E-mail e Telefone.</p>
                   </div>
                 </div>
-                <button onClick={() => setIsImportModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={28} className="text-slate-400"/></button>
+                <button onClick={() => { setIsImportModalOpen(false); setImportStatus('IDLE'); }} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={28} className="text-slate-400"/></button>
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-8 bg-slate-50/30">
                 {importStatus === 'IDLE' && (
                   <div 
                     onClick={() => fileInputRef.current?.click()}
@@ -315,23 +336,23 @@ export const DentistsTab = () => {
                         <UploadCloud size={40} />
                       </div>
                       <div>
-                        <h3 className="text-xl font-bold text-slate-700">Clique para selecionar seu Excel</h3>
-                        <p className="text-slate-400 mt-1">A IA identificará as colunas automaticamente.</p>
+                        <h3 className="text-xl font-bold text-slate-700">Selecione seu arquivo de clientes</h3>
+                        <p className="text-slate-400 mt-1">Excel ou CSV - Não importa a ordem das colunas, a IA resolve.</p>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {importStatus === 'ANALYZING' && (
-                  <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                  <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
                     <div className="relative">
                       <Loader2 size={64} className="text-indigo-600 animate-spin" />
                       <Sparkles size={24} className="text-amber-500 absolute top-0 right-0 animate-pulse" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-black text-slate-800">Agente IA Analisando...</h3>
+                      <h3 className="text-xl font-black text-slate-800">Agente IA Identificando Colunas...</h3>
                       <p className="text-slate-500 max-w-sm mx-auto mt-2">
-                        Estou interpretando os cabeçalhos da sua planilha para mapear os nomes, clínicas, documentos e telefones.
+                        Estou lendo os cabeçalhos para encontrar Nomes, Documentos, CROs e Contatos.
                       </p>
                     </div>
                   </div>
@@ -339,48 +360,52 @@ export const DentistsTab = () => {
 
                 {importStatus === 'PREVIEW' && (
                   <div className="space-y-6">
-                    <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex items-start gap-3">
-                      <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18}/>
-                      <div className="text-xs text-amber-800 font-medium">
-                        <p className="font-bold">IA Mapeou os Dados!</p>
-                        Confira se os campos estão corretos. Importaremos os dados mesmo que alguns campos (email, cro, doc) estejam vazios.
+                    <div className="bg-white p-5 rounded-2xl border border-indigo-100 flex items-start gap-4 shadow-sm">
+                      <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                        <BadgeCheck size={24}/>
+                      </div>
+                      <div>
+                        <p className="font-bold text-indigo-900">Mapeamento Concluído!</p>
+                        <p className="text-xs text-indigo-700">Confira os dados extraídos. O sistema aceitará o cadastro mesmo que Documento, CRO ou Email não estejam preenchidos.</p>
                       </div>
                     </div>
 
-                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm overflow-x-auto">
-                      <table className="w-full text-left min-w-[800px]">
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white overflow-x-auto">
+                      <table className="w-full text-left min-w-[900px]">
                         <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
                           <tr>
-                            <th className="p-4">Nome Extraído</th>
-                            <th className="p-4">Documento / CRO</th>
-                            <th className="p-4">Clínica</th>
-                            <th className="p-4">E-mail/Contato</th>
+                            <th className="p-4">Cliente (Obrigatório)</th>
+                            <th className="p-4">Documento</th>
+                            <th className="p-4">CRO</th>
+                            <th className="p-4">E-mail</th>
+                            <th className="p-4">Telefone</th>
                             <th className="p-4 text-center">Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {importPreview.slice(0, 100).map((item, idx) => (
                             <tr key={idx} className={item.isValid ? 'bg-white' : 'bg-red-50'}>
-                              <td className="p-4 font-bold text-sm text-slate-700">{item.name || '---'}</td>
                               <td className="p-4">
-                                <div className="text-xs font-black text-slate-600">{item.cpfCnpj || '---'}</div>
-                                {item.cro && <div className="text-[10px] text-blue-500 font-bold">CRO: {item.cro}</div>}
+                                <div className="font-bold text-sm text-slate-700">{item.name || 'NOME AUSENTE'}</div>
+                                <div className="text-[9px] text-slate-400 font-bold uppercase">{item.clinicName}</div>
                               </td>
-                              <td className="p-4 text-sm text-slate-500">{item.clinicName || '---'}</td>
+                              <td className="p-4 text-sm text-slate-600 font-medium font-mono">{item.cpfCnpj || '---'}</td>
                               <td className="p-4">
-                                <div className="text-xs text-slate-500">{item.email || '---'}</div>
-                                <div className="text-xs font-bold text-slate-400 uppercase">{item.phone || '---'}</div>
+                                {item.cro ? <span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-0.5 rounded font-black border border-blue-100">{item.cro}</span> : <span className="text-slate-300">---</span>}
                               </td>
+                              <td className="p-4 text-xs text-slate-500">{item.email || '---'}</td>
+                              <td className="p-4 text-xs text-slate-500 font-bold">{item.phone || '---'}</td>
                               <td className="p-4 text-center">
-                                {item.isValid ? <Check size={18} className="text-green-500 mx-auto"/> : <X size={18} className="text-red-500 mx-auto"/>}
+                                {/* Fix: Removed invalid title prop from X icon and wrapped in span */}
+                                {item.isValid ? <Check size={18} className="text-green-500 mx-auto"/> : <span title="Sem nome"><X size={18} className="text-red-500 mx-auto" /></span>}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                       {importPreview.length > 100 && (
-                        <div className="p-4 text-center bg-slate-50 text-xs font-bold text-slate-400 uppercase">
-                          + {importPreview.length - 100} clientes adicionais serão importados
+                        <div className="p-4 text-center bg-slate-50 text-[10px] font-black text-slate-400 uppercase">
+                          + {importPreview.length - 100} registros ocultos (serão importados em lote)
                         </div>
                       )}
                     </div>
@@ -392,7 +417,7 @@ export const DentistsTab = () => {
               <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
                  <button 
                   onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }}
-                  className="px-6 py-3 font-bold text-slate-500 hover:text-slate-800"
+                  className="px-6 py-3 font-bold text-slate-500 hover:text-slate-800 transition-colors"
                  >
                     Cancelar
                  </button>
@@ -402,7 +427,7 @@ export const DentistsTab = () => {
                     disabled={importStatus === 'SAVING'}
                     className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
                    >
-                     {importStatus === 'SAVING' ? <Loader2 className="animate-spin" /> : <><Save size={20}/> CONFIRMAR IMPORTAÇÃO EM LOTE</>}
+                     {importStatus === 'SAVING' ? <Loader2 className="animate-spin" /> : <><Save size={20}/> CONFIRMAR CADASTRO EM LOTE</>}
                    </button>
                  )}
               </div>
