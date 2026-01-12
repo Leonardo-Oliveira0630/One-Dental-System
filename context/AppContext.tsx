@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
@@ -249,7 +248,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => await api.apiLogout();
-  const updateUser = async (id: string, u: Partial<User>) => await api.apiUpdateUser(id, u);
+
+  /**
+   * ATUALIZAR USUÁRIO
+   * Se for o próprio usuário, usa apiUpdateUser (Firestore).
+   * Se for outro usuário (Admin editando), usa apiUpdateUserAdmin (Cloud Function).
+   */
+  const updateUser = async (id: string, u: Partial<User>) => {
+    if (!currentUser) return;
+    if (id === currentUser.id) {
+      await api.apiUpdateUser(id, u);
+    } else {
+      await api.apiUpdateUserAdmin(id, u);
+    }
+  };
+
   const addUser = async (u: User) => await api.apiAddUser(u);
   const deleteUser = async (id: string) => await api.apiDeleteUser(id);
 

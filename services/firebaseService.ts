@@ -1,4 +1,3 @@
-
 import * as firestorePkg from 'firebase/firestore';
 import * as authPkg from 'firebase/auth';
 import * as storagePkg from 'firebase/storage';
@@ -44,6 +43,17 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 };
 
 export const apiUpdateUser = (id: string, updates: Partial<User>) => updateDoc(doc(db, 'users', id), updates);
+
+/**
+ * Chama a Cloud Function para atualizar dados administrativos de um usuário (Role/Perms).
+ * Ignora Security Rules do cliente.
+ */
+export const apiUpdateUserAdmin = async (targetUserId: string, updates: Partial<User>) => {
+  const fn = httpsCallable(functions, 'updateUserAdmin');
+  const res = await fn({ targetUserId, updates });
+  return res.data as any;
+};
+
 export const apiAddUser = (user: User) => setDoc(doc(db, 'users', user.id), user);
 export const apiDeleteUser = (id: string) => deleteDoc(doc(db, 'users', id));
 

@@ -48,6 +48,62 @@ export const registerUserInOrg = functions.https.onCall(async (request) => {
   }
 });
 
+/**
+ * ATUALIZA PERFIL DE USUÁRIO VIA ADMIN (CARGOS E PERMISSÕES)
+ * Resolve erro de "Missing Permissions" no cliente.
+ */
+export const updateUserAdmin = functions.https.onCall(async (request) => {
+  const {targetUserId, updates} = request.data;
+
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+  }
+
+  const callerUid = request.auth.uid;
+  const db = admin.firestore();
+
+  try {
+    // 1. Verificar se o solicitante é ADMIN da mesma organização
+    const callerSnap = await db.collection("users").doc(callerUid).get();
+    const callerData = callerSnap.data();
+
+    if (!callerData || (callerData.role !== "ADMIN" && callerData.role !== "SUPER_ADMIN")) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "Apenas administradores podem alterar permissões."
+      );
+    }
+
+    const targetSnap = await db.collection("users").doc(targetUserId).get();
+    const targetData = targetSnap.data();
+
+    if (!targetData || targetData.organizationId !== callerData.organizationId) {
+      if (callerData.role !== "SUPER_ADMIN") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Usuário não pertence à sua organização."
+        );
+      }
+    }
+
+    // 2. Aplicar atualizações (restringindo campos sensíveis se necessário)
+    const allowedUpdates: any = {};
+    if (updates.name) allowedUpdates.name = updates.name;
+    if (updates.role) allowedUpdates.role = updates.role;
+    if (updates.sector) allowedUpdates.sector = updates.sector;
+    if (updates.permissions) allowedUpdates.permissions = updates.permissions;
+    if (updates.commissionSettings) {
+      allowedUpdates.commissionSettings = updates.commissionSettings;
+    }
+
+    await db.collection("users").doc(targetUserId).update(allowedUpdates);
+
+    return {success: true};
+  } catch (error: any) {
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+
 const getAsaasConfig = async () => {
   const db = admin.firestore();
   const settingsSnap = await db.collection("settings").doc("global").get();
