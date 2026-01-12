@@ -71,7 +71,7 @@ export const DentistsTab = () => {
     });
   };
 
-  // --- AI IMPORT LOGIC (EXPANDED) ---
+  // --- AI IMPORT LOGIC (REFINED) ---
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,8 +95,10 @@ export const DentistsTab = () => {
           return;
         }
 
+        // Gemini tenta mapear as colunas
         const aiMapping = await analyzeColumnsWithAI(data.slice(0, 5));
         
+        // Processar os dados usando o mapeamento retornado pela IA
         const processedData = data.map((row: any) => ({
           name: row[aiMapping.name] || '',
           email: row[aiMapping.email] || '',
@@ -114,12 +116,13 @@ export const DentistsTab = () => {
           state: row[aiMapping.state] || '',
           country: row[aiMapping.country] || 'Brasil',
           clinicName: row[aiMapping.clinicName] || '',
-          isValid: !!row[aiMapping.name]
+          isValid: !!row[aiMapping.name] // Nome é o único obrigatório
         }));
 
         setImportPreview(processedData);
         setImportStatus('PREVIEW');
       } catch (err) {
+        console.error(err);
         alert("Erro ao processar arquivo.");
         setImportStatus('IDLE');
       } finally {
@@ -131,44 +134,85 @@ export const DentistsTab = () => {
 
   const analyzeColumnsWithAI = async (sampleData: any[]) => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    // Nomes de colunas alvo (Exatos como solicitado pelo usuário)
+    const targetColumns = [
+      "Nome", "E-mail", "Data de nascimento", "Telefone", "Documento", 
+      "CRO", "Data de aprovação", "CEP", "Logradouro", "Número", 
+      "Complemento", "Bairro", "Cidade", "Estado", "País"
+    ];
+
     const prompt = `
-      Você é um especialista em mapeamento de dados. Analise este JSON de exemplo de uma planilha Excel e identifique as colunas que correspondem aos nossos campos internos.
+      Você é um especialista em extração de dados de planilhas odontológicas.
+      Analise este JSON que contém as primeiras linhas de uma planilha Excel: ${JSON.stringify(sampleData)}
+
+      Sua missão é identificar qual coluna da planilha corresponde aos nossos campos internos.
+      PRIORIZE correspondências exatas com estes nomes de colunas:
+      - 'name' deve mapear para a coluna "Nome"
+      - 'email' deve mapear para a coluna "E-mail"
+      - 'birthDate' deve mapear para a coluna "Data de nascimento"
+      - 'phone' deve mapear para a coluna "Telefone"
+      - 'cpfCnpj' deve mapear para a coluna "Documento"
+      - 'cro' deve mapear para a coluna "CRO"
+      - 'approvalDate' deve mapear para a coluna "Data de aprovação"
+      - 'cep' deve mapear para a coluna "CEP"
+      - 'address' deve mapear para a coluna "Logradouro"
+      - 'number' deve mapear para a coluna "Número"
+      - 'complement' deve mapear para a coluna "Complemento"
+      - 'neighborhood' deve mapear para a coluna "Bairro"
+      - 'city' deve mapear para a coluna "Cidade"
+      - 'state' deve mapear para a coluna "Estado"
+      - 'country' deve mapear para a coluna "País"
+      - 'clinicName' deve mapear para qualquer coluna de Clínica ou Empresa.
+
+      Caso não encontre o nome exato, use lógica para encontrar o mais próximo (ex: "Doc" vira "cpfCnpj").
       
-      CAMPOS DESEJADOS:
-      - name: Nome do cliente, dentista ou profissional.
-      - email: Endereço de e-mail.
-      - birthDate: Data de nascimento.
-      - phone: Telefone, celular ou whatsapp.
-      - cpfCnpj: Documento, CPF, CNPJ ou Identidade.
-      - cro: Registro Profissional ou CRO.
-      - approvalDate: Data de aprovação ou cadastro.
-      - cep: CEP ou Código Postal.
-      - address: Logradouro, Rua ou Endereço.
-      - number: Número da residência/prédio.
-      - complement: Complemento, sala ou apartamento.
-      - neighborhood: Bairro.
-      - city: Cidade.
-      - state: Estado ou UF.
-      - country: País.
-      - clinicName: Nome da Clínica.
-
-      AMOSTRA: ${JSON.stringify(sampleData)}
-
-      Retorne APENAS um JSON puro com o mapeamento:
-      { "name": "coluna_excel", "email": "coluna_excel", ... }
+      Retorne APENAS um JSON puro (sem markdown) no seguinte formato:
+      {
+        "name": "Nome da Coluna na Planilha",
+        "email": "Nome da Coluna na Planilha",
+        ... (todos os campos acima)
+      }
+      Se o campo não existir na planilha, deixe o valor como string vazia "".
     `;
 
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
-        config: { responseMimeType: "application/json", temperature: 0.1 }
+        config: { 
+          responseMimeType: "application/json",
+          temperature: 0.1 
+        }
       });
-      return JSON.parse(response.text || '{}');
+      
+      const mapping = JSON.parse(response.text || '{}');
+      console.log("IA Mapping Result:", mapping);
+      return mapping;
     } catch (error) {
-      // Fallback manual básico se a IA falhar
+      console.error("AI Mapping failed, using strict fallback:", error);
+      // Fallback: Busca manual pelas colunas exatas
       const keys = Object.keys(sampleData[0] || {});
-      return { name: keys[0] || 'Nome' };
+      const find = (exact: string) => keys.find(k => k.toLowerCase().trim() === exact.toLowerCase().trim()) || '';
+      
+      return {
+        name: find("Nome"),
+        email: find("E-mail"),
+        birthDate: find("Data de nascimento"),
+        phone: find("Telefone"),
+        cpfCnpj: find("Documento"),
+        cro: find("CRO"),
+        approvalDate: find("Data de aprovação"),
+        cep: find("CEP"),
+        address: find("Logradouro"),
+        number: find("Número"),
+        complement: find("Complemento"),
+        neighborhood: find("Bairro"),
+        city: find("Cidade"),
+        state: find("Estado"),
+        country: find("País"),
+        clinicName: find("Clínica")
+      };
     }
   };
 
@@ -278,7 +322,7 @@ export const DentistsTab = () => {
             </div>
         </div>
 
-        {/* MODAL: CADASTRO MANUAL (REORGANIZADO) */}
+        {/* MODAL: CADASTRO MANUAL */}
         {isAddingDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in duration-200">
@@ -374,7 +418,7 @@ export const DentistsTab = () => {
           </div>
         )}
 
-        {/* MODAL: IMPORTAR EXCEL IA (EXPANDIDO) */}
+        {/* MODAL: IMPORTAR EXCEL IA */}
         {isImportModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
             <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
@@ -383,7 +427,7 @@ export const DentistsTab = () => {
                   <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Sparkles size={24} /></div>
                   <div>
                     <h2 className="text-2xl font-black text-slate-800">Agente de Importação Inteligente</h2>
-                    <p className="text-slate-500 text-sm font-medium">Extraímos automaticamente todos os 15 campos de cadastro e endereço.</p>
+                    <p className="text-slate-500 text-sm font-medium">Priorizamos as colunas padrão que você definiu.</p>
                   </div>
                 </div>
                 <button onClick={() => { setIsImportModalOpen(false); setImportStatus('IDLE'); }} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={28} className="text-slate-400"/></button>
@@ -394,8 +438,8 @@ export const DentistsTab = () => {
                   <div onClick={() => fileInputRef.current?.click()} className="border-4 border-dashed border-slate-200 rounded-[24px] p-20 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-all cursor-pointer group">
                     <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                     <UploadCloud size={48} className="mx-auto text-slate-300 mb-4 group-hover:text-indigo-500" />
-                    <h3 className="text-xl font-bold text-slate-700">Arraste sua planilha completa aqui</h3>
-                    <p className="text-slate-400 mt-2 italic">A IA identificará Nome, Endereço, Documentos e Datas automaticamente.</p>
+                    <h3 className="text-xl font-bold text-slate-700">Selecione sua planilha com as colunas Nome, E-mail, Documento, etc.</h3>
+                    <p className="text-slate-400 mt-2 italic">O Agente IA fará o "de-para" automático para você.</p>
                   </div>
                 )}
 
@@ -403,6 +447,7 @@ export const DentistsTab = () => {
                   <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
                     <Loader2 size={64} className="text-indigo-600 animate-spin" />
                     <h3 className="text-xl font-black text-slate-800">Mapeando Colunas com IA...</h3>
+                    <p className="text-slate-500">Aguarde, estamos cruzando os dados da planilha.</p>
                   </div>
                 )}
 
@@ -440,9 +485,9 @@ export const DentistsTab = () => {
                                 <div className="text-blue-600 font-bold">CRO: {item.cro || '---'}</div>
                               </td>
                               <td className="p-4 text-[10px] leading-tight text-slate-500 max-w-xs">
-                                <p className="font-bold text-slate-700">{item.address}, {item.number}</p>
-                                <p>{item.neighborhood} - {item.city}/{item.state}</p>
-                                <p>CEP: {item.cep} | {item.country}</p>
+                                <p className="font-bold text-slate-700">{item.address}{item.number ? `, ${item.number}` : ''}</p>
+                                <p>{item.neighborhood}{item.city ? ` - ${item.city}` : ''}{item.state ? `/${item.state}` : ''}</p>
+                                <p>{item.cep ? `CEP: ${item.cep}` : ''} {item.country ? `| ${item.country}` : ''}</p>
                               </td>
                               <td className="p-4 text-xs">
                                 <div>{item.email || '---'}</div>
