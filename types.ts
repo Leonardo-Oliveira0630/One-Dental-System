@@ -1,4 +1,5 @@
 
+
 export type TransactionType = 'INCOME' | 'EXPENSE';
 export type TransactionCategory = 
   | 'PRODUCTION' 
@@ -201,6 +202,8 @@ export interface Job {
   paymentMethod?: 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'CASH' | 'TRANSFER';
   pixQrCode?: string;
   pixCopyPaste?: string;
+  /* Added asaasPaymentId to resolve TypeScript errors in Finance.tsx */
+  asaasPaymentId?: string;
   batchId?: string;
   ratingId?: string; 
   routeId?: string;

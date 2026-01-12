@@ -271,6 +271,7 @@ export const NewJob = () => {
         dentistId: selectedDentistId || 'manual-entry', 
         dentistName: dentistName, 
         status: JobStatus.PENDING, 
+        paymentStatus: 'PENDING', // CRÍTICO: Define como pendente de pagamento para aparecer no financeiro
         urgency, 
         items: addedItems, 
         history: [{ 

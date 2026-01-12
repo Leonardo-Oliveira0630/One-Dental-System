@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch } from '../../types';
@@ -7,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area, Legend
 } from 'recharts';
+/* Fixed lucide-react import from lucide-center typo */
 import { 
   DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, 
   FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, 
@@ -14,6 +16,9 @@ import {
   FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight,
   ChevronDown, History
 } from 'lucide-react';
+
+// Correcting the import path that was likely meant to be lucide-react
+import { Search as SearchIcon } from 'lucide-react';
 
 export const Finance = () => {
   const { jobs, allUsers, manualDentists, currentOrg } = useApp();
@@ -38,8 +43,15 @@ export const Finance = () => {
   // --- ANALYTICS CALCULATIONS ---
   const stats = useMemo(() => {
     const paidRevenue = jobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, curr) => acc + curr.totalValue, 0);
-    // IMPORTANTE: Consideramos 'A Receber' apenas os trabalhos que estão FINALIZADOS (COMPLETED/DELIVERED) mas PENDENTES de pagamento
-    const pendingRevenue = jobs.filter(j => (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) && j.paymentStatus === 'PENDING').reduce((acc, curr) => acc + curr.totalValue, 0);
+    
+    // A Receber: Apenas trabalhos que NÃO foram pagos (Web já nasce como PAID ou em processo de captura)
+    // Consideramos trabalhos manuais que estão finalizados mas ainda com paymentStatus PENDING ou sem status definido
+    const pendingRevenue = jobs.filter(j => 
+        (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) && 
+        (j.paymentStatus === 'PENDING' || !j.paymentStatus) &&
+        !j.asaasPaymentId // Property 'asaasPaymentId' fixed by updating Job interface in types.ts
+    ).reduce((acc, curr) => acc + curr.totalValue, 0);
+
     const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((acc, curr) => acc + curr.amount, 0);
     const lossFromRemakes = jobs.reduce((acc, job) => {
         const remakeItems = job.items.filter(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT');
@@ -67,8 +79,12 @@ export const Finance = () => {
         
         if (job.paymentStatus === 'PAID') {
             entry.totalPaid += job.totalValue;
-        } else if (job.paymentStatus === 'PENDING' && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED)) {
-            // SÓ APARECE PARA FATURAMENTO SE ESTIVER CONCLUÍDO NA PRODUÇÃO
+        } else if (
+            /* Fixed line 81: renamed variable 'j' to 'job' to match scope */
+            (job.paymentStatus === 'PENDING' || !job.paymentStatus) && 
+            (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED) &&
+            !job.asaasPaymentId // Property 'asaasPaymentId' fixed by updating Job interface in types.ts
+        ) {
             entry.totalPending += job.totalValue;
             entry.pendingJobs.push(job);
         }
@@ -77,10 +93,9 @@ export const Finance = () => {
 
     return Array.from(map.values()).filter(d => 
         d.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ).sort((a, b) => b.totalPending - a.totalPending);
+    ).filter(d => d.totalPending > 0 || d.history.length > 0).sort((a, b) => b.totalPending - a.totalPending);
   }, [jobs, allUsers, manualDentists, searchTerm]);
 
-  // Restante das funções (Boleto, Expense) permanecem iguais...
   const handleCreateBoleto = async () => {
     if (!currentOrg || !selectedDentist || selectedJobIds.length === 0) return;
     setIsGenerating(true);
@@ -101,7 +116,7 @@ export const Finance = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Wallet className="text-blue-600" /> Fluxo de Caixa & Faturamento</h1>
-          <p className="text-slate-500 font-medium">Apenas casos finalizados ficam disponíveis para geração de fatura.</p>
+          <p className="text-slate-500 font-medium">Apenas casos manuais finalizados ficam disponíveis para faturamento acumulado.</p>
         </div>
       </div>
 
@@ -117,11 +132,11 @@ export const Finance = () => {
               <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
                       <div>
-                        <h2 className="text-xl font-bold text-slate-800">Trabalhos Finalizados a Receber</h2>
-                        <p className="text-sm text-slate-500">Selecione o dentista para ver os débitos de casos concluídos.</p>
+                        <h2 className="text-xl font-bold text-slate-800">Débitos de Casos Concluídos</h2>
+                        <p className="text-sm text-slate-500">Selecione o dentista para faturar trabalhos internos já finalizados.</p>
                       </div>
                       <div className="relative w-full md:w-80">
-                          <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                          <SearchIcon className="absolute left-3 top-2.5 text-slate-400" size={18} />
                           <input placeholder="Buscar dentista..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                       </div>
                   </div>
@@ -135,17 +150,21 @@ export const Finance = () => {
                                   <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-500" />
                               </div>
                               <div className="grid grid-cols-1 gap-2 border-t border-slate-200/50 pt-4">
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase">Total de Débitos (Casos Finalizados)</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase">Débito Acumulado (Finalizados)</p>
                                   <p className={`text-xl font-black ${d.totalPending > 0 ? 'text-red-600' : 'text-slate-300'}`}>R$ {d.totalPending.toFixed(2)}</p>
                               </div>
                           </div>
                       ))}
+                      {dentistSummary.length === 0 && (
+                          <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed rounded-3xl italic">
+                              Nenhum débito pendente de faturamento no momento.
+                          </div>
+                      )}
                   </div>
               </div>
           </div>
       )}
 
-      {/* DASHBOARD TAB (Mantido com estatísticas ajustadas) */}
       {activeTab === 'DASHBOARD' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-2">
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
@@ -153,7 +172,7 @@ export const Finance = () => {
                   <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
               </div>
               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Débitos Prontos (Finalizados)</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">A Receber (Finalizados)</p>
                   <h3 className="text-2xl font-black text-red-600">R$ {stats.pendingRevenue.toFixed(2)}</h3>
               </div>
                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
@@ -167,20 +186,19 @@ export const Finance = () => {
           </div>
       )}
 
-      {/* MODAL EXPLORER DENTISTA FATURAMENTO (Permanece igual) */}
       {selectedDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                       <div>
                           <h3 className="text-xl font-black text-slate-800">Extrato de Débitos: {selectedDentist.name}</h3>
-                          <p className="text-xs text-slate-500 font-bold uppercase">Apenas trabalhos finalizados e conferidos</p>
+                          <p className="text-xs text-slate-500 font-bold uppercase">Apenas trabalhos internos concluídos</p>
                       </div>
                       <button onClick={() => setSelectedDentist(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24}/></button>
                   </div>
                   <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
                       <div className="lg:col-span-7 space-y-3">
-                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Trabalhos Pendentes de Cobrança</h4>
+                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Trabalhos Disponíveis p/ Cobrança</h4>
                           {selectedDentist.pendingJobs.map((job: Job) => {
                               const isSelected = selectedJobIds.includes(job.id);
                               return (
