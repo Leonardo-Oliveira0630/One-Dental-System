@@ -55,7 +55,7 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
 
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
 
-// --- JOBS OTIMIZADO (LIMITE DE LEITURA) ---
+// --- JOBS ---
 export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
     if (!orgId) return () => {};
     const q = query(
@@ -98,6 +98,7 @@ export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void)
 };
 
 export const apiAddSector = (orgId: string, sector: { id: string, name: string }) => setDoc(doc(db, 'organizations', orgId, 'sectors', sector.id), sector);
+export const apiUpdateSector = (orgId: string, id: string, name: string) => updateDoc(doc(db, 'organizations', orgId, 'sectors', id), { name });
 export const apiDeleteSector = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'sectors', id));
 
 export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) => void) => {
@@ -164,7 +165,6 @@ export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     });
 };
 
-// Funçao para dentistas listarem laboratórios (Público)
 export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
     const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'));
     return onSnapshot(q, (snap: any) => {
@@ -354,7 +354,6 @@ export const apiAddLabRating = async (rating: LabRating) => {
     await setDoc(ratingRef, rating);
     await updateDoc(jobRef, { ratingId: rating.id });
 
-    // Atualiza a média do laboratório (em um app real isso seria um Cloud Function para atomicidade)
     const labSnap = await getDoc(labRef);
     const labData = labSnap.data() as Organization;
     const currentCount = labData.ratingCount || 0;
