@@ -1,4 +1,5 @@
 
+
 export type TransactionType = 'INCOME' | 'EXPENSE';
 export type TransactionCategory = 
   | 'PRODUCTION' 
@@ -278,13 +279,16 @@ export interface Organization {
   orgType?: 'LAB' | 'CLINIC';
   ratingAverage?: number;
   ratingCount?: number;
+  // Fix: Renamed walletStatus to asaasWalletStatus and added missing properties to match backend/Admin.tsx expectations
   financialSettings?: {
     pixKey?: string;
     bankInfo?: string;
     instructions?: string;
     paymentLink?: string;
     asaasWalletId?: string;
-    walletStatus?: string;
+    asaasWalletStatus?: string;
+    asaasAccountNumber?: string;
+    businessData?: any;
   };
 }
 

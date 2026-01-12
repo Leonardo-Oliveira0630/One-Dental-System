@@ -50,7 +50,6 @@ export const registerUserInOrg = functions.https.onCall(async (request) => {
 
 /**
  * ATUALIZA PERFIL DE USUÁRIO VIA ADMIN (CARGOS E PERMISSÕES)
- * Resolve erro de "Missing Permissions" no cliente.
  */
 export const updateUserAdmin = functions.https.onCall(async (request) => {
   const {targetUserId, updates} = request.data;
@@ -101,6 +100,46 @@ export const updateUserAdmin = functions.https.onCall(async (request) => {
     return {success: true};
   } catch (error: any) {
     throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * CRIA SUB-CONTA (WALLET) NO ASAAS PARA O LABORATÓRIO
+ */
+export const createLabSubAccount = functions.https.onCall(async (request) => {
+  const {orgId, accountData} = request.data;
+  const db = admin.firestore();
+  
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+  }
+
+  const {key, url} = await getAsaasConfig();
+
+  try {
+    // 1. Criar Subconta no Asaas (POST /accounts)
+    const response = await axios.post(`${url}/accounts`, accountData, {
+      headers: { access_token: key }
+    });
+
+    const asaasAccount = response.data;
+
+    // 2. Atualizar Organização no Firestore
+    await db.collection("organizations").doc(orgId).update({
+      "financialSettings.asaasWalletId": asaasAccount.apiKey, // API Key da subconta para transações
+      "financialSettings.asaasWalletStatus": "PENDING",
+      "financialSettings.asaasAccountNumber": asaasAccount.accountNumber,
+      "financialSettings.businessData": accountData
+    });
+
+    return {
+        success: true, 
+        walletId: asaasAccount.apiKey,
+        accountNumber: asaasAccount.accountNumber
+    };
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.errors?.[0]?.description || error.message;
+    throw new functions.https.HttpsError("internal", errorMsg);
   }
 });
 
