@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, User, UserCommissionSetting, Coupon, SubscriptionPlan, ManualDentist, PermissionKey, Sector } from '../types';
@@ -14,8 +15,11 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'jobs:create', label: 'Criar Novos Trabalhos', category: 'Produção' },
     { key: 'jobs:edit', label: 'Editar Dados de Trabalhos', category: 'Produção' },
     { key: 'jobs:delete', label: 'Excluir Trabalhos', category: 'Produção' },
+    { key: 'vip:view', label: 'Acessar Produção VIP', category: 'Produção' },
+    { key: 'calendar:view', label: 'Acessar Calendário', category: 'Produção' },
     { key: 'finance:view', label: 'Ver Dashboard Financeiro', category: 'Financeiro' },
     { key: 'finance:manage', label: 'Gerenciar Despesas e Faturas', category: 'Financeiro' },
+    { key: 'commissions:view', label: 'Ver Extrato de Comissões', category: 'Financeiro' },
     { key: 'catalog:manage', label: 'Gerenciar Tipos de Serviço', category: 'Catálogo' },
     { key: 'clients:manage', label: 'Gerenciar Dentistas e Preços', category: 'Clientes' },
     { key: 'sectors:manage', label: 'Gerenciar Setores', category: 'Administração' },
@@ -275,7 +279,7 @@ export const Admin = () => {
       {/* MODAL: DEFINIR COMISSÕES */}
       {configUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
                   <div className="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl">
                       <div>
                           <h3 className="text-xl font-black text-slate-800">Tabela de Ganhos: {configUser.name}</h3>
@@ -425,7 +429,6 @@ export const Admin = () => {
                   </div>
                   <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
                       <button onClick={() => setSelectedUserForPerms(null)} disabled={isSubmitting} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
-                      {/* Fixed: changed handleSavePermissions to onClick */}
                       <button onClick={handleSavePermissions} disabled={isSubmitting} className="px-10 py-3 bg-slate-900 text-white font-black rounded-xl shadow-xl hover:bg-slate-800 flex items-center justify-center gap-2">
                         {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> SALVAR PERMISSÕES</>}
                       </button>
@@ -517,7 +520,13 @@ export const Admin = () => {
                 <h3 className="font-bold text-slate-800 text-lg">Gestão de Clientes Internos (Offline)</h3>
                 <button onClick={() => { resetDentistForm(); setIsAddingDentist(true); }} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg"><Plus size={20}/> Novo Cliente</button>
             </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100"><div className="relative"><Search className="absolute left-3 top-3 text-slate-400" size={18} /><input placeholder="Filtrar por nome ou clínica..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none" value={dentistSearch} onChange={e => setDentistSearch(e.target.value)}/></div></div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                {/* Fixed the error by using setDentistSearch instead of setSearchTerm */}
+                <input placeholder="Filtrar por nome ou clínica..." className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none" value={dentistSearch} onChange={e => setDentistSearch(e.target.value)}/>
+              </div>
+            </div>
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">

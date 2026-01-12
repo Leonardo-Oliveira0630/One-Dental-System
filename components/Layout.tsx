@@ -182,9 +182,17 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />
                 )}
 
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Activity size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<DollarSign size={20} />} label="Comissões" active={location.pathname === '/commissions'} />
+                {hasPerm('vip:view') && (
+                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Activity size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />
+                )}
+                
+                {hasPerm('calendar:view') && (
+                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />
+                )}
+                
+                {hasPerm('commissions:view') && (
+                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<DollarSign size={20} />} label="Comissões" active={location.pathname === '/commissions'} />
+                )}
               </>
             )}
 

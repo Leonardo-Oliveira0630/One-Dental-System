@@ -63,7 +63,10 @@ export type PermissionKey =
   | 'catalog:manage'
   | 'clients:manage'
   | 'sectors:manage'
-  | 'users:manage';
+  | 'users:manage'
+  | 'vip:view'
+  | 'calendar:view'
+  | 'commissions:view';
 
 export enum JobStatus {
   PENDING = 'PENDING',
