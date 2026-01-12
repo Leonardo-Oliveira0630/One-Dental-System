@@ -1,3 +1,4 @@
+
 {
   "name": "one-dental-system",
   "private": true,
@@ -24,7 +25,8 @@
     "three-stdlib": "^2.29.4",
     "jszip": "^3.10.1",
     "file-saver": "^2.0.5",
-    "axios": "^1.6.8"
+    "axios": "^1.6.8",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",
