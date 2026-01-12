@@ -58,7 +58,6 @@ export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => upd
 // --- JOBS OTIMIZADO (LIMITE DE LEITURA) ---
 export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
     if (!orgId) return () => {};
-    // Limitar a 200 documentos para evitar custo excessivo de leitura em históricos grandes
     const q = query(
         collection(db, 'organizations', orgId, 'jobs'), 
         orderBy('createdAt', 'desc'), 
@@ -161,6 +160,14 @@ export const apiDeleteAppointment = (orgId: string, id: string) => deleteDoc(doc
 
 export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     return onSnapshot(collection(db, 'organizations'), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
+    });
+};
+
+// Funçao para dentistas listarem laboratórios (Público)
+export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
+    const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'));
+    return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
     });
 };

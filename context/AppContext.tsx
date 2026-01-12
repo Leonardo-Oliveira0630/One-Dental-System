@@ -29,6 +29,7 @@ interface AppContextType {
   alerts: JobAlert[];
   commissions: CommissionRecord[];
   allOrganizations: Organization[];
+  allLaboratories: Organization[]; // Adicionado para dentistas
   allPlans: SubscriptionPlan[];
   coupons: Coupon[];
   patients: ClinicPatient[];
@@ -120,6 +121,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
   
   const [allOrganizations, setAllOrganizations] = useState<Organization[]>([]);
+  const [allLaboratories, setAllLaboratories] = useState<Organization[]>([]);
   const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
@@ -194,6 +196,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                          });
                     }
                 });
+                // Carregar laboratórios para descoberta
+                api.subscribeAllLaboratories(setAllLaboratories);
             }
         }
       } else {
@@ -202,6 +206,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         setCurrentPlan(null);
         setActiveOrganization(null);
         setUserConnections([]);
+        setAllLaboratories([]);
       }
       setIsLoadingAuth(false);
     });
@@ -388,7 +393,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
       allUsers, jobs, jobTypes, sectors, alerts, commissions,
-      allOrganizations, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
+      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
       addJobType, updateJobType, deleteJobType, addSector, deleteSector,
