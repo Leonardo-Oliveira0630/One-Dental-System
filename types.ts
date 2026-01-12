@@ -104,6 +104,17 @@ export interface JobHistory {
   sector?: string;
 }
 
+export interface LabRating {
+  id: string;
+  labId: string;
+  dentistId: string;
+  dentistName: string;
+  jobId: string;
+  score: number; // 1 to 5
+  comment?: string;
+  createdAt: Date;
+}
+
 export interface Job {
   id: string;
   organizationId: string;
@@ -129,6 +140,7 @@ export interface Job {
   pixQrCode?: string;
   pixCopyPaste?: string;
   batchId?: string;
+  ratingId?: string; // ID da avaliação caso já tenha sido feita
 }
 
 export interface Sector {
@@ -247,6 +259,8 @@ export interface Organization {
   trialEndsAt?: Date;
   createdAt: Date;
   orgType?: 'LAB' | 'CLINIC';
+  ratingAverage?: number;
+  ratingCount?: number;
   financialSettings?: {
     pixKey?: string;
     bankInfo?: string;

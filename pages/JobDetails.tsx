@@ -1,14 +1,16 @@
+
 import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole, JobItem } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating } from '../types';
 import { 
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
+import * as api from '../services/firebaseService';
 
 // LAZY LOAD 3D VIEWER
 const STLViewer = React.lazy(() => import('../components/STLViewer').then(module => ({ default: module.STLViewer })));
@@ -23,6 +25,11 @@ export const JobDetails = () => {
   const [show3DViewer, setShow3DViewer] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [copiedPix, setCopiedPix] = useState(false);
+
+  // Rating State
+  const [ratingScore, setRatingScore] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   const job = jobs.find(j => j.id === id);
   const canManage = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
@@ -50,10 +57,36 @@ export const JobDetails = () => {
   const handleAddItemToJob = () => { const type = jobTypes.find(t => t.id === newItemTypeId); if (!type) return; const newItem: JobItem = { id: Math.random().toString(), jobTypeId: type.id, name: type.name, quantity: newItemQty, price: type.basePrice, selectedVariationIds: [], nature: 'NORMAL' }; setEditItems([...editItems, newItem]); };
   const handleRemoveItemFromJob = (itemId: string) => { setEditItems(editItems.filter(i => i.id !== itemId)); };
   const handleSaveChanges = () => { const newTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0); const dateParts = editDueDate.split('-'); const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2])); updateJob(job.id, { dueDate: adjustedDate, urgency: editUrgency, notes: editNotes, items: editItems, totalValue: newTotal, history: [...job.history, { id: Math.random().toString(), timestamp: new Date(), action: 'Ficha Editada Manualmente (Itens/Datas)', userId: currentUser?.id || 'admin', userName: currentUser?.name || 'Admin' }] }); setShowEditModal(false); };
-  const getStatusColor = (status: JobStatus) => { switch(status) { case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border-green-200'; case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border-blue-200'; case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border-purple-200'; default: return 'bg-slate-100 text-slate-700 border-slate-200'; } };
+  
+  const handleSendRating = async () => {
+      if (ratingScore === 0 || !currentUser) return;
+      setIsSubmittingRating(true);
+      try {
+          const rating: LabRating = {
+              id: `rate_${Date.now()}`,
+              labId: job.organizationId,
+              dentistId: currentUser.id,
+              dentistName: currentUser.name,
+              jobId: job.id,
+              score: ratingScore,
+              comment: ratingComment,
+              createdAt: new Date()
+          };
+          await api.apiAddLabRating(rating);
+          alert("Obrigado pela sua avaliação!");
+      } catch (e) {
+          alert("Erro ao enviar avaliação.");
+      } finally {
+          setIsSubmittingRating(false);
+      }
+  };
+
+  const getStatusColor = (status: JobStatus) => { switch(status) { case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border border-green-200'; case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border border-blue-200'; case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border border-purple-200'; default: return 'bg-slate-100 text-slate-700 border border-slate-200'; } };
   const getTimelineIcon = (action: string) => { const lower = action.toLowerCase(); if (lower.includes('entrada')) return <LogIn size={16} className="text-blue-600" />; if (lower.includes('saída')) return <LogOut size={16} className="text-orange-600" />; if (lower.includes('concluído') || lower.includes('finalizado')) return <CheckCircle size={16} className="text-green-600" />; if (lower.includes('criado') || lower.includes('cadastro')) return <Flag size={16} className="text-purple-600" />; if (lower.includes('aprovado')) return <CheckSquare size={16} className="text-teal-600" />; return <Clock size={16} className="text-slate-500" />; };
   const sortedHistory = [...job.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   const hasStl = job.attachments?.some(a => a.name.toLowerCase().endsWith('.stl'));
+
+  const isFinished = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
 
   const copyPix = () => {
       if (activeOrganization?.financialSettings?.pixKey) {
@@ -171,6 +204,48 @@ export const JobDetails = () => {
             </div>
          </div>
       </div>
+
+      {/* RATING SECTION FOR DENTIST */}
+      {isClient && isFinished && !job.ratingId && (
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-xl animate-in zoom-in">
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                  <div className="bg-white/20 p-4 rounded-2xl">
+                      <Star size={48} className="text-yellow-400 fill-yellow-400" />
+                  </div>
+                  <div className="flex-1 text-center md:text-left">
+                      <h3 className="text-xl font-bold mb-1">Como foi o serviço deste caso?</h3>
+                      <p className="text-blue-100 text-sm">Sua avaliação ajuda o laboratório a melhorar e outros dentistas a escolherem parceiros.</p>
+                      
+                      <div className="flex items-center justify-center md:justify-start gap-2 mt-4">
+                          {[1,2,3,4,5].map(s => (
+                              <button 
+                                key={s} 
+                                onClick={() => setRatingScore(s)}
+                                className="p-1 transition-transform hover:scale-125"
+                              >
+                                  <Star size={32} className={`${ratingScore >= s ? 'fill-yellow-400 text-yellow-400' : 'text-blue-300'}`} />
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+                  <div className="w-full md:w-80">
+                      <textarea 
+                        value={ratingComment}
+                        onChange={e => setRatingComment(e.target.value)}
+                        placeholder="Opcional: Deixe um comentário..."
+                        className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-sm text-white placeholder-blue-200 outline-none focus:ring-2 focus:ring-white/50 h-24 resize-none mb-3"
+                      />
+                      <button 
+                        onClick={handleSendRating}
+                        disabled={ratingScore === 0 || isSubmittingRating}
+                        className="w-full py-3 bg-white text-blue-700 font-bold rounded-xl hover:bg-blue-50 transition-all shadow-lg disabled:opacity-50"
+                      >
+                          {isSubmittingRating ? <Loader2 className="animate-spin mx-auto" /> : 'Enviar Avaliação'}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
 
       <div className="flex border-b border-slate-200">
          <button onClick={() => setActiveTab('SUMMARY')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><FileText size={18} /> Resumo do Pedido</button>

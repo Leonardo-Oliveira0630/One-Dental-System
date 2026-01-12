@@ -7,7 +7,7 @@ import * as functionsPkg from 'firebase/functions';
 // Fix: Explicitly resolving exports via any-cast to bypass environment-specific resolution failures
 const { 
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
-  onSnapshot, query, where, Timestamp, arrayUnion, orderBy, limit 
+  onSnapshot, query, where, Timestamp, arrayUnion, orderBy, limit, increment
 } = firestorePkg as any;
 
 const { 
@@ -22,7 +22,7 @@ import { db, auth, storage, functions } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating 
 } from '../types';
 
 const toDate = (val: any) => val instanceof Timestamp ? val.toDate() : val;
@@ -343,3 +343,36 @@ export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => 
 
 export const apiAddExpense = (orgId: string, expense: Expense) => setDoc(doc(db, 'organizations', orgId, 'expenses', expense.id), expense);
 export const apiDeleteExpense = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'expenses', id));
+
+// --- REPUTATION SYSTEM ---
+
+export const apiAddLabRating = async (rating: LabRating) => {
+    const labRef = doc(db, 'organizations', rating.labId);
+    const ratingRef = doc(db, 'organizations', rating.labId, 'ratings', rating.id);
+    const jobRef = doc(db, 'organizations', rating.labId, 'jobs', rating.jobId);
+
+    await setDoc(ratingRef, rating);
+    await updateDoc(jobRef, { ratingId: rating.id });
+
+    // Atualiza a média do laboratório (em um app real isso seria um Cloud Function para atomicidade)
+    const labSnap = await getDoc(labRef);
+    const labData = labSnap.data() as Organization;
+    const currentCount = labData.ratingCount || 0;
+    const currentAvg = labData.ratingAverage || 0;
+
+    const newCount = currentCount + 1;
+    const newAvg = ((currentAvg * currentCount) + rating.score) / newCount;
+
+    await updateDoc(labRef, {
+        ratingAverage: newAvg,
+        ratingCount: newCount
+    });
+};
+
+export const subscribeLabRatings = (labId: string, cb: (r: LabRating[]) => void) => {
+    if (!labId) return () => {};
+    const q = query(collection(db, 'organizations', labId, 'ratings'), orderBy('createdAt', 'desc'), limit(50));
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as LabRating)));
+    });
+};

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Handshake, Plus, Trash2, Loader2, Building, CheckCircle, Search, MapPin, Globe, Filter, Link as LinkIcon } from 'lucide-react';
+import { Handshake, Plus, Trash2, Loader2, Building, CheckCircle, Search, MapPin, Globe, Filter, Link as LinkIcon, Star } from 'lucide-react';
 
 export const Partnerships = () => {
     const { userConnections, addConnectionByCode, allLaboratories } = useApp();
@@ -166,12 +166,18 @@ export const Partnerships = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {exploreLabs.map(lab => (
                             <div key={lab.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col">
-                                <div className="flex items-start justify-between mb-6">
+                                <div className="flex items-start justify-between mb-4">
                                     <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
                                         <Building size={32} />
                                     </div>
                                     <div className="text-right">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-1 rounded">Membro desde {new Date(lab.createdAt).getFullYear()}</span>
+                                        <div className="flex items-center gap-1 text-yellow-500 font-black text-sm mb-1 justify-end">
+                                            <Star size={16} className="fill-yellow-500" />
+                                            {lab.ratingAverage ? lab.ratingAverage.toFixed(1) : 'S/N'}
+                                        </div>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-1 rounded">
+                                            {lab.ratingCount || 0} Avaliações
+                                        </span>
                                     </div>
                                 </div>
                                 
@@ -181,6 +187,7 @@ export const Partnerships = () => {
                                         <MapPin size={14} className="shrink-0" />
                                         <span className="truncate">Atendimento Digital & Nacional</span>
                                     </div>
+                                    <p className="text-xs text-slate-400 line-clamp-2 italic mb-4">"Um laboratório de excelência focado em tecnologia digital e prazos curtos."</p>
                                 </div>
 
                                 <div className="pt-6 border-t border-slate-50 mt-auto">
