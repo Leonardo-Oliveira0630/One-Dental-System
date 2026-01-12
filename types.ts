@@ -52,6 +52,19 @@ export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN'
 }
 
+// Chaves de permissão para controle granular
+export type PermissionKey = 
+  | 'jobs:create' 
+  | 'jobs:edit' 
+  | 'jobs:delete'
+  | 'jobs:view'
+  | 'finance:view'
+  | 'finance:manage'
+  | 'catalog:manage'
+  | 'clients:manage'
+  | 'sectors:manage'
+  | 'users:manage';
+
 export enum JobStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
@@ -186,6 +199,7 @@ export interface User {
   role: UserRole;
   organizationId?: string;
   sector?: string;
+  permissions?: PermissionKey[]; // Lista de chaves de acesso
   clinicName?: string;
   commissionSettings?: UserCommissionSetting[];
   globalDiscountPercent?: number; 

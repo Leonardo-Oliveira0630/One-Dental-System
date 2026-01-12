@@ -8,7 +8,7 @@ import {
   Inbox, PlusCircle, Layers, Users, X, AlertOctagon, Shield,
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Tag, Lock, Ticket, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Building, Briefcase, Stethoscope, Globe
 } from 'lucide-react';
-import { UserRole } from '../types';
+import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
 import { AlertPopup } from './AlertSystem';
@@ -54,10 +54,15 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
-  const isManager = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
   
-  const pendingOrdersCount = jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length;
+  // Helper para verificar permissão rápida
+  const hasPerm = (key: PermissionKey) => {
+      if (isAdmin || isSuperAdmin) return true;
+      return currentUser?.permissions?.includes(key) || false;
+  };
 
+  const pendingOrdersCount = jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length;
   const bgClass = isSuperAdmin ? 'bg-slate-950' : (isClient ? 'bg-indigo-900' : 'bg-slate-900');
   const logoColor = isSuperAdmin ? 'text-amber-500' : (isClient ? 'text-indigo-500' : 'text-blue-500');
 
@@ -153,18 +158,27 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
                 
-                {isManager && (
-                  <>
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Meus Clientes" active={location.pathname === '/lab/dentists'} />
-                  </>
+                {hasPerm('finance:view') && (
+                  <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />
                 )}
 
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />
+                {hasPerm('catalog:manage') && (
+                   <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
+                )}
                 
-                {isManager && (
+                {hasPerm('clients:manage') && (
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Meus Clientes" active={location.pathname === '/lab/dentists'} />
+                )}
+
+                {hasPerm('jobs:create') && (
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />
+                )}
+
+                {hasPerm('jobs:view') && (
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />
+                )}
+                
+                {hasPerm('catalog:manage') && (
                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />
                 )}
 
@@ -189,7 +203,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
             <div className="pt-8 mt-8 border-t border-white/10">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-              {isManager && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin'} />}
+              {isAdmin && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin'} />}
             </div>
           </nav>
 

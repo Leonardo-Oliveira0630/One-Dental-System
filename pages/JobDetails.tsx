@@ -32,7 +32,8 @@ export const JobDetails = () => {
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   const job = jobs.find(j => j.id === id);
-  const canManage = currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.ADMIN;
+  const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const canEdit = isAdmin || currentUser?.permissions?.includes('jobs:edit');
   const isClient = currentUser?.role === UserRole.CLIENT;
 
   const [editDueDate, setEditDueDate] = useState('');
@@ -190,7 +191,7 @@ export const JobDetails = () => {
                             <DollarSign size={16} /> Pagar Agora
                         </button>
                     )}
-                    {canManage && (
+                    {canEdit && (
                         <>
                             <button onClick={() => setShowAlertModal(true)} className="px-4 py-2 bg-red-50 border border-red-200 text-red-700 rounded-lg hover:bg-red-100 font-bold flex items-center gap-2 text-sm transition-colors"><Bell size={16} /> Alerta</button>
                             <button onClick={() => setShowEditModal(true)} className="px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 font-bold flex items-center gap-2 text-sm transition-colors"><Edit size={16} /> Editar</button>
