@@ -63,11 +63,11 @@ export const updateUserAdmin = functions.https.onCall(async (request) => {
   const db = admin.firestore();
 
   try {
-    // 1. Verificar se o solicitante é ADMIN da mesma organização
     const callerSnap = await db.collection("users").doc(callerUid).get();
     const callerData = callerSnap.data();
 
-    if (!callerData || (callerData.role !== "ADMIN" && callerData.role !== "SUPER_ADMIN")) {
+    if (!callerData || (callerData.role !== "ADMIN" &&
+        callerData.role !== "SUPER_ADMIN")) {
       throw new functions.https.HttpsError(
         "permission-denied",
         "Apenas administradores podem alterar permissões."
@@ -77,7 +77,8 @@ export const updateUserAdmin = functions.https.onCall(async (request) => {
     const targetSnap = await db.collection("users").doc(targetUserId).get();
     const targetData = targetSnap.data();
 
-    if (!targetData || targetData.organizationId !== callerData.organizationId) {
+    if (!targetData || targetData.organizationId !==
+        callerData.organizationId) {
       if (callerData.role !== "SUPER_ADMIN") {
         throw new functions.https.HttpsError(
           "permission-denied",
@@ -86,7 +87,6 @@ export const updateUserAdmin = functions.https.onCall(async (request) => {
       }
     }
 
-    // 2. Aplicar atualizações (restringindo campos sensíveis se necessário)
     const allowedUpdates: any = {};
     if (updates.name) allowedUpdates.name = updates.name;
     if (updates.role) allowedUpdates.role = updates.role;

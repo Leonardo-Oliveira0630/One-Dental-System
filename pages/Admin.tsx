@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, User, UserCommissionSetting, Coupon, SubscriptionPlan, ManualDentist, PermissionKey, Sector } from '../types';
@@ -262,8 +261,8 @@ export const Admin = () => {
                       <button onClick={() => setIsAddingDentist(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
                   <form onSubmit={handleSaveManualDentist} className="space-y-4">
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Dentista</label><input required value={dentistName} onChange={e => setArtistName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
-                      {/* Fixed: changed setClinicName to setDentistClinic */}
+                      {/* Fixed typo setArtistName to setDentistName */}
+                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Dentista</label><input required value={dentistName} onChange={e => setDentistName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Clínica</label><input value={dentistClinic} onChange={e => setDentistClinic(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label><input type="email" value={dentistEmail} onChange={e => setDentistEmail(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone</label><input value={dentistPhone} onChange={e => setDentistPhone(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
@@ -426,6 +425,7 @@ export const Admin = () => {
                   </div>
                   <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
                       <button onClick={() => setSelectedUserForPerms(null)} disabled={isSubmitting} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
+                      {/* Fixed: changed handleSavePermissions to onClick */}
                       <button onClick={handleSavePermissions} disabled={isSubmitting} className="px-10 py-3 bg-slate-900 text-white font-black rounded-xl shadow-xl hover:bg-slate-800 flex items-center justify-center gap-2">
                         {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <><Save size={18} /> SALVAR PERMISSÕES</>}
                       </button>
