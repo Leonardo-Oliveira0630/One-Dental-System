@@ -109,7 +109,7 @@ export const updateUserAdmin = functions.https.onCall(async (request) => {
 export const createLabSubAccount = functions.https.onCall(async (request) => {
   const {orgId, accountData} = request.data;
   const db = admin.firestore();
-  
+
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Não logado.");
   }
@@ -117,28 +117,27 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
   const {key, url} = await getAsaasConfig();
 
   try {
-    // 1. Criar Subconta no Asaas (POST /accounts)
     const response = await axios.post(`${url}/accounts`, accountData, {
-      headers: { access_token: key }
+      headers: {access_token: key},
     });
 
     const asaasAccount = response.data;
 
-    // 2. Atualizar Organização no Firestore
     await db.collection("organizations").doc(orgId).update({
-      "financialSettings.asaasWalletId": asaasAccount.apiKey, // API Key da subconta para transações
+      "financialSettings.asaasWalletId": asaasAccount.apiKey,
       "financialSettings.asaasWalletStatus": "PENDING",
       "financialSettings.asaasAccountNumber": asaasAccount.accountNumber,
-      "financialSettings.businessData": accountData
+      "financialSettings.businessData": accountData,
     });
 
     return {
-        success: true, 
-        walletId: asaasAccount.apiKey,
-        accountNumber: asaasAccount.accountNumber
+      success: true,
+      walletId: asaasAccount.apiKey,
+      accountNumber: asaasAccount.accountNumber,
     };
   } catch (error: any) {
-    const errorMsg = error.response?.data?.errors?.[0]?.description || error.message;
+    const apiErr = error.response?.data?.errors?.[0]?.description;
+    const errorMsg = apiErr || error.message;
     throw new functions.https.HttpsError("internal", errorMsg);
   }
 });

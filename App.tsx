@@ -11,7 +11,6 @@ import { Cart } from './pages/store/Cart';
 import { IncomingOrders } from './pages/IncomingOrders';
 import { NewJob } from './pages/NewJob';
 import { JobTypes } from './pages/JobTypes';
-import { Admin } from './pages/Admin';
 import { JobDetails } from './pages/JobDetails';
 import { Commissions } from './pages/Commissions';
 import { Profile } from './pages/Profile';
@@ -29,7 +28,15 @@ import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
 import { Plans } from './pages/superadmin/Plans';
 import { Coupons } from './pages/superadmin/Coupons';
 import { Loader2 } from 'lucide-react';
-import { UserRole } from './types';
+
+// Admin Sub-pages
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { SectorsTab } from './pages/admin/SectorsTab';
+import { UsersTab } from './pages/admin/UsersTab';
+import { DentistsTab } from './pages/admin/DentistsTab';
+import { CommissionsTab } from './pages/admin/CommissionsTab';
+import { FinancialTab } from './pages/admin/FinancialTab';
+import { SubscriptionTab } from './pages/admin/SubscriptionTab';
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, isLoadingAuth } = useApp();
@@ -51,7 +58,18 @@ const AppContent = () => {
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
       <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
-      <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+      
+      {/* ADMIN ROUTES RESTRUCTURED */}
+      <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+        <Route index element={<Navigate to="setores" replace />} />
+        <Route path="setores" element={<SectorsTab />} />
+        <Route path="equipe" element={<UsersTab />} />
+        <Route path="clientes" element={<DentistsTab />} />
+        <Route path="comissoes" element={<CommissionsTab />} />
+        <Route path="pagamentos" element={<FinancialTab />} />
+        <Route path="assinatura" element={<SubscriptionTab />} />
+      </Route>
+
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       
       {/* Lab Exclusive */}
