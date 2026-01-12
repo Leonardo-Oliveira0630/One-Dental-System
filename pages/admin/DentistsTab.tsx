@@ -71,7 +71,7 @@ export const DentistsTab = () => {
     });
   };
 
-  // --- AI IMPORT LOGIC ---
+  // --- AI IMPORT LOGIC (REFINED FOR CRO) ---
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,10 +84,11 @@ export const DentistsTab = () => {
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        // raw: true para não tentar converter datas ou números formatados automaticamente
+        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true, raw: true });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
+        const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
         if (data.length === 0) {
           alert("O arquivo parece estar vazio.");
@@ -95,6 +96,7 @@ export const DentistsTab = () => {
           return;
         }
 
+        // 1. Mapeamento Rigoroso de Colunas
         const aiMapping = await analyzeColumnsWithAI(data.slice(0, 10));
         
         const processedData = data.map((row: any) => {
@@ -102,6 +104,7 @@ export const DentistsTab = () => {
                 const colName = aiMapping[key];
                 if (!colName) return '';
                 const val = row[colName];
+                // Forçamos string e removemos espaços extras
                 return val !== undefined && val !== null ? String(val).trim() : '';
             };
 
@@ -110,7 +113,7 @@ export const DentistsTab = () => {
                 email: getVal('email'),
                 phone: getVal('phone'),
                 cpfCnpj: getVal('cpfCnpj'),
-                cro: getVal('cro'),
+                cro: getVal('cro'), // Captura o valor exato (ex: 2118-ES)
                 birthDate: getVal('birthDate'),
                 approvalDate: getVal('approvalDate'),
                 cep: getVal('cep'),
@@ -140,53 +143,36 @@ export const DentistsTab = () => {
   };
 
   const analyzeColumnsWithAI = async (sampleData: any[]) => {
+    const keys = Object.keys(sampleData[0] || {});
+    
+    // --- LÓGICA DE MATCH EXATO (FALLBACK IMEDIATO) ---
+    // Se encontrarmos o nome EXATO na planilha, nem precisamos da IA para esse campo
+    const findExact = (target: string) => keys.find(k => k.trim().toUpperCase() === target.toUpperCase());
+
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const prompt = `
-      Você é um especialista em mapeamento de planilhas Excel para sistemas odontológicos.
-      Analise rigorosamente estas primeiras linhas da planilha: ${JSON.stringify(sampleData)}
+      Você é um especialista em mapeamento de dados odontológicos.
+      Analise estas colunas da planilha: ${JSON.stringify(keys)}
+      Amostra de dados para contexto: ${JSON.stringify(sampleData)}
 
-      MAPEIE AS COLUNAS ORIGINAIS PARA NOSSOS CAMPOS INTERNOS:
-      - 'name': Coluna "Nome" ou similar.
-      - 'email': Coluna "E-mail" ou "Email".
+      REGRAS CRÍTICAS DE MAPEAMENTO:
+      - 'cro': Procure pela coluna chamada exatamente "CRO". Identifique-a também se os dados nela tiverem o padrão "número-UF" (ex: 2118-ES).
+      - 'cpfCnpj': Coluna "Documento", "CPF" ou "CNPJ". É diferente do CRO.
+      - 'name': Coluna "Nome".
+      - 'email': Coluna "E-mail".
+      - 'phone': Coluna "Telefone" ou "Celular".
       - 'birthDate': Coluna "Data de nascimento".
-      - 'phone': Coluna "Telefone", "Celular" ou "WhatsApp".
-      - 'cpfCnpj': Coluna "Documento", "CPF" ou "CNPJ".
-      - 'cro': Coluna "CRO" ou "Registro Profissional" ou "Conselho". (IMPORTANTE: NÃO CONFUNDA COM DOCUMENTO/CPF).
       - 'approvalDate': Coluna "Data de aprovação".
-      - 'cep': Coluna "CEP".
-      - 'address': Coluna "Logradouro" ou "Endereço".
+      - 'address': Coluna "Logradouro".
       - 'number': Coluna "Número".
-      - 'complement': Coluna "Complemento".
-      - 'neighborhood': Coluna "Bairro".
-      - 'city': Coluna "Cidade".
-      - 'state': Coluna "Estado" ou "UF".
-      - 'country': Coluna "País".
-      - 'clinicName': Qualquer coluna que indique nome de clínica ou consultório.
-
-      REGRAS:
-      1. Se o nome da coluna no Excel for exatamente um dos citados acima, use-o.
-      2. Se não houver correspondência clara, deixe vazio "".
-      3. O campo 'cro' é específico para o número do registro profissional.
+      - 'cep': Coluna "CEP".
 
       RETORNE APENAS JSON PURO:
       {
-        "name": "nome_da_coluna_no_excel",
-        "email": "nome_da_coluna_no_excel",
-        "birthDate": "nome_da_coluna_no_excel",
-        "phone": "nome_da_coluna_no_excel",
-        "cpfCnpj": "nome_da_coluna_no_excel",
-        "cro": "nome_da_coluna_no_excel",
-        "approvalDate": "nome_da_coluna_no_excel",
-        "cep": "nome_da_coluna_no_excel",
-        "address": "nome_da_coluna_no_excel",
-        "number": "nome_da_coluna_no_excel",
-        "complement": "nome_da_coluna_no_excel",
-        "neighborhood": "nome_da_coluna_no_excel",
-        "city": "nome_da_coluna_no_excel",
-        "state": "nome_da_coluna_no_excel",
-        "country": "nome_da_coluna_no_excel",
-        "clinicName": "nome_da_coluna_no_excel"
+        "name": "nome_exato_da_coluna",
+        "cro": "nome_exato_da_coluna",
+        ...
       }
     `;
 
@@ -194,36 +180,33 @@ export const DentistsTab = () => {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
-        config: { 
-          responseMimeType: "application/json",
-          temperature: 0.1 
-        }
+        config: { responseMimeType: "application/json", temperature: 0 }
       });
       
-      return JSON.parse(response.text || '{}');
-    } catch (error) {
-      // Fallback manual robusto
-      const keys = Object.keys(sampleData[0] || {});
-      const f = (exacts: string[]) => keys.find(k => exacts.some(e => k.toLowerCase().trim() === e.toLowerCase())) || '';
-      const contains = (search: string) => keys.find(k => k.toLowerCase().includes(search.toLowerCase())) || '';
+      const mapping = JSON.parse(response.text || '{}');
+      
+      // Reforço manual: se a IA errou mas existe a coluna "CRO", nós corrigimos aqui
+      const exactCRO = findExact("CRO");
+      if (exactCRO) mapping.cro = exactCRO;
+      
+      const exactDoc = findExact("Documento");
+      if (exactDoc) mapping.cpfCnpj = exactDoc;
 
+      return mapping;
+    } catch (error) {
+      // Fallback manual total
       return {
-        name: f(["Nome", "Cliente", "Dentista", "Doutor"]),
-        email: f(["E-mail", "Email", "Contato"]),
-        birthDate: f(["Data de nascimento", "Nascimento", "Data Nasc"]),
-        phone: f(["Telefone", "Celular", "WhatsApp", "Fone"]),
-        cpfCnpj: f(["Documento", "CPF", "CNPJ", "Doc"]),
-        cro: f(["CRO", "C.R.O", "Registro Profissional", "Inscrição", "Registro"]),
-        approvalDate: f(["Data de aprovação", "Aprovação", "Data Aprov"]),
-        cep: f(["CEP", "Cod Postal"]),
-        address: f(["Logradouro", "Endereço", "Rua"]),
-        number: f(["Número", "Nº", "Num"]),
-        complement: f(["Complemento", "Sala", "Apt"]),
-        neighborhood: f(["Bairro"]),
-        city: f(["Cidade"]),
-        state: f(["Estado", "UF"]),
-        country: f(["País", "Country"]),
-        clinicName: contains("Clínica") || contains("Consultório")
+        name: findExact("Nome") || keys[0],
+        email: findExact("E-mail") || findExact("Email") || "",
+        cro: findExact("CRO") || "",
+        cpfCnpj: findExact("Documento") || findExact("CPF") || findExact("CNPJ") || "",
+        phone: findExact("Telefone") || findExact("Celular") || "",
+        birthDate: findExact("Data de nascimento") || "",
+        approvalDate: findExact("Data de aprovação") || "",
+        cep: findExact("CEP") || "",
+        address: findExact("Logradouro") || "",
+        city: findExact("Cidade") || "",
+        state: findExact("Estado") || ""
       };
     }
   };
@@ -262,7 +245,7 @@ export const DentistsTab = () => {
             <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">Clientes Internos (Offline)</h3>
             <div className="flex gap-2 w-full md:w-auto">
                 <button onClick={() => setIsImportModalOpen(true)} className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200">
-                    <FileSpreadsheet size={18}/> Importar Completo (IA)
+                    <FileSpreadsheet size={18}/> Importar Planilha
                 </button>
                 <button onClick={() => { resetForm(); setIsAddingDentist(true); }} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-all">
                     <Plus size={20}/> Novo Cadastro
@@ -438,7 +421,7 @@ export const DentistsTab = () => {
                   <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Sparkles size={24} /></div>
                   <div>
                     <h2 className="text-2xl font-black text-slate-800">Agente de Importação Inteligente</h2>
-                    <p className="text-slate-500 text-sm font-medium">Diferenciamos automaticamente Documento de Registro Profissional (CRO).</p>
+                    <p className="text-slate-500 text-sm font-medium">Extraímos o campo **CRO** conforme seu modelo (Ex: 2118-ES).</p>
                   </div>
                 </div>
                 <button onClick={() => { setIsImportModalOpen(false); setImportStatus('IDLE'); }} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={28} className="text-slate-400"/></button>
@@ -449,23 +432,22 @@ export const DentistsTab = () => {
                   <div onClick={() => fileInputRef.current?.click()} className="border-4 border-dashed border-slate-200 rounded-[24px] p-20 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-all cursor-pointer group">
                     <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                     <UploadCloud size={48} className="mx-auto text-slate-300 mb-4 group-hover:text-indigo-500" />
-                    <h3 className="text-xl font-bold text-slate-700">Selecione sua planilha com as colunas Nome, E-mail, Documento, CRO, etc.</h3>
-                    <p className="text-slate-400 mt-2 italic">A IA identificará cada campo mesmo que estejam em ordens diferentes.</p>
+                    <h3 className="text-xl font-bold text-slate-700">Selecione sua planilha com a coluna CRO</h3>
+                    <p className="text-slate-400 mt-2 italic">A IA identificará o Registro Profissional automaticamente.</p>
                   </div>
                 )}
 
                 {importStatus === 'ANALYZING' && (
                   <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
                     <Loader2 size={64} className="text-indigo-600 animate-spin" />
-                    <h3 className="text-xl font-black text-slate-800">Mapeando Colunas com IA...</h3>
-                    <p className="text-slate-500">Separando Documentos de CROs.</p>
+                    <h3 className="text-xl font-black text-slate-800">Mapeando Coluna CRO...</h3>
                   </div>
                 )}
 
                 {importStatus === 'PREVIEW' && (
                   <div className="space-y-6">
                     <div className="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-center gap-4 text-indigo-700">
-                      <BadgeCheck size={24}/> <p className="font-bold">Mapeamento concluído! Verifique a coluna **CRO** e **Documento** abaixo.</p>
+                      <BadgeCheck size={24}/> <p className="font-bold">Mapeamento concluído! Verifique os dados do **CRO** abaixo.</p>
                     </div>
 
                     <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white overflow-x-auto">
@@ -473,9 +455,8 @@ export const DentistsTab = () => {
                         <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
                           <tr>
                             <th className="p-4">Cliente</th>
-                            <th className="p-4">Nascimento / Aprovação</th>
                             <th className="p-4">Documento (CPF)</th>
-                            <th className="p-4">CRO</th>
+                            <th className="p-4">CRO Extraído</th>
                             <th className="p-4">Endereço Completo</th>
                             <th className="p-4">Contatos</th>
                             <th className="p-4 text-center">Status</th>
@@ -488,18 +469,19 @@ export const DentistsTab = () => {
                                 <div className="font-bold text-sm text-slate-700">{item.name || '---'}</div>
                                 <div className="text-[9px] text-slate-400 font-bold uppercase">{item.clinicName}</div>
                               </td>
-                              <td className="p-4 text-xs font-medium text-slate-600">
-                                <div>Nasc: {item.birthDate || '---'}</div>
-                                <div>Aprov: {item.approvalDate || '---'}</div>
-                              </td>
                               <td className="p-4 text-sm text-slate-600 font-mono">{item.cpfCnpj || '---'}</td>
                               <td className="p-4">
-                                {item.cro ? <span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-0.5 rounded font-black border border-blue-100">CRO: {item.cro}</span> : <span className="text-slate-300">---</span>}
+                                {item.cro ? (
+                                  <span className="bg-blue-600 text-white text-[11px] px-2 py-1 rounded font-black shadow-sm">
+                                    {item.cro}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-300 italic">Vazio na planilha</span>
+                                )}
                               </td>
                               <td className="p-4 text-[10px] leading-tight text-slate-500 max-w-xs">
                                 <p className="font-bold text-slate-700">{item.address}{item.number ? `, ${item.number}` : ''}</p>
                                 <p>{item.neighborhood}{item.city ? ` - ${item.city}` : ''}{item.state ? `/${item.state}` : ''}</p>
-                                <p>{item.cep ? `CEP: ${item.cep}` : ''} {item.country ? `| ${item.country}` : ''}</p>
                               </td>
                               <td className="p-4 text-xs">
                                 <div>{item.email || '---'}</div>
@@ -521,7 +503,7 @@ export const DentistsTab = () => {
                  <button onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
                  {(importStatus === 'PREVIEW' || importStatus === 'SAVING') && (
                    <button onClick={saveImportedData} disabled={importStatus === 'SAVING'} className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center gap-2 transition-all disabled:opacity-50">
-                     {importStatus === 'SAVING' ? <Loader2 className="animate-spin" /> : <><Save size={20}/> CONFIRMAR CADASTRO EM LOTE</>}
+                     {importStatus === 'SAVING' ? <Loader2 className="animate-spin" /> : <><Save size={20}/> CONFIRMAR IMPORTAÇÃO</>}
                    </button>
                  )}
               </div>
