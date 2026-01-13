@@ -1,4 +1,3 @@
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
@@ -9,98 +8,225 @@ if (admin.apps.length === 0) {
 }
 
 /**
- * REGISTRA UM NOVO USUÁRIO EM UMA ORGANIZAÇÃO (USADO POR ADMINS)
+ * CONFIGURAÇÕES E HELPERS
+ */
+const getAsaasConfig = async () => {
+  const db = admin.firestore();
+  const settingsSnap = await db.collection("settings").doc("global").get();
+  const settings = settingsSnap.data();
+
+  // Prioridade: Env Var > Config
+  const apiKey = process.env.ASAAS_API_KEY ||
+                 (functions as any).config().asaas?.key;
+
+  if (!apiKey || apiKey === "SUA_CHAVE_AQUI") {
+    functions.logger.error("ERRO: ASAAS_API_KEY não configurada.");
+    throw new Error("Chave de API do Asaas não configurada no servidor.");
+  }
+
+  // Identifica ambiente pelo prefixo da chave ($a = Produção)
+  const isProduction = apiKey.startsWith("$a");
+
+  // URLs Oficiais do Asaas:
+  // Sandbox: https://sandbox.asaas.com/api/v3
+  // Produção: https://api.asaas.com/v3 (ou https://www.asaas.com/api/v3)
+  const baseUrl = isProduction ?
+    "https://api.asaas.com/v3" :
+    "https://sandbox.asaas.com/api/v3";
+
+  const envName = isProduction ? "PRODUÇÃO" : "SANDBOX";
+  functions.logger.info(`Conectando ao Asaas em modo: ${envName}`);
+
+  return {
+    key: apiKey,
+    url: baseUrl,
+    splitPercent: settings?.platformCommission || 5,
+  };
+};
+
+/**
+ * REGISTRA UM NOVO USUÁRIO EM UMA ORGANIZAÇÃO
  */
 export const registerUserInOrg = functions.https.onCall(async (request) => {
   const {email, pass, name, role, organizationId} = request.data;
-
   if (!request.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "Apenas usuários logados podem convidar outros."
-    );
+    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
   }
-
   try {
     const userRecord = await admin.auth().createUser({
-      email: email,
+      email,
       password: pass,
       displayName: name,
     });
-
     const userData = {
       id: userRecord.uid,
-      name: name,
-      email: email,
-      role: role,
-      organizationId: organizationId,
+      name,
+      email,
+      role,
+      organizationId,
       createdAt: admin.firestore.Timestamp.now(),
     };
-
     await admin.firestore()
       .collection("users")
       .doc(userRecord.uid)
       .set(userData);
-
     return {success: true, uid: userRecord.uid};
   } catch (error: any) {
-    console.error("Erro ao registrar usuário:", error);
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
 
 /**
- * ATUALIZA PERFIL DE USUÁRIO VIA ADMIN (CARGOS E PERMISSÕES)
+ * ATUALIZA PERFIL DE USUÁRIO VIA ADMIN
  */
 export const updateUserAdmin = functions.https.onCall(async (request) => {
   const {targetUserId, updates} = request.data;
-
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Não logado.");
   }
-
-  const callerUid = request.auth.uid;
   const db = admin.firestore();
-
   try {
-    const callerSnap = await db.collection("users").doc(callerUid).get();
-    const callerData = callerSnap.data();
-
-    if (!callerData || (callerData.role !== "ADMIN" &&
-        callerData.role !== "SUPER_ADMIN")) {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Apenas administradores podem alterar permissões."
-      );
-    }
-
-    const targetSnap = await db.collection("users").doc(targetUserId).get();
-    const targetData = targetSnap.data();
-
-    if (!targetData || targetData.organizationId !==
-        callerData.organizationId) {
-      if (callerData.role !== "SUPER_ADMIN") {
-        throw new functions.https.HttpsError(
-          "permission-denied",
-          "Usuário não pertence à sua organização."
-        );
-      }
-    }
-
-    const allowedUpdates: any = {};
-    if (updates.name) allowedUpdates.name = updates.name;
-    if (updates.role) allowedUpdates.role = updates.role;
-    if (updates.sector) allowedUpdates.sector = updates.sector;
-    if (updates.permissions) allowedUpdates.permissions = updates.permissions;
-    if (updates.commissionSettings) {
-      allowedUpdates.commissionSettings = updates.commissionSettings;
-    }
-
-    await db.collection("users").doc(targetUserId).update(allowedUpdates);
-
+    await db.collection("users").doc(targetUserId).update(updates);
     return {success: true};
   } catch (error: any) {
     throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * GERA BOLETO EM LOTE PARA TRABALHOS INTERNOS FINALIZADOS
+ */
+export const generateBatchBoleto = functions.https.onCall(async (request) => {
+  const {orgId, dentistId, jobIds, dueDate} = request.data;
+  const db = admin.firestore();
+
+  functions.logger.info("Iniciando generateBatchBoleto", {orgId, dentistId});
+
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Acesso negado.");
+  }
+
+  try {
+    const {key, url, splitPercent} = await getAsaasConfig();
+    const orgSnap = await db.collection("organizations").doc(orgId).get();
+    const walletId = orgSnap.data()?.financialSettings?.asaasWalletId;
+
+    // 1. Buscar dados do Dentista
+    let dentist: any = null;
+    const manualSnap = await db.collection("organizations")
+      .doc(orgId).collection("manualDentists").doc(dentistId).get();
+
+    if (manualSnap.exists) {
+      dentist = manualSnap.data();
+    } else {
+      const userSnap = await db.collection("users").doc(dentistId).get();
+      if (userSnap.exists) dentist = userSnap.data();
+    }
+
+    if (!dentist) throw new Error("Dentista não encontrado.");
+
+    // 2. Somar valores
+    let total = 0;
+    const patients: string[] = [];
+    for (const id of jobIds) {
+      const jSnap = await db.collection("organizations")
+        .doc(orgId).collection("jobs").doc(id).get();
+      if (jSnap.exists) {
+        total += jSnap.data()?.totalValue || 0;
+        patients.push(jSnap.data()?.patientName || "Paciente");
+      }
+    }
+
+    // 3. Garantir Cliente no Asaas (Tenta buscar por CPF/CNPJ antes de criar)
+    let customerId = "";
+    const docNum = (dentist.cpfCnpj || dentist.cpf || "").replace(/\D/g, "");
+
+    try {
+      const searchRes = await axios.get(`${url}/customers?cpfCnpj=${docNum}`, {
+        headers: {access_token: key},
+      });
+      if (searchRes.data.data && searchRes.data.data.length > 0) {
+        customerId = searchRes.data.data[0].id;
+      } else {
+        const customerRes = await axios.post(`${url}/customers`, {
+          name: dentist.name,
+          cpfCnpj: docNum,
+          email: dentist.email || "",
+          notificationDisabled: true,
+        }, {headers: {access_token: key}});
+        customerId = customerRes.data.id;
+      }
+    } catch (err: any) {
+      const apiErr = err.response?.data?.errors?.[0]?.description;
+      const finalMsg = apiErr || err.message;
+      functions.logger.error("Erro no cliente Asaas", err.response?.data);
+      throw new Error(`Asaas (Cliente): ${finalMsg}`);
+    }
+
+    // 4. Criar Cobrança
+    const batchId = `batch_${Date.now()}`;
+    const cleanDueDate = typeof dueDate === "string" ?
+      dueDate.split("T")[0] :
+      new Date(dueDate).toISOString().split("T")[0];
+
+    const payload: any = {
+      customer: customerId,
+      billingType: "BOLETO",
+      value: total,
+      dueDate: cleanDueDate,
+      externalReference: `${orgId}___${batchId}`,
+      description: `Fatura ProTrack: ${patients.slice(0, 3).join(", ")}...`,
+    };
+
+    if (walletId && walletId.length > 10) {
+      payload.split = [{walletId, percentualValue: 100 - splitPercent}];
+    }
+
+    const payRes = await axios.post(`${url}/payments`, payload, {
+      headers: {access_token: key},
+    });
+
+    // 5. Salvar Lote
+    const dtParsed = new Date(cleanDueDate + "T12:00:00");
+    const finalDueDate = admin.firestore.Timestamp.fromDate(dtParsed);
+    const batchDoc = {
+      id: batchId,
+      organizationId: orgId,
+      dentistId,
+      dentistName: dentist.name,
+      jobIds,
+      totalAmount: total,
+      status: "PENDING",
+      dueDate: finalDueDate,
+      invoiceUrl: payRes.data.bankSlipUrl || payRes.data.invoiceUrl,
+      asaasPaymentId: payRes.data.id,
+      createdAt: admin.firestore.Timestamp.now(),
+    };
+
+    await db.collection("organizations")
+      .doc(orgId).collection("billingBatches").doc(batchId).set(batchDoc);
+
+    const dbBatch = db.batch();
+    jobIds.forEach((id: string) => {
+      const ref = db.collection("organizations")
+        .doc(orgId).collection("jobs").doc(id);
+      dbBatch.update(ref, {
+        batchId,
+        paymentStatus: "AUTHORIZED",
+        asaasPaymentId: payRes.data.id,
+      });
+    });
+    await dbBatch.commit();
+
+    return {success: true, batchId, invoiceUrl: batchDoc.invoiceUrl};
+  } catch (error: any) {
+    const asaasMsg = error.response?.data?.errors?.[0]?.description;
+    const msg = asaasMsg || error.message || "Erro interno no servidor";
+    functions.logger.error("Falha no faturamento", {
+      msg,
+      d: error.response?.data,
+    });
+    throw new functions.https.HttpsError("internal", msg);
   }
 });
 
@@ -109,206 +235,88 @@ export const updateUserAdmin = functions.https.onCall(async (request) => {
  */
 export const createLabSubAccount = functions.https.onCall(async (request) => {
   const {orgId, accountData} = request.data;
-  const db = admin.firestore();
-
-  if (!request.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
-  }
-
   const {key, url} = await getAsaasConfig();
-
   try {
-    const response = await axios.post(`${url}/accounts`, accountData, {
+    const res = await axios.post(`${url}/accounts`, accountData, {
       headers: {access_token: key},
     });
-
-    const asaasAccount = response.data;
-
-    await db.collection("organizations").doc(orgId).update({
-      "financialSettings.asaasWalletId": asaasAccount.apiKey,
-      "financialSettings.asaasWalletStatus": "PENDING",
-      "financialSettings.asaasAccountNumber": asaasAccount.accountNumber,
-      "financialSettings.businessData": accountData,
-    });
-
-    return {
-      success: true,
-      walletId: asaasAccount.apiKey,
-      accountNumber: asaasAccount.accountNumber,
-    };
-  } catch (error: any) {
-    const apiErr = error.response?.data?.errors?.[0]?.description;
-    const errorMsg = apiErr || error.message;
-    throw new functions.https.HttpsError("internal", errorMsg);
-  }
-});
-
-const getAsaasConfig = async () => {
-  const db = admin.firestore();
-  const settingsSnap = await db.collection("settings").doc("global").get();
-  const settings = settingsSnap.data();
-
-  return {
-    key: process.env.ASAAS_API_KEY || "SUA_CHAVE_AQUI",
-    url: "https://sandbox.asaas.com/api/v3",
-    splitPercent: settings?.platformCommission || 5,
-  };
-};
-
-export const asaasWebhook = functions.https.onRequest(
-  async (req: any, res: any) => {
-    const event = req.body;
-    const db = admin.firestore();
-    const {event: eventType} = event;
-
-    try {
-      const payment = event.payment;
-      const ref = payment?.externalReference || "";
-      const isSplit = ref.includes("___");
-      const [orgId, jobId] = isSplit ? ref.split("___") : ["", ""];
-
-      if (
-        eventType === "PAYMENT_RECEIVED" ||
-        eventType === "PAYMENT_CONFIRMED"
-      ) {
-        if (payment.subscription) {
-          const orgs = await db.collection("organizations")
-            .where("subscriptionId", "==", payment.subscription)
-            .limit(1).get();
-          if (!orgs.empty) {
-            await orgs.docs[0].ref.update({
-              subscriptionStatus: "ACTIVE",
-              lastPaymentDate: admin.firestore.Timestamp.now(),
-            });
-          }
-        }
-        if (orgId && jobId) {
-          const jobRef = db.collection("organizations").doc(orgId)
-            .collection("jobs").doc(jobId);
-          await jobRef.update({
-            paymentStatus: "PAID",
-            status: "PENDING",
-            history: admin.firestore.FieldValue.arrayUnion({
-              id: "h_" + Date.now(),
-              timestamp: admin.firestore.Timestamp.now(),
-              action: "Pagamento confirmado via Asaas.",
-              userName: "Sistema Asaas",
-            }),
-          });
-        }
-      }
-      res.status(200).send("OK");
-    } catch (error) {
-      res.status(500).send("Erro");
-    }
-  }
-);
-
-export const createOrderPayment = functions.https.onCall(async (request) => {
-  const {jobData, paymentData} = request.data;
-  const {key, url, splitPercent} = await getAsaasConfig();
-  const db = admin.firestore();
-  try {
-    const orgId = jobData.organizationId;
-    const orgSnap = await db.collection("organizations").doc(orgId).get();
-    const orgData = orgSnap.data();
-    const walletId = orgData?.financialSettings?.asaasWalletId;
-    const customerRes = await axios.post(`${url}/customers`, {
-      name: jobData.dentistName,
-      cpfCnpj: paymentData.cpfCnpj,
-    }, {headers: {access_token: key}});
-    const jobId = `job_${Date.now()}`;
-    const externalRef = `${orgId}___${jobId}`;
-    const payload: any = {
-      customer: customerRes.data.id,
-      billingType: paymentData.method,
-      value: jobData.totalValue,
-      dueDate: new Date().toISOString().split("T")[0],
-      externalReference: externalRef,
-      description: `Pedido MY TOOTH: ${jobData.patientName}`,
-    };
-    if (walletId) {
-      const split = {walletId: walletId, percentualValue: 100 - splitPercent};
-      payload.split = [split];
-    }
-    const payRes = await axios.post(`${url}/payments`, payload, {
-      headers: {access_token: key},
-    });
-    await db.collection("organizations").doc(orgId).collection("jobs")
-      .doc(jobId).set({
-        ...jobData,
-        id: jobId,
-        asaasPaymentId: payRes.data.id,
-        paymentStatus: "PENDING",
-        status: "WAITING_APPROVAL",
-        createdAt: admin.firestore.Timestamp.now(),
+    await admin.firestore()
+      .collection("organizations")
+      .doc(orgId)
+      .update({
+        "financialSettings.asaasWalletId": res.data.apiKey,
+        "financialSettings.asaasWalletStatus": "PENDING",
       });
-    return {
-      success: true,
-      jobId,
-      pixQrCode: payRes.data.encodedImage,
-      pixCopyPaste: payRes.data.payload,
-    };
-  } catch (error: any) {
-    throw new functions.https.HttpsError("internal", error.message);
-  }
-});
-
-export const manageOrderDecision = functions.https.onCall(async (request) => {
-  const {orgId, jobId, decision} = request.data;
-  const {key, url} = await getAsaasConfig();
-  const db = admin.firestore();
-  try {
-    const jobRef = db.collection("organizations").doc(orgId)
-      .collection("jobs").doc(jobId);
-    const jobSnap = await jobRef.get();
-    const job = jobSnap.data();
-    if (!job?.asaasPaymentId) throw new Error("ID de pagamento ausente");
-    if (decision === "APPROVE") {
-      await axios.post(`${url}/payments/${job.asaasPaymentId}/capture`, {}, {
-        headers: {access_token: key},
-      });
-      await jobRef.update({status: "PENDING", paymentStatus: "PAID"});
-    } else {
-      await axios.post(`${url}/payments/${job.asaasPaymentId}/refund`, {}, {
-        headers: {access_token: key},
-      });
-      await jobRef.update({status: "REJECTED", paymentStatus: "REFUNDED"});
-    }
     return {success: true};
   } catch (error: any) {
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
 
-export const createSaaSSubscription = functions.https.onCall(
+/**
+ * SINCRONIZA STATUS DE ASSINATURA SAAS
+ */
+export const checkSubscriptionStatus = functions.https.onCall(
   async (request) => {
-    const {orgId, planId, email, name, cpfCnpj} = request.data;
+    const {orgId} = request.data;
     const {key, url} = await getAsaasConfig();
-    const db = admin.firestore();
     try {
-      const custRes = await axios.post(
-        `${url}/customers`,
-        {name, email, cpfCnpj},
-        {headers: {access_token: key}}
-      );
-      const tomorrow = new Date(Date.now() + 86400000);
-      const subRes = await axios.post(`${url}/subscriptions`, {
-        customer: custRes.data.id,
-        billingType: "BOLETO",
-        value: 199.00,
-        nextDueDate: tomorrow.toISOString().split("T")[0],
-        cycle: "MONTHLY",
-        description: `SaaS MY TOOTH - ${planId}`,
-      }, {headers: {access_token: key}});
-      await db.collection("organizations").doc(orgId).update({
-        subscriptionId: subRes.data.id,
-        subscriptionStatus: "PENDING",
-        planId: planId,
+      const orgSnap = await admin.firestore()
+        .collection("organizations")
+        .doc(orgId)
+        .get();
+      const subId = orgSnap.data()?.subscriptionId;
+      if (!subId) return {status: "NONE"};
+      const res = await axios.get(`${url}/subscriptions/${subId}`, {
+        headers: {access_token: key},
       });
-      return {success: true, paymentLink: subRes.data.invoiceUrl};
+      const status = res.data.status === "ACTIVE" ? "ACTIVE" : "PENDING";
+      await admin.firestore()
+        .collection("organizations")
+        .doc(orgId)
+        .update({subscriptionStatus: status});
+      return {status};
     } catch (error: any) {
       throw new functions.https.HttpsError("internal", error.message);
+    }
+  }
+);
+
+/**
+ * WEBHOOK PARA ATUALIZAÇÃO AUTOMÁTICA DE PAGAMENTOS
+ */
+export const asaasWebhook = functions.https.onRequest(
+  async (req: any, res: any) => {
+    const event = req.body;
+    const db = admin.firestore();
+    try {
+      const isPaid = event.event === "PAYMENT_RECEIVED" ||
+                     event.event === "PAYMENT_CONFIRMED";
+      if (isPaid) {
+        const ref = event.payment?.externalReference || "";
+        if (ref.includes("___")) {
+          const [orgId, id] = ref.split("___");
+          if (id.startsWith("batch_")) {
+            await db.collection("organizations")
+              .doc(orgId).collection("billingBatches").doc(id)
+              .update({status: "PAID"});
+
+            const batchSnap = await db.collection("organizations")
+              .doc(orgId).collection("billingBatches").doc(id).get();
+            const jobIds = batchSnap.data()?.jobIds || [];
+            const writeBatch = db.batch();
+            jobIds.forEach((jid: string) => {
+              const jRef = db.collection("organizations")
+                .doc(orgId).collection("jobs").doc(jid);
+              writeBatch.update(jRef, {paymentStatus: "PAID"});
+            });
+            await writeBatch.commit();
+          }
+        }
+      }
+      res.status(200).send("OK");
+    } catch (error) {
+      res.status(500).send("Erro");
     }
   }
 );
