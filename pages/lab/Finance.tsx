@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch } from '../../types';
@@ -8,17 +6,13 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area, Legend
 } from 'recharts';
-/* Fixed lucide-react import from lucide-center typo */
 import { 
   DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, 
   FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, 
   CreditCard, Loader2, User, Package, Clock, X, ChevronRight, Filter, 
   FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight,
-  ChevronDown, History
+  ChevronDown, History, ExternalLink, Copy, Tag, AlertTriangle
 } from 'lucide-react';
-
-// Correcting the import path that was likely meant to be lucide-react
-import { Search as SearchIcon } from 'lucide-react';
 
 export const Finance = () => {
   const { jobs, allUsers, manualDentists, currentOrg } = useApp();
@@ -31,6 +25,17 @@ export const Finance = () => {
   const [selectedDentist, setSelectedDentist] = useState<any>(null);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Expense Form State
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expenseForm, setExpenseForm] = useState({
+      description: '',
+      amount: 0,
+      category: 'SUPPLIES' as TransactionCategory,
+      date: new Date().toISOString().split('T')[0],
+      status: 'PAID' as 'PAID' | 'PENDING'
+  });
 
   useEffect(() => {
     if (currentOrg) {
@@ -42,24 +47,24 @@ export const Finance = () => {
 
   // --- ANALYTICS CALCULATIONS ---
   const stats = useMemo(() => {
-    const paidRevenue = jobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, curr) => acc + curr.totalValue, 0);
-    
-    // A Receber: Apenas trabalhos que NÃO foram pagos (Web já nasce como PAID ou em processo de captura)
-    // Consideramos trabalhos manuais que estão finalizados mas ainda com paymentStatus PENDING ou sem status definido
+    // Receita Realizada: Pedidos WEB pagos ou boletos de lotes marcados como PAID
+    const paidFromJobs = jobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, curr) => acc + curr.totalValue, 0);
+    const paidRevenue = paidFromJobs; // Simplificado para este contexto
+
+    // A Receber: Trabalhos concluídos que não estão em nenhum lote e não foram pagos
     const pendingRevenue = jobs.filter(j => 
         (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) && 
         (j.paymentStatus === 'PENDING' || !j.paymentStatus) &&
-        !j.asaasPaymentId // Property 'asaasPaymentId' fixed by updating Job interface in types.ts
+        !j.batchId && !j.asaasPaymentId
     ).reduce((acc, curr) => acc + curr.totalValue, 0);
 
-    const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((acc, curr) => acc + curr.amount, 0);
-    const lossFromRemakes = jobs.reduce((acc, job) => {
-        const remakeItems = job.items.filter(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT');
-        return acc + remakeItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    }, 0);
+    // Faturado Aguardando: Soma de lotes PENDING
+    const inBatchesPending = billingBatches.filter(b => b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
 
-    return { paidRevenue, pendingRevenue, totalExpenses, profit: paidRevenue - totalExpenses, lossFromRemakes };
-  }, [jobs, expenses]);
+    const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((acc, curr) => acc + curr.amount, 0);
+    
+    return { paidRevenue, pendingRevenue, inBatchesPending, totalExpenses, profit: paidRevenue - totalExpenses };
+  }, [jobs, expenses, billingBatches]);
 
   // --- DENTIST SUMMARY ---
   const dentistSummary = useMemo(() => {
@@ -67,33 +72,31 @@ export const Finance = () => {
     const allDents = [...allUsers.filter(u => u.role === UserRole.CLIENT), ...manualDentists];
     
     allDents.forEach(d => {
-        map.set(d.id, { ...d, totalPending: 0, totalPaid: 0, history: [], pendingJobs: [] });
+        map.set(d.id, { ...d, totalPending: 0, history: [], pendingJobs: [] });
     });
 
     jobs.forEach(job => {
         let entry = map.get(job.dentistId);
         if (!entry) {
-            entry = { id: job.dentistId, name: job.dentistName, totalPending: 0, totalPaid: 0, history: [], pendingJobs: [] };
+            entry = { id: job.dentistId, name: job.dentistName, totalPending: 0, history: [], pendingJobs: [] };
             map.set(job.dentistId, entry);
         }
         
-        if (job.paymentStatus === 'PAID') {
-            entry.totalPaid += job.totalValue;
-        } else if (
-            /* Fixed line 81: renamed variable 'j' to 'job' to match scope */
+        // Só entra para faturamento se estiver concluído, sem lote e sem pagamento
+        if (
             (job.paymentStatus === 'PENDING' || !job.paymentStatus) && 
             (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED) &&
-            !job.asaasPaymentId // Property 'asaasPaymentId' fixed by updating Job interface in types.ts
+            !job.batchId && !job.asaasPaymentId
         ) {
             entry.totalPending += job.totalValue;
             entry.pendingJobs.push(job);
         }
-        entry.history.push(job);
     });
 
-    return Array.from(map.values()).filter(d => 
-        d.name.toLowerCase().includes(searchTerm.toLowerCase())
-    ).filter(d => d.totalPending > 0 || d.history.length > 0).sort((a, b) => b.totalPending - a.totalPending);
+    return Array.from(map.values())
+        .filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        .filter(d => d.totalPending > 0)
+        .sort((a, b) => b.totalPending - a.totalPending);
   }, [jobs, allUsers, manualDentists, searchTerm]);
 
   const handleCreateBoleto = async () => {
@@ -103,40 +106,89 @@ export const Finance = () => {
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 5);
         await api.apiGenerateBatchBoleto(currentOrg.id, selectedDentist.id, selectedJobIds, dueDate);
-        alert("Boleto e Fatura gerados!");
+        alert("Boleto e Fatura gerados com sucesso! Você pode encontrá-los na aba 'Faturas'.");
         setSelectedDentist(null);
         setSelectedJobIds([]);
+        setActiveTab('BATCHES');
     } catch (error: any) {
         alert("Erro: " + error.message);
     } finally { setIsGenerating(false); }
+  };
+
+  const handleAddExpense = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!currentOrg) return;
+      try {
+          await api.apiAddExpense(currentOrg.id, {
+              ...expenseForm,
+              id: `exp_${Date.now()}`,
+              organizationId: currentOrg.id,
+              date: new Date(expenseForm.date),
+              createdAt: new Date()
+          } as any);
+          setShowExpenseModal(false);
+          setExpenseForm({ description: '', amount: 0, category: 'SUPPLIES', date: new Date().toISOString().split('T')[0], status: 'PAID' });
+      } catch (e) { alert("Erro ao salvar despesa."); }
+  };
+
+  const copyBoletoLink = (url: string, id: string) => {
+      navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Wallet className="text-blue-600" /> Fluxo de Caixa & Faturamento</h1>
-          <p className="text-slate-500 font-medium">Apenas casos manuais finalizados ficam disponíveis para faturamento acumulado.</p>
+          <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2"><Wallet className="text-blue-600" /> Financeiro do Laboratório</h1>
+          <p className="text-slate-500 font-medium">Gestão de faturamento acumulado e fluxo de caixa.</p>
         </div>
       </div>
 
       <div className="flex bg-slate-200 p-1 rounded-2xl w-fit overflow-x-auto no-scrollbar">
           <button onClick={() => setActiveTab('DASHBOARD')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Métricas</button>
           <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Extrato p/ Faturamento</button>
+          <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturas & Boletos</button>
           <button onClick={() => setActiveTab('EXPENSES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Despesas</button>
-          <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturas</button>
       </div>
+
+      {/* TABS CONTENT */}
+
+      {activeTab === 'DASHBOARD' && (
+          <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-2">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
+                      <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Faturado Pendente (Boletos)</p>
+                      <h3 className="text-2xl font-black text-orange-600">R$ {stats.inBatchesPending.toFixed(2)}</h3>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">A Faturar (Concluídos)</p>
+                      <h3 className="text-2xl font-black text-blue-600">R$ {stats.pendingRevenue.toFixed(2)}</h3>
+                  </div>
+                   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Despesas Pagas</p>
+                      <h3 className="text-2xl font-black text-red-500">R$ {stats.totalExpenses.toFixed(2)}</h3>
+                  </div>
+              </div>
+              {/* Opcional: Gráficos de barra aqui */}
+          </div>
+      )}
 
       {activeTab === 'RECEIVABLES' && (
           <div className="space-y-6 animate-in slide-in-from-right-2">
               <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
                       <div>
-                        <h2 className="text-xl font-bold text-slate-800">Débitos de Casos Concluídos</h2>
-                        <p className="text-sm text-slate-500">Selecione o dentista para faturar trabalhos internos já finalizados.</p>
+                        <h2 className="text-xl font-bold text-slate-800">Prontos para Cobrança</h2>
+                        <p className="text-sm text-slate-500">Apenas trabalhos internos **concluídos** que ainda não foram faturados.</p>
                       </div>
                       <div className="relative w-full md:w-80">
-                          <SearchIcon className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                          <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
                           <input placeholder="Buscar dentista..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                       </div>
                   </div>
@@ -150,14 +202,14 @@ export const Finance = () => {
                                   <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-500" />
                               </div>
                               <div className="grid grid-cols-1 gap-2 border-t border-slate-200/50 pt-4">
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase">Débito Acumulado (Finalizados)</p>
-                                  <p className={`text-xl font-black ${d.totalPending > 0 ? 'text-red-600' : 'text-slate-300'}`}>R$ {d.totalPending.toFixed(2)}</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase">Débito na Gaveta</p>
+                                  <p className="text-xl font-black text-red-600">R$ {d.totalPending.toFixed(2)}</p>
                               </div>
                           </div>
                       ))}
                       {dentistSummary.length === 0 && (
                           <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed rounded-3xl italic">
-                              Nenhum débito pendente de faturamento no momento.
+                              Nenhum trabalho concluído aguardando faturamento.
                           </div>
                       )}
                   </div>
@@ -165,27 +217,110 @@ export const Finance = () => {
           </div>
       )}
 
-      {activeTab === 'DASHBOARD' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-2">
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
-                  <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
-              </div>
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">A Receber (Finalizados)</p>
-                  <h3 className="text-2xl font-black text-red-600">R$ {stats.pendingRevenue.toFixed(2)}</h3>
-              </div>
-               <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Despesas</p>
-                  <h3 className="text-2xl font-black text-slate-800">R$ {stats.totalExpenses.toFixed(2)}</h3>
-              </div>
-              <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <p className="text-xs font-bold text-slate-400 uppercase mb-1">Lucro Estimado</p>
-                  <h3 className="text-2xl font-black text-blue-600">R$ {stats.profit.toFixed(2)}</h3>
+      {activeTab === 'BATCHES' && (
+          <div className="space-y-6 animate-in slide-in-from-right-2">
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2"><Receipt className="text-blue-600"/> Histórico de Faturas e Boletos</h3>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
+                            <tr>
+                                <th className="p-4">Fatura ID</th>
+                                <th className="p-4">Dentista</th>
+                                <th className="p-4">Vencimento</th>
+                                <th className="p-4">Valor Total</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4 text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm">
+                            {billingBatches.map(batch => (
+                                <tr key={batch.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="p-4 font-mono font-bold text-slate-500 uppercase">{batch.id.substring(0, 8)}...</td>
+                                    <td className="p-4 font-bold text-slate-800">{batch.dentistName}</td>
+                                    <td className="p-4 text-slate-600 font-medium">{new Date(batch.dueDate).toLocaleDateString()}</td>
+                                    <td className="p-4 font-black text-slate-800">R$ {batch.totalAmount.toFixed(2)}</td>
+                                    <td className="p-4">
+                                        <span className={`px-2 py-1 rounded-full text-[10px] font-black ${
+                                            batch.status === 'PAID' ? 'bg-green-100 text-green-700' : 
+                                            batch.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+                                        }`}>
+                                            {batch.status === 'PAID' ? 'PAGO' : batch.status === 'OVERDUE' ? 'VENCIDO' : 'AGUARDANDO'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            {batch.invoiceUrl && (
+                                                <>
+                                                    <button 
+                                                        onClick={() => copyBoletoLink(batch.invoiceUrl!, batch.id)}
+                                                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${copiedId === batch.id ? 'bg-green-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                                                    >
+                                                        {copiedId === batch.id ? <Check size={14}/> : <Copy size={14}/>} {copiedId === batch.id ? 'Copiado' : 'Link Boleto'}
+                                                    </button>
+                                                    <a href={batch.invoiceUrl} target="_blank" rel="noreferrer" className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100">
+                                                        <ExternalLink size={16} />
+                                                    </a>
+                                                </>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {billingBatches.length === 0 && (
+                                <tr><td colSpan={6} className="p-12 text-center text-slate-400 italic font-medium">Nenhuma fatura gerada recentemente.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                  </div>
               </div>
           </div>
       )}
 
+      {activeTab === 'EXPENSES' && (
+          <div className="space-y-6 animate-in slide-in-from-right-2">
+              <div className="flex justify-end">
+                  <button onClick={() => setShowExpenseModal(true)} className="px-6 py-3 bg-red-600 text-white font-bold rounded-2xl shadow-lg flex items-center gap-2 hover:bg-red-700 transition-all">
+                      <Plus size={20} /> LANÇAR DESPESA
+                  </button>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <table className="w-full text-left">
+                      <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
+                          <tr>
+                              <th className="p-4">Data</th>
+                              <th className="p-4">Descrição</th>
+                              <th className="p-4">Categoria</th>
+                              <th className="p-4">Valor</th>
+                              <th className="p-4">Status</th>
+                              <th className="p-4 text-right">Ações</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                          {expenses.map(exp => (
+                              <tr key={exp.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="p-4 text-sm font-medium text-slate-600">{new Date(exp.date).toLocaleDateString()}</td>
+                                  <td className="p-4 font-bold text-slate-800">{exp.description}</td>
+                                  <td className="p-4"><span className="text-[10px] font-black bg-slate-100 px-2 py-1 rounded text-slate-500">{exp.category}</span></td>
+                                  <td className="p-4 font-black text-red-600">R$ {exp.amount.toFixed(2)}</td>
+                                  <td className="p-4"><span className={`px-2 py-1 rounded-full text-[10px] font-black ${exp.status === 'PAID' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{exp.status === 'PAID' ? 'PAGA' : 'PENDENTE'}</span></td>
+                                  <td className="p-4 text-right">
+                                      <button onClick={() => api.apiDeleteExpense(currentOrg!.id, exp.id)} className="p-2 text-slate-300 hover:text-red-500 rounded-lg"><Trash2 size={18}/></button>
+                                  </td>
+                              </tr>
+                          ))}
+                          {expenses.length === 0 && (
+                              <tr><td colSpan={6} className="p-12 text-center text-slate-400 italic">Nenhuma despesa cadastrada.</td></tr>
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL: SELEÇÃO DE TRABALHOS P/ FATURAMENTO */}
       {selectedDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
@@ -221,11 +356,59 @@ export const Finance = () => {
                               <span className="text-xs text-slate-500">{selectedJobIds.length} trabalhos selecionados</span>
                               <span className="text-2xl font-black text-blue-900">R$ {selectedJobIds.reduce((acc, id) => acc + (selectedDentist.pendingJobs.find((p:any)=>p.id===id)?.totalValue || 0), 0).toFixed(2)}</span>
                           </div>
-                          <button onClick={handleCreateBoleto} disabled={selectedJobIds.length === 0 || isGenerating} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50">
-                            {isGenerating ? <Loader2 className="animate-spin"/> : <><Receipt size={20}/> GERAR BOLETO E FATURA</>}
+                          
+                          <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100 mb-6 flex gap-2 items-start">
+                              <AlertTriangle className="text-yellow-600 shrink-0" size={18}/>
+                              <p className="text-[11px] text-yellow-800">Um boleto bancário será gerado e os trabalhos serão marcados como **Aguardando Pagamento**. Você poderá copiar o link do boleto na aba "Faturas".</p>
+                          </div>
+
+                          <button onClick={handleCreateBoleto} disabled={selectedJobIds.length === 0 || isGenerating} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 transition-all">
+                            {isGenerating ? <Loader2 className="animate-spin"/> : <><Receipt size={20}/> CONFIRMAR E GERAR BOLETO</>}
                           </button>
                       </div>
                   </div>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL: NOVA DESPESA */}
+      {showExpenseModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6 border-b pb-4">
+                      <h3 className="text-xl font-black text-slate-800">Lançar Nova Despesa</h3>
+                      <button onClick={() => setShowExpenseModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
+                  </div>
+                  <form onSubmit={handleAddExpense} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição</label>
+                          <input required value={expenseForm.description} onChange={e => setExpenseForm({...expenseForm, description: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" placeholder="Ex: Compra de Resina" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Valor (R$)</label>
+                            <input type="number" required value={expenseForm.amount || ''} onChange={e => setExpenseForm({...expenseForm, amount: parseFloat(e.target.value)})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" placeholder="0.00" />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
+                            <input type="date" required value={expenseForm.date} onChange={e => setExpenseForm({...expenseForm, date: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" />
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
+                          <select value={expenseForm.category} onChange={e => setExpenseForm({...expenseForm, category: e.target.value as any})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none bg-white">
+                              <option value="SUPPLIES">Materiais / Insumos</option>
+                              <option value="RENT">Aluguel / Condomínio</option>
+                              <option value="SALARY">Salários / Comissões</option>
+                              <option value="MARKETING">Marketing / Propaganda</option>
+                              <option value="TAX">Impostos / Taxas</option>
+                              <option value="OTHER">Outros</option>
+                          </select>
+                      </div>
+                      <button type="submit" className="w-full py-4 bg-red-600 text-white font-black rounded-2xl shadow-xl hover:bg-red-700 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                        <DollarSign size={20}/> REGISTRAR SAÍDA
+                      </button>
+                  </form>
               </div>
           </div>
       )}
