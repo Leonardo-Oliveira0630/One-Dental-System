@@ -19,24 +19,28 @@ export const GlobalScanner: React.FC = () => {
   const SCANNER_TIMEOUT = 100;
   const MIN_LENGTH = 2;
 
-  // Audio Context para o Beep do Scanner
-  const playBeep = () => {
+  // Feedback Tátil e Sonoro Nativo
+  const playNativeFeedback = (success = true) => {
     try {
+        // Áudio
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
-
         oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        oscillator.frequency.setValueAtTime(success ? 880 : 440, audioCtx.currentTime);
         gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
-
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.1);
-    } catch (e) { console.warn("Beep failed:", e); }
+
+        // Vibração (Haptic)
+        if (navigator.vibrate) {
+            if (success) navigator.vibrate([10, 30, 10]); // Vibração curta de sucesso
+            else navigator.vibrate([100, 50, 100]); // Vibração de erro
+        }
+    } catch (e) { console.warn("Native feedback failed:", e); }
   };
 
   // KEYBOARD LISTENER (Desktop/USB Scanners)
@@ -68,7 +72,7 @@ export const GlobalScanner: React.FC = () => {
   useEffect(() => {
       if (isCameraActive && !scannerRef.current) {
           scannerRef.current = new Html5Qrcode("reader");
-          const config = { fps: 20, qrbox: { width: 250, height: 150 } };
+          const config = { fps: 30, qrbox: { width: 280, height: 160 } };
           
           scannerRef.current.start(
               { facingMode: "environment" },
@@ -101,10 +105,7 @@ export const GlobalScanner: React.FC = () => {
     const job = jobs.find(j => (j.osNumber || '').toUpperCase() === code.toUpperCase() || j.id === code);
     
     if (job) {
-      // Feedback Nativo
-      playBeep();
-      if (navigator.vibrate) navigator.vibrate(80);
-
+      playNativeFeedback(true);
       if (currentUser?.sector) {
           const lastEvent = job.history[job.history.length - 1];
           const isLastActionEntryHere = lastEvent?.sector === currentUser.sector && lastEvent?.action.includes('Entrada');
@@ -126,6 +127,8 @@ export const GlobalScanner: React.FC = () => {
           setScanAction('ENTRY');
       }
       setScannedJob(job);
+    } else {
+        playNativeFeedback(false); // Feedback de erro se não achar a OS
     }
   };
 
@@ -184,7 +187,7 @@ export const GlobalScanner: React.FC = () => {
           <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
               <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center text-white z-20">
                   <div>
-                      <h3 className="font-bold text-lg">Leitor de OS</h3>
+                      <h3 className="font-bold text-lg">Leitor My Tooth</h3>
                       <p className="text-xs opacity-70">Aponte para o código de barras da ficha</p>
                   </div>
                   <button onClick={() => stopCamera()} className="p-2 bg-white/10 rounded-full"><X/></button>
