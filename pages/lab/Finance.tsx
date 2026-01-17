@@ -11,7 +11,7 @@ import {
   FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, 
   CreditCard, Loader2, User, Package, Clock, X, ChevronRight, Filter, 
   FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight,
-  ChevronDown, History, ExternalLink, Copy, Tag, AlertTriangle
+  ChevronDown, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle
 } from 'lucide-react';
 
 export const Finance = () => {
@@ -25,6 +25,7 @@ export const Finance = () => {
   const [selectedDentist, setSelectedDentist] = useState<any>(null);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Expense Form State
@@ -47,18 +48,15 @@ export const Finance = () => {
 
   // --- ANALYTICS CALCULATIONS ---
   const stats = useMemo(() => {
-    // Receita Realizada: Pedidos WEB pagos ou boletos de lotes marcados como PAID
     const paidFromJobs = jobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, curr) => acc + curr.totalValue, 0);
-    const paidRevenue = paidFromJobs; // Simplificado para este contexto
+    const paidRevenue = paidFromJobs; 
 
-    // A Receber: Trabalhos concluídos que não estão em nenhum lote e não foram pagos
     const pendingRevenue = jobs.filter(j => 
         (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) && 
         (j.paymentStatus === 'PENDING' || !j.paymentStatus) &&
         !j.batchId && !j.asaasPaymentId
     ).reduce((acc, curr) => acc + curr.totalValue, 0);
 
-    // Faturado Aguardando: Soma de lotes PENDING
     const inBatchesPending = billingBatches.filter(b => b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
 
     const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((acc, curr) => acc + curr.amount, 0);
@@ -66,7 +64,6 @@ export const Finance = () => {
     return { paidRevenue, pendingRevenue, inBatchesPending, totalExpenses, profit: paidRevenue - totalExpenses };
   }, [jobs, expenses, billingBatches]);
 
-  // --- DENTIST SUMMARY ---
   const dentistSummary = useMemo(() => {
     const map = new Map<string, any>();
     const allDents = [...allUsers.filter(u => u.role === UserRole.CLIENT), ...manualDentists];
@@ -82,7 +79,6 @@ export const Finance = () => {
             map.set(job.dentistId, entry);
         }
         
-        // Só entra para faturamento se estiver concluído, sem lote e sem pagamento
         if (
             (job.paymentStatus === 'PENDING' || !job.paymentStatus) && 
             (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED) &&
@@ -106,13 +102,29 @@ export const Finance = () => {
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 5);
         await api.apiGenerateBatchBoleto(currentOrg.id, selectedDentist.id, selectedJobIds, dueDate);
-        alert("Boleto e Fatura gerados com sucesso! Você pode encontrá-los na aba 'Faturas'.");
+        alert("Boleto e Fatura gerados com sucesso!");
         setSelectedDentist(null);
         setSelectedJobIds([]);
         setActiveTab('BATCHES');
     } catch (error: any) {
         alert("Erro: " + error.message);
     } finally { setIsGenerating(false); }
+  };
+
+  const handleWithdrawFunds = async () => {
+      if (!currentOrg?.financialSettings?.balance || currentOrg.financialSettings.balance <= 0) {
+          alert("Você não possui saldo disponível para saque.");
+          return;
+      }
+      if (!window.confirm(`Deseja transferir R$ ${currentOrg.financialSettings.balance.toFixed(2)} para sua conta bancária cadastrada no Asaas?`)) return;
+      
+      setIsWithdrawing(true);
+      try {
+          await api.apiRequestWithdrawal(currentOrg.id, currentOrg.financialSettings.balance);
+          alert("Solicitação de transferência enviada com sucesso!");
+      } catch (err: any) {
+          alert("Erro ao solicitar saque: " + err.message);
+      } finally { setIsWithdrawing(false); }
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -146,6 +158,35 @@ export const Finance = () => {
         </div>
       </div>
 
+      {/* ASAAS WALLET QUICK INFO (Sempre Visível) */}
+      {currentOrg?.financialSettings?.asaasWalletId && (
+          <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><ShieldCheck size={120} /></div>
+              <div className="flex-1 text-center md:text-left relative z-10">
+                  <div className="flex items-center justify-center md:justify-start gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest mb-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div> Conta Digital Ativa (Split ProTrack)
+                  </div>
+                  <h2 className="text-sm font-bold text-slate-400 uppercase">Saldo Disponível para Saque</h2>
+                  <p className="text-4xl font-black text-white mt-1">R$ {(currentOrg.financialSettings.balance || 0).toFixed(2)}</p>
+                  <p className="text-xs text-slate-400 mt-2 font-medium flex items-center justify-center md:justify-start gap-2">
+                      <Clock size={12} /> Lançamentos a liberar: <strong>R$ {(currentOrg.financialSettings.pendingBalance || 0).toFixed(2)}</strong>
+                  </p>
+              </div>
+              <div className="flex flex-col gap-2 w-full md:w-auto relative z-10">
+                  <button 
+                    onClick={handleWithdrawFunds}
+                    disabled={isWithdrawing || !currentOrg.financialSettings.balance}
+                    className="px-8 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg shadow-blue-900/40 hover:bg-blue-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95"
+                  >
+                      {isWithdrawing ? <Loader2 className="animate-spin" size={20}/> : <><ArrowUpCircle size={20}/> SOLICITAR SAQUE</>}
+                  </button>
+                  <a href="https://www.asaas.com" target="_blank" rel="noreferrer" className="text-center text-[10px] font-bold text-slate-400 hover:text-white flex items-center justify-center gap-1 transition-colors">
+                      Gerenciar via Painel Asaas <ExternalLink size={10}/>
+                  </a>
+              </div>
+          </div>
+      )}
+
       <div className="flex bg-slate-200 p-1 rounded-2xl w-fit overflow-x-auto no-scrollbar">
           <button onClick={() => setActiveTab('DASHBOARD')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Métricas</button>
           <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Extrato p/ Faturamento</button>
@@ -153,11 +194,9 @@ export const Finance = () => {
           <button onClick={() => setActiveTab('EXPENSES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Despesas</button>
       </div>
 
-      {/* TABS CONTENT */}
-
       {activeTab === 'DASHBOARD' && (
-          <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-in slide-in-from-bottom-2">
+          <div className="space-y-8 animate-in fade-in duration-300">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
                       <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
@@ -175,7 +214,6 @@ export const Finance = () => {
                       <h3 className="text-2xl font-black text-red-500">R$ {stats.totalExpenses.toFixed(2)}</h3>
                   </div>
               </div>
-              {/* Opcional: Gráficos de barra aqui */}
           </div>
       )}
 
@@ -268,9 +306,6 @@ export const Finance = () => {
                                     </td>
                                 </tr>
                             ))}
-                            {billingBatches.length === 0 && (
-                                <tr><td colSpan={6} className="p-12 text-center text-slate-400 italic font-medium">Nenhuma fatura gerada recentemente.</td></tr>
-                            )}
                         </tbody>
                     </table>
                   </div>
@@ -311,9 +346,6 @@ export const Finance = () => {
                                   </td>
                               </tr>
                           ))}
-                          {expenses.length === 0 && (
-                              <tr><td colSpan={6} className="p-12 text-center text-slate-400 italic">Nenhuma despesa cadastrada.</td></tr>
-                          )}
                       </tbody>
                   </table>
               </div>
@@ -359,7 +391,7 @@ export const Finance = () => {
                           
                           <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100 mb-6 flex gap-2 items-start">
                               <AlertTriangle className="text-yellow-600 shrink-0" size={18}/>
-                              <p className="text-[11px] text-yellow-800">Um boleto bancário será gerado e os trabalhos serão marcados como **Aguardando Pagamento**. Você poderá copiar o link do boleto na aba "Faturas".</p>
+                              <p className="text-[11px] text-yellow-800">Um boleto bancário será gerado e os trabalhos serão marcados como **Aguardando Pagamento**.</p>
                           </div>
 
                           <button onClick={handleCreateBoleto} disabled={selectedJobIds.length === 0 || isGenerating} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 transition-all">
@@ -393,17 +425,6 @@ export const Finance = () => {
                             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data</label>
                             <input type="date" required value={expenseForm.date} onChange={e => setExpenseForm({...expenseForm, date: e.target.value})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-red-500" />
                           </div>
-                      </div>
-                      <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
-                          <select value={expenseForm.category} onChange={e => setExpenseForm({...expenseForm, category: e.target.value as any})} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none bg-white">
-                              <option value="SUPPLIES">Materiais / Insumos</option>
-                              <option value="RENT">Aluguel / Condomínio</option>
-                              <option value="SALARY">Salários / Comissões</option>
-                              <option value="MARKETING">Marketing / Propaganda</option>
-                              <option value="TAX">Impostos / Taxas</option>
-                              <option value="OTHER">Outros</option>
-                          </select>
                       </div>
                       <button type="submit" className="w-full py-4 bg-red-600 text-white font-black rounded-2xl shadow-xl hover:bg-red-700 transition-all transform active:scale-95 flex items-center justify-center gap-2">
                         <DollarSign size={20}/> REGISTRAR SAÍDA

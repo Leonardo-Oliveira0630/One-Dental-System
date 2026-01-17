@@ -1,5 +1,3 @@
-
-
 export type TransactionType = 'INCOME' | 'EXPENSE';
 export type TransactionCategory = 
   | 'PRODUCTION' 
@@ -38,6 +36,8 @@ export interface Organization {
     asaasWalletStatus?: string;
     asaasAccountNumber?: string;
     businessData?: any;
+    balance?: number;
+    pendingBalance?: number;
   };
 }
 
@@ -178,6 +178,18 @@ export interface LabRating {
   createdAt: Date;
 }
 
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  text?: string;
+  attachments?: Attachment[];
+  createdAt: Date;
+  updatedAt?: Date;
+  deleted?: boolean;
+}
+
 export interface Job {
   id: string;
   organizationId: string;
@@ -202,11 +214,11 @@ export interface Job {
   paymentMethod?: 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'CASH' | 'TRANSFER';
   pixQrCode?: string;
   pixCopyPaste?: string;
-  /* Added asaasPaymentId to resolve TypeScript errors in Finance.tsx */
   asaasPaymentId?: string;
   batchId?: string;
   ratingId?: string; 
   routeId?: string;
+  chatEnabled?: boolean;
 }
 
 export interface Sector {
@@ -265,6 +277,7 @@ export interface User {
   city?: string;
   state?: string;
   cep?: string;
+  fcmTokens?: string[];
 }
 
 export interface CartItem {

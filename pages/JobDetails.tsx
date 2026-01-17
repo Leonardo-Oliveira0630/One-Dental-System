@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -7,14 +6,14 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
+import { ChatSystem } from '../components/ChatSystem';
 import * as api from '../services/firebaseService';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
-// LAZY LOAD 3D VIEWER
 const STLViewer = React.lazy(() => import('../components/STLViewer').then(module => ({ default: module.STLViewer })));
 
 export const JobDetails = () => {
@@ -23,7 +22,7 @@ export const JobDetails = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION'>('SUMMARY');
+  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION' | 'CHAT'>('SUMMARY');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -31,17 +30,14 @@ export const JobDetails = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
-  // Logistics Info State
   const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
 
-  // Route Form State
   const [routeDriver, setRouteDriver] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
 
   const job = jobs.find(j => j.id === id);
   
-  // Fetch route details if job is assigned to a route
   useEffect(() => {
       if (job?.routeId && currentOrg) {
           const routeRef = doc(db, 'organizations', currentOrg.id, 'routes', job.routeId);
@@ -104,6 +100,13 @@ export const JobDetails = () => {
 
   const handleRemoveItemFromJob = (itemId: string) => {
       setEditItems(editItems.filter(i => i.id !== itemId));
+  };
+
+  const handleToggleChat = async () => {
+      if (!isLabStaff) return;
+      const newState = !job.chatEnabled;
+      await updateJob(job.id, { chatEnabled: newState });
+      alert(newState ? "Chat liberado para o cliente!" : "Chat desativado para este caso.");
   };
 
   const handleSaveChanges = async () => {
@@ -220,6 +223,8 @@ export const JobDetails = () => {
   const sortedHistory = [...job.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   const isFinished = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
   const canFinalize = isLabStaff && !isFinished && job.status !== JobStatus.REJECTED;
+
+  const showChatTab = isLabStaff || (isClient && job.chatEnabled);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -378,6 +383,16 @@ export const JobDetails = () => {
                         )}
                     </div>
                     {job.urgency === UrgencyLevel.VIP && <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-orange-100 text-orange-700 border border-orange-200 uppercase tracking-tighter"><AlertTriangle size={12} /> VIP / URGENTE</span>}
+                    
+                    {/* CHAT STATUS INDICATOR */}
+                    {isLabStaff && (
+                         <button 
+                            onClick={handleToggleChat}
+                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border flex items-center gap-1.5 transition-all ${job.chatEnabled ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-400 border-slate-200'}`}
+                        >
+                            <MessageSquare size={12}/> {job.chatEnabled ? 'Chat Ativo' : 'Chat Offline'}
+                        </button>
+                    )}
                 </div>
                 <h1 className="text-2xl font-bold text-slate-800">{job.patientName}</h1>
                 <div className="flex items-center gap-2 text-slate-500 mt-1 font-medium"><User size={16} /> Dr(a). {job.dentistName}</div>
@@ -431,9 +446,16 @@ export const JobDetails = () => {
          </div>
       </div>
 
-      <div className="flex border-b border-slate-200">
-         <button onClick={() => setActiveTab('SUMMARY')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><FileText size={18} /> Resumo do Pedido</button>
-         <button onClick={() => setActiveTab('PRODUCTION')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><ListChecks size={18} /> Produção & Rastreio</button>
+      <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar">
+         <button onClick={() => setActiveTab('SUMMARY')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><FileText size={18} /> Resumo</button>
+         <button onClick={() => setActiveTab('PRODUCTION')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}><ListChecks size={18} /> Produção</button>
+         
+         {showChatTab && (
+            <button onClick={() => setActiveTab('CHAT')} className={`px-6 py-3 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'CHAT' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-800'}`}>
+                <MessageCircle size={18} /> Chat do Trabalho
+                {job.chatEnabled && isLabStaff && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>}
+            </button>
+         )}
       </div>
 
       {activeTab === 'SUMMARY' && (
@@ -445,7 +467,7 @@ export const JobDetails = () => {
             </div>
 
             <div className="lg:col-span-2 space-y-6">
-                {/* LOGISTICS CARD (NEW) */}
+                {/* LOGISTICS CARD */}
                 {routeInfo && (
                     <div className="bg-indigo-50 rounded-2xl shadow-sm border border-indigo-200 overflow-hidden animate-in slide-in-from-top-4">
                         <div className="bg-indigo-600 px-6 py-3 text-white flex justify-between items-center">
@@ -479,9 +501,6 @@ export const JobDetails = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="px-6 pb-6 text-[10px] text-indigo-400 italic">
-                            Este trabalho foi vinculado a uma rota de logística e aguarda conclusão do motorista.
-                        </div>
                     </div>
                 )}
 
@@ -501,13 +520,6 @@ export const JobDetails = () => {
                     <div className="mt-4 pt-4 border-t border-slate-100 text-right">
                         <span className="text-sm font-bold text-slate-500 mr-2">TOTAL DA OS:</span>
                         <span className="text-2xl font-black text-slate-900">R$ {job.totalValue.toFixed(2)}</span>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">Observações do Caso</h3>
-                    <div className="bg-slate-50 p-4 rounded-xl text-slate-600 text-sm whitespace-pre-wrap min-h-[100px]">
-                        {job.notes || "Nenhuma observação técnica cadastrada."}
                     </div>
                 </div>
             </div>
@@ -534,6 +546,21 @@ export const JobDetails = () => {
                         )}
                     </div>
                 </div>
+                
+                {/* CHAT PREVIEW / PROMPT FOR LAB */}
+                {isLabStaff && !job.chatEnabled && (
+                    <div className="bg-blue-50 border border-blue-200 p-6 rounded-2xl text-center">
+                        <MessageSquare size={32} className="mx-auto text-blue-400 mb-3" />
+                        <h4 className="font-bold text-blue-800 mb-2">Comunicação Direta</h4>
+                        <p className="text-xs text-blue-600 mb-4">Deseja liberar o chat para este dentista tirar dúvidas ou enviar novos arquivos?</p>
+                        <button 
+                            onClick={handleToggleChat}
+                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all"
+                        >
+                            ATIVAR CHAT AGORA
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
       )}
@@ -564,18 +591,28 @@ export const JobDetails = () => {
                     </div>
                 </div>
             </div>
-            
             <div className="lg:col-span-1 space-y-6">
                  <div className="bg-indigo-900 rounded-2xl shadow-xl p-6 text-white overflow-hidden relative">
                     <div className="absolute top-0 right-0 p-4 opacity-10"><Flag size={80} /></div>
                     <h4 className="font-bold text-lg mb-2 flex items-center gap-2"><MapPin size={18} /> Estágio Atual</h4>
                     <p className="text-3xl font-black mb-4 uppercase">{job.currentSector || 'Triagem / Entrada'}</p>
-                    <div className="bg-white/10 p-3 rounded-xl border border-white/10 text-sm">
-                        <p className="text-indigo-200">Aguardando saída deste setor via scanner ou atualização manual.</p>
-                    </div>
                 </div>
             </div>
         </div>
+      )}
+
+      {activeTab === 'CHAT' && showChatTab && (
+          <div className="animate-in fade-in zoom-in duration-300">
+              {job.chatEnabled || isLabStaff ? (
+                  <ChatSystem job={job} orgId={job.organizationId} />
+              ) : (
+                  <div className="bg-white p-20 rounded-3xl border border-slate-100 shadow-sm text-center">
+                      <Lock size={48} className="mx-auto text-slate-200 mb-4" />
+                      <h3 className="text-xl font-bold text-slate-800">Chat Indisponível</h3>
+                      <p className="text-slate-500 max-w-sm mx-auto mt-2">Este laboratório ainda não liberou o canal de chat para este trabalho específico.</p>
+                  </div>
+              )}
+          </div>
       )}
     </div>
   );

@@ -5,12 +5,16 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, 
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
 import { AlertPopup } from './AlertSystem';
+import * as firestorePkg from 'firebase/firestore';
+import { db } from '../services/firebaseConfig';
+
+const { onSnapshotsInSync } = firestorePkg as any;
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { 
@@ -22,15 +26,27 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLabSelectorOpen, setIsLabSelectorOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    
+    // Monitorar sincronização do Firestore
+    let unsubSync: any;
+    if (db) {
+        unsubSync = onSnapshotsInSync(db, () => {
+            // Quando os snapshots estão em sincronia, paramos o loading de sync
+            setIsSyncing(false);
+        });
+    }
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (unsubSync) unsubSync();
     };
   }, []);
 
@@ -55,21 +71,30 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     : { name: currentOrg?.name || 'MY TOOTH', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'MY TOOTH SYSTEM' };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans relative">
+    <div className="min-h-screen flex bg-slate-50 font-sans relative pb-20 md:pb-0">
       {!isSuperAdmin && <GlobalScanner />}
       <PrintOverlay />
       <AlertPopup />
       
-      {/* OFFLINE INDICATOR */}
-      {isOffline && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-orange-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-bounce">
-            <WifiOff size={16} />
-            <span className="text-xs font-black uppercase">Você está offline. Alterações serão sincronizadas depois.</span>
-        </div>
-      )}
+      {/* STATUS BAR: OFFLINE & SYNC */}
+      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none flex flex-col items-center gap-2 mt-4">
+          {isOffline && (
+            <div className="bg-orange-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4 duration-300 pointer-events-auto">
+                <WifiOff size={16} />
+                <span className="text-[10px] font-black uppercase tracking-tight">Modo Offline Ativo</span>
+            </div>
+          )}
+          {isSyncing && !isOffline && (
+            <div className="bg-blue-600 text-white px-4 py-1.5 rounded-full shadow-xl flex items-center gap-2 animate-pulse pointer-events-auto">
+                <RefreshCw size={12} className="animate-spin" />
+                <span className="text-[10px] font-black uppercase tracking-tight">Sincronizando dados...</span>
+            </div>
+          )}
+      </div>
 
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
 
+      {/* DESKTOP SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
@@ -189,13 +214,43 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
+      {/* MOBILE BOTTOM NAVIGATION (Solo pantallas pequeñas) */}
+      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)]">
+          <MobileNavItem to="/dashboard" icon={<Home size={22}/>} label="Home" active={location.pathname === '/dashboard'} />
+          
+          {!isClient ? (
+            <>
+              <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
+              <div className="relative -top-5">
+                 <Link to="/new-job" className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-200 border-4 border-white active:scale-90 transition-transform">
+                    <PlusCircle size={28}/>
+                 </Link>
+              </div>
+              <MobileNavItem to="/incoming-orders" icon={<InboxIcon size={22}/>} label="Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
+            </>
+          ) : (
+            <>
+              <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label="Loja" active={location.pathname === '/store'} />
+              <div className="relative -top-5">
+                 <Link to="/cart" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-indigo-200 border-4 border-white active:scale-90 transition-transform">
+                    <ShoppingCart size={28}/>
+                    {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">{cart.length}</span>}
+                 </Link>
+              </div>
+              <MobileNavItem to="/jobs" icon={<List size={22}/>} label="Pedidos" active={location.pathname === '/jobs'} />
+            </>
+          )}
+          
+          <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
+      </nav>
+
       <main className="flex-1 md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
         <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
              <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-sm">M</div>
-                <span className="font-black text-slate-900 tracking-tighter text-lg hidden sm:inline">MY TOOTH <span className="text-blue-600">SYSTEM</span></span>
+                <span className="font-black text-slate-900 tracking-tighter text-lg hidden sm:inline uppercase">MyTooth <span className="text-blue-600">Eco</span></span>
              </div>
           </div>
 
@@ -245,4 +300,16 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onCl
       </span>
     )}
   </Link>
+);
+
+const MobileNavItem = ({ to, icon, label, active, badge }: any) => (
+    <Link to={to} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${active ? 'text-blue-600' : 'text-slate-400'}`}>
+        {icon}
+        <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
+        {badge !== undefined && badge > 0 && (
+            <span className="absolute top-2 right-1/4 bg-red-500 text-white text-[8px] min-w-[14px] h-[14px] rounded-full flex items-center justify-center font-bold border border-white">
+                {badge}
+            </span>
+        )}
+    </Link>
 );
