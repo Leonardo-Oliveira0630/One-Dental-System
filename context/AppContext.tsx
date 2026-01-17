@@ -141,7 +141,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<AppContextType['printData']>(null);
 
-  // ID Crítico para o Android: Decidimos qual laboratório escutar agora
+  // LOG DE ESTADO CRÍTICO
+  useEffect(() => {
+      console.log("[AppContext] Status Log:", { 
+          hasUser: !!currentUser, 
+          role: currentUser?.role, 
+          orgId: currentUser?.organizationId,
+          activeOrgId: activeOrganization?.id 
+      });
+  }, [currentUser, activeOrganization]);
+
+  // ID Crítico: Decidimos qual laboratório escutar agora
   const activeDataId = useMemo(() => {
       if (currentUser?.role === UserRole.CLIENT) {
           return activeOrganization?.id || null;
@@ -186,30 +196,35 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsub = onAuthStateChanged(auth, async (user: any) => {
       if (user) {
         const profile = await api.getUserProfile(user.uid);
-        setCurrentUser(profile);
-        if (profile?.organizationId && profile.organizationId.trim() !== '') {
-            const orgRef = doc(db, 'organizations', profile.organizationId);
-            onSnapshot(orgRef, (snap: any) => {
-                if (snap.exists()) {
-                    const oData = { id: snap.id, ...snap.data() as any } as Organization;
-                    setCurrentOrg(oData);
-                    const planRef = doc(db, 'subscriptionPlans', oData.planId);
-                    getDoc(planRef).then((pSnap: any) => {
-                        if (pSnap.exists()) setCurrentPlan({ id: pSnap.id, ...pSnap.data() as any } as SubscriptionPlan);
-                    });
-                }
-            });
-            if (profile.role === UserRole.CLIENT) {
-                api.subscribeUserConnections(profile.organizationId, (conns) => {
-                    setUserConnections(conns);
-                    if (conns.length > 0 && !activeOrganization) {
-                         const firstOrgId = conns[0].organizationId;
-                         getDoc(doc(db, 'organizations', firstOrgId)).then((snap: any) => {
-                             if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);
-                         });
+        if (profile) {
+            setCurrentUser(profile);
+            const profileOrgId = profile.organizationId;
+            if (profileOrgId) {
+                const orgRef = doc(db, 'organizations', profileOrgId);
+                onSnapshot(orgRef, (snap: any) => {
+                    if (snap.exists()) {
+                        const oData = { id: snap.id, ...snap.data() as any } as Organization;
+                        setCurrentOrg(oData);
+                        if (oData.planId) {
+                            const planRef = doc(db, 'subscriptionPlans', oData.planId);
+                            getDoc(planRef).then((pSnap: any) => {
+                                if (pSnap.exists()) setCurrentPlan({ id: pSnap.id, ...pSnap.data() as any } as SubscriptionPlan);
+                            });
+                        }
                     }
                 });
-                api.subscribeAllLaboratories(setAllLaboratories);
+                if (profile.role === UserRole.CLIENT) {
+                    api.subscribeUserConnections(profileOrgId, (conns) => {
+                        setUserConnections(conns);
+                        if (conns.length > 0 && !activeOrganization) {
+                             const firstOrgId = conns[0].organizationId;
+                             getDoc(doc(db, 'organizations', firstOrgId)).then((snap: any) => {
+                                 if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);
+                             });
+                        }
+                    });
+                    api.subscribeAllLaboratories(setAllLaboratories);
+                }
             }
         }
       } else {
@@ -225,15 +240,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return unsub;
   }, []);
 
-  // ESCUTA DE TRABALHOS (JOBS) - CORREÇÃO PARA ANDROID
+  // ESCUTA DE TRABALHOS (JOBS) - CENTRALIZADA
   useEffect(() => {
-    if (!db || !currentUser || !activeDataId) return;
+    if (!db || !currentUser || !activeDataId) {
+        setJobs([]); // Limpa se não tiver ID ativo
+        return;
+    }
+    
+    console.log(`[AppContext] Ativando subscrição para ORG: ${activeDataId}`);
     
     const unsubs: (() => void)[] = [];
     
     // Subs aos trabalhos do laboratório ativo selecionado
     unsubs.push(api.subscribeJobs(activeDataId, (newJobs) => {
-        console.log(`[My Tooth] ${newJobs.length} trabalhos carregados para org ${activeDataId}`);
         setJobs(newJobs);
     }));
     
@@ -259,8 +278,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
 
-    return () => unsubs.forEach(u => u());
-  }, [currentUser, activeDataId]); // Depende do activeDataId explicitamente
+    return () => {
+        console.log(`[AppContext] Limpando subs para ORG: ${activeDataId}`);
+        unsubs.forEach(u => u());
+    };
+  }, [currentUser, activeDataId]);
 
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => await api.apiLogout();

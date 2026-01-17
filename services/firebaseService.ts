@@ -25,7 +25,14 @@ import {
   Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage 
 } from '../types';
 
-const toDate = (val: any) => val instanceof Timestamp ? val.toDate() : val;
+// Helper ultra-seguro para datas
+const toDate = (val: any) => {
+    if (!val) return new Date();
+    if (val instanceof Timestamp) return val.toDate();
+    if (val?.seconds) return new Date(val.seconds * 1000);
+    if (val instanceof Date) return val;
+    return new Date(val);
+};
 
 // --- AUTH & PROFILE ---
 export const apiLogin = (email: string, pass: string) => signInWithEmailAndPassword(auth, email, pass);
@@ -34,9 +41,15 @@ export const apiResetPassword = (email: string) => sendPasswordResetEmail(auth, 
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     if (!db) return null;
-    const d = await getDoc(doc(db, 'users', uid));
-    const userData = d.data();
-    return d.exists() && userData ? { id: d.id, ...userData as any } as User : null;
+    try {
+        const d = await getDoc(doc(db, 'users', uid));
+        if (d.exists()) {
+            return { id: d.id, ...d.data() as any } as User;
+        }
+    } catch (e) {
+        console.error("Erro ao buscar perfil:", e);
+    }
+    return null;
 };
 
 export const apiUpdateUser = (id: string, updates: Partial<User>) => updateDoc(doc(db, 'users', id), updates);
@@ -47,6 +60,7 @@ export const apiGetAsaasBalance = async (orgId: string) => {
     return (await fn({ orgId })).data;
 };
 
+// --- WITHDRAWAL ---
 export const apiRequestWithdrawal = async (orgId: string, amount: number) => {
     const fn = httpsCallable(functions, 'requestAsaasTransfer');
     return (await fn({ orgId, amount })).data;
@@ -55,7 +69,7 @@ export const apiRequestWithdrawal = async (orgId: string, amount: number) => {
 // --- CHAT FUNCTIONS ---
 export const subscribeChatMessages = (orgId: string, jobId: string, cb: (msgs: ChatMessage[]) => void) => {
     if (!orgId || !jobId) return () => {};
-    const q = query(collection(db, 'organizations', orgId, 'jobs', jobId, 'messages'), orderBy('createdAt', 'asc'));
+    const q = query(collection(db, `organizations/${orgId}/jobs/${jobId}/messages`), orderBy('createdAt', 'asc'));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({
             id: d.id, ...d.data(),
@@ -66,15 +80,15 @@ export const subscribeChatMessages = (orgId: string, jobId: string, cb: (msgs: C
 };
 
 export const apiSendChatMessage = async (orgId: string, jobId: string, msg: Omit<ChatMessage, 'id'>) => {
-    return await addDoc(collection(db, 'organizations', orgId, 'jobs', jobId, 'messages'), msg);
+    return await addDoc(collection(db, `organizations/${orgId}/jobs/${jobId}/messages`), msg);
 };
 
 export const apiUpdateChatMessage = async (orgId: string, jobId: string, msgId: string, updates: Partial<ChatMessage>) => {
-    return await updateDoc(doc(db, 'organizations', orgId, 'jobs', jobId, 'messages', msgId), { ...updates, updatedAt: new Date() });
+    return await updateDoc(doc(db, `organizations/${orgId}/jobs/${jobId}/messages`, msgId), { ...updates, updatedAt: new Date() });
 };
 
 export const apiDeleteChatMessage = async (orgId: string, jobId: string, msgId: string) => {
-    return await updateDoc(doc(db, 'organizations', orgId, 'jobs', jobId, 'messages', msgId), { deleted: true, text: 'Esta mensagem foi apagada.' });
+    return await updateDoc(doc(db, `organizations/${orgId}/jobs/${jobId}/messages`, msgId), { deleted: true, text: 'Esta mensagem foi apagada.' });
 };
 
 // --- NOTIFICATIONS ---
@@ -126,58 +140,78 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
 };
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
 
-// CORREÇÃO: Removido orderBy do Firestore para evitar falha por falta de índice no Android
+// CORREÇÃO DEFINITIVA: Usando path string e try-catch interno
 export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
-    if (!orgId) return () => {};
-    // Fazemos uma consulta simples e ordenamos no código do App
-    const q = query(collection(db, 'organizations', orgId, 'jobs'), limit(300));
+    if (!orgId) {
+        console.warn("[ProTrack] Tentativa de assinar trabalhos sem orgId");
+        return () => {};
+    }
+    
+    console.log(`[ProTrack] Conectando à coleção: organizations/${orgId}/jobs`);
+    
+    // Consulta plana para evitar problemas de índice
+    const q = query(collection(db, `organizations/${orgId}/jobs`));
     
     return onSnapshot(q, (snap: any) => {
-        const rawJobs = snap.docs.map((d: any) => ({ 
-            id: d.id, ...d.data() as any,
-            createdAt: toDate(d.data().createdAt), dueDate: toDate(d.data().dueDate),
-            history: (d.data().history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) }))
-        } as Job));
-        
-        // Ordenação local (Safe para Android)
-        const sortedJobs = rawJobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-        cb(sortedJobs);
+        try {
+            const rawJobs = snap.docs.map((d: any) => {
+                const data = d.data();
+                return { 
+                    id: d.id, 
+                    ...data,
+                    createdAt: toDate(data.createdAt), 
+                    dueDate: toDate(data.dueDate),
+                    history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) }))
+                } as Job;
+            });
+            
+            // Ordenação em memória (seguro para Android e Web)
+            const sortedJobs = rawJobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            console.log(`[ProTrack] ${sortedJobs.length} trabalhos recebidos.`);
+            cb(sortedJobs);
+        } catch (err) {
+            console.error("[ProTrack] Erro ao processar lista de trabalhos:", err);
+        }
     }, (error: any) => {
-        console.error(`[ProTrack] Erro ao ouvir trabalhos para ${orgId}:`, error);
+        console.error(`[ProTrack] Erro crítico Firestore (subscribeJobs) para ${orgId}:`, error);
     });
 };
 
-export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, 'organizations', orgId, 'jobs', job.id), job);
-export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) => updateDoc(doc(db, 'organizations', orgId, 'jobs', id), updates);
+export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, `organizations/${orgId}/jobs`, job.id), job);
+export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) => updateDoc(doc(db, `organizations/${orgId}/jobs`, id), updates);
+
 export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, 'organizations', orgId, 'jobTypes'), (snap: any) => {
+    return onSnapshot(collection(db, `organizations/${orgId}/jobTypes`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as JobType)));
     });
 };
-export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, 'organizations', orgId, 'jobTypes', type.id), type);
-export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, 'organizations', orgId, 'jobTypes', id), updates);
-export const apiDeleteJobType = (id: string, id2: string) => deleteDoc(doc(db, 'organizations', id, 'jobTypes', id2));
+export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, `organizations/${orgId}/jobTypes`, type.id), type);
+export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, `organizations/${orgId}/jobTypes`, id), updates);
+export const apiDeleteJobType = (id: string, id2: string) => deleteDoc(doc(db, `organizations/${id}/jobTypes`, id2));
+
 export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, 'organizations', orgId, 'sectors'), (snap: any) => {
+    return onSnapshot(collection(db, `organizations/${orgId}/sectors`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as Sector)));
     });
 };
-export const apiAddSector = (orgId: string, sector: { id: string, name: string }) => setDoc(doc(db, 'organizations', orgId, 'sectors', sector.id), sector);
-export const apiUpdateSector = (orgId: string, id: string, name: string) => updateDoc(doc(db, 'organizations', orgId, 'sectors', id), { name });
-export const apiDeleteSector = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'sectors', id));
+export const apiAddSector = (orgId: string, sector: { id: string, name: string }) => setDoc(doc(db, `organizations/${orgId}/sectors`, sector.id), sector);
+export const apiUpdateSector = (orgId: string, id: string, name: string) => updateDoc(doc(db, `organizations/${orgId}/sectors`, id), { name });
+export const apiDeleteSector = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/sectors`, id));
+
 export const subscribeBoxColors = (orgId: string, cb: (colors: BoxColor[]) => void) => {
   if (!orgId) return () => {};
-  return onSnapshot(collection(db, 'organizations', orgId, 'boxColors'), (snap: any) => {
+  return onSnapshot(collection(db, `organizations/${orgId}/boxColors`), (snap: any) => {
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as BoxColor)));
   });
 };
-export const apiAddBoxColor = (orgId: string, color: BoxColor) => setDoc(doc(db, 'organizations', orgId, 'boxColors', color.id), color);
-export const apiDeleteBoxColor = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'boxColors', id));
+export const apiAddBoxColor = (orgId: string, color: BoxColor) => setDoc(doc(db, `organizations/${orgId}/boxColors`, color.id), color);
+export const apiDeleteBoxColor = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/boxColors`, id));
+
 export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) => void) => {
     if (!orgId) return () => {};
-    const q = query(collection(db, 'organizations', orgId, 'commissions'), limit(100));
+    const q = query(collection(db, `organizations/${orgId}/commissions`));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ 
             id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt),
@@ -185,37 +219,41 @@ export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) 
         } as CommissionRecord)));
     });
 };
-export const apiAddCommission = (orgId: string, rec: CommissionRecord) => setDoc(doc(db, 'organizations', orgId, 'commissions', rec.id), rec);
-export const apiUpdateCommission = (orgId: string, id: string, updates: Partial<CommissionRecord>) => updateDoc(doc(db, 'organizations', orgId, 'commissions', id), updates);
+export const apiAddCommission = (orgId: string, rec: CommissionRecord) => setDoc(doc(db, `organizations/${orgId}/commissions`, rec.id), rec);
+export const apiUpdateCommission = (orgId: string, id: string, updates: Partial<CommissionRecord>) => updateDoc(doc(db, `organizations/${orgId}/commissions`, id), updates);
+
 export const subscribeAlerts = (orgId: string, cb: (a: JobAlert[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, 'organizations', orgId, 'alerts'), (snap: any) => {
+    return onSnapshot(collection(db, `organizations/${orgId}/alerts`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ 
             id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt),
             scheduledFor: toDate(d.data().scheduledFor)
         } as JobAlert)));
     });
 };
-export const apiAddAlert = (orgId: string, alert: JobAlert) => setDoc(doc(db, 'organizations', orgId, 'alerts', alert.id), alert);
-export const apiMarkAlertAsRead = (orgId: string, id: string, userId: string) => updateDoc(doc(db, 'organizations', orgId, 'alerts', id), { readBy: arrayUnion(userId) });
+export const apiAddAlert = (orgId: string, alert: JobAlert) => setDoc(doc(db, `organizations/${orgId}/alerts`, alert.id), alert);
+export const apiMarkAlertAsRead = (orgId: string, id: string, userId: string) => updateDoc(doc(db, `organizations/${orgId}/alerts`, id), { readBy: arrayUnion(userId) });
+
 export const subscribePatients = (orgId: string, cb: (p: ClinicPatient[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, 'organizations', orgId, 'patients'), (snap: any) => {
+    return onSnapshot(collection(db, `organizations/${orgId}/patients`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as ClinicPatient)));
     });
 };
-export const apiAddPatient = (orgId: string, p: ClinicPatient) => setDoc(doc(db, 'organizations', orgId, 'patients', p.id), p);
-export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => updateDoc(doc(db, 'organizations', orgId, 'patients', id), u);
-export const apiDeletePatient = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'patients', id));
+export const apiAddPatient = (orgId: string, p: ClinicPatient) => setDoc(doc(db, `organizations/${orgId}/patients`, p.id), p);
+export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => updateDoc(doc(db, `organizations/${orgId}/patients`, id), u);
+export const apiDeletePatient = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patients`, id));
+
 export const subscribeAppointments = (orgId: string, cb: (a: Appointment[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, 'organizations', orgId, 'appointments'), (snap: any) => {
+    return onSnapshot(collection(db, `organizations/${orgId}/appointments`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date) } as Appointment)));
     });
 };
-export const apiAddAppointment = (orgId: string, a: Appointment) => setDoc(doc(db, 'organizations', orgId, 'appointments', a.id), a);
-export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => updateDoc(doc(db, 'organizations', orgId, 'appointments', id), u);
-export const apiDeleteAppointment = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'appointments', id));
+export const apiAddAppointment = (orgId: string, a: Appointment) => setDoc(doc(db, `organizations/${orgId}/appointments`, a.id), a);
+export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => updateDoc(doc(db, `organizations/${orgId}/appointments`, id), u);
+export const apiDeleteAppointment = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/appointments`, id));
+
 export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     return onSnapshot(collection(db, 'organizations'), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
@@ -250,6 +288,13 @@ export const apiValidateCoupon = async (code: string, planId: string): Promise<C
     if (c.maxUses && c.usedCount >= c.maxUses) return null;
     return c;
 };
+
+// --- COUPON MANAGEMENT ---
+/* Fix: apiAddCoupon, apiUpdateCoupon, and apiDeleteCoupon missing functions added to handle superadmin coupon management */
+export const apiAddCoupon = (c: Coupon) => setDoc(doc(db, 'coupons', c.id), c);
+export const apiUpdateCoupon = (id: string, u: Partial<Coupon>) => updateDoc(doc(db, 'coupons', id), u);
+export const apiDeleteCoupon = (id: string) => deleteDoc(doc(db, 'coupons', id));
+
 export const apiCreateSaaSSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => {
     const fn = httpsCallable(functions, 'createSaaSSubscription');
     return (await fn({ orgId, planId, email, name, cpfCnpj })).data;
@@ -296,23 +341,20 @@ export const apiAddConnectionByCode = async (clinicOrgId: string, dentistId: str
     if (!orgSnap.exists()) throw new Error("Laboratório não encontrado.");
     const orgData = orgSnap.data() as any;
     const conn: OrganizationConnection = { id: `conn_${Date.now()}`, organizationId: code, organizationName: orgData.name, status: 'ACTIVE', createdAt: new Date() };
-    await setDoc(doc(db, 'organizations', clinicOrgId, 'connections', conn.id), conn);
+    await setDoc(doc(db, `organizations/${clinicOrgId}/connections`, conn.id), conn);
 };
 export const subscribeUserConnections = (orgId: string, cb: (c: OrganizationConnection[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, 'organizations', orgId, 'connections'), (snap: any) => {
+    return onSnapshot(collection(db, `organizations/${orgId}/connections`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as OrganizationConnection)));
     });
 };
-export const apiAddCoupon = (c: Coupon) => setDoc(doc(db, 'coupons', c.id), c);
-export const apiUpdateCoupon = (id: string, u: Partial<Coupon>) => updateDoc(doc(db, 'coupons', id), u);
-export const apiDeleteCoupon = (id: string) => deleteDoc(doc(db, 'coupons', id));
-export const apiAddManualDentist = (orgId: string, d: ManualDentist) => setDoc(doc(db, 'organizations', orgId, 'manualDentists', d.id), d);
-export const apiUpdateManualDentist = (orgId: string, id: string, u: Partial<ManualDentist>) => updateDoc(doc(db, 'organizations', orgId, 'manualDentists', id), u);
-export const apiDeleteManualDentist = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'manualDentists', id));
+export const apiAddManualDentist = (orgId: string, d: ManualDentist) => setDoc(doc(db, `organizations/${orgId}/manualDentists`, d.id), d);
+export const apiUpdateManualDentist = (orgId: string, id: string, u: Partial<ManualDentist>) => updateDoc(doc(db, `organizations/${orgId}/manualDentists`, id), u);
+export const apiDeleteManualDentist = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/manualDentists`, id));
 export const subscribeManualDentists = (orgId: string, cb: (d: ManualDentist[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, 'organizations', orgId, 'manualDentists'), (snap: any) => {
+    return onSnapshot(collection(db, `organizations/${orgId}/manualDentists`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as ManualDentist)));
     });
 };
@@ -342,7 +384,7 @@ export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
 };
 export const subscribeBillingBatches = (orgId: string, cb: (b: BillingBatch[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, 'organizations', orgId, 'billingBatches'), (snap: any) => {
+    return onSnapshot(collection(db, `organizations/${orgId}/billingBatches`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt), dueDate: toDate(d.data().dueDate) } as BillingBatch)));
     });
 };
@@ -352,17 +394,17 @@ export const apiGenerateBatchBoleto = async (orgId: string, dentistId: string, j
 };
 export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => {
     if (!orgId) return () => {};
-    const q = query(collection(db, 'organizations', orgId, 'expenses'), orderBy('date', 'desc'), limit(100));
+    const q = query(collection(db, `organizations/${orgId}/expenses`), limit(100));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date), createdAt: toDate(d.data().createdAt) } as Expense)));
     });
 };
-export const apiAddExpense = (orgId: string, expense: Expense) => setDoc(doc(db, 'organizations', orgId, 'expenses', expense.id), expense);
-export const apiDeleteExpense = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'expenses', id));
+export const apiAddExpense = (orgId: string, expense: Expense) => setDoc(doc(db, `organizations/${orgId}/expenses`, expense.id), expense);
+export const apiDeleteExpense = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/expenses`, id));
 export const apiAddLabRating = async (rating: LabRating) => {
     const labRef = doc(db, 'organizations', rating.labId);
-    const ratingRef = doc(db, 'organizations', rating.labId, 'ratings', rating.id);
-    const jobRef = doc(db, 'organizations', rating.labId, 'jobs', rating.jobId);
+    const ratingRef = doc(db, `organizations/${rating.labId}/ratings`, rating.id);
+    const jobRef = doc(db, `organizations/${rating.labId}/jobs`, rating.jobId);
     await setDoc(ratingRef, rating);
     await updateDoc(jobRef, { ratingId: rating.id });
     const labSnap = await getDoc(labRef);
@@ -375,26 +417,26 @@ export const apiAddLabRating = async (rating: LabRating) => {
 };
 export const subscribeLabRatings = (labId: string, cb: (r: LabRating[]) => void) => {
     if (!labId) return () => {};
-    const q = query(collection(db, 'organizations', labId, 'ratings'), orderBy('createdAt', 'desc'), limit(50));
+    const q = query(collection(db, `organizations/${labId}/ratings`), limit(50));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as LabRating)));
     });
 };
 export const subscribeRoutes = (orgId: string, cb: (routes: DeliveryRoute[]) => void) => {
   if (!orgId) return () => {};
-  const q = query(collection(db, 'organizations', orgId, 'routes'), orderBy('date', 'desc'), limit(50));
+  const q = query(collection(db, `organizations/${orgId}/routes`), limit(50));
   return onSnapshot(q, (snap: any) => {
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date), createdAt: toDate(d.data().createdAt) } as DeliveryRoute)));
   });
 };
-export const apiAddRoute = (orgId: string, route: DeliveryRoute) => setDoc(doc(db, 'organizations', orgId, 'routes', route.id), route);
-export const apiUpdateRoute = (orgId: string, id: string, updates: Partial<DeliveryRoute>) => updateDoc(doc(db, 'organizations', orgId, 'routes', id), updates);
+export const apiAddRoute = (orgId: string, route: DeliveryRoute) => setDoc(doc(db, `organizations/${orgId}/routes`, route.id), route);
+export const apiUpdateRoute = (orgId: string, id: string, updates: Partial<DeliveryRoute>) => updateDoc(doc(db, `organizations/${orgId}/routes`, id), updates);
 export const subscribeRouteItems = (orgId: string, routeId: string, cb: (items: RouteItem[]) => void) => {
   if (!orgId || !routeId) return () => {};
-  const q = query(collection(db, 'organizations', orgId, 'routes', routeId, 'items'), orderBy('order', 'asc'));
+  const q = query(collection(db, `organizations/${orgId}/routes/${routeId}/items`), orderBy('order', 'asc'));
   return onSnapshot(q, (snap: any) => {
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as RouteItem)));
   });
 };
-export const apiAddRouteItem = (orgId: string, routeId: string, item: RouteItem) => setDoc(doc(db, 'organizations', orgId, 'routes', routeId, 'items', item.id), item);
-export const apiDeleteRouteItem = (orgId: string, routeId: string, itemId: string) => deleteDoc(doc(db, 'organizations', orgId, 'routes', routeId, 'items', itemId));
+export const apiAddRouteItem = (orgId: string, routeId: string, item: RouteItem) => setDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, item.id), item);
+export const apiDeleteRouteItem = (orgId: string, routeId: string, itemId: string) => deleteDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, itemId));

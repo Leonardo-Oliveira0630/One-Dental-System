@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -11,8 +12,11 @@ import {
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
 import * as api from '../services/firebaseService';
-import { doc, onSnapshot } from 'firebase/firestore';
+/* Fix: Use * as firestorePkg and destructure doc and onSnapshot as any to match project style and avoid import errors */
+import * as firestorePkg from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
+
+const { doc, onSnapshot } = firestorePkg as any;
 
 const STLViewer = React.lazy(() => import('../components/STLViewer').then(module => ({ default: module.STLViewer })));
 
@@ -41,7 +45,7 @@ export const JobDetails = () => {
   useEffect(() => {
       if (job?.routeId && currentOrg) {
           const routeRef = doc(db, 'organizations', currentOrg.id, 'routes', job.routeId);
-          const unsub = onSnapshot(routeRef, (snap) => {
+          const unsub = onSnapshot(routeRef, (snap: any) => {
               if (snap.exists()) {
                   const data = snap.data();
                   setRouteInfo({
