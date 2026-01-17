@@ -8,7 +8,7 @@
     
     <link rel="manifest" href="/manifest.json">
     
-    <!-- Configurações para iOS (Home Screen & Capacitor) -->
+    <!-- Apple Mobile Web App Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
@@ -31,7 +31,6 @@
       }
     </script>
     <style>
-      /* Suporte a Safe Areas para iPhones com Notch e Androids modernos */
       :root {
         --sat: env(safe-area-inset-top);
         --sar: env(safe-area-inset-right);
@@ -39,25 +38,37 @@
         --sal: env(safe-area-inset-left);
       }
       
+      html, body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Evita bounce scroll no container principal */
+      }
+
       body {
-        overscroll-behavior-y: none; /* Impede o efeito de puxar para atualizar (comum em web) */
-        padding-top: var(--sat);
-        padding-bottom: var(--sab);
-        padding-left: var(--sal);
-        padding-right: var(--sar);
-        -webkit-tap-highlight-color: transparent; /* Remove o brilho cinza ao tocar no iOS */
-        -webkit-touch-callout: none; /* Impede menu de contexto ao segurar imagens */
+        overscroll-behavior-y: none;
+        padding: var(--sat) var(--sar) var(--sab) var(--sal);
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        user-select: none;
+        background-color: #f8fafc; /* slate-50 */
+      }
+
+      #root {
+        height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
 
       .no-scrollbar::-webkit-scrollbar { display: none; }
       
-      /* Ajuste para botões não darem ghost-click */
       button { touch-action: manipulation; }
-      
       button:active { transform: scale(0.96); opacity: 0.8; }
       
-      .safe-pb { padding-bottom: calc(env(safe-area-inset-bottom) + 1rem); }
-      
+      /* Ajuste para inputs não causarem zoom no iOS */
+      input, select, textarea { font-size: 16px !important; }
+
       .scanner-overlay { background: rgba(0,0,0,0.5); position: relative; }
       .scanner-laser { height: 2px; background: #ef4444; position: absolute; left: 0; right: 0; top: 50%; box-shadow: 0 0 10px #ef4444; animation: scan 2s infinite ease-in-out; }
       @keyframes scan { 0% { top: 10%; } 50% { top: 90%; } 100% { top: 10%; } }
@@ -86,7 +97,8 @@
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "firebase-functions": "https://esm.sh/firebase-functions@^7.0.3",
     "firebase-admin": "https://esm.sh/firebase-admin@^13.6.0",
-    "html5-qrcode": "https://esm.sh/html5-qrcode@^2.3.8"
+    "html5-qrcode": "https://esm.sh/html5-qrcode@^2.3.8",
+    "@capacitor/haptics": "https://esm.sh/@capacitor/haptics@^8.0.0"
   }
 }
 </script>

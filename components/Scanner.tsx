@@ -5,6 +5,16 @@ import { Job, JobStatus, UserRole, CommissionStatus } from '../types';
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 
+// Dynamic import for Capacitor Plugins to avoid web errors
+const getHaptics = async () => {
+    try {
+        const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+        return { Haptics, ImpactStyle };
+    } catch (e) {
+        return null;
+    }
+};
+
 export const GlobalScanner: React.FC = () => {
   const { jobs, updateJob, currentUser, addCommissionRecord } = useApp();
   const bufferRef = useRef<string>('');
@@ -19,10 +29,21 @@ export const GlobalScanner: React.FC = () => {
   const SCANNER_TIMEOUT = 100;
   const MIN_LENGTH = 2;
 
-  // Feedback Tátil e Sonoro Nativo
-  const playNativeFeedback = (success = true) => {
+  // Feedback Tátil e Sonoro Nativo (Hibrido Web/Nativo)
+  const playNativeFeedback = async (success = true) => {
     try {
-        // Áudio
+        // Tenta usar Haptics Nativo (Capacitor)
+        const haptics = await getHaptics();
+        if (haptics) {
+            const { Haptics, ImpactStyle } = haptics;
+            await Haptics.impact({ style: success ? ImpactStyle.Medium : ImpactStyle.Heavy });
+        } else if (navigator.vibrate) {
+            // Fallback para Vibração Web (Android Chrome)
+            if (success) navigator.vibrate([10, 30, 10]);
+            else navigator.vibrate([100, 50, 100]);
+        }
+
+        // Feedback Sonoro
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
@@ -34,13 +55,7 @@ export const GlobalScanner: React.FC = () => {
         gainNode.connect(audioCtx.destination);
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.1);
-
-        // Vibração (Haptic)
-        if (navigator.vibrate) {
-            if (success) navigator.vibrate([10, 30, 10]); // Vibração curta de sucesso
-            else navigator.vibrate([100, 50, 100]); // Vibração de erro
-        }
-    } catch (e) { console.warn("Native feedback failed:", e); }
+    } catch (e) { console.warn("Feedback failed:", e); }
   };
 
   // KEYBOARD LISTENER (Desktop/USB Scanners)
@@ -128,7 +143,7 @@ export const GlobalScanner: React.FC = () => {
       }
       setScannedJob(job);
     } else {
-        playNativeFeedback(false); // Feedback de erro se não achar a OS
+        playNativeFeedback(false);
     }
   };
 
