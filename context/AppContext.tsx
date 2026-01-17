@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor
@@ -141,7 +141,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<AppContextType['printData']>(null);
 
-  const targetOrgId = () => activeOrganization?.id || (currentUser?.role !== UserRole.CLIENT ? currentUser?.organizationId : null) || null;
+  // ID Crítico para o Android: Decidimos qual laboratório escutar agora
+  const activeDataId = useMemo(() => {
+      if (currentUser?.role === UserRole.CLIENT) {
+          return activeOrganization?.id || null;
+      }
+      return currentUser?.organizationId || null;
+  }, [currentUser, activeOrganization]);
 
   useEffect(() => {
     if (!currentUser || alerts.length === 0) {
@@ -219,25 +225,28 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return unsub;
   }, []);
 
+  // ESCUTA DE TRABALHOS (JOBS) - CORREÇÃO PARA ANDROID
   useEffect(() => {
-    if (!db || !currentUser) return;
+    if (!db || !currentUser || !activeDataId) return;
+    
     const unsubs: (() => void)[] = [];
-    const activeId = targetOrgId();
-    if (activeId && typeof activeId === 'string' && activeId.trim() !== '') {
-        unsubs.push(api.subscribeJobs(activeId, setJobs));
-        unsubs.push(api.subscribeJobTypes(activeId, setJobTypes));
-    }
+    
+    // Subs aos trabalhos do laboratório ativo selecionado
+    unsubs.push(api.subscribeJobs(activeDataId, (newJobs) => {
+        console.log(`[My Tooth] ${newJobs.length} trabalhos carregados para org ${activeDataId}`);
+        setJobs(newJobs);
+    }));
+    
+    unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
+
+    // Dados da própria clínica/lab do usuário logado
     const myOrgId = currentUser.organizationId;
-    if (myOrgId && typeof myOrgId === 'string' && myOrgId.trim() !== '') {
+    if (myOrgId) {
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
+        
         if (currentUser.role !== UserRole.CLIENT) {
-            try {
-              unsubs.push(api.subscribeOrgUsers(myOrgId, (users: User[]) => {
-                  setAllUsers(users || []);
-              }));
-            } catch(e) { console.warn("Erro ao carregar usuários (Permissão):", e); }
-            
+            unsubs.push(api.subscribeOrgUsers(myOrgId, setAllUsers));
             unsubs.push(api.subscribeSectors(myOrgId, setSectors));
             unsubs.push(api.subscribeBoxColors(myOrgId, setBoxColors));
             unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
@@ -245,13 +254,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
         }
     }
+
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
-    return () => unsubs.forEach(unsub => {
-        try { unsub(); } catch(e) {}
-    });
-  }, [currentUser, activeOrganization]);
+
+    return () => unsubs.forEach(u => u());
+  }, [currentUser, activeDataId]); // Depende do activeDataId explicitamente
 
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => await api.apiLogout();
@@ -269,12 +278,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const deleteUser = async (id: string) => await api.apiDeleteUser(id);
 
   const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => {
-      const orgId = targetOrgId();
+      const orgId = activeDataId;
       if (!orgId) throw new Error("Nenhum laboratório ativo.");
       await api.apiAddJob(orgId, { ...j, id: `job_${Date.now()}`, organizationId: orgId } as Job);
   };
   const updateJob = async (id: string, u: Partial<Job>) => {
-      const orgId = targetOrgId();
+      const orgId = activeDataId;
       if (!orgId) return;
       await api.apiUpdateJob(orgId, id, u);
   };
