@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
@@ -5,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, 
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -34,11 +35,9 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Monitorar sincronização do Firestore
     let unsubSync: any;
     if (db) {
         unsubSync = onSnapshotsInSync(db, () => {
-            // Quando os snapshots estão em sincronia, paramos o loading de sync
             setIsSyncing(false);
         });
     }
@@ -179,12 +178,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
                 {hasPerm('clients:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
-                {hasPerm('logistics:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas / Rotas" active={location.pathname === '/lab/logistics'} />}
+                {hasPerm('logistics:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
                 {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
                 {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
                 {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Activity size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
-                {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
               </>
             )}
 
@@ -214,7 +212,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
-      {/* MOBILE BOTTOM NAVIGATION (Solo pantallas pequeñas) */}
+      {/* MOBILE BOTTOM NAVIGATION (Refined for iOS/Android UX) */}
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)]">
           <MobileNavItem to="/dashboard" icon={<Home size={22}/>} label="Home" active={location.pathname === '/dashboard'} />
           
@@ -222,22 +220,22 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <>
               <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
-                 <Link to="/new-job" className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-200 border-4 border-white active:scale-90 transition-transform">
-                    <PlusCircle size={28}/>
+                 {/* BOTÃO CENTRAL DE SCAN (TECNICOS) OU NOVO CASO (GESTORES) */}
+                 <Link to="/jobs" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('open-scanner')); }} className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform">
+                    <Camera size={28}/>
                  </Link>
               </div>
               <MobileNavItem to="/incoming-orders" icon={<InboxIcon size={22}/>} label="Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
             </>
           ) : (
             <>
-              <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label="Loja" active={location.pathname === '/store'} />
+              <MobileNavItem to="/jobs" icon={<List size={22}/>} label="Pedidos" active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
-                 <Link to="/cart" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-indigo-200 border-4 border-white active:scale-90 transition-transform">
-                    <ShoppingCart size={28}/>
-                    {cart.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">{cart.length}</span>}
+                 <Link to="/store" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-indigo-300 border-4 border-white active:scale-90 transition-transform">
+                    <PlusCircle size={28}/>
                  </Link>
               </div>
-              <MobileNavItem to="/jobs" icon={<List size={22}/>} label="Pedidos" active={location.pathname === '/jobs'} />
+              <MobileNavItem to="/cart" icon={<ShoppingCart size={22}/>} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
             </>
           )}
           
@@ -261,7 +259,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                       {isClient ? 'Cirurgião-Dentista' : (currentUser?.sector || 'Gestão')}
                   </span>
               </div>
-              <Link to="/profile" className="w-10 h-10 bg-slate-100 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors overflow-hidden">
+              <Link to="/profile" className="w-10 h-10 bg-slate-100 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors overflow-hidden font-bold">
                   {currentUser?.name.charAt(0)}
               </Link>
           </div>
@@ -303,7 +301,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onCl
 );
 
 const MobileNavItem = ({ to, icon, label, active, badge }: any) => (
-    <Link to={to} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${active ? 'text-blue-600' : 'text-slate-400'}`}>
+    <Link to={to} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${active ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>
         {icon}
         <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
         {badge !== undefined && badge > 0 && (
