@@ -71,7 +71,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     : { name: currentOrg?.name || 'MY TOOTH', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'MY TOOTH SYSTEM' };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans relative pb-20 md:pb-0">
+    <div className="min-h-screen flex bg-slate-50 font-sans relative overflow-x-hidden">
       {!isSuperAdmin && <GlobalScanner />}
       <PrintOverlay />
       <AlertPopup />
@@ -88,15 +88,15 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           {isSyncing && !isOffline && (
             <div className="bg-blue-600 text-white px-4 py-1.5 rounded-full shadow-xl flex items-center gap-2 animate-pulse pointer-events-auto">
                 <RefreshCw size={12} className="animate-spin" />
-                <span className="text-[10px] font-black uppercase tracking-tight">Sincronizando dados...</span>
+                <span className="text-[10px] font-black uppercase tracking-tight">Sincronizando...</span>
             </div>
           )}
       </div>
 
-      {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
+      {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-[60] md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
 
       {/* DESKTOP SIDEBAR */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
+      <aside className={`fixed inset-y-0 left-0 z-[70] w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
         <div className="p-6 h-full flex flex-col">
@@ -121,7 +121,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
           {isClient && (
              <div className="mb-6 px-2 relative">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2">Selecionar Laboratório</p>
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2">Laboratório Ativo</p>
                 <button 
                    onClick={() => setIsLabSelectorOpen(!isLabSelectorOpen)}
                    className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 group"
@@ -140,7 +140,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 </button>
 
                 {isLabSelectorOpen && (
-                   <div className="absolute top-full left-2 right-2 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                   <div className="absolute top-full left-2 right-2 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[80] overflow-hidden animate-in fade-in slide-in-from-top-2">
                       <div className="max-h-48 overflow-y-auto">
                         {userConnections.map(conn => (
                            <button 
@@ -153,13 +153,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                            </button>
                         ))}
                       </div>
-                      <Link 
-                        to="/dentist/partnerships" 
-                        onClick={() => setIsLabSelectorOpen(false)}
-                        className="block w-full p-3 text-center text-xs font-bold bg-white/5 hover:bg-white/10 border-t border-slate-700 text-indigo-400"
-                      >
-                         + Nova Parceria
-                      </Link>
+                      <Link to="/dentist/partnerships" onClick={() => setIsLabSelectorOpen(false)} className="block w-full p-3 text-center text-xs font-bold bg-white/5 hover:bg-white/10 border-t border-slate-700 text-indigo-400">+ Nova Parceria</Link>
                    </div>
                 )}
              </div>
@@ -169,14 +163,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             {isSuperAdmin && (
               <>
                 <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
-                <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label="Gerenciar Planos" active={location.pathname === '/superadmin/plans'} />
+                <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label="Planos" active={location.pathname === '/superadmin/plans'} />
                 <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/superadmin/coupons'} />
               </>
             )}
 
             {!isClient && !isSuperAdmin && (
               <>
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Visão Geral" active={location.pathname === '/dashboard'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === '/dashboard'} />
                 {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
                 {hasPerm('clients:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
@@ -184,25 +178,24 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
                 {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
-                {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Activity size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
               </>
             )}
 
             {isClient && (
               <>
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Fazer Pedido" active={location.pathname === '/store'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Nova OS Web" active={location.pathname === '/store'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/jobs'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
                 <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Minha Agenda" active={location.pathname === '/schedule'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Parcerias" active={location.pathname === '/dentist/partnerships'} />
               </>
             )}
 
             <div className="pt-8 mt-8 border-t border-white/10">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-              {isAdmin && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/admin'} />}
+              {isAdmin && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurar Lab" active={location.pathname.startsWith('/admin')} />}
             </div>
           </nav>
 
@@ -214,7 +207,24 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
-      {/* MOBILE BOTTOM NAVIGATION (Refined for iOS/Android UX) */}
+      {/* MOBILE HEADER (Ajustado para dispositivos móveis) */}
+      <header className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden">
+         <div className="flex items-center gap-3">
+             <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100"><Menu size={24} /></button>
+             <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xs">M</div>
+                <span className="font-black text-slate-900 text-base uppercase tracking-tighter">MyTooth</span>
+             </div>
+         </div>
+         <div className="flex items-center gap-2">
+             {isClient && cart.length > 0 && (
+                 <Link to="/cart" className="p-2 text-blue-600 relative"><ShoppingCart size={22} /><span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-black border-2 border-white">{cart.length}</span></Link>
+             )}
+             <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs">{currentUser?.name.charAt(0)}</Link>
+         </div>
+      </header>
+
+      {/* MOBILE BOTTOM NAVIGATION (Ajustado para Safe Areas) */}
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)]">
           <MobileNavItem to="/dashboard" icon={<Home size={22}/>} label="Home" active={location.pathname === '/dashboard'} />
           
@@ -222,7 +232,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <>
               <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
-                 {/* BOTÃO CENTRAL DE SCAN (TECNICOS) OU NOVO CASO (GESTORES) */}
                  <button onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('open-scanner')); }} className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform">
                     <Camera size={28}/>
                  </button>
@@ -244,30 +253,28 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
       </nav>
 
-      <main className="flex-1 md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
-        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 print:hidden">
-          <div className="flex items-center gap-4">
-             <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-slate-600 p-2 rounded-lg hover:bg-slate-100"><Menu size={24} /></button>
-             <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-sm">M</div>
-                <span className="font-black text-slate-900 tracking-tighter text-lg hidden sm:inline uppercase">MyTooth <span className="text-blue-600">Eco</span></span>
-             </div>
+      {/* CONTENT AREA (Responsividade Aprimorada) */}
+      <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
+        {/* DESKTOP HEADER (Oculto em Mobile) */}
+        <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden">
+          <div className="flex items-center gap-2">
+             <span className="font-black text-slate-900 tracking-tighter text-lg uppercase">MyTooth <span className="text-blue-600">Eco System</span></span>
           </div>
 
           <div className="flex items-center gap-4">
-              <div className="hidden sm:flex flex-col items-end">
-                  <span className="text-sm font-bold text-slate-800 leading-none">{currentUser?.name}</span>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
-                      {isClient ? 'Cirurgião-Dentista' : (currentUser?.sector || 'Gestão')}
+              <div className="flex flex-col items-end">
+                  <span className="text-sm font-black text-slate-800 leading-none uppercase">{currentUser?.name}</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                      {isClient ? 'Cirurgião-Dentista' : (currentUser?.sector || 'Acesso Administrativo')}
                   </span>
               </div>
-              <Link to="/profile" className="w-10 h-10 bg-slate-100 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-slate-400 hover:text-blue-600 transition-colors overflow-hidden font-bold">
-                  {currentUser?.name.charAt(0)}
-              </Link>
+              <Link to="/profile" className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md hover:scale-105 transition-transform">{currentUser?.name.charAt(0)}</Link>
           </div>
         </header>
 
-        <div className="p-4 md:p-8 max-w-7xl mx-auto w-full print:p-0 flex-1">{children}</div>
+        <div className="p-4 pt-20 md:pt-8 md:p-8 w-full max-w-7xl mx-auto print:p-0 flex-1 overflow-x-hidden">
+          {children}
+        </div>
       </main>
     </div>
   );
@@ -283,27 +290,17 @@ interface SidebarItemProps {
 }
 
 const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onClick, badge }) => (
-  <Link 
-    to={to} 
-    onClick={onClick}
-    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative ${
-      active 
-        ? 'bg-white/10 text-white font-medium shadow-sm' 
-        : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-    }`}
-  >
+  <Link to={to} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative ${ active ? 'bg-white/10 text-white font-bold shadow-sm ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }`} >
     {icon}
-    <span>{label}</span>
+    <span className="text-sm font-medium">{label}</span>
     {badge !== undefined && badge > 0 && (
-      <span className="absolute right-4 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-        {badge}
-      </span>
+      <span className="absolute right-4 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black shadow-lg animate-pulse">{badge}</span>
     )}
   </Link>
 );
 
 const MobileNavItem = ({ to, icon, label, active, badge }: any) => (
-    <Link to={to} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${active ? 'text-blue-600 font-bold' : 'text-slate-400'}`}>
+    <Link to={to} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${active ? 'text-blue-600' : 'text-slate-400'}`}>
         {icon}
         <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
         {badge !== undefined && badge > 0 && (
