@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus } from '../types';
-import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw } from 'lucide-react';
+import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2 } from 'lucide-react';
 import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
 
 export const GlobalScanner: React.FC = () => {
@@ -18,6 +18,26 @@ export const GlobalScanner: React.FC = () => {
 
   const SCANNER_TIMEOUT = 100;
   const MIN_LENGTH = 2;
+
+  // Audio Context para o Beep do Scanner
+  const playBeep = () => {
+    try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) { console.warn("Beep failed:", e); }
+  };
 
   // KEYBOARD LISTENER (Desktop/USB Scanners)
   useEffect(() => {
@@ -48,7 +68,7 @@ export const GlobalScanner: React.FC = () => {
   useEffect(() => {
       if (isCameraActive && !scannerRef.current) {
           scannerRef.current = new Html5Qrcode("reader");
-          const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+          const config = { fps: 20, qrbox: { width: 250, height: 150 } };
           
           scannerRef.current.start(
               { facingMode: "environment" },
@@ -56,9 +76,8 @@ export const GlobalScanner: React.FC = () => {
               (decodedText) => {
                   processScan(decodedText);
                   stopCamera();
-                  if (navigator.vibrate) navigator.vibrate(100);
               },
-              () => {} // Silent on error
+              () => {} 
           ).catch(err => {
               console.error(err);
               setIsCameraActive(false);
@@ -69,7 +88,9 @@ export const GlobalScanner: React.FC = () => {
 
   const stopCamera = async () => {
       if (scannerRef.current) {
-          await scannerRef.current.stop();
+          try {
+            await scannerRef.current.stop();
+          } catch(e) {}
           scannerRef.current = null;
           setIsCameraActive(false);
       }
@@ -80,6 +101,10 @@ export const GlobalScanner: React.FC = () => {
     const job = jobs.find(j => (j.osNumber || '').toUpperCase() === code.toUpperCase() || j.id === code);
     
     if (job) {
+      // Feedback Nativo
+      playBeep();
+      if (navigator.vibrate) navigator.vibrate(80);
+
       if (currentUser?.sector) {
           const lastEvent = job.history[job.history.length - 1];
           const isLastActionEntryHere = lastEvent?.sector === currentUser.sector && lastEvent?.action.includes('Entrada');
@@ -143,12 +168,11 @@ export const GlobalScanner: React.FC = () => {
     setScannedJob(null);
   };
 
-  // Botão flutuante apenas para Mobile se não houver modal aberto
   if (!scannedJob && !isCameraActive && currentUser?.role !== UserRole.CLIENT) {
       return (
           <button 
             onClick={() => setIsCameraActive(true)}
-            className="fixed bottom-20 right-6 md:bottom-10 md:right-10 z-[60] w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all md:hidden"
+            className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[60] w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all md:hidden"
           >
               <Camera size={28} />
           </button>
@@ -163,7 +187,7 @@ export const GlobalScanner: React.FC = () => {
                       <h3 className="font-bold text-lg">Leitor de OS</h3>
                       <p className="text-xs opacity-70">Aponte para o código de barras da ficha</p>
                   </div>
-                  <button onClick={() => setIsCameraActive(false)} className="p-2 bg-white/10 rounded-full"><X/></button>
+                  <button onClick={() => stopCamera()} className="p-2 bg-white/10 rounded-full"><X/></button>
               </div>
               <div id="reader" className="w-full h-full scanner-overlay"></div>
               <div className="scanner-laser"></div>
@@ -207,7 +231,7 @@ export const GlobalScanner: React.FC = () => {
 
         <div className="flex gap-3">
             <button onClick={() => setScannedJob(null)} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
-            <button onClick={handleMoveJob} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>
+            <button onClick={handleMoveJob} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-50 hover:bg-orange-600 shadow-orange-200'}`}>
                 {isEntry ? 'CONFIRMAR ENTRADA' : 'CONFIRMAR SAÍDA'}
             </button>
         </div>

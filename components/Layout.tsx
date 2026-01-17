@@ -12,6 +12,7 @@ import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
 import { AlertPopup } from './AlertSystem';
+import { PWAInstallPrompt } from './PWAInstallPrompt';
 import * as firestorePkg from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
@@ -74,6 +75,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       {!isSuperAdmin && <GlobalScanner />}
       <PrintOverlay />
       <AlertPopup />
+      <PWAInstallPrompt />
       
       {/* STATUS BAR: OFFLINE & SYNC */}
       <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none flex flex-col items-center gap-2 mt-4">
@@ -221,9 +223,9 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
                  {/* BOTÃO CENTRAL DE SCAN (TECNICOS) OU NOVO CASO (GESTORES) */}
-                 <Link to="/jobs" onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('open-scanner')); }} className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform">
+                 <button onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('open-scanner')); }} className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform">
                     <Camera size={28}/>
-                 </Link>
+                 </button>
               </div>
               <MobileNavItem to="/incoming-orders" icon={<InboxIcon size={22}/>} label="Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
             </>
