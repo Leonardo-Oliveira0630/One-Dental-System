@@ -1,3 +1,4 @@
+
 import * as firebaseApp from 'firebase/app';
 import * as firestorePkg from 'firebase/firestore';
 import * as authPkg from 'firebase/auth';
@@ -6,7 +7,7 @@ import * as functionsPkg from 'firebase/functions';
 import * as messagingPkg from 'firebase/messaging';
 
 const { initializeApp } = firebaseApp as any;
-const { getFirestore, enableMultiTabIndexedDbPersistence } = firestorePkg as any;
+const { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } = firestorePkg as any;
 const { getAuth } = authPkg as any;
 const { getStorage } = storagePkg as any;
 const { getFunctions } = functionsPkg as any;
@@ -32,25 +33,25 @@ let messaging: any;
 try {
     if (firebaseConfig.apiKey && firebaseConfig.apiKey.length > 0) {
         app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
+        
+        // Inicialização robusta para Mobile (Android/iOS)
+        db = initializeFirestore(app, {
+            localCache: persistentLocalCache({
+                tabManager: persistentMultipleTabManager()
+            })
+        });
+
         auth = getAuth(app);
         storage = getStorage(app);
         functions = getFunctions(app, 'us-central1');
         
-        // Messaging só funciona em ambientes seguros (HTTPS) e se suportado pelo browser
         isSupported().then((supported: boolean) => {
             if (supported) {
                 messaging = getMessaging(app);
             }
         });
 
-        enableMultiTabIndexedDbPersistence(db).catch((err: any) => {
-            if (err.code === 'failed-precondition') {
-                console.warn("Persistência offline falhou: Múltiplas abas abertas.");
-            }
-        });
-
-        console.log("✅ Firebase Eco System Ready!");
+        console.log("✅ ProTrack Eco System: Firebase Initialized for Android/Web");
     }
 } catch (error) {
     console.error("❌ Erro ao inicializar Firebase:", error);

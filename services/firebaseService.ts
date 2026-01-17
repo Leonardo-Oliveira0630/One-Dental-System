@@ -1,3 +1,4 @@
+
 import * as firestorePkg from 'firebase/firestore';
 import * as authPkg from 'firebase/auth';
 import * as storagePkg from 'firebase/storage';
@@ -124,17 +125,28 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
     });
 };
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
+
+// CORREÇÃO: Removido orderBy do Firestore para evitar falha por falta de índice no Android
 export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
     if (!orgId) return () => {};
-    const q = query(collection(db, 'organizations', orgId, 'jobs'), orderBy('createdAt', 'desc'), limit(200));
+    // Fazemos uma consulta simples e ordenamos no código do App
+    const q = query(collection(db, 'organizations', orgId, 'jobs'), limit(300));
+    
     return onSnapshot(q, (snap: any) => {
-        cb(snap.docs.map((d: any) => ({ 
+        const rawJobs = snap.docs.map((d: any) => ({ 
             id: d.id, ...d.data() as any,
             createdAt: toDate(d.data().createdAt), dueDate: toDate(d.data().dueDate),
             history: (d.data().history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) }))
-        } as Job)));
+        } as Job));
+        
+        // Ordenação local (Safe para Android)
+        const sortedJobs = rawJobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        cb(sortedJobs);
+    }, (error: any) => {
+        console.error(`[ProTrack] Erro ao ouvir trabalhos para ${orgId}:`, error);
     });
 };
+
 export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, 'organizations', orgId, 'jobs', job.id), job);
 export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) => updateDoc(doc(db, 'organizations', orgId, 'jobs', id), updates);
 export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void) => {
@@ -145,7 +157,7 @@ export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void)
 };
 export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, 'organizations', orgId, 'jobTypes', type.id), type);
 export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, 'organizations', orgId, 'jobTypes', id), updates);
-export const apiDeleteJobType = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'jobTypes', id));
+export const apiDeleteJobType = (id: string, id2: string) => deleteDoc(doc(db, 'organizations', id, 'jobTypes', id2));
 export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, 'organizations', orgId, 'sectors'), (snap: any) => {
@@ -165,7 +177,7 @@ export const apiAddBoxColor = (orgId: string, color: BoxColor) => setDoc(doc(db,
 export const apiDeleteBoxColor = (orgId: string, id: string) => deleteDoc(doc(db, 'organizations', orgId, 'boxColors', id));
 export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) => void) => {
     if (!orgId) return () => {};
-    const q = query(collection(db, 'organizations', orgId, 'commissions'), orderBy('createdAt', 'desc'), limit(100));
+    const q = query(collection(db, 'organizations', orgId, 'commissions'), limit(100));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ 
             id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt),
