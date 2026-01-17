@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus } from '../types';
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2 } from 'lucide-react';
-import { Html5QrcodeScanner, Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 
 export const GlobalScanner: React.FC = () => {
   const { jobs, updateJob, currentUser, addCommissionRecord } = useApp();
@@ -73,12 +73,12 @@ export const GlobalScanner: React.FC = () => {
           scannerRef.current.start(
               { facingMode: "environment" },
               config,
-              (decodedText) => {
+              (decodedText: string) => {
                   processScan(decodedText);
                   stopCamera();
               },
               () => {} 
-          ).catch(err => {
+          ).catch((err: any) => {
               console.error(err);
               setIsCameraActive(false);
           });
