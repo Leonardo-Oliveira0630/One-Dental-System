@@ -23,6 +23,10 @@
     {
       "type": "haptic",
       "reason": "Melhora a experiência de uso fornecendo feedback tátil ao realizar o escaneamento de códigos de barras."
+    },
+    {
+      "type": "filesystem",
+      "reason": "Necessário para salvar e abrir arquivos STL de visualização 3D offline."
     }
   ]
 }

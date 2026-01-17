@@ -9,8 +9,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "tsc",
-    "cap:sync": "npm run build && npx cap sync",
+    "cap:build": "npm run build && npx cap sync",
     "cap:add:android": "npx cap add android",
+    "cap:copy": "npx cap copy android",
+    "cap:sync": "npx cap sync android",
     "cap:open:android": "npx cap open android"
   },
   "dependencies": {
