@@ -1,7 +1,18 @@
 {
-  "name": "MY TOOTH",
+  "name": "ProTrack Eco",
   "description": "Ecossistema B2B completo para Laboratórios de Prótese e Dentistas. Rastreamento de produção, e-commerce e insights via IA.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
+  ],
+  "mobilePermissions": [
+    {
+      "type": "camera",
+      "reason": "Necessário para escanear o código de barras das Ordens de Serviço."
+    },
+    {
+      "type": "photos",
+      "reason": "Necessário para enviar fotos de casos clínicos e arquivos STL."
+    }
   ]
 }

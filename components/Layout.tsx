@@ -1,46 +1,16 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, 
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
 import { AlertPopup } from './AlertSystem';
-
-interface SidebarItemProps {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick?: () => void;
-  badge?: number;
-}
-
-const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onClick, badge }) => (
-  <Link 
-    to={to} 
-    onClick={onClick}
-    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative ${
-      active 
-        ? 'bg-white/10 text-white font-medium shadow-sm' 
-        : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-    }`}
-  >
-    {icon}
-    <span>{label}</span>
-    {badge !== undefined && badge > 0 && (
-      <span className="absolute right-4 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-        {badge}
-      </span>
-    )}
-  </Link>
-);
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { 
@@ -51,6 +21,18 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLabSelectorOpen, setIsLabSelectorOpen] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
@@ -78,6 +60,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <PrintOverlay />
       <AlertPopup />
       
+      {/* OFFLINE INDICATOR */}
+      {isOffline && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-orange-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-bounce">
+            <WifiOff size={16} />
+            <span className="text-xs font-black uppercase">Você está offline. Alterações serão sincronizadas depois.</span>
+        </div>
+      )}
+
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
 
       <aside className={`fixed inset-y-0 left-0 z-40 w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
@@ -227,3 +217,32 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     </div>
   );
 };
+
+interface SidebarItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick?: () => void;
+  badge?: number;
+}
+
+const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onClick, badge }) => (
+  <Link 
+    to={to} 
+    onClick={onClick}
+    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative ${
+      active 
+        ? 'bg-white/10 text-white font-medium shadow-sm' 
+        : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+    }`}
+  >
+    {icon}
+    <span>{label}</span>
+    {badge !== undefined && badge > 0 && (
+      <span className="absolute right-4 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+        {badge}
+      </span>
+    )}
+  </Link>
+);

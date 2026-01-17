@@ -1,70 +1,35 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MY TOOTH</title>
-    <!-- Tailwind via CDN is kept for simplicity in this specific setup. 
-         For a fully optimized production build, installing tailwind via npm/postcss is recommended,
-         but this method works reliably for Vercel deployments without complex config. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>MyTooth ProTrack</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
+            fontFamily: { sans: ['Inter', 'sans-serif'] },
             colors: {
-              lab: {
-                50: '#f0f9ff',
-                100: '#e0f2fe',
-                600: '#0284c7',
-                900: '#0c4a6e',
-              },
-              store: {
-                50: '#f5f3ff',
-                600: '#7c3aed',
-                900: '#4c1d95',
-              }
-            },
-            screens: {
-              'print': {'raw': 'print'},
+              lab: { 50: '#f0f9ff', 100: '#e0f2fe', 600: '#0284c7', 900: '#0c4a6e' },
+              store: { 50: '#f5f3ff', 600: '#7c3aed', 900: '#4c1d95' }
             }
           }
         }
       }
     </script>
     <style>
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        #printable-content, #printable-content * {
-          visibility: visible;
-        }
-        #printable-content {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          margin: 0;
-          padding: 0;
-        }
-        @page {
-          size: auto;
-          margin: 0mm;
-        }
-      }
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
+      :root { --sat: env(safe-area-inset-top); --sar: env(safe-area-inset-right); --sab: env(safe-area-inset-bottom); --sal: env(safe-area-inset-left); }
+      body { overscroll-behavior-y: none; padding: var(--sat) var(--sar) var(--sab) var(--sal); }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      button:active { transform: scale(0.96); opacity: 0.8; }
     </style>
 <script type="importmap">
 {
@@ -79,7 +44,6 @@
     "recharts": "https://aistudiocdn.com/recharts@^3.5.1",
     "react-barcode": "https://aistudiocdn.com/react-barcode@^1.6.1",
     "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
     "three": "https://aistudiocdn.com/three@^0.181.2",
     "@react-three/drei": "https://aistudiocdn.com/@react-three/drei@^10.7.7",
     "@react-three/fiber": "https://aistudiocdn.com/@react-three/fiber@^9.4.2",
@@ -87,16 +51,23 @@
     "jszip": "https://esm.sh/jszip@^3.10.1",
     "file-saver": "https://esm.sh/file-saver@^2.0.5",
     "axios": "https://esm.sh/axios@^1.13.2",
-    "cors": "https://esm.sh/cors@^2.8.5",
-    "firebase-functions": "https://esm.sh/firebase-functions@^7.0.1",
-    "firebase-admin": "https://esm.sh/firebase-admin@^13.6.0",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5"
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "firebase-functions": "https://esm.sh/firebase-functions@^7.0.3",
+    "firebase-admin": "https://esm.sh/firebase-admin@^13.6.0"
   }
 }
 </script>
 </head>
-  <body class="bg-slate-50 text-slate-800 antialiased">
+  <body class="bg-slate-50 text-slate-800 antialiased selection:bg-blue-100">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
+        });
+      }
+    </script>
   </body>
 </html>
