@@ -5,7 +5,8 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
-    "allowNavigation": ["*"]
+    "allowNavigation": ["*"],
+    "cleartext": true
   },
   "plugins": {
     "Haptics": {

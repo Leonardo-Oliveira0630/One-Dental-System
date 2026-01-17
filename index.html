@@ -4,6 +4,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>My Tooth System</title>
     
     <link rel="manifest" href="/manifest.json">
@@ -44,6 +47,7 @@
         margin: 0;
         padding: 0;
         overflow: hidden;
+        background-color: #f8fafc;
       }
 
       body {
@@ -52,13 +56,17 @@
         -webkit-tap-highlight-color: transparent;
         -webkit-touch-callout: none;
         user-select: none;
-        background-color: #f8fafc;
+        /* Garante que o app ocupe a altura correta no Android */
+        display: flex;
+        flex-direction: column;
       }
 
       #root {
+        flex: 1;
         height: 100%;
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
+        position: relative;
       }
 
       .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -71,6 +79,12 @@
       .scanner-overlay { background: rgba(0,0,0,0.5); position: relative; }
       .scanner-laser { height: 2px; background: #ef4444; position: absolute; left: 0; right: 0; top: 50%; box-shadow: 0 0 10px #ef4444; animation: scan 2s infinite ease-in-out; }
       @keyframes scan { 0% { top: 10%; } 50% { top: 90%; } 100% { top: 10%; } }
+
+      /* Ajuste para evitar que o conteúdo suma no Android Studio Emulator */
+      .android-fix {
+        min-height: 100vh;
+        width: 100%;
+      }
     </style>
 <script type="importmap">
 {
