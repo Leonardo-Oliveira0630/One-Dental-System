@@ -3,10 +3,9 @@
   "appId": "com.mytooth.eco",
   "appName": "My Tooth",
   "webDir": "dist",
-  "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https",
-    "cleartext": true
+    "allowNavigation": ["*"]
   },
   "plugins": {
     "Haptics": {
@@ -18,6 +17,12 @@
     },
     "Camera": {
       "presentationStyle": "fullscreen"
+    },
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0f172a",
+      "showSpinner": true,
+      "androidScaleType": "CENTER_CROP"
     }
   }
 }
