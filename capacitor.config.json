@@ -3,8 +3,10 @@
   "appId": "com.mytooth.eco",
   "appName": "My Tooth",
   "webDir": "dist",
+  "bundledWebRuntime": false,
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "cleartext": true
   },
   "plugins": {
     "Haptics": {
@@ -13,6 +15,9 @@
     "StatusBar": {
       "overlaysWebView": true,
       "style": "DARK"
+    },
+    "Camera": {
+      "presentationStyle": "fullscreen"
     }
   }
 }
