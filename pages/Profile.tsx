@@ -9,7 +9,7 @@ export const Profile = () => {
   const [loadingReset, setLoadingReset] = useState(false);
   const [loadingPush, setLoadingPush] = useState(false);
   const [resetRequested, setResetRequested] = useState(false);
-  const [notificationStatus, setNotificationStatus] = useState<PermissionState | 'unsupported'>(
+  const [notificationStatus, setNotificationStatus] = useState<NotificationPermission | 'unsupported'>(
     'Notification' in window ? Notification.permission : 'unsupported'
   );
 
