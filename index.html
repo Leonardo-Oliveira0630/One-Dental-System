@@ -43,7 +43,7 @@
         width: 100%;
         margin: 0;
         padding: 0;
-        overflow: hidden; /* Evita bounce scroll no container principal */
+        overflow: hidden;
       }
 
       body {
@@ -52,7 +52,7 @@
         -webkit-tap-highlight-color: transparent;
         -webkit-touch-callout: none;
         user-select: none;
-        background-color: #f8fafc; /* slate-50 */
+        background-color: #f8fafc;
       }
 
       #root {
@@ -66,7 +66,6 @@
       button { touch-action: manipulation; }
       button:active { transform: scale(0.96); opacity: 0.8; }
       
-      /* Ajuste para inputs não causarem zoom no iOS */
       input, select, textarea { font-size: 16px !important; }
 
       .scanner-overlay { background: rgba(0,0,0,0.5); position: relative; }
@@ -98,7 +97,8 @@
     "firebase-functions": "https://esm.sh/firebase-functions@^7.0.3",
     "firebase-admin": "https://esm.sh/firebase-admin@^13.6.0",
     "html5-qrcode": "https://esm.sh/html5-qrcode@^2.3.8",
-    "@capacitor/haptics": "https://esm.sh/@capacitor/haptics@^8.0.0"
+    "@capacitor/core": "https://esm.sh/@capacitor/core@^6.0.0",
+    "@capacitor/haptics": "https://esm.sh/@capacitor/haptics@^6.0.0"
   }
 }
 </script>
@@ -106,12 +106,5 @@
   <body class="bg-slate-50 text-slate-800 antialiased selection:bg-blue-100">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
-        });
-      }
-    </script>
   </body>
 </html>

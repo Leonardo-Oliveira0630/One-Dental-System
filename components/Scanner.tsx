@@ -5,13 +5,16 @@ import { Job, JobStatus, UserRole, CommissionStatus } from '../types';
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 
-// Dynamic import for Capacitor Plugins to avoid web errors
-const getHaptics = async () => {
+// Importação segura do Capacitor
+const playNativeHaptic = async (isSuccess: boolean) => {
     try {
         const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
-        return { Haptics, ImpactStyle };
+        await Haptics.impact({ style: isSuccess ? ImpactStyle.Medium : ImpactStyle.Heavy });
     } catch (e) {
-        return null;
+        // Fallback para Web Vibrate API
+        if (navigator.vibrate) {
+            navigator.vibrate(isSuccess ? [10, 30, 10] : [100, 50, 100]);
+        }
     }
 };
 
@@ -29,21 +32,8 @@ export const GlobalScanner: React.FC = () => {
   const SCANNER_TIMEOUT = 100;
   const MIN_LENGTH = 2;
 
-  // Feedback Tátil e Sonoro Nativo (Hibrido Web/Nativo)
-  const playNativeFeedback = async (success = true) => {
+  const playBeep = (success = true) => {
     try {
-        // Tenta usar Haptics Nativo (Capacitor)
-        const haptics = await getHaptics();
-        if (haptics) {
-            const { Haptics, ImpactStyle } = haptics;
-            await Haptics.impact({ style: success ? ImpactStyle.Medium : ImpactStyle.Heavy });
-        } else if (navigator.vibrate) {
-            // Fallback para Vibração Web (Android Chrome)
-            if (success) navigator.vibrate([10, 30, 10]);
-            else navigator.vibrate([100, 50, 100]);
-        }
-
-        // Feedback Sonoro
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
@@ -55,10 +45,9 @@ export const GlobalScanner: React.FC = () => {
         gainNode.connect(audioCtx.destination);
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.1);
-    } catch (e) { console.warn("Feedback failed:", e); }
+    } catch (e) {}
   };
 
-  // KEYBOARD LISTENER (Desktop/USB Scanners)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!currentUser || isCameraActive) return;
@@ -83,7 +72,6 @@ export const GlobalScanner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [jobs, currentUser, isCameraActive]);
 
-  // CAMERA SCANNER HANDLER
   useEffect(() => {
       if (isCameraActive && !scannerRef.current) {
           scannerRef.current = new Html5Qrcode("reader");
@@ -107,20 +95,19 @@ export const GlobalScanner: React.FC = () => {
 
   const stopCamera = async () => {
       if (scannerRef.current) {
-          try {
-            await scannerRef.current.stop();
-          } catch(e) {}
+          try { await scannerRef.current.stop(); } catch(e) {}
           scannerRef.current = null;
           setIsCameraActive(false);
       }
   };
 
-  const processScan = (code: string) => {
+  const processScan = async (code: string) => {
     setCommissionEarned(0);
     const job = jobs.find(j => (j.osNumber || '').toUpperCase() === code.toUpperCase() || j.id === code);
     
     if (job) {
-      playNativeFeedback(true);
+      await playNativeHaptic(true);
+      playBeep(true);
       if (currentUser?.sector) {
           const lastEvent = job.history[job.history.length - 1];
           const isLastActionEntryHere = lastEvent?.sector === currentUser.sector && lastEvent?.action.includes('Entrada');
@@ -143,7 +130,8 @@ export const GlobalScanner: React.FC = () => {
       }
       setScannedJob(job);
     } else {
-        playNativeFeedback(false);
+        await playNativeHaptic(false);
+        playBeep(false);
     }
   };
 
@@ -203,7 +191,7 @@ export const GlobalScanner: React.FC = () => {
               <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center text-white z-20">
                   <div>
                       <h3 className="font-bold text-lg">Leitor My Tooth</h3>
-                      <p className="text-xs opacity-70">Aponte para o código de barras da ficha</p>
+                      <p className="text-xs opacity-70">Aponte para o código de barras</p>
                   </div>
                   <button onClick={() => stopCamera()} className="p-2 bg-white/10 rounded-full"><X/></button>
               </div>
@@ -233,7 +221,7 @@ export const GlobalScanner: React.FC = () => {
         </div>
 
         <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6 space-y-3">
-            <div className="flex justify-between items-center border-b border-slate-200 pb-2"><span className="text-slate-500 text-xs font-bold uppercase">Ordem de Serviço</span><span className="font-mono font-black text-2xl text-blue-600">{scannedJob.osNumber || "N/A"}</span></div>
+            <div className="flex justify-between items-center border-b border-slate-200 pb-2"><span className="text-slate-500 text-xs font-bold uppercase">OS</span><span className="font-mono font-black text-2xl text-blue-600">{scannedJob.osNumber || "N/A"}</span></div>
             <div className="flex justify-between items-center"><span className="text-slate-500 text-xs font-bold uppercase">Paciente</span><span className="font-black text-slate-800">{scannedJob.patientName}</span></div>
         </div>
 
