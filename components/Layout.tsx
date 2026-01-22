@@ -6,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, 
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -188,6 +188,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 
                 <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2">Minha Clínica</p>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/finance" icon={<Wallet size={20} />} label="Financeiro" active={location.pathname === '/clinic/finance'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label="Consultórios" active={location.pathname === '/clinic/rooms'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label="Corpo Clínico" active={location.pathname === '/clinic/dentists'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
@@ -245,8 +246,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <>
               <MobileNavItem to="/schedule" icon={<CalendarRange size={22}/>} label="Agenda" active={location.pathname === '/schedule'} />
               <div className="relative -top-5">
-                 <Link to="/store" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-indigo-300 border-4 border-white active:scale-90 transition-transform">
-                    <ShoppingCart size={28}/>
+                 <Link to="/clinic/finance" className="w-14 h-14 bg-teal-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-teal-300 border-4 border-white active:scale-90 transition-transform">
+                    <Wallet size={28}/>
                  </Link>
               </div>
               <MobileNavItem to="/clinic/rooms" icon={<LayoutGrid size={22}/>} label="Salas" active={location.pathname === '/clinic/rooms'} />
