@@ -42,6 +42,24 @@ export interface Organization {
   };
 }
 
+// NOVO: Gestão de Salas da Clínica
+export interface ClinicRoom {
+  id: string;
+  name: string;
+  description?: string;
+  active: boolean;
+}
+
+// NOVO: Corpo Clínico (Dentistas da Clínica)
+export interface ClinicDentist {
+  id: string;
+  name: string;
+  cro: string;
+  specialty: string;
+  color: string; // Cor para identificar na agenda
+  active: boolean;
+}
+
 export interface DeliveryRoute {
   id: string;
   organizationId: string;
@@ -252,7 +270,6 @@ export interface JobType {
   imageUrl?: string;
 }
 
-// NOVO: Serviços internos da Clínica
 export interface ClinicService {
   id: string;
   name: string;
@@ -337,7 +354,7 @@ export enum AppointmentStatus {
 export interface Appointment {
   id: string;
   organizationId: string;
-  dentistId: string;
+  dentistId: string; // ID do dono da clínica ou do dentista contratado
   patientId: string;
   patientName: string;
   date: Date;
@@ -345,6 +362,8 @@ export interface Appointment {
   procedure: string;
   status: AppointmentStatus;
   notes?: string;
+  roomId?: string; // Sala onde ocorre o atendimento
+  clinicDentistId?: string; // Profissional que atende
 }
 
 export interface SubscriptionPlan {

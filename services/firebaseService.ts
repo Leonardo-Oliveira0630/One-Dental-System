@@ -22,7 +22,7 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist 
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -53,6 +53,28 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 };
 
 export const apiUpdateUser = (id: string, updates: Partial<User>) => updateDoc(doc(db, 'users', id), updates);
+
+// --- CLINIC ROOMS ---
+export const subscribeClinicRooms = (orgId: string, cb: (rooms: ClinicRoom[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/clinicRooms`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicRoom)));
+    });
+};
+export const apiAddClinicRoom = (orgId: string, room: ClinicRoom) => setDoc(doc(db, `organizations/${orgId}/clinicRooms`, room.id), room);
+export const apiUpdateClinicRoom = (orgId: string, id: string, updates: Partial<ClinicRoom>) => updateDoc(doc(db, `organizations/${orgId}/clinicRooms`, id), updates);
+export const apiDeleteClinicRoom = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/clinicRooms`, id));
+
+// --- CLINIC DENTISTS (CONTRACTED) ---
+export const subscribeClinicDentists = (orgId: string, cb: (dentists: ClinicDentist[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/clinicDentists`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicDentist)));
+    });
+};
+export const apiAddClinicDentist = (orgId: string, dentist: ClinicDentist) => setDoc(doc(db, `organizations/${orgId}/clinicDentists`, dentist.id), dentist);
+export const apiUpdateClinicDentist = (orgId: string, id: string, updates: Partial<ClinicDentist>) => updateDoc(doc(db, `organizations/${orgId}/clinicDentists`, id), updates);
+export const apiDeleteClinicDentist = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/clinicDentists`, id));
 
 // --- CLINIC SERVICES ---
 export const subscribeClinicServices = (orgId: string, cb: (services: ClinicService[]) => void) => {
@@ -151,16 +173,12 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
 };
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
 
-// CORREÇÃO DEFINITIVA: Usando path string e try-catch interno
 export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
     if (!orgId) {
         console.warn("[ProTrack] Tentativa de assinar trabalhos sem orgId");
         return () => {};
     }
     
-    console.log(`[ProTrack] Conectando à coleção: organizations/${orgId}/jobs`);
-    
-    // Consulta plana para evitar problemas de índice
     const q = query(collection(db, `organizations/${orgId}/jobs`));
     
     return onSnapshot(q, (snap: any) => {
@@ -176,9 +194,7 @@ export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
                 } as Job;
             });
             
-            // Ordenação em memória (seguro para Android e Web)
             const sortedJobs = rawJobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-            console.log(`[ProTrack] ${sortedJobs.length} trabalhos recebidos.`);
             cb(sortedJobs);
         } catch (err) {
             console.error("[ProTrack] Erro ao processar lista de trabalhos:", err);
@@ -300,8 +316,6 @@ export const apiValidateCoupon = async (code: string, planId: string): Promise<C
     return c;
 };
 
-// --- COUPON MANAGEMENT ---
-/* Fix: apiAddCoupon, apiUpdateCoupon, and apiDeleteCoupon missing functions added to handle superadmin coupon management */
 export const apiAddCoupon = (c: Coupon) => setDoc(doc(db, 'coupons', c.id), c);
 export const apiUpdateCoupon = (id: string, u: Partial<Coupon>) => updateDoc(doc(db, 'coupons', id), u);
 export const apiDeleteCoupon = (id: string) => deleteDoc(doc(db, 'coupons', id));

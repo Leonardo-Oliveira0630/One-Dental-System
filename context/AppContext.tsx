@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -25,6 +25,8 @@ interface AppContextType {
   jobs: Job[];
   jobTypes: JobType[];
   clinicServices: ClinicService[];
+  clinicRooms: ClinicRoom[];
+  clinicDentists: ClinicDentist[];
   sectors: Sector[];
   boxColors: BoxColor[];
   alerts: JobAlert[];
@@ -57,6 +59,14 @@ interface AppContextType {
   addClinicService: (service: Omit<ClinicService, 'id'>) => Promise<void>;
   updateClinicService: (id: string, updates: Partial<ClinicService>) => Promise<void>;
   deleteClinicService: (id: string) => Promise<void>;
+
+  addClinicRoom: (room: Omit<ClinicRoom, 'id'>) => Promise<void>;
+  updateClinicRoom: (id: string, updates: Partial<ClinicRoom>) => Promise<void>;
+  deleteClinicRoom: (id: string) => Promise<void>;
+
+  addClinicDentist: (dentist: Omit<ClinicDentist, 'id'>) => Promise<void>;
+  updateClinicDentist: (id: string, updates: Partial<ClinicDentist>) => Promise<void>;
+  deleteClinicDentist: (id: string) => Promise<void>;
 
   addSector: (name: string) => Promise<void>;
   deleteSector: (id: string) => Promise<void>;
@@ -129,6 +139,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobTypes, setJobTypes] = useState<JobType[]>([]);
   const [clinicServices, setClinicServices] = useState<ClinicService[]>([]);
+  const [clinicRooms, setClinicRooms] = useState<ClinicRoom[]>([]);
+  const [clinicDentists, setClinicDentists] = useState<ClinicDentist[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [boxColors, setBoxColors] = useState<BoxColor[]>([]);
   const [alerts, setAlerts] = useState<JobAlert[]>([]);
@@ -189,8 +201,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         }
                     });
                     api.subscribeAllLaboratories(setAllLaboratories);
-                    // NOVO: Escutar serviços internos da clínica
                     api.subscribeClinicServices(profileOrgId, setClinicServices);
+                    api.subscribeClinicRooms(profileOrgId, setClinicRooms);
+                    api.subscribeClinicDentists(profileOrgId, setClinicDentists);
                 }
             }
         }
@@ -202,6 +215,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         setUserConnections([]);
         setAllLaboratories([]);
         setClinicServices([]);
+        setClinicRooms([]);
+        setClinicDentists([]);
       }
       setIsLoadingAuth(false);
     });
@@ -293,7 +308,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiDeleteJobType(orgId, id);
   }
 
-  // NOVO: Handlers de ClinicService
   const addClinicService = async (service: Omit<ClinicService, 'id'>) => {
       const orgId = currentUser?.organizationId;
       if(!orgId) return;
@@ -308,6 +322,40 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = currentUser?.organizationId;
       if(!orgId) return;
       await api.apiDeleteClinicService(orgId, id);
+  };
+
+  // HANDLERS PARA SALAS (ROOMS)
+  const addClinicRoom = async (room: Omit<ClinicRoom, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddClinicRoom(orgId, { ...room, id: `room_${Date.now()}` } as ClinicRoom);
+  };
+  const updateClinicRoom = async (id: string, updates: Partial<ClinicRoom>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateClinicRoom(orgId, id, updates);
+  };
+  const deleteClinicRoom = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteClinicRoom(orgId, id);
+  };
+
+  // HANDLERS PARA DENTISTAS (CONTRACTED)
+  const addClinicDentist = async (dentist: Omit<ClinicDentist, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddClinicDentist(orgId, { ...dentist, id: `cdentist_${Date.now()}` } as ClinicDentist);
+  };
+  const updateClinicDentist = async (id: string, updates: Partial<ClinicDentist>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateClinicDentist(orgId, id, updates);
+  };
+  const deleteClinicDentist = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteClinicDentist(orgId, id);
   };
 
   const addSector = async (name: string) => {
@@ -447,12 +495,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   return (
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
-      allUsers, jobs, jobTypes, clinicServices, sectors, boxColors, alerts, commissions,
+      allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
       allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
       addJobType, updateJobType, deleteJobType,
       addClinicService, updateClinicService, deleteClinicService,
+      addClinicRoom, updateClinicRoom, deleteClinicRoom,
+      addClinicDentist, updateClinicDentist, deleteClinicDentist,
       addSector, deleteSector, addBoxColor, deleteBoxColor,
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       uploadFile: api.uploadJobFile,
