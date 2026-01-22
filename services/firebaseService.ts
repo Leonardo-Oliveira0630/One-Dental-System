@@ -22,7 +22,7 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService 
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -53,6 +53,17 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
 };
 
 export const apiUpdateUser = (id: string, updates: Partial<User>) => updateDoc(doc(db, 'users', id), updates);
+
+// --- CLINIC SERVICES ---
+export const subscribeClinicServices = (orgId: string, cb: (services: ClinicService[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/clinicServices`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicService)));
+    });
+};
+export const apiAddClinicService = (orgId: string, service: ClinicService) => setDoc(doc(db, `organizations/${orgId}/clinicServices`, service.id), service);
+export const apiUpdateClinicService = (orgId: string, id: string, updates: Partial<ClinicService>) => updateDoc(doc(db, `organizations/${orgId}/clinicServices`, id), updates);
+export const apiDeleteClinicService = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/clinicServices`, id));
 
 // --- FINANCE & ASAAS ---
 export const apiGetAsaasBalance = async (orgId: string) => {

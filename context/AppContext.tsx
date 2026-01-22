@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -24,6 +24,7 @@ interface AppContextType {
   allUsers: User[]; 
   jobs: Job[];
   jobTypes: JobType[];
+  clinicServices: ClinicService[];
   sectors: Sector[];
   boxColors: BoxColor[];
   alerts: JobAlert[];
@@ -52,6 +53,11 @@ interface AppContextType {
   addJobType: (type: Omit<JobType, 'id'>) => Promise<void>;
   updateJobType: (id: string, updates: Partial<JobType>) => Promise<void>;
   deleteJobType: (id: string) => Promise<void>;
+
+  addClinicService: (service: Omit<ClinicService, 'id'>) => Promise<void>;
+  updateClinicService: (id: string, updates: Partial<ClinicService>) => Promise<void>;
+  deleteClinicService: (id: string) => Promise<void>;
+
   addSector: (name: string) => Promise<void>;
   deleteSector: (id: string) => Promise<void>;
   
@@ -122,6 +128,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobTypes, setJobTypes] = useState<JobType[]>([]);
+  const [clinicServices, setClinicServices] = useState<ClinicService[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [boxColors, setBoxColors] = useState<BoxColor[]>([]);
   const [alerts, setAlerts] = useState<JobAlert[]>([]);
@@ -140,48 +147,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<AppContextType['printData']>(null);
-
-  // LOG DE ESTADO CRÍTICO
-  useEffect(() => {
-      console.log("[AppContext] Status Log:", { 
-          hasUser: !!currentUser, 
-          role: currentUser?.role, 
-          orgId: currentUser?.organizationId,
-          activeOrgId: activeOrganization?.id 
-      });
-  }, [currentUser, activeOrganization]);
-
-  // ID Crítico: Decidimos qual laboratório escutar agora
-  const activeDataId = useMemo(() => {
-      if (currentUser?.role === UserRole.CLIENT) {
-          return activeOrganization?.id || null;
-      }
-      return currentUser?.organizationId || null;
-  }, [currentUser, activeOrganization]);
-
-  useEffect(() => {
-    if (!currentUser || alerts.length === 0) {
-        setActiveAlert(null);
-        return;
-    }
-    const checkAlerts = () => {
-        const now = new Date();
-        const alertToShow = alerts.find(a => {
-            const isScheduled = new Date(a.scheduledFor) <= now;
-            const notRead = !a.readBy?.includes(currentUser.id);
-            const forMe = (a.targetUserId === currentUser.id) || (a.targetSector && a.targetSector === currentUser.sector);
-            return isScheduled && notRead && forMe;
-        });
-        if (alertToShow && (!activeAlert || activeAlert.id !== alertToShow.id)) {
-            setActiveAlert(alertToShow);
-        } else if (!alertToShow) {
-            setActiveAlert(null);
-        }
-    };
-    checkAlerts();
-    const interval = setInterval(checkAlerts, 10000);
-    return () => clearInterval(interval);
-  }, [alerts, currentUser, activeAlert]);
 
   useEffect(() => {
     if (!db) return;
@@ -224,6 +189,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         }
                     });
                     api.subscribeAllLaboratories(setAllLaboratories);
+                    // NOVO: Escutar serviços internos da clínica
+                    api.subscribeClinicServices(profileOrgId, setClinicServices);
                 }
             }
         }
@@ -234,36 +201,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         setActiveOrganization(null);
         setUserConnections([]);
         setAllLaboratories([]);
+        setClinicServices([]);
       }
       setIsLoadingAuth(false);
     });
     return unsub;
   }, []);
 
-  // ESCUTA DE TRABALHOS (JOBS) - CENTRALIZADA
+  const activeDataId = useMemo(() => {
+      if (currentUser?.role === UserRole.CLIENT) {
+          return activeOrganization?.id || null;
+      }
+      return currentUser?.organizationId || null;
+  }, [currentUser, activeOrganization]);
+
   useEffect(() => {
     if (!db || !currentUser || !activeDataId) {
-        setJobs([]); // Limpa se não tiver ID ativo
+        setJobs([]);
         return;
     }
-    
-    console.log(`[AppContext] Ativando subscrição para ORG: ${activeDataId}`);
-    
     const unsubs: (() => void)[] = [];
-    
-    // Subs aos trabalhos do laboratório ativo selecionado
-    unsubs.push(api.subscribeJobs(activeDataId, (newJobs) => {
-        setJobs(newJobs);
-    }));
-    
+    unsubs.push(api.subscribeJobs(activeDataId, setJobs));
     unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
 
-    // Dados da própria clínica/lab do usuário logado
     const myOrgId = currentUser.organizationId;
     if (myOrgId) {
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
-        
         if (currentUser.role !== UserRole.CLIENT) {
             unsubs.push(api.subscribeOrgUsers(myOrgId, setAllUsers));
             unsubs.push(api.subscribeSectors(myOrgId, setSectors));
@@ -273,15 +237,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
         }
     }
-
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
-
-    return () => {
-        console.log(`[AppContext] Limpando subs para ORG: ${activeDataId}`);
-        unsubs.forEach(u => u());
-    };
+    return () => unsubs.forEach(u => u());
   }, [currentUser, activeDataId]);
 
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
@@ -289,11 +248,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const updateUser = async (id: string, u: Partial<User>) => {
     if (!currentUser) return;
-    if (id === currentUser.id) {
-      await api.apiUpdateUser(id, u);
-    } else {
-      await api.apiUpdateUserAdmin(id, u);
-    }
+    if (id === currentUser.id) await api.apiUpdateUser(id, u);
+    else await api.apiUpdateUserAdmin(id, u);
   };
 
   const addUser = async (u: User) => await api.apiAddUser(u);
@@ -336,6 +292,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if(!orgId) return;
       await api.apiDeleteJobType(orgId, id);
   }
+
+  // NOVO: Handlers de ClinicService
+  const addClinicService = async (service: Omit<ClinicService, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddClinicService(orgId, { ...service, id: `cservice_${Date.now()}` } as ClinicService);
+  };
+  const updateClinicService = async (id: string, updates: Partial<ClinicService>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateClinicService(orgId, id, updates);
+  };
+  const deleteClinicService = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteClinicService(orgId, id);
+  };
+
   const addSector = async (name: string) => {
       const orgId = currentUser?.organizationId;
       if(!orgId) return;
@@ -440,10 +414,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const switchActiveOrganization = (id: string | null) => {
-    if (!id) {
-        setActiveOrganization(null);
-        return;
-    }
+    if (!id) { setActiveOrganization(null); return; }
     const found = userConnections.find(o => o.organizationId === id);
     if (found) {
         getDoc(doc(db, 'organizations', id)).then((snap: any) => {
@@ -455,39 +426,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => {
       const orgId = currentUser?.organizationId;
       if (!orgId) return;
-
       const dateStr = date.toISOString().split('T')[0];
       const routeId = `route_${dateStr}_${shift}_${driver.replace(/\s+/g, '_')}`;
-      
       const routeSnap = await getDoc(doc(db, 'organizations', orgId, 'routes', routeId));
       if (!routeSnap.exists()) {
           await api.apiAddRoute(orgId, {
-              id: routeId,
-              organizationId: orgId,
-              date: date,
-              shift: shift,
-              driverName: driver,
-              status: 'OPEN',
-              createdAt: new Date()
+              id: routeId, organizationId: orgId, date: date, shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
           });
       }
-
       const dentist = manualDentists.find(d => d.id === job.dentistId);
       const onlineDentist = allUsers.find(u => u.id === job.dentistId);
       const address = dentist ? `${dentist.address}, ${dentist.number} - ${dentist.city}` : (onlineDentist?.address || 'Endereço não cadastrado');
-
       const routeItem: RouteItem = {
-          id: `item_${Date.now()}`,
-          routeId: routeId,
-          jobId: job.id,
-          dentistId: job.dentistId,
-          dentistName: job.dentistName,
-          patientName: job.patientName,
-          address: address,
-          type: 'DELIVERY',
-          order: Date.now() 
+          id: `item_${Date.now()}`, routeId: routeId, jobId: job.id, dentistId: job.dentistId, dentistName: job.dentistName, patientName: job.patientName, address: address, type: 'DELIVERY', order: Date.now() 
       };
-
       await api.apiAddRouteItem(orgId, routeId, routeItem);
       await api.apiUpdateJob(orgId, job.id, { routeId });
   };
@@ -495,11 +447,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   return (
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
-      allUsers, jobs, jobTypes, sectors, boxColors, alerts, commissions,
+      allUsers, jobs, jobTypes, clinicServices, sectors, boxColors, alerts, commissions,
       allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
-      addJobType, updateJobType, deleteJobType, addSector, deleteSector, addBoxColor, deleteBoxColor,
+      addJobType, updateJobType, deleteJobType,
+      addClinicService, updateClinicService, deleteClinicService,
+      addSector, deleteSector, addBoxColor, deleteBoxColor,
       cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
       uploadFile: api.uploadJobFile,
       printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), 

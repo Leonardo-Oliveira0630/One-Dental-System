@@ -1,3 +1,4 @@
+
 export type TransactionType = 'INCOME' | 'EXPENSE';
 export type TransactionCategory = 
   | 'PRODUCTION' 
@@ -249,6 +250,17 @@ export interface JobType {
   variationGroups: VariationGroup[];
   isVisibleInStore?: boolean;
   imageUrl?: string;
+}
+
+// NOVO: Serviços internos da Clínica
+export interface ClinicService {
+  id: string;
+  name: string;
+  category: string;
+  description?: string;
+  price: number;
+  durationMinutes: number;
+  active: boolean;
 }
 
 export interface UserCommissionSetting {
