@@ -2,11 +2,24 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Appointment, AppointmentStatus } from '../../types';
-import { Calendar as CalendarIcon, Clock, User, Plus, X, Trash2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, LayoutGrid, Stethoscope } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, User, Plus, X, Trash2, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, LayoutGrid, Stethoscope, Briefcase } from 'lucide-react';
 import { FeatureLocked } from '../../components/FeatureLocked';
 
 export const Schedule = () => {
-  const { appointments, patients, clinicRooms, clinicDentists, addAppointment, updateAppointment, deleteAppointment, currentUser, currentPlan, activeOrganization } = useApp();
+  const { 
+    appointments, 
+    patients, 
+    clinicRooms, 
+    clinicDentists, 
+    clinicServices, // Adicionado para buscar os serviços cadastrados
+    addAppointment, 
+    updateAppointment, 
+    deleteAppointment, 
+    currentUser, 
+    currentPlan, 
+    activeOrganization 
+  } = useApp();
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
@@ -57,6 +70,15 @@ export const Schedule = () => {
     setIsModalOpen(true);
   };
 
+  // Handler para quando o dentista seleciona um serviço cadastrado
+  const handleServiceChange = (serviceName: string) => {
+      setProcedure(serviceName);
+      const serviceInfo = clinicServices.find(s => s.name === serviceName);
+      if (serviceInfo) {
+          setDuration(serviceInfo.durationMinutes);
+      }
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -102,6 +124,9 @@ export const Schedule = () => {
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
+
+  // Filtra apenas serviços ativos
+  const activeServices = clinicServices.filter(s => s.active);
 
   return (
     <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
@@ -221,6 +246,29 @@ export const Schedule = () => {
                         {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                 </div>
+                
+                {/* CAMPO DE PROCEDIMENTO ATUALIZADO: Agora é uma seleção baseada no cadastro de serviços */}
+                <div className="md:col-span-2">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Procedimento / Serviço</label>
+                    <div className="relative">
+                        <Briefcase className="absolute left-3 top-3.5 text-slate-400" size={18} />
+                        <select 
+                            required 
+                            value={procedure} 
+                            onChange={e => handleServiceChange(e.target.value)}
+                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                        >
+                            <option value="">Selecione um procedimento cadastrado...</option>
+                            {activeServices.map(s => (
+                                <option key={s.id} value={s.name}>{s.name} ({s.category})</option>
+                            ))}
+                            {activeServices.length === 0 && (
+                                <option disabled>Nenhum serviço ativo encontrado em "Meus Serviços"</option>
+                            )}
+                        </select>
+                    </div>
+                </div>
+
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Horário</label>
                     <input type="time" required value={time} onChange={e => setTime(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold" />
@@ -244,11 +292,13 @@ export const Schedule = () => {
                     </select>
                 </div>
                 <div className="md:col-span-2">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Procedimento</label>
-                    <input required value={procedure} onChange={e => setProcedure(e.target.value)} placeholder="Ex: Moldagem Prótese" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl font-bold" />
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Observações da Consulta</label>
+                    <textarea value={notes} onChange={e => setNotes(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium h-20 resize-none" placeholder="Detalhes importantes para o atendimento..." />
                 </div>
               </div>
-              <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 mt-4">SALVAR NA AGENDA</button>
+              <button type="submit" className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 mt-4 transition-all active:scale-95">
+                  CONFIRMAR AGENDAMENTO
+              </button>
             </form>
           </div>
         </div>
