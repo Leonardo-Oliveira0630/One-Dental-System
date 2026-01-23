@@ -22,7 +22,7 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord 
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -32,6 +32,31 @@ const toDate = (val: any) => {
     if (val?.seconds) return new Date(val.seconds * 1000);
     if (val instanceof Date) return val;
     return new Date(val);
+};
+
+// --- PRONTUÁRIO / HISTÓRICO DO PACIENTE ---
+export const subscribePatientHistory = (orgId: string, patientId: string, cb: (history: PatientHistoryRecord[]) => void) => {
+    if (!orgId || !patientId) return () => {};
+    const q = query(
+        collection(db, `organizations/${orgId}/patients/${patientId}/history`),
+        orderBy('date', 'desc')
+    );
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id,
+            ...d.data(),
+            date: toDate(d.data().date),
+            createdAt: toDate(d.data().createdAt)
+        } as PatientHistoryRecord)));
+    });
+};
+
+export const apiAddPatientHistory = (orgId: string, patientId: string, record: PatientHistoryRecord) => {
+    return setDoc(doc(db, `organizations/${orgId}/patients/${patientId}/history`, record.id), record);
+};
+
+export const apiDeletePatientHistory = (orgId: string, patientId: string, recordId: string) => {
+    return deleteDoc(doc(db, `organizations/${orgId}/patients/${patientId}/history`, recordId));
 };
 
 // --- AUTH & PROFILE ---

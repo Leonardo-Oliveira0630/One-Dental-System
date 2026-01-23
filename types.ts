@@ -42,7 +42,6 @@ export interface Organization {
   };
 }
 
-// NOVO: Gestão de Salas da Clínica
 export interface ClinicRoom {
   id: string;
   name: string;
@@ -50,13 +49,12 @@ export interface ClinicRoom {
   active: boolean;
 }
 
-// NOVO: Corpo Clínico (Dentistas da Clínica)
 export interface ClinicDentist {
   id: string;
   name: string;
   cro: string;
   specialty: string;
-  color: string; // Cor para identificar na agenda
+  color: string; 
   active: boolean;
 }
 
@@ -344,6 +342,19 @@ export interface ClinicPatient {
   createdAt: Date;
 }
 
+// NOVO: Prontuário do Paciente
+export interface PatientHistoryRecord {
+  id: string;
+  patientId: string;
+  type: 'PROCEDURE' | 'SCAN' | 'XRAY' | 'EVOLUTION' | 'NOTE';
+  description: string;
+  date: Date;
+  attachments?: Attachment[];
+  professionalId?: string;
+  professionalName?: string;
+  createdAt: Date;
+}
+
 export enum AppointmentStatus {
   SCHEDULED = 'SCHEDULED',
   CONFIRMED = 'CONFIRMED',
@@ -354,7 +365,7 @@ export enum AppointmentStatus {
 export interface Appointment {
   id: string;
   organizationId: string;
-  dentistId: string; // ID do dono da clínica ou do dentista contratado
+  dentistId: string; 
   patientId: string;
   patientName: string;
   date: Date;
@@ -362,8 +373,8 @@ export interface Appointment {
   procedure: string;
   status: AppointmentStatus;
   notes?: string;
-  roomId?: string; // Sala onde ocorre o atendimento
-  clinicDentistId?: string; // Profissional que atende
+  roomId?: string; 
+  clinicDentistId?: string; 
 }
 
 export interface SubscriptionPlan {
