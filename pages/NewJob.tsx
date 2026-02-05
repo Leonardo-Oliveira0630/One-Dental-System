@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { getContrastColor } from '../services/mockData';
-import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag } from 'lucide-react';
+import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle } from 'lucide-react';
 
 type EntryType = 'NEW' | 'CONTINUATION';
 
@@ -198,15 +198,38 @@ export const NewJob = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || addedItems.length === 0) { alert("Adicione pelo menos um item."); return; }
-    if (!dentistName) { alert("Identifique o dentista."); return; }
+    // PARA FINS DE TESTE: Apenas o número da OS é obrigatório agora.
+    if (!osNumber) { alert("O número da OS é obrigatório."); return; }
+    if (!currentUser) return;
+
+    const finalPatient = patientName.trim() || "Paciente Não Informado";
+    const finalDentist = dentistName.trim() || "Dentista Não Informado";
+
     const totalValue = addedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const boxColor = boxColors.find(c => c.id === selectedColorId);
+    
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
-        osNumber, patientName, dentistId: selectedDentistId || 'manual-entry', dentistName: dentistName, status: JobStatus.PENDING, paymentStatus: 'PENDING', urgency, items: addedItems, history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Entrada Manual registrada`, userId: currentUser.id, userName: currentUser.name, sector: 'Recepção' }], createdAt: new Date(), dueDate: new Date(dueDate), boxNumber, boxColor, currentSector: 'Recepção', totalValue, notes 
+        osNumber, 
+        patientName: finalPatient, 
+        dentistId: selectedDentistId || 'manual-entry', 
+        dentistName: finalDentist, 
+        status: JobStatus.PENDING, 
+        paymentStatus: 'PENDING', 
+        urgency, 
+        items: addedItems, 
+        history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Entrada Manual registrada (Modo Teste)`, userId: currentUser.id, userName: currentUser.name, sector: 'Recepção' }], 
+        createdAt: new Date(), 
+        dueDate: new Date(dueDate), 
+        boxNumber, 
+        boxColor, 
+        currentSector: 'Recepção', 
+        totalValue, 
+        notes 
     };
+
     try {
-        await addJob(newJob); setLastCreatedJob({ ...newJob, id: 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
+        await addJob(newJob); 
+        setLastCreatedJob({ ...newJob, id: 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
     } catch (err) { alert("Erro ao salvar."); }
   };
 
@@ -244,6 +267,15 @@ export const NewJob = () => {
                 <button type="button" onClick={() => setEntryType('CONTINUATION')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'CONTINUATION' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Retorno</button>
             </div>
         </div>
+
+        {/* ALERTA DE MODO TESTE */}
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3">
+            <AlertCircle className="text-amber-600 shrink-0" size={20} />
+            <div>
+                <p className="text-sm font-bold text-amber-900">Modo de Teste Ativo</p>
+                <p className="text-xs text-amber-700">Apenas o **Número da OS** é obrigatório para salvar o caso. Outros campos serão preenchidos automaticamente se vazios.</p>
+            </div>
+        </div>
         
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8">
             <div className="lg:col-span-8 space-y-4 md:space-y-6">
@@ -252,20 +284,19 @@ export const NewJob = () => {
                   <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação</h2>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
-                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nº OS</label>
-                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all" />
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nº OS <span className="text-red-500">*</span></label>
+                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all" />
                     </div>
                     <div className="md:col-span-9">
                          <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Paciente</label>
-                         <input value={patientName} onChange={e => setPatientName(e.target.value)} required placeholder="Nome do Paciente" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold" />
+                         <input value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Opcional - Nome do Paciente" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold" />
                     </div>
                     
                     <div className="md:col-span-12 relative" ref={dropdownRef}>
                       <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Dentista ou Clínica (Busca)</label>
                       <div className="relative">
                         <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
-                        {/* Fix: use setDentistSearchQuery instead of setdentistSearchQuery */}
-                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Digite o nome..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
+                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Opcional - Digite o nome..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
                       </div>
                       {showDentistSuggestions && dentistSearchQuery.length > 0 && (
                           <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
@@ -285,7 +316,7 @@ export const NewJob = () => {
                 </div>
 
                 <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> Serviços e Variações</h2>
+                    <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> Serviços e Variações (Opcional)</h2>
                     <div className="bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-200 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -299,6 +330,7 @@ export const NewJob = () => {
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Tipo de Prótese</label>
                                     <select value={selectedTypeId} onChange={e => setSelectedTypeId(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm">
+                                        <option value="">Selecione para adicionar...</option>
                                         {jobTypes.map(type => (<option key={type.id} value={type.id}>{type.name}</option>))}
                                     </select>
                                 </div>
@@ -344,7 +376,7 @@ export const NewJob = () => {
                         </div>
 
                         <button type="button" onClick={handleAddItem} disabled={!selectedTypeId} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-100 disabled:opacity-50">
-                            <Plus size={20} /> ADICIONAR ITEM
+                            <Plus size={20} /> ADICIONAR ITEM À LISTA
                         </button>
                     </div>
 
@@ -401,7 +433,8 @@ export const NewJob = () => {
                         <span className="text-[10px] font-black text-slate-400 uppercase">Total Geral</span>
                         <span className="text-2xl font-black text-slate-900">R$ {addedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0).toFixed(2)}</span>
                     </div>
-                    <button type="submit" disabled={addedItems.length === 0} className="w-full py-5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-2xl hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale"><FileCheck size={24} /> SALVAR CASO</button>
+                    <button type="submit" className="w-full py-5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-2xl hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3"><FileCheck size={24} /> SALVAR CASO</button>
+                    <p className="text-[10px] text-center text-slate-400 mt-2 font-bold uppercase">Nº da OS é o único campo obrigatório.</p>
                 </div>
               </div>
             </div>
