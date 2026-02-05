@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UrgencyLevel } from '../types';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertTriangle, CheckCircle, Clock, X, Save, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getContrastColor } from '../services/mockData';
 
 export const ProductionCalendar = () => {
   const { jobs, updateJob, currentUser } = useApp();
@@ -155,25 +157,46 @@ export const ProductionCalendar = () => {
                             {day}
                         </div>
                         
-                        <div className="flex-1 space-y-1 overflow-y-auto max-h-[120px] scrollbar-thin scrollbar-thumb-slate-200">
+                        <div className="flex-1 space-y-1 overflow-y-auto max-h-[140px] no-scrollbar">
                             {dayJobs.map(job => {
                                 const isVip = job.urgency === UrgencyLevel.VIP || job.urgency === UrgencyLevel.HIGH;
                                 const isDone = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
+                                const boxColorHex = job.boxColor?.hex || '#cbd5e1';
                                 
                                 return (
                                     <button
                                         key={job.id}
                                         onClick={() => handleJobClick(job)}
-                                        className={`w-full text-left p-1.5 rounded-lg text-[10px] font-medium border shadow-sm transition-all hover:scale-[1.02] flex items-center gap-1.5 truncate ${
+                                        className={`w-full text-left p-1 rounded-lg border shadow-sm transition-all hover:scale-[1.02] flex items-start gap-1.5 ${
                                             isDone 
-                                                ? 'bg-green-50 text-green-700 border-green-100 opacity-60 line-through'
+                                                ? 'bg-green-50/50 text-green-700 border-green-100 opacity-60'
                                                 : isVip 
-                                                    ? 'bg-orange-50 text-orange-800 border-orange-200'
-                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300'
+                                                    ? 'bg-orange-50 border-orange-200'
+                                                    : 'bg-white border-slate-100 hover:border-blue-200'
                                         }`}
                                     >
-                                        {isVip && <AlertTriangle size={10} className="shrink-0 text-orange-500" />}
-                                        <span className="truncate">{job.osNumber} - {job.patientName}</span>
+                                        {/* Quadrado da Caixa */}
+                                        <div 
+                                            className={`w-5 h-5 shrink-0 rounded flex items-center justify-center font-black text-[9px] shadow-sm border border-black/10 mt-0.5`}
+                                            style={{ backgroundColor: boxColorHex, color: getContrastColor(boxColorHex) }}
+                                        >
+                                            {job.boxNumber || '-'}
+                                        </div>
+
+                                        <div className="flex-1 min-w-0 flex flex-col leading-[1.1]">
+                                            <div className="flex items-center gap-1">
+                                                <span className="truncate font-black text-slate-800 uppercase tracking-tighter" style={{ fontSize: '9px' }}>
+                                                    {job.dentistName}
+                                                </span>
+                                                {isVip && <AlertTriangle size={8} className="shrink-0 text-orange-500" />}
+                                            </div>
+                                            <span className="truncate text-slate-500 font-bold uppercase" style={{ fontSize: '8px' }}>
+                                                {job.patientName}
+                                            </span>
+                                            <span className="truncate text-blue-600 font-mono font-black tracking-widest" style={{ fontSize: '8px' }}>
+                                                #{job.osNumber}
+                                            </span>
+                                        </div>
                                     </button>
                                 );
                             })}
