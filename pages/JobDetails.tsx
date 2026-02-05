@@ -7,7 +7,7 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -386,7 +386,16 @@ export const JobDetails = () => {
                             </div>
                         )}
                     </div>
-                    {job.urgency === UrgencyLevel.VIP && <span className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-orange-100 text-orange-700 border border-orange-200 uppercase tracking-tighter"><AlertTriangle size={12} /> VIP / URGENTE</span>}
+
+                    {/* URGENCE BADGE */}
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border flex items-center gap-1.5 ${
+                        job.urgency === UrgencyLevel.VIP ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                        job.urgency === UrgencyLevel.HIGH ? 'bg-red-50 text-red-700 border-red-200' :
+                        'bg-slate-50 text-slate-500 border-slate-200'
+                    }`}>
+                        {job.urgency === UrgencyLevel.VIP ? <Crown size={12}/> : <AlertTriangle size={12}/>}
+                        PRIORIDADE: {job.urgency}
+                    </div>
                     
                     {/* CHAT STATUS INDICATOR */}
                     {isLabStaff && (

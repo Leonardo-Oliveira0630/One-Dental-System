@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { getContrastColor } from '../services/mockData';
-import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle } from 'lucide-react';
+// Added Crown to the lucide-react imports to fix line 404 error
+import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown } from 'lucide-react';
 
 type EntryType = 'NEW' | 'CONTINUATION';
 
@@ -386,6 +387,27 @@ export const NewJob = () => {
             <div className="lg:col-span-4 space-y-4 md:space-y-6">
               <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-6 space-y-6">
                 <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Box size={18} className="text-blue-500" /> Logística Interna</h2>
+
+                <div>
+                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nível de Prioridade</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {[UrgencyLevel.LOW, UrgencyLevel.NORMAL, UrgencyLevel.HIGH, UrgencyLevel.VIP].map(level => (
+                            <button
+                                key={level}
+                                type="button"
+                                onClick={() => setUrgency(level)}
+                                className={`py-2 px-1 text-[10px] font-black uppercase rounded-xl border-2 transition-all flex items-center justify-center gap-1 ${
+                                    urgency === level 
+                                    ? level === UrgencyLevel.VIP ? 'bg-orange-600 border-orange-600 text-white shadow-lg' : 'bg-blue-600 border-blue-600 text-white shadow-lg'
+                                    : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                                }`}
+                            >
+                                {level === UrgencyLevel.VIP && <Crown size={12}/>}
+                                {level}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Previsão de Saída <span className="text-red-500">*</span></label>
