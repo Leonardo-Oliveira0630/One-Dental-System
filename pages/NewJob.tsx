@@ -198,26 +198,27 @@ export const NewJob = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // PARA FINS DE TESTE: Apenas o número da OS é obrigatório agora.
+    
+    // VALIDAÇÕES DE PRODUÇÃO
     if (!osNumber) { alert("O número da OS é obrigatório."); return; }
+    if (!patientName.trim()) { alert("O nome do paciente é obrigatório."); return; }
+    if (!selectedDentistId || !dentistName.trim()) { alert("A seleção do dentista é obrigatória."); return; }
+    if (addedItems.length === 0) { alert("Adicione pelo menos um serviço ao caso."); return; }
     if (!currentUser) return;
-
-    const finalPatient = patientName.trim() || "Paciente Não Informado";
-    const finalDentist = dentistName.trim() || "Dentista Não Informado";
 
     const totalValue = addedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const boxColor = boxColors.find(c => c.id === selectedColorId);
     
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
         osNumber, 
-        patientName: finalPatient, 
-        dentistId: selectedDentistId || 'manual-entry', 
-        dentistName: finalDentist, 
+        patientName: patientName.trim(), 
+        dentistId: selectedDentistId, 
+        dentistName: dentistName.trim(), 
         status: JobStatus.PENDING, 
         paymentStatus: 'PENDING', 
         urgency, 
         items: addedItems, 
-        history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Entrada Manual registrada (Modo Teste)`, userId: currentUser.id, userName: currentUser.name, sector: 'Recepção' }], 
+        history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Caso registrado manualmente via Recepção`, userId: currentUser.id, userName: currentUser.name, sector: 'Recepção' }], 
         createdAt: new Date(), 
         dueDate: new Date(dueDate), 
         boxNumber, 
@@ -230,16 +231,8 @@ export const NewJob = () => {
     try {
         await addJob(newJob); 
         setLastCreatedJob({ ...newJob, id: 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
-    } catch (err) { alert("Erro ao salvar."); }
+    } catch (err) { alert("Erro ao salvar o caso no sistema."); }
   };
-
-  const currentPricingStatus = useMemo(() => {
-    if (!selectedDentistObj) return null;
-    const hasGlobal = !!selectedDentistObj.globalDiscountPercent;
-    const hasCustom = !!selectedDentistObj.customPrices?.length;
-    if (hasCustom || hasGlobal) return { global: selectedDentistObj.globalDiscountPercent || 0, items: selectedDentistObj.customPrices?.length || 0 };
-    return null;
-  }, [selectedDentistObj]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 pb-20 animate-in fade-in duration-500">
@@ -248,10 +241,10 @@ export const NewJob = () => {
               <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={40} className="text-green-600" /></div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">Caso Cadastrado!</h2>
-                <p className="text-sm text-slate-500 mb-8">A Ordem de Serviço foi gerada com sucesso.</p>
+                <p className="text-sm text-slate-500 mb-8">A Ordem de Serviço foi gerada com sucesso e está pronta para produção.</p>
                 <div className="grid grid-cols-1 gap-3">
-                  <button onClick={() => { triggerPrint(lastCreatedJob, 'SHEET'); setLastCreatedJob(null); navigate('/jobs'); }} className="w-full py-4 flex items-center justify-center gap-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg transition-all"><Printer size={20} /> Imprimir Ficha</button>
-                  <button onClick={() => { setLastCreatedJob(null); navigate('/jobs'); }} className="w-full py-4 flex items-center justify-center gap-3 border-2 border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"><ArrowRight size={20} /> Ver na Lista</button>
+                  <button onClick={() => { triggerPrint(lastCreatedJob, 'SHEET'); setLastCreatedJob(null); navigate('/jobs'); }} className="w-full py-4 flex items-center justify-center gap-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg transition-all"><Printer size={20} /> Imprimir Ficha de Trabalho</button>
+                  <button onClick={() => { setLastCreatedJob(null); navigate('/jobs'); }} className="w-full py-4 flex items-center justify-center gap-3 border-2 border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"><ArrowRight size={20} /> Ir para Lista de Trabalhos</button>
                 </div>
               </div>
             </div>
@@ -260,20 +253,11 @@ export const NewJob = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <h1 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter"><Plus className="text-blue-600" /> Nova OS de Bancada</h1>
-                <p className="text-xs md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60">Entrada física no Laboratório</p>
+                <p className="text-xs md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60">Entrada física de trabalhos no Laboratório</p>
             </div>
             <div className="flex bg-slate-200 p-1 rounded-xl w-full md:w-auto">
-                <button type="button" onClick={() => setEntryType('NEW')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'NEW' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Novo Caso</button>
-                <button type="button" onClick={() => setEntryType('CONTINUATION')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'CONTINUATION' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Retorno</button>
-            </div>
-        </div>
-
-        {/* ALERTA DE MODO TESTE */}
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3">
-            <AlertCircle className="text-amber-600 shrink-0" size={20} />
-            <div>
-                <p className="text-sm font-bold text-amber-900">Modo de Teste Ativo</p>
-                <p className="text-xs text-amber-700">Apenas o **Número da OS** é obrigatório para salvar o caso. Outros campos serão preenchidos automaticamente se vazios.</p>
+                <button type="button" onClick={() => setEntryType('NEW')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'NEW' ? 'bg-white text-blue-600 shadow' : 'text-slate-50'}`}>Novo Caso</button>
+                <button type="button" onClick={() => setEntryType('CONTINUATION')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'CONTINUATION' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Retorno / Ajuste</button>
             </div>
         </div>
         
@@ -281,33 +265,33 @@ export const NewJob = () => {
             <div className="lg:col-span-8 space-y-4 md:space-y-6">
                 
                 <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
-                  <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação</h2>
+                  <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação Obrigatória</h2>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nº OS <span className="text-red-500">*</span></label>
                         <input value={osNumber} onChange={e => setOsNumber(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all" />
                     </div>
                     <div className="md:col-span-9">
-                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Paciente</label>
-                         <input value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Opcional - Nome do Paciente" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold" />
+                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nome do Paciente <span className="text-red-500">*</span></label>
+                         <input value={patientName} onChange={e => setPatientName(e.target.value)} required placeholder="Ex: Maria das Dores" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold" />
                     </div>
                     
                     <div className="md:col-span-12 relative" ref={dropdownRef}>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Dentista ou Clínica (Busca)</label>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Selecionar Dentista ou Clínica <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
-                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Opcional - Digite o nome..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
+                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Digite o nome do dentista..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
                       </div>
                       {showDentistSuggestions && dentistSearchQuery.length > 0 && (
                           <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
                              <div className="max-h-60 overflow-y-auto">
                                 {suggestions.map(d => (
                                     <button key={d.id} type="button" onClick={() => selectDentist(d)} className="w-full text-left p-4 hover:bg-blue-50 flex items-center justify-between border-b border-slate-50 last:border-0 group">
-                                        <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${d.type === 'ONLINE' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-50'}`}><Stethoscope size={16} /></div><div><p className="font-black text-slate-800 text-sm">{d.name}</p>{d.clinicName && <p className="text-[9px] text-slate-400 uppercase font-black">{d.clinicName}</p>}</div></div>
+                                        <div className="flex items-center gap-3"><div className={`p-2 rounded-lg ${d.type === 'ONLINE' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}><Stethoscope size={16} /></div><div><p className="font-black text-slate-800 text-sm">{d.name}</p>{d.clinicName && <p className="text-[9px] text-slate-400 uppercase font-black">{d.clinicName}</p>}</div></div>
                                         <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${d.type === 'ONLINE' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'}`}>{d.type === 'ONLINE' ? 'WEB' : 'INTERNO'}</span>
                                     </button>
                                 ))}
-                                <button type="button" onClick={handleManualDentistEntry} className="w-full text-left p-4 bg-slate-50 hover:bg-blue-600 hover:text-white transition-all group flex items-center gap-3 border-t"><div className="p-2 rounded-lg bg-white shadow-sm"><Plus size={16} className="text-blue-600" /></div><p className="text-xs font-black uppercase tracking-wider">Usar Avulso: "{dentistSearchQuery}"</p></button>
+                                <button type="button" onClick={handleManualDentistEntry} className="w-full text-left p-4 bg-slate-50 hover:bg-blue-600 hover:text-white transition-all group flex items-center gap-3 border-t"><div className="p-2 rounded-lg bg-white shadow-sm"><Plus size={16} className="text-blue-600" /></div><p className="text-xs font-black uppercase tracking-wider">Usar Nome Avulso: "{dentistSearchQuery}"</p></button>
                              </div>
                           </div>
                       )}
@@ -316,7 +300,7 @@ export const NewJob = () => {
                 </div>
 
                 <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
-                    <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> Serviços e Variações (Opcional)</h2>
+                    <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> Configurar Itens da OS <span className="text-red-500">*</span></h2>
                     <div className="bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-200 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -330,7 +314,7 @@ export const NewJob = () => {
                                 <div className="flex-1">
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Tipo de Prótese</label>
                                     <select value={selectedTypeId} onChange={e => setSelectedTypeId(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm">
-                                        <option value="">Selecione para adicionar...</option>
+                                        <option value="">Selecione um serviço...</option>
                                         {jobTypes.map(type => (<option key={type.id} value={type.id}>{type.name}</option>))}
                                     </select>
                                 </div>
@@ -376,7 +360,7 @@ export const NewJob = () => {
                         </div>
 
                         <button type="button" onClick={handleAddItem} disabled={!selectedTypeId} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-100 disabled:opacity-50">
-                            <Plus size={20} /> ADICIONAR ITEM À LISTA
+                            <Plus size={20} /> ADICIONAR AO CASO
                         </button>
                     </div>
 
@@ -404,7 +388,7 @@ export const NewJob = () => {
                 <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Box size={18} className="text-blue-500" /> Logística Interna</h2>
 
                 <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Saída Prevista</label>
+                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Previsão de Saída <span className="text-red-500">*</span></label>
                     <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-sm" />
                 </div>
 
@@ -424,17 +408,16 @@ export const NewJob = () => {
                 </div>
 
                 <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Observações</label>
-                    <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold resize-none" />
+                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Observações Técnicas</label>
+                    <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold resize-none" placeholder="Digite aqui instruções para a produção..." />
                 </div>
 
                 <div className="pt-6 border-t border-slate-100">
                     <div className="flex justify-between items-center mb-4">
-                        <span className="text-[10px] font-black text-slate-400 uppercase">Total Geral</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase">Total do Caso</span>
                         <span className="text-2xl font-black text-slate-900">R$ {addedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0).toFixed(2)}</span>
                     </div>
-                    <button type="submit" className="w-full py-5 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black rounded-2xl hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3"><FileCheck size={24} /> SALVAR CASO</button>
-                    <p className="text-[10px] text-center text-slate-400 mt-2 font-bold uppercase">Nº da OS é o único campo obrigatório.</p>
+                    <button type="submit" className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black rounded-2xl hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20"><FileCheck size={24} /> SALVAR NO SISTEMA</button>
                 </div>
               </div>
             </div>
