@@ -71,17 +71,17 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     : { name: currentOrg?.name || 'MY TOOTH', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'MY TOOTH SYSTEM' };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans relative overflow-x-hidden">
+    <div className="min-h-screen flex bg-slate-50 font-sans relative overflow-x-hidden w-full">
       {!isSuperAdmin && <GlobalScanner />}
       <PrintOverlay />
       <AlertPopup />
       <PWAInstallPrompt />
       
-      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none flex flex-col items-center gap-2 mt-4">
+      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none flex flex-col items-center gap-2 mt-4 px-4">
           {isOffline && (
-            <div className="bg-orange-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4 duration-300 pointer-events-auto">
+            <div className="bg-orange-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4 duration-300 pointer-events-auto max-w-full">
                 <WifiOff size={16} />
-                <span className="text-[10px] font-black uppercase tracking-tight">Modo Offline Ativo</span>
+                <span className="text-[10px] font-black uppercase tracking-tight truncate">Modo Offline Ativo</span>
             </div>
           )}
           {isSyncing && !isOffline && (
@@ -97,8 +97,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <aside className={`fixed inset-y-0 left-0 z-[70] w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
-        <div className="p-6 h-full flex flex-col">
-          <div className="flex items-center justify-between mb-8">
+        <div className="p-6 h-full flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between mb-8 shrink-0">
             <div className="flex items-center gap-3 overflow-hidden">
               {displayBrand.logo ? (
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-lg">
@@ -114,12 +114,12 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <span className="text-[9px] text-slate-400 font-bold tracking-widest mt-1 uppercase truncate">{displayBrand.sub}</span>
               </div>
             </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white"><X size={24} /></button>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white p-1"><X size={24} /></button>
           </div>
 
           {isClient && (
-             <div className="mb-6 px-2 relative">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2">Laboratório Ativo</p>
+             <div className="mb-6 px-2 relative shrink-0">
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2 truncate">Laboratório Ativo</p>
                 <button 
                    onClick={() => setIsLabSelectorOpen(!isLabSelectorOpen)}
                    className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 group"
@@ -134,7 +134,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                       </div>
                       <span className="font-bold text-sm truncate">{activeOrganization?.name || 'Selecione...'}</span>
                    </div>
-                   <ChevronsUpDown size={14} className="text-slate-500 group-hover:text-white" />
+                   <ChevronsUpDown size={14} className="text-slate-500 group-hover:text-white shrink-0" />
                 </button>
 
                 {isLabSelectorOpen && (
@@ -147,7 +147,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                               className={`w-full text-left p-3 text-sm hover:bg-white/5 flex items-center justify-between ${activeOrganization?.id === conn.organizationId ? 'text-indigo-400 bg-white/5' : 'text-slate-300'}`}
                            >
                               <span className="truncate">{conn.organizationName}</span>
-                              {activeOrganization?.id === conn.organizationId && <div className="w-2 h-2 bg-indigo-400 rounded-full"></div>}
+                              {activeOrganization?.id === conn.organizationId && <div className="w-2 h-2 bg-indigo-400 rounded-full shrink-0"></div>}
                            </button>
                         ))}
                       </div>
@@ -157,7 +157,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              </div>
           )}
 
-          <nav className="space-y-1 flex-1 overflow-y-auto no-scrollbar">
+          <nav className="space-y-1 flex-1 overflow-y-auto no-scrollbar pr-2">
             {isSuperAdmin && (
               <>
                 <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
@@ -175,7 +175,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {hasPerm('logistics:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
                 
                 <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1">Produção</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate">Produção</p>
                 {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
                 {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
                 {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
@@ -191,10 +191,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
                 <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                 
-                <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2">Minha Clínica</p>
+                <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2 truncate">Minha Clínica</p>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/finance" icon={<Wallet size={20} />} label="Financeiro" active={location.pathname === '/clinic/finance'} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label="Consultórios" active={location.pathname === '/clinic/rooms'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label="Salas" active={location.pathname === '/clinic/rooms'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label="Corpo Clínico" active={location.pathname === '/clinic/dentists'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/services" icon={<Briefcase size={20} />} label="Meus Serviços" active={location.pathname === '/clinic/services'} />
@@ -204,13 +204,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             )}
 
-            <div className="pt-8 mt-8 border-t border-white/10">
+            <div className="pt-8 mt-8 border-t border-white/10 shrink-0">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
               {isAdmin && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurar Lab" active={location.pathname.startsWith('/admin')} />}
             </div>
           </nav>
 
-          <div className="mt-auto pt-4">
+          <div className="mt-auto pt-4 shrink-0">
              <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 text-red-300 hover:bg-white/5 rounded-xl transition-colors">
               <LogOut size={20} /><span>Sair</span>
             </button>
@@ -220,17 +220,17 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       <header className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden">
          <div className="flex items-center gap-3">
-             <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100"><Menu size={24} /></button>
+             <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors"><Menu size={24} /></button>
              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xs">M</div>
-                <span className="font-black text-slate-900 text-base uppercase tracking-tighter">MyTooth</span>
+                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0">M</div>
+                <span className="font-black text-slate-900 text-base uppercase tracking-tighter truncate">MyTooth</span>
              </div>
          </div>
          <div className="flex items-center gap-2">
              {isClient && cart.length > 0 && (
                  <Link to="/cart" className="p-2 text-blue-600 relative"><ShoppingCart size={22} /><span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-black border-2 border-white">{cart.length}</span></Link>
              )}
-             <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs">{currentUser?.name.charAt(0)}</Link>
+             <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">{currentUser?.name.charAt(0)}</Link>
          </div>
       </header>
 
@@ -262,24 +262,24 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
       </nav>
 
-      <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen">
-        <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden">
-          <div className="flex items-center gap-2">
-             <span className="font-black text-slate-900 tracking-tighter text-lg uppercase">MyTooth <span className="text-blue-600">Eco System</span></span>
+      <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen overflow-x-hidden relative">
+        <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0">
+          <div className="flex items-center gap-2 overflow-hidden">
+             <span className="font-black text-slate-900 tracking-tighter text-lg uppercase truncate">MyTooth <span className="text-blue-600">Eco System</span></span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 shrink-0">
               <div className="flex flex-col items-end">
-                  <span className="text-sm font-black text-slate-800 leading-none uppercase">{currentUser?.name}</span>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                  <span className="text-sm font-black text-slate-800 leading-none uppercase truncate max-w-[150px]">{currentUser?.name}</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[150px]">
                       {isClient ? 'Cirurgião-Dentista' : (currentUser?.sector || 'Acesso Administrativo')}
                   </span>
               </div>
-              <Link to="/profile" className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md hover:scale-105 transition-transform">{currentUser?.name.charAt(0)}</Link>
+              <Link to="/profile" className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md hover:scale-105 transition-transform shrink-0">{currentUser?.name.charAt(0)}</Link>
           </div>
         </header>
 
-        <div className="p-4 pt-20 md:pt-8 md:p-8 w-full max-w-7xl mx-auto print:p-0 flex-1 overflow-x-hidden">
+        <div className="p-4 pt-20 md:pt-8 md:p-8 w-full max-w-[1400px] mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto">
           {children}
         </div>
       </main>
@@ -297,9 +297,9 @@ interface SidebarItemProps {
 }
 
 const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onClick, badge }) => (
-  <Link to={to} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative ${ active ? 'bg-white/10 text-white font-bold shadow-sm ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }`} >
-    {icon}
-    <span className="text-sm font-medium">{label}</span>
+  <Link to={to} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group ${ active ? 'bg-white/10 text-white font-bold shadow-sm ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }`} >
+    <span className="shrink-0">{icon}</span>
+    <span className="text-sm font-medium truncate">{label}</span>
     {badge !== undefined && badge > 0 && (
       <span className="absolute right-4 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black shadow-lg animate-pulse">{badge}</span>
     )}
@@ -308,8 +308,8 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onCl
 
 const MobileNavItem = ({ to, icon, label, active, badge }: any) => (
     <Link to={to} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${active ? 'text-blue-600' : 'text-slate-400'}`}>
-        {icon}
-        <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
+        <span className="shrink-0">{icon}</span>
+        <span className="text-[9px] font-black uppercase tracking-tighter truncate max-w-full">{label}</span>
         {badge !== undefined && badge > 0 && (
             <span className="absolute top-2 right-1/4 bg-red-500 text-white text-[8px] min-w-[14px] h-[14px] rounded-full flex items-center justify-center font-bold border border-white">
                 {badge}
