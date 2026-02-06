@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck } from 'lucide-react';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dentists = () => {
@@ -30,23 +30,22 @@ export const Dentists = () => {
                 isManual: true,
                 globalDiscountPercent: d.globalDiscountPercent || 0,
                 customPrices: d.customPrices || [],
+                deliveryViaPost: d.deliveryViaPost || false
             });
         });
 
         // 2. Identifica Dentistas Online através do histórico de Pedidos (Jobs)
         jobs.forEach(job => {
-            // Se o dentista não estiver no mapa (não é manual) e não for um ID genérico
             if (!clientMap.has(job.dentistId) && job.dentistId !== 'manual-entry') {
                 clientMap.set(job.dentistId, {
                     id: job.dentistId,
                     name: job.dentistName,
                     clinicName: 'Cliente Web',
-                    email: '', // Email não disponível diretamente no Job por segurança
+                    email: '', 
                     isManual: false,
-                    // Buscaremos os dados de desconto se o usuário for carregado, 
-                    // mas por padrão iniciamos zerado para a interface
                     globalDiscountPercent: 0, 
                     customPrices: [],
+                    deliveryViaPost: false // Por padrão, online é via sistema, mas pode ser configurado
                 });
             }
         });
@@ -91,8 +90,6 @@ export const Dentists = () => {
             if (selectedClient.isManual) {
                 await updateManualDentist(selectedClient.id, updates);
             } else {
-                // Para clientes online, atualizamos o perfil do usuário globalmente
-                // Nota: Requer que o laboratório tenha permissão de escrita em customPrices do usuário
                 await updateUser(selectedClient.id, updates);
             }
 
@@ -127,19 +124,25 @@ export const Dentists = () => {
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         placeholder="Pesquisar em todos os clientes (Web e Internos)..."
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filtered.map(client => (
-                    <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group">
+                    <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group relative overflow-hidden">
+                        {client.deliveryViaPost && (
+                          <div className="absolute top-4 right-4 bg-orange-100 text-orange-600 p-2 rounded-lg" title="Entrega via Correios">
+                             <Package size={16} />
+                          </div>
+                        )}
+                        
                         <div className="flex items-start gap-4 mb-6">
                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner transition-colors ${client.isManual ? 'bg-slate-100 text-slate-500' : 'bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
                                 {client.isManual ? <HardDrive size={28} /> : <Globe size={28} />}
                             </div>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 pr-6">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-slate-900 text-lg truncate" title={client.name}>{client.name}</h3>
                                     {client.isManual ? (
@@ -165,8 +168,8 @@ export const Dentists = () => {
                                 <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{client.globalDiscountPercent}%</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500">Preços Específicos:</span>
-                                <span className="font-bold text-blue-600">{client.customPrices?.length || 0} itens</span>
+                                <span className="text-slate-500">Logística:</span>
+                                <span className="font-bold text-slate-700">{client.deliveryViaPost ? 'Correios' : 'Entrega Direta'}</span>
                             </div>
                         </div>
 
@@ -186,11 +189,6 @@ export const Dentists = () => {
                         </div>
                     </div>
                 ))}
-                {filtered.length === 0 && (
-                    <div className="col-span-full py-20 text-center text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                        Nenhum cliente encontrado na sua base de dados.
-                    </div>
-                )}
             </div>
 
             {/* MODAL DE TABELA DE PREÇOS */}
@@ -268,7 +266,7 @@ export const Dentists = () => {
                             <button 
                                 onClick={handleSavePricing}
                                 disabled={isSaving}
-                                className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             >
                                 {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
                                 SALVAR TABELA

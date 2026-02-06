@@ -305,6 +305,7 @@ export interface User {
   state?: string;
   cep?: string;
   fcmTokens?: string[];
+  deliveryViaPost?: boolean;
 }
 
 export interface CartItem {
@@ -458,4 +459,5 @@ export interface ManualDentist {
     price?: number; 
     discountPercent?: number; 
   }[];
+  deliveryViaPost?: boolean;
 }

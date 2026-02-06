@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { ManualDentist } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
-  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash
+  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
@@ -39,12 +39,14 @@ export const DentistsTab = () => {
     city: '',
     state: '',
     country: 'Brasil',
-    clinicName: ''
+    clinicName: '',
+    deliveryViaPost: false
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target as HTMLInputElement;
+    const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
+    setFormData(prev => ({ ...prev, [name]: val }));
   };
 
   const handleSaveManualDentist = async (e: React.FormEvent) => {
@@ -67,7 +69,7 @@ export const DentistsTab = () => {
       name: '', email: '', phone: '', cpfCnpj: '', cro: '',
       birthDate: '', approvalDate: '', cep: '', address: '',
       number: '', complement: '', neighborhood: '', city: '',
-      state: '', country: 'Brasil', clinicName: ''
+      state: '', country: 'Brasil', clinicName: '', deliveryViaPost: false
     });
   };
 
@@ -84,7 +86,6 @@ export const DentistsTab = () => {
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
-        // raw: true para não tentar converter datas ou números formatados automaticamente
         const wb = XLSX.read(bstr, { type: 'binary', cellDates: true, raw: true });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
@@ -96,7 +97,6 @@ export const DentistsTab = () => {
           return;
         }
 
-        // 1. Mapeamento Rigoroso de Colunas
         const aiMapping = await analyzeColumnsWithAI(data.slice(0, 10));
         
         const processedData = data.map((row: any) => {
@@ -104,7 +104,6 @@ export const DentistsTab = () => {
                 const colName = aiMapping[key];
                 if (!colName) return '';
                 const val = row[colName];
-                // Forçamos string e removemos espaços extras
                 return val !== undefined && val !== null ? String(val).trim() : '';
             };
 
@@ -113,7 +112,7 @@ export const DentistsTab = () => {
                 email: getVal('email'),
                 phone: getVal('phone'),
                 cpfCnpj: getVal('cpfCnpj'),
-                cro: getVal('cro'), // Captura o valor exato (ex: 2118-ES)
+                cro: getVal('cro'), 
                 birthDate: getVal('birthDate'),
                 approvalDate: getVal('approvalDate'),
                 cep: getVal('cep'),
@@ -125,6 +124,7 @@ export const DentistsTab = () => {
                 state: getVal('state'),
                 country: getVal('country') || 'Brasil',
                 clinicName: getVal('clinicName'),
+                deliveryViaPost: false,
                 isValid: !!getVal('name')
             };
         });
@@ -144,9 +144,6 @@ export const DentistsTab = () => {
 
   const analyzeColumnsWithAI = async (sampleData: any[]) => {
     const keys = Object.keys(sampleData[0] || {});
-    
-    // --- LÓGICA DE MATCH EXATO (FALLBACK IMEDIATO) ---
-    // Se encontrarmos o nome EXATO na planilha, nem precisamos da IA para esse campo
     const findExact = (target: string) => keys.find(k => k.trim().toUpperCase() === target.toUpperCase());
 
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -184,17 +181,12 @@ export const DentistsTab = () => {
       });
       
       const mapping = JSON.parse(response.text || '{}');
-      
-      // Reforço manual: se a IA errou mas existe a coluna "CRO", nós corrigimos aqui
       const exactCRO = findExact("CRO");
       if (exactCRO) mapping.cro = exactCRO;
-      
       const exactDoc = findExact("Documento");
       if (exactDoc) mapping.cpfCnpj = exactDoc;
-
       return mapping;
     } catch (error) {
-      // Fallback manual total
       return {
         name: findExact("Nome") || keys[0],
         email: findExact("E-mail") || findExact("Email") || "",
@@ -217,10 +209,7 @@ export const DentistsTab = () => {
       const validItems = importPreview.filter(p => p.isValid);
       let count = 0;
       for (const item of validItems) {
-        await addManualDentist({
-          ...item,
-          createdAt: new Date()
-        });
+        await addManualDentist({ ...item, createdAt: new Date() });
         count++;
       }
       alert(`${count} clientes cadastrados com sucesso!`);
@@ -272,7 +261,7 @@ export const DentistsTab = () => {
                   <tr>
                     <th className="p-4">Nome / Clínica</th>
                     <th className="p-4">Documento / CRO</th>
-                    <th className="p-4">Cidade / UF</th>
+                    <th className="p-4">Logística</th>
                     <th className="p-4">Contato</th>
                     <th className="p-4 text-right">Ações</th>
                   </tr>
@@ -291,8 +280,15 @@ export const DentistsTab = () => {
                           <div className="font-bold text-slate-700">{dentist.cpfCnpj || '---'}</div>
                           <div className="text-[10px] text-blue-600 font-bold uppercase">CRO: {dentist.cro || '---'}</div>
                         </td>
-                        <td className="p-4 text-xs font-medium text-slate-600">
-                          {dentist.city ? `${dentist.city} / ${dentist.state || ''}` : '---'}
+                        <td className="p-4">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-medium text-slate-600 truncate">{dentist.city ? `${dentist.city}/${dentist.state}` : '---'}</span>
+                            {dentist.deliveryViaPost && (
+                              <span className="bg-orange-100 text-orange-700 text-[8px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 w-fit uppercase">
+                                <Package size={10} /> VIA CORREIOS
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="text-xs text-slate-500 flex items-center gap-1"><Mail size={12}/> {dentist.email || '---'}</div>
@@ -325,7 +321,6 @@ export const DentistsTab = () => {
                       <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
                   <form onSubmit={handleSaveManualDentist} className="p-6 space-y-6">
-                      {/* Seção 1: Dados Pessoais */}
                       <div>
                         <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">1. Identificação e Contato</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -352,7 +347,6 @@ export const DentistsTab = () => {
                         </div>
                       </div>
 
-                      {/* Seção 2: Documentação */}
                       <div>
                         <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">2. Documentação e Registro</h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -371,9 +365,8 @@ export const DentistsTab = () => {
                         </div>
                       </div>
 
-                      {/* Seção 3: Endereço */}
                       <div>
-                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">3. Localização</h4>
+                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">3. Localização e Logística</h4>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CEP</label>
@@ -388,20 +381,25 @@ export const DentistsTab = () => {
                             <input name="number" value={formData.number} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
                           </div>
                           <div className="md:col-span-2">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Bairro</label>
-                            <input name="neighborhood" value={formData.neighborhood} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
-                          </div>
-                          <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Cidade</label>
                             <input name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Estado (UF)</label>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">UF</label>
                             <input name="state" value={formData.state} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">País</label>
-                            <input name="country" value={formData.country} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          
+                          <div className="md:col-span-1 flex flex-col justify-end">
+                            <label className="flex items-center gap-2 cursor-pointer p-2 bg-orange-50 border border-orange-100 rounded-xl hover:bg-orange-100 transition-colors">
+                                <input 
+                                    type="checkbox" 
+                                    name="deliveryViaPost" 
+                                    checked={formData.deliveryViaPost} 
+                                    onChange={handleInputChange}
+                                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500" 
+                                />
+                                <span className="text-[10px] font-black text-orange-800 uppercase leading-none">Via Correios</span>
+                            </label>
                           </div>
                         </div>
                       </div>
@@ -502,7 +500,7 @@ export const DentistsTab = () => {
               <div className="p-8 bg-slate-50 border-t flex justify-between items-center">
                  <button onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
                  {(importStatus === 'PREVIEW' || importStatus === 'SAVING') && (
-                   <button onClick={saveImportedData} disabled={importStatus === 'SAVING'} className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center gap-2 transition-all disabled:opacity-50">
+                   <button onClick={saveImportedData} disabled={importStatus === 'SAVING'} className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 transition-all disabled:opacity-50">
                      {importStatus === 'SAVING' ? <Loader2 className="animate-spin" /> : <><Save size={20}/> CONFIRMAR IMPORTAÇÃO</>}
                    </button>
                  )}
