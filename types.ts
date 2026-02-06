@@ -220,6 +220,7 @@ export interface Job {
   history: JobHistory[];
   createdAt: Date;
   dueDate: Date;
+  dueTime?: string;
   boxNumber?: string;
   boxColor?: BoxColor;
   currentSector?: string;

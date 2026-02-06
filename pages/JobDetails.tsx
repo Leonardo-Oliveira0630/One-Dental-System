@@ -2,17 +2,17 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment } from '../types';
 import { 
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
+import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
-/* Fix: Use * as firestorePkg and destructure doc and onSnapshot as any to match project style and avoid import errors */
 import * as firestorePkg from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
@@ -31,11 +31,14 @@ export const JobDetails = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRouteModal, setShowRouteModal] = useState(false);
   const [show3DViewer, setShow3DViewer] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
-  const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
+  // File Upload State
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgressMsg, setUploadProgressMsg] = useState('');
 
+  const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
   const [routeDriver, setRouteDriver] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
@@ -86,6 +89,58 @@ export const JobDetails = () => {
   }, [job, jobTypes]);
 
   if (!job) return <div className="flex flex-col items-center justify-center h-[60vh]"><h2 className="text-2xl font-bold text-slate-800">Trabalho não encontrado</h2><button onClick={() => navigate('/jobs')} className="mt-4 text-blue-600 hover:underline">Voltar para lista</button></div>;
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+          setSelectedFiles(Array.from(e.target.files));
+      }
+  };
+
+  const handleUploadFiles = async () => {
+    if (!job || selectedFiles.length === 0) return;
+    setIsUploadingFiles(true);
+    setUploadProgressMsg('Processando arquivos...');
+
+    const newAttachments: Attachment[] = [];
+
+    try {
+        for (const file of selectedFiles) {
+            setUploadProgressMsg(`Otimizando: ${file.name}`);
+            const processed = await smartCompress(file);
+            
+            setUploadProgressMsg(`Enviando: ${file.name}`);
+            const url = await uploadFile(processed);
+            
+            newAttachments.push({
+                id: Math.random().toString(36).substr(2, 9),
+                name: file.name,
+                url: url,
+                uploadedAt: new Date()
+            });
+        }
+
+        const updatedAttachments = [...(job.attachments || []), ...newAttachments];
+        await updateJob(job.id, { 
+            attachments: updatedAttachments,
+            history: [...job.history, {
+                id: `hist_files_${Date.now()}`,
+                timestamp: new Date(),
+                action: `Anexados ${newAttachments.length} novos arquivos ao caso`,
+                userId: currentUser?.id || 'sys',
+                userName: currentUser?.name || 'Sistema'
+            }]
+        });
+
+        setSelectedFiles([]);
+        setUploadProgressMsg('');
+        alert("Arquivos anexados com sucesso!");
+    } catch (err) {
+        console.error(err);
+        alert("Erro ao enviar arquivos.");
+    } finally {
+        setIsUploadingFiles(false);
+    }
+  };
 
   const handleAddItemToJob = () => {
       const type = jobTypes.find(t => t.id === newItemTypeId);
@@ -222,6 +277,17 @@ export const JobDetails = () => {
           case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border-purple-200';
           default: return 'bg-slate-100 text-slate-700 border-slate-200';
       }
+  };
+
+  const getFileIcon = (name: string) => {
+      const ext = name.split('.').pop()?.toLowerCase();
+      if (ext === 'stl') return <Box size={18} className="text-orange-500" />;
+      if (['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) return <ImageIcon className="text-blue-500" size={18} />;
+      if (ext === 'pdf') return <FileText className="text-red-500" size={18} />;
+      if (['doc', 'docx'].includes(ext || '')) return <FileText className="text-blue-700" size={18} />;
+      if (['xls', 'xlsx'].includes(ext || '')) return <FileSpreadsheet className="text-green-600" size={18} />;
+      if (ext === 'html') return <FileCode className="text-purple-500" size={18} />;
+      return <File className="text-slate-400" size={18} />;
   };
 
   const sortedHistory = [...job.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -387,7 +453,6 @@ export const JobDetails = () => {
                         )}
                     </div>
 
-                    {/* URGENCE BADGE */}
                     <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border flex items-center gap-1.5 ${
                         job.urgency === UrgencyLevel.VIP ? 'bg-orange-100 text-orange-700 border-orange-200' :
                         job.urgency === UrgencyLevel.HIGH ? 'bg-red-50 text-red-700 border-red-200' :
@@ -397,7 +462,6 @@ export const JobDetails = () => {
                         PRIORIDADE: {job.urgency}
                     </div>
                     
-                    {/* CHAT STATUS INDICATOR */}
                     {isLabStaff && (
                          <button 
                             onClick={handleToggleChat}
@@ -480,7 +544,6 @@ export const JobDetails = () => {
             </div>
 
             <div className="lg:col-span-2 space-y-6">
-                {/* LOGISTICS CARD */}
                 {routeInfo && (
                     <div className="bg-indigo-50 rounded-2xl shadow-sm border border-indigo-200 overflow-hidden animate-in slide-in-from-top-4">
                         <div className="bg-indigo-600 px-6 py-3 text-white flex justify-between items-center">
@@ -535,45 +598,82 @@ export const JobDetails = () => {
                         <span className="text-2xl font-black text-slate-900">R$ {job.totalValue.toFixed(2)}</span>
                     </div>
                 </div>
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><File size={20} className="text-blue-500" /> Observações Técnicas</h3>
+                    <div className="bg-slate-50 p-4 rounded-xl text-slate-700 text-sm whitespace-pre-wrap min-h-[100px]">
+                        {job.notes || "Sem observações registradas."}
+                    </div>
+                </div>
             </div>
 
             <div className="lg:col-span-1 space-y-6">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><File size={20} className="text-blue-500" /> Anexos Digitais</h3>
-                    <div className="space-y-3">
-                        {job.attachments?.map(att => (
-                            <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-blue-50 transition-colors group">
-                                <div className="flex items-center gap-3 overflow-hidden">
-                                    <File size={18} className="text-slate-400 group-hover:text-blue-500" />
-                                    <span className="text-sm font-bold text-slate-700 truncate">{att.name}</span>
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><File size={20} className="text-blue-600" /> Documentação</h3>
+                        <span className="text-[10px] font-black text-slate-400 uppercase">{job.attachments?.length || 0} arquivos</span>
+                    </div>
+
+                    <div className="space-y-4">
+                        {/* UPLOAD FIELD */}
+                        <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 transition-all text-center relative">
+                            <input 
+                                type="file" 
+                                multiple 
+                                onChange={handleFileSelect}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                accept=".stl,.pdf,.doc,.docx,.xls,.xlsx,.html,.png,.jpg,.jpeg"
+                            />
+                            <div className="flex flex-col items-center gap-2">
+                                <UploadCloud size={32} className="text-slate-400 group-hover:text-blue-500" />
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">Clique p/ anexar arquivos</span>
+                                <p className="text-[9px] text-slate-400">STL, Fotos, PDF, Docs, XLS...</p>
+                            </div>
+                        </div>
+
+                        {selectedFiles.length > 0 && (
+                            <div className="bg-blue-50 p-3 rounded-xl border border-blue-100 space-y-2 animate-in zoom-in">
+                                {selectedFiles.map((f, i) => (
+                                    <div key={i} className="flex justify-between items-center text-[10px] font-bold text-blue-700 uppercase">
+                                        <span className="truncate max-w-[150px]">{f.name}</span>
+                                        <button onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))}><X size={14} /></button>
+                                    </div>
+                                ))}
+                                <button 
+                                    onClick={handleUploadFiles}
+                                    disabled={isUploadingFiles}
+                                    className="w-full py-2 bg-blue-600 text-white rounded-lg font-black text-[10px] uppercase shadow-md flex items-center justify-center gap-2"
+                                >
+                                    {isUploadingFiles ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                    {isUploadingFiles ? 'Enviando...' : 'Confirmar Envio'}
+                                </button>
+                                {uploadProgressMsg && <p className="text-[9px] text-blue-500 text-center animate-pulse">{uploadProgressMsg}</p>}
+                            </div>
+                        )}
+
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
+                            {job.attachments?.map(att => (
+                                <div key={att.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-200 transition-colors group">
+                                    <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 overflow-hidden flex-1">
+                                        {getFileIcon(att.name)}
+                                        <div className="min-w-0">
+                                            <p className="text-[11px] font-bold text-slate-700 truncate">{att.name}</p>
+                                            <p className="text-[8px] text-slate-400 uppercase font-black">{new Date(att.uploadedAt).toLocaleDateString()}</p>
+                                        </div>
+                                    </a>
+                                    <a href={att.url} download={att.name} className="p-2 text-slate-300 hover:text-blue-600"><Download size={14} /></a>
                                 </div>
-                                <Download size={16} className="text-slate-400" />
-                            </a>
-                        ))}
-                        {(!job.attachments || job.attachments.length === 0) && <p className="text-sm text-slate-400 text-center py-4 italic">Nenhum arquivo anexado.</p>}
+                            ))}
+                            {(!job.attachments || job.attachments.length === 0) && <p className="text-sm text-slate-400 text-center py-8 italic border border-dashed rounded-xl">Sem arquivos.</p>}
+                        </div>
                         
                         {job.attachments && job.attachments.some(a => a.name.toLowerCase().endsWith('.stl')) && (
-                            <button onClick={() => setShow3DViewer(true)} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all mt-4">
-                                <Box size={18} /> Visualizador 3D (STL)
+                            <button onClick={() => setShow3DViewer(true)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-slate-800 transition-all mt-2 text-xs uppercase tracking-widest shadow-lg">
+                                <Box size={20} /> Abrir Visualizador 3D
                             </button>
                         )}
                     </div>
                 </div>
-                
-                {/* CHAT PREVIEW / PROMPT FOR LAB */}
-                {isLabStaff && !job.chatEnabled && (
-                    <div className="bg-blue-50 border border-blue-200 p-6 rounded-2xl text-center">
-                        <MessageSquare size={32} className="mx-auto text-blue-400 mb-3" />
-                        <h4 className="font-bold text-blue-800 mb-2">Comunicação Direta</h4>
-                        <p className="text-xs text-blue-600 mb-4">Deseja liberar o chat para este dentista tirar dúvidas ou enviar novos arquivos?</p>
-                        <button 
-                            onClick={handleToggleChat}
-                            className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all"
-                        >
-                            ATIVAR CHAT AGORA
-                        </button>
-                    </div>
-                )}
             </div>
         </div>
       )}
@@ -630,3 +730,7 @@ export const JobDetails = () => {
     </div>
   );
 };
+
+const ImageIcon = ({ className, size }: { className?: string, size?: number }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size || 24} height={size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+);

@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UrgencyLevel } from '../types';
 import { 
   ChevronLeft, ChevronRight, Calendar as CalendarIcon, 
   AlertTriangle, CheckCircle, Clock, X, Save, Check, 
-  Package, AlertCircle, Info 
+  Package, AlertCircle, Info, Maximize2, MoreVertical, LayoutGrid
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
@@ -15,9 +15,11 @@ export const ProductionCalendar = () => {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [activeDayView, setActiveDayView] = useState<number | null>(null);
 
   // Modal State
   const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('');
 
   // --- Calendar Logic ---
   const getDaysInMonth = (date: Date) => {
@@ -57,7 +59,10 @@ export const ProductionCalendar = () => {
         d.getFullYear() === currentDate.getFullYear()
       );
     }).sort((a, b) => {
-        // Prioridade visual no grid: Atrasados primeiro, depois VIP
+        // Ordenar por hora se existir, senão por prioridade
+        if (a.dueTime && b.dueTime) return a.dueTime.localeCompare(b.dueTime);
+        if (a.dueTime) return -1;
+        if (b.dueTime) return 1;
         const aDone = a.status === JobStatus.COMPLETED || a.status === JobStatus.DELIVERED;
         const bDone = b.status === JobStatus.COMPLETED || b.status === JobStatus.DELIVERED;
         if (aDone && !bDone) return 1;
@@ -67,22 +72,25 @@ export const ProductionCalendar = () => {
   };
 
   // --- Modal Handlers ---
-  const handleJobClick = (job: Job) => {
+  const handleJobClick = (job: Job, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setSelectedJob(job);
     setNewDate(new Date(job.dueDate).toISOString().split('T')[0]);
+    setNewTime(job.dueTime || '');
   };
 
-  const handleUpdateDate = () => {
+  const handleUpdateJob = () => {
     if (!selectedJob || !newDate) return;
     const dateParts = newDate.split('-');
     const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
 
     updateJob(selectedJob.id, {
         dueDate: adjustedDate,
+        dueTime: newTime || undefined,
         history: [...selectedJob.history, {
             id: Math.random().toString(),
             timestamp: new Date(),
-            action: `Data Prometida alterada para ${adjustedDate.toLocaleDateString()}`,
+            action: `Agendamento alterado para ${adjustedDate.toLocaleDateString()} às ${newTime || 'Hora indefinida'}`,
             userId: currentUser?.id || 'admin',
             userName: currentUser?.name || 'Admin'
         }]
@@ -108,15 +116,35 @@ export const ProductionCalendar = () => {
 
   const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
+  // --- Render Helpers ---
+  const getJobStyle = (job: Job) => {
+    const isVip = job.urgency === UrgencyLevel.VIP || job.urgency === UrgencyLevel.HIGH;
+    const isDone = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
+    const isDelayed = !isDone && new Date(job.dueDate) < new Date(new Date().setHours(0,0,0,0));
+    
+    const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
+    const isPost = dentist?.deliveryViaPost;
+
+    if (isDone) return { card: "bg-slate-50 border-slate-100 opacity-50 grayscale", text: "text-slate-500", icon: <CheckCircle size={10} /> };
+    if (isDelayed) return { card: "bg-red-50 border-red-200 shadow-red-100", text: "text-red-900", icon: <Clock size={10} className="text-red-500" /> };
+    if (isVip) return { card: "bg-orange-50 border-orange-200 shadow-orange-100", text: "text-orange-900", icon: <AlertCircle size={10} className="text-orange-500" /> };
+    if (isPost) return { card: "bg-indigo-50 border-indigo-200 shadow-indigo-100", text: "text-indigo-900", icon: <Package size={10} className="text-indigo-500" /> };
+    
+    return { card: "bg-white border-slate-100 hover:border-blue-300", text: "text-slate-800", icon: null };
+  };
+
+  // --- DAY TIMELINE VIEW ---
+  const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 to 20:00
+
   return (
-    <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
+    <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col relative">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter">
             <CalendarIcon className="text-blue-600" /> Fluxo de Bancada
           </h1>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest opacity-60">Planejamento mensal de entregas e coletas</p>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest opacity-60">Gestão mensal e horária de entregas</p>
         </div>
         
         <div className="flex items-center gap-4 bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
@@ -132,39 +160,32 @@ export const ProductionCalendar = () => {
         </div>
       </div>
 
-      {/* LEGENDA DE CORES */}
+      {/* Legenda */}
       <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-6">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2 flex items-center gap-1"><Info size={14}/> Legenda:</span>
           <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-red-500 shadow-sm shadow-red-200"></div>
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
               <span className="text-[10px] font-black text-slate-600 uppercase">Atrasados</span>
           </div>
           <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-orange-500 shadow-sm shadow-orange-200"></div>
+              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
               <span className="text-[10px] font-black text-slate-600 uppercase">Urgentes / VIP</span>
           </div>
           <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-indigo-500 shadow-sm shadow-indigo-200"></div>
-              <span className="text-[10px] font-black text-slate-600 uppercase">Via Correios</span>
+              <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+              <span className="text-[10px] font-black text-slate-600 uppercase">Correios</span>
           </div>
-          <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-slate-200 border border-slate-300"></div>
-              <span className="text-[10px] font-black text-slate-600 uppercase">Normal / Concluído</span>
-          </div>
+          <div className="text-[10px] text-slate-400 font-bold ml-auto italic">Clique no dia para ver a agenda por hora.</div>
       </div>
 
       {/* Calendar Grid */}
       <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
-        {/* Weekday Header */}
         <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                <div key={day} className="py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    {day}
-                </div>
+                <div key={day} className="py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">{day}</div>
             ))}
         </div>
         
-        {/* Days */}
         <div className="grid grid-cols-7 flex-1 auto-rows-fr overflow-y-auto no-scrollbar">
             {totalSlots.map((day, index) => {
                 if (!day) return <div key={index} className="bg-slate-50/20 border-b border-r border-slate-50" />;
@@ -173,76 +194,26 @@ export const ProductionCalendar = () => {
                 const isToday = day === new Date().getDate() && currentDate.getMonth() === new Date().getMonth() && currentDate.getFullYear() === new Date().getFullYear();
 
                 return (
-                    <div key={index} className={`border-b border-r border-slate-50 p-2 min-h-[120px] flex flex-col group transition-colors ${isToday ? 'bg-blue-50/30' : 'hover:bg-slate-50/30'}`}>
-                        <div className={`text-xs font-black mb-2 w-6 h-6 flex items-center justify-center rounded-lg transition-all ${isToday ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110' : 'text-slate-400 group-hover:text-slate-600'}`}>
+                    <div 
+                        key={index} 
+                        onClick={() => setActiveDayView(day)}
+                        className={`border-b border-r border-slate-50 p-2 min-h-[120px] flex flex-col group transition-colors cursor-pointer ${isToday ? 'bg-blue-50/30' : 'hover:bg-slate-50/30'}`}
+                    >
+                        <div className={`text-xs font-black mb-2 w-6 h-6 flex items-center justify-center rounded-lg ${isToday ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400'}`}>
                             {day}
                         </div>
                         
-                        <div className="flex-1 space-y-1.5 overflow-y-auto no-scrollbar max-h-[160px]">
-                            {dayJobs.map(job => {
-                                const isVip = job.urgency === UrgencyLevel.VIP || job.urgency === UrgencyLevel.HIGH;
-                                const isDone = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
-                                const isDelayed = !isDone && new Date(job.dueDate) < new Date(new Date().setHours(0,0,0,0));
-                                
-                                // Cruzamento de dados para identificar Correios
-                                const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
-                                const isPost = dentist?.deliveryViaPost;
-
-                                const boxColorHex = job.boxColor?.hex || '#cbd5e1';
-                                
-                                // Lógica de Cores do Card
-                                let cardStyle = "bg-white border-slate-100 hover:border-blue-300";
-                                let textClass = "text-slate-800";
-                                let tagIcon = null;
-
-                                if (isDone) {
-                                    cardStyle = "bg-slate-50 border-slate-100 opacity-50 grayscale";
-                                    textClass = "text-slate-500";
-                                } else if (isDelayed) {
-                                    cardStyle = "bg-red-50 border-red-200 shadow-sm shadow-red-100 hover:border-red-400";
-                                    textClass = "text-red-900";
-                                    tagIcon = <Clock size={10} className="text-red-500" />;
-                                } else if (isVip) {
-                                    cardStyle = "bg-orange-50 border-orange-200 shadow-sm shadow-orange-100 hover:border-orange-400";
-                                    textClass = "text-orange-900";
-                                    tagIcon = <AlertCircle size={10} className="text-orange-500" />;
-                                } else if (isPost) {
-                                    cardStyle = "bg-indigo-50 border-indigo-200 hover:border-indigo-400";
-                                    textClass = "text-indigo-900";
-                                    tagIcon = <Package size={10} className="text-indigo-500" />;
-                                }
-
+                        <div className="flex-1 space-y-1 overflow-hidden">
+                            {dayJobs.slice(0, 4).map(job => {
+                                const style = getJobStyle(job);
                                 return (
-                                    <button
-                                        key={job.id}
-                                        onClick={() => handleJobClick(job)}
-                                        className={`w-full text-left p-1.5 rounded-xl border shadow-sm transition-all hover:scale-[1.03] active:scale-95 flex items-start gap-1.5 ${cardStyle}`}
-                                    >
-                                        {/* Quadrado da Caixa */}
-                                        <div 
-                                            className="w-5 h-5 shrink-0 rounded-lg flex items-center justify-center font-black text-[9px] shadow-sm border border-black/5 mt-0.5"
-                                            style={{ backgroundColor: boxColorHex, color: getContrastColor(boxColorHex) }}
-                                        >
-                                            {job.boxNumber || '-'}
-                                        </div>
-
-                                        <div className="flex-1 min-w-0 flex flex-col leading-[1.1]">
-                                            <div className="flex items-center justify-between gap-1">
-                                                <span className={`truncate font-black uppercase tracking-tighter text-[9px] ${textClass}`}>
-                                                    {job.dentistName}
-                                                </span>
-                                                {tagIcon}
-                                            </div>
-                                            <span className="truncate text-slate-500 font-bold uppercase text-[8px] opacity-70">
-                                                {job.patientName}
-                                            </span>
-                                            <span className="truncate text-blue-600 font-mono font-black tracking-widest text-[8px]">
-                                                #{job.osNumber}
-                                            </span>
-                                        </div>
-                                    </button>
+                                    <div key={job.id} className={`p-1 rounded-lg border text-[8px] font-black uppercase truncate flex items-center gap-1 ${style.card} ${style.text}`}>
+                                        {job.dueTime && <span className="text-blue-600 shrink-0">{job.dueTime}</span>}
+                                        <span className="truncate">{job.patientName}</span>
+                                    </div>
                                 );
                             })}
+                            {dayJobs.length > 4 && <div className="text-[8px] font-black text-slate-400 text-center">+{dayJobs.length - 4} trabalhos</div>}
                         </div>
                     </div>
                 );
@@ -250,7 +221,98 @@ export const ProductionCalendar = () => {
         </div>
       </div>
 
-      {/* JOB EDIT MODAL */}
+      {/* DETALHE DO DIA (EXPANDIDO - ESTILO GOOGLE CALENDAR) */}
+      {activeDayView !== null && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-end bg-black/40 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white w-full max-w-2xl h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                      <div>
+                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Agenda Diária</p>
+                          <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">
+                            {activeDayView} de {monthNames[currentDate.getMonth()]}
+                          </h2>
+                      </div>
+                      <button onClick={() => setActiveDayView(null)} className="p-3 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
+                      {/* Seção sem horário */}
+                      {getJobsForDay(activeDayView).filter(j => !j.dueTime).length > 0 && (
+                        <div className="space-y-3">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <Clock size={14}/> Horário a Definir
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {getJobsForDay(activeDayView).filter(j => !j.dueTime).map(job => (
+                                    <div 
+                                        key={job.id} 
+                                        onClick={() => handleJobClick(job)}
+                                        className={`p-4 rounded-[24px] border-2 cursor-pointer transition-all hover:scale-102 ${getJobStyle(job).card}`}
+                                    >
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="font-mono font-black text-blue-600 text-xs">#{job.osNumber}</span>
+                                            <div className="w-6 h-6 rounded-lg flex items-center justify-center font-black text-[10px] border border-black/5" style={{backgroundColor: job.boxColor?.hex}}>{job.boxNumber || '-'}</div>
+                                        </div>
+                                        <p className="font-black text-slate-800 text-sm uppercase truncate">{job.patientName}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase truncate">Dr. {job.dentistName}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                      )}
+
+                      {/* Linha do Tempo */}
+                      <div className="space-y-4">
+                          <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                              <LayoutGrid size={14}/> Linha do Tempo
+                          </h3>
+                          <div className="relative border-l-2 border-slate-100 ml-4 pl-8 space-y-12 pb-20">
+                              {hours.map(h => {
+                                  const hourStr = h.toString().padStart(2, '0') + ':00';
+                                  const jobsInHour = getJobsForDay(activeDayView).filter(j => j.dueTime?.startsWith(h.toString().padStart(2, '0')));
+                                  
+                                  return (
+                                      <div key={h} className="relative">
+                                          {/* Time Label */}
+                                          <div className="absolute -left-[54px] top-0 text-[10px] font-black text-slate-400 bg-white pr-2">{hourStr}</div>
+                                          
+                                          <div className="space-y-3">
+                                              {jobsInHour.length === 0 ? (
+                                                  <div className="h-4 border-b border-slate-50 border-dashed"></div>
+                                              ) : (
+                                                  jobsInHour.map(job => (
+                                                      <div 
+                                                          key={job.id} 
+                                                          onClick={() => handleJobClick(job)}
+                                                          className={`p-4 rounded-[24px] border-2 shadow-sm cursor-pointer transition-all hover:translate-x-2 ${getJobStyle(job).card}`}
+                                                      >
+                                                          <div className="flex justify-between items-center mb-1">
+                                                              <div className="flex items-center gap-2">
+                                                                <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-black">{job.dueTime}</span>
+                                                                <span className="font-mono font-black text-slate-400 text-xs">#{job.osNumber}</span>
+                                                              </div>
+                                                              {getJobStyle(job).icon}
+                                                          </div>
+                                                          <h4 className="font-black text-slate-800 uppercase tracking-tight">{job.patientName}</h4>
+                                                          <div className="flex items-center gap-2 mt-2">
+                                                              <div className="w-5 h-5 rounded-lg flex items-center justify-center font-black text-[9px] border border-black/5" style={{backgroundColor: job.boxColor?.hex}}>{job.boxNumber || '-'}</div>
+                                                              <span className="text-[10px] font-black text-slate-400 uppercase">{job.currentSector || 'Triagem'}</span>
+                                                          </div>
+                                                      </div>
+                                                  ))
+                                              )}
+                                          </div>
+                                      </div>
+                                  );
+                              })}
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* JOB EDIT MODAL (Atualizado com Hora) */}
       {selectedJob && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-[32px] shadow-2xl p-8 w-full max-w-md animate-in zoom-in duration-200">
@@ -258,74 +320,36 @@ export const ProductionCalendar = () => {
                     <div>
                         <div className="flex items-center gap-2 mb-1">
                             <span className="font-mono font-black text-2xl text-blue-600 tracking-tighter">#{selectedJob.osNumber}</span>
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border tracking-widest ${
-                                selectedJob.status === JobStatus.COMPLETED ? 'bg-green-100 text-green-700 border-green-200' : 'bg-blue-100 text-blue-700 border-blue-200'
-                            }`}>
-                                {selectedJob.status}
-                            </span>
                         </div>
                         <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{selectedJob.patientName}</h3>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Dr(a). {selectedJob.dentistName}</p>
                     </div>
-                    <button onClick={() => setSelectedJob(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors">
-                        <X size={24} />
-                    </button>
+                    <button onClick={() => setSelectedJob(null)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X size={24} /></button>
                 </div>
 
                 <div className="space-y-6">
-                    {/* Date Reschedule */}
-                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                            <Clock size={14} className="text-blue-500" /> Reprogramar Entrega
-                        </label>
-                        <div className="flex gap-2">
-                            <input 
-                                type="date" 
-                                value={newDate}
-                                onChange={(e) => setNewDate(e.target.value)}
-                                className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold"
-                            />
-                            <button 
-                                onClick={handleUpdateDate}
-                                className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-black shadow-lg shadow-blue-100 transition-all active:scale-95"
-                                title="Salvar Nova Data"
-                            >
-                                <Save size={20} />
-                            </button>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Data de Entrega</label>
+                            <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)} className="w-full bg-transparent border-0 font-bold outline-none"/>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Horário Previsto</label>
+                            <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} className="w-full bg-transparent border-0 font-bold outline-none"/>
                         </div>
                     </div>
 
-                    {/* Status Info */}
-                    <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-2xl">
-                        <Info size={20} className="text-blue-600 shrink-0" />
-                        <div className="min-w-0">
-                            <p className="text-[10px] font-black text-blue-400 uppercase leading-none mb-1">Localização Atual</p>
-                            <p className="font-bold text-blue-900 truncate uppercase">{selectedJob.currentSector || 'Triagem / Entrada'}</p>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="space-y-3">
-                        {selectedJob.status !== JobStatus.COMPLETED && selectedJob.status !== JobStatus.DELIVERED ? (
-                             <button 
-                                onClick={handleFinalizeJob}
-                                className="w-full py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center gap-2 transition-all transform active:scale-95"
-                            >
-                                <CheckCircle size={22} /> FINALIZAR TRABALHO
+                    <div className="space-y-3 pt-4 border-t border-slate-100">
+                        <button onClick={handleUpdateJob} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 shadow-xl flex items-center justify-center gap-2 transition-all">
+                            <Save size={20} /> SALVAR ALTERAÇÕES
+                        </button>
+                        
+                        {selectedJob.status !== JobStatus.COMPLETED && (
+                             <button onClick={handleFinalizeJob} className="w-full py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 shadow-lg flex items-center justify-center gap-2 transition-all">
+                                <CheckCircle size={20} /> FINALIZAR AGORA
                             </button>
-                        ) : (
-                            <div className="p-4 bg-green-50 border border-green-200 rounded-2xl text-center text-green-800 font-black uppercase text-xs flex items-center justify-center gap-2">
-                                <Check size={20} /> Trabalho Concluído
-                            </div>
                         )}
                         
-                        <button 
-                            onClick={() => {
-                                setSelectedJob(null);
-                                navigate(`/jobs/${selectedJob.id}`);
-                            }}
-                            className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 uppercase text-xs tracking-widest"
-                        >
+                        <button onClick={() => { setSelectedJob(null); navigate(`/jobs/${selectedJob.id}`); }} className="w-full py-3 text-slate-500 font-bold text-xs uppercase tracking-widest hover:bg-slate-50 rounded-xl transition-all">
                             Ver Prontuário Completo
                         </button>
                     </div>
