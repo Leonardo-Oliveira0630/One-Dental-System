@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SubscriptionPlan, UserRole } from '../../types';
-/* Fixing ShieldCheck reference error by importing the correct icon name */
 import { Plus, Trash2, Edit2, Check, X, Tag, ShieldCheck, Store, Activity, Database, Users, Stethoscope, Layers, Save, Loader2, ShieldAlert, AlertTriangle, Fingerprint, RefreshCw } from 'lucide-react';
 import { db } from '../../services/firebaseConfig';
 import * as firestorePkg from 'firebase/firestore';
@@ -31,7 +30,6 @@ export const Plans = () => {
     const checkAccess = async () => {
       if (!currentUser) return;
       try {
-        // Tenta ler o próprio documento de usuário diretamente do Firestore para validar o token
         const userRef = doc(db, 'users', currentUser.id);
         const snap = await getDoc(userRef);
         const data = snap.data();
@@ -47,8 +45,6 @@ export const Plans = () => {
     };
     checkAccess();
   }, [currentUser]);
-
-  const isSaaSAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
 
   const resetForm = () => {
     setName(''); setPrice(0); setIsPublic(true); setTargetAudience('LAB');
@@ -114,7 +110,7 @@ export const Plans = () => {
         console.error("ERRO FIREBASE AO GRAVAR PLANO:", error);
         let msg = "Erro desconhecido.";
         if (error.code === 'permission-denied') {
-          msg = "PERMISSÃO NEGADA PELO FIREBASE. \n\nIsso significa que as 'Firestore Rules' no Console do Firebase estão bloqueando a escrita na coleção 'subscriptionPlans' para o seu UID.";
+          msg = "PERMISSÃO NEGADA PELO FIREBASE. \n\nAs regras de segurança estão bloqueando a escrita.";
         } else {
           msg = error.message;
         }
@@ -151,8 +147,15 @@ export const Plans = () => {
                 </p>
                 {permCheck.status === 'denied' && (
                     <div className="mt-4 p-3 bg-white/50 rounded-xl border border-red-200 text-[11px] font-bold space-y-1">
-                        <p className="flex items-center gap-2"><Fingerprint size={12}/> Seu UID: <code className="bg-red-100 px-1 rounded">{currentUser?.id}</code></p>
-                        <p className="flex items-center gap-2 text-red-600"><AlertTriangle size={12}/> <strong>Ação Necessária:</strong> Vá ao Firebase Console > Firestore > Collection 'users' e garanta que o campo 'role' deste UID seja 'SUPER_ADMIN'.</p>
+                        <p className="flex items-center gap-2">
+                          <Fingerprint size={12}/> Seu UID: <code className="bg-red-100 px-1 rounded">{currentUser?.id}</code>
+                        </p>
+                        <p className="flex items-center gap-2 text-red-600">
+                          <AlertTriangle size={12}/> 
+                          <strong>Ação Necessária:</strong> 
+                          {/* Correção para build Vercel: Texto entre chaves para evitar erro de parsing de aspas */}
+                          {" Vá ao Firebase Console > Firestore > Collection 'users' e garanta que o campo 'role' deste UID seja 'SUPER_ADMIN'."}
+                        </p>
                     </div>
                 )}
             </div>
