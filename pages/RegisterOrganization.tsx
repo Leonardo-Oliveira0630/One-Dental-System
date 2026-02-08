@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2 } from 'lucide-react';
-import { Coupon } from '../types';
+import { Coupon, UserRole } from '../types';
+import * as api from '../services/firebaseService';
 
 export const RegisterOrganization = () => {
   const { registerOrganization, registerDentist, allPlans, validateCoupon } = useApp();
@@ -26,7 +28,6 @@ export const RegisterOrganization = () => {
   // Filter plans based on Registration Type (LAB vs CLINIC)
   const publicPlans = allPlans.filter(p => p.isPublic && p.active && (p.targetAudience === (regType === 'LAB' ? 'LAB' : 'CLINIC')));
   
-  // Use displayPlans for rendering
   const displayPlans = publicPlans; 
 
   const handleApplyCoupon = async () => {
@@ -48,9 +49,11 @@ export const RegisterOrganization = () => {
     setError('');
 
     try {
-      // If no plan selected, pick the first one available
+      // DEVELOPER SHORTCUT: Se o email terminar em @protrack.saas.com, vira SUPER_ADMIN
+      const isSaaSAccount = email.toLowerCase().endsWith('@protrack.saas.com');
+
       const selectedPlanId = planId || (displayPlans.length > 0 ? displayPlans[0].id : '');
-      if (!selectedPlanId) {
+      if (!selectedPlanId && !isSaaSAccount) {
           throw new Error("Nenhum plano de assinatura disponível.");
       }
 
@@ -70,12 +73,19 @@ export const RegisterOrganization = () => {
       }
 
       if (regType === 'LAB') {
-          await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code);
-          navigate('/dashboard');
+          const user = await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code);
+          
+          // Se for conta SaaS, atualiza a role manualmente após o registro
+          if (isSaaSAccount) {
+              await api.apiUpdateUser(user.id, { role: UserRole.SUPER_ADMIN });
+              alert("CONTA SAAS ADMIN DETECTADA E ATIVADA.");
+              navigate('/superadmin');
+          } else {
+              navigate('/dashboard');
+          }
       } else {
-          // Register Dentist (Now includes Plan & Org creation)
           await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code);
-          navigate('/store'); // Goes to store (or clinic dashboard if feature enabled)
+          navigate('/store');
       }
     } catch (err: any) {
       console.error(err);
@@ -140,6 +150,7 @@ export const RegisterOrganization = () => {
                         <Mail className="absolute left-3 top-3 text-slate-500" size={18}/>
                         <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="seu@email.com" />
                     </div>
+                    <p className="text-[10px] text-slate-500 mt-1">* Use um email @protrack.saas.com para criar uma conta Master.</p>
                 </div>
 
                 <div>
