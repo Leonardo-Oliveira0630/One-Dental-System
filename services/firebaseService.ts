@@ -312,9 +312,14 @@ export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     });
 };
 export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
+    // Garantimos que a busca pegue todos os orgType == 'LAB' sem filtros extras de segurança
     const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'));
     return onSnapshot(q, (snap: any) => {
-        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
+        cb(snap.docs.map((d: any) => ({ 
+            id: d.id, 
+            ...d.data() as any, 
+            createdAt: toDate(d.data().createdAt) 
+        } as Organization)));
     });
 };
 export const subscribeSubscriptionPlans = (cb: (p: SubscriptionPlan[]) => void) => {

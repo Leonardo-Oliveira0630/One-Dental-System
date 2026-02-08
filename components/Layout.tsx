@@ -20,7 +20,7 @@ const { onSnapshotsInSync } = firestorePkg as any;
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { 
-    currentUser, logout, cart, jobs, currentOrg,
+    currentUser, logout, cart, jobs, currentOrg, currentPlan,
     userConnections, activeOrganization, switchActiveOrganization
   } = useApp();
   const navigate = useNavigate();
@@ -59,6 +59,9 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       return currentUser?.permissions?.includes(key) || false;
   };
 
+  // CHECK: Se o lab tem gestão interna habilitada
+  const hasFullLab = currentUser?.role !== UserRole.CLIENT && (currentPlan?.features.hasInternalManagement || isSuperAdmin);
+
   const pendingOrdersCount = jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length;
   const bgClass = isSuperAdmin ? 'bg-slate-950' : (isClient ? 'bg-indigo-950' : 'bg-slate-900');
   
@@ -72,7 +75,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans relative overflow-x-hidden w-full">
-      {!isSuperAdmin && <GlobalScanner />}
+      {/* Scanner só aparece se tiver gestão interna */}
+      {hasFullLab && !isSuperAdmin && <GlobalScanner />}
       <PrintOverlay />
       <AlertPopup />
       <PWAInstallPrompt />
@@ -117,46 +121,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white p-1"><X size={24} /></button>
           </div>
 
-          {isClient && (
-             <div className="mb-6 px-2 relative shrink-0">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2 truncate">Laboratório Ativo</p>
-                <button 
-                   onClick={() => setIsLabSelectorOpen(!isLabSelectorOpen)}
-                   className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 group"
-                >
-                   <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
-                         {activeOrganization?.logoUrl ? (
-                           <img src={activeOrganization.logoUrl} alt="Lab Logo" className="w-full h-full object-contain" />
-                         ) : (
-                           <Building size={16} className="text-indigo-500" />
-                         )}
-                      </div>
-                      <span className="font-bold text-sm truncate">{activeOrganization?.name || 'Selecione...'}</span>
-                   </div>
-                   <ChevronsUpDown size={14} className="text-slate-500 group-hover:text-white shrink-0" />
-                </button>
-
-                {isLabSelectorOpen && (
-                   <div className="absolute top-full left-2 right-2 mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-[80] overflow-hidden animate-in fade-in slide-in-from-top-2">
-                      <div className="max-h-48 overflow-y-auto">
-                        {userConnections.map(conn => (
-                           <button 
-                              key={conn.organizationId}
-                              onClick={() => { switchActiveOrganization(conn.organizationId); setIsLabSelectorOpen(false); }}
-                              className={`w-full text-left p-3 text-sm hover:bg-white/5 flex items-center justify-between ${activeOrganization?.id === conn.organizationId ? 'text-indigo-400 bg-white/5' : 'text-slate-300'}`}
-                           >
-                              <span className="truncate">{conn.organizationName}</span>
-                              {activeOrganization?.id === conn.organizationId && <div className="w-2 h-2 bg-indigo-400 rounded-full shrink-0"></div>}
-                           </button>
-                        ))}
-                      </div>
-                      <Link to="/dentist/partnerships" onClick={() => setIsLabSelectorOpen(false)} className="block w-full p-3 text-center text-xs font-bold bg-white/5 hover:bg-white/10 border-t border-slate-700 text-indigo-400">+ Nova Parceria</Link>
-                   </div>
-                )}
-             </div>
-          )}
-
           <nav className="space-y-1 flex-1 overflow-y-auto no-scrollbar pr-2">
             {isSuperAdmin && (
               <>
@@ -168,19 +132,33 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
             {!isClient && !isSuperAdmin && (
               <>
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === '/dashboard'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Painel Loja" active={location.pathname === '/dashboard'} />
                 {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
-                {hasPerm('clients:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
-                {hasPerm('logistics:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
                 
+                {/* APENAS SE TIVER GESTÃO INTERNA ATIVA */}
+                {hasFullLab ? (
+                    <>
+                        {hasPerm('clients:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
+                        {hasPerm('logistics:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
+                        
+                        <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate">Gestão de Bancada</p>
+                        {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso Manual" active={location.pathname === '/new-job'} />}
+                        {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Lista Geral OS" active={location.pathname === '/jobs'} />}
+                        {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
+                        {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
+                    </>
+                ) : (
+                    <div className="px-4 py-6 mt-4 bg-blue-600/10 rounded-2xl border border-blue-600/20">
+                        <p className="text-[10px] font-black text-blue-400 uppercase mb-2">Upgrade Disponível</p>
+                        <p className="text-[11px] text-slate-400 leading-tight">Libere gestão de bancada, rastreio QR Code e controle de setores.</p>
+                        <Link to="/admin/assinatura" className="mt-3 block text-center py-2 bg-blue-600 text-white font-black text-[10px] uppercase rounded-xl hover:bg-blue-500 transition-colors">Conhecer Planos</Link>
+                    </div>
+                )}
+
                 <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate">Produção</p>
-                {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
-                {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
-                {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
-                {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
-                {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
+                {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Meu Catálogo" active={location.pathname === '/job-types'} />}
               </>
             )}
 
@@ -206,7 +184,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
             <div className="pt-8 mt-8 border-t border-white/10 shrink-0">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-              {isAdmin && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurar Lab" active={location.pathname.startsWith('/admin')} />}
+              {isAdmin && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurações" active={location.pathname.startsWith('/admin')} />}
             </div>
           </nav>
 
@@ -218,6 +196,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
+      {/* Resto do arquivo Layout permanece igual... */}
       <header className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden">
          <div className="flex items-center gap-3">
              <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors"><Menu size={24} /></button>
@@ -237,7 +216,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)]">
           <MobileNavItem to="/dashboard" icon={<Home size={22}/>} label="Home" active={location.pathname === '/dashboard'} />
           
-          {!isClient ? (
+          {hasFullLab ? (
             <>
               <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
@@ -247,7 +226,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </div>
               <MobileNavItem to="/incoming-orders" icon={<InboxIcon size={22}/>} label="Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
             </>
-          ) : (
+          ) : isClient ? (
             <>
               <MobileNavItem to="/schedule" icon={<CalendarRange size={22}/>} label="Agenda" active={location.pathname === '/schedule'} />
               <div className="relative -top-5">
@@ -256,6 +235,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                  </Link>
               </div>
               <MobileNavItem to="/clinic/rooms" icon={<LayoutGrid size={22}/>} label="Salas" active={location.pathname === '/clinic/rooms'} />
+            </>
+          ) : (
+            <>
+              <MobileNavItem to="/lab/finance" icon={<DollarSign size={22}/>} label="Ganhos" active={location.pathname === '/lab/finance'} />
+              <MobileNavItem to="/incoming-orders" icon={<InboxIcon size={22}/>} label="Pedidos" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
             </>
           )}
           
@@ -287,16 +271,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   );
 };
 
-interface SidebarItemProps {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick?: () => void;
-  badge?: number;
-}
-
-const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onClick, badge }) => (
+const SidebarItem = ({ to, icon, label, active, onClick, badge }: any) => (
   <Link to={to} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group ${ active ? 'bg-white/10 text-white font-bold shadow-sm ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }`} >
     <span className="shrink-0">{icon}</span>
     <span className="text-sm font-medium truncate">{label}</span>

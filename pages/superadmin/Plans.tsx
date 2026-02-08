@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { SubscriptionPlan } from '../../types';
-import { Plus, Trash2, Edit2, Check, X, Tag, Shield, Store, Activity, Database, Users, Stethoscope } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Tag, Shield, Store, Activity, Database, Users, Stethoscope, Layers } from 'lucide-react';
 
 export const Plans = () => {
   const { allPlans, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan } = useApp();
@@ -19,6 +20,7 @@ export const Plans = () => {
   const [maxStorage, setMaxStorage] = useState(5);
   const [hasStore, setHasStore] = useState(true);
   const [hasClinic, setHasClinic] = useState(true);
+  const [hasInternalManagement, setHasInternalManagement] = useState(true);
 
   const resetForm = () => {
     setName('');
@@ -29,6 +31,7 @@ export const Plans = () => {
     setMaxStorage(5);
     setHasStore(true);
     setHasClinic(true);
+    setHasInternalManagement(true);
     setIsEditing(false);
     setEditingId(null);
   };
@@ -44,6 +47,7 @@ export const Plans = () => {
     setMaxStorage(plan.features.maxStorageGB);
     setHasStore(plan.features.hasStoreModule);
     setHasClinic(plan.features.hasClinicModule);
+    setHasInternalManagement(plan.features.hasInternalManagement !== false);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -59,7 +63,8 @@ export const Plans = () => {
             maxUsers,
             maxStorageGB: maxStorage,
             hasStoreModule: hasStore,
-            hasClinicModule: hasClinic
+            hasClinicModule: hasClinic,
+            hasInternalManagement: hasInternalManagement
         }
     };
 
@@ -111,15 +116,11 @@ export const Plans = () => {
                                 <Database size={16} className="text-slate-400" />
                                 <span>{plan.features.maxStorageGB} GB Armazenamento</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Shield size={16} className="text-slate-400" />
-                                <span>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</span>
-                            </div>
                             <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-green-700' : 'text-slate-400 line-through'}`}>
                                 <Store size={16} /> Loja Virtual
                             </div>
-                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-green-700' : 'text-slate-400 line-through'}`}>
-                                <Activity size={16} /> Gestão Clínica
+                            <div className={`flex items-center gap-2 ${plan.features.hasInternalManagement ? 'text-blue-700' : 'text-slate-400 line-through'}`}>
+                                <Layers size={16} /> Gestão de Bancada OS
                             </div>
                         </div>
 
@@ -145,7 +146,7 @@ export const Plans = () => {
                 <form onSubmit={handleSave} className="space-y-4">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Plano</label>
-                        <input value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required placeholder="Ex: Profissional" />
+                        <input value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" required placeholder="Ex: Grátis - Apenas Loja" />
                     </div>
                     
                     <div>
@@ -171,31 +172,20 @@ export const Plans = () => {
                     </div>
 
                     <div className="pt-2 border-t border-slate-100">
-                        <p className="text-xs font-bold text-slate-400 uppercase mb-3">Recursos</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-3">Recursos Habilitados</p>
                         
                         <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="text-xs text-slate-500 block mb-1">Max Usuários</label>
-                                    <input type="number" value={maxUsers} onChange={e => setMaxUsers(parseInt(e.target.value))} className="w-full px-2 py-1 border rounded text-sm" placeholder="-1 para ilimitado" />
-                                </div>
-                                <div>
-                                    <label className="text-xs text-slate-500 block mb-1">Storage (GB)</label>
-                                    <input type="number" value={maxStorage} onChange={e => setMaxStorage(parseInt(e.target.value))} className="w-full px-2 py-1 border rounded text-sm" />
-                                </div>
-                            </div>
-
                             <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                                <span className="text-sm font-medium">Módulo Loja</span>
+                                <span className="text-sm font-medium">Loja Virtual (Loja Online)</span>
                                 <button type="button" onClick={() => setHasStore(!hasStore)} className={`w-10 h-5 rounded-full transition-colors relative ${hasStore ? 'bg-green-500' : 'bg-slate-300'}`}>
                                     <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-all ${hasStore ? 'left-6' : 'left-1'}`} />
                                 </button>
                             </div>
 
                             <div className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                                <span className="text-sm font-medium">Módulo Clínica</span>
-                                <button type="button" onClick={() => setHasClinic(!hasClinic)} className={`w-10 h-5 rounded-full transition-colors relative ${hasClinic ? 'bg-green-500' : 'bg-slate-300'}`}>
-                                    <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-all ${hasClinic ? 'left-6' : 'left-1'}`} />
+                                <span className="text-sm font-medium">Gestão Interna (Bancada/OS)</span>
+                                <button type="button" onClick={() => setHasInternalManagement(!hasInternalManagement)} className={`w-10 h-5 rounded-full transition-colors relative ${hasInternalManagement ? 'bg-blue-500' : 'bg-slate-300'}`}>
+                                    <div className={`w-3 h-3 bg-white rounded-full absolute top-1 transition-all ${hasInternalManagement ? 'left-6' : 'left-1'}`} />
                                 </button>
                             </div>
                         </div>

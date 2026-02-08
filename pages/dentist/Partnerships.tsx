@@ -175,11 +175,6 @@ export const Partnerships = () => {
                         placeholder="Busque laboratórios por nome, especialidade ou cidade..."
                         className="w-full pl-16 pr-4 py-5 bg-white border-2 border-slate-100 rounded-[32px] shadow-2xl shadow-slate-200/40 outline-none focus:border-blue-600 font-bold text-lg transition-all placeholder:text-slate-300"
                     />
-                    {!searchTerm && (
-                        <div className="absolute right-6 top-1/2 -translate-y-1/2 flex gap-2">
-                             <span className="text-[10px] font-black bg-slate-50 text-slate-400 px-3 py-1.5 rounded-full border border-slate-100 hidden sm:block">Filtros Inteligentes</span>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -227,29 +222,24 @@ export const Partnerships = () => {
                                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                     <History size={16} /> Meus Fornecedores Frequentes
                                 </h3>
-                                <button className="text-[10px] font-black text-blue-600 hover:underline uppercase">Ver Todos</button>
                             </div>
                             <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 px-2">
-                                {Array.from(frequentLabIds).map(id => {
-                                    const lab = allLaboratories.find(l => l.id === id);
-                                    if (!lab) return null;
-                                    return (
-                                        <button key={id} onClick={() => setSelectedLab(lab)} className="flex flex-col items-center gap-3 shrink-0 group">
-                                            <div className="w-24 h-24 bg-white rounded-[32px] p-1 border-2 border-slate-100 group-hover:border-blue-600 group-hover:shadow-2xl transition-all shadow-md overflow-hidden flex items-center justify-center">
-                                                <div className="w-full h-full rounded-[28px] overflow-hidden bg-slate-50 flex items-center justify-center">
-                                                    {lab.logoUrl ? <img src={lab.logoUrl} className="w-full h-full object-contain"/> : <Building size={32} className="text-slate-300"/>}
-                                                </div>
+                                {allLaboratories.filter(l => frequentLabIds.has(l.id)).map(lab => (
+                                    <button key={lab.id} onClick={() => setSelectedLab(lab)} className="flex flex-col items-center gap-3 shrink-0 group">
+                                        <div className="w-24 h-24 bg-white rounded-[32px] p-1 border-2 border-slate-100 group-hover:border-blue-600 group-hover:shadow-2xl transition-all shadow-md overflow-hidden flex items-center justify-center">
+                                            <div className="w-full h-full rounded-[28px] overflow-hidden bg-slate-50 flex items-center justify-center">
+                                                {lab.logoUrl ? <img src={lab.logoUrl} className="w-full h-full object-contain"/> : <Building size={32} className="text-slate-300"/>}
                                             </div>
-                                            <div className="text-center">
-                                                <span className="text-[11px] font-black text-slate-700 uppercase block truncate w-24">{lab.name}</span>
-                                                <div className="flex items-center justify-center gap-1 mt-1 text-yellow-500">
-                                                    <Star size={10} fill="currentColor" />
-                                                    <span className="text-[9px] font-black">{lab.ratingAverage?.toFixed(1) || 'N/A'}</span>
-                                                </div>
+                                        </div>
+                                        <div className="text-center">
+                                            <span className="text-[11px] font-black text-slate-700 uppercase block truncate w-24">{lab.name}</span>
+                                            <div className="flex items-center justify-center gap-1 mt-1 text-yellow-500">
+                                                <Star size={10} fill="currentColor" />
+                                                <span className="text-[9px] font-black">{lab.ratingAverage?.toFixed(1) || 'N/A'}</span>
                                             </div>
-                                        </button>
-                                    );
-                                })}
+                                        </div>
+                                    </button>
+                                ))}
                             </div>
                         </section>
                     )}
@@ -281,9 +271,12 @@ export const Partnerships = () => {
                         </section>
                     )}
 
-                    {/* EXPLORAR TODOS (ESTADO PADRÃO) */}
+                    {/* EXPLORAR TODOS (LISTA COMPLETA SEM FILTRO DE PARCERIA) */}
                     <section className="space-y-6 px-2 md:px-0">
-                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Explorar todos os laboratórios</h3>
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Explorar todos os laboratórios</h3>
+                            <span className="text-[10px] font-black text-slate-300 bg-slate-50 px-2 py-0.5 rounded-full">{allLaboratories.length} Laboratórios no Ecossistema</span>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {allLaboratories.map(lab => renderLabCard(lab))}
                         </div>
