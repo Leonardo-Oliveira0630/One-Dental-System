@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Building, Crown, Users, Ticket, ArrowRight, Activity, Calendar, Settings, Percent, Save, Loader2, Info } from 'lucide-react';
+/* Adding ShieldCheck to the lucide-react imports */
+import { Building, Crown, Users, Ticket, ArrowRight, Activity, Calendar, Settings, Percent, Save, Loader2, Info, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const SuperAdminDashboard = () => {
