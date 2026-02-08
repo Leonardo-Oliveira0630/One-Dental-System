@@ -388,8 +388,14 @@ export const apiRegisterDentist = async (email: string, pass: string, name: stri
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
     return profile;
 };
-export const apiAddSubscriptionPlan = (p: SubscriptionPlan) => setDoc(doc(db, 'subscriptionPlans', p.id), p);
-export const apiUpdateSubscriptionPlan = (id: string, u: Partial<SubscriptionPlan>) => updateDoc(doc(db, 'subscriptionPlans', id), u);
+export const apiAddSubscriptionPlan = (p: SubscriptionPlan) => {
+    if (!db) throw new Error("Firestore não inicializado.");
+    return setDoc(doc(db, 'subscriptionPlans', p.id), p);
+};
+export const apiUpdateSubscriptionPlan = (id: string, u: Partial<SubscriptionPlan>) => {
+    if (!db) throw new Error("Firestore não inicializado.");
+    return updateDoc(doc(db, 'subscriptionPlans', id), u);
+};
 export const apiDeleteSubscriptionPlan = (id: string) => deleteDoc(doc(db, 'subscriptionPlans', id));
 export const apiAddConnectionByCode = async (clinicOrgId: string, dentistId: string, code: string) => {
     const orgSnap = await getDoc(doc(db, 'organizations', code));
