@@ -5,10 +5,12 @@ import { Job, JobStatus, UrgencyLevel } from '../types';
 import { 
   ChevronLeft, ChevronRight, Calendar as CalendarIcon, 
   AlertTriangle, CheckCircle, Clock, X, Save, Check, 
-  Package, AlertCircle, Info, LayoutGrid, ChevronDown
+  Package, AlertCircle, Info, LayoutGrid, ChevronDown, FilterX
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
+
+type CalendarFilter = 'ALL' | 'DELAYED' | 'URGENT' | 'POST';
 
 export const ProductionCalendar = () => {
   const { jobs, updateJob, currentUser, manualDentists, allUsers } = useApp();
@@ -16,6 +18,7 @@ export const ProductionCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [activeDayView, setActiveDayView] = useState<number | null>(null);
+  const [activeFilter, setActiveFilter] = useState<CalendarFilter>('ALL');
 
   // Modal State
   const [newDate, setNewDate] = useState('');
@@ -43,20 +46,45 @@ export const ProductionCalendar = () => {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const totalSlots = [...blanks, ...days];
 
+  // --- Helper para identificar categorias ---
+  const getJobCategory = (job: Job) => {
+    const isDone = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
+    const isVip = job.urgency === UrgencyLevel.VIP || job.urgency === UrgencyLevel.HIGH;
+    const isDelayed = !isDone && new Date(job.dueDate) < new Date(new Date().setHours(0,0,0,0));
+    const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
+    const isPost = dentist?.deliveryViaPost === true;
+
+    return { isDone, isVip, isDelayed, isPost };
+  };
+
   const getJobsForDay = (day: number) => {
-    return jobs.filter(job => {
+    const dayJobs = jobs.filter(job => {
       const d = new Date(job.dueDate);
       return (
         d.getDate() === day &&
         d.getMonth() === currentDate.getMonth() &&
         d.getFullYear() === currentDate.getFullYear()
       );
+    });
+
+    // APLICAR FILTRO DA LEGENDA
+    return dayJobs.filter(job => {
+        if (activeFilter === 'ALL') return true;
+        const { isDelayed, isVip, isPost } = getJobCategory(job);
+        if (activeFilter === 'DELAYED') return isDelayed;
+        if (activeFilter === 'URGENT') return isVip;
+        if (activeFilter === 'POST') return isPost;
+        return true;
     }).sort((a, b) => {
         if (a.dueTime && b.dueTime) return a.dueTime.localeCompare(b.dueTime);
         if (a.dueTime) return -1;
         if (b.dueTime) return 1;
         return 0;
     });
+  };
+
+  const toggleFilter = (filter: CalendarFilter) => {
+      setActiveFilter(prev => prev === filter ? 'ALL' : filter);
   };
 
   const handleJobClick = (job: Job, e?: React.MouseEvent) => {
@@ -82,14 +110,9 @@ export const ProductionCalendar = () => {
 
   const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-  // --- Lógica de Cores do Card ---
+  // --- Estilização Dinâmica ---
   const getJobColors = (job: Job) => {
-    const isDone = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
-    const isVip = job.urgency === UrgencyLevel.VIP || job.urgency === UrgencyLevel.HIGH;
-    const isDelayed = !isDone && new Date(job.dueDate) < new Date(new Date().setHours(0,0,0,0));
-    
-    const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
-    const isPost = dentist?.deliveryViaPost;
+    const { isDone, isVip, isDelayed, isPost } = getJobCategory(job);
 
     if (isDone) return { bg: "bg-slate-50 border-slate-100 opacity-50 grayscale", text: "text-slate-400" };
     if (isDelayed) return { bg: "bg-red-50 border-red-200 shadow-red-100/50", text: "text-red-900" };
@@ -120,16 +143,46 @@ export const ProductionCalendar = () => {
         </div>
       </div>
 
-      {/* Legenda de Alertas */}
-      <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-x-6 gap-y-2 shrink-0 mx-2 md:mx-0">
-          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-red-500"></div><span className="text-[9px] font-black text-slate-600 uppercase">Atrasado</span></div>
-          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div><span className="text-[9px] font-black text-slate-600 uppercase">Urgente</span></div>
-          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-indigo-500"></div><span className="text-[9px] font-black text-slate-600 uppercase">Correio</span></div>
-          <div className="hidden sm:block text-[9px] text-slate-400 font-bold ml-auto italic">Clique no dia para abrir linha do tempo.</div>
+      {/* Legenda de Alertas INTERATIVA (FILTROS) */}
+      <div className="bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-2 shrink-0 mx-2 md:mx-0">
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">Filtrar por:</span>
+          
+          <button 
+            onClick={() => toggleFilter('DELAYED')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${activeFilter === 'DELAYED' ? 'bg-red-500 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-600 hover:border-red-200'}`}
+          >
+              <div className={`w-2 h-2 rounded-full ${activeFilter === 'DELAYED' ? 'bg-white' : 'bg-red-500'}`}></div>
+              <span className="text-[10px] font-black uppercase">Atrasados</span>
+          </button>
+
+          <button 
+            onClick={() => toggleFilter('URGENT')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${activeFilter === 'URGENT' ? 'bg-orange-500 border-orange-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-600 hover:border-orange-200'}`}
+          >
+              <div className={`w-2 h-2 rounded-full ${activeFilter === 'URGENT' ? 'bg-white' : 'bg-orange-500'}`}></div>
+              <span className="text-[10px] font-black uppercase">Urgentes</span>
+          </button>
+
+          <button 
+            onClick={() => toggleFilter('POST')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${activeFilter === 'POST' ? 'bg-indigo-500 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-100 text-slate-600 hover:border-indigo-200'}`}
+          >
+              <div className={`w-2 h-2 rounded-full ${activeFilter === 'POST' ? 'bg-white' : 'bg-indigo-500'}`}></div>
+              <span className="text-[10px] font-black uppercase">Correios</span>
+          </button>
+
+          {activeFilter !== 'ALL' && (
+              <button 
+                onClick={() => setActiveFilter('ALL')}
+                className="ml-auto flex items-center gap-1.5 text-blue-600 font-black text-[10px] uppercase hover:underline"
+              >
+                  <FilterX size={14}/> Limpar Filtros
+              </button>
+          )}
       </div>
 
       {/* Calendário Mensal */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden min-h-0 w-full">
+      <div className={`bg-white rounded-3xl shadow-sm border flex-1 flex flex-col overflow-hidden min-h-0 w-full transition-all ${activeFilter !== 'ALL' ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-200'}`}>
         <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50 shrink-0">
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
                 <div key={day} className="py-2.5 text-center text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">{day}</div>
@@ -173,6 +226,7 @@ export const ProductionCalendar = () => {
                                 );
                             })}
                             {dayJobs.length > 4 && <div className="text-[7px] font-black text-slate-400 text-center py-1">+{dayJobs.length - 4} mais</div>}
+                            {dayJobs.length === 0 && activeFilter !== 'ALL' && <div className="flex-1"></div>}
                         </div>
                     </div>
                 );
@@ -190,6 +244,9 @@ export const ProductionCalendar = () => {
                           <h2 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tighter">
                             {activeDayView} de {monthNames[currentDate.getMonth()]}
                           </h2>
+                          {activeFilter !== 'ALL' && (
+                              <span className="text-[9px] font-black text-orange-600 uppercase tracking-tighter bg-orange-50 px-2 py-0.5 rounded">Filtro Ativo: {activeFilter}</span>
+                          )}
                       </div>
                       <button onClick={() => setActiveDayView(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                   </div>

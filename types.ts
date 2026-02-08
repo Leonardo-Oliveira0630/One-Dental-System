@@ -20,6 +20,7 @@ export interface GlobalSettings {
 export interface Organization {
   id: string;
   name: string;
+  description?: string; // Novo: Sobre o Lab para o Marketplace
   logoUrl?: string; 
   planId: string;
   subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING';
@@ -344,7 +345,6 @@ export interface ClinicPatient {
   createdAt: Date;
 }
 
-// NOVO: Prontuário do Paciente
 export interface PatientHistoryRecord {
   id: string;
   patientId: string;
