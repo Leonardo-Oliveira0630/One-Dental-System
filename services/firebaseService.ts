@@ -199,13 +199,8 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
 
 export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
-    if (!orgId) {
-        console.warn("[ProTrack] Tentativa de assinar trabalhos sem orgId");
-        return () => {};
-    }
-    
+    if (!orgId) return () => {};
     const q = query(collection(db, `organizations/${orgId}/jobs`));
-    
     return onSnapshot(q, (snap: any) => {
         try {
             const rawJobs = snap.docs.map((d: any) => {
@@ -218,7 +213,6 @@ export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
                     history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) }))
                 } as Job;
             });
-            
             const sortedJobs = rawJobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
             cb(sortedJobs);
         } catch (err) {
@@ -425,6 +419,8 @@ export const apiRegisterUserInOrg = async (email: string, pass: string, name: st
     const fn = httpsCallable(functions, 'registerUserInOrg');
     return (await fn({ email, pass, name, role, organizationId })).data;
 };
+
+// SUBSCRIÇÃO DE USUÁRIOS POR ORGANIZAÇÃO
 export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
     if (!orgId) return () => {};
     const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
@@ -432,6 +428,14 @@ export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as User)));
     });
 };
+
+// NOVO: SUBSCRIÇÃO GLOBAL PARA SUPER ADMIN
+export const subscribeAllUsers = (cb: (u: User[]) => void) => {
+    return onSnapshot(collection(db, 'users'), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as User)));
+    });
+};
+
 export const subscribeBillingBatches = (orgId: string, cb: (b: BillingBatch[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/billingBatches`), (snap: any) => {

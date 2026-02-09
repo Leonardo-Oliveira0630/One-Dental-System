@@ -14,7 +14,6 @@ import * as firestorePkg from 'firebase/firestore';
 const { onAuthStateChanged } = authPkg as any;
 const { doc, getDoc, onSnapshot } = firestorePkg as any;
 
-// Lista de todas as permissões possíveis para conceder ao Super Admin
 const ALL_PERMISSIONS: PermissionKey[] = [
   'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:view',
   'finance:view', 'finance:manage', 'catalog:manage',
@@ -182,7 +181,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (user) {
         const profile = await api.getUserProfile(user.uid);
         if (profile) {
-            // SUPER ADMIN MASTER PERMISSIONS BYPASS
             if (profile.role === UserRole.SUPER_ADMIN) {
                 profile.permissions = ALL_PERMISSIONS;
             }
@@ -196,17 +194,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         const oData = { id: snap.id, ...snap.data() as any } as Organization;
                         setCurrentOrg(oData);
                         
-                        // Busca o plano. Se não achar, usa um plano "God Mode" se for Super Admin
                         if (oData.planId) {
                             const planRef = doc(db, 'subscriptionPlans', oData.planId);
                             getDoc(planRef).then((pSnap: any) => {
                                 if (pSnap.exists()) {
                                     setCurrentPlan({ id: pSnap.id, ...pSnap.data() as any } as SubscriptionPlan);
                                 } else if (profile.role === UserRole.SUPER_ADMIN) {
-                                    // Fallback para Super Admin se o plano foi deletado
                                     setCurrentPlan({
                                         id: 'super_plan', name: 'Plano Administrativo', price: 0, active: true, isPublic: false,
-                                        features: { maxUsers: -1, maxStorageGB: 100, hasStoreModule: true, hasClinicModule: true }
+                                        features: { maxUsers: -1, maxStorageGB: 100, maxDentists: -1, maxJobsPerMonth: -1, hasStoreModule: true, hasClinicModule: true }
                                     });
                                 }
                             });
@@ -254,20 +250,30 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }, [currentUser, activeOrganization]);
 
   useEffect(() => {
-    if (!db || !currentUser || !activeDataId) {
+    if (!db || !currentUser) {
         setJobs([]);
+        setAllUsers([]);
         return;
     }
     const unsubs: (() => void)[] = [];
-    unsubs.push(api.subscribeJobs(activeDataId, setJobs));
-    unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
+    
+    // Subscrição dinâmica de usuários baseada no activeDataId
+    // Se o activeDataId existir, pega os usuários daquela org.
+    // Se for Super Admin e não tiver activeDataId, pega todos.
+    if (activeDataId) {
+        unsubs.push(api.subscribeOrgUsers(activeDataId, setAllUsers));
+        unsubs.push(api.subscribeJobs(activeDataId, setJobs));
+        unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
+    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
+        unsubs.push(api.subscribeAllUsers(setAllUsers));
+    }
 
     const myOrgId = currentUser.organizationId;
     if (myOrgId) {
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
+        
         if (currentUser.role !== UserRole.CLIENT) {
-            unsubs.push(api.subscribeOrgUsers(myOrgId, setAllUsers));
             unsubs.push(api.subscribeSectors(myOrgId, setSectors));
             unsubs.push(api.subscribeBoxColors(myOrgId, setBoxColors));
             unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
@@ -275,9 +281,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
         }
     }
+    
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
+    
     return () => unsubs.forEach(u => u());
   }, [currentUser, activeDataId]);
 
@@ -347,7 +355,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiDeleteClinicService(orgId, id);
   };
 
-  // HANDLERS PARA SALAS (ROOMS)
   const addClinicRoom = async (room: Omit<ClinicRoom, 'id'>) => {
       const orgId = currentUser?.organizationId;
       if(!orgId) return;
@@ -364,7 +371,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiDeleteClinicRoom(orgId, id);
   };
 
-  // HANDLERS PARA DENTISTAS (CONTRACTED)
   const addClinicDentist = async (dentist: Omit<ClinicDentist, 'id'>) => {
       const orgId = currentUser?.organizationId;
       if(!orgId) return;
