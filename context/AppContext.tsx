@@ -167,6 +167,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<AppContextType['printData']>(null);
 
+  // Subscrições Públicas / Globais de Configuração
   useEffect(() => {
     if (!db) return;
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
@@ -175,6 +176,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return () => { unsubPlans(); unsubCoupons(); unsubSettings(); };
   }, []);
 
+  // Monitoramento de Auth e Perfil
   useEffect(() => {
     if (!auth) { setIsLoadingAuth(false); return; }
     const unsub = onAuthStateChanged(auth, async (user: any) => {
@@ -209,6 +211,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                         }
                     }
                 });
+
+                // Se for cliente, carrega parcerias e módulos clínicos
                 if (profile.role === UserRole.CLIENT) {
                     api.subscribeUserConnections(profileOrgId, (conns) => {
                         setUserConnections(conns);
@@ -227,15 +231,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
         }
       } else {
-        setCurrentUser(null);
-        setCurrentOrg(null);
-        setCurrentPlan(null);
-        setActiveOrganization(null);
-        setUserConnections([]);
-        setAllLaboratories([]);
-        setClinicServices([]);
-        setClinicRooms([]);
-        setClinicDentists([]);
+        // Reset global states on logout
+        setCurrentUser(null); setCurrentOrg(null); setCurrentPlan(null); setActiveOrganization(null);
+        setUserConnections([]); setAllLaboratories([]); setClinicServices([]); setClinicRooms([]); setClinicDentists([]);
+        setAllUsers([]); setJobs([]); setJobTypes([]);
       }
       setIsLoadingAuth(false);
     });
@@ -249,25 +248,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return currentUser?.organizationId || null;
   }, [currentUser, activeOrganization]);
 
+  // Subscrições de Dados Operacionais baseadas na Organização Ativa
   useEffect(() => {
-    if (!db || !currentUser) {
-        setJobs([]);
-        setAllUsers([]);
-        return;
-    }
+    if (!db || !currentUser) return;
+
     const unsubs: (() => void)[] = [];
-    
-    // Subscrição dinâmica de usuários baseada no activeDataId
-    // Se o activeDataId existir, pega os usuários daquela org.
-    // Se for Super Admin e não tiver activeDataId, pega todos.
+    const isSuper = currentUser.role === UserRole.SUPER_ADMIN;
+
+    // Se houver um laboratório ativo sendo visualizado
     if (activeDataId) {
-        unsubs.push(api.subscribeOrgUsers(activeDataId, setAllUsers));
         unsubs.push(api.subscribeJobs(activeDataId, setJobs));
         unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
-    } else if (currentUser.role === UserRole.SUPER_ADMIN) {
+        
+        // Colaboradores da org ativa (apenas se for admin/manager/super ou mesma org)
+        if (isSuper || currentUser.organizationId === activeDataId || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER) {
+            unsubs.push(api.subscribeOrgUsers(activeDataId, setAllUsers));
+        }
+    } else if (isSuper) {
+        // Se for Super Admin e não tiver org selecionada, pode ver todos se quiser, 
+        // mas vamos carregar apenas sob demanda para evitar Permission Denied global
         unsubs.push(api.subscribeAllUsers(setAllUsers));
     }
 
+    // Dados da PRÓPRIA organização do usuário
     const myOrgId = currentUser.organizationId;
     if (myOrgId) {
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
@@ -282,7 +285,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
     }
     
-    if (currentUser.role === UserRole.SUPER_ADMIN) {
+    if (isSuper) {
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
     

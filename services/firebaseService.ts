@@ -48,7 +48,7 @@ export const subscribePatientHistory = (orgId: string, patientId: string, cb: (h
             date: toDate(d.data().date),
             createdAt: toDate(d.data().createdAt)
         } as PatientHistoryRecord)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro silencioso em subscribePatientHistory: ${error.code}`));
 };
 
 export const apiAddPatientHistory = (orgId: string, patientId: string, record: PatientHistoryRecord) => {
@@ -84,7 +84,7 @@ export const subscribeClinicRooms = (orgId: string, cb: (rooms: ClinicRoom[]) =>
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/clinicRooms`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicRoom)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeClinicRooms: ${error.code}`));
 };
 export const apiAddClinicRoom = (orgId: string, room: ClinicRoom) => setDoc(doc(db, `organizations/${orgId}/clinicRooms`, room.id), room);
 export const apiUpdateClinicRoom = (orgId: string, id: string, updates: Partial<ClinicRoom>) => updateDoc(doc(db, `organizations/${orgId}/clinicRooms`, id), updates);
@@ -95,7 +95,7 @@ export const subscribeClinicDentists = (orgId: string, cb: (dentists: ClinicDent
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/clinicDentists`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicDentist)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeClinicDentists: ${error.code}`));
 };
 export const apiAddClinicDentist = (orgId: string, dentist: ClinicDentist) => setDoc(doc(db, `organizations/${orgId}/clinicDentists`, dentist.id), dentist);
 export const apiUpdateClinicDentist = (orgId: string, id: string, updates: Partial<ClinicDentist>) => updateDoc(doc(db, `organizations/${orgId}/clinicDentists`, id), updates);
@@ -106,7 +106,7 @@ export const subscribeClinicServices = (orgId: string, cb: (services: ClinicServ
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/clinicServices`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as ClinicService)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeClinicServices: ${error.code}`));
 };
 export const apiAddClinicService = (orgId: string, service: ClinicService) => setDoc(doc(db, `organizations/${orgId}/clinicServices`, service.id), service);
 export const apiUpdateClinicService = (orgId: string, id: string, updates: Partial<ClinicService>) => updateDoc(doc(db, `organizations/${orgId}/clinicServices`, id), updates);
@@ -134,7 +134,7 @@ export const subscribeChatMessages = (orgId: string, jobId: string, cb: (msgs: C
             createdAt: toDate(d.data().createdAt),
             updatedAt: d.data().updatedAt ? toDate(d.data().updatedAt) : undefined
         } as ChatMessage)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeChatMessages: ${error.code}`));
 };
 
 export const apiSendChatMessage = async (orgId: string, jobId: string, msg: Omit<ChatMessage, 'id'>) => {
@@ -194,7 +194,7 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
             setDoc(doc(db, 'settings', 'global'), defaults);
             cb(defaults);
         }
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeGlobalSettings: ${error.code}`));
 };
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
 
@@ -219,7 +219,7 @@ export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
             console.error("[ProTrack] Erro ao processar lista de trabalhos:", err);
         }
     }, (error: any) => {
-        console.error(`[ProTrack] Erro crítico Firestore (subscribeJobs) para ${orgId}:`, error);
+        console.warn(`[Firestore] Erro em subscribeJobs para ${orgId}: ${error.code}`);
     });
 };
 
@@ -230,7 +230,7 @@ export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void)
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/jobTypes`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as JobType)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeJobTypes: ${error.code}`));
 };
 export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, `organizations/${orgId}/jobTypes`, type.id), type);
 export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, `organizations/${orgId}/jobTypes`, id), updates);
@@ -240,7 +240,7 @@ export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void)
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/sectors`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as Sector)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeSectors: ${error.code}`));
 };
 export const apiAddSector = (orgId: string, sector: { id: string, name: string }) => setDoc(doc(db, `organizations/${orgId}/sectors`, sector.id), sector);
 export const apiUpdateSector = (orgId: string, id: string, name: string) => updateDoc(doc(db, `organizations/${orgId}/sectors`, id), { name });
@@ -250,7 +250,7 @@ export const subscribeBoxColors = (orgId: string, cb: (colors: BoxColor[]) => vo
   if (!orgId) return () => {};
   return onSnapshot(collection(db, `organizations/${orgId}/boxColors`), (snap: any) => {
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as BoxColor)));
-  });
+  }, (error: any) => console.warn(`[Firestore] Erro em subscribeBoxColors: ${error.code}`));
 };
 export const apiAddBoxColor = (orgId: string, color: BoxColor) => setDoc(doc(db, `organizations/${orgId}/boxColors`, color.id), color);
 export const apiDeleteBoxColor = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/boxColors`, id));
@@ -263,7 +263,7 @@ export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) 
             id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt),
             paidAt: d.data().paidAt ? toDate(d.data().paidAt) : undefined
         } as CommissionRecord)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeCommissions: ${error.code}`));
 };
 export const apiAddCommission = (orgId: string, rec: CommissionRecord) => setDoc(doc(db, `organizations/${orgId}/commissions`, rec.id), rec);
 export const apiUpdateCommission = (orgId: string, id: string, updates: Partial<CommissionRecord>) => updateDoc(doc(db, `organizations/${orgId}/commissions`, id), updates);
@@ -275,7 +275,7 @@ export const subscribeAlerts = (orgId: string, cb: (a: JobAlert[]) => void) => {
             id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt),
             scheduledFor: toDate(d.data().scheduledFor)
         } as JobAlert)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeAlerts: ${error.code}`));
 };
 export const apiAddAlert = (orgId: string, alert: JobAlert) => setDoc(doc(db, `organizations/${orgId}/alerts`, alert.id), alert);
 export const apiMarkAlertAsRead = (orgId: string, id: string, userId: string) => updateDoc(doc(db, `organizations/${orgId}/alerts`, id), { readBy: arrayUnion(userId) });
@@ -284,7 +284,7 @@ export const subscribePatients = (orgId: string, cb: (p: ClinicPatient[]) => voi
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/patients`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as ClinicPatient)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePatients: ${error.code}`));
 };
 export const apiAddPatient = (orgId: string, p: ClinicPatient) => setDoc(doc(db, `organizations/${orgId}/patients`, p.id), p);
 export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => updateDoc(doc(db, `organizations/${orgId}/patients`, id), u);
@@ -294,7 +294,7 @@ export const subscribeAppointments = (orgId: string, cb: (a: Appointment[]) => v
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/appointments`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date) } as Appointment)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeAppointments: ${error.code}`));
 };
 export const apiAddAppointment = (orgId: string, a: Appointment) => setDoc(doc(db, `organizations/${orgId}/appointments`, a.id), a);
 export const apiUpdateAppointment = (orgId: string, id: string, u: Partial<Appointment>) => updateDoc(doc(db, `organizations/${orgId}/appointments`, id), u);
@@ -303,18 +303,18 @@ export const apiDeleteAppointment = (orgId: string, id: string) => deleteDoc(doc
 export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     return onSnapshot(collection(db, 'organizations'), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllOrganizations: ${error.code}`));
 };
 export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
     const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllLaboratories: ${error.code}`));
 };
 export const subscribeSubscriptionPlans = (cb: (p: SubscriptionPlan[]) => void) => {
     return onSnapshot(collection(db, 'subscriptionPlans'), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as SubscriptionPlan)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeSubscriptionPlans: ${error.code}`));
 };
 export const subscribeCoupons = (cb: (c: Coupon[]) => void) => {
     return onSnapshot(collection(db, 'coupons'), (snap: any) => {
@@ -322,7 +322,7 @@ export const subscribeCoupons = (cb: (c: Coupon[]) => void) => {
             id: d.id, ...d.data() as any,
             validUntil: d.data().validUntil ? toDate(d.data().validUntil) : undefined
         } as Coupon)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeCoupons: ${error.code}`));
 };
 export const apiUpdateOrganization = (id: string, u: Partial<Organization>) => updateDoc(doc(db, 'organizations', id), u);
 export const apiValidateCoupon = async (code: string, planId: string): Promise<Coupon | null> => {
@@ -391,7 +391,7 @@ export const subscribeUserConnections = (orgId: string, cb: (c: OrganizationConn
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/connections`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as OrganizationConnection)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeUserConnections: ${error.code}`));
 };
 export const apiAddManualDentist = (orgId: string, d: ManualDentist) => setDoc(doc(db, `organizations/${orgId}/manualDentists`, d.id), d);
 export const apiUpdateManualDentist = (orgId: string, id: string, u: Partial<ManualDentist>) => updateDoc(doc(db, `organizations/${orgId}/manualDentists`, id), u);
@@ -400,7 +400,7 @@ export const subscribeManualDentists = (orgId: string, cb: (d: ManualDentist[]) 
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/manualDentists`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as ManualDentist)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeManualDentists: ${error.code}`));
 };
 export const uploadJobFile = async (file: File): Promise<string> => {
     const fileRef = ref(storage, `jobs/${Date.now()}_${file.name}`);
@@ -426,21 +426,21 @@ export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {
     const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as User)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeOrgUsers para ${orgId}: ${error.code}`));
 };
 
 // NOVO: SUBSCRIÇÃO GLOBAL PARA SUPER ADMIN
 export const subscribeAllUsers = (cb: (u: User[]) => void) => {
     return onSnapshot(collection(db, 'users'), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as User)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllUsers: ${error.code}`));
 };
 
 export const subscribeBillingBatches = (orgId: string, cb: (b: BillingBatch[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/billingBatches`), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt), dueDate: toDate(d.data().dueDate) } as BillingBatch)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeBillingBatches: ${error.code}`));
 };
 export const apiGenerateBatchBoleto = async (orgId: string, dentistId: string, jobIds: string[], dueDate: Date) => {
     const fn = httpsCallable(functions, 'generateBatchBoleto');
@@ -451,7 +451,7 @@ export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => 
     const q = query(collection(db, `organizations/${orgId}/expenses`), limit(100));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date), createdAt: toDate(d.data().createdAt) } as Expense)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeExpenses: ${error.code}`));
 };
 export const apiAddExpense = (orgId: string, expense: Expense) => setDoc(doc(db, `organizations/${orgId}/expenses`, expense.id), expense);
 export const apiDeleteExpense = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/expenses`, id));
@@ -474,14 +474,14 @@ export const subscribeLabRatings = (labId: string, cb: (r: LabRating[]) => void)
     const q = query(collection(db, `organizations/${labId}/ratings`), limit(50));
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as LabRating)));
-    });
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeLabRatings: ${error.code}`));
 };
 export const subscribeRoutes = (orgId: string, cb: (routes: DeliveryRoute[]) => void) => {
   if (!orgId) return () => {};
   const q = query(collection(db, `organizations/${orgId}/routes`), limit(50));
   return onSnapshot(q, (snap: any) => {
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, date: toDate(d.data().date), createdAt: toDate(d.data().createdAt) } as DeliveryRoute)));
-  });
+  }, (error: any) => console.warn(`[Firestore] Erro em subscribeRoutes: ${error.code}`));
 };
 export const apiAddRoute = (orgId: string, route: DeliveryRoute) => setDoc(doc(db, `organizations/${orgId}/routes`, route.id), route);
 export const apiUpdateRoute = (orgId: string, id: string, updates: Partial<DeliveryRoute>) => updateDoc(doc(db, `organizations/${orgId}/routes`, id), updates);
@@ -490,7 +490,7 @@ export const subscribeRouteItems = (orgId: string, routeId: string, cb: (items: 
   const q = query(collection(db, `organizations/${orgId}/routes/${routeId}/items`), orderBy('order', 'asc'));
   return onSnapshot(q, (snap: any) => {
     cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as RouteItem)));
-  });
+  }, (error: any) => console.warn(`[Firestore] Erro em subscribeRouteItems: ${error.code}`));
 };
 export const apiAddRouteItem = (orgId: string, routeId: string, item: RouteItem) => setDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, item.id), item);
 export const apiDeleteRouteItem = (orgId: string, routeId: string, itemId: string) => deleteDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, itemId));
