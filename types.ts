@@ -20,7 +20,6 @@ export interface GlobalSettings {
 export interface Organization {
   id: string;
   name: string;
-  description?: string; 
   logoUrl?: string; 
   planId: string;
   subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING';
@@ -43,24 +42,6 @@ export interface Organization {
   };
 }
 
-export interface SubscriptionPlan {
-  id: string;
-  name: string;
-  price: number;
-  isPublic: boolean;
-  active: boolean;
-  targetAudience?: 'LAB' | 'CLINIC';
-  trialDays?: number;
-  features: {
-    maxUsers: number;
-    maxStorageGB: number;
-    hasStoreModule: boolean;
-    hasClinicModule: boolean;
-    hasInternalManagement: boolean; // Novo: Define se pode criar OS manual e gerir produção
-  };
-}
-
-// ... (resto do arquivo types.ts permanece igual)
 export interface ClinicRoom {
   id: string;
   name: string;
@@ -363,6 +344,7 @@ export interface ClinicPatient {
   createdAt: Date;
 }
 
+// NOVO: Prontuário do Paciente
 export interface PatientHistoryRecord {
   id: string;
   patientId: string;
@@ -395,6 +377,22 @@ export interface Appointment {
   notes?: string;
   roomId?: string; 
   clinicDentistId?: string; 
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  isPublic: boolean;
+  active: boolean;
+  targetAudience?: 'LAB' | 'CLINIC';
+  trialDays?: number;
+  features: {
+    maxUsers: number;
+    maxStorageGB: number;
+    hasStoreModule: boolean;
+    hasClinicModule: boolean;
+  };
 }
 
 export interface OrganizationConnection {

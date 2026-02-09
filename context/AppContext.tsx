@@ -1,514 +1,545 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '../services/firebaseConfig';
-import * as api from '../services/firebaseService';
-import * as authPkg from 'firebase/auth';
+
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
-  User, Job, JobType, Sector, BoxColor, ManualDentist, 
-  Coupon, GlobalSettings, Organization, SubscriptionPlan, 
-  CartItem, ClinicPatient, Appointment, OrganizationConnection,
-  CommissionRecord, JobAlert, ClinicRoom, ClinicDentist, ClinicService,
-  UserRole, CommissionStatus
+  User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey
 } from '../types';
+import { db, auth } from '../services/firebaseConfig';
+import * as api from '../services/firebaseService';
+import { JobStatus, UrgencyLevel } from '../types';
+
+import * as authPkg from 'firebase/auth';
+import * as firestorePkg from 'firebase/firestore';
 
 const { onAuthStateChanged } = authPkg as any;
+const { doc, getDoc, onSnapshot } = firestorePkg as any;
+
+// Lista de todas as permissões possíveis para conceder ao Super Admin
+const ALL_PERMISSIONS: PermissionKey[] = [
+  'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:view',
+  'finance:view', 'finance:manage', 'catalog:manage',
+  'clients:manage', 'sectors:manage', 'users:manage',
+  'vip:view', 'calendar:view', 'commissions:view', 'logistics:manage'
+];
 
 interface AppContextType {
   currentUser: User | null;
-  isLoadingAuth: boolean;
-  jobs: Job[];
-  jobTypes: JobType[];
-  sectors: Sector[];
-  boxColors: BoxColor[];
-  allUsers: User[];
-  manualDentists: ManualDentist[];
-  coupons: Coupon[];
-  allPlans: SubscriptionPlan[];
-  globalSettings: GlobalSettings | null;
-  allOrganizations: Organization[];
-  allLaboratories: Organization[];
-  cart: CartItem[];
-  patients: ClinicPatient[];
-  appointments: Appointment[];
-  clinicRooms: ClinicRoom[];
-  clinicDentists: ClinicDentist[];
-  clinicServices: ClinicService[];
-  userConnections: OrganizationConnection[];
-  activeOrganization: Organization | null;
-  printData: any;
-  activeAlert: JobAlert | null;
-  commissions: CommissionRecord[];
   currentOrg: Organization | null;
   currentPlan: SubscriptionPlan | null;
+  isLoadingAuth: boolean;
+  globalSettings: GlobalSettings | null;
+  
+  allUsers: User[]; 
+  jobs: Job[];
+  jobTypes: JobType[];
+  clinicServices: ClinicService[];
+  clinicRooms: ClinicRoom[];
+  clinicDentists: ClinicDentist[];
+  sectors: Sector[];
+  boxColors: BoxColor[];
+  alerts: JobAlert[];
+  commissions: CommissionRecord[];
+  allOrganizations: Organization[];
+  allLaboratories: Organization[]; 
+  allPlans: SubscriptionPlan[];
+  coupons: Coupon[];
+  patients: ClinicPatient[];
+  appointments: Appointment[];
+  manualDentists: ManualDentist[];
+  activeAlert: JobAlert | null;
 
-  login: (email: string, pass: string) => Promise<any>;
-  logout: () => Promise<void>;
-  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
-  registerDentist: (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
+  login: (email: string, pass: string) => Promise<void>;
+  logout: () => void;
   updateUser: (id: string, updates: Partial<User>) => Promise<void>;
+  addUser: (user: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  
   addJob: (job: Omit<Job, 'id' | 'organizationId'>) => Promise<void>;
   updateJob: (id: string, updates: Partial<Job>) => Promise<void>;
+  
+  addCommissionRecord: (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => Promise<void>;
+  updateCommissionStatus: (id: string, status: CommissionStatus) => Promise<void>;
+
   addJobType: (type: Omit<JobType, 'id'>) => Promise<void>;
   updateJobType: (id: string, updates: Partial<JobType>) => Promise<void>;
   deleteJobType: (id: string) => Promise<void>;
+
+  addClinicService: (service: Omit<ClinicService, 'id'>) => Promise<void>;
+  updateClinicService: (id: string, updates: Partial<ClinicService>) => Promise<void>;
+  deleteClinicService: (id: string) => Promise<void>;
+
+  addClinicRoom: (room: Omit<ClinicRoom, 'id'>) => Promise<void>;
+  updateClinicRoom: (id: string, updates: Partial<ClinicRoom>) => Promise<void>;
+  deleteClinicRoom: (id: string) => Promise<void>;
+
+  addClinicDentist: (dentist: Omit<ClinicDentist, 'id'>) => Promise<void>;
+  updateClinicDentist: (id: string, updates: Partial<ClinicDentist>) => Promise<void>;
+  deleteClinicDentist: (id: string) => Promise<void>;
+
   addSector: (name: string) => Promise<void>;
   deleteSector: (id: string) => Promise<void>;
+  
   addBoxColor: (color: Omit<BoxColor, 'id'>) => Promise<void>;
   deleteBoxColor: (id: string) => Promise<void>;
-  addManualDentist: (d: Omit<ManualDentist, 'id' | 'organizationId'>) => Promise<void>;
-  updateManualDentist: (id: string, updates: Partial<ManualDentist>) => Promise<void>;
-  deleteManualDentist: (id: string) => Promise<void>;
-  addCommissionRecord: (rec: Omit<CommissionRecord, 'id'>) => Promise<void>;
-  updateCommissionStatus: (id: string, status: CommissionStatus) => Promise<void>;
+
+  cart: CartItem[];
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (cartItemId: string) => void;
+  clearCart: () => void;
+  uploadFile: (file: File) => Promise<string>;
+
+  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
+  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL') => void;
+  triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => void;
+  clearPrint: () => void;
+  
+  activeOrganization: Organization | null;
+  switchActiveOrganization: (id: string | null) => void;
+  userConnections: OrganizationConnection[];
+
+  updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
+  updateGlobalSettings: (updates: Partial<GlobalSettings>) => Promise<void>;
+  validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
+  createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<any>;
+  createLabWallet: (payload: any) => Promise<any>;
+  getSaaSInvoices: (orgId: string) => Promise<any>;
+  checkSubscriptionStatus: (orgId: string) => Promise<any>;
   addAlert: (alert: JobAlert) => Promise<void>;
   dismissAlert: (id: string) => Promise<void>;
   addPatient: (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => Promise<void>;
   updatePatient: (id: string, updates: Partial<ClinicPatient>) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
-  addAppointment: (a: Appointment) => Promise<void>;
+  addAppointment: (a: Omit<Appointment, 'id' | 'organizationId'>) => Promise<void>;
   updateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
-  addClinicRoom: (room: Omit<ClinicRoom, 'id'>) => Promise<void>;
-  updateClinicRoom: (id: string, updates: Partial<ClinicRoom>) => Promise<void>;
-  deleteClinicRoom: (id: string) => Promise<void>;
-  addClinicDentist: (dentist: Omit<ClinicDentist, 'id'>) => Promise<void>;
-  updateClinicDentist: (id: string, updates: Partial<ClinicDentist>) => Promise<void>;
-  deleteClinicDentist: (id: string) => Promise<void>;
-  addClinicService: (service: Omit<ClinicService, 'id'>) => Promise<void>;
-  updateClinicService: (id: string, updates: Partial<ClinicService>) => Promise<void>;
-  deleteClinicService: (id: string) => Promise<void>;
-  addSubscriptionPlan: (p: SubscriptionPlan) => Promise<void>;
+  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
+  registerDentist: (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
+  addSubscriptionPlan: (plan: SubscriptionPlan) => Promise<void>;
   updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
   deleteSubscriptionPlan: (id: string) => Promise<void>;
-  addCoupon: (c: Coupon) => Promise<void>;
-  updateCoupon: (id: string, updates: Partial<Coupon>) => Promise<void>;
-  deleteCoupon: (id: string) => Promise<void>;
-  validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
-  createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => Promise<any>;
-  checkSubscriptionStatus: (orgId: string) => Promise<any>;
-  createLabWallet: (payload: any) => Promise<any>;
-  updateGlobalSettings: (updates: Partial<GlobalSettings>) => Promise<void>;
-  updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
-  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL') => void;
-  triggerRoutePrint: (routeItems: any[], driver: string, shift: string, date: string) => void;
-  clearPrint: () => void;
-  uploadFile: (file: File) => Promise<string>;
-  addToCart: (item: CartItem) => void;
-  removeFromCart: (id: string) => void;
-  clearCart: () => void;
-  switchActiveOrganization: (orgId: string) => void;
   addConnectionByCode: (code: string) => Promise<void>;
+  addCoupon: (c: Coupon) => Promise<void>;
+  updateCoupon: (code: string, updates: Partial<Coupon>) => Promise<void>;
+  deleteCoupon: (id: string) => Promise<void>;
+  addManualDentist: (d: Omit<ManualDentist, 'id' | 'organizationId'>) => Promise<void>;
+  updateManualDentist: (id: string, updates: Partial<ManualDentist>) => Promise<void>;
+  deleteManualDentist: (id: string) => Promise<void>;
+
   addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [jobTypes, setJobTypes] = useState<JobType[]>([]);
-  const [sectors, setSectors] = useState<Sector[]>([]);
-  const [boxColors, setBoxColors] = useState<BoxColor[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
-  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
-  const [allOrganizations, setAllOrganizations] = useState<Organization[]>([]);
-  const [allLaboratories, setAllLaboratories] = useState<Organization[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [patients, setPatients] = useState<ClinicPatient[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [clinicRooms, setClinicRooms] = useState<ClinicRoom[]>([]);
-  const [clinicDentists, setClinicDentists] = useState<ClinicDentist[]>([]);
-  const [clinicServices, setClinicServices] = useState<ClinicService[]>([]);
-  const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
-  const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
-  const [printData, setPrintData] = useState<any>(null);
-  const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
-  const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
-
-  const currentOrg = allOrganizations.find(o => o.id === currentUser?.organizationId) || null;
-  const currentPlan = allPlans.find(p => p.id === currentOrg?.planId) || null;
-
-  useEffect(() => {
-    return onAuthStateChanged(auth, async (user: any) => {
-      if (user) {
-        const profile = await api.getUserProfile(user.uid);
-        setCurrentUser(profile);
-      } else {
-        setCurrentUser(null);
-      }
-      setIsLoadingAuth(false);
-    });
-  }, []);
-
-  // Global Subscriptions
-  /* UseEffect to subscribe to global collections as per instructions */
-  useEffect(() => {
-    if (!db) return;
-    
-    let unsubPlans = () => {};
-    let unsubCoupons = () => {};
-    let unsubSettings = () => {};
-    let unsubOrgs = () => {};
-    let unsubLabs = () => {};
-
-    try {
-        unsubPlans = api.subscribeSubscriptionPlans((plans) => {
-            setAllPlans(plans);
-        });
-        
-        unsubCoupons = api.subscribeCoupons((coups) => {
-            setCoupons(coups);
-        });
-        
-        unsubSettings = api.subscribeGlobalSettings((settings) => {
-            setGlobalSettings(settings);
-        });
-
-        unsubOrgs = api.subscribeAllOrganizations(setAllOrganizations);
-        unsubLabs = api.subscribeAllLaboratories(setAllLaboratories);
-    } catch (err) {
-        console.warn("[ProTrack] Falha ao assinar coleções globais:", err);
-    }
-
-    return () => { 
-        unsubPlans(); 
-        unsubCoupons(); 
-        unsubSettings(); 
-        unsubOrgs();
-        unsubLabs();
-    };
-  }, []);
-
-  // Organization-specific subscriptions
-  useEffect(() => {
-    if (currentUser?.organizationId) {
-      const orgId = currentUser.organizationId;
-      const unsubs = [
-        api.subscribeJobs(orgId, setJobs),
-        api.subscribeJobTypes(orgId, setJobTypes),
-        api.subscribeSectors(orgId, setSectors),
-        api.subscribeBoxColors(orgId, setBoxColors),
-        api.subscribeOrgUsers(orgId, setAllUsers),
-        api.subscribeManualDentists(orgId, setManualDentists),
-        api.subscribeCommissions(orgId, setCommissions),
-        api.subscribeAlerts(orgId, (alerts) => {
-            const now = new Date();
-            const active = alerts.find(a => !a.readBy.includes(currentUser.id) && new Date(a.scheduledFor) <= now);
-            setActiveAlert(active || null);
-        }),
-        api.subscribePatients(orgId, setPatients),
-        api.subscribeAppointments(orgId, setAppointments),
-        api.subscribeClinicRooms(orgId, setClinicRooms),
-        api.subscribeClinicDentists(orgId, setClinicDentists),
-        api.subscribeClinicServices(orgId, setClinicServices),
-        api.subscribeUserConnections(orgId, setUserConnections)
-      ];
-      return () => unsubs.forEach(unsub => unsub());
-    }
-  }, [currentUser]);
-
-  // Methods implementation
-  const login = (email: string, pass: string) => api.apiLogin(email, pass);
-  const logout = () => api.apiLogout();
-  
-  const addJob = async (job: any) => {
-    if (currentUser?.organizationId) {
-        const id = `job_${Date.now()}`;
-        await api.apiAddJob(currentUser.organizationId, { ...job, id, organizationId: currentUser.organizationId });
-    }
-  };
-
-  const updateJob = async (id: string, updates: any) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdateJob(currentUser.organizationId, id, updates);
-    }
-  };
-
-  const addJobType = async (type: any) => {
-    if (currentUser?.organizationId) {
-        const id = `type_${Date.now()}`;
-        await api.apiAddJobType(currentUser.organizationId, { ...type, id });
-    }
-  };
-
-  const updateJobType = async (id: string, updates: any) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdateJobType(currentUser.organizationId, id, updates);
-    }
-  };
-
-  const deleteJobType = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeleteJobType(currentUser.organizationId, id);
-    }
-  };
-
-  const addSector = async (name: string) => {
-    if (currentUser?.organizationId) {
-        const id = `sec_${Date.now()}`;
-        await api.apiAddSector(currentUser.organizationId, { id, name });
-    }
-  };
-
-  const deleteSector = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeleteSector(currentUser.organizationId, id);
-    }
-  };
-
-  const addBoxColor = async (color: any) => {
-    if (currentUser?.organizationId) {
-        const id = `color_${Date.now()}`;
-        await api.apiAddBoxColor(currentUser.organizationId, { ...color, id });
-    }
-  };
-
-  const deleteBoxColor = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeleteBoxColor(currentUser.organizationId, id);
-    }
-  };
-
-  const addManualDentist = async (d: any) => {
-    if (currentUser?.organizationId) {
-        const id = `dentist_${Date.now()}`;
-        await api.apiAddManualDentist(currentUser.organizationId, { ...d, id, organizationId: currentUser.organizationId });
-    }
-  };
-
-  const updateManualDentist = async (id: string, updates: any) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdateManualDentist(currentUser.organizationId, id, updates);
-    }
-  };
-
-  const deleteManualDentist = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeleteManualDentist(currentUser.organizationId, id);
-    }
-  };
-
-  const addCommissionRecord = async (rec: any) => {
-    if (currentUser?.organizationId) {
-        const id = `comm_${Date.now()}`;
-        await api.apiAddCommission(currentUser.organizationId, { ...rec, id });
-    }
-  };
-
-  const updateCommissionStatus = async (id: string, status: CommissionStatus) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdateCommission(currentUser.organizationId, id, { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined });
-    }
-  };
-
-  const addAlert = async (alert: JobAlert) => {
-    if (currentUser?.organizationId) {
-        await api.apiAddAlert(currentUser.organizationId, alert);
-    }
-  };
-
-  const dismissAlert = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiMarkAlertAsRead(currentUser.organizationId, id, currentUser.id);
-    }
-  };
-
-  const addPatient = async (p: any) => {
-    if (currentUser?.organizationId) {
-        const id = `patient_${Date.now()}`;
-        await api.apiAddPatient(currentUser.organizationId, { ...p, id, organizationId: currentUser.organizationId });
-    }
-  };
-
-  const updatePatient = async (id: string, updates: any) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdatePatient(currentUser.organizationId, id, updates);
-    }
-  };
-
-  const deletePatient = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeletePatient(currentUser.organizationId, id);
-    }
-  };
-
-  const addAppointment = async (a: Appointment) => {
-    if (currentUser?.organizationId) {
-        await api.apiAddAppointment(currentUser.organizationId, a);
-    }
-  };
-
-  const updateAppointment = async (id: string, updates: any) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdateAppointment(currentUser.organizationId, id, updates);
-    }
-  };
-
-  const deleteAppointment = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeleteAppointment(currentUser.organizationId, id);
-    }
-  };
-
-  const addClinicRoom = async (room: any) => {
-    if (currentUser?.organizationId) {
-        const id = `room_${Date.now()}`;
-        await api.apiAddClinicRoom(currentUser.organizationId, { ...room, id });
-    }
-  };
-
-  const updateClinicRoom = async (id: string, updates: any) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdateClinicRoom(currentUser.organizationId, id, updates);
-    }
-  };
-
-  const deleteClinicRoom = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeleteClinicRoom(currentUser.organizationId, id);
-    }
-  };
-
-  const addClinicDentist = async (dentist: any) => {
-    if (currentUser?.organizationId) {
-        const id = `dentist_${Date.now()}`;
-        await api.apiAddClinicDentist(currentUser.organizationId, { ...dentist, id });
-    }
-  };
-
-  const updateClinicDentist = async (id: string, updates: any) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdateClinicDentist(currentUser.organizationId, id, updates);
-    }
-  };
-
-  const deleteClinicDentist = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeleteClinicDentist(currentUser.organizationId, id);
-    }
-  };
-
-  const addClinicService = async (service: any) => {
-    if (currentUser?.organizationId) {
-        const id = `svc_${Date.now()}`;
-        await api.apiAddClinicService(currentUser.organizationId, { ...service, id });
-    }
-  };
-
-  const updateClinicService = async (id: string, updates: any) => {
-    if (currentUser?.organizationId) {
-        await api.apiUpdateClinicService(currentUser.organizationId, id, updates);
-    }
-  };
-
-  const deleteClinicService = async (id: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiDeleteClinicService(currentUser.organizationId, id);
-    }
-  };
-
-  const addSubscriptionPlan = (p: SubscriptionPlan) => api.apiAddSubscriptionPlan(p);
-  const updateSubscriptionPlan = (id: string, updates: any) => api.apiUpdateSubscriptionPlan(id, updates);
-  const deleteSubscriptionPlan = (id: string) => api.apiDeleteSubscriptionPlan(id);
-
-  const addCoupon = (c: Coupon) => api.apiAddCoupon(c);
-  const updateCoupon = (id: string, updates: any) => api.apiUpdateCoupon(id, updates);
-  const deleteCoupon = (id: string) => api.apiDeleteCoupon(id);
-  const validateCoupon = (code: string, planId: string) => api.apiValidateCoupon(code, planId);
-
-  const createSubscription = (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => 
-    api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj);
-  
-  const checkSubscriptionStatus = (orgId: string) => api.apiCheckSubscriptionStatus(orgId);
-  const createLabWallet = (payload: any) => api.apiCreateLabSubAccount(payload);
-  
-  const updateGlobalSettings = (updates: any) => api.apiUpdateGlobalSettings(updates);
-  const updateOrganization = (id: string, updates: any) => api.apiUpdateOrganization(id, updates);
-  
-  const triggerPrint = (job: Job, mode: 'SHEET' | 'LABEL') => setPrintData({ job, mode });
-  const triggerRoutePrint = (routeItems: any[], driver: string, shift: string, date: string) => setPrintData({ routeItems, driver, shift, date, mode: 'ROUTE' });
-  const clearPrint = () => setPrintData(null);
-  const uploadFile = (file: File) => api.uploadJobFile(file);
-
-  const addToCart = (item: CartItem) => setCart([...cart, item]);
-  const removeFromCart = (id: string) => setCart(cart.filter(i => i.cartItemId !== id));
-  const clearCart = () => setCart([]);
-
-  const switchActiveOrganization = (orgId: string) => {
-    const org = allLaboratories.find(l => l.id === orgId);
-    setActiveOrganization(org || null);
-  };
-
-  const addConnectionByCode = async (code: string) => {
-    if (currentUser?.organizationId) {
-        await api.apiAddConnectionByCode(currentUser.organizationId, currentUser.id, code);
-    }
-  };
-
-  const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => {
-    if (currentUser?.organizationId) {
-        const routeId = `route_${date.toISOString().split('T')[0]}_${shift}_${driver.replace(/\s+/g, '_')}`;
-        await api.apiAddRoute(currentUser.organizationId, {
-            id: routeId,
-            organizationId: currentUser.organizationId,
-            date,
-            shift,
-            driverName: driver,
-            status: 'OPEN',
-            createdAt: new Date()
-        });
-        const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
-        const address = dentist?.address ? `${dentist.address}, ${dentist.number} - ${dentist.city}` : 'Endereço não informado';
-        
-        await api.apiAddRouteItem(currentUser.organizationId, routeId, {
-            id: `item_${job.id}`,
-            routeId,
-            jobId: job.id,
-            dentistId: job.dentistId,
-            dentistName: job.dentistName,
-            patientName: job.patientName,
-            address,
-            type: 'DELIVERY',
-            order: 0
-        });
-        await api.apiUpdateJob(currentUser.organizationId, job.id, { routeId });
-    }
-  };
-
-  const updateUser = (id: string, updates: Partial<User>) => api.apiUpdateUser(id, updates);
-  const deleteUser = (id: string) => api.apiDeleteUser(id);
-  const registerOrganization = api.apiRegisterOrganization;
-  const registerDentist = api.apiRegisterDentist;
-
-  const value = {
-    currentUser, isLoadingAuth, jobs, jobTypes, sectors, boxColors, allUsers, 
-    manualDentists, coupons, allPlans, globalSettings, allOrganizations, 
-    allLaboratories, cart, patients, appointments, clinicRooms, clinicDentists, 
-    clinicServices, userConnections, activeOrganization, printData, activeAlert,
-    commissions, currentOrg, currentPlan,
-    login, logout, registerOrganization, registerDentist, updateUser, deleteUser,
-    addJob, updateJob, addJobType, updateJobType, deleteJobType, addSector, deleteSector,
-    addBoxColor, deleteBoxColor, addManualDentist, updateManualDentist, deleteManualDentist,
-    addCommissionRecord, updateCommissionStatus, addAlert, dismissAlert, addPatient,
-    updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
-    addClinicRoom, updateClinicRoom, deleteClinicRoom, addClinicDentist, updateClinicDentist,
-    deleteClinicDentist, addClinicService, updateClinicService, deleteClinicService,
-    addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, addCoupon,
-    updateCoupon, deleteCoupon, validateCoupon, createSubscription, checkSubscriptionStatus,
-    createLabWallet, updateGlobalSettings, triggerPrint, triggerRoutePrint, clearPrint,
-    uploadFile, addToCart, removeFromCart, clearCart, switchActiveOrganization,
-    addConnectionByCode, addJobToRoute, updateOrganization
-  };
-
-  return <AppContext.Provider value={value as any}>{children}</AppContext.Provider>;
-};
-
 export const useApp = () => {
   const context = useContext(AppContext);
   if (context === undefined) throw new Error('useApp must be used within an AppProvider');
   return context;
+};
+
+export const AppProvider = ({ children }: { children?: ReactNode }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<SubscriptionPlan | null>(null);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [globalSettings, setGlobalSettings] = useState<GlobalSettings | null>(null);
+  
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobTypes, setJobTypes] = useState<JobType[]>([]);
+  const [clinicServices, setClinicServices] = useState<ClinicService[]>([]);
+  const [clinicRooms, setClinicRooms] = useState<ClinicRoom[]>([]);
+  const [clinicDentists, setClinicDentists] = useState<ClinicDentist[]>([]);
+  const [sectors, setSectors] = useState<Sector[]>([]);
+  const [boxColors, setBoxColors] = useState<BoxColor[]>([]);
+  const [alerts, setAlerts] = useState<JobAlert[]>([]);
+  const [commissions, setCommissions] = useState<CommissionRecord[]>([]);
+  
+  const [allOrganizations, setAllOrganizations] = useState<Organization[]>([]);
+  const [allLaboratories, setAllLaboratories] = useState<Organization[]>([]);
+  const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [patients, setPatients] = useState<ClinicPatient[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
+  const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
+
+  const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
+  const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [printData, setPrintData] = useState<AppContextType['printData']>(null);
+
+  useEffect(() => {
+    if (!db) return;
+    const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
+    const unsubCoupons = api.subscribeCoupons(setCoupons);
+    const unsubSettings = api.subscribeGlobalSettings(setGlobalSettings);
+    return () => { unsubPlans(); unsubCoupons(); unsubSettings(); };
+  }, []);
+
+  useEffect(() => {
+    if (!auth) { setIsLoadingAuth(false); return; }
+    const unsub = onAuthStateChanged(auth, async (user: any) => {
+      if (user) {
+        const profile = await api.getUserProfile(user.uid);
+        if (profile) {
+            // SUPER ADMIN MASTER PERMISSIONS BYPASS
+            if (profile.role === UserRole.SUPER_ADMIN) {
+                profile.permissions = ALL_PERMISSIONS;
+            }
+            
+            setCurrentUser(profile);
+            const profileOrgId = profile.organizationId;
+            if (profileOrgId) {
+                const orgRef = doc(db, 'organizations', profileOrgId);
+                onSnapshot(orgRef, (snap: any) => {
+                    if (snap.exists()) {
+                        const oData = { id: snap.id, ...snap.data() as any } as Organization;
+                        setCurrentOrg(oData);
+                        
+                        // Busca o plano. Se não achar, usa um plano "God Mode" se for Super Admin
+                        if (oData.planId) {
+                            const planRef = doc(db, 'subscriptionPlans', oData.planId);
+                            getDoc(planRef).then((pSnap: any) => {
+                                if (pSnap.exists()) {
+                                    setCurrentPlan({ id: pSnap.id, ...pSnap.data() as any } as SubscriptionPlan);
+                                } else if (profile.role === UserRole.SUPER_ADMIN) {
+                                    // Fallback para Super Admin se o plano foi deletado
+                                    setCurrentPlan({
+                                        id: 'super_plan', name: 'Plano Administrativo', price: 0, active: true, isPublic: false,
+                                        features: { maxUsers: -1, maxStorageGB: 100, hasStoreModule: true, hasClinicModule: true }
+                                    });
+                                }
+                            });
+                        }
+                    }
+                });
+                if (profile.role === UserRole.CLIENT) {
+                    api.subscribeUserConnections(profileOrgId, (conns) => {
+                        setUserConnections(conns);
+                        if (conns.length > 0 && !activeOrganization) {
+                             const firstOrgId = conns[0].organizationId;
+                             getDoc(doc(db, 'organizations', firstOrgId)).then((snap: any) => {
+                                 if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);
+                             });
+                        }
+                    });
+                    api.subscribeAllLaboratories(setAllLaboratories);
+                    api.subscribeClinicServices(profileOrgId, setClinicServices);
+                    api.subscribeClinicRooms(profileOrgId, setClinicRooms);
+                    api.subscribeClinicDentists(profileOrgId, setClinicDentists);
+                }
+            }
+        }
+      } else {
+        setCurrentUser(null);
+        setCurrentOrg(null);
+        setCurrentPlan(null);
+        setActiveOrganization(null);
+        setUserConnections([]);
+        setAllLaboratories([]);
+        setClinicServices([]);
+        setClinicRooms([]);
+        setClinicDentists([]);
+      }
+      setIsLoadingAuth(false);
+    });
+    return unsub;
+  }, []);
+
+  const activeDataId = useMemo(() => {
+      if (currentUser?.role === UserRole.CLIENT) {
+          return activeOrganization?.id || null;
+      }
+      return currentUser?.organizationId || null;
+  }, [currentUser, activeOrganization]);
+
+  useEffect(() => {
+    if (!db || !currentUser || !activeDataId) {
+        setJobs([]);
+        return;
+    }
+    const unsubs: (() => void)[] = [];
+    unsubs.push(api.subscribeJobs(activeDataId, setJobs));
+    unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
+
+    const myOrgId = currentUser.organizationId;
+    if (myOrgId) {
+        unsubs.push(api.subscribePatients(myOrgId, setPatients));
+        unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
+        if (currentUser.role !== UserRole.CLIENT) {
+            unsubs.push(api.subscribeOrgUsers(myOrgId, setAllUsers));
+            unsubs.push(api.subscribeSectors(myOrgId, setSectors));
+            unsubs.push(api.subscribeBoxColors(myOrgId, setBoxColors));
+            unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
+            unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
+            unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
+        }
+    }
+    if (currentUser.role === UserRole.SUPER_ADMIN) {
+        unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
+    }
+    return () => unsubs.forEach(u => u());
+  }, [currentUser, activeDataId]);
+
+  const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
+  const logout = async () => await api.apiLogout();
+
+  const updateUser = async (id: string, u: Partial<User>) => {
+    if (!currentUser) return;
+    if (id === currentUser.id) await api.apiUpdateUser(id, u);
+    else await api.apiUpdateUserAdmin(id, u);
+  };
+
+  const addUser = async (u: User) => await api.apiAddUser(u);
+  const deleteUser = async (id: string) => await api.apiDeleteUser(id);
+
+  const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => {
+      const orgId = activeDataId;
+      if (!orgId) throw new Error("Nenhum laboratório ativo.");
+      await api.apiAddJob(orgId, { ...j, id: `job_${Date.now()}`, organizationId: orgId } as Job);
+  };
+  const updateJob = async (id: string, u: Partial<Job>) => {
+      const orgId = activeDataId;
+      if (!orgId) return;
+      await api.apiUpdateJob(orgId, id, u);
+  };
+
+  const addCommissionRecord = async (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddCommission(orgId, { ...rec, id: `comm_${Date.now()}`, organizationId: orgId } as CommissionRecord);
+  };
+  const updateCommissionStatus = async (id: string, status: CommissionStatus) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateCommission(orgId, id, { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined });
+  };
+
+  const addJobType = async (jt: Omit<JobType, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddJobType(orgId, { ...jt, id: `jtype_${Date.now()}` } as JobType);
+  }
+  const updateJobType = async (id: string, u: Partial<JobType>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateJobType(orgId, id, u);
+  }
+  const deleteJobType = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteJobType(orgId, id);
+  }
+
+  const addClinicService = async (service: Omit<ClinicService, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddClinicService(orgId, { ...service, id: `cservice_${Date.now()}` } as ClinicService);
+  };
+  const updateClinicService = async (id: string, updates: Partial<ClinicService>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateClinicService(orgId, id, updates);
+  };
+  const deleteClinicService = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteClinicService(orgId, id);
+  };
+
+  // HANDLERS PARA SALAS (ROOMS)
+  const addClinicRoom = async (room: Omit<ClinicRoom, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddClinicRoom(orgId, { ...room, id: `room_${Date.now()}` } as ClinicRoom);
+  };
+  const updateClinicRoom = async (id: string, updates: Partial<ClinicRoom>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateClinicRoom(orgId, id, updates);
+  };
+  const deleteClinicRoom = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteClinicRoom(orgId, id);
+  };
+
+  // HANDLERS PARA DENTISTAS (CONTRACTED)
+  const addClinicDentist = async (dentist: Omit<ClinicDentist, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddClinicDentist(orgId, { ...dentist, id: `cdentist_${Date.now()}` } as ClinicDentist);
+  };
+  const updateClinicDentist = async (id: string, updates: Partial<ClinicDentist>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateClinicDentist(orgId, id, updates);
+  };
+  const deleteClinicDentist = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteClinicDentist(orgId, id);
+  };
+
+  const addSector = async (name: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddSector(orgId, { id: `sector_${Date.now()}`, name });
+  }
+  const deleteSector = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteSector(orgId, id);
+  }
+
+  const addBoxColor = async (color: Omit<BoxColor, 'id'>) => {
+      const orgId = currentUser?.organizationId;
+      if (!orgId) return;
+      await api.apiAddBoxColor(orgId, { ...color, id: `color_${Date.now()}` } as BoxColor);
+  };
+  const deleteBoxColor = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if (!orgId) return;
+      await api.apiDeleteBoxColor(orgId, id);
+  };
+
+  const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
+  const updateGlobalSettings = async (u: Partial<GlobalSettings>) => await api.apiUpdateGlobalSettings({ ...u, updatedAt: new Date(), updatedBy: currentUser?.name || 'unknown' });
+  const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
+  const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => await api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj);
+  const createLabWallet = async (p: any) => await api.apiCreateLabSubAccount(p);
+  const getSaaSInvoices = async (orgId: string) => await api.apiGetSaaSInvoices(orgId);
+  const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);
+  
+  const addAlert = async (a: JobAlert) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddAlert(orgId, a);
+  }
+  const dismissAlert = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId || !currentUser) return;
+      await api.apiMarkAlertAsRead(orgId, id, currentUser.id);
+      setActiveAlert(null); 
+  }
+  const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddPatient(orgId, { ...p, id: `pat_${Date.now()}`, organizationId: orgId } as ClinicPatient);
+  }
+  const updatePatient = async (id: string, u: Partial<ClinicPatient>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdatePatient(orgId, id, u);
+  }
+  const deletePatient = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeletePatient(orgId, id);
+  }
+  const addAppointment = async (a: Omit<Appointment, 'id' | 'organizationId'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddAppointment(orgId, { ...a, id: `app_${Date.now()}`, organizationId: orgId } as Appointment);
+  }
+  const updateAppointment = async (id: string, u: Partial<Appointment>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateAppointment(orgId, id, u);
+  }
+  const deleteAppointment = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteAppointment(orgId, id);
+  }
+  
+  const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c);
+  const registerDentist = async (e: string, p: string, n: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => await api.apiRegisterDentist(e, p, n, clinicName, planId, trialEndsAt, couponCode);
+  const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
+  const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
+  const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
+  
+  const addConnectionByCode = async (code: string) => {
+      if(!currentUser?.organizationId) return;
+      await api.apiAddConnectionByCode(currentUser.organizationId, currentUser.id, code);
+  };
+
+  const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
+  const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
+  const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
+
+  const addManualDentist = async (d: Omit<ManualDentist, 'id' | 'organizationId'>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiAddManualDentist(orgId, { ...d, id: `man_dent_${Date.now()}`, organizationId: orgId } as ManualDentist);
+  };
+  const updateManualDentist = async (id: string, u: Partial<ManualDentist>) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiUpdateManualDentist(orgId, id, u);
+  };
+  const deleteManualDentist = async (id: string) => {
+      const orgId = currentUser?.organizationId;
+      if(!orgId) return;
+      await api.apiDeleteManualDentist(orgId, id);
+  };
+
+  const switchActiveOrganization = (id: string | null) => {
+    if (!id) { setActiveOrganization(null); return; }
+    const found = userConnections.find(o => o.organizationId === id);
+    if (found) {
+        getDoc(doc(db, 'organizations', id)).then((snap: any) => {
+             if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);
+        });
+    }
+  };
+
+  const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => {
+      const orgId = currentUser?.organizationId;
+      if (!orgId) return;
+      const dateStr = date.toISOString().split('T')[0];
+      const routeId = `route_${dateStr}_${shift}_${driver.replace(/\s+/g, '_')}`;
+      const routeSnap = await getDoc(doc(db, 'organizations', orgId, 'routes', routeId));
+      if (!routeSnap.exists()) {
+          await api.apiAddRoute(orgId, {
+              id: routeId, organizationId: orgId, date: date, shift: shift, driverName: driver, status: 'OPEN', createdAt: new Date()
+          });
+      }
+      const dentist = manualDentists.find(d => d.id === job.dentistId);
+      const onlineDentist = allUsers.find(u => u.id === job.dentistId);
+      const address = dentist ? `${dentist.address}, ${dentist.number} - ${dentist.city}` : (onlineDentist?.address || 'Endereço não cadastrado');
+      const routeItem: RouteItem = {
+          id: `item_${Date.now()}`, routeId: routeId, jobId: job.id, dentistId: job.dentistId, dentistName: job.dentistName, patientName: job.patientName, address: address, type: 'DELIVERY', order: Date.now() 
+      };
+      await api.apiAddRouteItem(orgId, routeId, routeItem);
+      await api.apiUpdateJob(orgId, job.id, { routeId });
+  };
+
+  return (
+    <AppContext.Provider value={{
+      currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
+      allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
+      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
+      login, logout, updateUser, addUser, deleteUser,
+      addJob, updateJob, addCommissionRecord, updateCommissionStatus,
+      addJobType, updateJobType, deleteJobType,
+      addClinicService, updateClinicService, deleteClinicService,
+      addClinicRoom, updateClinicRoom, deleteClinicRoom,
+      addClinicDentist, updateClinicDentist, deleteClinicDentist,
+      addSector, deleteSector, addBoxColor, deleteBoxColor,
+      cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
+      uploadFile: api.uploadJobFile,
+      printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), 
+      triggerRoutePrint: (items, driver, shift, date) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
+      clearPrint: () => setPrintData(null),
+      activeOrganization, switchActiveOrganization, userConnections,
+      updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
+      addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
+      registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
+      addConnectionByCode, addCoupon, updateCoupon, deleteCoupon,
+      addManualDentist, updateManualDentist, deleteManualDentist, addJobToRoute
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
 };

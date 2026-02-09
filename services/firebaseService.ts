@@ -312,14 +312,9 @@ export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     });
 };
 export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
-    // Garantimos que a busca pegue todos os orgType == 'LAB' sem filtros extras de segurança
     const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'));
     return onSnapshot(q, (snap: any) => {
-        cb(snap.docs.map((d: any) => ({ 
-            id: d.id, 
-            ...d.data() as any, 
-            createdAt: toDate(d.data().createdAt) 
-        } as Organization)));
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
     });
 };
 export const subscribeSubscriptionPlans = (cb: (p: SubscriptionPlan[]) => void) => {
@@ -388,14 +383,8 @@ export const apiRegisterDentist = async (email: string, pass: string, name: stri
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
     return profile;
 };
-export const apiAddSubscriptionPlan = (p: SubscriptionPlan) => {
-    if (!db) throw new Error("Firestore não inicializado.");
-    return setDoc(doc(db, 'subscriptionPlans', p.id), p);
-};
-export const apiUpdateSubscriptionPlan = (id: string, u: Partial<SubscriptionPlan>) => {
-    if (!db) throw new Error("Firestore não inicializado.");
-    return updateDoc(doc(db, 'subscriptionPlans', id), u);
-};
+export const apiAddSubscriptionPlan = (p: SubscriptionPlan) => setDoc(doc(db, 'subscriptionPlans', p.id), p);
+export const apiUpdateSubscriptionPlan = (id: string, u: Partial<SubscriptionPlan>) => updateDoc(doc(db, 'subscriptionPlans', id), u);
 export const apiDeleteSubscriptionPlan = (id: string) => deleteDoc(doc(db, 'subscriptionPlans', id));
 export const apiAddConnectionByCode = async (clinicOrgId: string, dentistId: string, code: string) => {
     const orgSnap = await getDoc(doc(db, 'organizations', code));

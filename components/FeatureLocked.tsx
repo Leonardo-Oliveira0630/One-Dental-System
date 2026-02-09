@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Lock, Crown, ArrowLeft, ArrowUpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,17 +9,25 @@ interface FeatureLockedProps {
   title?: string;
   message?: string;
   requiredFeature?: 'STORE' | 'CLINIC';
+  children?: React.ReactNode;
 }
 
 export const FeatureLocked: React.FC<FeatureLockedProps> = ({ 
   title = "Funcionalidade Bloqueada", 
   message = "Esta funcionalidade não está disponível no plano atual.",
-  requiredFeature
+  requiredFeature,
+  children
 }) => {
   const navigate = useNavigate();
   const { currentUser, currentOrg } = useApp();
 
-  const isLabAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
+  const isLabAdmin = currentUser?.role === UserRole.ADMIN || isSuperAdmin;
+
+  // SUPER ADMIN BYPASS: Se for Super Admin, renderiza o conteúdo original em vez da trava
+  if (isSuperAdmin && children) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center h-[70vh] p-6 text-center animate-in fade-in zoom-in duration-300">
@@ -48,7 +57,7 @@ export const FeatureLocked: React.FC<FeatureLockedProps> = ({
 
         {isLabAdmin && (
           <button 
-            onClick={() => navigate('/admin')} // Redireciona para admin onde tem a aba de assinatura
+            onClick={() => navigate('/admin')} 
             className="px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold rounded-xl hover:shadow-lg hover:shadow-orange-200 transition-all flex items-center justify-center gap-2"
           >
             <ArrowUpCircle size={18} /> Fazer Upgrade Agora

@@ -3,8 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-// Added Layers to the lucide-react imports
-import { Activity, Clock, AlertTriangle, CheckCircle, Sparkles, ShoppingBag, Building, Handshake, DollarSign, Inbox, ShoppingCart, Layers } from 'lucide-react';
+import { Activity, Clock, AlertTriangle, CheckCircle, Sparkles, ShoppingBag, Building, Handshake } from 'lucide-react';
 import { getProductionInsights } from '../services/geminiService';
 import { useNavigate } from 'react-router-dom';
 
@@ -32,22 +31,27 @@ const StatCard = ({ title, value, icon, color, subtext }: StatCardProps) => (
 );
 
 export const Dashboard = () => {
-  const { jobs, currentUser, activeOrganization, currentPlan, currentOrg } = useApp();
+  const { jobs, currentUser, activeOrganization } = useApp();
   const navigate = useNavigate();
   const [aiInsights, setAiInsights] = useState<string | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
 
   const isClient = currentUser?.role === UserRole.CLIENT;
-  const isLiteLab = currentUser?.role !== UserRole.CLIENT && !currentPlan?.features.hasInternalManagement && currentUser?.role !== UserRole.SUPER_ADMIN;
 
-  // KPIs de Produção
+  // KPIs
   const totalActive = jobs.filter(j => j.status !== JobStatus.COMPLETED && j.status !== JobStatus.DELIVERED).length;
   const completedToday = jobs.filter(j => j.status === JobStatus.COMPLETED && new Date(j.history[j.history.length-1]?.timestamp).toDateString() === new Date().toDateString()).length;
+  const urgent = jobs.filter(j => j.urgency === UrgencyLevel.VIP || j.urgency === UrgencyLevel.HIGH).length;
+  const delayed = jobs.filter(j => new Date(j.dueDate) < new Date() && j.status !== JobStatus.COMPLETED).length;
+
+  const statusData = [
+    { name: 'Pendente', value: jobs.filter(j => j.status === JobStatus.PENDING).length },
+    { name: 'Produção', value: jobs.filter(j => j.status === JobStatus.IN_PROGRESS).length },
+    { name: 'Aprovação', value: jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length },
+    { name: 'Pronto', value: jobs.filter(j => j.status === JobStatus.COMPLETED).length },
+  ];
   
-  // KPIs de Vendas Online
-  const onlineSalesToday = jobs.filter(j => j.paymentStatus === 'PAID' && new Date(j.createdAt).toDateString() === new Date().toDateString()).length;
-  const pendingOrders = jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length;
-  const totalRevenue = jobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, curr) => acc + curr.totalValue, 0);
+  const COLORS = ['#94a3b8', '#3b82f6', '#8b5cf6', '#22c55e'];
 
   const handleGenerateInsights = async () => {
     setLoadingAi(true);
@@ -56,7 +60,6 @@ export const Dashboard = () => {
     setLoadingAi(false);
   };
 
-  // DASHBOARD DO DENTISTA
   if (isClient) {
       return (
           <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 w-full overflow-hidden">
@@ -95,99 +98,43 @@ export const Dashboard = () => {
                   <StatCard title="Em Produção" value={totalActive} icon={<Activity size={20} className="text-blue-600" />} color="bg-blue-50" />
                   <StatCard title="Aprovação" value={jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length} icon={<Clock size={20} className="text-purple-600" />} color="bg-purple-50" />
                   <StatCard title="Concluídos" value={jobs.filter(j => j.status === JobStatus.COMPLETED).length} icon={<CheckCircle size={20} className="text-green-600" />} color="bg-green-50" />
-                  <StatCard title="Urgências" value={jobs.filter(j => j.urgency === UrgencyLevel.VIP).length} icon={<AlertTriangle size={20} className="text-orange-600" />} color="bg-orange-50" />
+                  <StatCard title="Urgências" value={urgent} icon={<AlertTriangle size={20} className="text-orange-600" />} color="bg-orange-50" />
               </div>
           </div>
       );
   }
 
-  // DASHBOARD DO LABORATÓRIO "FREE / STORE ONLY"
-  if (isLiteLab) {
-      return (
-          <div className="space-y-8 animate-in fade-in duration-500 w-full overflow-hidden">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <h1 className="text-xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter truncate">Gestão da Loja Virtual</h1>
-                    <p className="text-[10px] md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60 truncate">Monitoramento de vendas e recebíveis online</p>
-                  </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                  <StatCard title="Novos Pedidos" value={pendingOrders} icon={<Inbox size={20} className="text-purple-600" />} color="bg-purple-50" subtext="Aguardando sua aprovação" />
-                  <StatCard title="Vendas Hoje" value={onlineSalesToday} icon={<ShoppingCart size={20} className="text-teal-600" />} color="bg-teal-50" subtext="Pagamentos confirmados" />
-                  <StatCard title="Saldo em Conta" value={`R$ ${(currentOrg?.financialSettings?.balance || 0).toFixed(2)}`} icon={<DollarSign size={20} className="text-blue-600" />} color="bg-blue-50" subtext="Saldo disponível p/ saque" />
-                  <StatCard title="Faturamento Total" value={`R$ ${totalRevenue.toFixed(2)}`} icon={<CheckCircle size={20} className="text-green-600" />} color="bg-green-50" subtext="Acumulado via Loja" />
-              </div>
-
-              <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 opacity-5"><Layers size={150} /></div>
-                  <div className="w-24 h-24 bg-blue-600 text-white rounded-[32px] flex items-center justify-center shrink-0 shadow-2xl shadow-blue-100">
-                      <Sparkles size={48} />
-                  </div>
-                  <div className="flex-1 text-center md:text-left">
-                      <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Potencialize sua operação</h3>
-                      <p className="text-slate-500 mt-2 font-medium max-w-xl">
-                          Você está usando a versão **Lite**. Libere agora a gestão interna completa: rastreio por QR Code, calendário de produção, controle de motoboys e muito mais.
-                      </p>
-                  </div>
-                  <button onClick={() => navigate('/admin/assinatura')} className="px-10 py-4 bg-slate-900 text-white font-black rounded-2xl shadow-xl hover:bg-blue-600 transition-all uppercase text-xs tracking-widest shrink-0">Upgrade para Gestão Total</button>
-              </div>
-
-              <div className="bg-white p-6 md:p-8 rounded-[32px] shadow-sm border border-slate-100">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6">Últimas Vendas Online</h3>
-                  <div className="space-y-3">
-                      {jobs.filter(j => !j.osNumber?.includes('MANUAL')).slice(0, 5).map(job => (
-                          <div key={job.id} onClick={() => navigate(`/jobs/${job.id}`)} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center hover:bg-white hover:border-blue-200 transition-all cursor-pointer">
-                              <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 font-bold shadow-sm">{job.patientName.charAt(0)}</div>
-                                  <div>
-                                      <p className="font-bold text-slate-800 text-sm">{job.patientName}</p>
-                                      <p className="text-[10px] text-slate-400 font-bold uppercase">Dr. {job.dentistName}</p>
-                                  </div>
-                              </div>
-                              <div className="text-right">
-                                  <p className="font-black text-blue-600">R$ {job.totalValue.toFixed(2)}</p>
-                                  <span className="text-[9px] font-black text-slate-400 uppercase">{new Date(job.createdAt).toLocaleDateString()}</span>
-                              </div>
-                          </div>
-                      ))}
-                      {jobs.length === 0 && <div className="py-12 text-center text-slate-300 italic">Nenhum pedido recebido ainda.</div>}
-                  </div>
-              </div>
-          </div>
-      );
-  }
-
-  // DASHBOARD FULL (Admin / Staff)
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 w-full overflow-hidden">
-        {/* ... (conteúdo do Dashboard full permanece igual ao arquivo original) */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter truncate">Painel de Produção</h1>
-          <p className="text-[10px] md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60 truncate">Visão Geral da Bancada e Fluxo</p>
+          <h1 className="text-xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter truncate">Painel de Controle</h1>
+          <p className="text-[10px] md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60 truncate">Visão Geral da Produção em Tempo Real</p>
         </div>
         <button onClick={handleGenerateInsights} disabled={loadingAi} className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-blue-600 transition-all disabled:opacity-70 text-[10px] md:text-xs tracking-widest uppercase shrink-0"><Sparkles size={18} className={loadingAi ? "animate-spin shrink-0" : "shrink-0"} /> {loadingAi ? 'Analisando...' : 'Insights com IA'}</button>
       </div>
 
+      {aiInsights && (
+        <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5 md:p-8 relative overflow-hidden animate-in zoom-in duration-300">
+            <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={100} className="text-blue-600" /></div>
+            <h3 className="text-xs md:text-sm font-black text-blue-900 mb-4 flex items-center gap-2 uppercase tracking-widest"><Sparkles size={16} /> Relatório Estratégico AI</h3>
+            <div className="text-[11px] md:text-sm text-blue-800 leading-relaxed font-bold whitespace-pre-wrap">{aiInsights}</div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <StatCard title="Produção Ativa" value={totalActive} icon={<Activity size={20} className="text-blue-600" />} color="bg-blue-50" />
         <StatCard title="Prontos Hoje" value={completedToday} icon={<CheckCircle size={20} className="text-green-600" />} color="bg-green-50" />
-        <StatCard title="VIP/Urgente" value={jobs.filter(j => j.urgency === UrgencyLevel.VIP || j.urgency === UrgencyLevel.HIGH).length} icon={<AlertTriangle size={20} className="text-orange-600" />} color="bg-orange-50" />
-        <StatCard title="Atrasados" value={jobs.filter(j => new Date(j.dueDate) < new Date() && j.status !== JobStatus.COMPLETED).length} icon={<Clock size={20} className="text-red-600" />} color="bg-red-50" />
+        <StatCard title="VIP/Urgente" value={urgent} icon={<AlertTriangle size={20} className="text-orange-600" />} color="bg-orange-50" />
+        <StatCard title="Atrasados" value={delayed} icon={<Clock size={20} className="text-red-600" />} color="bg-red-50" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
         <div className="bg-white p-5 md:p-8 rounded-[32px] shadow-sm border border-slate-200 w-full overflow-hidden">
-            <h3 className="text-[10px] md:text-xs font-black text-slate-800 mb-6 md:mb-8 uppercase tracking-widest">Carga por Status</h3>
+            <h3 className="text-[10px] md:text-xs font-black text-slate-800 mb-6 md:mb-8 uppercase tracking-widest">Distribuição de Status</h3>
             <div className="h-[250px] md:h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[
-                        { name: 'Pendente', value: jobs.filter(j => j.status === JobStatus.PENDING).length },
-                        { name: 'Produção', value: jobs.filter(j => j.status === JobStatus.IN_PROGRESS).length },
-                        { name: 'Aprovação', value: jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length },
-                        { name: 'Pronto', value: jobs.filter(j => j.status === JobStatus.COMPLETED).length },
-                    ]}>
+                    <BarChart data={statusData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
                         <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
@@ -198,21 +145,18 @@ export const Dashboard = () => {
             </div>
         </div>
         
-        <div className="bg-white p-5 md:p-8 rounded-[32px] shadow-sm border border-slate-200 w-full overflow-hidden text-center flex flex-col justify-center">
-            <h3 className="text-[10px] md:text-xs font-black text-slate-800 mb-6 md:mb-8 uppercase tracking-widest">Resumo de Saídas</h3>
-            <div className="space-y-4">
-                <div className="flex justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <span className="font-bold text-slate-500">Trabalhos p/ Hoje</span>
-                    <span className="font-black text-slate-800 text-lg">{jobs.filter(j => new Date(j.dueDate).toDateString() === new Date().toDateString()).length}</span>
-                </div>
-                <div className="flex justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <span className="font-bold text-slate-500">Trabalhos p/ Amanhã</span>
-                    <span className="font-black text-slate-800 text-lg">{jobs.filter(j => {
-                        const d = new Date(); d.setDate(d.getDate() + 1);
-                        return new Date(j.dueDate).toDateString() === d.toDateString();
-                    }).length}</span>
-                </div>
-            </div>
+        <div className="bg-white p-5 md:p-8 rounded-[32px] shadow-sm border border-slate-200 w-full overflow-hidden">
+            <h3 className="text-[10px] md:text-xs font-black text-slate-800 mb-6 md:mb-8 uppercase tracking-widest">Equilíbrio de Carga</h3>
+             <div className="h-[250px] md:h-[300px] w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie data={statusData} cx="50%" cy="50%" innerRadius="40%" outerRadius="80%" paddingAngle={8} dataKey="value">
+                            {statusData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                        </Pie>
+                        <Tooltip />
+                    </PieChart>
+                </ResponsiveContainer>
+             </div>
         </div>
       </div>
     </div>

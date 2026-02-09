@@ -4,28 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { getContrastColor } from '../services/mockData';
+// Added Crown to the lucide-react imports to fix line 404 error
 import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown } from 'lucide-react';
-import { FeatureLocked } from '../components/FeatureLocked';
 
 type EntryType = 'NEW' | 'CONTINUATION';
 
 export const NewJob = () => {
-  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, currentPlan } = useApp();
+  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors } = useApp();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // --- PLAN CHECK ---
-  const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
-  if (!isSuperAdmin && !currentPlan?.features.hasInternalManagement) {
-      return (
-          <FeatureLocked 
-            title="Gestão de Bancada Bloqueada" 
-            message="O seu plano atual permite apenas receber pedidos via Loja Virtual. Para cadastrar trabalhos manuais e gerir sua produção interna, faça um upgrade." 
-          />
-      );
-  }
-
-  // ... (Restante do arquivo NewJob.tsx permanece inalterado)
   // --- Global States ---
   const [entryType, setEntryType] = useState<EntryType>('NEW');
   const [patientName, setPatientName] = useState('');
