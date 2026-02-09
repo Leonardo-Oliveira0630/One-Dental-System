@@ -390,6 +390,8 @@ export interface SubscriptionPlan {
   features: {
     maxUsers: number;
     maxStorageGB: number;
+    maxDentists: number;
+    maxJobsPerMonth: number;
     hasStoreModule: boolean;
     hasClinicModule: boolean;
   };
