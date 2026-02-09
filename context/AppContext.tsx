@@ -167,13 +167,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<AppContextType['printData']>(null);
 
-  // Subscrições Públicas / Globais de Configuração
+  // Subscrições Públicas: Apenas Planos são necessários para o registro
   useEffect(() => {
     if (!db) return;
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
-    const unsubCoupons = api.subscribeCoupons(setCoupons);
-    const unsubSettings = api.subscribeGlobalSettings(setGlobalSettings);
-    return () => { unsubPlans(); unsubCoupons(); unsubSettings(); };
+    return () => { unsubPlans(); };
   }, []);
 
   // Monitoramento de Auth e Perfil
@@ -212,7 +210,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                     }
                 });
 
-                // Se for cliente, carrega parcerias e módulos clínicos
                 if (profile.role === UserRole.CLIENT) {
                     api.subscribeUserConnections(profileOrgId, (conns) => {
                         setUserConnections(conns);
@@ -231,10 +228,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
         }
       } else {
-        // Reset global states on logout
         setCurrentUser(null); setCurrentOrg(null); setCurrentPlan(null); setActiveOrganization(null);
         setUserConnections([]); setAllLaboratories([]); setClinicServices([]); setClinicRooms([]); setClinicDentists([]);
-        setAllUsers([]); setJobs([]); setJobTypes([]);
+        setAllUsers([]); setJobs([]); setJobTypes([]); setCoupons([]); setGlobalSettings(null);
       }
       setIsLoadingAuth(false);
     });
@@ -248,29 +244,34 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return currentUser?.organizationId || null;
   }, [currentUser, activeOrganization]);
 
-  // Subscrições de Dados Operacionais baseadas na Organização Ativa
+  // Subscrições de Dados Protegidos (Só rodam se houver usuário e permissão)
   useEffect(() => {
     if (!db || !currentUser) return;
 
     const unsubs: (() => void)[] = [];
     const isSuper = currentUser.role === UserRole.SUPER_ADMIN;
 
-    // Se houver um laboratório ativo sendo visualizado
+    // Apenas Super Admin ouve cupons e configurações globais
+    if (isSuper) {
+        unsubs.push(api.subscribeCoupons(setCoupons));
+        unsubs.push(api.subscribeGlobalSettings(setGlobalSettings));
+        unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
+        unsubs.push(api.subscribeAllUsers(setAllUsers));
+    }
+
     if (activeDataId) {
         unsubs.push(api.subscribeJobs(activeDataId, setJobs));
         unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
         
-        // Colaboradores da org ativa (apenas se for admin/manager/super ou mesma org)
-        if (isSuper || currentUser.organizationId === activeDataId || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER) {
+        // Colaboradores: Super Admin ou Admins/Managers da própria organização
+        const canSeeUsers = isSuper || (currentUser.organizationId === activeDataId && 
+                           (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER));
+        
+        if (canSeeUsers) {
             unsubs.push(api.subscribeOrgUsers(activeDataId, setAllUsers));
         }
-    } else if (isSuper) {
-        // Se for Super Admin e não tiver org selecionada, pode ver todos se quiser, 
-        // mas vamos carregar apenas sob demanda para evitar Permission Denied global
-        unsubs.push(api.subscribeAllUsers(setAllUsers));
     }
 
-    // Dados da PRÓPRIA organização do usuário
     const myOrgId = currentUser.organizationId;
     if (myOrgId) {
         unsubs.push(api.subscribePatients(myOrgId, setPatients));
@@ -283,10 +284,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
         }
-    }
-    
-    if (isSuper) {
-        unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
     }
     
     return () => unsubs.forEach(u => u());
