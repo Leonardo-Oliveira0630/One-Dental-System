@@ -210,6 +210,7 @@ export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
                     ...data,
                     createdAt: toDate(data.createdAt), 
                     dueDate: toDate(data.dueDate),
+                    sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
                     history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) }))
                 } as Job;
             });

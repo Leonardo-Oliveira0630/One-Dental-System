@@ -304,12 +304,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => {
       const orgId = activeDataId;
       if (!orgId) throw new Error("Nenhum laboratório ativo.");
-      await api.apiAddJob(orgId, { ...j, id: `job_${Date.now()}`, organizationId: orgId } as Job);
+      const now = new Date();
+      await api.apiAddJob(orgId, { 
+          ...j, 
+          id: `job_${Date.now()}`, 
+          organizationId: orgId,
+          sectorEntryTime: now
+      } as Job);
   };
   const updateJob = async (id: string, u: Partial<Job>) => {
       const orgId = activeDataId;
       if (!orgId) return;
-      await api.apiUpdateJob(orgId, id, u);
+      
+      const updates = { ...u };
+      if (u.currentSector) {
+          updates.sectorEntryTime = new Date();
+      }
+      
+      await api.apiUpdateJob(orgId, id, updates);
   };
 
   const addCommissionRecord = async (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => {

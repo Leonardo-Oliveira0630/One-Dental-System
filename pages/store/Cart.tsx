@@ -109,6 +109,7 @@ export const Cart = () => {
             history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual (Otimizado)', userId: currentUser.id, userName: currentUser.name }],
             attachments: uploadedAttachments, 
             createdAt: new Date(), 
+            sectorEntryTime: new Date(),
             dueDate: new Date(date), 
             totalValue: total, 
             notes

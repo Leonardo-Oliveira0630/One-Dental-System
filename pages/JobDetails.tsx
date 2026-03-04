@@ -285,6 +285,21 @@ export const JobDetails = () => {
   };
 
   const sortedHistory = [...job.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  
+  const getSectorTimeInfo = (job: Job) => {
+    if (!job.sectorEntryTime) return { hours: 0, isAttention: false, label: '---' };
+    const diff = new Date().getTime() - new Date(job.sectorEntryTime).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let label = '';
+    if (hours > 0) label += `${hours}h `;
+    label += `${minutes}m`;
+    
+    return { hours, isAttention: hours >= 18, label };
+  };
+
+  const timeInfo = getSectorTimeInfo(job);
   const isFinished = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
   const canFinalize = isLabStaff && !isFinished && job.status !== JobStatus.REJECTED;
 
@@ -655,12 +670,22 @@ export const JobDetails = () => {
                     </div>
                 </div>
                 <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0">
-                     <div className="bg-indigo-900 rounded-[32px] shadow-xl p-6 md:p-8 text-white overflow-hidden relative min-h-[160px] flex flex-col justify-center shrink-0">
+                     <div className={`rounded-[32px] shadow-xl p-6 md:p-8 text-white overflow-hidden relative min-h-[160px] flex flex-col justify-center shrink-0 transition-colors duration-500 ${timeInfo.isAttention ? 'bg-amber-600' : 'bg-indigo-900'}`}>
                         <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Flag size={100} /></div>
-                        <h4 className="font-black text-[10px] md:text-xs mb-2 flex items-center gap-2 uppercase tracking-widest text-indigo-300"><MapPin size={16} className="shrink-0" /> Estágio Atual</h4>
+                        <h4 className={`font-black text-[10px] md:text-xs mb-2 flex items-center gap-2 uppercase tracking-widest ${timeInfo.isAttention ? 'text-amber-200' : 'text-indigo-300'}`}><MapPin size={16} className="shrink-0" /> Estágio Atual</h4>
                         <p className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-tight break-words">{job.currentSector || 'Triagem'}</p>
+                        <div className="mt-4 flex flex-col gap-1">
+                            <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] ${timeInfo.isAttention ? 'text-amber-100' : 'text-indigo-400'} shrink-0`}>
+                                <Clock size={14} /> Permanência: {timeInfo.label}
+                            </div>
+                            {timeInfo.isAttention && (
+                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white bg-white/20 px-3 py-1 rounded-lg w-fit mt-2 animate-pulse">
+                                    <FileWarning size={14} /> Status de Atenção (+18h)
+                                </div>
+                            )}
+                        </div>
                         <div className="mt-6 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-400 shrink-0">
-                            <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping shrink-0"></div> PRODUÇÃO EM CURSO
+                            <div className={`w-1.5 h-1.5 rounded-full animate-ping shrink-0 ${timeInfo.isAttention ? 'bg-white' : 'bg-indigo-400'}`}></div> PRODUÇÃO EM CURSO
                         </div>
                     </div>
                 </div>

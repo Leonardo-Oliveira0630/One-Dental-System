@@ -18,6 +18,7 @@ export const JobsList = () => {
   const [filterSector, setFilterSector] = useState('');
   const [filterUrgency, setFilterUrgency] = useState('');
   const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'WEB' | 'MANUAL'>('ALL');
+  const [filterAttention, setFilterAttention] = useState(false);
 
   const [routeModalJob, setRouteModalJob] = useState<Job | null>(null);
   
@@ -66,6 +67,11 @@ export const JobsList = () => {
     }
     if (filterSector && job.currentSector !== filterSector) return false;
     if (filterUrgency && job.urgency !== filterUrgency) return false;
+    if (filterAttention) {
+        if (!job.sectorEntryTime) return false;
+        const hours = (new Date().getTime() - new Date(job.sectorEntryTime).getTime()) / (1000 * 60 * 60);
+        if (hours < 18) return false;
+    }
     if (filterOrigin !== 'ALL') {
         const isWeb = job.history.some(h => h.action.toLowerCase().includes('loja virtual'));
         if (filterOrigin === 'WEB' && !isWeb) return false;
@@ -137,6 +143,19 @@ export const JobsList = () => {
       }
   };
 
+  const getSectorTimeInfo = (job: Job) => {
+    if (!job.sectorEntryTime) return { hours: 0, isAttention: false, label: '---' };
+    const diff = new Date().getTime() - new Date(job.sectorEntryTime).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    let label = '';
+    if (hours > 0) label += `${hours}h `;
+    label += `${minutes}m`;
+    
+    return { hours, isAttention: hours >= 18, label };
+  };
+
   return (
     <div className="space-y-4 md:space-y-6 pb-20">
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -180,6 +199,10 @@ export const JobsList = () => {
                 </select>
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Inicial" />
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Final" />
+                <label className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-slate-50 cursor-pointer">
+                    <input type="checkbox" checked={filterAttention} onChange={e => setFilterAttention(e.target.checked)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+                    <span className="text-xs font-bold text-slate-700">Apenas Atenção (+18h)</span>
+                </label>
             </div>
         )}
       </div>
@@ -195,6 +218,7 @@ export const JobsList = () => {
                         <th className="p-4">Paciente</th>
                         <th className="p-4">Dentista</th>
                         <th className="p-4">Status</th>
+                        <th className="p-4">Setor/Tempo</th>
                         <th className="p-4">Entrega</th>
                         <th className="p-4 text-right">Ações</th>
                     </tr>
@@ -206,7 +230,7 @@ export const JobsList = () => {
                         const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED);
                         
                         return (
-                            <tr key={job.id} className="hover:bg-blue-50/30 transition-colors">
+                            <tr key={job.id} className={`hover:bg-blue-50/30 transition-colors ${getSectorTimeInfo(job).isAttention ? 'bg-yellow-50/50' : ''}`}>
                                 <td className="p-4 font-mono font-bold text-slate-700 text-sm">{job.osNumber || '---'}</td>
                                 {!isClient && (
                                     <td className="p-4">
@@ -228,6 +252,15 @@ export const JobsList = () => {
                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status)}`}>
                                         {getTranslatedStatus(job.status)}
                                     </span>
+                                </td>
+                                <td className="p-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{job.currentSector || 'Triagem'}</span>
+                                        <div className={`flex items-center gap-1 text-xs font-bold ${getSectorTimeInfo(job).isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
+                                            <Clock size={12} /> {getSectorTimeInfo(job).label}
+                                            {getSectorTimeInfo(job).isAttention && <AlertCircle size={12} className="animate-pulse" />}
+                                        </div>
+                                    </div>
                                 </td>
                                 <td className="p-4 text-slate-600 text-xs font-bold">{new Date(job.dueDate).toLocaleDateString()}</td>
                                 <td className="p-4 text-right">
@@ -251,48 +284,53 @@ export const JobsList = () => {
         {filteredJobs.length === 0 ? (
             <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-dashed">Nenhum pedido encontrado.</div>
         ) : (
-            filteredJobs.map(job => (
-                <div key={job.id} onClick={() => navigate(`/jobs/${job.id}`)} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 active:scale-[0.98] transition-transform relative overflow-hidden">
-                    {job.urgency === UrgencyLevel.VIP && <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden"><div className="bg-orange-500 text-white text-[8px] font-black py-1 px-10 transform rotate-45 translate-x-3 -translate-y-1 text-center shadow-sm uppercase">VIP</div></div>}
-                    
-                    <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono font-black text-blue-600 text-base">#{job.osNumber || '---'}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status)}`}>
-                                {getTranslatedStatus(job.status)}
-                            </span>
+            filteredJobs.map(job => {
+                const timeInfo = getSectorTimeInfo(job);
+                return (
+                    <div key={job.id} onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${timeInfo.isAttention ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
+                        {job.urgency === UrgencyLevel.VIP && <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden"><div className="bg-orange-500 text-white text-[8px] font-black py-1 px-10 transform rotate-45 translate-x-3 -translate-y-1 text-center shadow-sm uppercase">VIP</div></div>}
+                        {timeInfo.isAttention && <div className="absolute top-0 left-0 w-full h-1 bg-amber-400 animate-pulse" />}
+                        
+                        <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                                <span className="font-mono font-black text-blue-600 text-base">#{job.osNumber || '---'}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status)}`}>
+                                    {getTranslatedStatus(job.status)}
+                                </span>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Entrega</p>
+                                <p className="text-xs font-bold text-slate-800">{new Date(job.dueDate).toLocaleDateString()}</p>
+                            </div>
                         </div>
-                        <div className="text-right">
-                            <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Entrega</p>
-                            <p className="text-xs font-bold text-slate-800">{new Date(job.dueDate).toLocaleDateString()}</p>
-                        </div>
-                    </div>
 
-                    <div className="space-y-1 mb-4">
-                        <h3 className="font-black text-slate-900 text-lg leading-tight">{job.patientName}</h3>
-                        <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
-                            <User size={12} className="text-blue-500" />
-                            <span className="uppercase truncate">Dr(a). {job.dentistName}</span>
+                        <div className="space-y-1 mb-4">
+                            <h3 className="font-black text-slate-900 text-lg leading-tight">{job.patientName}</h3>
+                            <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
+                                <User size={12} className="text-blue-500" />
+                                <span className="uppercase truncate">Dr(a). {job.dentistName}</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                        <div className="flex items-center gap-2">
-                           {!isClient && job.boxNumber && (
-                               <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
-                                   <Box size={14} className="text-slate-400" />
-                                   <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
+                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                            <div className="flex items-center gap-2">
+                               {!isClient && job.boxNumber && (
+                                   <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
+                                       <Box size={14} className="text-slate-400" />
+                                       <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
+                                   </div>
+                               )}
+                               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${timeInfo.isAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                                   <MapPin size={14} className={timeInfo.isAttention ? 'text-amber-500' : 'text-blue-400'} />
+                                   <span className="text-xs font-bold truncate max-w-[100px]">{job.currentSector || 'Recepção'}</span>
+                                   <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>
                                </div>
-                           )}
-                           <div className="flex items-center gap-1.5 bg-blue-50 px-2 py-1 rounded-lg">
-                               <MapPin size={14} className="text-blue-400" />
-                               <span className="text-xs font-bold text-blue-700 truncate max-w-[100px]">{job.currentSector || 'Recepção'}</span>
-                           </div>
+                            </div>
+                            <ChevronRight className="text-slate-300" size={20} />
                         </div>
-                        <ChevronRight className="text-slate-300" size={20} />
                     </div>
-                </div>
-            ))
+                );
+            })
         )}
       </div>
 

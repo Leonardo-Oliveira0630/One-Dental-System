@@ -224,6 +224,7 @@ export interface Job {
   boxNumber?: string;
   boxColor?: BoxColor;
   currentSector?: string;
+  sectorEntryTime?: Date;
   totalValue: number;
   notes?: string;
   managerNotes?: string;
