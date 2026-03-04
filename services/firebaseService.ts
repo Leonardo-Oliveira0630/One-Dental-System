@@ -214,7 +214,7 @@ export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
                     history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) }))
                 } as Job;
             });
-            const sortedJobs = rawJobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            const sortedJobs = rawJobs.sort((a: Job, b: Job) => b.createdAt.getTime() - a.createdAt.getTime());
             cb(sortedJobs);
         } catch (err) {
             console.error("[ProTrack] Erro ao processar lista de trabalhos:", err);
@@ -340,9 +340,9 @@ export const apiAddCoupon = (c: Coupon) => setDoc(doc(db, 'coupons', c.id), c);
 export const apiUpdateCoupon = (id: string, u: Partial<Coupon>) => updateDoc(doc(db, 'coupons', id), u);
 export const apiDeleteCoupon = (id: string) => deleteDoc(doc(db, 'coupons', id));
 
-export const apiCreateSaaSSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string) => {
+export const apiCreateSaaSSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string) => {
     const fn = httpsCallable(functions, 'createSaaSSubscription');
-    return (await fn({ orgId, planId, email, name, cpfCnpj })).data;
+    return (await fn({ orgId, planId, email, name, cpfCnpj, couponCode })).data;
 };
 export const apiCreateLabSubAccount = async (payload: any) => {
     const fn = httpsCallable(functions, 'createLabSubAccount');

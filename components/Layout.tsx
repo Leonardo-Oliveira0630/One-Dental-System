@@ -13,6 +13,7 @@ import { GlobalScanner } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
 import { AlertPopup } from './AlertSystem';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
+import { JobSearch } from './JobSearch';
 import * as firestorePkg from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 
@@ -26,6 +27,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isLabSelectorOpen, setIsLabSelectorOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -219,14 +221,31 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </aside>
 
       <header className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden">
-         <div className="flex items-center gap-3">
-             <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors"><Menu size={24} /></button>
-             <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0">M</div>
-                <span className="font-black text-slate-900 text-base uppercase tracking-tighter truncate">MyTooth</span>
-             </div>
+         <div className="flex items-center gap-3 overflow-hidden">
+             <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
+             {!isMobileSearchOpen && (
+               <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0">M</div>
+                  <span className="font-black text-slate-900 text-base uppercase tracking-tighter truncate">MyTooth</span>
+               </div>
+             )}
          </div>
-         <div className="flex items-center gap-2">
+
+         {isMobileSearchOpen && (
+            <div className="flex-1 mx-2 animate-in fade-in slide-in-from-right-4">
+               <JobSearch />
+            </div>
+         )}
+
+         <div className="flex items-center gap-1 shrink-0">
+             {!isClient && (
+               <button 
+                 onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                 className={`p-2 rounded-lg transition-colors ${isMobileSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
+               >
+                 {isMobileSearchOpen ? <X size={22} /> : <Search size={22} />}
+               </button>
+             )}
              {isClient && cart.length > 0 && (
                  <Link to="/cart" className="p-2 text-blue-600 relative"><ShoppingCart size={22} /><span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-black border-2 border-white">{cart.length}</span></Link>
              )}
@@ -264,8 +283,12 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen overflow-x-hidden relative">
         <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0">
-          <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <span className="font-black text-slate-900 tracking-tighter text-lg uppercase truncate">MyTooth <span className="text-blue-600">Eco System</span></span>
+          </div>
+
+          <div className="flex-1 max-w-xl mx-8">
+            <JobSearch />
           </div>
 
           <div className="flex items-center gap-4 shrink-0">
