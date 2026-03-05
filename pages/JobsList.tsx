@@ -5,9 +5,10 @@ import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
 import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
+import { MultiSelect } from '../components/MultiSelect';
 
 export const JobsList = () => {
-  const { jobs, currentUser, triggerPrint, updateJob, sectors, activeOrganization, addJobToRoute } = useApp();
+  const { jobs, currentUser, triggerPrint, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists } = useApp();
   const navigate = useNavigate();
   
   const [filterText, setFilterText] = useState('');
@@ -15,10 +16,13 @@ export const JobsList = () => {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [filterSector, setFilterSector] = useState('');
   const [filterUrgency, setFilterUrgency] = useState('');
   const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'WEB' | 'MANUAL'>('ALL');
   const [filterAttention, setFilterAttention] = useState(false);
+  
+  const [selectedDentists, setSelectedDentists] = useState<string[]>([]);
+  const [selectedCollaborators, setSelectedCollaborators] = useState<string[]>([]);
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
 
   const [routeModalJob, setRouteModalJob] = useState<Job | null>(null);
   
@@ -30,6 +34,18 @@ export const JobsList = () => {
 
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.COLLABORATOR;
+
+  const dentistOptions = [
+    ...manualDentists.map(d => ({ value: d.id, label: d.name })),
+    ...allUsers.filter(u => u.role === UserRole.CLIENT).map(u => ({ value: u.id, label: u.name }))
+  ].sort((a, b) => a.label.localeCompare(b.label));
+
+  const collaboratorOptions = allUsers
+    .filter(u => u.role !== UserRole.CLIENT)
+    .map(u => ({ value: u.id, label: u.name }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const sectorOptions = sectors.map(s => ({ value: s.name, label: s.name }));
 
   if (isClient && !activeOrganization) {
     return (
@@ -65,7 +81,14 @@ export const JobsList = () => {
         end.setHours(23,59,59,999);
         if (new Date(job.createdAt) > end) return false;
     }
-    if (filterSector && job.currentSector !== filterSector) return false;
+    
+    if (selectedDentists.length > 0 && !selectedDentists.includes(job.dentistId)) return false;
+    if (selectedSectors.length > 0 && !selectedSectors.includes(job.currentSector || '')) return false;
+    if (selectedCollaborators.length > 0) {
+        const hasCollaborator = job.history.some(h => selectedCollaborators.includes(h.userId));
+        if (!hasCollaborator) return false;
+    }
+
     if (filterUrgency && job.urgency !== filterUrgency) return false;
     if (filterAttention) {
         if (!job.sectorEntryTime) return false;
@@ -197,6 +220,30 @@ export const JobsList = () => {
                     <option value="">Todas Prioridades</option>
                     {Object.values(UrgencyLevel).map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
+
+                {!isClient && (
+                    <>
+                        <MultiSelect 
+                            options={dentistOptions} 
+                            selectedValues={selectedDentists} 
+                            onChange={setSelectedDentists} 
+                            placeholder="Filtrar Dentistas" 
+                        />
+                        <MultiSelect 
+                            options={collaboratorOptions} 
+                            selectedValues={selectedCollaborators} 
+                            onChange={setSelectedCollaborators} 
+                            placeholder="Filtrar Colaboradores" 
+                        />
+                        <MultiSelect 
+                            options={sectorOptions} 
+                            selectedValues={selectedSectors} 
+                            onChange={setSelectedSectors} 
+                            placeholder="Filtrar Setores" 
+                        />
+                    </>
+                )}
+
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Inicial" />
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Final" />
                 <label className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-slate-50 cursor-pointer">
