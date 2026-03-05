@@ -19,7 +19,7 @@ const playNativeHaptic = async (isSuccess: boolean) => {
 };
 
 export const GlobalScanner: React.FC = () => {
-  const { jobs, updateJob, currentUser, addCommissionRecord } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, commissions } = useApp();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
   
@@ -124,16 +124,27 @@ export const GlobalScanner: React.FC = () => {
           setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
           
           if (isLastActionEntryHere) {
-              let totalComm = 0;
-              job.items.forEach(item => {
-                  if (item.commissionDisabled) return;
-                  const setting = currentUser.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
-                  if (setting) {
-                      if (setting.type === 'FIXED') totalComm += setting.value * item.quantity;
-                      else totalComm += (item.price * item.quantity * (setting.value / 100));
-                  }
-              });
-              setCommissionEarned(totalComm);
+              // Verificar se já existe comissão para este job/usuário/setor
+              const alreadyPaid = commissions.some(c => 
+                  c.jobId === job.id && 
+                  c.userId === currentUser.id && 
+                  c.sector === currentUser.sector
+              );
+
+              if (!alreadyPaid) {
+                  let totalComm = 0;
+                  job.items.forEach(item => {
+                      if (item.commissionDisabled) return;
+                      const setting = currentUser.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
+                      if (setting) {
+                          if (setting.type === 'FIXED') totalComm += setting.value * item.quantity;
+                          else totalComm += (item.price * item.quantity * (setting.value / 100));
+                      }
+                  });
+                  setCommissionEarned(totalComm);
+              } else {
+                  setCommissionEarned(0);
+              }
           }
       } else {
           setScanAction('ENTRY');

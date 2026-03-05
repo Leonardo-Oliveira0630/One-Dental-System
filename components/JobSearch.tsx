@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole } from '../types';
 
 export const JobSearch = () => {
-  const { jobs, currentUser, updateJob, addCommissionRecord } = useApp();
+  const { jobs, currentUser, updateJob, addCommissionRecord, commissions } = useApp();
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
@@ -44,28 +44,37 @@ export const JobSearch = () => {
 
       // Se for Saída, calcular comissão
       if (actionType === 'EXIT') {
-        let totalComm = 0;
-        job.items.forEach(item => {
-          if (item.commissionDisabled) return;
-          const setting = currentUser.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
-          if (setting) {
-            if (setting.type === 'FIXED') totalComm += setting.value * item.quantity;
-            else totalComm += (item.price * item.quantity * (setting.value / 100));
-          }
-        });
+        // Verificar se já existe comissão para este job/usuário/setor
+        const alreadyPaid = commissions.some(c => 
+            c.jobId === job.id && 
+            c.userId === currentUser.id && 
+            c.sector === sector
+        );
 
-        if (totalComm > 0) {
-          await addCommissionRecord({
-            userId: currentUser.id,
-            userName: currentUser.name,
-            jobId: job.id,
-            osNumber: job.osNumber || 'N/A',
-            patientName: job.patientName,
-            amount: totalComm,
-            status: 'PENDING' as any,
-            createdAt: new Date(),
-            sector: sector
+        if (!alreadyPaid) {
+          let totalComm = 0;
+          job.items.forEach(item => {
+            if (item.commissionDisabled) return;
+            const setting = currentUser.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
+            if (setting) {
+              if (setting.type === 'FIXED') totalComm += setting.value * item.quantity;
+              else totalComm += (item.price * item.quantity * (setting.value / 100));
+            }
           });
+
+          if (totalComm > 0) {
+            await addCommissionRecord({
+              userId: currentUser.id,
+              userName: currentUser.name,
+              jobId: job.id,
+              osNumber: job.osNumber || 'N/A',
+              patientName: job.patientName,
+              amount: totalComm,
+              status: 'PENDING' as any,
+              createdAt: new Date(),
+              sector: sector
+            });
+          }
         }
       }
 
