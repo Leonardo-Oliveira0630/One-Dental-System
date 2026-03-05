@@ -70,7 +70,7 @@ export const GlobalScanner: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [jobs, currentUser, isCameraActive]);
+  }, [jobs, currentUser, isCameraActive, scannedJob, scanAction]);
 
   useEffect(() => {
       if (isCameraActive && !scannerRef.current) {
@@ -102,6 +102,16 @@ export const GlobalScanner: React.FC = () => {
   };
 
   const processScan = async (code: string) => {
+    // Lógica de confirmação por "Bip Duplo"
+    if (scannedJob) {
+        if ((scannedJob.osNumber || '').toUpperCase() === code.toUpperCase() || scannedJob.id === code) {
+            await playNativeHaptic(true);
+            playBeep(true);
+            await handleMoveJob();
+            return;
+        }
+    }
+
     setCommissionEarned(0);
     const job = jobs.find(j => (j.osNumber || '').toUpperCase() === code.toUpperCase() || j.id === code);
     
@@ -237,8 +247,9 @@ export const GlobalScanner: React.FC = () => {
 
         <div className="flex gap-3">
             <button onClick={() => setScannedJob(null)} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
-            <button onClick={handleMoveJob} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-50 hover:bg-orange-600 shadow-orange-200'}`}>
-                {isEntry ? 'CONFIRMAR ENTRADA' : 'CONFIRMAR SAÍDA'}
+            <button onClick={handleMoveJob} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 flex flex-col items-center justify-center leading-tight ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-50 hover:bg-orange-600 shadow-orange-200'}`}>
+                <span>{isEntry ? 'CONFIRMAR ENTRADA' : 'CONFIRMAR SAÍDA'}</span>
+                <span className="text-[10px] font-medium opacity-80 mt-1">ou bipe novamente</span>
             </button>
         </div>
       </div>
