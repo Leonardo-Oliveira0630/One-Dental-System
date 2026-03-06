@@ -294,8 +294,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const updateUser = async (id: string, u: Partial<User>) => {
     if (!currentUser) return;
-    if (id === currentUser.id) await api.apiUpdateUser(id, u);
-    else await api.apiUpdateUserAdmin(id, u);
+    
+    const targetUser = allUsers.find(user => user.id === id);
+    const isSameOrg = targetUser && targetUser.organizationId === currentUser.organizationId;
+    const canManageUsers = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER || currentUser.role === UserRole.SUPER_ADMIN;
+
+    if (id === currentUser.id || (canManageUsers && isSameOrg)) {
+        await api.apiUpdateUser(id, u);
+    } else {
+        await api.apiUpdateUserAdmin(id, u);
+    }
   };
 
   const addUser = async (u: User) => await api.apiAddUser(u);

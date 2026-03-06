@@ -23,6 +23,9 @@ export const CommissionsTab = () => {
       if (configUser) {
           setIsSubmitting(true);
           try {
+            // This will use direct update if the current user is an admin of the same org,
+            // ensuring that the 'type' field (FIXED/PERCENTAGE) is saved correctly without
+            // being stripped by the cloud function.
             await updateUser(configUser.id, { commissionSettings: tempCommissions });
             setConfigUser(null);
             alert("Comissões salvas!");
