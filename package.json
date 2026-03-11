@@ -28,6 +28,8 @@
     "@google/genai": "*",
     "@react-three/drei": "^9.96.1",
     "@react-three/fiber": "^8.15.12",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "axios": "^1.6.8",
     "file-saver": "^2.0.5",
     "firebase": "^10.9.0",

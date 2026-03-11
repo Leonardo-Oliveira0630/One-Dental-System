@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus } from '../types';
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2 } from 'lucide-react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { BrowserMultiFormatReader } from '@zxing/library';
 
 // Importação segura do Capacitor
 const playNativeHaptic = async (isSuccess: boolean) => {
@@ -27,7 +27,9 @@ export const GlobalScanner: React.FC = () => {
   const [scanAction, setScanAction] = useState<'ENTRY' | 'EXIT'>('ENTRY');
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
 
   const SCANNER_TIMEOUT = 100;
   const MIN_LENGTH = 2;
@@ -73,30 +75,38 @@ export const GlobalScanner: React.FC = () => {
   }, [jobs, currentUser, isCameraActive, scannedJob, scanAction]);
 
   useEffect(() => {
-      if (isCameraActive && !scannerRef.current) {
-          scannerRef.current = new Html5Qrcode("reader");
-          const config = { fps: 30, qrbox: { width: 280, height: 160 } };
+      if (isCameraActive) {
+          if (!codeReaderRef.current) {
+              codeReaderRef.current = new BrowserMultiFormatReader();
+          }
           
-          scannerRef.current.start(
-              { facingMode: "environment" },
-              config,
-              (decodedText: string) => {
-                  processScan(decodedText);
-                  stopCamera();
-              },
-              () => {} 
-          ).catch((err: any) => {
-              console.error(err);
-              setIsCameraActive(false);
-          });
+          if (videoRef.current) {
+              codeReaderRef.current.decodeFromConstraints(
+                  {
+                      audio: false,
+                      video: {
+                          facingMode: 'environment'
+                      }
+                  },
+                  videoRef.current,
+                  (result, err) => {
+                      if (result) {
+                          processScan(result.getText());
+                          stopCamera();
+                      }
+                  }
+              ).catch((err: any) => {
+                  console.error(err);
+                  setIsCameraActive(false);
+              });
+          }
       }
-      return () => { if (scannerRef.current) stopCamera(); };
+      return () => { if (codeReaderRef.current) stopCamera(); };
   }, [isCameraActive]);
 
-  const stopCamera = async () => {
-      if (scannerRef.current) {
-          try { await scannerRef.current.stop(); } catch(e) {}
-          scannerRef.current = null;
+  const stopCamera = () => {
+      if (codeReaderRef.current) {
+          codeReaderRef.current.reset();
           setIsCameraActive(false);
       }
   };
@@ -216,7 +226,7 @@ export const GlobalScanner: React.FC = () => {
                   </div>
                   <button onClick={() => stopCamera()} className="p-2 bg-white/10 rounded-full"><X/></button>
               </div>
-              <div id="reader" className="w-full h-full scanner-overlay"></div>
+              <video ref={videoRef} className="w-full h-full object-cover"></video>
               <div className="scanner-laser"></div>
           </div>
       );
