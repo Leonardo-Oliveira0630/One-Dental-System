@@ -1,0 +1,48 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "MANAGER", "COLLABORATOR", "CLIENT", "SUPER_ADMIN"] },
+        "organizationId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "role", "organizationId"]
+    },
+    "Organization": {
+      "title": "Organization",
+      "description": "Organization data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "orgType": { "type": "string", "enum": ["LAB", "CLINIC"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "orgType"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User documents"
+    },
+    "/organizations/{orgId}": {
+      "schema": "Organization",
+      "description": "Organization documents"
+    },
+    "/organizations/{orgId}/jobs/{jobId}": {
+      "schema": "object",
+      "description": "Jobs within an organization"
+    },
+    "/settings/global": {
+      "schema": "object",
+      "description": "Global settings"
+    }
+  }
+}
