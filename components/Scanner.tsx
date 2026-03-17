@@ -32,7 +32,6 @@ export const GlobalScanner: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
-  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
 
   const SCANNER_TIMEOUT = 100;
   const MIN_LENGTH = 2;
@@ -77,42 +76,77 @@ export const GlobalScanner: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [jobs, currentUser, isCameraActive, scannedJob, scanAction]);
 
+  const processScanRef = useRef<((code: string) => Promise<void>) | null>(null);
   useEffect(() => {
-      if (isCameraActive) {
-          if (!codeReaderRef.current) {
-              codeReaderRef.current = new BrowserMultiFormatReader();
-          }
+      processScanRef.current = processScan;
+  });
+
+  useEffect(() => {
+      let isMounted = true;
+      let reader: BrowserMultiFormatReader | null = null;
+
+      if (isCameraActive && videoRef.current) {
+          const activeReader = new BrowserMultiFormatReader();
+          reader = activeReader;
           
-          if (videoRef.current) {
-              codeReaderRef.current.decodeFromConstraints(
-                  {
-                      audio: false,
-                      video: {
-                          facingMode: 'environment'
-                      }
-                  },
-                  videoRef.current,
-                  (result, err) => {
-                      if (result) {
-                          processScan(result.getText());
-                          stopCamera();
+          const startScanner = async () => {
+              try {
+                  if (videoRef.current && isMounted) {
+                      await activeReader.decodeFromConstraints(
+                          {
+                              audio: false,
+                              video: {
+                                  facingMode: 'environment',
+                                  width: { ideal: 1280 },
+                                  height: { ideal: 720 }
+                              }
+                          },
+                          videoRef.current,
+                          (result, err) => {
+                              if (result && isMounted) {
+                                  if (processScanRef.current) {
+                                      processScanRef.current(result.getText());
+                                  }
+                                  setIsCameraActive(false);
+                              }
+                          }
+                      );
+                  }
+              } catch (err) {
+                  console.error("Camera error:", err);
+                  // Fallback to any camera if environment fails
+                  if (isMounted && videoRef.current) {
+                      try {
+                          await activeReader.decodeFromVideoDevice(
+                              null,
+                              videoRef.current,
+                              (result, err) => {
+                                  if (result && isMounted) {
+                                      if (processScanRef.current) {
+                                          processScanRef.current(result.getText());
+                                      }
+                                      setIsCameraActive(false);
+                                  }
+                              }
+                          );
+                      } catch (fallbackErr) {
+                          console.error("Fallback camera error:", fallbackErr);
+                          if (isMounted) setIsCameraActive(false);
                       }
                   }
-              ).catch((err: any) => {
-                  console.error(err);
-                  setIsCameraActive(false);
-              });
-          }
-      }
-      return () => { if (codeReaderRef.current) stopCamera(); };
-  }, [isCameraActive]);
+              }
+          };
 
-  const stopCamera = () => {
-      if (codeReaderRef.current) {
-          codeReaderRef.current.reset();
-          setIsCameraActive(false);
+          startScanner();
       }
-  };
+
+      return () => { 
+          isMounted = false;
+          if (reader) {
+              reader.reset();
+          }
+      };
+  }, [isCameraActive]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -257,7 +291,7 @@ export const GlobalScanner: React.FC = () => {
                       <h3 className="font-bold text-lg">Leitor My Tooth</h3>
                       <p className="text-xs opacity-70">Aponte para o código de barras</p>
                   </div>
-                  <button onClick={() => stopCamera()} className="p-2 bg-white/10 rounded-full"><X/></button>
+                  <button onClick={() => setIsCameraActive(false)} className="p-2 bg-white/10 rounded-full"><X/></button>
               </div>
               <video ref={videoRef} className="w-full h-full object-cover"></video>
               <div className="scanner-laser"></div>
