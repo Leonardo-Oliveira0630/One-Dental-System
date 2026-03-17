@@ -1,8 +1,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus } from '../types';
-import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2 } from 'lucide-react';
+import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2, MessageCircle, Loader2, ImagePlus } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
 
 // Importação segura do Capacitor
@@ -19,7 +20,8 @@ const playNativeHaptic = async (isSuccess: boolean) => {
 };
 
 export const GlobalScanner: React.FC = () => {
-  const { jobs, updateJob, currentUser, addCommissionRecord, commissions } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile } = useApp();
+  const navigate = useNavigate();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
   
@@ -27,6 +29,7 @@ export const GlobalScanner: React.FC = () => {
   const [scanAction, setScanAction] = useState<'ENTRY' | 'EXIT'>('ENTRY');
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
@@ -109,6 +112,36 @@ export const GlobalScanner: React.FC = () => {
           codeReaderRef.current.reset();
           setIsCameraActive(false);
       }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !scannedJob || !currentUser) return;
+
+    setIsUploading(true);
+    try {
+      const url = await uploadFile(file);
+      const newAttachment = {
+        id: `att_${Date.now()}`,
+        name: `Foto_Scanner_${new Date().toLocaleTimeString()}.jpg`,
+        url,
+        uploadedAt: new Date()
+      };
+      await updateJob(scannedJob.id, {
+        attachments: [...(scannedJob.attachments || []), newAttachment]
+      });
+      setScannedJob(prev => prev ? {
+          ...prev,
+          attachments: [...(prev.attachments || []), newAttachment]
+      } : null);
+      
+      alert('Foto anexada com sucesso!');
+    } catch (error) {
+      console.error("Erro ao fazer upload:", error);
+      alert("Erro ao enviar imagem.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const processScan = async (code: string) => {
@@ -254,6 +287,37 @@ export const GlobalScanner: React.FC = () => {
         <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6 space-y-3">
             <div className="flex justify-between items-center border-b border-slate-200 pb-2"><span className="text-slate-500 text-xs font-bold uppercase">OS</span><span className="font-mono font-black text-2xl text-blue-600">{scannedJob.osNumber || "N/A"}</span></div>
             <div className="flex justify-between items-center"><span className="text-slate-500 text-xs font-bold uppercase">Paciente</span><span className="font-black text-slate-800">{scannedJob.patientName}</span></div>
+        </div>
+
+        {/* Ações Rápidas (Mobile) */}
+        <div className="flex gap-3 mb-6 md:hidden">
+            <input 
+                type="file" 
+                accept="image/*" 
+                capture="environment" 
+                className="hidden" 
+                id="scanner-camera-upload" 
+                onChange={handleFileUpload} 
+            />
+            <button 
+                onClick={() => document.getElementById('scanner-camera-upload')?.click()}
+                disabled={isUploading}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+            >
+                {isUploading ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
+                <span>Foto</span>
+            </button>
+            <button 
+                onClick={() => {
+                    const jobId = scannedJob.id;
+                    setScannedJob(null);
+                    navigate(`/jobs/${jobId}`);
+                }}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+            >
+                <MessageCircle size={18} />
+                <span>Chat</span>
+            </button>
         </div>
 
         {!isEntry && commissionEarned > 0 && (
