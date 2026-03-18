@@ -131,41 +131,36 @@ export const PrintOverlay = () => {
 
           {printData.mode === 'LABEL' && printData.job && (
             <div 
-              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print" 
+              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex bg-white thermal-print px-3 py-2" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
             >
-               {/* Header: Patient and Dentist */}
-               <div className="px-2 pt-1.5 pb-0.5">
-                  <p className="font-bold text-[15px] leading-none truncate uppercase">{printData.job.patientName}</p>
-                  <p className="text-[10px] font-medium leading-tight truncate mt-0.5">Dr. {printData.job.dentistName}</p>
+               {/* Left Column: Information (Stacked exactly like the image) */}
+               <div className="flex-1 flex flex-col justify-center space-y-0.5">
+                  <p className="font-bold text-[12px] leading-tight truncate uppercase">{printData.job.patientName}</p>
+                  <p className="text-[11px] leading-tight truncate uppercase">{printData.job.dentistName}</p>
+                  <p className="text-[11px] leading-tight">{printData.job.osNumber || printData.job.id.substring(0,8)}</p>
+                  <p className="text-[11px] leading-tight">
+                    {new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(printData.job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <p className="text-[11px] leading-tight">
+                    {new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                  </p>
                </div>
 
-               {/* Barcode with tight borders */}
-               <div className="flex-1 flex flex-col justify-center border-y-[1.5px] border-black overflow-hidden bg-white">
-                   <div className="flex justify-center items-center py-0.5">
-                     <Barcode 
-                       value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
-                       width={1.2} 
-                       height={42} 
-                       displayValue={true} 
-                       fontSize={12} 
-                       fontOptions="bold" 
-                       margin={0} 
-                       format="CODE128" 
-                     />
-                   </div>
-               </div>
-
-               {/* Footer: Dates and Box Number */}
-               <div className="px-2 py-1 flex justify-between items-end">
-                  <div className="text-[10px] font-medium leading-tight">
-                    <p>E: {new Date(printData.job.createdAt).toLocaleDateString()}</p>
-                    <p className="font-bold text-[11px]">S: {new Date(printData.job.dueDate).toLocaleDateString()}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-[18px] leading-none">
-                      {printData.job.boxNumber ? `CX:${printData.job.boxNumber}` : ''}
-                    </span>
+               {/* Right Column: Box Number and Barcode */}
+               <div className="w-[20mm] flex flex-col items-center justify-center">
+                  {printData.job.boxNumber && (
+                    <p className="font-bold text-[15px] leading-none mb-1">CX: {printData.job.boxNumber}</p>
+                  )}
+                  <div className="flex items-center justify-center">
+                    <Barcode 
+                      value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
+                      width={1.1} 
+                      height={50} 
+                      displayValue={false} 
+                      margin={0} 
+                      format="CODE128" 
+                    />
                   </div>
                </div>
             </div>
