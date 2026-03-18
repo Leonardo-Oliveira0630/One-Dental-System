@@ -23,7 +23,7 @@ export const PrintOverlay = () => {
         {`
           @media print {
             @page {
-              size: ${printData.mode === 'LABEL' ? '100mm 50mm' : 'A4 portrait'};
+              size: ${printData.mode === 'LABEL' ? '89mm 28mm' : 'A4 portrait'};
               margin: 0;
             }
             body {
@@ -52,10 +52,10 @@ export const PrintOverlay = () => {
       </div>
 
       <div className="flex-1 w-full overflow-y-auto p-4 md:p-8 flex justify-center print:p-0 print:overflow-visible print:block">
-        <div id="printable-content" className={`bg-white text-black shadow-2xl mx-auto print:shadow-none print:m-0 ${
+        <div id="printable-content" className={`bg-white text-black shadow-2xl mx-auto print:shadow-none print:m-0 break-inside-avoid ${
             printData.mode === 'SHEET' ? 'w-[210mm] h-[148.5mm] p-6 print:w-[210mm] print:h-[148.5mm] overflow-hidden' : 
             printData.mode === 'ROUTE' ? 'w-[210mm] min-h-[297mm] p-12 print:w-[210mm] print:h-auto' : 
-            'w-[100mm] h-[50mm] p-2 print:w-[100mm] print:h-[50mm]'
+            'w-[89mm] h-[28mm] max-h-[28mm] p-1 print:w-[89mm] print:h-[28mm] print:max-h-[28mm] print:overflow-hidden'
         }`}>
           
           {printData.mode === 'SHEET' && printData.job && (
@@ -121,15 +121,15 @@ export const PrintOverlay = () => {
           )}
 
           {printData.mode === 'LABEL' && printData.job && (
-            <div className="w-full h-full overflow-hidden relative flex flex-col items-center justify-between py-1">
-               <div className="w-full flex justify-between items-center border-b border-black pb-1 px-1">
-                  <div className="text-left w-2/3"><p className="font-bold text-sm leading-none truncate">{printData.job.patientName}</p><p className="text-[10px] text-gray-600 truncate">Dr. {printData.job.dentistName}</p></div>
-                  <div className="text-right"><span className="font-bold text-lg leading-none">{printData.job.boxNumber ? `CX:${printData.job.boxNumber}` : ''}</span></div>
+            <div className="w-full h-full overflow-hidden relative flex flex-col items-center justify-between py-0.5">
+               <div className="w-full flex justify-between items-center border-b border-black pb-0.5 px-1">
+                  <div className="text-left w-2/3"><p className="font-bold text-xs leading-none truncate">{printData.job.patientName}</p><p className="text-[8px] text-gray-600 truncate">Dr. {printData.job.dentistName}</p></div>
+                  <div className="text-right"><span className="font-bold text-sm leading-none">{printData.job.boxNumber ? `CX:${printData.job.boxNumber}` : ''}</span></div>
                </div>
-               <div className="flex-1 flex items-center justify-center w-full my-1">
-                   <Barcode value={String(printData.job.osNumber || printData.job.id.substring(0,8))} width={2} height={50} displayValue={true} fontSize={14} margin={0} format="CODE128" />
+               <div className="flex-1 flex items-center justify-center w-full my-0.5">
+                   <Barcode value={String(printData.job.osNumber || printData.job.id.substring(0,8))} width={1.5} height={30} displayValue={true} fontSize={10} margin={0} format="CODE128" />
                </div>
-               <div className="w-full flex justify-between items-end border-t border-black pt-1 px-1"><div className="text-[10px] leading-tight"><p>E: {new Date(printData.job.createdAt).toLocaleDateString()}</p><p className="font-black text-[8px]">{labName}</p></div><div className="text-xs font-bold leading-tight"><p>S: {new Date(printData.job.dueDate).toLocaleDateString()}</p></div></div>
+               <div className="w-full flex justify-between items-end border-t border-black pt-0.5 px-1"><div className="text-[8px] leading-tight"><p>E: {new Date(printData.job.createdAt).toLocaleDateString()}</p><p className="font-black text-[7px] truncate max-w-[100px]">{labName}</p></div><div className="text-[9px] font-bold leading-tight"><p>S: {new Date(printData.job.dueDate).toLocaleDateString()}</p></div></div>
             </div>
           )}
 

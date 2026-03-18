@@ -41,7 +41,7 @@ export const PWAInstallPrompt: React.FC = () => {
   if (!showPrompt) return null;
 
   return (
-    <div className="fixed bottom-24 left-4 right-4 z-[100] animate-in slide-in-from-bottom-8 duration-500">
+    <div className="fixed bottom-24 left-4 right-4 z-[100] animate-in slide-in-from-bottom-8 duration-500 print:hidden">
       <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-2xl border border-white/10 flex flex-col gap-4 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-2">
             <button onClick={() => setShowPrompt(false)} className="p-2 text-slate-400 hover:text-white transition-colors"><X size={20}/></button>

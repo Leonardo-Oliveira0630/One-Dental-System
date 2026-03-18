@@ -276,7 +276,7 @@ export const GlobalScanner: React.FC = () => {
       return (
           <button 
             onClick={() => setIsCameraActive(true)}
-            className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[60] w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all md:hidden"
+            className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[60] w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all md:hidden print:hidden"
           >
               <Camera size={28} />
           </button>

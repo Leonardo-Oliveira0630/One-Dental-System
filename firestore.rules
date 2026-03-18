@@ -7,29 +7,31 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    function userExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return userExists() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : null;
     }
     
     function isSuperAdmin() {
       return isAuthenticated() && (
-        getUserData().role == 'SUPER_ADMIN' || 
-        (request.auth.token.email == "leooliveira0630@gmail.com" && request.auth.token.email_verified == true)
+        (request.auth.token.email == "leooliveira0630@gmail.com" && request.auth.token.email_verified == true) ||
+        (userExists() && getUserData().get('role', null) == 'SUPER_ADMIN')
       );
     }
     
     function isAdmin() {
-      let role = getUserData().role;
-      return isAuthenticated() && (role == 'ADMIN' || role == 'SUPER_ADMIN');
+      return isAuthenticated() && userExists() && (getUserData().get('role', null) == 'ADMIN' || getUserData().get('role', null) == 'SUPER_ADMIN');
     }
     
     function isManager() {
-      let role = getUserData().role;
-      return isAuthenticated() && (role == 'MANAGER' || role == 'ADMIN' || role == 'SUPER_ADMIN');
+      return isAuthenticated() && userExists() && (getUserData().get('role', null) == 'MANAGER' || getUserData().get('role', null) == 'ADMIN' || getUserData().get('role', null) == 'SUPER_ADMIN');
     }
 
     function belongsToOrg(orgId) {
-      return isAuthenticated() && getUserData().organizationId == orgId;
+      return isAuthenticated() && userExists() && getUserData().get('organizationId', null) == orgId;
     }
 
     match /users/{userId} {
@@ -37,7 +39,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId || 
         isSuperAdmin() ||
-        (getUserData().organizationId == resource.data.organizationId && isManager())
+        (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && isManager())
       );
       
       // Allow creating own profile or admin creating users
@@ -47,16 +49,50 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         request.auth.uid == userId || 
         isSuperAdmin() ||
-        (getUserData().organizationId == resource.data.organizationId && isAdmin())
+        (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && isAdmin())
       );
       
       allow delete: if isSuperAdmin();
     }
     
     match /organizations/{orgId} {
-      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      allow read: if isAuthenticated();
       allow write: if isSuperAdmin() || (belongsToOrg(orgId) && isAdmin());
       
+      match /jobs/{jobId} {
+        allow read: if isAuthenticated() && (
+          isSuperAdmin() || 
+          belongsToOrg(orgId) ||
+          (userExists() && getUserData().get('role', null) == 'CLIENT' && resource.data.get('dentistId', null) == request.auth.uid)
+        );
+        allow create: if isAuthenticated() && (
+          isSuperAdmin() || 
+          belongsToOrg(orgId) ||
+          (userExists() && getUserData().get('role', null) == 'CLIENT' && request.resource.data.get('dentistId', null) == request.auth.uid)
+        );
+        allow update: if isAuthenticated() && (
+          isSuperAdmin() || 
+          belongsToOrg(orgId) ||
+          (userExists() && getUserData().get('role', null) == 'CLIENT' && resource.data.get('dentistId', null) == request.auth.uid && request.resource.data.get('dentistId', null) == request.auth.uid)
+        );
+        allow delete: if isAuthenticated() && (
+          isSuperAdmin() || 
+          belongsToOrg(orgId)
+        );
+      }
+
+      match /jobTypes/{jobTypeId} {
+        allow read: if isAuthenticated() && (
+          isSuperAdmin() || 
+          belongsToOrg(orgId) ||
+          (userExists() && getUserData().get('role', null) == 'CLIENT')
+        );
+        allow write: if isAuthenticated() && (
+          isSuperAdmin() || 
+          (belongsToOrg(orgId) && isAdmin())
+        );
+      }
+
       match /{allSubcollections=**} {
         allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
         allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));

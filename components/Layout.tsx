@@ -73,13 +73,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     : { name: currentOrg?.name || 'MY TOOTH', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'MY TOOTH SYSTEM' };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans relative overflow-x-hidden w-full">
+    <div className="min-h-screen print:min-h-0 flex print:block bg-slate-50 print:bg-white font-sans relative overflow-x-hidden print:overflow-visible w-full">
       {!isSuperAdmin && <GlobalScanner />}
       <PrintOverlay />
       <AlertPopup />
       <PWAInstallPrompt />
       
-      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none flex flex-col items-center gap-2 mt-4 px-4">
+      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none flex flex-col items-center gap-2 mt-4 px-4 print:hidden">
           {isOffline && (
             <div className="bg-orange-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4 duration-300 pointer-events-auto max-w-full">
                 <WifiOff size={16} />
@@ -221,7 +221,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
-      <header className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden">
+      <header className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden print:hidden">
          <div className="flex items-center gap-3 overflow-hidden">
              <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
              {!isMobileSearchOpen && (
@@ -254,7 +254,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
          </div>
       </header>
 
-      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
           <MobileNavItem to="/dashboard" icon={<Home size={22}/>} label="Home" active={location.pathname === '/dashboard'} />
           
           {!isClient ? (
@@ -282,7 +282,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
       </nav>
 
-      <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:ml-0 flex flex-col min-h-screen overflow-x-hidden relative">
+      <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative">
         <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0">
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <span className="font-black text-slate-900 tracking-tighter text-lg uppercase truncate">MyTooth <span className="text-blue-600">Eco System</span></span>

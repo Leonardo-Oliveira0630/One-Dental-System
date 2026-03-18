@@ -198,9 +198,12 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
 };
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
 
-export const subscribeJobs = (orgId: string, cb: (jobs: Job[]) => void) => {
+export const subscribeJobs = (orgId: string, userId: string | null, isClient: boolean, cb: (jobs: Job[]) => void) => {
     if (!orgId) return () => {};
-    const q = query(collection(db, `organizations/${orgId}/jobs`));
+    let q = query(collection(db, `organizations/${orgId}/jobs`));
+    if (isClient && userId) {
+        q = query(collection(db, `organizations/${orgId}/jobs`), where('dentistId', '==', userId));
+    }
     return onSnapshot(q, (snap: any) => {
         try {
             const rawJobs = snap.docs.map((d: any) => {

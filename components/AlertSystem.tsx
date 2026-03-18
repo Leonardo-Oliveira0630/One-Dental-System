@@ -162,7 +162,7 @@ export const AlertPopup = () => {
     const job = jobs.find(j => j.id === activeAlert.jobId);
 
     return (
-        <div className="fixed top-0 left-0 right-0 z-[200] flex justify-center p-4 animate-in slide-in-from-top-4 duration-300">
+        <div className="fixed top-0 left-0 right-0 z-[200] flex justify-center p-4 animate-in slide-in-from-top-4 duration-300 print:hidden">
             <div className="bg-red-600 text-white rounded-2xl shadow-2xl p-6 max-w-md w-full border-4 border-red-400/50 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
                     <div className="bg-white/20 p-3 rounded-full shrink-0 animate-pulse">
