@@ -131,17 +131,43 @@ export const PrintOverlay = () => {
 
           {printData.mode === 'LABEL' && printData.job && (
             <div 
-              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col items-center justify-between py-0.5 bg-white thermal-print" 
+              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
             >
-               <div className="w-full flex justify-between items-center border-b-[1.5px] border-black pb-0.5 px-1">
-                  <div className="text-left w-2/3"><p className="font-black text-[11px] leading-none truncate">{printData.job.patientName}</p><p className="text-[8px] font-bold truncate">Dr. {printData.job.dentistName}</p></div>
-                  <div className="text-right"><span className="font-black text-[13px] leading-none">{printData.job.boxNumber ? `CX:${printData.job.boxNumber}` : ''}</span></div>
+               {/* Header: Patient and Dentist */}
+               <div className="px-2 pt-1.5 pb-0.5">
+                  <p className="font-bold text-[15px] leading-none truncate uppercase">{printData.job.patientName}</p>
+                  <p className="text-[10px] font-medium leading-tight truncate mt-0.5">Dr. {printData.job.dentistName}</p>
                </div>
-               <div className="flex-1 flex items-center justify-center w-full my-0.5 overflow-hidden">
-                   <Barcode value={String(printData.job.osNumber || printData.job.id.substring(0,8))} width={1} height={22} displayValue={true} fontSize={10} fontOptions="bold" margin={0} format="CODE128" />
+
+               {/* Barcode with tight borders */}
+               <div className="flex-1 flex flex-col justify-center border-y-[1.5px] border-black overflow-hidden bg-white">
+                   <div className="flex justify-center items-center py-0.5">
+                     <Barcode 
+                       value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
+                       width={1.2} 
+                       height={42} 
+                       displayValue={true} 
+                       fontSize={12} 
+                       fontOptions="bold" 
+                       margin={0} 
+                       format="CODE128" 
+                     />
+                   </div>
                </div>
-               <div className="w-full flex justify-between items-end border-t-[1.5px] border-black pt-0.5 px-1"><div className="text-[8px] font-bold leading-tight"><p>E: {new Date(printData.job.createdAt).toLocaleDateString()}</p><p className="font-black text-[7px] truncate max-w-[80px]">{labName}</p></div><div className="text-[9px] font-black leading-tight"><p>S: {new Date(printData.job.dueDate).toLocaleDateString()}</p></div></div>
+
+               {/* Footer: Dates and Box Number */}
+               <div className="px-2 py-1 flex justify-between items-end">
+                  <div className="text-[10px] font-medium leading-tight">
+                    <p>E: {new Date(printData.job.createdAt).toLocaleDateString()}</p>
+                    <p className="font-bold text-[11px]">S: {new Date(printData.job.dueDate).toLocaleDateString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-[18px] leading-none">
+                      {printData.job.boxNumber ? `CX:${printData.job.boxNumber}` : ''}
+                    </span>
+                  </div>
+               </div>
             </div>
           )}
 
