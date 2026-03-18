@@ -29,6 +29,15 @@ export const PrintOverlay = () => {
             body {
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
+              margin: 0;
+              padding: 0;
+            }
+            /* Disable anti-aliasing for thermal printers to avoid dithering (serrilhado) */
+            .thermal-print {
+              -webkit-font-smoothing: none;
+              -moz-osx-font-smoothing: grayscale;
+              text-rendering: optimizeSpeed;
+              color: black !important;
             }
           }
         `}
@@ -55,7 +64,7 @@ export const PrintOverlay = () => {
         <div id="printable-content" className={`bg-white text-black shadow-2xl mx-auto print:shadow-none print:m-0 break-inside-avoid ${
             printData.mode === 'SHEET' ? 'w-[210mm] h-[148.5mm] p-6 print:w-[210mm] print:h-[148.5mm] overflow-hidden' : 
             printData.mode === 'ROUTE' ? 'w-[210mm] min-h-[297mm] p-12 print:w-[210mm] print:h-auto' : 
-            'w-[50mm] h-[28mm] max-h-[28mm] p-1 print:w-[50mm] print:h-[28mm] print:max-h-[28mm] print:overflow-hidden'
+            'w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] print:overflow-hidden relative print:m-0 print:p-0'
         }`}>
           
           {printData.mode === 'SHEET' && printData.job && (
@@ -121,15 +130,18 @@ export const PrintOverlay = () => {
           )}
 
           {printData.mode === 'LABEL' && printData.job && (
-            <div className="w-full h-full overflow-hidden relative flex flex-col items-center justify-between py-0.5">
-               <div className="w-full flex justify-between items-center border-b border-black pb-0.5 px-1">
-                  <div className="text-left w-2/3"><p className="font-bold text-[10px] leading-none truncate">{printData.job.patientName}</p><p className="text-[7px] text-gray-600 truncate">Dr. {printData.job.dentistName}</p></div>
-                  <div className="text-right"><span className="font-bold text-xs leading-none">{printData.job.boxNumber ? `CX:${printData.job.boxNumber}` : ''}</span></div>
+            <div 
+              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col items-center justify-between py-0.5 bg-white thermal-print" 
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
+            >
+               <div className="w-full flex justify-between items-center border-b-[1.5px] border-black pb-0.5 px-1">
+                  <div className="text-left w-2/3"><p className="font-black text-[11px] leading-none truncate">{printData.job.patientName}</p><p className="text-[8px] font-bold truncate">Dr. {printData.job.dentistName}</p></div>
+                  <div className="text-right"><span className="font-black text-[13px] leading-none">{printData.job.boxNumber ? `CX:${printData.job.boxNumber}` : ''}</span></div>
                </div>
                <div className="flex-1 flex items-center justify-center w-full my-0.5 overflow-hidden">
-                   <Barcode value={String(printData.job.osNumber || printData.job.id.substring(0,8))} width={1} height={20} displayValue={true} fontSize={8} margin={0} format="CODE128" />
+                   <Barcode value={String(printData.job.osNumber || printData.job.id.substring(0,8))} width={1} height={22} displayValue={true} fontSize={10} fontOptions="bold" margin={0} format="CODE128" />
                </div>
-               <div className="w-full flex justify-between items-end border-t border-black pt-0.5 px-1"><div className="text-[7px] leading-tight"><p>E: {new Date(printData.job.createdAt).toLocaleDateString()}</p><p className="font-black text-[6px] truncate max-w-[80px]">{labName}</p></div><div className="text-[8px] font-bold leading-tight"><p>S: {new Date(printData.job.dueDate).toLocaleDateString()}</p></div></div>
+               <div className="w-full flex justify-between items-end border-t-[1.5px] border-black pt-0.5 px-1"><div className="text-[8px] font-bold leading-tight"><p>E: {new Date(printData.job.createdAt).toLocaleDateString()}</p><p className="font-black text-[7px] truncate max-w-[80px]">{labName}</p></div><div className="text-[9px] font-black leading-tight"><p>S: {new Date(printData.job.dueDate).toLocaleDateString()}</p></div></div>
             </div>
           )}
 
