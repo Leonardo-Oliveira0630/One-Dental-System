@@ -19,12 +19,26 @@ export const PrintOverlay = () => {
 
   return (
     <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
+      <style>
+        {`
+          @media print {
+            @page {
+              size: ${printData.mode === 'LABEL' ? '100mm 50mm' : 'A4 portrait'};
+              margin: 0;
+            }
+            body {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
+        `}
+      </style>
       
       <div className="w-full max-w-4xl flex justify-between items-center p-4 text-white print:hidden">
         <div>
             <h2 className="text-xl font-bold">Pré-visualização de Impressão</h2>
             <p className="text-sm opacity-80">
-              Modo: {printData.mode === 'SHEET' ? 'Ficha A4' : printData.mode === 'LABEL' ? 'Etiqueta Térmica' : 'Roteiro de Rota'}
+              Modo: {printData.mode === 'SHEET' ? 'Ficha A4 (Meia Folha)' : printData.mode === 'LABEL' ? 'Etiqueta Térmica' : 'Roteiro de Rota'}
             </p>
         </div>
         <div className="flex gap-3">
@@ -38,60 +52,71 @@ export const PrintOverlay = () => {
       </div>
 
       <div className="flex-1 w-full overflow-y-auto p-4 md:p-8 flex justify-center print:p-0 print:overflow-visible print:block">
-        <div id="printable-content" className={`bg-white text-black shadow-2xl mx-auto print:shadow-none print:w-full print:h-full print:m-0 ${printData.mode === 'SHEET' || printData.mode === 'ROUTE' ? 'w-[210mm] min-h-[297mm] p-12' : 'w-[100mm] h-[50mm] p-2'}`}>
+        <div id="printable-content" className={`bg-white text-black shadow-2xl mx-auto print:shadow-none print:m-0 ${
+            printData.mode === 'SHEET' ? 'w-[210mm] h-[148.5mm] p-6 print:w-[210mm] print:h-[148.5mm] overflow-hidden' : 
+            printData.mode === 'ROUTE' ? 'w-[210mm] min-h-[297mm] p-12 print:w-[210mm] print:h-auto' : 
+            'w-[100mm] h-[50mm] p-2 print:w-[100mm] print:h-[50mm]'
+        }`}>
           
           {printData.mode === 'SHEET' && printData.job && (
-            <div className="h-full flex flex-col">
-              <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-6">
-                <div className="flex items-center gap-4">
+            <div className="h-full flex flex-col text-sm">
+              <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-3">
+                <div className="flex items-center gap-3">
                     {labLogo ? (
-                        <div className="w-16 h-16 bg-white flex items-center justify-center rounded overflow-hidden border border-black/10">
+                        <div className="w-12 h-12 bg-white flex items-center justify-center rounded overflow-hidden border border-black/10">
                             <img src={labLogo} alt="Lab Logo" className="w-full h-full object-contain" />
                         </div>
                     ) : (
-                        <div className="w-16 h-16 bg-black text-white flex items-center justify-center font-bold text-2xl rounded">
+                        <div className="w-12 h-12 bg-black text-white flex items-center justify-center font-bold text-xl rounded">
                             {labName.charAt(0)}
                         </div>
                     )}
                     <div>
-                        <h1 className="text-2xl font-bold uppercase tracking-wide">{labName}</h1>
-                        <p className="text-sm">Ficha de Produção Interna</p>
+                        <h1 className="text-xl font-bold uppercase tracking-wide leading-none">{labName}</h1>
+                        <p className="text-xs">Ficha de Produção Interna</p>
                     </div>
                 </div>
                 <div className="flex flex-col items-end">
-                    <Barcode value={printData.job.osNumber || printData.job.id.substring(0,8)} width={3} height={60} displayValue={true} fontSize={20} margin={0} />
-                    <p className="text-xs mt-1 text-gray-500">Emissão: {new Date().toLocaleString()}</p>
+                    <Barcode value={String(printData.job.osNumber || printData.job.id.substring(0,8))} width={2} height={40} displayValue={true} fontSize={14} margin={0} format="CODE128" />
+                    <p className="text-[10px] mt-1 text-gray-500">Emissão: {new Date().toLocaleString()}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-8 mb-8">
-                <div className="border border-gray-300 p-4 rounded">
-                    <p className="text-xs uppercase font-bold text-gray-500 mb-1">Dentista / Clínica</p>
-                    <p className="text-xl font-bold">{printData.job.dentistName}</p>
+              
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div className="border border-gray-300 p-2 rounded">
+                    <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5">Dentista / Clínica</p>
+                    <p className="text-base font-bold leading-tight truncate">{printData.job.dentistName}</p>
                 </div>
-                <div className="border border-gray-300 p-4 rounded">
-                    <p className="text-xs uppercase font-bold text-gray-500 mb-1">Paciente</p>
-                    <p className="text-xl font-bold">{printData.job.patientName}</p>
+                <div className="border border-gray-300 p-2 rounded">
+                    <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5">Paciente</p>
+                    <p className="text-base font-bold leading-tight truncate">{printData.job.patientName}</p>
                 </div>
               </div>
-              <div className="flex gap-4 mb-8">
-                <div className="flex-1 bg-gray-100 p-3 rounded"><p className="text-xs font-bold text-gray-500">Data Entrada</p><p className="font-mono text-lg">{new Date(printData.job.createdAt).toLocaleDateString()}</p></div>
-                 <div className="flex-1 bg-gray-100 p-3 rounded border-2 border-black"><p className="text-xs font-bold text-gray-500">Data Saída (Prevista)</p><p className="font-mono text-lg font-bold">{new Date(printData.job.dueDate).toLocaleDateString()}</p></div>
-                <div className="flex-1 bg-gray-100 p-3 rounded"><p className="text-xs font-bold text-gray-500">Prioridade</p><p className="font-bold text-lg uppercase">{printData.job.urgency}</p></div>
-                <div className="flex-1 bg-gray-100 p-3 rounded"><p className="text-xs font-bold text-gray-500">Caixa</p><p className="font-bold text-lg">{printData.job.boxNumber || '-'}</p></div>
+              
+              <div className="flex gap-2 mb-3">
+                <div className="flex-1 bg-gray-100 p-2 rounded"><p className="text-[10px] font-bold text-gray-500">Data Entrada</p><p className="font-mono text-sm">{new Date(printData.job.createdAt).toLocaleDateString()}</p></div>
+                 <div className="flex-1 bg-gray-100 p-2 rounded border-2 border-black"><p className="text-[10px] font-bold text-gray-500">Data Saída (Prevista)</p><p className="font-mono text-sm font-bold">{new Date(printData.job.dueDate).toLocaleDateString()}</p></div>
+                <div className="flex-1 bg-gray-100 p-2 rounded"><p className="text-[10px] font-bold text-gray-500">Prioridade</p><p className="font-bold text-sm uppercase">{printData.job.urgency}</p></div>
+                <div className="flex-1 bg-gray-100 p-2 rounded"><p className="text-[10px] font-bold text-gray-500">Caixa</p><p className="font-bold text-sm">{printData.job.boxNumber || '-'}</p></div>
               </div>
-              <div className="mb-8 flex-1">
-                <h3 className="font-bold border-b border-black mb-2 pb-1 uppercase text-sm">Itens do Pedido</h3>
-                <table className="w-full text-left text-sm">
-                    <thead><tr className="border-b border-gray-300"><th className="py-2">Qtd</th><th className="py-2">Descrição</th><th className="py-2">Natureza</th></tr></thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {printData.job.items.map((item, idx) => (
-                            <tr key={idx}><td className="py-3 font-bold align-top text-lg w-16">{item.quantity}x</td><td className="py-3 align-top font-bold text-base">{item.name}</td><td className="py-3 align-top text-gray-600 uppercase text-xs font-bold">{item.nature}</td></tr>
-                        ))}
-                    </tbody>
-                </table>
+              
+              <div className="mb-3 flex-1 overflow-hidden flex flex-col">
+                <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Itens do Pedido</h3>
+                <div className="overflow-hidden flex-1">
+                  <table className="w-full text-left text-xs">
+                      <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24">Natureza</th></tr></thead>
+                      <tbody className="divide-y divide-gray-200">
+                          {printData.job.items.map((item, idx) => (
+                              <tr key={idx}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{item.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature}</td></tr>
+                          ))}
+                      </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="mb-8 border border-gray-300 p-4 rounded min-h-[100px]"><h3 className="font-bold text-xs uppercase text-gray-500 mb-2">Observações / Instruções</h3><p className="whitespace-pre-wrap">{printData.job.notes || "Sem observações."}</p></div>
-              <div className="text-center mt-auto pt-4 border-t border-dashed border-gray-400"><p className="text-xs text-gray-500">Documento de Uso Interno - Gerado via MY TOOTH</p></div>
+              
+              <div className="mb-2 border border-gray-300 p-2 rounded h-[60px] shrink-0 overflow-hidden"><h3 className="font-bold text-[10px] uppercase text-gray-500 mb-1">Observações / Instruções</h3><p className="whitespace-pre-wrap text-xs line-clamp-2">{printData.job.notes || "Sem observações."}</p></div>
+              
+              <div className="text-center mt-auto pt-2 border-t border-dashed border-gray-400 shrink-0"><p className="text-[10px] text-gray-500">Documento de Uso Interno - Gerado via MY TOOTH</p></div>
             </div>
           )}
 
@@ -101,7 +126,9 @@ export const PrintOverlay = () => {
                   <div className="text-left w-2/3"><p className="font-bold text-sm leading-none truncate">{printData.job.patientName}</p><p className="text-[10px] text-gray-600 truncate">Dr. {printData.job.dentistName}</p></div>
                   <div className="text-right"><span className="font-bold text-lg leading-none">{printData.job.boxNumber ? `CX:${printData.job.boxNumber}` : ''}</span></div>
                </div>
-               <div className="flex-1 flex items-center justify-center w-full my-1"><div className="transform scale-x-110"><Barcode value={printData.job.osNumber || printData.job.id.substring(0,8)} width={2.8} height={70} displayValue={true} fontSize={20} margin={0} /></div></div>
+               <div className="flex-1 flex items-center justify-center w-full my-1">
+                   <Barcode value={String(printData.job.osNumber || printData.job.id.substring(0,8))} width={2} height={50} displayValue={true} fontSize={14} margin={0} format="CODE128" />
+               </div>
                <div className="w-full flex justify-between items-end border-t border-black pt-1 px-1"><div className="text-[10px] leading-tight"><p>E: {new Date(printData.job.createdAt).toLocaleDateString()}</p><p className="font-black text-[8px]">{labName}</p></div><div className="text-xs font-bold leading-tight"><p>S: {new Date(printData.job.dueDate).toLocaleDateString()}</p></div></div>
             </div>
           )}
