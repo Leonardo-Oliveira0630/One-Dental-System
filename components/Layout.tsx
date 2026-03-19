@@ -54,10 +54,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
-  const isAdmin = currentUser?.role === UserRole.ADMIN;
+  const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   
   const hasPerm = (key: PermissionKey) => {
-      if (isAdmin || isSuperAdmin) return true;
+      if (isAdmin) return true;
       return currentUser?.permissions?.includes(key) || false;
   };
 

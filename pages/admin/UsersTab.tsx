@@ -37,6 +37,15 @@ export const UsersTab = () => {
   const [userSector, setUserSector] = useState('');
   const [tempPerms, setTempPerms] = useState<PermissionKey[]>([]);
 
+  const resetForm = () => {
+    setUserName('');
+    setUserEmail('');
+    setUserPass('');
+    setUserRole(UserRole.COLLABORATOR);
+    setUserSector('');
+    setEditingUser(null);
+  };
+
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userName || !userEmail || !userPass || !currentOrg) return;
@@ -44,10 +53,10 @@ export const UsersTab = () => {
     try {
         await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, userSector);
         setIsAddingUser(false);
-        setUserName(''); setUserEmail(''); setUserPass('');
+        resetForm();
         alert("Colaborador cadastrado com sucesso!");
     } catch (err: any) {
-        alert("Erro ao criar usuário.");
+        alert("Erro ao criar usuário. Verifique se o e-mail já está em uso ou se você tem permissões.");
     } finally { setIsSubmitting(false); }
   };
 
@@ -103,7 +112,7 @@ export const UsersTab = () => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex justify-between items-center">
         <h3 className="font-bold text-slate-800 text-lg">Equipe do Laboratório</h3>
-        <button onClick={() => setIsAddingUser(true)} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg">
+        <button onClick={() => { resetForm(); setIsAddingUser(true); }} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg">
           <UserPlus size={20}/> Novo Usuário
         </button>
       </div>

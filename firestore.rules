@@ -22,6 +22,10 @@ service cloud.firestore {
       );
     }
     
+    function hasPermission(perm) {
+      return isAuthenticated() && userExists() && getUserData().get('permissions', []).hasAny([perm]);
+    }
+    
     function isAdmin() {
       return isAuthenticated() && userExists() && (getUserData().get('role', null) == 'ADMIN' || getUserData().get('role', null) == 'SUPER_ADMIN');
     }
@@ -52,7 +56,7 @@ service cloud.firestore {
         (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && isAdmin())
       );
       
-      allow delete: if isSuperAdmin() || (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && isAdmin());
+      allow delete: if isSuperAdmin() || (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && (isAdmin() || hasPermission('users:manage')));
     }
     
     match /organizations/{orgId} {

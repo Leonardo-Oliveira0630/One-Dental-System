@@ -33,8 +33,8 @@ export const GlobalScanner: React.FC = () => {
   
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const SCANNER_TIMEOUT = 100;
-  const MIN_LENGTH = 2;
+  const SCANNER_TIMEOUT = 30; // Reduzido para maior precisão em scanners rápidos
+  const MIN_LENGTH = 3;
 
   const playBeep = (success = true) => {
     try {
@@ -52,29 +52,96 @@ export const GlobalScanner: React.FC = () => {
     } catch (e) {}
   };
 
+  // Refs para manter o listener estável e evitar re-registros frequentes
+  const currentUserRef = useRef(currentUser);
+  const isCameraActiveRef = useRef(isCameraActive);
+  const jobsRef = useRef(jobs);
+  const commissionsRef = useRef(commissions);
+  const scannedJobRef = useRef(scannedJob);
+  const scanActionRef = useRef(scanAction);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+    isCameraActiveRef.current = isCameraActive;
+    jobsRef.current = jobs;
+    commissionsRef.current = commissions;
+    scannedJobRef.current = scannedJob;
+    scanActionRef.current = scanAction;
+  }, [currentUser, isCameraActive, jobs, commissions, scannedJob, scanAction]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!currentUser || isCameraActive) return;
+      // Bloqueio agressivo de Ctrl+J (Downloads no Chrome) que scanners Bematech costumam enviar
+      // keyCode 74 é 'J', 106 é 'j' (numpad), 10 é Line Feed (às vezes enviado como Ctrl+J)
+      if (e.ctrlKey && (e.key?.toLowerCase() === 'j' || e.keyCode === 74 || e.keyCode === 10)) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Se houver algo no buffer, processar agora
+          if (bufferRef.current.length >= MIN_LENGTH) {
+              processScan(bufferRef.current);
+              bufferRef.current = '';
+          }
+          return;
+      }
+
+      // Ignorar se câmera ativa ou se for apenas uma tecla modificadora
+      if (!currentUserRef.current || isCameraActiveRef.current || ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+      
       const currentTime = Date.now();
       const timeDiff = currentTime - lastKeyTimeRef.current;
 
+      // Detectar se é um scanner (entrada muito rápida)
+      const isScannerInput = timeDiff < SCANNER_TIMEOUT;
+
+      // Tratamento para Enter (terminador comum)
       if (e.key === 'Enter') {
           if (bufferRef.current.length >= MIN_LENGTH) {
               e.preventDefault();
+              e.stopPropagation();
               processScan(bufferRef.current);
           }
           bufferRef.current = '';
           return;
       }
 
-      if (timeDiff > SCANNER_TIMEOUT) bufferRef.current = '';
-      if (e.key.length === 1) bufferRef.current += e.key;
+      // Se o tempo entre teclas for muito longo, resetar o buffer (provavelmente digitação manual)
+      if (timeDiff > 200) {
+          const target = e.target as HTMLElement;
+          if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+              bufferRef.current = '';
+          }
+      }
+
+      // Capturar apenas caracteres individuais
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          bufferRef.current += e.key;
+          
+          // Se detectarmos que é um scanner (pelo menos a partir do 2º caractere), 
+          // podemos tentar evitar que o texto "vaze" para inputs focados
+          if (isScannerInput) {
+              const target = e.target as HTMLElement;
+              if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                  // e.preventDefault(); // Cuidado: pode ser agressivo demais
+              }
+          }
+      }
+
       lastKeyTimeRef.current = currentTime;
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [jobs, currentUser, isCameraActive, scannedJob, scanAction]);
+    // Usar capture: true para interceptar antes de outros handlers
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    
+    // Ouvinte para evento customizado de abrir scanner (útil para botões globais)
+    const handleOpenScanner = () => setIsCameraActive(true);
+    window.addEventListener('open-scanner', handleOpenScanner);
+
+    return () => {
+        window.removeEventListener('keydown', handleKeyDown, { capture: true });
+        window.removeEventListener('open-scanner', handleOpenScanner);
+    };
+  }, []); // Dependências vazias pois usamos refs
 
   const processScanRef = useRef<((code: string) => Promise<void>) | null>(null);
   useEffect(() => {
@@ -179,55 +246,63 @@ export const GlobalScanner: React.FC = () => {
   };
 
   const processScan = async (code: string) => {
-    // Lógica de confirmação por "Bip Duplo"
-    if (scannedJob) {
-        if ((scannedJob.osNumber || '').toUpperCase() === code.toUpperCase() || scannedJob.id === code) {
-            await playNativeHaptic(true);
-            playBeep(true);
-            await handleMoveJob();
-            return;
+    try {
+        // Lógica de confirmação por "Bip Duplo"
+        if (scannedJobRef.current) {
+            const currentJob = scannedJobRef.current;
+            if ((currentJob.osNumber || '').toUpperCase() === code.toUpperCase() || currentJob.id === code) {
+                await playNativeHaptic(true);
+                playBeep(true);
+                await handleMoveJob();
+                return;
+            }
         }
-    }
 
-    setCommissionEarned(0);
-    const job = jobs.find(j => (j.osNumber || '').toUpperCase() === code.toUpperCase() || j.id === code);
-    
-    if (job) {
-      await playNativeHaptic(true);
-      playBeep(true);
-      if (currentUser?.sector) {
-          const lastEvent = job.history[job.history.length - 1];
-          const isLastActionEntryHere = lastEvent?.sector === currentUser.sector && lastEvent?.action.includes('Entrada');
-          setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
-          
-          if (isLastActionEntryHere) {
-              // Verificar se já existe comissão para este job/usuário/setor
-              const alreadyPaid = commissions.some(c => 
-                  c.jobId === job.id && 
-                  c.userId === currentUser.id && 
-                  c.sector === currentUser.sector
-              );
+        setCommissionEarned(0);
+        const job = jobsRef.current.find(j => (j.osNumber || '').toUpperCase() === code.toUpperCase() || j.id === code);
+        
+        if (job) {
+          await playNativeHaptic(true);
+          playBeep(true);
+          if (currentUserRef.current?.sector) {
+              const user = currentUserRef.current;
+              const lastEvent = job.history[job.history.length - 1];
+              const isLastActionEntryHere = lastEvent?.sector === user.sector && lastEvent?.action.includes('Entrada');
+              setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
+              
+              if (isLastActionEntryHere) {
+                  // Verificar se já existe comissão para este job/usuário/setor
+                  const alreadyPaid = commissionsRef.current.some(c => 
+                      c.jobId === job.id && 
+                      c.userId === user.id && 
+                      c.sector === user.sector
+                  );
 
-              if (!alreadyPaid) {
-                  let totalComm = 0;
-                  job.items.forEach(item => {
-                      if (item.commissionDisabled) return;
-                      const setting = currentUser.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
-                      if (setting) {
-                          if (setting.type === 'FIXED') totalComm += setting.value * item.quantity;
-                          else totalComm += (item.price * item.quantity * (setting.value / 100));
-                      }
-                  });
-                  setCommissionEarned(totalComm);
-              } else {
-                  setCommissionEarned(0);
+                  if (!alreadyPaid) {
+                      let totalComm = 0;
+                      job.items.forEach(item => {
+                          if (item.commissionDisabled) return;
+                          const setting = user.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
+                          if (setting) {
+                              if (setting.type === 'FIXED') totalComm += setting.value * item.quantity;
+                              else totalComm += (item.price * item.quantity * (setting.value / 100));
+                          }
+                      });
+                      setCommissionEarned(totalComm);
+                  } else {
+                      setCommissionEarned(0);
+                  }
               }
+          } else {
+              setScanAction('ENTRY');
           }
-      } else {
-          setScanAction('ENTRY');
-      }
-      setScannedJob(job);
-    } else {
+          setScannedJob(job);
+        } else {
+            await playNativeHaptic(false);
+            playBeep(false);
+        }
+    } catch (err) {
+        console.error("Erro ao processar scan:", err);
         await playNativeHaptic(false);
         playBeep(false);
     }
@@ -235,41 +310,70 @@ export const GlobalScanner: React.FC = () => {
 
   const handleMoveJob = async () => {
     if (!scannedJob || !currentUser) return;
-    let newStatus = scannedJob.status;
-    let sector = currentUser.sector || scannedJob.currentSector || 'Gestão';
-    let action = scanAction === 'ENTRY' ? `Entrada no setor ${sector}` : `Saída do setor ${sector}`;
+    setIsUploading(true); // Usar como loading genérico
+    
+    try {
+        let newStatus = scannedJob.status;
+        let sector = currentUser.sector || scannedJob.currentSector || 'Gestão';
+        let action = scanAction === 'ENTRY' ? `Entrada no setor ${sector}` : `Saída do setor ${sector}`;
 
-    if (scanAction === 'ENTRY' && (scannedJob.status === JobStatus.PENDING || scannedJob.status === JobStatus.WAITING_APPROVAL)) {
-        newStatus = JobStatus.IN_PROGRESS;
-    }
+        if (scanAction === 'ENTRY' && (scannedJob.status === JobStatus.PENDING || scannedJob.status === JobStatus.WAITING_APPROVAL)) {
+            newStatus = JobStatus.IN_PROGRESS;
+        }
 
-    if (scanAction === 'EXIT' && commissionEarned > 0) {
-        await addCommissionRecord({
-            userId: currentUser.id,
-            userName: currentUser.name,
-            jobId: scannedJob.id,
-            osNumber: scannedJob.osNumber || 'N/A',
-            patientName: scannedJob.patientName,
-            amount: commissionEarned,
-            status: CommissionStatus.PENDING,
-            createdAt: new Date(),
-            sector: sector
+        if (scanAction === 'EXIT' && commissionEarned > 0) {
+            try {
+                await addCommissionRecord({
+                    userId: currentUser.id,
+                    userName: currentUser.name,
+                    jobId: scannedJob.id,
+                    osNumber: scannedJob.osNumber || 'N/A',
+                    patientName: scannedJob.patientName,
+                    amount: commissionEarned,
+                    status: CommissionStatus.PENDING,
+                    createdAt: new Date(),
+                    sector: sector
+                });
+            } catch (commErr: any) {
+                console.error("Erro ao registrar comissão:", commErr);
+                // Se for erro de permissão, avisar mas talvez permitir continuar a movimentação?
+                // No ProTrack, a comissão é vital, então vamos avisar.
+                if (commErr.message?.includes('permission-denied') || commErr.code === 'permission-denied') {
+                    alert("Erro de permissão ao registrar comissão. Contate o administrador para verificar suas permissões de escrita.");
+                } else {
+                    alert("Erro ao registrar comissão: " + (commErr.message || "Erro desconhecido"));
+                }
+            }
+        }
+
+        await updateJob(scannedJob.id, {
+            status: newStatus,
+            currentSector: sector,
+            history: [...scannedJob.history, {
+                id: Math.random().toString(),
+                timestamp: new Date(),
+                action: action,
+                userId: currentUser.id,
+                userName: currentUser.name,
+                sector: sector
+            }]
         });
+        
+        await playNativeHaptic(true);
+        playBeep(true);
+        setScannedJob(null);
+    } catch (error: any) {
+        console.error("Erro ao movimentar trabalho:", error);
+        if (error.message?.includes('permission-denied') || error.code === 'permission-denied') {
+            alert("Erro de permissão: Você não tem autorização para movimentar este trabalho ou o laboratório atingiu o limite de uso.");
+        } else {
+            alert("Ocorreu um erro ao processar a movimentação: " + (error.message || "Erro desconhecido"));
+        }
+        await playNativeHaptic(false);
+        playBeep(false);
+    } finally {
+        setIsUploading(false);
     }
-
-    await updateJob(scannedJob.id, {
-        status: newStatus,
-        currentSector: sector,
-        history: [...scannedJob.history, {
-            id: Math.random().toString(),
-            timestamp: new Date(),
-            action: action,
-            userId: currentUser.id,
-            userName: currentUser.name,
-            sector: sector
-        }]
-    });
-    setScannedJob(null);
   };
 
   if (!scannedJob && !isCameraActive && currentUser?.role !== UserRole.CLIENT) {
