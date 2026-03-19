@@ -308,7 +308,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addUser = async (u: User) => await api.apiAddUser(u);
-  const deleteUser = async (id: string) => await api.apiDeleteUser(id);
+  const deleteUser = async (id: string) => {
+      try {
+          await api.apiDeleteUserAdmin(id);
+      } catch (err) {
+          // Se falhar o admin (ex: não é super admin ou admin), tenta o delete direto (se as regras permitirem)
+          await api.apiDeleteUser(id);
+      }
+  };
 
   const addJob = async (j: Omit<Job, 'id'|'organizationId'>) => {
       const orgId = activeDataId;

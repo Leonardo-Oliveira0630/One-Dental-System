@@ -52,7 +52,7 @@ service cloud.firestore {
         (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && isAdmin())
       );
       
-      allow delete: if isSuperAdmin();
+      allow delete: if isSuperAdmin() || (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && isAdmin());
     }
     
     match /organizations/{orgId} {

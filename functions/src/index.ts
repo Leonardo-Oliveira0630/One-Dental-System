@@ -48,7 +48,7 @@ const getAsaasConfig = async () => {
  * REGISTRA UM NOVO USUÁRIO EM UMA ORGANIZAÇÃO
  */
 export const registerUserInOrg = functions.https.onCall(async (request) => {
-  const {email, pass, name, role, organizationId} = request.data;
+  const {email, pass, name, role, organizationId, sector} = request.data;
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Não logado.");
   }
@@ -64,6 +64,7 @@ export const registerUserInOrg = functions.https.onCall(async (request) => {
       email,
       role,
       organizationId,
+      sector: sector || "Geral",
       createdAt: admin.firestore.Timestamp.now(),
     };
     await admin.firestore()
@@ -71,6 +72,38 @@ export const registerUserInOrg = functions.https.onCall(async (request) => {
       .doc(userRecord.uid)
       .set(userData);
     return {success: true, uid: userRecord.uid};
+  } catch (error: any) {
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * EXCLUI UM USUÁRIO VIA ADMIN (AUTH E FIRESTORE)
+ */
+export const deleteUserAdmin = functions.https.onCall(async (request) => {
+  const {targetUserId} = request.data;
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+  }
+  
+  // Opcional: Verificar se o solicitante é ADMIN ou SUPER_ADMIN
+  const db = admin.firestore();
+  const callerSnap = await db.collection("users").doc(request.auth.uid).get();
+  const callerData = callerSnap.data();
+  const isAdmin = callerData?.role === "ADMIN" || callerData?.role === "SUPER_ADMIN";
+  
+  if (!isAdmin) {
+    throw new functions.https.HttpsError("permission-denied", "Apenas administradores podem excluir usuários.");
+  }
+
+  try {
+    // 1. Excluir do Firebase Auth
+    await admin.auth().deleteUser(targetUserId);
+    
+    // 2. Excluir do Firestore
+    await db.collection("users").doc(targetUserId).delete();
+    
+    return {success: true};
   } catch (error: any) {
     throw new functions.https.HttpsError("internal", error.message);
   }

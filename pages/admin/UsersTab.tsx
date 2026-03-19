@@ -42,7 +42,7 @@ export const UsersTab = () => {
     if (!userName || !userEmail || !userPass || !currentOrg) return;
     setIsSubmitting(true);
     try {
-        await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id);
+        await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, userSector);
         setIsAddingUser(false);
         setUserName(''); setUserEmail(''); setUserPass('');
         alert("Colaborador cadastrado com sucesso!");
@@ -86,6 +86,19 @@ export const UsersTab = () => {
       } catch (err: any) { alert("Erro ao atualizar."); } finally { setIsSubmitting(false); }
   };
 
+  const handleDeleteUser = async (id: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir este colaborador? Esta ação é irreversível e removerá o acesso do usuário.")) return;
+    setIsSubmitting(true);
+    try {
+      await deleteUser(id);
+      alert("Colaborador excluído com sucesso!");
+    } catch (err) {
+      alert("Erro ao excluir colaborador. Verifique se você tem permissões de administrador.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex justify-between items-center">
@@ -115,7 +128,7 @@ export const UsersTab = () => {
                   <div className="flex justify-end gap-2">
                     <button onClick={() => openEditUser(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit size={18}/></button>
                     <button onClick={() => { setSelectedUserForPerms(user); setTempPerms(user.permissions || []); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Lock size={18}/></button>
-                    <button onClick={() => deleteUser(user.id)} className="p-2 text-slate-300 hover:text-red-500 rounded-lg transition-all"><Trash2 size={18}/></button>
+                    <button onClick={() => handleDeleteUser(user.id)} className="p-2 text-slate-300 hover:text-red-500 rounded-lg transition-all"><Trash2 size={18}/></button>
                   </div>
                 </td>
               </tr>

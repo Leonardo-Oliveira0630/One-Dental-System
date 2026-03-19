@@ -184,6 +184,10 @@ export const apiUpdateUserAdmin = async (targetUserId: string, updates: Partial<
   const fn = httpsCallable(functions, 'updateUserAdmin');
   return (await fn({ targetUserId, updates })).data;
 };
+export const apiDeleteUserAdmin = async (targetUserId: string) => {
+  const fn = httpsCallable(functions, 'deleteUserAdmin');
+  return (await fn({ targetUserId })).data;
+};
 export const apiAddUser = (user: User) => setDoc(doc(db, 'users', user.id), user);
 export const apiDeleteUser = (id: string) => deleteDoc(doc(db, 'users', id));
 export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
@@ -419,9 +423,9 @@ export const apiManageOrderDecision = async (orgId: string, jobId: string, decis
     const fn = httpsCallable(functions, 'manageOrderDecision');
     return (await fn({ orgId, jobId, decision, reason })).data;
 };
-export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string) => {
+export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string, sector?: string) => {
     const fn = httpsCallable(functions, 'registerUserInOrg');
-    return (await fn({ email, pass, name, role, organizationId })).data;
+    return (await fn({ email, pass, name, role, organizationId, sector })).data;
 };
 
 // SUBSCRIÇÃO DE USUÁRIOS POR ORGANIZAÇÃO
