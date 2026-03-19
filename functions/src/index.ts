@@ -85,24 +85,26 @@ export const deleteUserAdmin = functions.https.onCall(async (request) => {
   if (!request.auth) {
     throw new functions.https.HttpsError("unauthenticated", "Não logado.");
   }
-  
-  // Opcional: Verificar se o solicitante é ADMIN ou SUPER_ADMIN
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(request.auth.uid).get();
   const callerData = callerSnap.data();
-  const isAdmin = callerData?.role === "ADMIN" || callerData?.role === "SUPER_ADMIN";
-  
+  const isAdmin = callerData?.role === "ADMIN" ||
+                  callerData?.role === "SUPER_ADMIN";
+
   if (!isAdmin) {
-    throw new functions.https.HttpsError("permission-denied", "Apenas administradores podem excluir usuários.");
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Apenas administradores podem excluir usuários."
+    );
   }
 
   try {
     // 1. Excluir do Firebase Auth
     await admin.auth().deleteUser(targetUserId);
-    
+
     // 2. Excluir do Firestore
     await db.collection("users").doc(targetUserId).delete();
-    
+
     return {success: true};
   } catch (error: any) {
     throw new functions.https.HttpsError("internal", error.message);

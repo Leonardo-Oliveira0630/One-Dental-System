@@ -71,17 +71,46 @@ export const GlobalScanner: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Bloqueio agressivo de Ctrl+J (Downloads no Chrome) que scanners Bematech costumam enviar
-      // keyCode 74 é 'J', 106 é 'j' (numpad), 10 é Line Feed (às vezes enviado como Ctrl+J)
-      if (e.ctrlKey && (e.key?.toLowerCase() === 'j' || e.keyCode === 74 || e.keyCode === 10)) {
+      // Bloqueio ultra-agressivo de Ctrl+J / Cmd+J (Downloads no Chrome) e variações
+      // Scanners Elgin/Bematech costumam enviar Ctrl+J como sufixo (Line Feed)
+      const isCtrlJ = (e.ctrlKey || e.metaKey) && (
+        e.key?.toLowerCase() === 'j' || 
+        e.keyCode === 74 || 
+        e.which === 74 || 
+        e.keyCode === 10 || 
+        e.which === 10 ||
+        e.key === '\n'
+      );
+
+      if (isCtrlJ) {
           e.preventDefault();
+          e.stopImmediatePropagation();
           e.stopPropagation();
           
           // Se houver algo no buffer, processar agora
           if (bufferRef.current.length >= MIN_LENGTH) {
               processScan(bufferRef.current);
-              bufferRef.current = '';
           }
+          bufferRef.current = '';
+          return;
+      }
+
+      // Bloqueio de Ctrl+M / Cmd+M (Enter) que alguns scanners enviam
+      const isCtrlM = (e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === 'm' || e.keyCode === 13 || e.which === 13);
+      if (isCtrlM) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          if (bufferRef.current.length >= MIN_LENGTH) {
+              processScan(bufferRef.current);
+          }
+          bufferRef.current = '';
+          return;
+      }
+
+      // Bloqueio de Ctrl+N / Cmd+N (Nova Janela) e Ctrl+T / Cmd+T (Nova Guia)
+      if ((e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === 'n' || e.key?.toLowerCase() === 't')) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
           return;
       }
 
@@ -94,8 +123,8 @@ export const GlobalScanner: React.FC = () => {
       // Detectar se é um scanner (entrada muito rápida)
       const isScannerInput = timeDiff < SCANNER_TIMEOUT;
 
-      // Tratamento para Enter (terminador comum)
-      if (e.key === 'Enter') {
+      // Tratamento para Enter ou Tab (terminadores comuns)
+      if (e.key === 'Enter' || e.key === 'Tab') {
           if (bufferRef.current.length >= MIN_LENGTH) {
               e.preventDefault();
               e.stopPropagation();
