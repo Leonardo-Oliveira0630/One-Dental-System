@@ -68,9 +68,14 @@ export const JobDetails = () => {
   const isTech = currentUser?.role === UserRole.COLLABORATOR;
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = isAdmin || isManager || isTech;
-  const canEdit = isAdmin || isManager;
+  const canEdit = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:edit'));
 
+  const [editPatientName, setEditPatientName] = useState('');
+  const [editOsNumber, setEditOsNumber] = useState('');
+  const [editBoxNumber, setEditBoxNumber] = useState('');
   const [editDueDate, setEditDueDate] = useState('');
+  const [editDueTime, setEditDueTime] = useState('');
+  const [editTotalValue, setEditTotalValue] = useState<number>(0);
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
   const [editItems, setEditItems] = useState<JobItem[]>([]);
@@ -79,7 +84,12 @@ export const JobDetails = () => {
 
   useEffect(() => {
     if (job) {
+        setEditPatientName(job.patientName || '');
+        setEditOsNumber(job.osNumber || '');
+        setEditBoxNumber(job.boxNumber || '');
         setEditDueDate(new Date(job.dueDate).toISOString().split('T')[0]);
+        setEditDueTime(job.dueTime || '');
+        setEditTotalValue(job.totalValue || 0);
         setEditUrgency(job.urgency);
         setEditNotes(job.notes || '');
         setEditItems(job.items);
@@ -152,11 +162,15 @@ export const JobDetails = () => {
           selectedVariationIds: [],
           nature: 'NORMAL'
       };
-      setEditItems([...editItems, newItem]);
+      const newItems = [...editItems, newItem];
+      setEditItems(newItems);
+      setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0));
   };
 
   const handleRemoveItemFromJob = (itemId: string) => {
-      setEditItems(editItems.filter(i => i.id !== itemId));
+      const newItems = editItems.filter(i => i.id !== itemId);
+      setEditItems(newItems);
+      setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0));
   };
 
   const handleToggleChat = async () => {
@@ -169,16 +183,19 @@ export const JobDetails = () => {
     if (!currentUser || !job) return;
     setIsUpdatingStatus(true);
     try {
-        const newTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
         const dateParts = editDueDate.split('-');
         const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
 
         await updateJob(job.id, {
+            patientName: editPatientName,
+            osNumber: editOsNumber,
+            boxNumber: editBoxNumber,
             dueDate: adjustedDate,
+            dueTime: editDueTime,
             urgency: editUrgency,
             notes: editNotes,
             items: editItems,
-            totalValue: newTotal,
+            totalValue: editTotalValue,
             history: [...job.history, {
                 id: `hist_edit_${Date.now()}`,
                 timestamp: new Date(),
@@ -327,10 +344,30 @@ export const JobDetails = () => {
                   <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Paciente</label>
+                              <input type="text" value={editPatientName} onChange={e => setEditPatientName(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                          </div>
+                          <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nº OS</label>
+                              <input type="text" value={editOsNumber} onChange={e => setEditOsNumber(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                          </div>
+                          <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Caixa</label>
+                              <input type="text" value={editBoxNumber} onChange={e => setEditBoxNumber(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                          </div>
+                          <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Valor Total (R$)</label>
+                              <input type="number" step="0.01" value={editTotalValue} onChange={e => setEditTotalValue(parseFloat(e.target.value) || 0)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                          </div>
+                          <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nova Entrega</label>
                               <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                           </div>
                           <div>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Hora da Entrega</label>
+                              <input type="time" value={editDueTime} onChange={e => setEditDueTime(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                          </div>
+                          <div className="md:col-span-2">
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Prioridade</label>
                               <select value={editUrgency} onChange={e => setEditUrgency(e.target.value as UrgencyLevel)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold">
                                   <option value={UrgencyLevel.LOW}>Baixa</option>
