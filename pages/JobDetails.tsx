@@ -325,6 +325,7 @@ export const JobDetails = () => {
   const isFinished = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
   const canFinalize = isLabStaff && !isFinished && job.status !== JobStatus.REJECTED && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED;
   const canCancelOrReturn = (isAdmin || isManager) && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
+  const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
 
   const handleCancelJob = async () => {
       if (!window.confirm('Tem certeza que deseja CANCELAR este caso?')) return;
@@ -333,10 +334,12 @@ export const JobDetails = () => {
           await updateJob(job.id, {
               status: JobStatus.CANCELED,
               history: [...job.history, {
-                  status: JobStatus.CANCELED,
-                  timestamp: new Date().toISOString(),
+                  id: `hist_cancel_${Date.now()}`,
+                  timestamp: new Date(),
+                  action: 'Trabalho CANCELADO',
                   userId: currentUser?.id || '',
-                  userName: currentUser?.name || 'Sistema'
+                  userName: currentUser?.name || 'Sistema',
+                  sector: currentUser?.sector || 'Gestão'
               }]
           });
       } finally { setIsUpdatingStatus(false); }
@@ -349,10 +352,12 @@ export const JobDetails = () => {
           await updateJob(job.id, {
               status: JobStatus.RETURNED,
               history: [...job.history, {
-                  status: JobStatus.RETURNED,
-                  timestamp: new Date().toISOString(),
+                  id: `hist_return_${Date.now()}`,
+                  timestamp: new Date(),
+                  action: 'Trabalho DEVOLVIDO',
                   userId: currentUser?.id || '',
-                  userName: currentUser?.name || 'Sistema'
+                  userName: currentUser?.name || 'Sistema',
+                  sector: currentUser?.sector || 'Gestão'
               }]
           });
       } finally { setIsUpdatingStatus(false); }
@@ -468,7 +473,7 @@ export const JobDetails = () => {
       <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 shrink-0">
           <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors"><ArrowLeft size={16} /> Lista</button>
           <div className="flex flex-wrap gap-2 w-full xs:w-auto">
-              {isFinished && isLabStaff && (
+              {canReopen && (
                   <button onClick={handleReopenJob} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-amber-50 border border-amber-100 text-amber-600 rounded-lg hover:bg-amber-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
                     {isUpdatingStatus ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} REABRIR
                   </button>

@@ -278,7 +278,7 @@ export const JobsList = () => {
                     {filteredJobs.map(job => {
                         const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
                         const canRoute = isLabStaff && job.status === JobStatus.COMPLETED && !job.routeId;
-                        const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED);
+                        const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
                         
                         return (
                             <tr key={job.id} className={`hover:bg-blue-50/30 transition-colors ${getSectorTimeInfo(job).isAttention ? 'bg-yellow-50/50' : ''}`}>
