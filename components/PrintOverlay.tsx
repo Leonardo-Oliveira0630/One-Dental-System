@@ -96,9 +96,14 @@ export const PrintOverlay = () => {
                     <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5">Dentista / Clínica</p>
                     <p className="text-base font-bold leading-tight truncate">{printData.job.dentistName}</p>
                 </div>
-                <div className="border border-gray-300 p-2 rounded">
+                <div className="border border-gray-300 p-2 rounded relative">
                     <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5">Paciente</p>
                     <p className="text-base font-bold leading-tight truncate">{printData.job.patientName}</p>
+                    {printData.job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
+                        <div className="absolute top-2 right-2 px-2 py-0.5 bg-black text-white text-[10px] font-black uppercase rounded-sm">
+                            {printData.job.items.find(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT')?.nature === 'REPETITION' ? 'REPETIÇÃO' : 'AJUSTE'}
+                        </div>
+                    )}
                 </div>
               </div>
               
@@ -116,7 +121,7 @@ export const PrintOverlay = () => {
                       <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24">Natureza</th></tr></thead>
                       <tbody className="divide-y divide-gray-200">
                           {printData.job.items.map((item, idx) => (
-                              <tr key={idx}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{item.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature}</td></tr>
+                              <tr key={idx}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{item.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</td></tr>
                           ))}
                       </tbody>
                   </table>
@@ -145,6 +150,11 @@ export const PrintOverlay = () => {
                   <p className="text-[11px] leading-tight">
                     {new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
                   </p>
+                  {printData.job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
+                      <p className="text-[10px] font-black uppercase leading-tight mt-0.5">
+                          {printData.job.items.find(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT')?.nature === 'REPETITION' ? '*** REPETIÇÃO ***' : '*** AJUSTE ***'}
+                      </p>
+                  )}
                </div>
 
                {/* Right Column: Box Number and Barcode */}

@@ -309,6 +309,7 @@ export const NewJob = () => {
                                 <div className="flex gap-2">
                                     <button type="button" onClick={() => setItemNature('NORMAL')} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>Normal</button>
                                     <button type="button" onClick={() => setItemNature('REPETITION')} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>Repetição</button>
+                                    <button type="button" onClick={() => setItemNature('ADJUSTMENT')} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
                                 </div>
                             </div>
                             <div className="flex gap-3 items-end">

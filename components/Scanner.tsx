@@ -76,13 +76,12 @@ export const GlobalScanner: React.FC = () => {
       const isCtrlJ = (e.ctrlKey || e.metaKey) && (
         e.key?.toLowerCase() === 'j' || 
         e.keyCode === 74 || 
-        e.which === 74 || 
-        e.keyCode === 10 || 
-        e.which === 10 ||
-        e.key === '\n'
+        e.which === 74
       );
+      
+      const isLineFeed = e.key === '\n' || e.keyCode === 10 || e.which === 10;
 
-      if (isCtrlJ) {
+      if (isCtrlJ || isLineFeed) {
           e.preventDefault();
           e.stopImmediatePropagation();
           e.stopPropagation();
@@ -159,8 +158,19 @@ export const GlobalScanner: React.FC = () => {
       lastKeyTimeRef.current = currentTime;
     };
 
+    const preventShortcuts = (e: KeyboardEvent) => {
+      const isCtrlJ = (e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === 'j' || e.keyCode === 74 || e.which === 74);
+      const isCtrlM = (e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === 'm' || e.keyCode === 13 || e.which === 13);
+      if (isCtrlJ || isCtrlM) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
     // Usar capture: true para interceptar antes de outros handlers
     window.addEventListener('keydown', handleKeyDown, { capture: true });
+    window.addEventListener('keypress', preventShortcuts, { capture: true });
+    window.addEventListener('keyup', preventShortcuts, { capture: true });
     
     // Ouvinte para evento customizado de abrir scanner (útil para botões globais)
     const handleOpenScanner = () => setIsCameraActive(true);
@@ -168,6 +178,8 @@ export const GlobalScanner: React.FC = () => {
 
     return () => {
         window.removeEventListener('keydown', handleKeyDown, { capture: true });
+        window.removeEventListener('keypress', preventShortcuts, { capture: true });
+        window.removeEventListener('keyup', preventShortcuts, { capture: true });
         window.removeEventListener('open-scanner', handleOpenScanner);
     };
   }, []); // Dependências vazias pois usamos refs

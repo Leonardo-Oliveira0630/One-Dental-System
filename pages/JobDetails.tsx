@@ -81,6 +81,7 @@ export const JobDetails = () => {
   const [editItems, setEditItems] = useState<JobItem[]>([]);
   const [newItemTypeId, setNewItemTypeId] = useState('');
   const [newItemQty, setNewItemQty] = useState(1);
+  const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
 
   useEffect(() => {
     if (job) {
@@ -160,11 +161,12 @@ export const JobDetails = () => {
           quantity: newItemQty,
           price: type.basePrice,
           selectedVariationIds: [],
-          nature: 'NORMAL'
+          nature: newItemNature
       };
       const newItems = [...editItems, newItem];
       setEditItems(newItems);
       setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0));
+      setNewItemNature('NORMAL');
   };
 
   const handleRemoveItemFromJob = (itemId: string) => {
@@ -383,21 +385,31 @@ export const JobDetails = () => {
                           <div className="space-y-2">
                               {editItems.map(item => (
                                   <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                      <div className="text-xs font-bold text-slate-700 truncate mr-2">{item.quantity}x {item.name}</div>
+                                      <div className="flex flex-col min-w-0 mr-2">
+                                          <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {item.name}</div>
+                                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</div>
+                                      </div>
                                       <button onClick={() => handleRemoveItemFromJob(item.id)} className="text-red-400 hover:text-red-600 shrink-0"><Trash2 size={16}/></button>
                                   </div>
                               ))}
                           </div>
-                          <div className="flex flex-wrap gap-2 pt-2">
-                              <div className="flex-1 min-w-[150px]">
-                                  <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
-                                      {jobTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                  </select>
+                          <div className="flex flex-col gap-2 pt-2">
+                              <div className="flex flex-wrap gap-2">
+                                  <div className="flex-1 min-w-[150px]">
+                                      <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
+                                          {jobTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                      </select>
+                                  </div>
+                                  <div className="w-16">
+                                      <input type="number" value={newItemQty} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                  </div>
+                                  <button onClick={handleAddItemToJob} className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
                               </div>
-                              <div className="w-16">
-                                  <input type="number" value={newItemQty} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                              <div className="flex flex-wrap gap-2">
+                                  <button onClick={() => setNewItemNature('NORMAL')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>
+                                  <button onClick={() => setNewItemNature('REPETITION')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
+                                  <button onClick={() => setNewItemNature('ADJUSTMENT')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
                               </div>
-                              <button onClick={handleAddItemToJob} className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
                           </div>
                       </div>
 
@@ -597,7 +609,7 @@ export const JobDetails = () => {
                                 <div key={idx} className="py-4 flex justify-between items-center gap-4 min-w-0">
                                     <div className="min-w-0 flex-1">
                                         <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {item.name}</p>
-                                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-1 truncate">{item.nature}</p>
+                                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-1 truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
                                     </div>
                                     <p className="font-black text-slate-600 text-sm md:text-base shrink-0">R$ {(item.price * item.quantity).toFixed(2)}</p>
                                 </div>
