@@ -150,6 +150,8 @@ export const JobsList = () => {
         case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border border-purple-200';
         case JobStatus.DELIVERED: return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
         case JobStatus.REJECTED: return 'bg-red-100 text-red-700 border border-red-200';
+        case JobStatus.CANCELED: return 'bg-gray-200 text-gray-700 border border-gray-300';
+        case JobStatus.RETURNED: return 'bg-orange-100 text-orange-700 border border-orange-200';
         default: return 'bg-slate-100 text-slate-700 border border-slate-200';
     }
   };
@@ -162,6 +164,8 @@ export const JobsList = () => {
         case JobStatus.COMPLETED: return 'Concluído';
         case JobStatus.DELIVERED: return 'Entregue';
         case JobStatus.REJECTED: return 'Rejeitado';
+        case JobStatus.CANCELED: return 'Cancelado';
+        case JobStatus.RETURNED: return 'Devolvido';
         default: return status;
       }
   };

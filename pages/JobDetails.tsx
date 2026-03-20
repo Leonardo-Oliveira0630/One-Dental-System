@@ -7,7 +7,7 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -288,6 +288,9 @@ export const JobDetails = () => {
           case JobStatus.DELIVERED: return 'bg-emerald-100 text-emerald-700 border-emerald-200';
           case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border-blue-200';
           case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border-purple-200';
+          case JobStatus.REJECTED: return 'bg-red-100 text-red-700 border-red-200';
+          case JobStatus.CANCELED: return 'bg-gray-200 text-gray-700 border-gray-300';
+          case JobStatus.RETURNED: return 'bg-orange-100 text-orange-700 border-orange-200';
           default: return 'bg-slate-100 text-slate-700 border-slate-200';
       }
   };
@@ -320,7 +323,40 @@ export const JobDetails = () => {
 
   const timeInfo = getSectorTimeInfo(job);
   const isFinished = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
-  const canFinalize = isLabStaff && !isFinished && job.status !== JobStatus.REJECTED;
+  const canFinalize = isLabStaff && !isFinished && job.status !== JobStatus.REJECTED && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED;
+  const canCancelOrReturn = (isAdmin || isManager) && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
+
+  const handleCancelJob = async () => {
+      if (!window.confirm('Tem certeza que deseja CANCELAR este caso?')) return;
+      setIsUpdatingStatus(true);
+      try {
+          await updateJob(job.id, {
+              status: JobStatus.CANCELED,
+              history: [...job.history, {
+                  status: JobStatus.CANCELED,
+                  timestamp: new Date().toISOString(),
+                  userId: currentUser?.id || '',
+                  userName: currentUser?.name || 'Sistema'
+              }]
+          });
+      } finally { setIsUpdatingStatus(false); }
+  };
+
+  const handleReturnJob = async () => {
+      if (!window.confirm('Tem certeza que deseja DEVOLVER este caso ao dentista?')) return;
+      setIsUpdatingStatus(true);
+      try {
+          await updateJob(job.id, {
+              status: JobStatus.RETURNED,
+              history: [...job.history, {
+                  status: JobStatus.RETURNED,
+                  timestamp: new Date().toISOString(),
+                  userId: currentUser?.id || '',
+                  userName: currentUser?.name || 'Sistema'
+              }]
+          });
+      } finally { setIsUpdatingStatus(false); }
+  };
 
   const showChatTab = isLabStaff || (isClient && job.chatEnabled);
 
@@ -517,6 +553,16 @@ export const JobDetails = () => {
                         <button onClick={() => setShowEditModal(true)} className="flex-1 xs:flex-none px-4 py-2.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-blue-100">
                             <Edit size={16} /> Editar
                         </button>
+                    )}
+                    {canCancelOrReturn && (
+                        <>
+                            <button onClick={handleReturnJob} disabled={isUpdatingStatus} className="flex-1 xs:flex-none px-4 py-2.5 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-orange-100">
+                                {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftCircle size={16} />} Devolver
+                            </button>
+                            <button onClick={handleCancelJob} disabled={isUpdatingStatus} className="flex-1 xs:flex-none px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-gray-100">
+                                {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />} Cancelar
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
