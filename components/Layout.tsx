@@ -6,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, 
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -184,6 +184,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
                 {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
+                {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label="Relatórios" active={location.pathname === '/reports'} />}
               </>
             )}
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature } from '../types';
 import { 
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 

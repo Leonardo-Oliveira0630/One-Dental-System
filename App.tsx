@@ -51,6 +51,8 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   return <Layout>{children}</Layout>;
 };
 
+import Reports from './pages/Reports';
+
 const AppContent = () => {
   return (
     <Routes>
@@ -64,6 +66,7 @@ const AppContent = () => {
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
       <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       
       <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="organizacao" replace />} />
