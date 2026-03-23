@@ -311,10 +311,16 @@ export const GlobalScanner: React.FC = () => {
 
   const processScan = async (code: string) => {
     try {
+        const cleanedCode = code.trim().toUpperCase().replace(/^0+/, ''); // Remove leading zeros and trim
+        console.log(`[Scanner] Processando código: "${cleanedCode}" (Original: "${code}")`);
+
         // Lógica de confirmação por "Bip Duplo"
         if (scannedJobRef.current) {
             const currentJob = scannedJobRef.current;
-            if ((currentJob.osNumber || '').toUpperCase() === code.toUpperCase() || currentJob.id === code) {
+            const jobOs = (currentJob.osNumber || '').trim().toUpperCase().replace(/^0+/, '');
+            const jobId = currentJob.id.trim().toUpperCase();
+            
+            if (jobOs === cleanedCode || jobId === cleanedCode) {
                 await playNativeHaptic(true);
                 playBeep(true);
                 await handleMoveJob(nextSectorRef.current);
@@ -324,9 +330,16 @@ export const GlobalScanner: React.FC = () => {
 
         setCommissionEarned(0);
         setNextSector('');
-        const job = jobsRef.current.find(j => (j.osNumber || '').toUpperCase() === code.toUpperCase() || j.id === code);
+        
+        // Busca flexível: tenta OS exata, ID exato, e OS sem zeros à esquerda
+        const job = jobsRef.current.find(j => {
+            const jobOs = (j.osNumber || '').trim().toUpperCase().replace(/^0+/, '');
+            const jobId = j.id.trim().toUpperCase();
+            return jobOs === cleanedCode || jobId === cleanedCode || (j.osNumber || '').toUpperCase() === cleanedCode;
+        });
         
         if (job) {
+          console.log(`[Scanner] Trabalho encontrado: ${job.osNumber} (${job.id})`);
           await playNativeHaptic(true);
           playBeep(true);
           if (currentUserRef.current?.sector) {
@@ -363,8 +376,10 @@ export const GlobalScanner: React.FC = () => {
           }
           setScannedJob(job);
         } else {
+            console.warn(`[Scanner] Trabalho não encontrado para o código: ${cleanedCode}`);
             await playNativeHaptic(false);
             playBeep(false);
+            // Opcional: mostrar um feedback visual temporário de "Não encontrado"
         }
     } catch (err) {
         console.error("Erro ao processar scan:", err);
@@ -414,7 +429,7 @@ export const GlobalScanner: React.FC = () => {
                     console.error("Erro ao registrar comissão:", commErr);
                     // Se for erro de permissão, avisar mas talvez permitir continuar a movimentação?
                     // No ProTrack, a comissão é vital, então vamos avisar.
-                    if (commErr.message?.includes('permission-denied') || commErr.code === 'permission-denied') {
+                    if (commErr.message?.includes('permission-denied') || commErr.code === 'permission-denied' || commErr.message?.includes('Missing or insufficient permissions')) {
                         alert("Erro de permissão ao registrar comissão. Contate o administrador para verificar suas permissões de escrita.");
                     } else {
                         alert("Erro ao registrar comissão: " + (commErr.message || "Erro desconhecido"));
@@ -456,7 +471,7 @@ export const GlobalScanner: React.FC = () => {
         setNextSector('');
     } catch (error: any) {
         console.error("Erro ao movimentar trabalho:", error);
-        if (error.message?.includes('permission-denied') || error.code === 'permission-denied') {
+        if (error.message?.includes('permission-denied') || error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
             alert("Erro de permissão: Você não tem autorização para movimentar este trabalho ou o laboratório atingiu o limite de uso.");
         } else {
             alert("Ocorreu um erro ao processar a movimentação: " + (error.message || "Erro desconhecido"));

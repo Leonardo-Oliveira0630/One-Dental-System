@@ -289,8 +289,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }, []);
 
   const activeDataId = useMemo(() => {
-      if (currentUser?.role === UserRole.CLIENT) {
-          return activeOrganization?.id || null;
+      if (currentUser?.role === UserRole.CLIENT || currentUser?.role === UserRole.SUPER_ADMIN) {
+          return activeOrganization?.id || currentUser?.organizationId || null;
       }
       return currentUser?.organizationId || null;
   }, [currentUser, activeOrganization]);
@@ -396,7 +396,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addCommissionRecord = async (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       try {
           await api.apiAddCommission(orgId, { ...rec, id: `comm_${Date.now()}`, organizationId: orgId } as CommissionRecord);
@@ -405,23 +405,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
   };
   const updateCommissionStatus = async (id: string, status: CommissionStatus) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiUpdateCommission(orgId, id, { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined });
   };
 
   const addJobType = async (jt: Omit<JobType, 'id'>) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiAddJobType(orgId, { ...jt, id: `jtype_${Date.now()}` } as JobType);
   }
   const updateJobType = async (id: string, u: Partial<JobType>) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiUpdateJobType(orgId, id, u);
   }
   const deleteJobType = async (id: string) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiDeleteJobType(orgId, id);
   }
@@ -475,23 +475,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addSector = async (name: string) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiAddSector(orgId, { id: `sector_${Date.now()}`, name });
   }
   const deleteSector = async (id: string) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiDeleteSector(orgId, id);
   }
 
   const addBoxColor = async (color: Omit<BoxColor, 'id'>) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if (!orgId) return;
       await api.apiAddBoxColor(orgId, { ...color, id: `color_${Date.now()}` } as BoxColor);
   };
   const deleteBoxColor = async (id: string) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if (!orgId) return;
       await api.apiDeleteBoxColor(orgId, id);
   };
@@ -505,12 +505,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);
   
   const addAlert = async (a: JobAlert) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiAddAlert(orgId, a);
   }
   const dismissAlert = async (id: string) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId || !currentUser) return;
       await api.apiMarkAlertAsRead(orgId, id, currentUser.id);
       setActiveAlert(null); 
@@ -562,24 +562,27 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
 
   const addManualDentist = async (d: Omit<ManualDentist, 'id' | 'organizationId'>) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiAddManualDentist(orgId, { ...d, id: `man_dent_${Date.now()}`, organizationId: orgId } as ManualDentist);
   };
   const updateManualDentist = async (id: string, u: Partial<ManualDentist>) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiUpdateManualDentist(orgId, id, u);
   };
   const deleteManualDentist = async (id: string) => {
-      const orgId = currentUser?.organizationId;
+      const orgId = activeDataId;
       if(!orgId) return;
       await api.apiDeleteManualDentist(orgId, id);
   };
 
   const switchActiveOrganization = (id: string | null) => {
     if (!id) { setActiveOrganization(null); return; }
-    const found = userConnections.find(o => o.organizationId === id);
+    
+    const isSuper = currentUser?.role === UserRole.SUPER_ADMIN;
+    const found = isSuper || userConnections.find(o => o.organizationId === id);
+    
     if (found) {
         getDoc(doc(db, 'organizations', id)).then((snap: any) => {
              if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);

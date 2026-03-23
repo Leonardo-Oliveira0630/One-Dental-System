@@ -12,13 +12,13 @@ service cloud.firestore {
     }
     
     function getUserData() {
-      return userExists() ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data : null;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
     function isSuperAdmin() {
       return isAuthenticated() && (
         (request.auth.token.email == "leooliveira0630@gmail.com" && request.auth.token.email_verified == true) ||
-        (userExists() && getUserData().get('role', null) == 'SUPER_ADMIN')
+        (userExists() && getUserData().get('role', 'USER') == 'SUPER_ADMIN')
       );
     }
     
@@ -27,36 +27,33 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && userExists() && (getUserData().get('role', null) == 'ADMIN' || getUserData().get('role', null) == 'SUPER_ADMIN');
+      return isAuthenticated() && userExists() && (getUserData().get('role', 'USER') == 'ADMIN' || getUserData().get('role', 'USER') == 'SUPER_ADMIN');
     }
     
     function isManager() {
-      return isAuthenticated() && userExists() && (getUserData().get('role', null) == 'MANAGER' || getUserData().get('role', null) == 'ADMIN' || getUserData().get('role', null) == 'SUPER_ADMIN');
+      return isAuthenticated() && userExists() && (getUserData().get('role', 'USER') == 'MANAGER' || getUserData().get('role', 'USER') == 'ADMIN' || getUserData().get('role', 'USER') == 'SUPER_ADMIN');
     }
 
     function belongsToOrg(orgId) {
-      return isAuthenticated() && userExists() && getUserData().get('organizationId', null) == orgId;
+      return isAuthenticated() && userExists() && getUserData().get('organizationId', '') == orgId;
     }
 
     match /users/{userId} {
-      // Allow reading own profile, or if super admin, or if manager in same org
       allow read: if isAuthenticated() && (
         request.auth.uid == userId || 
         isSuperAdmin() ||
-        (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && isManager())
+        (userExists() && getUserData().get('organizationId', '') == resource.data.get('organizationId', '') && isManager())
       );
       
-      // Allow creating own profile or admin creating users
       allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
       
-      // Allow updating own profile or admin updating users
       allow update: if isAuthenticated() && (
         request.auth.uid == userId || 
         isSuperAdmin() ||
-        (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && isAdmin())
+        (userExists() && getUserData().get('organizationId', '') == resource.data.get('organizationId', '') && isAdmin())
       );
       
-      allow delete: if isSuperAdmin() || (userExists() && getUserData().get('organizationId', null) == resource.data.get('organizationId', null) && (isAdmin() || hasPermission('users:manage')));
+      allow delete: if isSuperAdmin() || (userExists() && getUserData().get('organizationId', '') == resource.data.get('organizationId', '') && (isAdmin() || hasPermission('users:manage')));
     }
     
     match /organizations/{orgId} {
@@ -67,17 +64,17 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (
           isSuperAdmin() || 
           belongsToOrg(orgId) ||
-          (getUserData().get('role', null) == 'CLIENT' && resource.data.get('dentistId', null) == request.auth.uid)
+          (getUserData().get('role', 'USER') == 'CLIENT' && resource.data.get('dentistId', '') == request.auth.uid)
         );
         allow create: if isAuthenticated() && (
           isSuperAdmin() || 
           belongsToOrg(orgId) ||
-          (getUserData().get('role', null) == 'CLIENT' && request.resource.data.get('dentistId', null) == request.auth.uid)
+          (getUserData().get('role', 'USER') == 'CLIENT' && request.resource.data.get('dentistId', '') == request.auth.uid)
         );
         allow update: if isAuthenticated() && (
           isSuperAdmin() || 
           belongsToOrg(orgId) ||
-          (getUserData().get('role', null) == 'CLIENT' && resource.data.get('dentistId', null) == request.auth.uid && request.resource.data.get('dentistId', null) == request.auth.uid)
+          (getUserData().get('role', 'USER') == 'CLIENT' && resource.data.get('dentistId', '') == request.auth.uid && request.resource.data.get('dentistId', '') == request.auth.uid)
         );
         allow delete: if isAuthenticated() && (
           isSuperAdmin() || 
@@ -85,11 +82,16 @@ service cloud.firestore {
         );
       }
 
+      match /commissions/{commId} {
+        allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
       match /jobTypes/{jobTypeId} {
         allow read: if isAuthenticated() && (
           isSuperAdmin() || 
           belongsToOrg(orgId) ||
-          (userExists() && getUserData().get('role', null) == 'CLIENT')
+          (userExists() && getUserData().get('role', 'USER') == 'CLIENT')
         );
         allow write: if isAuthenticated() && (
           isSuperAdmin() || 
