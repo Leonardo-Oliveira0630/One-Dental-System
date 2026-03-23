@@ -62,13 +62,17 @@ export const JobsList = () => {
     );
   }
 
+  const normalizeText = (text: string) => {
+      return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  };
+
   const filteredJobs = jobs.filter(job => {
     if (isClient && job.dentistId !== currentUser?.id) return false;
-    const searchLower = filterText.toLowerCase();
+    const searchLower = normalizeText(filterText);
     const matchText = 
-      (job.osNumber || '').toLowerCase().includes(searchLower) ||
-      job.patientName.toLowerCase().includes(searchLower) ||
-      job.dentistName.toLowerCase().includes(searchLower);
+      normalizeText(job.osNumber || '').includes(searchLower) ||
+      normalizeText(job.patientName).includes(searchLower) ||
+      normalizeText(job.dentistName).includes(searchLower);
     if (!matchText) return false;
     if (statusFilter !== 'ALL' && job.status !== statusFilter) return false;
     if (startDate) {
@@ -152,6 +156,7 @@ export const JobsList = () => {
         case JobStatus.REJECTED: return 'bg-red-100 text-red-700 border border-red-200';
         case JobStatus.CANCELED: return 'bg-gray-200 text-gray-700 border border-gray-300';
         case JobStatus.RETURNED: return 'bg-orange-100 text-orange-700 border border-orange-200';
+        case JobStatus.SECTOR_TRANSITION: return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
         default: return 'bg-slate-100 text-slate-700 border border-slate-200';
     }
   };
@@ -166,6 +171,7 @@ export const JobsList = () => {
         case JobStatus.REJECTED: return 'Rejeitado';
         case JobStatus.CANCELED: return 'Cancelado';
         case JobStatus.RETURNED: return 'Devolvido';
+        case JobStatus.SECTOR_TRANSITION: return 'Em Transição';
         default: return status;
       }
   };
@@ -282,7 +288,11 @@ export const JobsList = () => {
                         
                         return (
                             <tr key={job.id} className={`hover:bg-blue-50/30 transition-colors ${getSectorTimeInfo(job).isAttention ? 'bg-yellow-50/50' : ''}`}>
-                                <td className="p-4 font-mono font-bold text-slate-700 text-sm">{job.osNumber || '---'}</td>
+                                <td className="p-4 font-mono font-bold text-sm">
+                                    <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 hover:text-blue-800 hover:underline text-left">
+                                        {job.osNumber || '---'}
+                                    </button>
+                                </td>
                                 {!isClient && (
                                     <td className="p-4">
                                         {job.boxNumber ? (

@@ -7,7 +7,7 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, 
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle
+  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -282,6 +282,21 @@ export const JobDetails = () => {
     } finally { setIsUpdatingStatus(false); }
   };
 
+  const getTranslatedStatus = (status: JobStatus) => {
+      switch(status) {
+        case JobStatus.WAITING_APPROVAL: return 'Aguardando';
+        case JobStatus.PENDING: return 'Pendente';
+        case JobStatus.IN_PROGRESS: return 'Produção';
+        case JobStatus.COMPLETED: return 'Concluído';
+        case JobStatus.DELIVERED: return 'Entregue';
+        case JobStatus.REJECTED: return 'Rejeitado';
+        case JobStatus.CANCELED: return 'Cancelado';
+        case JobStatus.RETURNED: return 'Devolvido';
+        case JobStatus.SECTOR_TRANSITION: return 'Em Transição';
+        default: return status;
+      }
+  };
+
   const getStatusColor = (status: JobStatus) => {
       switch(status) {
           case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border-green-200';
@@ -291,6 +306,7 @@ export const JobDetails = () => {
           case JobStatus.REJECTED: return 'bg-red-100 text-red-700 border-red-200';
           case JobStatus.CANCELED: return 'bg-gray-200 text-gray-700 border-gray-300';
           case JobStatus.RETURNED: return 'bg-orange-100 text-orange-700 border-orange-200';
+          case JobStatus.SECTOR_TRANSITION: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
           default: return 'bg-slate-100 text-slate-700 border-slate-200';
       }
   };
@@ -496,14 +512,14 @@ export const JobDetails = () => {
                     <span className="font-mono font-black text-2xl md:text-3xl text-slate-900 tracking-tight shrink-0">OS #{job.osNumber || '---'}</span>
                     <div className="relative group shrink-0">
                         <button className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm`}>
-                            {job.status} <ChevronDown size={10}/>
+                            {getTranslatedStatus(job.status)} <ChevronDown size={10}/>
                         </button>
                         {!isClient && (
                             <div className="absolute top-full left-0 mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-2xl z-[60] hidden group-hover:block animate-in fade-in slide-in-from-top-2 overflow-hidden">
                                 <div className="p-1.5 bg-slate-50 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b">Alterar Status</div>
                                 <div className="p-1 space-y-0.5">
                                     {Object.values(JobStatus).map(s => (
-                                        <button key={s} onClick={() => handleQuickStatusUpdate(s)} className="w-full text-left px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-colors">{s}</button>
+                                        <button key={s} onClick={() => handleQuickStatusUpdate(s)} className="w-full text-left px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-blue-600 hover:text-white rounded-lg transition-colors">{getTranslatedStatus(s)}</button>
                                     ))}
                                 </div>
                             </div>
@@ -539,6 +555,14 @@ export const JobDetails = () => {
                 </div>
                 
                 <div className="flex flex-wrap gap-2 flex-1 lg:justify-end">
+                    {isLabStaff && !isFinished && (
+                        <button 
+                            onClick={() => window.dispatchEvent(new CustomEvent('open-job-scanner-popup', { detail: { jobId: job.id } }))} 
+                            className="flex-1 xs:flex-none px-4 py-2.5 bg-slate-800 text-white font-black text-[10px] rounded-xl hover:bg-slate-900 shadow-xl shadow-slate-200 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95"
+                        >
+                            <ScanBarcode size={16} /> LER CÓDIGO
+                        </button>
+                    )}
                     {canFinalize && (
                          <button onClick={handleFinalizeJob} disabled={isUpdatingStatus} className="flex-1 xs:flex-none px-4 py-2.5 bg-green-600 text-white font-black text-[10px] rounded-xl hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95">
                             {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} FINALIZAR

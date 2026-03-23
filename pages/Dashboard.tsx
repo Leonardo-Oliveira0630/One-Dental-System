@@ -46,12 +46,13 @@ export const Dashboard = () => {
 
   const statusData = [
     { name: 'Pendente', value: jobs.filter(j => j.status === JobStatus.PENDING).length },
+    { name: 'Transição', value: jobs.filter(j => j.status === JobStatus.SECTOR_TRANSITION).length },
     { name: 'Produção', value: jobs.filter(j => j.status === JobStatus.IN_PROGRESS).length },
     { name: 'Aprovação', value: jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length },
     { name: 'Pronto', value: jobs.filter(j => j.status === JobStatus.COMPLETED).length },
   ];
   
-  const COLORS = ['#94a3b8', '#3b82f6', '#8b5cf6', '#22c55e'];
+  const COLORS = ['#94a3b8', '#eab308', '#3b82f6', '#8b5cf6', '#22c55e'];
 
   const handleGenerateInsights = async () => {
     setLoadingAi(true);

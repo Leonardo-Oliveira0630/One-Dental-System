@@ -20,7 +20,7 @@ const playNativeHaptic = async (isSuccess: boolean) => {
 };
 
 export const GlobalScanner: React.FC = () => {
-  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors } = useApp();
   const navigate = useNavigate();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
@@ -30,6 +30,7 @@ export const GlobalScanner: React.FC = () => {
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [nextSector, setNextSector] = useState<string>('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -59,6 +60,27 @@ export const GlobalScanner: React.FC = () => {
   const commissionsRef = useRef(commissions);
   const scannedJobRef = useRef(scannedJob);
   const scanActionRef = useRef(scanAction);
+  const nextSectorRef = useRef(nextSector);
+
+  useEffect(() => {
+    const handleOpenJobScannerPopup = (e: any) => {
+        const jobId = e.detail?.jobId;
+        if (!jobId) return;
+        const job = jobsRef.current.find(j => j.id === jobId);
+        if (job) {
+            setScannedJob(job);
+            
+            // Determine action based on current sector
+            const isEntry = job.status === JobStatus.SECTOR_TRANSITION || job.status === JobStatus.PENDING;
+            setScanAction(isEntry ? 'ENTRY' : 'EXIT');
+            setCommissionEarned(0);
+            setNextSector('');
+        }
+    };
+
+    window.addEventListener('open-job-scanner-popup', handleOpenJobScannerPopup);
+    return () => window.removeEventListener('open-job-scanner-popup', handleOpenJobScannerPopup);
+  }, []);
 
   useEffect(() => {
     currentUserRef.current = currentUser;
@@ -67,7 +89,8 @@ export const GlobalScanner: React.FC = () => {
     commissionsRef.current = commissions;
     scannedJobRef.current = scannedJob;
     scanActionRef.current = scanAction;
-  }, [currentUser, isCameraActive, jobs, commissions, scannedJob, scanAction]);
+    nextSectorRef.current = nextSector;
+  }, [currentUser, isCameraActive, jobs, commissions, scannedJob, scanAction, nextSector]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -294,12 +317,13 @@ export const GlobalScanner: React.FC = () => {
             if ((currentJob.osNumber || '').toUpperCase() === code.toUpperCase() || currentJob.id === code) {
                 await playNativeHaptic(true);
                 playBeep(true);
-                await handleMoveJob();
+                await handleMoveJob(nextSectorRef.current);
                 return;
             }
         }
 
         setCommissionEarned(0);
+        setNextSector('');
         const job = jobsRef.current.find(j => (j.osNumber || '').toUpperCase() === code.toUpperCase() || j.id === code);
         
         if (job) {
@@ -349,60 +373,87 @@ export const GlobalScanner: React.FC = () => {
     }
   };
 
-  const handleMoveJob = async () => {
-    if (!scannedJob || !currentUser) return;
+  const handleMoveJob = async (nextSector?: string) => {
+    const currentJob = scannedJobRef.current;
+    const user = currentUserRef.current;
+    const actionType = scanActionRef.current;
+
+    if (!currentJob || !user) return;
     setIsUploading(true); // Usar como loading genérico
     
     try {
-        let newStatus = scannedJob.status;
-        let sector = currentUser.sector || scannedJob.currentSector || 'Gestão';
-        let action = scanAction === 'ENTRY' ? `Entrada no setor ${sector}` : `Saída do setor ${sector}`;
+        let newStatus = currentJob.status;
+        let sector = user.sector || currentJob.currentSector || 'Gestão';
+        let action = actionType === 'ENTRY' ? `Entrada no setor ${sector}` : `Saída do setor ${sector}`;
 
-        if (scanAction === 'ENTRY' && (scannedJob.status === JobStatus.PENDING || scannedJob.status === JobStatus.WAITING_APPROVAL)) {
+        if (actionType === 'ENTRY' && (currentJob.status === JobStatus.PENDING || currentJob.status === JobStatus.WAITING_APPROVAL)) {
             newStatus = JobStatus.IN_PROGRESS;
         }
 
-        if (scanAction === 'EXIT' && commissionEarned > 0) {
-            try {
-                await addCommissionRecord({
-                    userId: currentUser.id,
-                    userName: currentUser.name,
-                    jobId: scannedJob.id,
-                    osNumber: scannedJob.osNumber || 'N/A',
-                    patientName: scannedJob.patientName,
-                    amount: commissionEarned,
-                    status: CommissionStatus.PENDING,
-                    createdAt: new Date(),
-                    sector: sector
-                });
-            } catch (commErr: any) {
-                console.error("Erro ao registrar comissão:", commErr);
-                // Se for erro de permissão, avisar mas talvez permitir continuar a movimentação?
-                // No ProTrack, a comissão é vital, então vamos avisar.
-                if (commErr.message?.includes('permission-denied') || commErr.code === 'permission-denied') {
-                    alert("Erro de permissão ao registrar comissão. Contate o administrador para verificar suas permissões de escrita.");
-                } else {
-                    alert("Erro ao registrar comissão: " + (commErr.message || "Erro desconhecido"));
+        if (actionType === 'EXIT') {
+            if (nextSector) {
+                action += ` (Encaminhado para ${nextSector})`;
+            } else {
+                newStatus = JobStatus.SECTOR_TRANSITION;
+            }
+
+            if (commissionEarned > 0) {
+                try {
+                    await addCommissionRecord({
+                        userId: user.id,
+                        userName: user.name,
+                        jobId: currentJob.id,
+                        osNumber: currentJob.osNumber || 'N/A',
+                        patientName: currentJob.patientName,
+                        amount: commissionEarned,
+                        status: CommissionStatus.PENDING,
+                        createdAt: new Date(),
+                        sector: sector
+                    });
+                } catch (commErr: any) {
+                    console.error("Erro ao registrar comissão:", commErr);
+                    // Se for erro de permissão, avisar mas talvez permitir continuar a movimentação?
+                    // No ProTrack, a comissão é vital, então vamos avisar.
+                    if (commErr.message?.includes('permission-denied') || commErr.code === 'permission-denied') {
+                        alert("Erro de permissão ao registrar comissão. Contate o administrador para verificar suas permissões de escrita.");
+                    } else {
+                        alert("Erro ao registrar comissão: " + (commErr.message || "Erro desconhecido"));
+                    }
                 }
             }
         }
 
-        await updateJob(scannedJob.id, {
-            status: newStatus,
-            currentSector: sector,
-            history: [...scannedJob.history, {
+        const newHistory = [...currentJob.history, {
+            id: Math.random().toString(),
+            timestamp: new Date(),
+            action: action,
+            userId: user.id,
+            userName: user.name,
+            sector: sector
+        }];
+
+        if (actionType === 'EXIT' && nextSector) {
+            newHistory.push({
                 id: Math.random().toString(),
                 timestamp: new Date(),
-                action: action,
-                userId: currentUser.id,
-                userName: currentUser.name,
-                sector: sector
-            }]
+                action: `Entrada no setor ${nextSector}`,
+                userId: user.id,
+                userName: user.name,
+                sector: nextSector
+            });
+            sector = nextSector;
+        }
+
+        await updateJob(currentJob.id, {
+            status: newStatus,
+            currentSector: sector,
+            history: newHistory
         });
         
         await playNativeHaptic(true);
         playBeep(true);
         setScannedJob(null);
+        setNextSector('');
     } catch (error: any) {
         console.error("Erro ao movimentar trabalho:", error);
         if (error.message?.includes('permission-denied') || error.code === 'permission-denied') {
@@ -509,9 +560,28 @@ export const GlobalScanner: React.FC = () => {
             </div>
         )}
 
+        {!isEntry && (
+            <div className="mb-6">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Próximo Setor (Opcional)</label>
+                <select
+                    value={nextSector}
+                    onChange={(e) => setNextSector(e.target.value)}
+                    className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all"
+                >
+                    <option value="">Nenhum (Transição de Setor)</option>
+                    {sectors.map(s => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-2">
+                    Se informado, o trabalho já dará entrada automaticamente no setor selecionado.
+                </p>
+            </div>
+        )}
+
         <div className="flex gap-3">
-            <button onClick={() => setScannedJob(null)} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
-            <button onClick={handleMoveJob} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 flex flex-col items-center justify-center leading-tight ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-50 hover:bg-orange-600 shadow-orange-200'}`}>
+            <button onClick={() => { setScannedJob(null); setNextSector(''); }} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
+            <button onClick={() => handleMoveJob(nextSector)} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 flex flex-col items-center justify-center leading-tight ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>
                 <span>{isEntry ? 'CONFIRMAR ENTRADA' : 'CONFIRMAR SAÍDA'}</span>
                 <span className="text-[10px] font-medium opacity-80 mt-1">ou bipe novamente</span>
             </button>
