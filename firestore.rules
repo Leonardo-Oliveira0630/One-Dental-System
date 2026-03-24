@@ -42,7 +42,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId || 
         isSuperAdmin() ||
-        (userExists() && getUserData().get('organizationId', '') == resource.data.get('organizationId', '') && isManager())
+        (userExists() && getUserData().get('organizationId', '') == resource.data.get('organizationId', ''))
       );
       
       allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());

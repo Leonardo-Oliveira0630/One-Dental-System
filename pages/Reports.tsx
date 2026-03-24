@@ -6,7 +6,7 @@ import 'jspdf-autotable';
 import { JobStatus } from '../types';
 
 export default function Reports() {
-  const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg } = useApp();
+  const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg, activeOrganization, currentUser } = useApp();
   
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -234,7 +234,7 @@ export default function Reports() {
             <label className="text-xs font-bold text-slate-500 uppercase">Colaborador</label>
             <select value={collaboratorId} onChange={(e) => setCollaboratorId(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="">Todos os Colaboradores</option>
-              {allUsers.filter(u => u.role !== 'CLIENT').map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              {allUsers.filter(u => u.role !== 'CLIENT' && u.organizationId === (activeOrganization?.id || currentUser?.organizationId)).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
 

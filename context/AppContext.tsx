@@ -315,9 +315,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         unsubs.push(api.subscribeJobs(activeDataId, currentUser.id, isClient, setJobs));
         unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
         
-        // Colaboradores: Super Admin ou Admins/Managers da própria organização
-        const canSeeUsers = isSuper || (currentUser.organizationId === activeDataId && 
-                           (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.MANAGER));
+        // Colaboradores: Super Admin ou qualquer membro da própria organização
+        const canSeeUsers = isSuper || currentUser.organizationId === activeDataId;
         
         if (canSeeUsers) {
             unsubs.push(api.subscribeOrgUsers(activeDataId, setAllUsers));

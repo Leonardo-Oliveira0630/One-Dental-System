@@ -35,13 +35,15 @@ export const JobsList = () => {
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.COLLABORATOR;
 
+  const currentOrgId = activeOrganization?.id || currentUser?.organizationId;
+
   const dentistOptions = [
     ...manualDentists.map(d => ({ value: d.id, label: d.name })),
-    ...allUsers.filter(u => u.role === UserRole.CLIENT).map(u => ({ value: u.id, label: u.name }))
+    ...allUsers.filter(u => u.role === UserRole.CLIENT && u.organizationId === currentOrgId).map(u => ({ value: u.id, label: u.name }))
   ].sort((a, b) => a.label.localeCompare(b.label));
 
   const collaboratorOptions = allUsers
-    .filter(u => u.role !== UserRole.CLIENT)
+    .filter(u => u.role !== UserRole.CLIENT && u.organizationId === currentOrgId)
     .map(u => ({ value: u.id, label: u.name }))
     .sort((a, b) => a.label.localeCompare(b.label));
 

@@ -24,7 +24,7 @@ interface EnrichedCommission {
 }
 
 export const Commissions = () => {
-  const { commissions, currentUser, updateCommissionStatus, allUsers, jobs } = useApp();
+  const { commissions, currentUser, updateCommissionStatus, allUsers, jobs, activeOrganization } = useApp();
   const [filterUser, setFilterUser] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -241,7 +241,7 @@ export const Commissions = () => {
                   >
                     <option value="">Todos os Colaboradores</option>
                     {allUsers
-                      .filter(u => u.role !== UserRole.CLIENT)
+                      .filter(u => u.role !== UserRole.CLIENT && u.organizationId === (activeOrganization?.id || currentUser?.organizationId))
                       .map(user => (
                         <option key={user.id} value={user.id}>{user.name}</option>
                       ))
