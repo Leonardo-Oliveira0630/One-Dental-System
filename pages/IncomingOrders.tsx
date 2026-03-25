@@ -73,6 +73,13 @@ export const IncomingOrders = () => {
             boxNumber: boxNum,
             boxColor: BOX_COLORS.find(c => c.id === boxColorId),
             currentSector: initialSector,
+            sectorMovements: [...(selectedJob.sectorMovements || []), {
+                id: Math.random().toString(),
+                sector: initialSector,
+                entryTime: new Date(),
+                entryUserId: currentUser.id,
+                entryUserName: currentUser.name
+            }],
             history: [...selectedJob.history, {
                 id: Math.random().toString(),
                 timestamp: new Date(),

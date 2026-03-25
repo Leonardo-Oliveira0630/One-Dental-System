@@ -71,8 +71,9 @@ export const GlobalScanner: React.FC = () => {
             setScannedJob(job);
             
             // Determine action based on current sector
-            const isEntry = job.status === JobStatus.SECTOR_TRANSITION || job.status === JobStatus.PENDING;
-            setScanAction(isEntry ? 'ENTRY' : 'EXIT');
+            const user = currentUserRef.current;
+            const isLastActionEntryHere = user?.sector ? job.sectorMovements?.some(m => m.sector === user.sector && !m.exitTime) : false;
+            setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
             setCommissionEarned(0);
             setNextSector('');
         }
@@ -344,8 +345,7 @@ export const GlobalScanner: React.FC = () => {
           playBeep(true);
           if (currentUserRef.current?.sector) {
               const user = currentUserRef.current;
-              const lastEvent = job.history[job.history.length - 1];
-              const isLastActionEntryHere = lastEvent?.sector === user.sector && lastEvent?.action.includes('Entrada');
+              const isLastActionEntryHere = job.sectorMovements?.some(m => m.sector === user.sector && !m.exitTime);
               setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
               
               if (isLastActionEntryHere) {
@@ -447,6 +447,29 @@ export const GlobalScanner: React.FC = () => {
             sector: sector
         }];
 
+        let newSectorMovements = [...(currentJob.sectorMovements || [])];
+
+        if (actionType === 'ENTRY') {
+            newSectorMovements.push({
+                id: Math.random().toString(),
+                sector: sector,
+                entryTime: new Date(),
+                entryUserId: user.id,
+                entryUserName: user.name
+            });
+        } else if (actionType === 'EXIT') {
+            // Find the open movement for this sector
+            const openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);
+            if (openMovementIndex !== -1) {
+                newSectorMovements[openMovementIndex] = {
+                    ...newSectorMovements[openMovementIndex],
+                    exitTime: new Date(),
+                    exitUserId: user.id,
+                    exitUserName: user.name
+                };
+            }
+        }
+
         if (actionType === 'EXIT' && nextSector) {
             newHistory.push({
                 id: Math.random().toString(),
@@ -456,13 +479,29 @@ export const GlobalScanner: React.FC = () => {
                 userName: user.name,
                 sector: nextSector
             });
+            newSectorMovements.push({
+                id: Math.random().toString(),
+                sector: nextSector,
+                entryTime: new Date(),
+                entryUserId: user.id,
+                entryUserName: user.name
+            });
             sector = nextSector;
+        }
+
+        // Determine the current sector based on the latest open movement
+        const openMovements = newSectorMovements.filter(m => !m.exitTime);
+        if (openMovements.length > 0) {
+            // Sort by entryTime descending to get the latest
+            openMovements.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
+            sector = openMovements[0].sector;
         }
 
         await updateJob(currentJob.id, {
             status: newStatus,
             currentSector: sector,
-            history: newHistory
+            history: newHistory,
+            sectorMovements: newSectorMovements
         });
         
         await playNativeHaptic(true);

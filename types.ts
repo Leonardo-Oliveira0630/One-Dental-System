@@ -210,6 +210,17 @@ export interface ChatMessage {
   deleted?: boolean;
 }
 
+export interface SectorMovement {
+  id: string;
+  sector: string;
+  entryTime: Date;
+  entryUserId: string;
+  entryUserName: string;
+  exitTime?: Date;
+  exitUserId?: string;
+  exitUserName?: string;
+}
+
 export interface Job {
   id: string;
   organizationId: string;
@@ -221,6 +232,7 @@ export interface Job {
   urgency: UrgencyLevel;
   items: JobItem[];
   history: JobHistory[];
+  sectorMovements?: SectorMovement[];
   createdAt: Date;
   dueDate: Date;
   dueTime?: string;

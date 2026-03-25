@@ -26,7 +26,7 @@ export const JobDetails = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION' | 'CHAT'>('SUMMARY');
+  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION' | 'CHAT' | 'SECTORS'>('SUMMARY');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -602,6 +602,7 @@ export const JobDetails = () => {
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar shrink-0 sticky top-0 md:top-16 bg-slate-50 z-20 w-full">
          <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> Resumo</button>
          <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><ListChecks size={16} /> Produção</button>
+         <button onClick={() => setActiveTab('SECTORS')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SECTORS' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Briefcase size={16} /> Setores</button>
          {showChatTab && (
             <button onClick={() => setActiveTab('CHAT')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'CHAT' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                 <MessageCircle size={16} /> Chat
@@ -811,6 +812,66 @@ export const JobDetails = () => {
                         <div className="mt-6 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-400 shrink-0">
                             <div className={`w-1.5 h-1.5 rounded-full animate-ping shrink-0 ${timeInfo.isAttention ? 'bg-white' : 'bg-indigo-400'}`}></div> PRODUÇÃO EM CURSO
                         </div>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {activeTab === 'SECTORS' && (
+            <div className="w-full animate-in fade-in duration-300 pb-8">
+                <div className="max-w-4xl mx-auto space-y-6">
+                    <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-slate-100">
+                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
+                            <Briefcase size={20} className="text-blue-600" />
+                            Registro de Setores
+                        </h3>
+                        
+                        {(!job.sectorMovements || job.sectorMovements.length === 0) ? (
+                            <div className="text-center py-12">
+                                <p className="text-slate-400 text-sm font-medium">Nenhum registro de setor encontrado.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {[...job.sectorMovements].sort((a, b) => new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime()).map((movement, idx) => (
+                                    <div key={movement.id || idx} className={`p-4 rounded-2xl border ${!movement.exitTime ? 'border-blue-200 bg-blue-50/50' : 'border-slate-100 bg-slate-50'} flex flex-col md:flex-row gap-4 justify-between items-start md:items-center`}>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${!movement.exitTime ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
+                                                <Briefcase size={20} />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-800 text-base">{movement.sector}</h4>
+                                                <div className="flex flex-col gap-1 mt-1 text-xs text-slate-500">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-medium text-green-600">Entrada:</span>
+                                                        <span>{new Date(movement.entryTime).toLocaleString()}</span>
+                                                        <span className="text-slate-400">•</span>
+                                                        <span className="font-medium">{movement.entryUserName}</span>
+                                                    </div>
+                                                    {movement.exitTime ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="font-medium text-orange-600">Saída:</span>
+                                                            <span>{new Date(movement.exitTime).toLocaleString()}</span>
+                                                            <span className="text-slate-400">•</span>
+                                                            <span className="font-medium">{movement.exitUserName}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1.5 text-blue-600 font-bold mt-1">
+                                                            <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></div>
+                                                            EM ABERTO
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {movement.exitTime && (
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shrink-0">
+                                                Concluído
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

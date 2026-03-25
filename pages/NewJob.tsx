@@ -221,6 +221,13 @@ export const NewJob = () => {
         urgency, 
         items: addedItems, 
         history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Caso registrado manualmente via ${initialSector}`, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
+        sectorMovements: [{
+            id: Math.random().toString(),
+            sector: initialSector,
+            entryTime: new Date(),
+            entryUserId: currentUser.id,
+            entryUserName: currentUser.name
+        }],
         createdAt: new Date(), 
         dueDate: new Date(dueDate), 
         boxNumber, 
