@@ -210,7 +210,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
             <div className="pt-8 mt-8 border-t border-white/10 shrink-0">
               <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-              {isAdmin && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurar Lab" active={location.pathname.startsWith('/admin')} />}
+              {(isAdmin || hasPerm('users:manage') || hasPerm('clients:manage') || hasPerm('sectors:manage') || hasPerm('finance:manage')) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurar Lab" active={location.pathname.startsWith('/admin')} />}
             </div>
           </nav>
 

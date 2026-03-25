@@ -6,8 +6,11 @@ import {
 } from 'lucide-react';
 
 export const AdminLayout = () => {
-  const { currentOrg, currentPlan } = useApp();
+  const { currentOrg, currentPlan, currentUser } = useApp();
   const [copied, setCopied] = React.useState(false);
+
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  const hasPerm = (key: string) => isAdmin || currentUser?.permissions?.includes(key as any);
 
   const copyOrgId = () => {
     if (currentOrg?.id) {
@@ -18,15 +21,15 @@ export const AdminLayout = () => {
   };
 
   const navItems = [
-    { to: '/admin/organizacao', icon: <Building2 size={16} />, label: 'Marca' },
-    { to: '/admin/setores', icon: <Briefcase size={16} />, label: 'Setores' },
-    { to: '/admin/caixas', icon: <Box size={16} />, label: 'Caixas' },
-    { to: '/admin/equipe', icon: <Users size={16} />, label: 'Equipe' },
-    { to: '/admin/clientes', icon: <Stethoscope size={16} />, label: 'Clientes' },
-    { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: 'Ganhos' },
-    { to: '/admin/pagamentos', icon: <Wallet size={16} />, label: 'Banco' },
-    { to: '/admin/assinatura', icon: <Crown size={16} />, label: 'Plano' },
-  ];
+    { to: '/admin/organizacao', icon: <Building2 size={16} />, label: 'Marca', show: isAdmin },
+    { to: '/admin/setores', icon: <Briefcase size={16} />, label: 'Setores', show: hasPerm('sectors:manage') },
+    { to: '/admin/caixas', icon: <Box size={16} />, label: 'Caixas', show: hasPerm('sectors:manage') },
+    { to: '/admin/equipe', icon: <Users size={16} />, label: 'Equipe', show: hasPerm('users:manage') },
+    { to: '/admin/clientes', icon: <Stethoscope size={16} />, label: 'Clientes', show: hasPerm('clients:manage') },
+    { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: 'Ganhos', show: hasPerm('finance:manage') },
+    { to: '/admin/pagamentos', icon: <Wallet size={16} />, label: 'Banco', show: hasPerm('finance:manage') },
+    { to: '/admin/assinatura', icon: <Crown size={16} />, label: 'Plano', show: isAdmin },
+  ].filter(item => item.show);
 
   return (
     <div className="space-y-4 md:space-y-6 pb-12 animate-in fade-in duration-500 max-w-full overflow-x-hidden">

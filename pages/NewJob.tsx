@@ -209,6 +209,7 @@ export const NewJob = () => {
 
     const totalValue = addedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const boxColor = boxColors.find(c => c.id === selectedColorId);
+    const initialSector = currentUser.sector || 'Recepção';
     
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
         osNumber, 
@@ -219,12 +220,12 @@ export const NewJob = () => {
         paymentStatus: 'PENDING', 
         urgency, 
         items: addedItems, 
-        history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Caso registrado manualmente via Recepção`, userId: currentUser.id, userName: currentUser.name, sector: 'Recepção' }], 
+        history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Caso registrado manualmente via ${initialSector}`, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
         createdAt: new Date(), 
         dueDate: new Date(dueDate), 
         boxNumber, 
         boxColor, 
-        currentSector: 'Recepção', 
+        currentSector: initialSector, 
         totalValue, 
         notes 
     };

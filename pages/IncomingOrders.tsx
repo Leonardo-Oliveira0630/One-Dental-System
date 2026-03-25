@@ -66,17 +66,20 @@ export const IncomingOrders = () => {
     try {
         await api.apiManageOrderDecision(currentOrg.id, selectedJob.id, 'APPROVE');
         
+        const initialSector = currentUser.sector || 'Recepção';
+
         await updateJob(selectedJob.id, {
             osNumber: osInput,
             boxNumber: boxNum,
             boxColor: BOX_COLORS.find(c => c.id === boxColorId),
+            currentSector: initialSector,
             history: [...selectedJob.history, {
                 id: Math.random().toString(),
                 timestamp: new Date(),
                 action: `OS ${osInput} Atribuída e Caixa ${boxNum} definida`,
                 userId: currentUser.id,
                 userName: currentUser.name,
-                sector: 'Recepção'
+                sector: initialSector
             }]
         });
 
