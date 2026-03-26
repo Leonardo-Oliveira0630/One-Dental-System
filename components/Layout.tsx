@@ -6,7 +6,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, 
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -31,6 +31,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isLabSelectorOpen, setIsLabSelectorOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showOverduePopup, setShowOverduePopup] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -304,7 +305,38 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className="p-4 pt-20 md:pt-8 md:p-8 w-full max-w-[1400px] mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto">
+        <div className="p-4 pt-20 md:pt-8 md:p-8 w-full max-w-[1400px] mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative">
+          {currentOrg?.subscriptionStatus === 'OVERDUE' && !location.pathname.startsWith('/admin') && location.pathname !== '/subscribe' && (
+            <>
+              <div 
+                className="absolute inset-0 z-40 cursor-not-allowed bg-white/10 backdrop-blur-[1px]"
+                onClickCapture={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setShowOverduePopup(true);
+                }}
+              />
+              {showOverduePopup && (
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                   <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center border border-red-100 animate-in zoom-in">
+                      <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                         <AlertTriangle size={32} />
+                      </div>
+                      <h2 className="text-2xl font-black text-slate-900 mb-2">Assinatura Vencida</h2>
+                      <p className="text-slate-500 mb-6 font-medium">Seu plano de assinatura encontra-se em débito. Para continuar utilizando o sistema e cadastrando trabalhos, por favor regularize sua situação.</p>
+                      <div className="flex gap-3">
+                        <button onClick={() => setShowOverduePopup(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+                           Fechar
+                        </button>
+                        <button onClick={() => { setShowOverduePopup(false); navigate('/subscribe'); }} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30">
+                           Regularizar
+                        </button>
+                      </div>
+                   </div>
+                </div>
+              )}
+            </>
+          )}
           {children}
         </div>
       </main>

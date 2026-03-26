@@ -1,12 +1,40 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Crown, CheckCircle, Zap, ArrowUpCircle, Check } from 'lucide-react';
+import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import * as api from '../../services/firebaseService';
 
 export const SubscriptionTab = () => {
-  const { currentPlan, currentOrg, allPlans } = useApp();
+  const { currentPlan, currentOrg, allPlans, updateOrganization } = useApp();
   const navigate = useNavigate();
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponMessage, setCouponMessage] = useState({ text: '', type: '' });
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim() || !currentPlan || !currentOrg) return;
+    setCouponLoading(true);
+    setCouponMessage({ text: '', type: '' });
+    try {
+      const coupon = await api.apiValidateCoupon(couponCode, currentPlan.id);
+      if (!coupon) {
+        setCouponMessage({ text: 'Cupom inválido ou expirado.', type: 'error' });
+      } else {
+        if ((coupon.discountType === 'PERCENTAGE' && coupon.discountValue === 100) || coupon.discountType === 'FREE_FOREVER') {
+          await updateOrganization(currentOrg.id, { subscriptionStatus: 'ACTIVE' });
+          setCouponMessage({ text: 'Cupom aplicado com sucesso! Seu acesso foi restabelecido.', type: 'success' });
+        } else {
+          setCouponMessage({ text: 'Este cupom é válido, mas não concede 100% de desconto. Utilize a página de assinatura para aplicá-lo.', type: 'warning' });
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      setCouponMessage({ text: 'Erro ao validar cupom.', type: 'error' });
+    } finally {
+      setCouponLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
@@ -19,6 +47,14 @@ export const SubscriptionTab = () => {
                <div className="flex items-center gap-1.5"><CheckCircle size={16} className="text-green-500" /> {currentPlan?.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${currentPlan?.features.maxUsers} Usuários`}</div>
                <div className="flex items-center gap-1.5"><CheckCircle size={16} className="text-green-500" /> {currentPlan?.features.maxStorageGB}GB Armazenamento</div>
             </div>
+            
+            {currentOrg?.subscriptionStatus === 'OVERDUE' && (
+              <div className="mt-6 p-4 bg-red-500/20 border border-red-500/50 rounded-2xl flex items-center justify-between">
+                <div><p className="font-bold text-red-400">Plano Vencido</p><p className="text-xs">Regularize sua assinatura para continuar usando o sistema.</p></div>
+                <button onClick={() => navigate('/subscribe')} className="px-6 py-2 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all flex items-center gap-2 shadow-lg shadow-red-900/40"><Zap size={16}/> REGULARIZAR</button>
+              </div>
+            )}
+
             {currentOrg?.subscriptionStatus === 'TRIAL' && (
               <div className="mt-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-2xl flex items-center justify-between">
                 <div><p className="font-bold text-orange-400">Modo de Avaliação</p><p className="text-xs">Ative agora para manter o acesso.</p></div>
@@ -26,6 +62,31 @@ export const SubscriptionTab = () => {
               </div>
             )}
          </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Tag className="text-blue-600" /> Aplicar Cupom</h3>
+         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
+            <input 
+              type="text" 
+              placeholder="Código do Cupom" 
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              className="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none uppercase font-bold tracking-widest"
+            />
+            <button 
+              onClick={handleApplyCoupon}
+              disabled={couponLoading || !couponCode.trim()}
+              className="px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-blue-600 transition-all disabled:opacity-50 whitespace-nowrap"
+            >
+              {couponLoading ? 'Validando...' : 'Aplicar Cupom'}
+            </button>
+         </div>
+         {couponMessage.text && (
+           <p className={`mt-4 text-sm font-bold ${couponMessage.type === 'error' ? 'text-red-500' : couponMessage.type === 'success' ? 'text-green-500' : 'text-orange-500'}`}>
+             {couponMessage.text}
+           </p>
+         )}
       </div>
       
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
