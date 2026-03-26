@@ -340,6 +340,7 @@ export const apiValidateCoupon = async (code: string, planId: string): Promise<C
     const c = { id: snap.docs[0].id, ...snap.docs[0].data() as any } as Coupon;
     if (c.validUntil && toDate(c.validUntil) < new Date()) return null;
     if (c.maxUses && c.usedCount >= c.maxUses) return null;
+    if (c.applicablePlans && c.applicablePlans.length > 0 && !c.applicablePlans.includes(planId)) return null;
     return c;
 };
 

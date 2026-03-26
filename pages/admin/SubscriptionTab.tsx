@@ -23,6 +23,7 @@ export const SubscriptionTab = () => {
       } else {
         if ((coupon.discountType === 'PERCENTAGE' && coupon.discountValue === 100) || coupon.discountType === 'FREE_FOREVER') {
           await updateOrganization(currentOrg.id, { subscriptionStatus: 'ACTIVE' });
+          await api.apiUpdateCoupon(coupon.id, { usedCount: coupon.usedCount + 1 });
           setCouponMessage({ text: 'Cupom aplicado com sucesso! Seu acesso foi restabelecido.', type: 'success' });
         } else {
           setCouponMessage({ text: 'Este cupom é válido, mas não concede 100% de desconto. Utilize a página de assinatura para aplicá-lo.', type: 'warning' });

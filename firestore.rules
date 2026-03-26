@@ -112,6 +112,16 @@ service cloud.firestore {
 
     match /coupons/{couponId} {
       allow read: if isAuthenticated();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isSuperAdmin() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount']) &&
+        request.resource.data.usedCount == resource.data.usedCount + 1
+      );
+    }
+
+    match /subscriptionPlans/{planId} {
+      allow read: if isAuthenticated();
       allow write: if isSuperAdmin();
     }
   }
