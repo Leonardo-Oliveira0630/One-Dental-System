@@ -182,17 +182,7 @@ export const PrintOverlay = () => {
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
             >
                <div className="flex justify-between items-start mb-1">
-                  <p className="font-black text-[14px] leading-tight">OS: {printData.job.osNumber || printData.job.id.substring(0,8)}</p>
-                  <div className="flex items-center justify-center scale-75 origin-top-right">
-                    <Barcode 
-                      value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
-                      width={1} 
-                      height={20} 
-                      displayValue={false} 
-                      margin={0} 
-                      format="CODE128" 
-                    />
-                  </div>
+                  <p className="font-black text-[14px] leading-tight">{printData.job.osNumber || printData.job.id.substring(0,8)}</p>
                </div>
                <div className="flex-1 flex flex-col justify-center space-y-0.5">
                   <p className="font-bold text-[11px] leading-tight truncate uppercase">DENTISTA: {printData.job.dentistName}</p>
