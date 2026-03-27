@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature } from '../types';
 import { 
-  ArrowLeft, Calendar, User, Clock, MapPin, 
+  ArrowLeft, Calendar, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase
+  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -106,6 +107,66 @@ export const JobDetails = () => {
       if (e.target.files) {
           setSelectedFiles(Array.from(e.target.files));
       }
+  };
+
+  const handleTakePhoto = async () => {
+    if (!job || !currentUser) return;
+    try {
+      const image = await Camera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Prompt,
+        promptLabelHeader: 'Anexar Foto',
+        promptLabelPhoto: 'Escolher da Galeria',
+        promptLabelPicture: 'Tirar Foto'
+      });
+
+      if (image.base64String) {
+        setIsUploadingFiles(true);
+        setUploadProgressMsg('Enviando foto...');
+        
+        const byteCharacters = atob(image.base64String);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: `image/${image.format}` });
+        const file = new File([blob], `photo_${Date.now()}.${image.format}`, { type: `image/${image.format}` });
+        
+        const url = await uploadFile(file);
+        
+        const newAttachment: Attachment = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: file.name,
+            url: url,
+            uploadedAt: new Date()
+        };
+
+        const updatedAttachments = [...(job.attachments || []), newAttachment];
+        await updateJob(job.id, { 
+            attachments: updatedAttachments,
+            history: [...job.history, {
+                id: `hist_photo_${Date.now()}`,
+                timestamp: new Date(),
+                action: `Foto anexada ao caso via câmera`,
+                userId: currentUser.id,
+                userName: currentUser.name
+            }]
+        });
+
+        setUploadProgressMsg('');
+        alert("Foto anexada!");
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      if (error instanceof Error && error.message !== 'User cancelled photos app') {
+        alert('Erro ao acessar a câmera.');
+      }
+    } finally {
+      setIsUploadingFiles(false);
+    }
   };
 
   const handleUploadFiles = async () => {
@@ -321,7 +382,7 @@ export const JobDetails = () => {
       if (['doc', 'docx'].includes(ext || '')) return <FileText className="text-blue-700 shrink-0" size={18} />;
       if (['xls', 'xlsx'].includes(ext || '')) return <FileSpreadsheet className="text-green-600 shrink-0" size={18} />;
       if (ext === 'html') return <FileCode className="text-purple-500 shrink-0" size={18} />;
-      return <File className="text-slate-400 shrink-0" size={18} />;
+      return <FileIcon className="text-slate-400 shrink-0" size={18} />;
   };
 
   const sortedHistory = [...job.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -500,6 +561,7 @@ export const JobDetails = () => {
                   <>
                       <button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> A4</button>
                       <button onClick={() => triggerPrint(job, 'LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Etiquetas</button>
+                      <button onClick={() => triggerPrint(job, 'ADDRESS_LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><MapPin size={12} /> Endereço</button>
                   </>
               )}
           </div>
@@ -700,7 +762,7 @@ export const JobDetails = () => {
                     </div>
 
                     <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
-                        <h3 className="text-base md:text-lg font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-tighter shrink-0"><File size={20} className="text-blue-500 shrink-0" /> Observações</h3>
+                        <h3 className="text-base md:text-lg font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileIcon size={20} className="text-blue-500 shrink-0" /> Observações</h3>
                         <div className="bg-slate-50 p-4 rounded-2xl text-slate-600 text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap min-h-[100px] border border-slate-100">
                             {job.notes || "Sem instruções adicionais registradas."}
                         </div>
@@ -710,17 +772,27 @@ export const JobDetails = () => {
                 <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0 pb-8">
                     <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6 overflow-hidden">
                         <div className="flex justify-between items-center mb-6 shrink-0">
-                            <h3 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter truncate"><File size={20} className="text-blue-600 shrink-0" /> Documentos</h3>
+                            <h3 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter truncate"><FileIcon size={20} className="text-blue-600 shrink-0" /> Documentos</h3>
                             <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded shrink-0">{job.attachments?.length || 0}</span>
                         </div>
 
                         <div className="space-y-4">
-                            <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all text-center relative shrink-0">
-                                <input type="file" multiple onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".stl,.pdf,.doc,.docx,.xls,.xlsx,.html,.png,.jpg,.jpeg" />
-                                <div className="flex flex-col items-center gap-2 pointer-events-none">
-                                    <UploadCloud size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Anexar Arquivos</span>
+                            <div className="flex gap-2">
+                                <div className="flex-1 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all text-center relative shrink-0">
+                                    <input type="file" multiple onChange={handleFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".stl,.pdf,.doc,.docx,.xls,.xlsx,.html,.png,.jpg,.jpeg" />
+                                    <div className="flex flex-col items-center gap-2 pointer-events-none">
+                                        <UploadCloud size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Anexar Arquivos</span>
+                                    </div>
                                 </div>
+                                <button 
+                                    onClick={handleTakePhoto}
+                                    disabled={isUploadingFiles}
+                                    className="w-20 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-emerald-400 hover:bg-emerald-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0"
+                                >
+                                    <CameraIcon size={28} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Foto</span>
+                                </button>
                             </div>
 
                             {selectedFiles.length > 0 && (

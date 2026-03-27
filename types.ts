@@ -452,6 +452,20 @@ export interface CommissionRecord {
   paidAt?: Date;
 }
 
+export interface PaymentRecord {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  planId: string;
+  planName: string;
+  amount: number;
+  status: 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED';
+  paymentDate?: Date;
+  dueDate: Date;
+  paymentMethod?: string;
+  createdAt: Date;
+}
+
 export interface ManualDentist {
   id: string;
   organizationId: string;

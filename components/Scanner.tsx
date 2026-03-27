@@ -448,8 +448,22 @@ export const GlobalScanner: React.FC = () => {
         }];
 
         let newSectorMovements = [...(currentJob.sectorMovements || [])];
+        const currentOpenMovements = newSectorMovements.filter(m => !m.exitTime);
 
         if (actionType === 'ENTRY') {
+            // Fechar qualquer movimento em aberto antes de entrar em um novo
+            currentOpenMovements.forEach(m => {
+                const idx = newSectorMovements.findIndex(sm => sm.id === m.id);
+                if (idx !== -1) {
+                    newSectorMovements[idx] = {
+                        ...newSectorMovements[idx],
+                        exitTime: new Date(),
+                        exitUserId: user.id,
+                        exitUserName: user.name
+                    };
+                }
+            });
+
             newSectorMovements.push({
                 id: Math.random().toString(),
                 sector: sector,
@@ -467,6 +481,18 @@ export const GlobalScanner: React.FC = () => {
                     exitUserId: user.id,
                     exitUserName: user.name
                 };
+            } else if (currentOpenMovements.length > 0) {
+                // Se não achou no setor atual mas tem outro aberto, fecha o outro
+                const latestOpen = [...currentOpenMovements].sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0];
+                const idx = newSectorMovements.findIndex(sm => sm.id === latestOpen.id);
+                if (idx !== -1) {
+                    newSectorMovements[idx] = {
+                        ...newSectorMovements[idx],
+                        exitTime: new Date(),
+                        exitUserId: user.id,
+                        exitUserName: user.name
+                    };
+                }
             }
         }
 
@@ -490,11 +516,11 @@ export const GlobalScanner: React.FC = () => {
         }
 
         // Determine the current sector based on the latest open movement
-        const openMovements = newSectorMovements.filter(m => !m.exitTime);
-        if (openMovements.length > 0) {
+        const latestOpenMovements = newSectorMovements.filter(m => !m.exitTime);
+        if (latestOpenMovements.length > 0) {
             // Sort by entryTime descending to get the latest
-            openMovements.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
-            sector = openMovements[0].sector;
+            latestOpenMovements.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
+            sector = latestOpenMovements[0].sector;
         }
 
         await updateJob(currentJob.id, {

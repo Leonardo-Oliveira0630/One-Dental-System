@@ -22,7 +22,7 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord 
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -218,7 +218,12 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
                     createdAt: toDate(data.createdAt), 
                     dueDate: toDate(data.dueDate),
                     sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
-                    history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) }))
+                    history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) })),
+                    sectorMovements: (data.sectorMovements || []).map((m: any) => ({
+                        ...m,
+                        entryTime: toDate(m.entryTime),
+                        exitTime: m.exitTime ? toDate(m.exitTime) : undefined
+                    }))
                 } as Job;
             });
             const sortedJobs = rawJobs.sort((a: Job, b: Job) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -444,6 +449,19 @@ export const subscribeAllUsers = (cb: (u: User[]) => void) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as User)));
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllUsers: ${error.code}`));
 };
+
+export const subscribeAllPayments = (cb: (p: PaymentRecord[]) => void) => {
+    return onSnapshot(collection(db, 'payments'), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ 
+            id: d.id, ...d.data() as any, 
+            createdAt: toDate(d.data().createdAt),
+            dueDate: toDate(d.data().dueDate),
+            paymentDate: d.data().paymentDate ? toDate(d.data().paymentDate) : undefined
+        } as PaymentRecord)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllPayments: ${error.code}`));
+};
+
+export const apiAddPayment = (p: PaymentRecord) => setDoc(doc(db, 'payments', p.id), p);
 
 export const subscribeBillingBatches = (orgId: string, cb: (b: BillingBatch[]) => void) => {
     if (!orgId) return () => {};

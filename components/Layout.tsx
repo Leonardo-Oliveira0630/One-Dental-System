@@ -166,6 +166,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
                 <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label="Planos" active={location.pathname === '/superadmin/plans'} />
                 <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/superadmin/coupons'} />
+                <SidebarItem to="/superadmin/subscriptions" icon={<Users size={20} />} label="Assinaturas" active={location.pathname === '/superadmin/subscriptions'} />
+                <SidebarItem to="/superadmin/finance" icon={<DollarSign size={20} />} label="Financeiro SaaS" active={location.pathname === '/superadmin/finance'} />
               </>
             )}
 

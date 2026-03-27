@@ -158,6 +158,18 @@ export const NewJob = () => {
     setSelectedDentistId('manual-entry'); setSelectedDentistObj(null); setDentistName(dentistSearchQuery); setShowDentistSuggestions(false);
   };
 
+  useEffect(() => {
+    if ((itemNature === 'REPETITION' || itemNature === 'ADJUSTMENT') && patientName.trim() && selectedDentistId) {
+      const previousJob = [...jobs]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .find(j => j.patientName.toLowerCase() === patientName.trim().toLowerCase() && j.dentistId === selectedDentistId);
+      
+      if (previousJob && previousJob.notes) {
+        setNotes(previousJob.notes);
+      }
+    }
+  }, [itemNature, patientName, selectedDentistId, jobs]);
+
   const handleVariationChange = (group: VariationGroup, optionId: string) => {
     setSelectedVariations(prev => {
       const newSelections = { ...prev };

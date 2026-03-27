@@ -58,7 +58,7 @@ service cloud.firestore {
     
     match /organizations/{orgId} {
       allow read: if isAuthenticated();
-      allow write: if isSuperAdmin() || (belongsToOrg(orgId) && isAdmin());
+      allow write: if isSuperAdmin() || (belongsToOrg(orgId) && (isAdmin() || getUserData().get('role', 'USER') == 'CLIENT'));
       
       match /jobs/{jobId} {
         allow read: if isAuthenticated() && (
@@ -121,7 +121,12 @@ service cloud.firestore {
     }
 
     match /subscriptionPlans/{planId} {
-      allow read: if isAuthenticated();
+      allow read: if true; // Allow public reading for registration
+      allow write: if isSuperAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(resource.data.organizationId));
       allow write: if isSuperAdmin();
     }
   }

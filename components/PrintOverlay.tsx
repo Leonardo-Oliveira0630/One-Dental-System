@@ -23,7 +23,7 @@ export const PrintOverlay = () => {
         {`
           @media print {
             @page {
-              size: ${printData.mode === 'LABEL' ? '50mm 28mm' : 'A4 portrait'};
+              size: ${printData.mode === 'LABEL' || printData.mode === 'ADDRESS_LABEL' ? '50mm 28mm' : 'A4 portrait'};
               margin: 0;
             }
             body {
@@ -47,7 +47,7 @@ export const PrintOverlay = () => {
         <div>
             <h2 className="text-xl font-bold">Pré-visualização de Impressão</h2>
             <p className="text-sm opacity-80">
-              Modo: {printData.mode === 'SHEET' ? 'Ficha A4 (Meia Folha)' : printData.mode === 'LABEL' ? 'Etiqueta Térmica' : 'Roteiro de Rota'}
+              Modo: {printData.mode === 'SHEET' ? 'Ficha A4 (Meia Folha)' : printData.mode === 'LABEL' ? 'Etiqueta Térmica' : printData.mode === 'ADDRESS_LABEL' ? 'Etiqueta de Endereço' : 'Roteiro de Rota'}
             </p>
         </div>
         <div className="flex gap-3">
@@ -171,6 +171,45 @@ export const PrintOverlay = () => {
                       margin={0} 
                       format="CODE128" 
                     />
+                  </div>
+               </div>
+            </div>
+          )}
+
+          {printData.mode === 'ADDRESS_LABEL' && printData.job && (
+            <div 
+              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-3 py-2" 
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
+            >
+               <div className="flex justify-between items-start mb-1">
+                  <p className="font-black text-[14px] leading-tight">OS: {printData.job.osNumber || printData.job.id.substring(0,8)}</p>
+                  <div className="flex items-center justify-center scale-75 origin-top-right">
+                    <Barcode 
+                      value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
+                      width={1} 
+                      height={20} 
+                      displayValue={false} 
+                      margin={0} 
+                      format="CODE128" 
+                    />
+                  </div>
+               </div>
+               <div className="flex-1 flex flex-col justify-center space-y-0.5">
+                  <p className="font-bold text-[11px] leading-tight truncate uppercase">DENTISTA: {printData.job.dentistName}</p>
+                  <p className="text-[11px] leading-tight truncate uppercase">PACIENTE: {printData.job.patientName}</p>
+                  <div className="mt-1 pt-1 border-t border-black/10">
+                    <p className="text-[9px] font-bold leading-tight uppercase">ENDEREÇO:</p>
+                    <p className="text-[9px] leading-tight uppercase line-clamp-2">
+                      {(() => {
+                        const { manualDentists, allUsers } = useApp();
+                        const dentist = manualDentists.find(d => d.id === printData.job?.dentistId);
+                        const onlineDentist = allUsers.find(u => u.id === printData.job?.dentistId);
+                        if (dentist) {
+                          return `${dentist.address || ''}, ${dentist.number || ''} ${dentist.complement || ''} - ${dentist.neighborhood || ''} - ${dentist.city || ''}/${dentist.state || ''}`;
+                        }
+                        return onlineDentist?.address || 'Endereço não cadastrado';
+                      })()}
+                    </p>
                   </div>
                </div>
             </div>

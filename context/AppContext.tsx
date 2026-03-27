@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -93,6 +93,7 @@ interface AppContextType {
   allLaboratories: Organization[]; 
   allPlans: SubscriptionPlan[];
   coupons: Coupon[];
+  allPayments: PaymentRecord[];
   patients: ClinicPatient[];
   appointments: Appointment[];
   manualDentists: ManualDentist[];
@@ -138,8 +139,8 @@ interface AppContextType {
   clearCart: () => void;
   uploadFile: (file: File) => Promise<string>;
 
-  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
-  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL') => void;
+  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE' | 'ADDRESS_LABEL', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
+  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL') => void;
   triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => void;
   clearPrint: () => void;
   
@@ -171,6 +172,7 @@ interface AppContextType {
   addCoupon: (c: Coupon) => Promise<void>;
   updateCoupon: (code: string, updates: Partial<Coupon>) => Promise<void>;
   deleteCoupon: (id: string) => Promise<void>;
+  addPayment: (p: PaymentRecord) => Promise<void>;
   addManualDentist: (d: Omit<ManualDentist, 'id' | 'organizationId'>) => Promise<void>;
   updateManualDentist: (id: string, updates: Partial<ManualDentist>) => Promise<void>;
   deleteManualDentist: (id: string) => Promise<void>;
@@ -208,6 +210,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allLaboratories, setAllLaboratories] = useState<Organization[]>([]);
   const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [allPayments, setAllPayments] = useState<PaymentRecord[]>([]);
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
@@ -221,6 +224,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   // Subscrições Públicas: Apenas Planos são necessários para o registro
   useEffect(() => {
     if (!db) return;
+    // Planos são públicos agora, mas vamos garantir que a subscrição ocorra sempre
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
     return () => { unsubPlans(); };
   }, []);
@@ -308,6 +312,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         unsubs.push(api.subscribeGlobalSettings(setGlobalSettings));
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
         unsubs.push(api.subscribeAllUsers(setAllUsers));
+        unsubs.push(api.subscribeAllPayments(setAllPayments));
     }
 
     if (activeDataId) {
@@ -559,6 +564,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const addCoupon = async (c: Coupon) => await api.apiAddCoupon(c);
   const updateCoupon = async (id: string, u: Partial<Coupon>) => await api.apiUpdateCoupon(id, u);
   const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
+  const addPayment = async (p: PaymentRecord) => await api.apiAddPayment(p);
 
   const addManualDentist = async (d: Omit<ManualDentist, 'id' | 'organizationId'>) => {
       const orgId = activeDataId;
@@ -615,6 +621,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
       allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
       allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
+      allPayments,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
       addJobType, updateJobType, deleteJobType,
@@ -631,7 +638,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
-      addConnectionByCode, addCoupon, updateCoupon, deleteCoupon,
+      addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
       addManualDentist, updateManualDentist, deleteManualDentist, addJobToRoute
     }}>
       {children}
