@@ -438,7 +438,7 @@ export const GlobalScanner: React.FC = () => {
             }
         }
 
-        const newHistory = [...currentJob.history, {
+        const newHistory = [...(currentJob.history || []), {
             id: Math.random().toString(),
             timestamp: new Date(),
             action: action,

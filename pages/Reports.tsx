@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { FileText, Download, Filter, Calendar, Users, Building2, Package, Search, X } from 'lucide-react';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
 import { JobStatus } from '../types';
 
 export default function Reports() {
@@ -143,7 +143,7 @@ export default function Reports() {
         job.status
       ]);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['OS', 'Paciente', 'Dentista', dateType === 'CREATED' ? 'Entrada' : 'Entrega', 'Setor', 'Status']],
         body: tableData,

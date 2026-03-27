@@ -3,8 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole, CommissionStatus, Job } from '../types';
 import { DollarSign, CheckCircle, Clock, Calendar, User, Search, Filter, Download, FileText, FileSpreadsheet, Users } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 interface EnrichedCommission {

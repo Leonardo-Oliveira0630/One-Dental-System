@@ -78,10 +78,57 @@ export const JobSearch = () => {
         }
       }
 
+      let newSectorMovements = [...(job.sectorMovements || [])];
+      const currentOpenMovements = newSectorMovements.filter(m => !m.exitTime);
+
+      if (actionType === 'ENTRY') {
+          currentOpenMovements.forEach(m => {
+              const idx = newSectorMovements.findIndex(sm => sm.id === m.id);
+              if (idx !== -1) {
+                  newSectorMovements[idx] = {
+                      ...newSectorMovements[idx],
+                      exitTime: new Date(),
+                      exitUserId: currentUser.id,
+                      exitUserName: currentUser.name
+                  };
+              }
+          });
+
+          newSectorMovements.push({
+              id: Math.random().toString(),
+              sector: sector,
+              entryTime: new Date(),
+              entryUserId: currentUser.id,
+              entryUserName: currentUser.name
+          });
+      } else if (actionType === 'EXIT') {
+          const openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);
+          if (openMovementIndex !== -1) {
+              newSectorMovements[openMovementIndex] = {
+                  ...newSectorMovements[openMovementIndex],
+                  exitTime: new Date(),
+                  exitUserId: currentUser.id,
+                  exitUserName: currentUser.name
+              };
+          } else if (currentOpenMovements.length > 0) {
+              const latestOpen = [...currentOpenMovements].sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0];
+              const idx = newSectorMovements.findIndex(sm => sm.id === latestOpen.id);
+              if (idx !== -1) {
+                  newSectorMovements[idx] = {
+                      ...newSectorMovements[idx],
+                      exitTime: new Date(),
+                      exitUserId: currentUser.id,
+                      exitUserName: currentUser.name
+                  };
+              }
+          }
+      }
+
       await updateJob(job.id, {
         currentSector: sector,
         status: newStatus,
-        history: [...job.history, {
+        sectorMovements: newSectorMovements,
+        history: [...(job.history || []), {
           id: Math.random().toString(),
           timestamp: new Date(),
           action: action,
