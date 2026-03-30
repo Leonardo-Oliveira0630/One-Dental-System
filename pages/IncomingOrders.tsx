@@ -80,7 +80,7 @@ export const IncomingOrders = () => {
                 entryUserId: currentUser.id,
                 entryUserName: currentUser.name
             }],
-            history: [...selectedJob.history, {
+            history: [...(selectedJob.history || []), {
                 id: Math.random().toString(),
                 timestamp: new Date(),
                 action: `OS ${osInput} Atribuída e Caixa ${boxNum} definida`,

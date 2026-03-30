@@ -104,7 +104,17 @@ export const ProductionCalendar = () => {
 
   const handleFinalizeJob = () => {
     if (!selectedJob) return;
-    updateJob(selectedJob.id, { status: JobStatus.COMPLETED });
+    updateJob(selectedJob.id, { 
+        status: JobStatus.COMPLETED,
+        history: [...(selectedJob.history || []), {
+            id: `hist_fin_${Date.now()}`,
+            timestamp: new Date(),
+            action: 'Trabalho Finalizado via Calendário',
+            userId: currentUser?.id || 'sys',
+            userName: currentUser?.name || 'Sistema',
+            sector: 'Expedição'
+        }]
+    });
     setSelectedJob(null);
   };
 

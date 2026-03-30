@@ -147,7 +147,7 @@ export const JobDetails = () => {
         const updatedAttachments = [...(job.attachments || []), newAttachment];
         await updateJob(job.id, { 
             attachments: updatedAttachments,
-            history: [...job.history, {
+            history: [...(job.history || []), {
                 id: `hist_photo_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Foto anexada ao caso via câmera`,
@@ -195,7 +195,7 @@ export const JobDetails = () => {
         const updatedAttachments = [...(job.attachments || []), ...newAttachments];
         await updateJob(job.id, { 
             attachments: updatedAttachments,
-            history: [...job.history, {
+            history: [...(job.history || []), {
                 id: `hist_files_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Anexados ${newAttachments.length} novos arquivos ao caso`,
@@ -261,7 +261,7 @@ export const JobDetails = () => {
             notes: editNotes,
             items: editItems,
             totalValue: editTotalValue,
-            history: [...job.history, {
+            history: [...(job.history || []), {
                 id: `hist_edit_${Date.now()}`,
                 timestamp: new Date(),
                 action: 'Ficha editada manualmente',
@@ -285,7 +285,7 @@ export const JobDetails = () => {
     try {
         await updateJob(job.id, {
             status: JobStatus.COMPLETED,
-            history: [...job.history, {
+            history: [...(job.history || []), {
                 id: `hist_fin_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Trabalho Finalizado e Conferido`,
@@ -304,7 +304,7 @@ export const JobDetails = () => {
     try {
         await updateJob(job.id, {
             status: JobStatus.IN_PROGRESS,
-            history: [...job.history, {
+            history: [...(job.history || []), {
                 id: `hist_reopen_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Trabalho REABERTO`,
@@ -333,7 +333,7 @@ export const JobDetails = () => {
     try {
         await updateJob(job.id, {
             status: newStatus,
-            history: [...job.history, {
+            history: [...(job.history || []), {
                 id: `hist_stat_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Status alterado: ${newStatus}`,
@@ -412,7 +412,7 @@ export const JobDetails = () => {
       try {
           await updateJob(job.id, {
               status: JobStatus.CANCELED,
-              history: [...job.history, {
+              history: [...(job.history || []), {
                   id: `hist_cancel_${Date.now()}`,
                   timestamp: new Date(),
                   action: 'Trabalho CANCELADO',
@@ -430,7 +430,7 @@ export const JobDetails = () => {
       try {
           await updateJob(job.id, {
               status: JobStatus.RETURNED,
-              history: [...job.history, {
+              history: [...(job.history || []), {
                   id: `hist_return_${Date.now()}`,
                   timestamp: new Date(),
                   action: 'Trabalho DEVOLVIDO',

@@ -113,7 +113,7 @@ export const JobsList = () => {
       if (!window.confirm(`Deseja finalizar o caso de ${job.patientName}?`)) return;
       await updateJob(job.id, {
           status: JobStatus.COMPLETED,
-          history: [...job.history, {
+          history: [...(job.history || []), {
               id: `hist_fin_${Date.now()}`,
               timestamp: new Date(),
               action: 'Trabalho Finalizado e Conferido',
@@ -128,7 +128,7 @@ export const JobsList = () => {
       if (!window.confirm(`Deseja reabrir o caso de ${job.patientName}?`)) return;
       await updateJob(job.id, {
           status: JobStatus.IN_PROGRESS,
-          history: [...job.history, {
+          history: [...(job.history || []), {
               id: `hist_reopen_${Date.now()}`,
               timestamp: new Date(),
               action: 'Trabalho REABERTO via lista rápida',
