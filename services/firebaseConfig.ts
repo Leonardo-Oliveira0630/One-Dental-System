@@ -36,6 +36,7 @@ try {
         
         // Inicialização robusta para Mobile (Android/iOS)
         db = initializeFirestore(app, {
+            ignoreUndefinedProperties: true,
             localCache: persistentLocalCache({
                 tabManager: persistentMultipleTabManager()
             })

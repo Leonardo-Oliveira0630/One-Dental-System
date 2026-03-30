@@ -73,14 +73,14 @@ export const IncomingOrders = () => {
             boxNumber: boxNum,
             boxColor: BOX_COLORS.find(c => c.id === boxColorId),
             currentSector: initialSector,
-            sectorMovements: [...(selectedJob.sectorMovements || []), {
+            sectorMovements: [...(selectedJob.sectorMovements || []).filter(Boolean), {
                 id: Math.random().toString(),
                 sector: initialSector,
                 entryTime: new Date(),
                 entryUserId: currentUser.id,
                 entryUserName: currentUser.name
             }],
-            history: [...(selectedJob.history || []), {
+            history: [...(selectedJob.history || []).filter(Boolean), {
                 id: Math.random().toString(),
                 timestamp: new Date(),
                 action: `OS ${osInput} Atribuída e Caixa ${boxNum} definida`,

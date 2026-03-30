@@ -81,7 +81,7 @@ export const ChatSystem: React.FC<ChatSystemProps> = ({ job, orgId }) => {
         if (editingMsg) {
             await api.apiUpdateChatMessage(orgId, job.id, editingMsg.id, { 
                 text: inputText, 
-                attachments: [...(editingMsg.attachments || []), ...attachments] 
+                attachments: [...(editingMsg.attachments || []).filter(Boolean), ...attachments] 
             });
             setEditingMsg(null);
         } else {

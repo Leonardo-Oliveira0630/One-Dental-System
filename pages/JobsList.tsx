@@ -91,7 +91,7 @@ export const JobsList = () => {
     if (selectedDentists.length > 0 && !selectedDentists.includes(job.dentistId)) return false;
     if (selectedSectors.length > 0 && !selectedSectors.includes(job.currentSector || '')) return false;
     if (selectedCollaborators.length > 0) {
-        const hasCollaborator = job.history.some(h => selectedCollaborators.includes(h.userId));
+        const hasCollaborator = (job.history || []).some(h => selectedCollaborators.includes(h?.userId));
         if (!hasCollaborator) return false;
     }
 
@@ -102,7 +102,7 @@ export const JobsList = () => {
         if (hours < 18) return false;
     }
     if (filterOrigin !== 'ALL') {
-        const isWeb = job.history.some(h => h.action.toLowerCase().includes('loja virtual'));
+        const isWeb = (job.history || []).some(h => h?.action?.toLowerCase().includes('loja virtual'));
         if (filterOrigin === 'WEB' && !isWeb) return false;
         if (filterOrigin === 'MANUAL' && isWeb) return false;
     }
@@ -113,7 +113,7 @@ export const JobsList = () => {
       if (!window.confirm(`Deseja finalizar o caso de ${job.patientName}?`)) return;
       await updateJob(job.id, {
           status: JobStatus.COMPLETED,
-          history: [...(job.history || []), {
+          history: [...(job.history || []).filter(Boolean), {
               id: `hist_fin_${Date.now()}`,
               timestamp: new Date(),
               action: 'Trabalho Finalizado e Conferido',
@@ -128,7 +128,7 @@ export const JobsList = () => {
       if (!window.confirm(`Deseja reabrir o caso de ${job.patientName}?`)) return;
       await updateJob(job.id, {
           status: JobStatus.IN_PROGRESS,
-          history: [...(job.history || []), {
+          history: [...(job.history || []).filter(Boolean), {
               id: `hist_reopen_${Date.now()}`,
               timestamp: new Date(),
               action: 'Trabalho REABERTO via lista rápida',

@@ -40,7 +40,7 @@ export const Dashboard = () => {
 
   // KPIs
   const totalActive = jobs.filter(j => j.status !== JobStatus.COMPLETED && j.status !== JobStatus.DELIVERED).length;
-  const completedToday = jobs.filter(j => j.status === JobStatus.COMPLETED && new Date(j.history[j.history.length-1]?.timestamp).toDateString() === new Date().toDateString()).length;
+  const completedToday = jobs.filter(j => j.status === JobStatus.COMPLETED && j.history && j.history.length > 0 && new Date(j.history[j.history.length-1]?.timestamp).toDateString() === new Date().toDateString()).length;
   const urgent = jobs.filter(j => j.urgency === UrgencyLevel.VIP || j.urgency === UrgencyLevel.HIGH).length;
   const delayed = jobs.filter(j => new Date(j.dueDate) < new Date() && j.status !== JobStatus.COMPLETED).length;
 

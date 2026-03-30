@@ -106,7 +106,7 @@ export const ProductionCalendar = () => {
     if (!selectedJob) return;
     updateJob(selectedJob.id, { 
         status: JobStatus.COMPLETED,
-        history: [...(selectedJob.history || []), {
+        history: [...(selectedJob.history || []).filter(Boolean), {
             id: `hist_fin_${Date.now()}`,
             timestamp: new Date(),
             action: 'Trabalho Finalizado via Calendário',

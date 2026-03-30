@@ -144,10 +144,10 @@ export const JobDetails = () => {
             uploadedAt: new Date()
         };
 
-        const updatedAttachments = [...(job.attachments || []), newAttachment];
+        const updatedAttachments = [...(job.attachments || []).filter(Boolean), newAttachment];
         await updateJob(job.id, { 
             attachments: updatedAttachments,
-            history: [...(job.history || []), {
+            history: [...(job.history || []).filter(Boolean), {
                 id: `hist_photo_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Foto anexada ao caso via câmera`,
@@ -192,10 +192,10 @@ export const JobDetails = () => {
             });
         }
 
-        const updatedAttachments = [...(job.attachments || []), ...newAttachments];
+        const updatedAttachments = [...(job.attachments || []).filter(Boolean), ...newAttachments];
         await updateJob(job.id, { 
             attachments: updatedAttachments,
-            history: [...(job.history || []), {
+            history: [...(job.history || []).filter(Boolean), {
                 id: `hist_files_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Anexados ${newAttachments.length} novos arquivos ao caso`,
@@ -261,7 +261,7 @@ export const JobDetails = () => {
             notes: editNotes,
             items: editItems,
             totalValue: editTotalValue,
-            history: [...(job.history || []), {
+            history: [...(job.history || []).filter(Boolean), {
                 id: `hist_edit_${Date.now()}`,
                 timestamp: new Date(),
                 action: 'Ficha editada manualmente',
@@ -285,7 +285,7 @@ export const JobDetails = () => {
     try {
         await updateJob(job.id, {
             status: JobStatus.COMPLETED,
-            history: [...(job.history || []), {
+            history: [...(job.history || []).filter(Boolean), {
                 id: `hist_fin_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Trabalho Finalizado e Conferido`,
@@ -304,7 +304,7 @@ export const JobDetails = () => {
     try {
         await updateJob(job.id, {
             status: JobStatus.IN_PROGRESS,
-            history: [...(job.history || []), {
+            history: [...(job.history || []).filter(Boolean), {
                 id: `hist_reopen_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Trabalho REABERTO`,
@@ -333,7 +333,7 @@ export const JobDetails = () => {
     try {
         await updateJob(job.id, {
             status: newStatus,
-            history: [...(job.history || []), {
+            history: [...(job.history || []).filter(Boolean), {
                 id: `hist_stat_${Date.now()}`,
                 timestamp: new Date(),
                 action: `Status alterado: ${newStatus}`,
@@ -385,7 +385,7 @@ export const JobDetails = () => {
       return <FileIcon className="text-slate-400 shrink-0" size={18} />;
   };
 
-  const sortedHistory = [...job.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const sortedHistory = [...(job.history || []).filter(Boolean)].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   
   const getSectorTimeInfo = (job: Job) => {
     if (!job.sectorEntryTime) return { hours: 0, isAttention: false, label: '---' };
@@ -412,7 +412,7 @@ export const JobDetails = () => {
       try {
           await updateJob(job.id, {
               status: JobStatus.CANCELED,
-              history: [...(job.history || []), {
+              history: [...(job.history || []).filter(Boolean), {
                   id: `hist_cancel_${Date.now()}`,
                   timestamp: new Date(),
                   action: 'Trabalho CANCELADO',
@@ -430,7 +430,7 @@ export const JobDetails = () => {
       try {
           await updateJob(job.id, {
               status: JobStatus.RETURNED,
-              history: [...(job.history || []), {
+              history: [...(job.history || []).filter(Boolean), {
                   id: `hist_return_${Date.now()}`,
                   timestamp: new Date(),
                   action: 'Trabalho DEVOLVIDO',
@@ -906,7 +906,7 @@ export const JobDetails = () => {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {[...job.sectorMovements].sort((a, b) => new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime()).map((movement, idx) => (
+                                {[...(job.sectorMovements || []).filter(Boolean)].sort((a, b) => new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime()).map((movement, idx) => (
                                     <div key={movement.id || idx} className={`p-4 rounded-2xl border ${!movement.exitTime ? 'border-blue-200 bg-blue-50/50' : 'border-slate-100 bg-slate-50'} flex flex-col md:flex-row gap-4 justify-between items-start md:items-center`}>
                                         <div className="flex items-start gap-3">
                                             <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${!movement.exitTime ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>

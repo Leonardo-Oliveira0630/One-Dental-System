@@ -294,11 +294,11 @@ export const GlobalScanner: React.FC = () => {
         uploadedAt: new Date()
       };
       await updateJob(scannedJob.id, {
-        attachments: [...(scannedJob.attachments || []), newAttachment]
+        attachments: [...(scannedJob.attachments || []).filter(Boolean), newAttachment]
       });
       setScannedJob(prev => prev ? {
           ...prev,
-          attachments: [...(prev.attachments || []), newAttachment]
+          attachments: [...(prev.attachments || []).filter(Boolean), newAttachment]
       } : null);
       
       alert('Foto anexada com sucesso!');
@@ -438,7 +438,7 @@ export const GlobalScanner: React.FC = () => {
             }
         }
 
-        const newHistory = [...(currentJob.history || []), {
+        const newHistory = [...(currentJob.history || []).filter(Boolean), {
             id: Math.random().toString(),
             timestamp: new Date(),
             action: action,
@@ -447,7 +447,7 @@ export const GlobalScanner: React.FC = () => {
             sector: sector
         }];
 
-        let newSectorMovements = [...(currentJob.sectorMovements || [])];
+        let newSectorMovements = [...(currentJob.sectorMovements || []).filter(Boolean)];
         const currentOpenMovements = newSectorMovements.filter(m => !m.exitTime);
 
         if (actionType === 'ENTRY') {

@@ -78,7 +78,7 @@ export const JobSearch = () => {
         }
       }
 
-      let newSectorMovements = [...(job.sectorMovements || [])];
+      let newSectorMovements = [...(job.sectorMovements || []).filter(Boolean)];
       const currentOpenMovements = newSectorMovements.filter(m => !m.exitTime);
 
       if (actionType === 'ENTRY') {
@@ -128,7 +128,7 @@ export const JobSearch = () => {
         currentSector: sector,
         status: newStatus,
         sectorMovements: newSectorMovements,
-        history: [...(job.history || []), {
+        history: [...(job.history || []).filter(Boolean), {
           id: Math.random().toString(),
           timestamp: new Date(),
           action: action,
