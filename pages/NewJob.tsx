@@ -30,6 +30,7 @@ export const NewJob = () => {
   const [notes, setNotes] = useState('');
   const [addedItems, setAddedItems] = useState<JobItem[]>([]);
   const [lastCreatedJob, setLastCreatedJob] = useState<Job | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (boxColors.length > 0 && !selectedColorId) {
@@ -147,7 +148,14 @@ export const NewJob = () => {
         setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
     }
     const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
-  }, [entryType, jobs]);
+  }, [entryType]); // Removed 'jobs' from dependency array to prevent form clearing
+
+  // Update OS number when jobs load initially
+  useEffect(() => {
+    if (jobs.length > 0 && osNumber === '0001' && entryType === 'NEW') {
+        setOsNumber(generateNextNewOs());
+    }
+  }, [jobs]);
 
   const selectDentist = (dentist: any) => {
     setSelectedDentistId(dentist.id); setSelectedDentistObj(dentist.type === 'ONLINE' ? dentist : null);
@@ -249,10 +257,15 @@ export const NewJob = () => {
         notes 
     };
 
+    setIsSubmitting(true);
     try {
         await addJob(newJob); 
         setLastCreatedJob({ ...newJob, id: 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
-    } catch (err) { alert("Erro ao salvar o caso no sistema."); }
+    } catch (err) { 
+        alert("Erro ao salvar o caso no sistema. Verifique sua conexão com a internet."); 
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   return (
@@ -460,7 +473,10 @@ export const NewJob = () => {
                         <span className="text-[10px] font-black text-slate-400 uppercase">Total do Caso</span>
                         <span className="text-2xl font-black text-slate-900">R$ {addedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0).toFixed(2)}</span>
                     </div>
-                    <button type="submit" className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black rounded-2xl hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20"><FileCheck size={24} /> SALVAR NO SISTEMA</button>
+                    <button type="submit" disabled={isSubmitting} className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-black rounded-2xl hover:shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isSubmitting ? <RefreshCw size={24} className="animate-spin" /> : <FileCheck size={24} />} 
+                        {isSubmitting ? 'SALVANDO...' : 'SALVAR NO SISTEMA'}
+                    </button>
                 </div>
               </div>
             </div>
