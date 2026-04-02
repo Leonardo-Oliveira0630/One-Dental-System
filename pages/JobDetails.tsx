@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, Suspense, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useApp } from '../context/AppContext';
@@ -8,7 +8,7 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase
+  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -23,13 +23,19 @@ const STLViewer = React.lazy(() => import('../components/STLViewer').then(module
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile, addJobToRoute, currentOrg } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION' | 'CHAT' | 'SECTORS'>('SUMMARY');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [editDentistId, setEditDentistId] = useState('');
+  const [editDentistName, setEditDentistName] = useState('');
+  const [dentistSearchQuery, setDentistSearchQuery] = useState('');
+  const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
+  const [selectedDentistObj, setSelectedDentistObj] = useState<any>(null);
   const [showRouteModal, setShowRouteModal] = useState(false);
   const [show3DViewer, setShow3DViewer] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -86,6 +92,43 @@ export const JobDetails = () => {
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
 
+  const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
+
+  const suggestions = useMemo(() => {
+    if (!dentistSearchQuery) return [];
+    const query = dentistSearchQuery.toLowerCase();
+    const online = connectedDentists.map(d => ({ ...d, type: 'ONLINE' }));
+    const offline = manualDentists.map(d => ({ ...d, type: 'OFFLINE' }));
+    return [...online, ...offline].filter(d => 
+        d.name.toLowerCase().includes(query) || (d.clinicName && d.clinicName.toLowerCase().includes(query))
+    ).slice(0, 8); 
+  }, [dentistSearchQuery, connectedDentists, manualDentists]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDentistSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectDentist = (dentist: any) => {
+    setEditDentistId(dentist.id);
+    setEditDentistName(dentist.name);
+    setDentistSearchQuery(dentist.name);
+    setSelectedDentistObj(dentist.type === 'ONLINE' ? dentist : null);
+    setShowDentistSuggestions(false);
+  };
+
+  const handleManualDentistEntry = () => {
+    setEditDentistId('manual-entry');
+    setEditDentistName(dentistSearchQuery);
+    setSelectedDentistObj(null);
+    setShowDentistSuggestions(false);
+  };
+
   useEffect(() => {
     if (job) {
         setEditPatientName(job.patientName || '');
@@ -97,6 +140,9 @@ export const JobDetails = () => {
         setEditUrgency(job.urgency);
         setEditNotes(job.notes || '');
         setEditItems(job.items);
+        setEditDentistId(job.dentistId || '');
+        setEditDentistName(job.dentistName || '');
+        setDentistSearchQuery(job.dentistName || '');
         if (jobTypes.length > 0) setNewItemTypeId(jobTypes[0].id);
     }
   }, [job, jobTypes]);
@@ -254,6 +300,8 @@ export const JobDetails = () => {
         await updateJob(job.id, {
             patientName: editPatientName,
             osNumber: editOsNumber,
+            dentistId: editDentistId,
+            dentistName: editDentistName,
             boxNumber: editBoxNumber,
             dueDate: adjustedDate,
             dueTime: editDueTime,
@@ -465,6 +513,59 @@ export const JobDetails = () => {
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2 relative" ref={dropdownRef}>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Dentista / Clínica</label>
+                              <div className="relative">
+                                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                      <Search size={18} />
+                                  </div>
+                                  <input 
+                                      type="text" 
+                                      value={dentistSearchQuery} 
+                                      onChange={e => { setDentistSearchQuery(e.target.value); setShowDentistSuggestions(true); }}
+                                      onFocus={() => setShowDentistSuggestions(true)}
+                                      placeholder="Buscar dentista ou clínica..."
+                                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm transition-all"
+                                  />
+                              </div>
+
+                              {showDentistSuggestions && (
+                                  <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                      <div className="p-2 bg-slate-50 border-b flex justify-between items-center">
+                                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2">Sugestões</span>
+                                          <button onClick={() => setShowDentistSuggestions(false)} className="text-slate-400 p-1 hover:bg-slate-200 rounded-lg"><X size={14}/></button>
+                                      </div>
+                                      <div className="max-h-[240px] overflow-y-auto">
+                                          {suggestions.length > 0 ? (
+                                              suggestions.map(d => (
+                                                  <button key={d.id} onClick={() => selectDentist(d)} className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center justify-between group transition-colors">
+                                                      <div className="flex items-center gap-3">
+                                                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${d.type === 'ONLINE' ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                              <User size={16} />
+                                                          </div>
+                                                          <div>
+                                                              <div className="text-xs font-bold text-slate-700 group-hover:text-blue-700">{d.name}</div>
+                                                              {d.clinicName && <div className="text-[9px] font-bold text-slate-400 uppercase">{d.clinicName}</div>}
+                                                          </div>
+                                                      </div>
+                                                      {d.type === 'ONLINE' && <span className="text-[8px] font-black bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded uppercase">Online</span>}
+                                                  </button>
+                                              ))
+                                          ) : dentistSearchQuery.length > 2 && (
+                                              <button onClick={handleManualDentistEntry} className="w-full text-left px-4 py-4 hover:bg-amber-50 flex items-center gap-3 group transition-colors">
+                                                  <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                                      <Plus size={16} />
+                                                  </div>
+                                                  <div>
+                                                      <div className="text-xs font-bold text-slate-700 group-hover:text-amber-700">Cadastrar "{dentistSearchQuery}"</div>
+                                                      <div className="text-[9px] font-bold text-slate-400 uppercase">Entrada manual (sem vínculo)</div>
+                                                  </div>
+                                              </button>
+                                          )}
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Paciente</label>
                               <input type="text" value={editPatientName} onChange={e => setEditPatientName(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
