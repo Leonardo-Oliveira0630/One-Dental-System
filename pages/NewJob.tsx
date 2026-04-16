@@ -10,9 +10,10 @@ import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Searc
 type EntryType = 'NEW' | 'CONTINUATION';
 
 export const NewJob = () => {
-  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors } = useApp();
+  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables } = useApp();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const jobTypeDropdownRef = useRef<HTMLDivElement>(null);
 
   // --- Global States ---
   const [entryType, setEntryType] = useState<EntryType>('NEW');
@@ -22,6 +23,8 @@ export const NewJob = () => {
   const [dentistName, setDentistName] = useState('');
   const [dentistSearchQuery, setDentistSearchQuery] = useState('');
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
+  const [jobTypeSearchQuery, setJobTypeSearchQuery] = useState('');
+  const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
   const [osNumber, setOsNumber] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [boxNumber, setBoxNumber] = useState('');
@@ -55,6 +58,9 @@ export const NewJob = () => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDentistSuggestions(false);
       }
+      if (jobTypeDropdownRef.current && !jobTypeDropdownRef.current.contains(event.target as Node)) {
+        setShowJobTypeSuggestions(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -70,32 +76,70 @@ export const NewJob = () => {
     ).slice(0, 8); 
   }, [dentistSearchQuery, connectedDentists, manualDentists]);
 
+  const filteredJobTypes = useMemo(() => {
+    if (!jobTypeSearchQuery) return jobTypes.slice(0, 10);
+    const query = jobTypeSearchQuery.toLowerCase();
+    return jobTypes.filter(t => t.name.toLowerCase().includes(query)).slice(0, 10);
+  }, [jobTypeSearchQuery, jobTypes]);
+
   const calculatedBasePrice = useMemo(() => {
     if (!activeJobType) return 0;
-    let discountableSum = activeJobType.basePrice;
+    
+    let basePrice = activeJobType.basePrice;
+    let dentistDiscountRate = 0;
+    let customPriceOverride: number | null = null;
+    
+    // Check for Price Table or Custom Pricing
+    if (selectedDentistObj) {
+        if (selectedDentistObj.isCustomPricing) {
+            // Priority: Explicit Custom Prices
+            const custom = selectedDentistObj.customPrices?.find(p => p.jobTypeId === activeJobType.id);
+            if (custom) {
+                if (custom.discountPercent !== undefined) {
+                    dentistDiscountRate = custom.discountPercent / 100;
+                } else if (custom.price !== undefined) {
+                    basePrice = custom.price;
+                    dentistDiscountRate = 0;
+                }
+            } else if (selectedDentistObj.globalDiscountPercent) {
+                // Fallback to Global Discount if custom pricing is ON but no specific price for this jobType
+                dentistDiscountRate = selectedDentistObj.globalDiscountPercent / 100;
+            }
+        } else if (selectedDentistObj.priceTableId) {
+            // Priority: Price Table
+            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+            if (table && table.prices[activeJobType.id]) {
+                basePrice = table.prices[activeJobType.id].basePrice ?? activeJobType.basePrice;
+            }
+        }
+    }
+
+    let discountableSum = basePrice;
     let exemptSum = 0;
     const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
+    
     allSelectedOptionIds.forEach(selectedId => {
       activeJobType.variationGroups.forEach(group => {
         const option = group.options.find(opt => opt.id === selectedId);
         if (option) {
-            if (option.isDiscountExempt) exemptSum += option.priceModifier;
-            else discountableSum += option.priceModifier;
+            let modifier = option.priceModifier;
+            
+            // Check if Price Table has a specific modifier for this variation
+            if (selectedDentistObj && !selectedDentistObj.isCustomPricing && selectedDentistObj.priceTableId) {
+                const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+                if (table && table.prices[activeJobType.id]?.variations?.[option.id] !== undefined) {
+                    modifier = table.prices[activeJobType.id].variations[option.id];
+                }
+            }
+
+            if (option.isDiscountExempt) exemptSum += modifier;
+            else discountableSum += modifier;
         }
       });
     });
-    let dentistDiscountRate = 0;
-    if (selectedDentistObj) {
-        const custom = selectedDentistObj.customPrices?.find(p => p.jobTypeId === activeJobType.id);
-        if (custom) {
-            if (custom.discountPercent !== undefined) dentistDiscountRate = custom.discountPercent / 100;
-            else if (custom.price !== undefined) { discountableSum = custom.price; dentistDiscountRate = 0; }
-        } else if (selectedDentistObj.globalDiscountPercent) {
-            dentistDiscountRate = selectedDentistObj.globalDiscountPercent / 100;
-        }
-    }
+
     return (discountableSum * (1 - dentistDiscountRate)) + exemptSum;
-  }, [selectedVariations, activeJobType, selectedDentistObj]);
+  }, [selectedVariations, activeJobType, selectedDentistObj, priceTables]);
 
   const finalItemPrice = useMemo(() => {
     let price = manualPrice !== null ? manualPrice : calculatedBasePrice;
@@ -346,12 +390,71 @@ export const NewJob = () => {
                                 </div>
                             </div>
                             <div className="flex gap-3 items-end">
-                                <div className="flex-1">
+                                <div className="flex-1 relative" ref={jobTypeDropdownRef}>
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Tipo de Prótese</label>
-                                    <select value={selectedTypeId} onChange={e => setSelectedTypeId(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm">
-                                        <option value="">Selecione um serviço...</option>
-                                        {jobTypes.map(type => (<option key={type.id} value={type.id}>{type.name}</option>))}
-                                    </select>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                            <SearchIcon size={16} />
+                                        </div>
+                                        <input 
+                                            type="text" 
+                                            value={jobTypeSearchQuery || (activeJobType?.name || '')} 
+                                            onChange={e => {
+                                                setJobTypeSearchQuery(e.target.value);
+                                                setShowJobTypeSuggestions(true);
+                                                if (!e.target.value) setSelectedTypeId('');
+                                            }}
+                                            onFocus={() => setShowJobTypeSuggestions(true)}
+                                            placeholder="Buscar tipo de prótese..."
+                                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
+                                        />
+                                        {selectedTypeId && (
+                                            <button 
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedTypeId('');
+                                                    setJobTypeSearchQuery('');
+                                                }}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {showJobTypeSuggestions && (
+                                        <div className="absolute z-[110] left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                            <div className="max-h-[240px] overflow-y-auto">
+                                                {filteredJobTypes.length > 0 ? (
+                                                    filteredJobTypes.map(type => (
+                                                        <button 
+                                                            key={type.id} 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedTypeId(type.id);
+                                                                setJobTypeSearchQuery('');
+                                                                setShowJobTypeSuggestions(false);
+                                                            }} 
+                                                            className={`w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center justify-between group transition-colors ${selectedTypeId === type.id ? 'bg-blue-50' : ''}`}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedTypeId === type.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                                    <Layers size={16} />
+                                                                </div>
+                                                                <div>
+                                                                    <div className={`text-xs font-bold ${selectedTypeId === type.id ? 'text-blue-700' : 'text-slate-700'}`}>{type.name}</div>
+                                                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">R$ {type.basePrice.toFixed(2)}</div>
+                                                                </div>
+                                                            </div>
+                                                            {selectedTypeId === type.id && <Check size={14} className="text-blue-600" />}
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="p-4 text-center text-slate-400 text-xs font-bold">Nenhum tipo encontrado</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="w-16">
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Qtd</label>

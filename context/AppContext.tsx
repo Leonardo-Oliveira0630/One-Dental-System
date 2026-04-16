@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -97,6 +97,7 @@ interface AppContextType {
   patients: ClinicPatient[];
   appointments: Appointment[];
   manualDentists: ManualDentist[];
+  priceTables: PriceTable[];
   activeAlert: JobAlert | null;
 
   login: (email: string, pass: string) => Promise<void>;
@@ -176,6 +177,10 @@ interface AppContextType {
   addManualDentist: (d: Omit<ManualDentist, 'id' | 'organizationId'>) => Promise<void>;
   updateManualDentist: (id: string, updates: Partial<ManualDentist>) => Promise<void>;
   deleteManualDentist: (id: string) => Promise<void>;
+  
+  addPriceTable: (table: Omit<PriceTable, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updatePriceTable: (id: string, updates: Partial<PriceTable>) => Promise<void>;
+  deletePriceTable: (id: string) => Promise<void>;
 
   addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => Promise<void>;
 }
@@ -214,6 +219,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
+  const [priceTables, setPriceTables] = useState<PriceTable[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
 
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
@@ -339,6 +345,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
             unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
+            unsubs.push(api.subscribePriceTables(myOrgId, setPriceTables));
         }
     }
     
@@ -582,6 +589,43 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiDeleteManualDentist(orgId, id);
   };
 
+  const addPriceTable = async (table: Omit<PriceTable, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>) => {
+    const orgId = activeDataId;
+    if (!orgId) return;
+    try {
+      const newTable: PriceTable = {
+        ...table,
+        id: `tab_${Date.now()}`,
+        organizationId: orgId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      await api.apiAddPriceTable(orgId, newTable);
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.CREATE, `organizations/${orgId}/priceTables`);
+    }
+  };
+
+  const updatePriceTable = async (id: string, updates: Partial<PriceTable>) => {
+    const orgId = activeDataId;
+    if (!orgId) return;
+    try {
+      await api.apiUpdatePriceTable(orgId, id, updates);
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.UPDATE, `organizations/${orgId}/priceTables/${id}`);
+    }
+  };
+
+  const deletePriceTable = async (id: string) => {
+    const orgId = activeDataId;
+    if (!orgId) return;
+    try {
+      await api.apiDeletePriceTable(orgId, id);
+    } catch (e: any) {
+      handleFirestoreError(e, OperationType.DELETE, `organizations/${orgId}/priceTables/${id}`);
+    }
+  };
+
   const switchActiveOrganization = (id: string | null) => {
     if (!id) { setActiveOrganization(null); return; }
     
@@ -620,7 +664,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
       allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, activeAlert,
+      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, activeAlert,
       allPayments,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
@@ -639,7 +683,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
       registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
       addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
-      addManualDentist, updateManualDentist, deleteManualDentist, addJobToRoute
+      addManualDentist, updateManualDentist, deleteManualDentist,
+      addPriceTable, updatePriceTable, deletePriceTable,
+      addJobToRoute
     }}>
       {children}
     </AppContext.Provider>

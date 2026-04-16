@@ -1,11 +1,13 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ArrowRight, CheckCircle2, Loader2, X } from 'lucide-react';
+import { Search, ArrowRight, CheckCircle2, Loader2, X, Eye } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole } from '../types';
 
 export const JobSearch = () => {
   const { jobs, currentUser, updateJob, addCommissionRecord, commissions } = useApp();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
@@ -15,8 +17,9 @@ export const JobSearch = () => {
     ? jobs.filter(job => 
         job.patientName.toLowerCase().includes(query.toLowerCase()) ||
         job.id.toLowerCase().includes(query.toLowerCase()) ||
+        (job.osNumber && job.osNumber.toLowerCase().includes(query.toLowerCase())) ||
         job.dentistName.toLowerCase().includes(query.toLowerCase())
-      ).slice(0, 5)
+      ).slice(0, 8)
     : [];
 
   useEffect(() => {
@@ -29,7 +32,8 @@ export const JobSearch = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleMoveJob = async (job: Job, actionType: 'ENTRY' | 'EXIT') => {
+  const handleMoveJob = async (e: React.MouseEvent, job: Job, actionType: 'ENTRY' | 'EXIT') => {
+    e.stopPropagation();
     if (!currentUser?.sector) return;
     
     setIsProcessing(job.id);
@@ -146,6 +150,12 @@ export const JobSearch = () => {
     }
   };
 
+  const handleNavigateToJob = (jobId: string) => {
+    navigate(`/jobs/${jobId}`);
+    setQuery('');
+    setIsOpen(false);
+  };
+
   if (currentUser?.role === UserRole.CLIENT) return null;
 
   return (
@@ -160,8 +170,8 @@ export const JobSearch = () => {
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Buscar trabalho (Paciente, ID...)"
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+          placeholder="Buscar trabalho (Paciente, ID, OS...)"
+          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
         />
         {query && (
           <button 
@@ -181,51 +191,62 @@ export const JobSearch = () => {
                 {filteredJobs.map((job) => (
                   <div 
                     key={job.id}
-                    className="p-3 hover:bg-slate-50 rounded-xl transition-colors flex items-center justify-between group"
+                    onClick={() => handleNavigateToJob(job.id)}
+                    className="p-3 hover:bg-blue-50 rounded-xl transition-colors flex items-center justify-between group cursor-pointer"
                   >
                     <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-bold text-slate-900 truncate">{job.patientName}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-900 truncate group-hover:text-blue-700">{job.patientName}</span>
+                        {job.osNumber && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 rounded">#{job.osNumber}</span>}
+                      </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">ID: {job.id.split('_').pop()}</span>
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 rounded uppercase">{job.currentSector || 'Sem Setor'}</span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate">Dr(a). {job.dentistName}</span>
                       </div>
                     </div>
                     
-                    {currentUser?.sector && (
-                      <div className="flex items-center gap-2">
-                        {job.currentSector !== currentUser.sector ? (
-                          <button
-                            onClick={() => handleMoveJob(job, 'ENTRY')}
-                            disabled={isProcessing === job.id}
-                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            {isProcessing === job.id ? (
-                              <Loader2 size={14} className="animate-spin" />
-                            ) : (
-                              <>
-                                <span>Dar Entrada</span>
-                                <ArrowRight size={14} />
-                              </>
-                            )}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleMoveJob(job, 'EXIT')}
-                            disabled={isProcessing === job.id}
-                            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-tight transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            {isProcessing === job.id ? (
-                              <Loader2 size={14} className="animate-spin" />
-                            ) : (
-                              <>
-                                <span>Dar Saída</span>
-                                <ArrowRight size={14} />
-                              </>
-                            )}
-                          </button>
-                        )}
+                    <div className="flex items-center gap-2">
+                      <div className="p-2 text-slate-300 group-hover:text-blue-500 transition-colors">
+                        <Eye size={20} />
                       </div>
-                    )}
+                      {currentUser?.sector && (
+                        <div className="flex items-center gap-1 border-l border-slate-100 pl-2 ml-1">
+                          {job.currentSector !== currentUser.sector ? (
+                            <button
+                              onClick={(e) => handleMoveJob(e, job, 'ENTRY')}
+                              disabled={isProcessing === job.id}
+                              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 disabled:opacity-50"
+                              title="Dar entrada no meu setor"
+                            >
+                              {isProcessing === job.id ? (
+                                <Loader2 size={10} className="animate-spin" />
+                              ) : (
+                                <>
+                                  <span>Entrada</span>
+                                  <ArrowRight size={10} />
+                                </>
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={(e) => handleMoveJob(e, job, 'EXIT')}
+                              disabled={isProcessing === job.id}
+                              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 disabled:opacity-50"
+                              title="Dar saída do meu setor"
+                            >
+                              {isProcessing === job.id ? (
+                                <Loader2 size={10} className="animate-spin" />
+                              ) : (
+                                <>
+                                  <span>Saída</span>
+                                  <ArrowRight size={10} />
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -235,13 +256,13 @@ export const JobSearch = () => {
                   <Search size={20} className="text-slate-400" />
                 </div>
                 <p className="text-sm font-bold text-slate-900">Nenhum trabalho encontrado</p>
-                <p className="text-xs text-slate-500 mt-1">Verifique o nome ou ID e tente novamente</p>
+                <p className="text-xs text-slate-500 mt-1">Verifique o nome, ID ou OS e tente novamente</p>
               </div>
             )}
           </div>
           
           <div className="bg-slate-50 p-3 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resultados da busca</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Clique para ver detalhes</span>
             {currentUser?.sector && (
               <div className="flex items-center gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Setor:</span>

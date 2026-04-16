@@ -22,7 +22,7 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable 
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -248,6 +248,22 @@ export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void)
 export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, `organizations/${orgId}/jobTypes`, type.id), type);
 export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, `organizations/${orgId}/jobTypes`, id), updates);
 export const apiDeleteJobType = (id: string, id2: string) => deleteDoc(doc(db, `organizations/${id}/jobTypes`, id2));
+
+// --- PRICE TABLES ---
+export const subscribePriceTables = (orgId: string, cb: (tables: PriceTable[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/priceTables`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt),
+            updatedAt: toDate(d.data().updatedAt)
+        } as PriceTable)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePriceTables: ${error.code}`));
+};
+export const apiAddPriceTable = (orgId: string, table: PriceTable) => setDoc(doc(db, `organizations/${orgId}/priceTables`, table.id), table);
+export const apiUpdatePriceTable = (orgId: string, id: string, updates: Partial<PriceTable>) => updateDoc(doc(db, `organizations/${orgId}/priceTables`, id), { ...updates, updatedAt: new Date() });
+export const apiDeletePriceTable = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/priceTables`, id));
 
 export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void) => {
     if (!orgId) return () => {};

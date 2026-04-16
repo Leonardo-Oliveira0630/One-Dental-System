@@ -2,17 +2,19 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package } from 'lucide-react';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dentists = () => {
-    const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs } = useApp();
+    const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers } = useApp();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     
     // Modal State
     const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean } | null>(null);
     const [globalDiscount, setGlobalDiscount] = useState<number>(0);
+    const [priceTableId, setPriceTableId] = useState<string>('');
+    const [isCustomPricing, setIsCustomPricing] = useState(false);
     const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
     const [isSaving, setIsSaving] = useState(false);
 
@@ -30,22 +32,27 @@ export const Dentists = () => {
                 isManual: true,
                 globalDiscountPercent: d.globalDiscountPercent || 0,
                 customPrices: d.customPrices || [],
-                deliveryViaPost: d.deliveryViaPost || false
+                deliveryViaPost: d.deliveryViaPost || false,
+                priceTableId: d.priceTableId || '',
+                isCustomPricing: d.isCustomPricing || false
             });
         });
 
         // 2. Identifica Dentistas Online através do histórico de Pedidos (Jobs)
         jobs.forEach(job => {
             if (!clientMap.has(job.dentistId) && job.dentistId !== 'manual-entry') {
+                const onlineUser = allUsers.find(u => u.id === job.dentistId);
                 clientMap.set(job.dentistId, {
                     id: job.dentistId,
                     name: job.dentistName,
                     clinicName: 'Cliente Web',
-                    email: '', 
+                    email: onlineUser?.email || '', 
                     isManual: false,
-                    globalDiscountPercent: 0, 
-                    customPrices: [],
-                    deliveryViaPost: false // Por padrão, online é via sistema, mas pode ser configurado
+                    globalDiscountPercent: onlineUser?.globalDiscountPercent || 0, 
+                    customPrices: onlineUser?.customPrices || [],
+                    deliveryViaPost: onlineUser?.deliveryViaPost || false,
+                    priceTableId: onlineUser?.priceTableId || '',
+                    isCustomPricing: onlineUser?.isCustomPricing || false
                 });
             }
         });
@@ -60,6 +67,8 @@ export const Dentists = () => {
             isManual: client.isManual
         });
         setGlobalDiscount(client.globalDiscountPercent || 0);
+        setPriceTableId(client.priceTableId || '');
+        setIsCustomPricing(client.isCustomPricing || false);
         
         const discounts: Record<string, number> = {};
         client.customPrices?.forEach((cp: any) => {
@@ -84,7 +93,9 @@ export const Dentists = () => {
 
             const updates = {
                 globalDiscountPercent: globalDiscount,
-                customPrices: customPrices
+                customPrices: customPrices,
+                priceTableId: priceTableId,
+                isCustomPricing: isCustomPricing
             };
 
             if (selectedClient.isManual) {
@@ -204,61 +215,105 @@ export const Dentists = () => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
-                                <div className="flex items-center gap-3 mb-4 text-green-800">
-                                    <Percent size={24} />
-                                    <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Automático</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tabela de Preços Base</label>
+                                    <select 
+                                        value={priceTableId}
+                                        onChange={e => setPriceTableId(e.target.value)}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
+                                    >
+                                        <option value="">Tabela Padrão do Laboratório</option>
+                                        {priceTables.map(table => (
+                                            <option key={table.id} value={table.id}>{table.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <input 
-                                        type="range" 
-                                        min="0" 
-                                        max="50" 
-                                        value={globalDiscount}
-                                        onChange={e => setGlobalDiscount(parseInt(e.target.value))}
-                                        className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                                    />
-                                    <span className="font-black text-2xl text-green-700 w-16 text-right">{globalDiscount}%</span>
+
+                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
+                                        <p className="text-[10px] text-blue-600 font-bold">Ignora a tabela base e aplica descontos manuais</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            className="sr-only peer" 
+                                            checked={isCustomPricing}
+                                            onChange={e => setIsCustomPricing(e.target.checked)}
+                                        />
+                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                    <DollarSign size={14}/> Descontos Individuais por Serviço
-                                </h4>
-                                
-                                <div className="space-y-3">
-                                    {jobTypes.map(type => {
-                                        const value = customDiscounts[type.id] || 0;
-                                        return (
-                                            <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
-                                                <div className="mb-2 sm:mb-0">
-                                                    <p className="font-bold text-slate-800">{type.name}</p>
-                                                    <p className="text-xs text-slate-400">Preço Padrão: R$ {type.basePrice.toFixed(2)}</p>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <div className="text-right">
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Preço Final</p>
-                                                        <p className="font-black text-blue-700">R$ {(type.basePrice * (1 - (value || globalDiscount) / 100)).toFixed(2)}</p>
+                            {isCustomPricing ? (
+                                <>
+                                    <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                                        <div className="flex items-center gap-3 mb-4 text-green-800">
+                                            <Percent size={24} />
+                                            <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <input 
+                                                type="range" 
+                                                min="0" 
+                                                max="50" 
+                                                value={globalDiscount}
+                                                onChange={e => setGlobalDiscount(parseInt(e.target.value))}
+                                                className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                            />
+                                            <span className="font-black text-2xl text-green-700 w-16 text-right">{globalDiscount}%</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                            <DollarSign size={14}/> Descontos Individuais por Serviço
+                                        </h4>
+                                        
+                                        <div className="space-y-3">
+                                            {jobTypes.map(type => {
+                                                const value = customDiscounts[type.id] || 0;
+                                                return (
+                                                    <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
+                                                        <div className="mb-2 sm:mb-0">
+                                                            <p className="font-bold text-slate-800">{type.name}</p>
+                                                            <p className="text-xs text-slate-400">Preço Padrão: R$ {type.basePrice.toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="text-right">
+                                                                <p className="text-[10px] font-bold text-slate-400 uppercase">Preço Final</p>
+                                                                <p className="font-black text-blue-700">R$ {(type.basePrice * (1 - (value || globalDiscount) / 100)).toFixed(2)}</p>
+                                                            </div>
+                                                            <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                                                <input 
+                                                                    type="number" 
+                                                                    min="0" 
+                                                                    max="100"
+                                                                    value={value || ''}
+                                                                    onChange={e => setCustomDiscounts(prev => ({ ...prev, [type.id]: parseInt(e.target.value) || 0 }))}
+                                                                    className="w-16 px-3 py-2 font-bold text-center outline-none"
+                                                                    placeholder="0"
+                                                                />
+                                                                <div className="bg-slate-100 px-3 py-2 border-l border-slate-200 text-slate-500 font-bold text-xs">%</div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                                        <input 
-                                                            type="number" 
-                                                            min="0" 
-                                                            max="100"
-                                                            value={value || ''}
-                                                            onChange={e => setCustomDiscounts(prev => ({ ...prev, [type.id]: parseInt(e.target.value) || 0 }))}
-                                                            className="w-16 px-3 py-2 font-bold text-center outline-none"
-                                                            placeholder="0"
-                                                        />
-                                                        <div className="bg-slate-100 px-3 py-2 border-l border-slate-200 text-slate-500 font-bold text-xs">%</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="bg-slate-50 p-8 rounded-3xl border border-dashed border-slate-200 text-center">
+                                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">
+                                        <Table size={32} />
+                                    </div>
+                                    <p className="font-bold text-slate-600">Usando Tabela de Preços Base</p>
+                                    <p className="text-xs text-slate-400 max-w-sm mx-auto mt-2">Os preços serão calculados automaticamente com base na tabela selecionada acima. Ative o modo personalizado se precisar de descontos específicos para este cliente.</p>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">

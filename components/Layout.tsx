@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { 
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
-  PlusCircle, Layers, X, Building, 
+  PlusCircle, Layers, X, Building, Table,
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
@@ -178,6 +178,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {hasPerm('commissions:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<Wallet size={20} />} label="Comissões" active={location.pathname === '/commissions'} />}
                 {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
                 {hasPerm('clients:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
+                {hasPerm('catalog:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/price-tables" icon={<Table size={20} />} label="Tabelas de Preços" active={location.pathname === '/lab/price-tables'} />}
                 {hasPerm('logistics:manage') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
                 
                 <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>

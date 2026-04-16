@@ -301,6 +301,22 @@ export interface UserCommissionSetting {
   type: 'FIXED' | 'PERCENTAGE';
 }
 
+export interface PriceTable {
+  id: string;
+  organizationId: string;
+  name: string;
+  prices: {
+    [jobTypeId: string]: {
+      basePrice: number;
+      variations: {
+        [optionId: string]: number;
+      };
+    };
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -312,10 +328,13 @@ export interface User {
   clinicName?: string;
   commissionSettings?: UserCommissionSetting[];
   globalDiscountPercent?: number; 
+  priceTableId?: string;
+  isCustomPricing?: boolean;
   customPrices?: { 
     jobTypeId: string; 
     price?: number; 
     discountPercent?: number; 
+    variations?: { [optionId: string]: number };
   }[];
   address?: string;
   city?: string;
@@ -487,10 +506,13 @@ export interface ManualDentist {
   country?: string;
   createdAt: Date;
   globalDiscountPercent?: number; 
+  priceTableId?: string;
+  isCustomPricing?: boolean;
   customPrices?: { 
     jobTypeId: string; 
     price?: number; 
     discountPercent?: number; 
+    variations?: { [optionId: string]: number };
   }[];
   deliveryViaPost?: boolean;
 }

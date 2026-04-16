@@ -40,6 +40,10 @@
       "schema": "object",
       "description": "Jobs within an organization"
     },
+    "/organizations/{orgId}/priceTables/{tableId}": {
+      "schema": "object",
+      "description": "Price tables for the organization"
+    },
     "/settings/global": {
       "schema": "object",
       "description": "Global settings"
