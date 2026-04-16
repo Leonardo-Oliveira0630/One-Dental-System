@@ -101,14 +101,21 @@ export const Dentists = () => {
                     discountPercent
                 }));
 
-            const updates = {
+            const updates: any = {
                 globalDiscountPercent: globalDiscount,
                 customPrices: customPrices,
-                priceTableId: priceTableId,
                 isCustomPricing: isCustomPricing,
-                isBlocked: isBlocked,
-                billingLimit: billingLimit
             };
+
+            // STRICT PERMISSION CHECK
+            if (hasPerm('catalog:prices_view')) {
+                updates.priceTableId = priceTableId;
+            }
+
+            if (hasPerm('clients:block_manage')) {
+                updates.isBlocked = isBlocked;
+                updates.billingLimit = billingLimit;
+            }
 
             if (selectedClient.isManual) {
                 await updateManualDentist(selectedClient.id, updates);
@@ -266,7 +273,7 @@ export const Dentists = () => {
                                         </label>
                                     </div>
 
-                                    {(currentUser?.permissions?.includes('clients:block_manage') || currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) && (
+                                    {hasPerm('clients:block_manage') && (
                                         <div className="space-y-2">
                                             <div className={`p-4 rounded-xl border transition-all ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
                                                 <div className="flex items-center justify-between mb-3">

@@ -66,10 +66,20 @@ export const DentistsTab = () => {
       e.preventDefault();
       if (!formData.name) return;
       try {
-          const dataToSave = {
-              ...formData,
-              billingLimit: hasBillingLimit ? formData.billingLimit : 0
-          };
+          const dataToSave: any = { ...formData };
+          
+          // STRICT PERMISSION CHECK
+          if (!hasPerm('catalog:prices_view')) {
+              delete dataToSave.priceTableId;
+          }
+
+          if (!hasPerm('clients:block_manage')) {
+              delete dataToSave.isBlocked;
+              delete dataToSave.billingLimit;
+          } else {
+              dataToSave.billingLimit = hasBillingLimit ? formData.billingLimit : 0;
+          }
+
           if (editingDentistId) {
               await updateManualDentist(editingDentistId, dataToSave);
           } else {

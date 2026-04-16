@@ -5,7 +5,22 @@ import { PriceTable, JobType } from '../../types';
 import { Plus, Table, Edit2, Trash2, Save, X, Search, DollarSign, Layers } from 'lucide-react';
 
 export const PriceTables = () => {
-    const { jobTypes, priceTables, addPriceTable, updatePriceTable, deletePriceTable } = useApp();
+    const { jobTypes, priceTables, addPriceTable, updatePriceTable, deletePriceTable, currentUser } = useApp();
+    
+    const hasPerm = (perm: string) => {
+        if (currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN') return true;
+        return (currentUser?.permissions as string[])?.includes(perm) || false;
+    };
+
+    if (!hasPerm('catalog:prices_view')) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
+                <Table size={48} className="mb-4 opacity-20" />
+                <h2 className="text-xl font-black uppercase tracking-widest">Acesso Negado</h2>
+                <p className="text-sm">Você não tem permissão para gerenciar tabelas de preços.</p>
+            </div>
+        );
+    }
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTable, setEditingTable] = useState<PriceTable | null>(null);
     const [tableName, setTableName] = useState('');
