@@ -18,7 +18,7 @@ export const NewJob = () => {
   // --- Global States ---
   const [entryType, setEntryType] = useState<EntryType>('NEW');
   const [patientName, setPatientName] = useState('');
-  const [selectedDentistObj, setSelectedDentistObj] = useState<User | null>(null);
+  const [selectedDentistObj, setSelectedDentistObj] = useState<any | null>(null);
   const [selectedDentistId, setSelectedDentistId] = useState('');
   const [dentistName, setDentistName] = useState('');
   const [dentistSearchQuery, setDentistSearchQuery] = useState('');
@@ -93,7 +93,7 @@ export const NewJob = () => {
     if (selectedDentistObj) {
         if (selectedDentistObj.isCustomPricing) {
             // Priority: Explicit Custom Prices
-            const custom = selectedDentistObj.customPrices?.find(p => p.jobTypeId === activeJobType.id);
+            const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
             if (custom) {
                 if (custom.discountPercent !== undefined) {
                     dentistDiscountRate = custom.discountPercent / 100;
@@ -202,8 +202,11 @@ export const NewJob = () => {
   }, [jobs]);
 
   const selectDentist = (dentist: any) => {
-    setSelectedDentistId(dentist.id); setSelectedDentistObj(dentist.type === 'ONLINE' ? dentist : null);
-    setDentistName(dentist.name); setDentistSearchQuery(dentist.name); setShowDentistSuggestions(false);
+    setSelectedDentistId(dentist.id); 
+    setSelectedDentistObj(dentist);
+    setDentistName(dentist.name); 
+    setDentistSearchQuery(dentist.name); 
+    setShowDentistSuggestions(false);
   };
 
   const handleManualDentistEntry = () => {
@@ -268,6 +271,14 @@ export const NewJob = () => {
     if (!osNumber) { alert("O número da OS é obrigatório."); return; }
     if (!patientName.trim()) { alert("O nome do paciente é obrigatório."); return; }
     if (!selectedDentistId || !dentistName.trim()) { alert("A seleção do dentista é obrigatória."); return; }
+
+    // New check: Is the dentist blocked?
+    const dentist = allUsers.find(u => u.id === selectedDentistId) || manualDentists.find(d => d.id === selectedDentistId);
+    if (dentist?.isBlocked) {
+      alert("Este cliente está BLOQUEADO por limite de fatura ou restrição administrativa. Não é possível cadastrar novos trabalhos.");
+      return;
+    }
+
     if (addedItems.length === 0) { alert("Adicione pelo menos um serviço ao caso."); return; }
     if (!currentUser) return;
 

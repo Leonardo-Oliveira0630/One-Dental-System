@@ -328,6 +328,14 @@ export const JobDetails = () => {
 
   const handleFinalizeJob = async () => {
     if (!currentUser || isUpdatingStatus) return;
+
+    // New check: Is the dentist blocked?
+    const dentist = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
+    if (dentist?.isBlocked) {
+        alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível FINALIZAR este trabalho até que a pendência seja resolvida.");
+        return;
+    }
+
     if (!window.confirm("Finalizar este caso agora?")) return;
     setIsUpdatingStatus(true);
     try {
@@ -377,6 +385,14 @@ export const JobDetails = () => {
 
   const handleQuickStatusUpdate = async (newStatus: JobStatus) => {
     if (!currentUser || isUpdatingStatus) return;
+
+    // New check: Is the dentist blocked?
+    const dentist = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
+    if (dentist?.isBlocked && (newStatus === JobStatus.COMPLETED || newStatus === JobStatus.DELIVERED)) {
+        alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível CONCLUIR ou ENTREGAR trabalhos até que a pendência seja resolvida.");
+        return;
+    }
+
     setIsUpdatingStatus(true);
     try {
         await updateJob(job.id, {

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, ArrowRight, CheckCircle2, Loader2, X, Eye } from 'lucide-react';
+import { Search, ArrowRight, CheckCircle2, Loader2, X, Eye, FileText, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole } from '../types';
@@ -170,8 +170,8 @@ export const JobSearch = () => {
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Buscar trabalho (Paciente, ID, OS...)"
-          className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
+          placeholder="Buscar trabalho (OS, Paciente, Dentista...)"
+          className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium shadow-sm"
         />
         {query && (
           <button 
@@ -192,60 +192,58 @@ export const JobSearch = () => {
                   <div 
                     key={job.id}
                     onClick={() => handleNavigateToJob(job.id)}
-                    className="p-3 hover:bg-blue-50 rounded-xl transition-colors flex items-center justify-between group cursor-pointer"
+                    className="p-3 hover:bg-slate-50 border border-transparent hover:border-blue-100 rounded-xl transition-all flex items-center justify-between group cursor-pointer"
                   >
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900 truncate group-hover:text-blue-700">{job.patientName}</span>
-                        {job.osNumber && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 rounded">#{job.osNumber}</span>}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <FileText size={20} />
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">ID: {job.id.split('_').pop()}</span>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate">Dr(a). {job.dentistName}</span>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-slate-900 truncate">{job.patientName}</span>
+                          {job.osNumber && <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">#{job.osNumber}</span>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase truncate">Dr(a). {job.dentistName}</span>
+                          <span className="text-slate-300">•</span>
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                            job.status === JobStatus.COMPLETED ? 'bg-green-100 text-green-700' :
+                            job.status === JobStatus.IN_PROGRESS ? 'bg-blue-100 text-blue-700' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {job.status === JobStatus.IN_PROGRESS ? 'Em Produção' : job.status}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 text-slate-300 group-hover:text-blue-500 transition-colors">
-                        <Eye size={20} />
-                      </div>
+                    <div className="flex items-center gap-2 ml-4">
                       {currentUser?.sector && (
-                        <div className="flex items-center gap-1 border-l border-slate-100 pl-2 ml-1">
+                        <div className="flex items-center gap-2 pr-2 border-r border-slate-100">
                           {job.currentSector !== currentUser.sector ? (
                             <button
                               onClick={(e) => handleMoveJob(e, job, 'ENTRY')}
                               disabled={isProcessing === job.id}
-                              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 disabled:opacity-50"
-                              title="Dar entrada no meu setor"
+                              className="flex items-center gap-1.5 bg-slate-100 hover:bg-blue-600 text-slate-600 hover:text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-50"
+                              title="Puxar para meu setor"
                             >
-                              {isProcessing === job.id ? (
-                                <Loader2 size={10} className="animate-spin" />
-                              ) : (
-                                <>
-                                  <span>Entrada</span>
-                                  <ArrowRight size={10} />
-                                </>
-                              )}
+                              {isProcessing === job.id ? <Loader2 size={12} className="animate-spin" /> : <><span>Entrada</span> <ArrowRight size={12} /></>}
                             </button>
                           ) : (
                             <button
                               onClick={(e) => handleMoveJob(e, job, 'EXIT')}
                               disabled={isProcessing === job.id}
-                              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tight transition-all active:scale-95 disabled:opacity-50"
-                              title="Dar saída do meu setor"
+                              className="flex items-center gap-1.5 bg-orange-50 hover:bg-orange-500 text-orange-600 hover:text-white px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-50 border border-orange-100"
+                              title="Finalizar meu setor"
                             >
-                              {isProcessing === job.id ? (
-                                <Loader2 size={10} className="animate-spin" />
-                              ) : (
-                                <>
-                                  <span>Saída</span>
-                                  <ArrowRight size={10} />
-                                </>
-                              )}
+                              {isProcessing === job.id ? <Loader2 size={12} className="animate-spin" /> : <><span>Saída</span> <ArrowRight size={12} /></>}
                             </button>
                           )}
                         </div>
                       )}
+                      <div className="text-slate-300 animate-in slide-in-from-left-2 delay-100">
+                        <ChevronDown size={20} className="-rotate-90" />
+                      </div>
                     </div>
                   </div>
                 ))}

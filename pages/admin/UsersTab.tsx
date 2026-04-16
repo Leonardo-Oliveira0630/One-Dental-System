@@ -16,7 +16,9 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'finance:manage', label: 'Gerenciar Despesas e Faturas', category: 'Financeiro' },
     { key: 'commissions:view', label: 'Ver Extrato de Comissões', category: 'Financeiro' },
     { key: 'catalog:manage', label: 'Gerenciar Tipos de Serviço', category: 'Catálogo' },
+    { key: 'catalog:prices_view', label: 'Ver Tabelas de Preços', category: 'Catálogo' },
     { key: 'clients:manage', label: 'Gerenciar Dentistas e Preços', category: 'Clientes' },
+    { key: 'clients:block_manage', label: 'Bloquear/Desbloquear Clientes', category: 'Clientes' },
     { key: 'sectors:manage', label: 'Gerenciar Setores', category: 'Administração' },
     { key: 'users:manage', label: 'Gerenciar Outros Usuários', category: 'Administração' },
 ];

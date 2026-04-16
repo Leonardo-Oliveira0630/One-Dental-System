@@ -6,15 +6,22 @@ import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save,
 import { useNavigate } from 'react-router-dom';
 
 export const Dentists = () => {
-    const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers } = useApp();
+    const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, currentUser } = useApp();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
+
+    const hasPerm = (perm: string) => {
+        if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
+        return (currentUser?.permissions as string[])?.includes(perm) || false;
+    };
     
     // Modal State
     const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean } | null>(null);
     const [globalDiscount, setGlobalDiscount] = useState<number>(0);
     const [priceTableId, setPriceTableId] = useState<string>('');
     const [isCustomPricing, setIsCustomPricing] = useState(false);
+    const [isBlocked, setIsBlocked] = useState(false);
+    const [billingLimit, setBillingLimit] = useState<number>(0);
     const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
     const [isSaving, setIsSaving] = useState(false);
 
@@ -38,27 +45,28 @@ export const Dentists = () => {
             });
         });
 
-        // 2. Identifica Dentistas Online através do histórico de Pedidos (Jobs)
-        jobs.forEach(job => {
-            if (!clientMap.has(job.dentistId) && job.dentistId !== 'manual-entry') {
-                const onlineUser = allUsers.find(u => u.id === job.dentistId);
-                clientMap.set(job.dentistId, {
-                    id: job.dentistId,
-                    name: job.dentistName,
-                    clinicName: 'Cliente Web',
-                    email: onlineUser?.email || '', 
+        // 2. Adiciona os Dentistas Online (Web)
+        allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
+            if (!clientMap.has(u.id)) {
+                clientMap.set(u.id, {
+                    id: u.id,
+                    name: u.name,
+                    clinicName: u.clinicName || 'Cliente Web',
+                    email: u.email, 
                     isManual: false,
-                    globalDiscountPercent: onlineUser?.globalDiscountPercent || 0, 
-                    customPrices: onlineUser?.customPrices || [],
-                    deliveryViaPost: onlineUser?.deliveryViaPost || false,
-                    priceTableId: onlineUser?.priceTableId || '',
-                    isCustomPricing: onlineUser?.isCustomPricing || false
+                    globalDiscountPercent: u.globalDiscountPercent || 0, 
+                    customPrices: u.customPrices || [],
+                    deliveryViaPost: u.deliveryViaPost || false,
+                    priceTableId: u.priceTableId || '',
+                    isCustomPricing: u.isCustomPricing || false,
+                    isBlocked: u.isBlocked || false,
+                    billingLimit: u.billingLimit || 0
                 });
             }
         });
 
         return Array.from(clientMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    }, [manualDentists, jobs]);
+    }, [manualDentists, allUsers]);
 
     const handleOpenPricing = (client: any) => {
         setSelectedClient({
@@ -69,6 +77,8 @@ export const Dentists = () => {
         setGlobalDiscount(client.globalDiscountPercent || 0);
         setPriceTableId(client.priceTableId || '');
         setIsCustomPricing(client.isCustomPricing || false);
+        setIsBlocked(client.isBlocked || false);
+        setBillingLimit(client.billingLimit || 0);
         
         const discounts: Record<string, number> = {};
         client.customPrices?.forEach((cp: any) => {
@@ -95,7 +105,9 @@ export const Dentists = () => {
                 globalDiscountPercent: globalDiscount,
                 customPrices: customPrices,
                 priceTableId: priceTableId,
-                isCustomPricing: isCustomPricing
+                isCustomPricing: isCustomPricing,
+                isBlocked: isBlocked,
+                billingLimit: billingLimit
             };
 
             if (selectedClient.isManual) {
@@ -165,6 +177,11 @@ export const Dentists = () => {
                                             WEB
                                         </span>
                                     )}
+                                    {client.isBlocked && (
+                                        <span className="bg-red-100 text-red-700 text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                                            BLOQUEADO
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-1.5 text-slate-500 text-sm mt-0.5">
                                     <Building size={14} className="shrink-0" />
@@ -216,34 +233,70 @@ export const Dentists = () => {
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tabela de Preços Base</label>
-                                    <select 
-                                        value={priceTableId}
-                                        onChange={e => setPriceTableId(e.target.value)}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
-                                    >
-                                        <option value="">Tabela Padrão do Laboratório</option>
-                                        {priceTables.map(table => (
-                                            <option key={table.id} value={table.id}>{table.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
-                                        <p className="text-[10px] text-blue-600 font-bold">Ignora a tabela base e aplica descontos manuais</p>
+                                {hasPerm('catalog:prices_view') && (
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tabela de Preços Base</label>
+                                        <select 
+                                            value={priceTableId}
+                                            onChange={e => setPriceTableId(e.target.value)}
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
+                                        >
+                                            <option value="">Tabela Padrão do Laboratório</option>
+                                            {priceTables.map(table => (
+                                                <option key={table.id} value={table.id}>{table.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            className="sr-only peer" 
-                                            checked={isCustomPricing}
-                                            onChange={e => setIsCustomPricing(e.target.checked)}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
+                                )}
+
+                                <div className="space-y-4">
+                                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
+                                            <p className="text-[10px] text-blue-600 font-bold">Ignora a tabela base e aplica descontos manuais</p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                className="sr-only peer" 
+                                                checked={isCustomPricing}
+                                                onChange={e => setIsCustomPricing(e.target.checked)}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+
+                                    {(currentUser?.permissions?.includes('clients:block_manage') || currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) && (
+                                        <div className="space-y-2">
+                                            <div className={`p-4 rounded-xl border transition-all ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <div>
+                                                        <p className={`text-xs font-black uppercase ${isBlocked ? 'text-red-800' : 'text-slate-700'}`}>Status do Cliente</p>
+                                                        <p className={`text-[10px] font-bold ${isBlocked ? 'text-red-600' : 'text-slate-400'}`}>{isBlocked ? 'CLIENTE BLOQUEADO' : 'CLIENTE ATIVO'}</p>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="sr-only peer" 
+                                                            checked={isBlocked}
+                                                            onChange={e => setIsBlocked(e.target.checked)}
+                                                        />
+                                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                                                    </label>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Limite de Fatura (R$)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={billingLimit || ''}
+                                                        onChange={e => setBillingLimit(parseFloat(e.target.value) || 0)}
+                                                        placeholder="Ex: 5000"
+                                                        className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

@@ -1,16 +1,16 @@
 
 import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { ManualDentist } from '../../types';
+import { ManualDentist, UserRole, PermissionKey } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
-  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package
+  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package, DollarSign, Lock, Unlock, Table, Percent
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
 
 export const DentistsTab = () => {
-  const { manualDentists, addManualDentist, updateManualDentist, deleteManualDentist } = useApp();
+  const { manualDentists, addManualDentist, updateManualDentist, deleteManualDentist, priceTables, currentUser, jobTypes } = useApp();
   const [isAddingDentist, setIsAddingDentist] = useState(false);
   const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
   const [dentistSearch, setSearchTerm] = useState('');
@@ -40,8 +40,16 @@ export const DentistsTab = () => {
     state: '',
     country: 'Brasil',
     clinicName: '',
-    deliveryViaPost: false
+    deliveryViaPost: false,
+    priceTableId: '',
+    billingLimit: 0,
+    isBlocked: false,
+    isCustomPricing: false,
+    globalDiscountPercent: 0,
+    customPrices: [] as { jobTypeId: string, discountPercent: number }[]
   });
+
+  const [hasBillingLimit, setHasBillingLimit] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
@@ -49,14 +57,23 @@ export const DentistsTab = () => {
     setFormData(prev => ({ ...prev, [name]: val }));
   };
 
+  const hasPerm = (perm: PermissionKey) => {
+    if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
+    return currentUser?.permissions?.includes(perm) || false;
+  };
+
   const handleSaveManualDentist = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!formData.name) return;
       try {
+          const dataToSave = {
+              ...formData,
+              billingLimit: hasBillingLimit ? formData.billingLimit : 0
+          };
           if (editingDentistId) {
-              await updateManualDentist(editingDentistId, formData);
+              await updateManualDentist(editingDentistId, dataToSave);
           } else {
-              await addManualDentist({ ...formData, createdAt: new Date() });
+              await addManualDentist({ ...dataToSave, createdAt: new Date() });
           }
           setIsAddingDentist(false);
           setEditingDentistId(null);
@@ -69,8 +86,11 @@ export const DentistsTab = () => {
       name: '', email: '', phone: '', cpfCnpj: '', cro: '',
       birthDate: '', approvalDate: '', cep: '', address: '',
       number: '', complement: '', neighborhood: '', city: '',
-      state: '', country: 'Brasil', clinicName: '', deliveryViaPost: false
+      state: '', country: 'Brasil', clinicName: '', deliveryViaPost: false,
+      priceTableId: '', billingLimit: 0, isBlocked: false,
+      isCustomPricing: false, globalDiscountPercent: 0, customPrices: []
     });
+    setHasBillingLimit(false);
   };
 
   // --- AI IMPORT LOGIC (REFINED FOR CRO) ---
@@ -299,6 +319,7 @@ export const DentistsTab = () => {
                                 <button onClick={() => {
                                     setEditingDentistId(dentist.id);
                                     setFormData({ ...dentist } as any);
+                                    setHasBillingLimit((dentist.billingLimit || 0) > 0);
                                     setIsAddingDentist(true);
                                 }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit size={18}/></button>
                                 <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>
@@ -370,23 +391,23 @@ export const DentistsTab = () => {
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CEP</label>
-                            <input name="cep" value={formData.cep} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <input name="cep" value={formData.cep} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Logradouro</label>
-                            <input name="address" value={formData.address} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <input name="address" value={formData.address} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Número</label>
-                            <input name="number" value={formData.number} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <input name="number" value={formData.number} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Cidade</label>
-                            <input name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <input name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">UF</label>
-                            <input name="state" value={formData.state} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <input name="state" value={formData.state} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           
                           <div className="md:col-span-1 flex flex-col justify-end">
@@ -400,6 +421,156 @@ export const DentistsTab = () => {
                                 />
                                 <span className="text-[10px] font-black text-orange-800 uppercase leading-none">Via Correios</span>
                             </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">4. Configurações Financeiras e Tabela</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {hasPerm('catalog:prices_view') && (
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Tabela de Preços Base</label>
+                                <div className="relative">
+                                    <Table size={16} className="absolute left-3 top-3 text-slate-400" />
+                                    <select 
+                                        name="priceTableId" 
+                                        value={formData.priceTableId} 
+                                        onChange={handleInputChange}
+                                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                    >
+                                        <option value="">Tabela Padrão (Sem tabela base)</option>
+                                        {priceTables.map(table => (
+                                            <option key={table.id} value={table.id}>{table.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                          )}
+
+                          <div className="flex flex-col gap-2">
+                            <label className="flex items-center gap-2 cursor-pointer p-2 bg-slate-50 border border-slate-100 rounded-xl hover:border-blue-200 transition-all">
+                                <input 
+                                    type="checkbox" 
+                                    checked={hasBillingLimit} 
+                                    onChange={e => setHasBillingLimit(e.target.checked)}
+                                    className="w-4 h-4 rounded text-blue-600" 
+                                />
+                                <span className="text-[10px] font-black text-slate-600 uppercase">Limitar Fatura</span>
+                            </label>
+                            
+                            {hasBillingLimit && (
+                                <div className="flex items-center gap-2 animate-in slide-in-from-left-2">
+                                    <div className="relative flex-1">
+                                        <DollarSign size={14} className="absolute left-3 top-2.5 text-slate-400" />
+                                        <input 
+                                            type="number"
+                                            name="billingLimit"
+                                            value={formData.billingLimit}
+                                            onChange={handleInputChange}
+                                            placeholder="Valor Limite (R$)"
+                                            className="w-full pl-8 pr-4 py-2 bg-white border border-blue-200 rounded-xl font-bold text-slate-700 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                          </div>
+
+                          {hasPerm('clients:block_manage') && (
+                            <div className="md:col-span-2">
+                                <label className="flex items-center gap-2 cursor-pointer p-3 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-all">
+                                    <input 
+                                        type="checkbox" 
+                                        name="isBlocked" 
+                                        checked={formData.isBlocked} 
+                                        onChange={handleInputChange}
+                                        className="w-5 h-5 rounded text-red-600 focus:ring-red-500" 
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        {formData.isBlocked ? <Lock size={18} className="text-red-600" /> : <Unlock size={18} className="text-green-600" />}
+                                        <div>
+                                            <span className="text-[12px] font-black text-red-800 uppercase block">Status: {formData.isBlocked ? 'BLOQUEADO' : 'DESBLOQUEADO'}</span>
+                                            <span className="text-[10px] font-medium text-red-600 block leading-tight">Clientes bloqueados não podem criar novos trabalhos nem finalizar existentes.</span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                          )}
+
+                          <div className="md:col-span-2 flex flex-col gap-4 pt-4 border-t border-slate-100">
+                             <div className="flex items-center justify-between bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                <div>
+                                    <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
+                                    <p className="text-[10px] text-blue-600 font-bold">Ignora a tabela base e aplica descontos manuais</p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only peer" 
+                                        checked={formData.isCustomPricing}
+                                        onChange={e => setFormData(prev => ({ ...prev, isCustomPricing: e.target.checked }))}
+                                    />
+                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                             </div>
+
+                             {formData.isCustomPricing && (
+                                <div className="space-y-4 animate-in slide-in-from-top-2">
+                                  <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                                      <div className="flex items-center gap-3 mb-4 text-green-800">
+                                          <Percent size={24} />
+                                          <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
+                                      </div>
+                                      <div className="flex items-center gap-4">
+                                          <input 
+                                              type="range" 
+                                              min="0" 
+                                              max="50" 
+                                              value={formData.globalDiscountPercent || 0}
+                                              onChange={e => setFormData(prev => ({ ...prev, globalDiscountPercent: parseInt(e.target.value) }))}
+                                              className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                          />
+                                          <span className="font-black text-2xl text-green-700 w-16 text-right">{formData.globalDiscountPercent || 0}%</span>
+                                      </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2">
+                                      {jobTypes.map((type: any) => {
+                                          const cp = formData.customPrices?.find((p: any) => p.jobTypeId === type.id);
+                                          const val = cp?.discountPercent || 0;
+                                          return (
+                                              <div key={type.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+                                                  <div className="min-w-0 flex-1">
+                                                      <p className="text-xs font-bold text-slate-700 truncate">{type.name}</p>
+                                                      <p className="text-[10px] text-slate-400">R$ {type.basePrice.toFixed(2)}</p>
+                                                  </div>
+                                                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden shrink-0">
+                                                      <input 
+                                                          type="number" 
+                                                          value={val || ''}
+                                                          onChange={e => {
+                                                              const newPercent = parseInt(e.target.value) || 0;
+                                                              const newCustomPrices = [...(formData.customPrices || [])];
+                                                              const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                              if (idx !== -1) {
+                                                                  if (newPercent === 0) newCustomPrices.splice(idx, 1);
+                                                                  else newCustomPrices[idx].discountPercent = newPercent;
+                                                              } else if (newPercent > 0) {
+                                                                  newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent });
+                                                              }
+                                                              setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
+                                                          }}
+                                                          className="w-12 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
+                                                          placeholder="0"
+                                                      />
+                                                      <span className="px-2 text-[10px] font-bold text-slate-400 border-l">%</span>
+                                                  </div>
+                                              </div>
+                                          );
+                                      })}
+                                  </div>
+                                </div>
+                             )}
                           </div>
                         </div>
                       </div>

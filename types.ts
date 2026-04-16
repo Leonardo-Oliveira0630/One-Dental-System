@@ -130,7 +130,9 @@ export type PermissionKey =
   | 'vip:view'
   | 'calendar:view'
   | 'commissions:view'
-  | 'logistics:manage';
+  | 'logistics:manage'
+  | 'catalog:prices_view'
+  | 'clients:block_manage';
 
 export enum JobStatus {
   PENDING = 'PENDING',
@@ -342,6 +344,8 @@ export interface User {
   cep?: string;
   fcmTokens?: string[];
   deliveryViaPost?: boolean;
+  billingLimit?: number;
+  isBlocked?: boolean;
 }
 
 export interface CartItem {
@@ -515,4 +519,6 @@ export interface ManualDentist {
     variations?: { [optionId: string]: number };
   }[];
   deliveryViaPost?: boolean;
+  billingLimit?: number;
+  isBlocked?: boolean;
 }

@@ -69,7 +69,8 @@ const ALL_PERMISSIONS: PermissionKey[] = [
   'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:view',
   'finance:view', 'finance:manage', 'catalog:manage',
   'clients:manage', 'sectors:manage', 'users:manage',
-  'vip:view', 'calendar:view', 'commissions:view', 'logistics:manage'
+  'vip:view', 'calendar:view', 'commissions:view', 'logistics:manage',
+  'catalog:prices_view', 'clients:block_manage'
 ];
 
 interface AppContextType {
@@ -351,6 +352,39 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     
     return () => unsubs.forEach(u => u());
   }, [currentUser, activeDataId]);
+
+  // Automatic Blocking Logic
+  useEffect(() => {
+    if (!activeDataId || jobs.length === 0 || (currentUser?.role === UserRole.CLIENT)) return;
+
+    const checkBlocking = async () => {
+      const dentists = [...allUsers.filter(u => u.role === UserRole.CLIENT), ...manualDentists];
+      
+      for (const d of dentists) {
+        if (d.billingLimit && d.billingLimit > 0 && !d.isBlocked) {
+          const pendingBalance = jobs
+            .filter(j => 
+              j.dentistId === d.id &&
+              (j.paymentStatus === 'PENDING' || !j.paymentStatus) && 
+              (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) &&
+              !j.batchId && !j.asaasPaymentId
+            )
+            .reduce((acc, curr) => acc + curr.totalValue, 0);
+
+          if (pendingBalance >= d.billingLimit) {
+            console.log(`Blocking dentist ${d.name} - Balance: ${pendingBalance}, Limit: ${d.billingLimit}`);
+            if (allUsers.find(u => u.id === d.id)) {
+              await api.apiUpdateUser(d.id, { isBlocked: true });
+            } else {
+              await api.apiUpdateManualDentist(activeDataId, d.id, { isBlocked: true });
+            }
+          }
+        }
+      }
+    };
+
+    checkBlocking();
+  }, [jobs, allUsers, manualDentists, activeDataId, currentUser]);
 
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => await api.apiLogout();

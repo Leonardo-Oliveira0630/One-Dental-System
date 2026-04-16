@@ -110,6 +110,13 @@ export const JobsList = () => {
   });
 
   const handleFinalizeJob = async (job: Job) => {
+      // New check: Is the dentist blocked?
+      const dentist = allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId);
+      if (dentist?.isBlocked) {
+          alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível finalizar o trabalho até que a pendência seja resolvida.");
+          return;
+      }
+
       if (!window.confirm(`Deseja finalizar o caso de ${job.patientName}?`)) return;
       await updateJob(job.id, {
           status: JobStatus.COMPLETED,
