@@ -1,12 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { UserRole, ManualDentist, Job } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table } from 'lucide-react';
+import { UserRole, ManualDentist, Job, JobStatus } from '../../types';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dentists = () => {
-    const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, currentUser } = useApp();
+    const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, currentUser, billingBatches, generateBatchBoleto } = useApp();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -22,7 +22,13 @@ export const Dentists = () => {
     const [isCustomPricing, setIsCustomPricing] = useState(false);
     const [isBlocked, setIsBlocked] = useState(false);
     const [billingLimit, setBillingLimit] = useState<number>(0);
-    const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
+    const [blockReason, setBlockReason] = useState<'DEBT' | 'FINANCIAL_APPROVAL' | ''>('');
+    const [temporaryUnblockUntil, setTemporaryUnblockUntil] = useState<Date | null>(null);
+    const [customPrices, setCustomPrices] = useState<any[]>([]);
+    
+    // Extrato State
+    const [showStatement, setShowStatement] = useState(false);
+    const [statementClient, setStatementClient] = useState<any | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     // UNIFICAÇÃO DOS CLIENTES
@@ -41,7 +47,11 @@ export const Dentists = () => {
                 customPrices: d.customPrices || [],
                 deliveryViaPost: d.deliveryViaPost || false,
                 priceTableId: d.priceTableId || '',
-                isCustomPricing: d.isCustomPricing || false
+                isCustomPricing: d.isCustomPricing || false,
+                isBlocked: d.isBlocked || false,
+                billingLimit: d.billingLimit || 0,
+                blockReason: d.blockReason || '',
+                temporaryUnblockUntil: d.temporaryUnblockUntil || null
             });
         });
 
@@ -60,7 +70,9 @@ export const Dentists = () => {
                     priceTableId: u.priceTableId || '',
                     isCustomPricing: u.isCustomPricing || false,
                     isBlocked: u.isBlocked || false,
-                    billingLimit: u.billingLimit || 0
+                    billingLimit: u.billingLimit || 0,
+                    blockReason: u.blockReason || '',
+                    temporaryUnblockUntil: u.temporaryUnblockUntil || null
                 });
             }
         });
@@ -79,14 +91,9 @@ export const Dentists = () => {
         setIsCustomPricing(client.isCustomPricing || false);
         setIsBlocked(client.isBlocked || false);
         setBillingLimit(client.billingLimit || 0);
-        
-        const discounts: Record<string, number> = {};
-        client.customPrices?.forEach((cp: any) => {
-            if (cp.discountPercent !== undefined) {
-                discounts[cp.jobTypeId] = cp.discountPercent;
-            }
-        });
-        setCustomDiscounts(discounts);
+        setBlockReason(client.blockReason || '');
+        setTemporaryUnblockUntil(client.temporaryUnblockUntil ? new Date(client.temporaryUnblockUntil) : null);
+        setCustomPrices(client.customPrices || []);
     };
 
     const handleSavePricing = async () => {
@@ -94,13 +101,6 @@ export const Dentists = () => {
         setIsSaving(true);
         
         try {
-            const customPrices = (Object.entries(customDiscounts) as [string, number][])
-                .filter(([_, val]) => val > 0)
-                .map(([jobTypeId, discountPercent]) => ({
-                    jobTypeId,
-                    discountPercent
-                }));
-
             const updates: any = {
                 globalDiscountPercent: globalDiscount,
                 customPrices: customPrices,
@@ -115,6 +115,8 @@ export const Dentists = () => {
             if (hasPerm('clients:block_manage')) {
                 updates.isBlocked = isBlocked;
                 updates.billingLimit = billingLimit;
+                updates.blockReason = blockReason || null;
+                updates.temporaryUnblockUntil = temporaryUnblockUntil;
             }
 
             if (selectedClient.isManual) {
@@ -123,7 +125,7 @@ export const Dentists = () => {
                 await updateUser(selectedClient.id, updates);
             }
 
-            alert("Tabela de preços atualizada!");
+            alert("Client settings updated!");
             setSelectedClient(null);
         } catch (error) {
             console.error("Erro ao salvar preços:", error);
@@ -133,10 +135,44 @@ export const Dentists = () => {
         }
     };
 
-    const filtered = combinedClients.filter(d => 
-        d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (d.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filtered = useMemo(() => {
+        return combinedClients.filter(d => 
+            d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            (d.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [combinedClients, searchTerm]);
+
+    const statementData = useMemo(() => {
+        if (!statementClient) return [];
+        
+        const clientJobs = jobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+        const clientBatches = billingBatches.filter(b => b.dentistId === statementClient.id && b.status === 'PAID');
+        
+        const history = [
+            ...clientJobs.map(j => ({
+                id: j.id,
+                date: j.createdAt,
+                type: 'DEBIT' as const,
+                description: `Trabalho: ${j.patientName} (${j.osNumber || j.id})`,
+                amount: j.totalValue || 0
+            })),
+            ...clientBatches.map(b => ({
+                id: b.id,
+                date: b.createdAt,
+                type: 'PAYMENT' as const,
+                description: `Pagamento Fatura: ${b.id}`,
+                amount: b.totalAmount || 0
+            }))
+        ];
+        
+        return history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }, [statementClient, jobs, billingBatches]);
+
+    const currentBalance = useMemo(() => {
+        const debits = statementData.filter(d => d.type === 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
+        const payments = statementData.filter(d => d.type === 'PAYMENT').reduce((acc, curr) => acc + curr.amount, 0);
+        return debits - payments;
+    }, [statementData]);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -215,12 +251,25 @@ export const Dentists = () => {
                             >
                                 <Tag size={16} /> Tabela Preços
                             </button>
-                            <button 
-                                onClick={() => navigate(`/jobs?dentist=${client.id}`)}
-                                className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs shadow-lg shadow-blue-100"
-                            >
-                                Extrato <ArrowRight size={16} />
-                            </button>
+                            {hasPerm('clients:statement_view') && (
+                              <button 
+                                  onClick={() => {
+                                      setStatementClient(client);
+                                      setShowStatement(true);
+                                  }}
+                                  className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs shadow-lg shadow-blue-100"
+                              >
+                                  <FileText size={16} /> Extrato
+                              </button>
+                            )}
+                            {!hasPerm('clients:statement_view') && (
+                              <button 
+                                  onClick={() => navigate(`/jobs?dentist=${client.id}`)}
+                                  className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs shadow-lg shadow-blue-100"
+                              >
+                                  Trabalhos <ArrowRight size={16} />
+                              </button>
+                            )}
                         </div>
                     </div>
                 ))}
@@ -238,8 +287,70 @@ export const Dentists = () => {
                             <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                                {hasPerm('clients:block_manage') && (
+                                    <div className="space-y-4">
+                                        <div className={`p-4 rounded-xl border transition-all ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    {isBlocked ? <Lock size={20} className="text-red-600" /> : <Unlock size={20} className="text-green-600" />}
+                                                    <div>
+                                                        <span className="text-sm font-black text-slate-800 uppercase block">Status: {isBlocked ? 'BLOQUEADO' : 'ATIVO'}</span>
+                                                        <span className="text-[10px] font-medium text-slate-500 block leading-tight">Clientes bloqueados não podem criar novos trabalhos.</span>
+                                                    </div>
+                                                </div>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="sr-only peer" 
+                                                        checked={isBlocked} 
+                                                        onChange={() => setIsBlocked(!isBlocked)}
+                                                    />
+                                                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                                                </label>
+                                            </div>
+
+                                            {(isBlocked || blockReason) && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Motivo do Bloqueio</label>
+                                                        <select 
+                                                            value={blockReason}
+                                                            onChange={e => setBlockReason(e.target.value as any)}
+                                                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                                                        >
+                                                            <option value="">Selecione um motivo...</option>
+                                                            <option value="DEBT">Inadimplência</option>
+                                                            <option value="FINANCIAL_APPROVAL">Aguardando Aprovação Financeira</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Desbloqueio Temporário</label>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const tomorrow = new Date();
+                                                                tomorrow.setHours(tomorrow.getHours() + 24);
+                                                                setTemporaryUnblockUntil(tomorrow);
+                                                                setIsBlocked(false);
+                                                            }}
+                                                            className="w-full px-3 py-2 bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-[10px] font-black uppercase hover:bg-amber-200 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <RefreshCw size={14} /> Liberar por 24h
+                                                        </button>
+                                                        {temporaryUnblockUntil && new Date(temporaryUnblockUntil) > new Date() && (
+                                                            <p className="text-[9px] text-amber-600 font-bold mt-1 ml-1 flex items-center gap-1">
+                                                                <Check size={10} /> Liberado até {new Date(temporaryUnblockUntil).toLocaleString()}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {hasPerm('catalog:prices_view') && (
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tabela de Preços Base</label>
@@ -301,6 +412,41 @@ export const Dentists = () => {
                                                         className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
                                                     />
                                                 </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 pt-3 border-t border-red-100">
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1">Motivo do Bloqueio</label>
+                                                        <select 
+                                                            value={blockReason}
+                                                            onChange={e => setBlockReason(e.target.value as any)}
+                                                            className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none"
+                                                        >
+                                                            <option value="">Selecione um motivo...</option>
+                                                            <option value="DEBT">Inadimplência</option>
+                                                            <option value="FINANCIAL_APPROVAL">Aguardando Aprovação Financeira</option>
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 px-1">Ação Rápida</label>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const tomorrow = new Date();
+                                                                tomorrow.setHours(tomorrow.getHours() + 24);
+                                                                setTemporaryUnblockUntil(tomorrow);
+                                                                setIsBlocked(false);
+                                                            }}
+                                                            className="w-full px-3 py-1.5 bg-amber-100 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-black uppercase hover:bg-amber-200 transition-all flex items-center justify-center gap-1"
+                                                        >
+                                                            <Unlock size={12}/> Liberar por 24h
+                                                        </button>
+                                                        {temporaryUnblockUntil && new Date(temporaryUnblockUntil) > new Date() && (
+                                                            <p className="text-[9px] text-amber-600 font-bold mt-1">
+                                                                Liberado até {temporaryUnblockUntil.toLocaleString()}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -327,43 +473,80 @@ export const Dentists = () => {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <DollarSign size={14}/> Descontos Individuais por Serviço
-                                        </h4>
-                                        
-                                        <div className="space-y-3">
-                                            {jobTypes.map(type => {
-                                                const value = customDiscounts[type.id] || 0;
-                                                return (
-                                                    <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
-                                                        <div className="mb-2 sm:mb-0">
-                                                            <p className="font-bold text-slate-800">{type.name}</p>
-                                                            <p className="text-xs text-slate-400">Preço Padrão: R$ {type.basePrice.toFixed(2)}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="text-right">
-                                                                <p className="text-[10px] font-bold text-slate-400 uppercase">Preço Final</p>
-                                                                <p className="font-black text-blue-700">R$ {(type.basePrice * (1 - (value || globalDiscount) / 100)).toFixed(2)}</p>
+                                        <div className="space-y-4">
+                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <DollarSign size={14}/> Preços e Descontos Individuais
+                                            </h4>
+                                            
+                                            <div className="space-y-3">
+                                                {jobTypes.map(type => {
+                                                    const cp = customPrices.find(p => p.jobTypeId === type.id);
+                                                    const discountValue = cp?.discountPercent ?? (cp?.fixedPrice ? 0 : globalDiscount);
+                                                    const finalPrice = cp?.fixedPrice ?? (type.basePrice * (1 - discountValue / 100));
+                                                    
+                                                    return (
+                                                        <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
+                                                            <div className="mb-2 sm:mb-0">
+                                                                <p className="font-bold text-slate-800">{type.name}</p>
+                                                                <p className="text-xs text-slate-400">Preço Padrão: R$ {type.basePrice.toFixed(2)}</p>
                                                             </div>
-                                                            <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                                                <input 
-                                                                    type="number" 
-                                                                    min="0" 
-                                                                    max="100"
-                                                                    value={value || ''}
-                                                                    onChange={e => setCustomDiscounts(prev => ({ ...prev, [type.id]: parseInt(e.target.value) || 0 }))}
-                                                                    className="w-16 px-3 py-2 font-bold text-center outline-none"
-                                                                    placeholder="0"
-                                                                />
-                                                                <div className="bg-slate-100 px-3 py-2 border-l border-slate-200 text-slate-500 font-bold text-xs">%</div>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="text-right">
+                                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">Preço Final</p>
+                                                                    <p className="font-black text-blue-700">R$ {finalPrice.toFixed(2)}</p>
+                                                                </div>
+                                                                
+                                                                <div className="flex items-center bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                                                                    <div className="flex items-center">
+                                                                        <input 
+                                                                            type="number" 
+                                                                            value={cp?.discountPercent ?? ''}
+                                                                            onChange={e => {
+                                                                                const newPercent = parseInt(e.target.value) || 0;
+                                                                                const newCustomPrices = [...customPrices];
+                                                                                const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                                if (idx !== -1) {
+                                                                                    newCustomPrices[idx] = { ...newCustomPrices[idx], discountPercent: newPercent, fixedPrice: undefined };
+                                                                                    if (newPercent === 0 && !newCustomPrices[idx].fixedPrice) newCustomPrices.splice(idx, 1);
+                                                                                } else if (newPercent > 0) {
+                                                                                    newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent });
+                                                                                }
+                                                                                setCustomPrices(newCustomPrices);
+                                                                            }}
+                                                                            className="w-14 px-2 py-2 font-bold text-center outline-none bg-transparent"
+                                                                            placeholder="0"
+                                                                        />
+                                                                        <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
+                                                                    </div>
+                                                                    <div className="w-px h-6 bg-slate-200 mx-1"></div>
+                                                                    <div className="flex items-center">
+                                                                        <span className="pl-2 pr-1 text-[10px] font-bold text-slate-400">R$</span>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            value={cp?.fixedPrice ?? ''}
+                                                                            onChange={e => {
+                                                                                const newFixed = parseFloat(e.target.value) || 0;
+                                                                                const newCustomPrices = [...customPrices];
+                                                                                const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                                if (idx !== -1) {
+                                                                                    newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined };
+                                                                                    if (newFixed === 0 && !newCustomPrices[idx].discountPercent) newCustomPrices.splice(idx, 1);
+                                                                                } else if (newFixed > 0) {
+                                                                                    newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed });
+                                                                                }
+                                                                                setCustomPrices(newCustomPrices);
+                                                                            }}
+                                                                            className="w-20 px-2 py-2 font-bold text-center outline-none bg-transparent"
+                                                                            placeholder="Fixo"
+                                                                        />
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
                                 </>
                             ) : (
                                 <div className="bg-slate-50 p-8 rounded-3xl border border-dashed border-slate-200 text-center">
@@ -386,6 +569,119 @@ export const Dentists = () => {
                                 {isSaving ? <Loader2 className="animate-spin" /> : <Save size={18} />}
                                 SALVAR TABELA
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* MODAL DE EXTRATO (STATEMENT) */}
+            {showStatement && statementClient && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-3xl">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
+                                    <FileText size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-800">Extrato Financeiro</h3>
+                                    <p className="text-xs text-slate-500 font-bold uppercase">{statementClient.name}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowStatement(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
+                        </div>
+
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo Devedor</p>
+                                <p className={`text-2xl font-black ${currentBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    R$ {currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total de Débitos</p>
+                                <p className="text-2xl font-black text-slate-700">
+                                    R$ {statementData.filter(d => d.type === 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Pagos</p>
+                                <p className="text-2xl font-black text-green-600">
+                                    R$ {statementData.filter(d => d.type === 'PAYMENT').reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-6 pb-6">
+                            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                                <table className="w-full text-left">
+                                    <thead className="bg-slate-50 border-b border-slate-100">
+                                        <tr>
+                                            <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Data</th>
+                                            <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Descrição</th>
+                                            <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase text-right">Valor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {statementData.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={3} className="px-4 py-8 text-center text-slate-400 font-bold italic">Nenhum registro encontrado.</td>
+                                            </tr>
+                                        ) : (
+                                            statementData.map((item, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="px-4 py-3 text-xs font-bold text-slate-600">
+                                                        {new Date(item.date).toLocaleDateString('pt-BR')}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            {item.type === 'DEBIT' ? (
+                                                                <ArrowDownCircle size={14} className="text-red-500" />
+                                                            ) : (
+                                                                <ArrowUpCircle size={14} className="text-green-500" />
+                                                            )}
+                                                            <span className="text-xs font-bold text-slate-800">{item.description}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className={`px-4 py-3 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
+                                                        {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 bg-white rounded-b-3xl flex justify-between items-center gap-4">
+                             <div className="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase">
+                                <Calendar size={14} /> Histórico Completo
+                             </div>
+                             <button 
+                                onClick={async () => {
+                                    const pendingJobIds = statementData
+                                        .filter(item => item.type === 'DEBIT')
+                                        .map(item => item.id);
+                                    
+                                    if (pendingJobIds.length === 0) {
+                                        alert('Não há débitos pendentes para gerar boleto.');
+                                        return;
+                                    }
+
+                                    try {
+                                        const dueDate = new Date();
+                                        dueDate.setDate(dueDate.getDate() + 5);
+                                        await generateBatchBoleto(statementClient.id, pendingJobIds, dueDate);
+                                        alert('Protocolo de boleto gerado com sucesso! Verifique a aba de faturamentos.');
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert('Erro ao gerar boleto. Verifique se o serviço está configurado.');
+                                    }
+                                }}
+                                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100"
+                             >
+                                <Receipt size={18} /> GERAR BOLETO
+                             </button>
                         </div>
                     </div>
                 </div>

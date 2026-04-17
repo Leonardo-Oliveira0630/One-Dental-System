@@ -2,11 +2,11 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch,
+  JobStatus, UrgencyLevel
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
-import { JobStatus, UrgencyLevel } from '../types';
 
 import * as authPkg from 'firebase/auth';
 import * as firestorePkg from 'firebase/firestore';
@@ -99,6 +99,7 @@ interface AppContextType {
   appointments: Appointment[];
   manualDentists: ManualDentist[];
   priceTables: PriceTable[];
+  billingBatches: BillingBatch[];
   activeAlert: JobAlert | null;
 
   login: (email: string, pass: string) => Promise<void>;
@@ -184,6 +185,7 @@ interface AppContextType {
   deletePriceTable: (id: string) => Promise<void>;
 
   addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => Promise<void>;
+  generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date) => Promise<any>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -221,6 +223,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
   const [priceTables, setPriceTables] = useState<PriceTable[]>([]);
+  const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
 
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
@@ -286,6 +289,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                     api.subscribeClinicServices(profileOrgId, setClinicServices);
                     api.subscribeClinicRooms(profileOrgId, setClinicRooms);
                     api.subscribeClinicDentists(profileOrgId, setClinicDentists);
+                    api.subscribeBillingBatches(profileOrgId, setBillingBatches);
                 }
             }
         }
@@ -345,6 +349,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeBoxColors(myOrgId, setBoxColors));
             unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
             unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
+            unsubs.push(api.subscribeBillingBatches(myOrgId, setBillingBatches));
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
             unsubs.push(api.subscribePriceTables(myOrgId, setPriceTables));
         }
@@ -358,10 +363,28 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if (!activeDataId || jobs.length === 0 || (currentUser?.role === UserRole.CLIENT)) return;
 
     const checkBlocking = async () => {
+      const now = new Date();
       const dentists = [...allUsers.filter(u => u.role === UserRole.CLIENT), ...manualDentists];
       
       for (const d of dentists) {
-        if (d.billingLimit && d.billingLimit > 0 && !d.isBlocked) {
+        // Se estiver temporariamente desbloqueado e o prazo não expirou, pula
+        if (d.temporaryUnblockUntil && new Date(d.temporaryUnblockUntil) > now) {
+          continue;
+        }
+
+        // Bloqueio por Aprovação Financeira (Sempre bloqueado até desbloqueio permanente ou temporário)
+        if (d.blockReason === 'FINANCIAL_APPROVAL' && !d.isBlocked) {
+           const updates = { isBlocked: true, blockReason: 'FINANCIAL_APPROVAL' } as any;
+           if (allUsers.find(u => u.id === d.id)) {
+             await api.apiUpdateUser(d.id, updates);
+           } else {
+             await api.apiUpdateManualDentist(activeDataId, d.id, updates);
+           }
+           continue;
+        }
+
+        // Bloqueio por Inadimplência
+        if (d.billingLimit && d.billingLimit > 0) {
           const pendingBalance = jobs
             .filter(j => 
               j.dentistId === d.id &&
@@ -371,13 +394,25 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             )
             .reduce((acc, curr) => acc + curr.totalValue, 0);
 
-          if (pendingBalance >= d.billingLimit) {
-            console.log(`Blocking dentist ${d.name} - Balance: ${pendingBalance}, Limit: ${d.billingLimit}`);
-            if (allUsers.find(u => u.id === d.id)) {
-              await api.apiUpdateUser(d.id, { isBlocked: true });
-            } else {
-              await api.apiUpdateManualDentist(activeDataId, d.id, { isBlocked: true });
-            }
+          const shouldBeBlocked = pendingBalance >= d.billingLimit;
+
+          if (shouldBeBlocked && !d.isBlocked) {
+             console.log(`Blocking dentist ${d.name} for DEBT - Balance: ${pendingBalance}, Limit: ${d.billingLimit}`);
+             const updates = { isBlocked: true, blockReason: 'DEBT' } as any;
+             if (allUsers.find(u => u.id === d.id)) {
+               await api.apiUpdateUser(d.id, updates);
+             } else {
+               await api.apiUpdateManualDentist(activeDataId, d.id, updates);
+             }
+          } 
+          // Se estava bloqueado por débito mas o saldo agora está ok, desbloqueia (exceto se for aprovação financeira)
+          else if (!shouldBeBlocked && d.isBlocked && d.blockReason === 'DEBT') {
+             const updates = { isBlocked: false, blockReason: null } as any;
+             if (allUsers.find(u => u.id === d.id)) {
+               await api.apiUpdateUser(d.id, updates);
+             } else {
+               await api.apiUpdateManualDentist(activeDataId, d.id, updates);
+             }
           }
         }
       }
@@ -694,11 +729,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiUpdateJob(orgId, job.id, { routeId });
   };
 
+  const generateBatchBoleto = async (dentistId: string, jobIds: string[], dueDate: Date) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    return api.apiGenerateBatchBoleto(orgId, dentistId, jobIds, dueDate);
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
       allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, activeAlert,
+      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, activeAlert,
       allPayments,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
@@ -719,7 +760,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
       addManualDentist, updateManualDentist, deleteManualDentist,
       addPriceTable, updatePriceTable, deletePriceTable,
-      addJobToRoute
+      addJobToRoute, generateBatchBoleto
     }}>
       {children}
     </AppContext.Provider>

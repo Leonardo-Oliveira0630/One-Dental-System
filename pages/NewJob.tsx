@@ -95,7 +95,10 @@ export const NewJob = () => {
             // Priority: Explicit Custom Prices
             const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
             if (custom) {
-                if (custom.discountPercent !== undefined) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                    basePrice = custom.fixedPrice;
+                    dentistDiscountRate = 0;
+                } else if (custom.discountPercent !== undefined) {
                     dentistDiscountRate = custom.discountPercent / 100;
                 } else if (custom.price !== undefined) {
                     basePrice = custom.price;

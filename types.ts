@@ -132,7 +132,8 @@ export type PermissionKey =
   | 'commissions:view'
   | 'logistics:manage'
   | 'catalog:prices_view'
-  | 'clients:block_manage';
+  | 'clients:block_manage'
+  | 'clients:statement_view';
 
 export enum JobStatus {
   PENDING = 'PENDING',
@@ -335,7 +336,8 @@ export interface User {
   customPrices?: { 
     jobTypeId: string; 
     price?: number; 
-    discountPercent?: number; 
+    discountPercent?: number;
+    fixedPrice?: number;
     variations?: { [optionId: string]: number };
   }[];
   address?: string;
@@ -346,6 +348,8 @@ export interface User {
   deliveryViaPost?: boolean;
   billingLimit?: number;
   isBlocked?: boolean;
+  blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
+  temporaryUnblockUntil?: Date;
 }
 
 export interface CartItem {
@@ -515,10 +519,13 @@ export interface ManualDentist {
   customPrices?: { 
     jobTypeId: string; 
     price?: number; 
-    discountPercent?: number; 
+    discountPercent?: number;
+    fixedPrice?: number;
     variations?: { [optionId: string]: number };
   }[];
   deliveryViaPost?: boolean;
   billingLimit?: number;
   isBlocked?: boolean;
+  blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
+  temporaryUnblockUntil?: Date;
 }

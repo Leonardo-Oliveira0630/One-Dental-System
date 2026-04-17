@@ -44,9 +44,11 @@ export const DentistsTab = () => {
     priceTableId: '',
     billingLimit: 0,
     isBlocked: false,
+    blockReason: '' as any,
+    temporaryUnblockUntil: null as any,
     isCustomPricing: false,
     globalDiscountPercent: 0,
-    customPrices: [] as { jobTypeId: string, discountPercent: number }[]
+    customPrices: [] as any[]
   });
 
   const [hasBillingLimit, setHasBillingLimit] = useState(false);
@@ -76,6 +78,8 @@ export const DentistsTab = () => {
           if (!hasPerm('clients:block_manage')) {
               delete dataToSave.isBlocked;
               delete dataToSave.billingLimit;
+              delete dataToSave.blockReason;
+              delete dataToSave.temporaryUnblockUntil;
           } else {
               dataToSave.billingLimit = hasBillingLimit ? formData.billingLimit : 0;
           }
@@ -97,8 +101,9 @@ export const DentistsTab = () => {
       birthDate: '', approvalDate: '', cep: '', address: '',
       number: '', complement: '', neighborhood: '', city: '',
       state: '', country: 'Brasil', clinicName: '', deliveryViaPost: false,
-      priceTableId: '', billingLimit: 0, isBlocked: false,
-      isCustomPricing: false, globalDiscountPercent: 0, customPrices: []
+      priceTableId: '', billingLimit: 0, 
+      isBlocked: false, blockReason: '' as any, temporaryUnblockUntil: null as any,
+      isCustomPricing: false, globalDiscountPercent: 0, customPrices: [] as any[]
     });
     setHasBillingLimit(false);
   };
@@ -487,23 +492,69 @@ export const DentistsTab = () => {
                           </div>
 
                           {hasPerm('clients:block_manage') && (
-                            <div className="md:col-span-2">
-                                <label className="flex items-center gap-2 cursor-pointer p-3 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition-all">
-                                    <input 
-                                        type="checkbox" 
-                                        name="isBlocked" 
-                                        checked={formData.isBlocked} 
-                                        onChange={handleInputChange}
-                                        className="w-5 h-5 rounded text-red-600 focus:ring-red-500" 
-                                    />
-                                    <div className="flex items-center gap-2">
-                                        {formData.isBlocked ? <Lock size={18} className="text-red-600" /> : <Unlock size={18} className="text-green-600" />}
-                                        <div>
-                                            <span className="text-[12px] font-black text-red-800 uppercase block">Status: {formData.isBlocked ? 'BLOQUEADO' : 'DESBLOQUEADO'}</span>
-                                            <span className="text-[10px] font-medium text-red-600 block leading-tight">Clientes bloqueados não podem criar novos trabalhos nem finalizar existentes.</span>
+                            <div className="md:col-span-2 space-y-4">
+                                <div className={`p-4 rounded-xl border transition-all ${formData.isBlocked ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            {formData.isBlocked ? <Lock size={18} className="text-red-600" /> : <Unlock size={18} className="text-green-600" />}
+                                            <div>
+                                                <span className="text-[12px] font-black text-slate-800 uppercase block">Status: {formData.isBlocked ? 'BLOQUEADO' : 'ATIVO'}</span>
+                                                <span className="text-[10px] font-medium text-slate-500 block leading-tight">Clientes bloqueados não podem criar novos trabalhos.</span>
+                                            </div>
                                         </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                name="isBlocked" 
+                                                className="sr-only peer" 
+                                                checked={formData.isBlocked} 
+                                                onChange={handleInputChange}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                                        </label>
                                     </div>
-                                </label>
+
+                                    {formData.isBlocked && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Motivo do Bloqueio</label>
+                                                <select 
+                                                    name="blockReason"
+                                                    value={(formData as any).blockReason || ''}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none"
+                                                >
+                                                    <option value="">Selecione um motivo...</option>
+                                                    <option value="DEBT">Inadimplência</option>
+                                                    <option value="FINANCIAL_APPROVAL">Aguardando Aprovação Financeira</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Desbloqueio Temporário</label>
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const tomorrow = new Date();
+                                                        tomorrow.setHours(tomorrow.getHours() + 24);
+                                                        setFormData(prev => ({ 
+                                                            ...prev, 
+                                                            temporaryUnblockUntil: tomorrow,
+                                                            isBlocked: false 
+                                                        }));
+                                                    }}
+                                                    className="w-full px-3 py-2 bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-[10px] font-black uppercase hover:bg-amber-200 transition-all"
+                                                >
+                                                    Liberar por 24h
+                                                </button>
+                                                {(formData as any).temporaryUnblockUntil && new Date((formData as any).temporaryUnblockUntil) > new Date() && (
+                                                    <p className="text-[9px] text-amber-600 font-bold mt-1">
+                                                        Liberado até {new Date((formData as any).temporaryUnblockUntil).toLocaleString()}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                           )}
 
@@ -554,26 +605,50 @@ export const DentistsTab = () => {
                                                       <p className="text-xs font-bold text-slate-700 truncate">{type.name}</p>
                                                       <p className="text-[10px] text-slate-400">R$ {type.basePrice.toFixed(2)}</p>
                                                   </div>
-                                                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden shrink-0">
-                                                      <input 
-                                                          type="number" 
-                                                          value={val || ''}
-                                                          onChange={e => {
-                                                              const newPercent = parseInt(e.target.value) || 0;
-                                                              const newCustomPrices = [...(formData.customPrices || [])];
-                                                              const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
-                                                              if (idx !== -1) {
-                                                                  if (newPercent === 0) newCustomPrices.splice(idx, 1);
-                                                                  else newCustomPrices[idx].discountPercent = newPercent;
-                                                              } else if (newPercent > 0) {
-                                                                  newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent });
-                                                              }
-                                                              setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
-                                                          }}
-                                                          className="w-12 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
-                                                          placeholder="0"
-                                                      />
-                                                      <span className="px-2 text-[10px] font-bold text-slate-400 border-l">%</span>
+                                                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden shrink-0 gap-1 pr-2">
+                                                      <div className="flex items-center">
+                                                          <input 
+                                                              type="number" 
+                                                              value={cp?.discountPercent || ''}
+                                                              onChange={e => {
+                                                                  const newPercent = parseInt(e.target.value) || 0;
+                                                                  const newCustomPrices = [...(formData.customPrices || [])];
+                                                                  const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                  if (idx !== -1) {
+                                                                      newCustomPrices[idx] = { ...newCustomPrices[idx], discountPercent: newPercent, fixedPrice: undefined };
+                                                                      if (newPercent === 0 && !(newCustomPrices[idx] as any).fixedPrice) newCustomPrices.splice(idx, 1);
+                                                                  } else if (newPercent > 0) {
+                                                                      newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent } as any);
+                                                                  }
+                                                                  setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
+                                                              }}
+                                                              className="w-12 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
+                                                              placeholder="0"
+                                                          />
+                                                          <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
+                                                      </div>
+                                                      <div className="w-px h-4 bg-slate-200 mx-1"></div>
+                                                      <div className="flex items-center">
+                                                          <span className="px-1 text-[10px] font-bold text-slate-400">R$</span>
+                                                          <input 
+                                                              type="number" 
+                                                              value={cp?.fixedPrice || ''}
+                                                              onChange={e => {
+                                                                  const newFixed = parseFloat(e.target.value) || 0;
+                                                                  const newCustomPrices = [...(formData.customPrices || [])];
+                                                                  const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                  if (idx !== -1) {
+                                                                      newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined as any };
+                                                                      if (newFixed === 0 && !(newCustomPrices[idx] as any).discountPercent) newCustomPrices.splice(idx, 1);
+                                                                  } else if (newFixed > 0) {
+                                                                      newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed } as any);
+                                                                  }
+                                                                  setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
+                                                              }}
+                                                              className="w-16 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
+                                                              placeholder="Fixo"
+                                                          />
+                                                      </div>
                                                   </div>
                                               </div>
                                           );
