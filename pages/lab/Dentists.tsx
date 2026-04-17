@@ -9,6 +9,7 @@ export const Dentists = () => {
     const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, currentUser, billingBatches, generateBatchBoleto } = useApp();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
 
     const hasPerm = (perm: string) => {
         if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
@@ -136,11 +137,21 @@ export const Dentists = () => {
     };
 
     const filtered = useMemo(() => {
-        return combinedClients.filter(d => 
-            d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            (d.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [combinedClients, searchTerm]);
+        return combinedClients.filter(d => {
+            const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                (d.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase());
+            
+            if (!matchesSearch) return false;
+
+            if (statusFilter === 'ALL') return true;
+            if (statusFilter === 'ACTIVE') return !d.isBlocked;
+            if (statusFilter === 'BLOCKED') return d.isBlocked;
+            if (statusFilter === 'DEBT') return d.isBlocked && d.blockReason === 'DEBT';
+            if (statusFilter === 'FINANCIAL_APPROVAL') return d.isBlocked && d.blockReason === 'FINANCIAL_APPROVAL';
+
+            return true;
+        });
+    }, [combinedClients, searchTerm, statusFilter]);
 
     const statementData = useMemo(() => {
         if (!statementClient) return [];
@@ -184,14 +195,29 @@ export const Dentists = () => {
             </div>
 
             <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                <div className="relative">
-                    <Search className="absolute left-3 top-3 text-slate-400" size={20} />
-                    <input 
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="Pesquisar em todos os clientes (Web e Internos)..."
-                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
+                <div className="flex flex-col md:flex-row gap-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-3 text-slate-400" size={20} />
+                        <input 
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            placeholder="Pesquisar por nome ou consultório..."
+                            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <select 
+                            value={statusFilter}
+                            onChange={e => setStatusFilter(e.target.value as any)}
+                            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                        >
+                            <option value="ALL">Todos os Clientes</option>
+                            <option value="ACTIVE">Clientes Ativos</option>
+                            <option value="BLOCKED">Todos os Bloqueados</option>
+                            <option value="DEBT">Por Inadimplência</option>
+                            <option value="FINANCIAL_APPROVAL">Por Análise de Crédito</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 

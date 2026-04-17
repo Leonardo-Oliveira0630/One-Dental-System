@@ -14,6 +14,7 @@ export const DentistsTab = () => {
   const [isAddingDentist, setIsAddingDentist] = useState(false);
   const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
   const [dentistSearch, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
 
   // AI Import States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -257,11 +258,21 @@ export const DentistsTab = () => {
     }
   };
 
-  const filteredDentists = manualDentists.filter(d => 
-    d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
-    (d.cro || '').includes(dentistSearch) ||
-    (d.cpfCnpj || '').includes(dentistSearch)
-  );
+  const filteredDentists = manualDentists.filter(d => {
+    const matchesSearch = d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
+      (d.cro || '').includes(dentistSearch) ||
+      (d.cpfCnpj || '').includes(dentistSearch);
+
+    if (!matchesSearch) return false;
+
+    if (statusFilter === 'ALL') return true;
+    if (statusFilter === 'ACTIVE') return !d.isBlocked;
+    if (statusFilter === 'BLOCKED') return d.isBlocked;
+    if (statusFilter === 'DEBT') return d.isBlocked && d.blockReason === 'DEBT';
+    if (statusFilter === 'FINANCIAL_APPROVAL') return d.isBlocked && d.blockReason === 'FINANCIAL_APPROVAL';
+
+    return true;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
@@ -278,14 +289,29 @@ export const DentistsTab = () => {
         </div>
 
         <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-            <div className="relative">
-                <Search className="absolute left-3 top-3 text-slate-400" size={18} />
-                <input 
-                    placeholder="Filtrar por nome, CRO ou documento..." 
-                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
-                    value={dentistSearch} 
-                    onChange={e => setSearchTerm(e.target.value)}
-                />
+            <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                    <input 
+                        placeholder="Filtrar por nome, CRO ou documento..." 
+                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium" 
+                        value={dentistSearch} 
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <div className="flex items-center gap-2">
+                    <select 
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value as any)}
+                        className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                    >
+                        <option value="ALL">Todos os Clientes</option>
+                        <option value="ACTIVE">Clientes Ativos</option>
+                        <option value="BLOCKED">Todos os Bloqueados</option>
+                        <option value="DEBT">Por Inadimplência</option>
+                        <option value="FINANCIAL_APPROVAL">Por Análise de Crédito</option>
+                    </select>
+                </div>
             </div>
         </div>
 
