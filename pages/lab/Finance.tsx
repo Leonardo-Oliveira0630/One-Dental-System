@@ -15,18 +15,17 @@ import {
 } from 'lucide-react';
 
 export const Finance = () => {
-  const { jobs, allUsers, manualDentists, currentOrg } = useApp();
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'RECEIVABLES' | 'EXPENSES' | 'BATCHES'>('DASHBOARD');
+  const { jobs, allUsers, manualDentists, currentOrg, dentistPayments, billingBatches } = useApp();
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'RECEIVABLES' | 'PAYMENTS' | 'BATCHES' | 'EXPENSES'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   
   // States
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]);
+  // Selected States
   const [selectedDentist, setSelectedDentist] = useState<any>(null);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isWithdrawing, setIsWithdrawing] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Expense Form State
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -38,116 +37,11 @@ export const Finance = () => {
       status: 'PAID' as 'PAID' | 'PENDING'
   });
 
-  useEffect(() => {
-    if (currentOrg) {
-      const unsubExp = api.subscribeExpenses(currentOrg.id, setExpenses);
-      const unsubBatch = api.subscribeBillingBatches(currentOrg.id, setBillingBatches);
-      return () => { unsubExp(); unsubBatch(); };
-    }
-  }, [currentOrg]);
-
-  // --- ANALYTICS CALCULATIONS ---
-  const stats = useMemo(() => {
-    const paidFromJobs = jobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, curr) => acc + curr.totalValue, 0);
-    const paidRevenue = paidFromJobs; 
-
-    const pendingRevenue = jobs.filter(j => 
-        (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) && 
-        (j.paymentStatus === 'PENDING' || !j.paymentStatus) &&
-        !j.batchId && !j.asaasPaymentId
-    ).reduce((acc, curr) => acc + curr.totalValue, 0);
-
-    const inBatchesPending = billingBatches.filter(b => b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
-
-    const totalExpenses = expenses.filter(e => e.status === 'PAID').reduce((acc, curr) => acc + curr.amount, 0);
-    
-    return { paidRevenue, pendingRevenue, inBatchesPending, totalExpenses, profit: paidRevenue - totalExpenses };
-  }, [jobs, expenses, billingBatches]);
-
-  const dentistSummary = useMemo(() => {
-    const map = new Map<string, any>();
-    const allDents = [...allUsers.filter(u => u.role === UserRole.CLIENT), ...manualDentists];
-    
-    allDents.forEach(d => {
-        map.set(d.id, { ...d, totalPending: 0, history: [], pendingJobs: [] });
-    });
-
-    jobs.forEach(job => {
-        let entry = map.get(job.dentistId);
-        if (!entry) {
-            entry = { id: job.dentistId, name: job.dentistName, totalPending: 0, history: [], pendingJobs: [] };
-            map.set(job.dentistId, entry);
-        }
-        
-        if (
-            (job.paymentStatus === 'PENDING' || !job.paymentStatus) && 
-            (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED) &&
-            !job.batchId && !job.asaasPaymentId
-        ) {
-            entry.totalPending += job.totalValue;
-            entry.pendingJobs.push(job);
-        }
-    });
-
-    return Array.from(map.values())
-        .filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        .filter(d => d.totalPending > 0)
-        .sort((a, b) => b.totalPending - a.totalPending);
-  }, [jobs, allUsers, manualDentists, searchTerm]);
-
-  const handleCreateBoleto = async () => {
-    if (!currentOrg || !selectedDentist || selectedJobIds.length === 0) return;
-    setIsGenerating(true);
-    try {
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 5);
-        await api.apiGenerateBatchBoleto(currentOrg.id, selectedDentist.id, selectedJobIds, dueDate);
-        alert("Boleto e Fatura gerados com sucesso!");
-        setSelectedDentist(null);
-        setSelectedJobIds([]);
-        setActiveTab('BATCHES');
-    } catch (error: any) {
-        alert("Erro: " + error.message);
-    } finally { setIsGenerating(false); }
-  };
-
-  const handleWithdrawFunds = async () => {
-      if (!currentOrg?.financialSettings?.balance || currentOrg.financialSettings.balance <= 0) {
-          alert("Você não possui saldo disponível para saque.");
-          return;
-      }
-      if (!window.confirm(`Deseja transferir R$ ${currentOrg.financialSettings.balance.toFixed(2)} para sua conta bancária cadastrada no Asaas?`)) return;
-      
-      setIsWithdrawing(true);
-      try {
-          await api.apiRequestWithdrawal(currentOrg.id, currentOrg.financialSettings.balance);
-          alert("Solicitação de transferência enviada com sucesso!");
-      } catch (err: any) {
-          alert("Erro ao solicitar saque: " + err.message);
-      } finally { setIsWithdrawing(false); }
-  };
-
-  const handleAddExpense = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!currentOrg) return;
-      try {
-          await api.apiAddExpense(currentOrg.id, {
-              ...expenseForm,
-              id: `exp_${Date.now()}`,
-              organizationId: currentOrg.id,
-              date: new Date(expenseForm.date),
-              createdAt: new Date()
-          } as any);
-          setShowExpenseModal(false);
-          setExpenseForm({ description: '', amount: 0, category: 'SUPPLIES', date: new Date().toISOString().split('T')[0], status: 'PAID' });
-      } catch (e) { alert("Erro ao salvar despesa."); }
-  };
-
-  const copyBoletoLink = (url: string, id: string) => {
-      navigator.clipboard.writeText(url);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
-  };
+  const filteredPayments = useMemo(() => {
+    return dentistPayments
+      .filter(p => p.dentistName.toLowerCase().includes(searchTerm.toLowerCase()) || (p.notes || '').toLowerCase().includes(searchTerm.toLowerCase()))
+      .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
+  }, [dentistPayments, searchTerm]);
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
@@ -172,7 +66,7 @@ export const Finance = () => {
                       <Clock size={12} /> Lançamentos a liberar: <strong>R$ {(currentOrg.financialSettings.pendingBalance || 0).toFixed(2)}</strong>
                   </p>
               </div>
-              <div className="flex flex-col gap-2 w-full md:w-auto relative z-10">
+              <div className="flex col gap-2 w-full md:w-auto relative z-10">
                   <button 
                     onClick={handleWithdrawFunds}
                     disabled={isWithdrawing || !currentOrg.financialSettings.balance}
@@ -189,8 +83,9 @@ export const Finance = () => {
 
       <div className="flex bg-slate-200 p-1 rounded-2xl w-fit overflow-x-auto no-scrollbar">
           <button onClick={() => setActiveTab('DASHBOARD')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Métricas</button>
-          <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Extrato p/ Faturamento</button>
-          <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturas & Boletos</button>
+          <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturar Dentista</button>
+          <button onClick={() => setActiveTab('PAYMENTS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'PAYMENTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Recebimentos</button>
+          <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Boletos</button>
           <button onClick={() => setActiveTab('EXPENSES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Despesas</button>
       </div>
 
