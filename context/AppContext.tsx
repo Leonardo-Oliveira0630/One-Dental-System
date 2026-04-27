@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch,
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch, DentistPayment,
   JobStatus, UrgencyLevel
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
@@ -100,6 +100,7 @@ interface AppContextType {
   manualDentists: ManualDentist[];
   priceTables: PriceTable[];
   billingBatches: BillingBatch[];
+  dentistPayments: DentistPayment[];
   activeAlert: JobAlert | null;
 
   login: (email: string, pass: string) => Promise<void>;
@@ -186,6 +187,8 @@ interface AppContextType {
 
   addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => Promise<void>;
   generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date) => Promise<any>;
+  addDentistPayment: (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
+  updateBillingBatchStatus: (id: string, status: BillingBatch['status']) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -224,6 +227,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
   const [priceTables, setPriceTables] = useState<PriceTable[]>([]);
   const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]);
+  const [dentistPayments, setDentistPayments] = useState<DentistPayment[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
 
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
@@ -350,6 +354,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
             unsubs.push(api.subscribeAlerts(myOrgId, setAlerts));
             unsubs.push(api.subscribeBillingBatches(myOrgId, setBillingBatches));
+            unsubs.push(api.subscribeDentistPayments(myOrgId, setDentistPayments));
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
             unsubs.push(api.subscribePriceTables(myOrgId, setPriceTables));
         }
@@ -735,11 +740,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return api.apiGenerateBatchBoleto(orgId, dentistId, jobIds, dueDate);
   };
 
+  const addDentistPayment = async (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    const newPayment: DentistPayment = {
+      ...p,
+      id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      organizationId: orgId,
+      createdAt: new Date()
+    };
+    await api.apiAddDentistPayment(orgId, newPayment);
+  };
+
+  const updateBillingBatchStatus = async (id: string, status: BillingBatch['status']) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    await api.apiUpdateBillingBatchStatus(orgId, id, status);
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
       allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, activeAlert,
+      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
       allPayments,
       login, logout, updateUser, addUser, deleteUser,
       addJob, updateJob, addCommissionRecord, updateCommissionStatus,
@@ -760,7 +783,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
       addManualDentist, updateManualDentist, deleteManualDentist,
       addPriceTable, updatePriceTable, deletePriceTable,
-      addJobToRoute, generateBatchBoleto
+      addJobToRoute, generateBatchBoleto,
+      addDentistPayment, updateBillingBatchStatus
     }}>
       {children}
     </AppContext.Provider>

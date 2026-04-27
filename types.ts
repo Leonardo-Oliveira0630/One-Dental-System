@@ -103,6 +103,7 @@ export interface BillingBatch {
   status: 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
   dueDate: Date;
   invoiceUrl?: string; 
+  boletoUrl?: string;
   nfeUrl?: string;     
   nfeNumber?: string;
   createdAt: Date;
@@ -490,6 +491,20 @@ export interface PaymentRecord {
   paymentDate?: Date;
   dueDate: Date;
   paymentMethod?: string;
+  createdAt: Date;
+}
+
+export interface DentistPayment {
+  id: string;
+  organizationId: string;
+  dentistId: string;
+  dentistName: string;
+  amount: number;
+  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT';
+  paymentDate: Date;
+  type: 'PAYMENT' | 'DISCOUNT';
+  notes?: string;
+  batchId?: string;
   createdAt: Date;
 }
 
