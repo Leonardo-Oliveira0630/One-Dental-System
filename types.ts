@@ -499,10 +499,10 @@ export interface DentistPayment {
   organizationId: string;
   dentistId: string;
   dentistName: string;
-  amount: number; // Final net amount received
-  discount?: number;
-  interest?: number;
-  fees?: number;
+  amount: number;
+  interest?: number; // Juros
+  fees?: number;     // Taxas
+  discount?: number; // Desconto no ato do pagamento
   paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT';
   paymentDate: Date;
   type: 'PAYMENT' | 'DISCOUNT';

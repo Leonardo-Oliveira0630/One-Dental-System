@@ -2,8 +2,10 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle } from 'lucide-react';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const Dentists = () => {
     const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, currentUser, billingBatches, generateBatchBoleto, dentistPayments, addDentistPayment, updateBillingBatchStatus } = useApp();
@@ -32,10 +34,15 @@ export const Dentists = () => {
     const [statementClient, setStatementClient] = useState<any | null>(null);
     const [activeSubTab, setActiveSubTab] = useState<'EXTRATO' | 'RECEBIMENTOS' | 'FATURAS'>('EXTRATO');
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
     // Manual Payment Form
     const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState<number>(0);
+    const [paymentInterest, setPaymentInterest] = useState<number>(0);
+    const [paymentFees, setPaymentFees] = useState<number>(0);
+    const [paymentDiscount, setPaymentDiscount] = useState<number>(0);
     const [paymentMethod, setPaymentMethod] = useState<DentistPayment['paymentMethod']>('PIX');
     const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
     const [paymentNotes, setPaymentNotes] = useState('');
@@ -152,12 +159,18 @@ export const Dentists = () => {
                 dentistId: statementClient.id,
                 dentistName: statementClient.name,
                 amount: paymentAmount,
+                interest: paymentInterest,
+                fees: paymentFees,
+                discount: paymentDiscount,
                 paymentMethod: paymentMethod,
                 paymentDate: new Date(),
                 type: paymentType,
                 notes: paymentNotes
             });
             setPaymentAmount(0);
+            setPaymentInterest(0);
+            setPaymentFees(0);
+            setPaymentDiscount(0);
             setPaymentNotes('');
             setShowPaymentForm(false);
         } catch (err) {
@@ -222,9 +235,10 @@ export const Dentists = () => {
         }).reverse(); // Actually let's just do it simple
     }, [statementClient, jobs, dentistPayments]);
 
-    // Simple chronological statement
+    // Advanced chronological statement with previous balance
     const chronoHistory = useMemo(() => {
-        if (!statementClient) return [];
+        if (!statementClient) return { history: [], previousBalance: 0 };
+        
         const clientJobs = jobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
         const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
         
@@ -233,29 +247,133 @@ export const Dentists = () => {
                 id: j.id,
                 date: j.createdAt,
                 type: 'DEBIT' as const,
-                description: `Pedido ${j.osNumber || j.id}- Paciente: ${j.patientName}`,
-                amount: j.totalValue || 0
+                description: `OS #${j.osNumber || j.id.substring(0,6)} - Paciente: ${j.patientName}`,
+                amount: j.totalValue || 0,
+                job: j
             })),
             ...clientPayments.map(p => ({
                 id: p.id,
                 date: p.paymentDate,
                 type: (p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT',
                 description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
-                amount: p.amount
+                amount: p.amount + (p.interest || 0) + (p.fees || 0) - (p.discount || 0),
+                payment: p
             }))
         ];
         
         const sorted = history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        let balance = 0;
-        return sorted.map(item => {
-            if (item.type === 'DEBIT') balance -= item.amount;
-            else balance += item.amount;
-            return { ...item, balanceAfter: balance };
+        
+        const startDate = new Date(selectedYear, selectedMonth, 1);
+        const endDate = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
+
+        let runningBalance = 0;
+        let previousBalance = 0;
+        
+        const historyWithBalance = sorted.map(item => {
+            if (item.type === 'DEBIT') runningBalance -= item.amount;
+            else runningBalance += item.amount;
+            
+            const isBefore = new Date(item.date) < startDate;
+            if (isBefore) previousBalance = runningBalance;
+            
+            return { ...item, balanceAfter: runningBalance };
         });
-    }, [statementClient, jobs, dentistPayments]);
+
+        const filteredHistory = historyWithBalance.filter(item => {
+            const d = new Date(item.date);
+            return d >= startDate && d <= endDate;
+        });
+
+        return { history: filteredHistory, previousBalance };
+    }, [statementClient, jobs, dentistPayments, selectedMonth, selectedYear]);
+
+    const generateStatementPDF = () => {
+        if (!statementClient) return;
+
+        const doc = new jsPDF();
+        const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        const periodStr = `${monthNames[selectedMonth]} / ${selectedYear}`;
+        
+        // Header
+        doc.setFontSize(20);
+        doc.text("Extrato", 105, 20, { align: 'center' });
+        doc.setFontSize(10);
+        doc.text(`Período: 01/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear} - ${new Date(selectedYear, selectedMonth + 1, 0).getDate()}/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`, 105, 28, { align: 'center' });
+
+        // Client Info
+        doc.setFontSize(10);
+        doc.text(`Cliente: ${statementClient.name.toUpperCase()}`, 14, 45);
+        doc.text(`Documento: ${statementClient.cpfCnpj || '-'}`, 14, 52);
+        doc.text(`Período: 01/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear} a ${new Date(selectedYear, selectedMonth + 1, 0).getDate()}/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`, 14, 59);
+
+        // Address (Right side)
+        const address = statementClient.clinicName || 'Consultório';
+        doc.text(`Endereço: ${address}`, 120, 45, { maxWidth: 80 });
+
+        // Table Header Manual Row for "Saldo Anterior"
+        autoTable(doc, {
+            startY: 70,
+            head: [['Data', 'Descrição', 'Valor', 'Saldo']],
+            body: [
+                ['', 'Saldo anterior', '', `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]
+            ],
+            theme: 'plain',
+            styles: { fontSize: 9, fontStyle: 'bold' },
+            columnStyles: { 3: { halign: 'right' } }
+        });
+
+        // Main Table
+        const tableBody = chronoHistory.history.map(item => {
+            const amountStr = item.type === 'DEBIT' ? `R$ -${item.amount.toFixed(2)}` : `R$ ${item.amount.toFixed(2)}`;
+            return [
+                new Date(item.date).toLocaleDateString('pt-BR'),
+                item.description,
+                { content: amountStr, styles: { textColor: (item.type === 'DEBIT' ? [255, 0, 0] : [0, 128, 0]) as [number, number, number] } },
+                `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            ];
+        });
+
+        autoTable(doc, {
+            startY: (doc as any).lastAutoTable.finalY + 2,
+            head: [],
+            body: tableBody,
+            theme: 'striped',
+            styles: { fontSize: 8 },
+            columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } }
+        });
+
+        // Totals
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        const totalServices = chronoHistory.history.filter(i => i.type === 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
+        const totalPayments = chronoHistory.history.filter(i => i.type !== 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
+        const currentBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
+
+        doc.setFontSize(10);
+        doc.text("Saldo anterior", 140, finalY);
+        doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY, { align: 'right' });
+        
+        doc.text("Total de serviços", 140, finalY + 7);
+        doc.setTextColor(255, 0, 0);
+        doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 7, { align: 'right' });
+        
+        doc.setTextColor(0, 0, 0);
+        doc.text("Total de pagamentos", 140, finalY + 14);
+        doc.setTextColor(0, 128, 0);
+        doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 14, { align: 'right' });
+        
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("Saldo atual no período", 140, finalY + 25);
+        const balanceColor = (currentBalance < 0 ? [255, 0, 0] : [0, 128, 0]) as [number, number, number];
+        doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2]);
+        doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 25, { align: 'right' });
+
+        doc.save(`Extrato_${statementClient.name}_${periodStr.replace(' / ', '_')}.pdf`);
+    };
 
     const totals = useMemo(() => {
-        const lastBalance = chronoHistory.length > 0 ? chronoHistory[chronoHistory.length - 1].balanceAfter : 0;
+        const lastBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
         const pendingInvoicesTotal = billingBatches.filter(b => b.dentistId === statementClient?.id && b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
         
         return {
@@ -788,6 +906,49 @@ export const Dentists = () => {
                         <div className="flex-1 overflow-y-auto p-6">
                             {activeSubTab === 'EXTRATO' && (
                                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+                                                <button 
+                                                    onClick={() => {
+                                                        if (selectedMonth === 0) {
+                                                            setSelectedMonth(11);
+                                                            setSelectedYear(selectedYear - 1);
+                                                        } else {
+                                                            setSelectedMonth(selectedMonth - 1);
+                                                        }
+                                                    }}
+                                                    className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600"
+                                                >
+                                                    <ChevronLeft size={18} />
+                                                </button>
+                                                <span className="px-4 font-black text-slate-700 text-xs min-w-[120px] text-center uppercase tracking-widest">
+                                                    {["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][selectedMonth]} {selectedYear}
+                                                </span>
+                                                <button 
+                                                    onClick={() => {
+                                                        if (selectedMonth === 11) {
+                                                            setSelectedMonth(0);
+                                                            setSelectedYear(selectedYear + 1);
+                                                        } else {
+                                                            setSelectedMonth(selectedMonth + 1);
+                                                        }
+                                                    }}
+                                                    className="p-2 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-600"
+                                                >
+                                                    <ChevronRight size={18} />
+                                                </button>
+                                            </div>
+                                            <p className="text-[10px] font-bold text-slate-400 max-w-[150px] leading-tight">Mude o período para ver o saldo anterior e fechamentos.</p>
+                                        </div>
+                                        <button 
+                                            onClick={generateStatementPDF}
+                                            className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-200"
+                                        >
+                                            <Download size={16} /> Exportar PDF
+                                        </button>
+                                    </div>
+
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                                         <table className="w-full text-left">
                                             <thead className="bg-slate-50 border-b border-slate-100">
@@ -799,24 +960,44 @@ export const Dentists = () => {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
-                                                {chronoHistory.length === 0 ? (
+                                                <tr className="bg-slate-50/50 font-bold border-b border-slate-200">
+                                                    <td className="px-6 py-4 text-xs text-slate-400">01/{(selectedMonth+1).toString().padStart(2,'0')}/{selectedYear}</td>
+                                                    <td className="px-6 py-4 text-xs text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
+                                                    <td className="px-6 py-4 text-right text-xs">-</td>
+                                                    <td className={`px-6 py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                        R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                                {chronoHistory.history.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/30">
-                                                            Nenhum registro financeiro encontrado.
+                                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
+                                                            Nenhum registro encontrado neste período.
                                                         </td>
                                                     </tr>
                                                 ) : (
-                                                    chronoHistory.slice().reverse().map((item, idx) => (
+                                                    chronoHistory.history.slice().reverse().map((item, idx) => (
                                                         <tr key={idx} className="hover:bg-slate-50 transition-colors group">
                                                             <td className="px-6 py-4 text-xs font-bold text-slate-500">
                                                                 {new Date(item.date).toLocaleDateString('pt-BR')}
                                                             </td>
                                                             <td className="px-6 py-4">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className={`p-2 rounded-lg ${item.type === 'DEBIT' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-                                                                        {item.type === 'DEBIT' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                                                                <div className="flex flex-col gap-1">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`p-2 rounded-lg ${item.type === 'DEBIT' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+                                                                            {item.type === 'DEBIT' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                                                                        </div>
+                                                                        <span className="text-xs font-black text-slate-800">{item.description}</span>
                                                                     </div>
-                                                                    <span className="text-xs font-black text-slate-800">{item.description}</span>
+                                                                    {item.type === 'DEBIT' && item.job && (
+                                                                        <div className="ml-10 space-y-1">
+                                                                            {item.job.items.map((it:any, iIdx:number) => (
+                                                                                <div key={iIdx} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
+                                                                                    <span>{it.quantity} x {it.name}</span>
+                                                                                    <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                             <td className={`px-6 py-4 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
@@ -849,9 +1030,9 @@ export const Dentists = () => {
 
                                     {showPaymentForm && (
                                         <div className="bg-white p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
-                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                 <div className="md:col-span-1">
-                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor (R$)</label>
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
                                                     <input 
                                                         type="number"
                                                         value={paymentAmount || ''}
@@ -861,11 +1042,41 @@ export const Dentists = () => {
                                                     />
                                                 </div>
                                                 <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-red-500">Juros/Mora (+)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentInterest || ''}
+                                                        onChange={e => setPaymentInterest(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-red-50/50 border border-red-100 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-red-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-green-600">Desconto (-)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentDiscount || ''}
+                                                        onChange={e => setPaymentDiscount(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-green-50/50 border border-green-100 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-green-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-orange-600">Taxas (-)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentFees || ''}
+                                                        onChange={e => setPaymentFees(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-orange-50/50 border border-orange-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-orange-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Forma</label>
                                                     <select 
                                                         value={paymentMethod}
                                                         onChange={e => setPaymentMethod(e.target.value as any)}
-                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700"
+                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 h-[46px]"
                                                     >
                                                         <option value="PIX">PIX</option>
                                                         <option value="CASH">Dinheiro</option>
@@ -875,7 +1086,13 @@ export const Dentists = () => {
                                                         <option value="DISCOUNT">Desconto/Cortesia</option>
                                                     </select>
                                                 </div>
-                                                <div className="md:col-span-2">
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">Total Líquido</label>
+                                                    <div className="w-full px-4 py-2.5 bg-slate-200 border border-slate-300 rounded-xl font-black text-slate-800 h-[46px] flex items-center">
+                                                        R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)}
+                                                    </div>
+                                                </div>
+                                                <div className="md:col-span-full">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Observações/Ref.</label>
                                                     <input 
                                                         value={paymentNotes}
@@ -892,7 +1109,7 @@ export const Dentists = () => {
                                                     onClick={handleSavePayment}
                                                     className="px-8 py-2 bg-green-600 text-white text-xs font-black uppercase rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center gap-2"
                                                 >
-                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} Confirmar Recebimento
+                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} Confirmar Recebimento (R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)})
                                                 </button>
                                             </div>
                                         </div>
@@ -1020,7 +1237,7 @@ export const Dentists = () => {
                                 <div className="hidden md:flex flex-col">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Último Pagamento</span>
                                     <span className="text-sm font-bold text-slate-600">
-                                        {chronoHistory.filter(i => i.type === 'PAYMENT').pop()?.date ? new Date(chronoHistory.filter(i => i.type === 'PAYMENT').pop()!.date).toLocaleDateString('pt-BR') : '--/--/----'}
+                                        {chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()?.date ? new Date(chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()!.date).toLocaleDateString('pt-BR') : '--/--/----'}
                                     </span>
                                 </div>
                             </div>
@@ -1029,7 +1246,7 @@ export const Dentists = () => {
                                 <button 
                                     onClick={async () => {
                                         // Identifying jobs not in any batch yet (simplified)
-                                        const pendingJobIds = chronoHistory
+                                        const pendingJobIds = chronoHistory.history
                                             .filter(item => item.type === 'DEBIT')
                                             .map(item => item.id);
                                         
