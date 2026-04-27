@@ -758,34 +758,41 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     await api.apiUpdateBillingBatchStatus(orgId, id, status);
   };
 
+  const contextValue = useMemo(() => ({
+    currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
+    allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
+    allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
+    allPayments,
+    login, logout, updateUser, addUser, deleteUser,
+    addJob, updateJob, addCommissionRecord, updateCommissionStatus,
+    addJobType, updateJobType, deleteJobType,
+    addClinicService, updateClinicService, deleteClinicService,
+    addClinicRoom, updateClinicRoom, deleteClinicRoom,
+    addClinicDentist, updateClinicDentist, deleteClinicDentist,
+    addSector, deleteSector, addBoxColor, deleteBoxColor,
+    cart, addToCart: (i: CartItem) => setCart(p => [...p,i]), removeFromCart: (id: string) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
+    uploadFile: api.uploadJobFile,
+    printData, triggerPrint: (j: Job,m: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL') => setPrintData({job:j, mode:m}), 
+    triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
+    clearPrint: () => setPrintData(null),
+    activeOrganization, switchActiveOrganization, userConnections,
+    updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
+    addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
+    registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
+    addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
+    addManualDentist, updateManualDentist, deleteManualDentist,
+    addPriceTable, updatePriceTable, deletePriceTable,
+    addJobToRoute, generateBatchBoleto,
+    addDentistPayment, updateBillingBatchStatus
+  }), [
+    currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
+    allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
+    allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
+    allPayments, cart, printData, activeOrganization, userConnections, activeDataId
+  ]);
+
   return (
-    <AppContext.Provider value={{
-      currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
-      allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-      allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
-      allPayments,
-      login, logout, updateUser, addUser, deleteUser,
-      addJob, updateJob, addCommissionRecord, updateCommissionStatus,
-      addJobType, updateJobType, deleteJobType,
-      addClinicService, updateClinicService, deleteClinicService,
-      addClinicRoom, updateClinicRoom, deleteClinicRoom,
-      addClinicDentist, updateClinicDentist, deleteClinicDentist,
-      addSector, deleteSector, addBoxColor, deleteBoxColor,
-      cart, addToCart: (i) => setCart(p => [...p,i]), removeFromCart: (id) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
-      uploadFile: api.uploadJobFile,
-      printData, triggerPrint: (j,m) => setPrintData({job:j, mode:m}), 
-      triggerRoutePrint: (items, driver, shift, date) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
-      clearPrint: () => setPrintData(null),
-      activeOrganization, switchActiveOrganization, userConnections,
-      updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
-      addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
-      registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
-      addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
-      addManualDentist, updateManualDentist, deleteManualDentist,
-      addPriceTable, updatePriceTable, deletePriceTable,
-      addJobToRoute, generateBatchBoleto,
-      addDentistPayment, updateBillingBatchStatus
-    }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

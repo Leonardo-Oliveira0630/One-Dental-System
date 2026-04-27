@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus } from '../types';
@@ -34,10 +34,21 @@ export const GlobalScanner: React.FC = () => {
   
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const SCANNER_TIMEOUT = 30; // Reduzido para maior precisão em scanners rápidos
+  // Mapeamento otimizado para busca instantânea de trabalhos por OS ou ID
+  const jobMap = useMemo(() => {
+    const map = new Map<string, Job>();
+    jobs.forEach(j => {
+      if (j.id) map.set(j.id.toUpperCase(), j);
+      if (j.osNumber) map.set(j.osNumber.toUpperCase().replace(/^0+/, ''), j);
+      if (j.osNumber) map.set(j.osNumber.toUpperCase(), j);
+    });
+    return map;
+  }, [jobs]);
+
+  const SCANNER_TIMEOUT = 30; 
   const MIN_LENGTH = 3;
 
-  const playBeep = (success = true) => {
+  const playBeep = useCallback((success = true) => {
     try {
         const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
@@ -51,12 +62,13 @@ export const GlobalScanner: React.FC = () => {
         oscillator.start();
         oscillator.stop(audioCtx.currentTime + 0.1);
     } catch (e) {}
-  };
+  }, []);
 
   // Refs para manter o listener estável e evitar re-registros frequentes
   const currentUserRef = useRef(currentUser);
   const isCameraActiveRef = useRef(isCameraActive);
   const jobsRef = useRef(jobs);
+  const jobMapRef = useRef(jobMap);
   const commissionsRef = useRef(commissions);
   const scannedJobRef = useRef(scannedJob);
   const scanActionRef = useRef(scanAction);
@@ -66,7 +78,7 @@ export const GlobalScanner: React.FC = () => {
     const handleOpenJobScannerPopup = (e: any) => {
         const jobId = e.detail?.jobId;
         if (!jobId) return;
-        const job = jobsRef.current.find(j => j.id === jobId);
+        const job = jobMapRef.current.get(jobId.toUpperCase()) || jobsRef.current.find(j => j.id === jobId);
         if (job) {
             setScannedJob(job);
             
@@ -87,11 +99,12 @@ export const GlobalScanner: React.FC = () => {
     currentUserRef.current = currentUser;
     isCameraActiveRef.current = isCameraActive;
     jobsRef.current = jobs;
+    jobMapRef.current = jobMap;
     commissionsRef.current = commissions;
     scannedJobRef.current = scannedJob;
     scanActionRef.current = scanAction;
     nextSectorRef.current = nextSector;
-  }, [currentUser, isCameraActive, jobs, commissions, scannedJob, scanAction, nextSector]);
+  }, [currentUser, isCameraActive, jobs, commissions, scannedJob, scanAction, nextSector, jobMap]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -280,7 +293,7 @@ export const GlobalScanner: React.FC = () => {
       };
   }, [isCameraActive]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !scannedJob || !currentUser) return;
 
@@ -308,9 +321,9 @@ export const GlobalScanner: React.FC = () => {
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [scannedJob, currentUser, uploadFile, updateJob]);
 
-  const processScan = async (code: string) => {
+  const processScan = useCallback(async (code: string) => {
     try {
         const cleanedCode = code.trim().toUpperCase().replace(/^0+/, ''); // Remove leading zeros and trim
         console.log(`[Scanner] Processando código: "${cleanedCode}" (Original: "${code}")`);
@@ -332,12 +345,8 @@ export const GlobalScanner: React.FC = () => {
         setCommissionEarned(0);
         setNextSector('');
         
-        // Busca flexível: tenta OS exata, ID exato, e OS sem zeros à esquerda
-        const job = jobsRef.current.find(j => {
-            const jobOs = (j.osNumber || '').trim().toUpperCase().replace(/^0+/, '');
-            const jobId = j.id.trim().toUpperCase();
-            return jobOs === cleanedCode || jobId === cleanedCode || (j.osNumber || '').toUpperCase() === cleanedCode;
-        });
+        // Busca instantânea via Map
+        const job = jobMapRef.current.get(cleanedCode);
         
         if (job) {
           console.log(`[Scanner] Trabalho encontrado: ${job.osNumber} (${job.id})`);
@@ -386,7 +395,7 @@ export const GlobalScanner: React.FC = () => {
         await playNativeHaptic(false);
         playBeep(false);
     }
-  };
+  }, [playBeep]);
 
   const handleMoveJob = async (nextSector?: string) => {
     const currentJob = scannedJobRef.current;

@@ -208,26 +208,44 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
     if (isClient && userId) {
         q = query(collection(db, `organizations/${orgId}/jobs`), where('dentistId', '==', userId));
     }
+
+    // Cache local para evitar mapeamento integral em cada update delta
+    let jobsCache: Map<string, Job> = new Map();
+
     return onSnapshot(q, (snap: any) => {
         try {
-            const rawJobs = snap.docs.map((d: any) => {
-                const data = d.data();
-                return { 
-                    id: d.id, 
-                    ...data,
-                    createdAt: toDate(data.createdAt), 
-                    dueDate: toDate(data.dueDate),
-                    sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
-                    history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) })),
-                    sectorMovements: (data.sectorMovements || []).map((m: any) => ({
-                        ...m,
-                        entryTime: toDate(m.entryTime),
-                        exitTime: m.exitTime ? toDate(m.exitTime) : undefined
-                    }))
-                } as Job;
+            let hasChanges = false;
+            
+            snap.docChanges().forEach((change: any) => {
+                const docId = change.doc.id;
+                
+                if (change.type === 'removed') {
+                    jobsCache.delete(docId);
+                    hasChanges = true;
+                } else {
+                    const data = change.doc.data();
+                    const job = { 
+                        id: docId, 
+                        ...data,
+                        createdAt: toDate(data.createdAt), 
+                        dueDate: toDate(data.dueDate),
+                        sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
+                        history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) })),
+                        sectorMovements: (data.sectorMovements || []).map((m: any) => ({
+                            ...m,
+                            entryTime: toDate(m.entryTime),
+                            exitTime: m.exitTime ? toDate(m.exitTime) : undefined
+                        }))
+                    } as Job;
+                    jobsCache.set(docId, job);
+                    hasChanges = true;
+                }
             });
-            const sortedJobs = rawJobs.sort((a: Job, b: Job) => b.createdAt.getTime() - a.createdAt.getTime());
-            cb(sortedJobs);
+
+            if (hasChanges || jobsCache.size === 0) {
+              const sortedJobs = Array.from(jobsCache.values()).sort((a: Job, b: Job) => b.createdAt.getTime() - a.createdAt.getTime());
+              cb(sortedJobs);
+            }
         } catch (err) {
             console.error("[ProTrack] Erro ao processar lista de trabalhos:", err);
         }

@@ -62,16 +62,21 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       return currentUser?.permissions?.includes(key) || false;
   };
 
-  const pendingOrdersCount = jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length;
+  const pendingOrdersCount = React.useMemo(() => 
+    jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length
+  , [jobs]);
+
   const bgClass = isSuperAdmin ? 'bg-slate-950' : (isClient ? 'bg-indigo-950' : 'bg-slate-900');
   
   const handleLogout = () => { logout(); navigate('/'); };
 
   const isViewingLabContext = isClient && (location.pathname.startsWith('/store') || location.pathname.startsWith('/jobs') || location.pathname.startsWith('/cart'));
   
-  const displayBrand = isViewingLabContext && activeOrganization 
-    ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
-    : { name: currentOrg?.name || 'MY TOOTH', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'MY TOOTH SYSTEM' };
+  const displayBrand = React.useMemo(() => 
+    isViewingLabContext && activeOrganization 
+      ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
+      : { name: currentOrg?.name || 'MY TOOTH', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'MY TOOTH SYSTEM' }
+  , [isViewingLabContext, activeOrganization, currentOrg, isClient]);
 
   return (
     <div className="min-h-screen print:min-h-0 flex print:block bg-slate-50 print:bg-white font-sans relative overflow-x-hidden print:overflow-visible w-full">

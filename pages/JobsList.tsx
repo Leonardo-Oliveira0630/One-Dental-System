@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
 import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal } from 'lucide-react';
@@ -7,8 +7,150 @@ import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
 
+// Componente de Linha Memoizado para evitar re-renders desnecessários
+const JobRow = memo(({ 
+    job, 
+    isClient, 
+    isLabStaff, 
+    navigate, 
+    handleFinalizeJob, 
+    handleReopenJob, 
+    setRouteModalJob,
+    getStatusColor,
+    getTranslatedStatus,
+    getSectorTimeInfo 
+}: { 
+    job: Job, 
+    isClient: boolean, 
+    isLabStaff: boolean, 
+    navigate: any, 
+    handleFinalizeJob: any, 
+    handleReopenJob: any, 
+    setRouteModalJob: any,
+    getStatusColor: any,
+    getTranslatedStatus: any,
+    getSectorTimeInfo: any
+}) => {
+    const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
+    const canRoute = isLabStaff && job.status === JobStatus.COMPLETED && !job.routeId;
+    const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
+    const timeInfo = getSectorTimeInfo(job);
+
+    return (
+        <tr className={`hover:bg-blue-50/30 transition-colors ${timeInfo.isAttention ? 'bg-yellow-50/50' : ''}`}>
+            <td className="p-4 font-mono font-bold text-sm">
+                <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 hover:text-blue-800 hover:underline text-left">
+                    {job.osNumber || '---'}
+                </button>
+            </td>
+            {!isClient && (
+                <td className="p-4">
+                    {job.boxNumber ? (
+                        <div 
+                            className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs shadow-sm border border-black/10"
+                            style={{ backgroundColor: job.boxColor?.hex || '#f1f5f9', color: job.boxColor ? getContrastColor(job.boxColor.hex) : '#64748b' }}
+                        >
+                            {job.boxNumber}
+                        </div>
+                    ) : <span className="text-slate-300">-</span>}
+                </td>
+            )}
+            <td className="p-4 font-bold text-slate-900 text-sm">{job.patientName}</td>
+            <td className="p-4">
+                <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
+            </td>
+            <td className="p-4">
+                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status)}`}>
+                    {getTranslatedStatus(job.status)}
+                </span>
+            </td>
+            <td className="p-4">
+                <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{job.currentSector || 'Triagem'}</span>
+                    <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
+                        <Clock size={12} /> {timeInfo.label}
+                        {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
+                    </div>
+                </div>
+            </td>
+            <td className="p-4 text-slate-600 text-xs font-bold">{new Date(job.dueDate).toLocaleDateString()}</td>
+            <td className="p-4 text-right">
+                <div className="flex justify-end gap-1">
+                    {canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 hover:bg-green-100 rounded-lg"><CheckCircle2 size={18} /></button>}
+                    {canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg"><RotateCcw size={18} /></button>}
+                    {canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg"><Truck size={18} /></button>}
+                    <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Eye size={18} /></button>
+                </div>
+            </td>
+        </tr>
+    );
+});
+
+// Componente de Card Mobile Memoizado
+const JobCard = memo(({ 
+    job, 
+    navigate, 
+    getStatusColor, 
+    getTranslatedStatus, 
+    getSectorTimeInfo, 
+    isClient 
+}: { 
+    job: Job, 
+    navigate: any, 
+    getStatusColor: any, 
+    getTranslatedStatus: any, 
+    getSectorTimeInfo: any, 
+    isClient: boolean 
+}) => {
+    const timeInfo = getSectorTimeInfo(job);
+    return (
+        <div onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${timeInfo.isAttention ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
+            {job.urgency === UrgencyLevel.VIP && <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden"><div className="bg-orange-500 text-white text-[8px] font-black py-1 px-10 transform rotate-45 translate-x-3 -translate-y-1 text-center shadow-sm uppercase">VIP</div></div>}
+            {timeInfo.isAttention && <div className="absolute top-0 left-0 w-full h-1 bg-amber-400 animate-pulse" />}
+            
+            <div className="flex justify-between items-start mb-3">
+                <div className="flex items-center gap-2">
+                    <span className="font-mono font-black text-blue-600 text-base">#{job.osNumber || '---'}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status)}`}>
+                        {getTranslatedStatus(job.status)}
+                    </span>
+                </div>
+                <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Entrega</p>
+                    <p className="text-xs font-bold text-slate-800">{new Date(job.dueDate).toLocaleDateString()}</p>
+                </div>
+            </div>
+
+            <div className="space-y-1 mb-4">
+                <h3 className="font-black text-slate-900 text-lg leading-tight">{job.patientName}</h3>
+                <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
+                    <User size={12} className="text-blue-500" />
+                    <span className="uppercase truncate">Dr(a). {job.dentistName}</span>
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                   {!isClient && job.boxNumber && (
+                       <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
+                           <Box size={14} className="text-slate-400" />
+                           <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
+                       </div>
+                   )}
+                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${timeInfo.isAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
+                       <MapPin size={14} className={timeInfo.isAttention ? 'text-amber-500' : 'text-blue-400'} />
+                       <span className="text-xs font-bold truncate max-w-[100px]">{job.currentSector || 'Recepção'}</span>
+                       <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>
+                   </div>
+                </div>
+                <ChevronRight className="text-slate-300" size={20} />
+            </div>
+        </div>
+    );
+});
+
 export const JobsList = () => {
-  const { jobs, currentUser, triggerPrint, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists } = useApp();
+  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists } = useApp();
   const navigate = useNavigate();
   
   const [filterText, setFilterText] = useState('');
@@ -37,80 +179,66 @@ export const JobsList = () => {
 
   const currentOrgId = activeOrganization?.id || currentUser?.organizationId;
 
-  const dentistOptions = [
+  const dentistOptions = useMemo(() => [
     ...manualDentists.map(d => ({ value: d.id, label: d.name })),
     ...allUsers.filter(u => u.role === UserRole.CLIENT && u.organizationId === currentOrgId).map(u => ({ value: u.id, label: u.name }))
-  ].sort((a, b) => a.label.localeCompare(b.label));
+  ].sort((a, b) => a.label.localeCompare(b.label)), [manualDentists, allUsers, currentOrgId]);
 
-  const collaboratorOptions = allUsers
+  const collaboratorOptions = useMemo(() => allUsers
     .filter(u => u.role !== UserRole.CLIENT && u.organizationId === currentOrgId)
     .map(u => ({ value: u.id, label: u.name }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => a.label.localeCompare(b.label)), [allUsers, currentOrgId]);
 
-  const sectorOptions = sectors.map(s => ({ value: s.name, label: s.name }));
-
-  if (isClient && !activeOrganization) {
-    return (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                    <Building size={32} />
-                </div>
-                <h2 className="text-xl font-bold text-slate-800 mb-2">Nenhum Laboratório Selecionado</h2>
-                <p className="text-slate-500 mb-6">Selecione um laboratório parceiro no menu lateral para ver seus pedidos.</p>
-                <button onClick={() => navigate('/dentist/partnerships')} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors w-full">Gerenciar Parcerias</button>
-            </div>
-        </div>
-    );
-  }
+  const sectorOptions = useMemo(() => sectors.map(s => ({ value: s.name, label: s.name })), [sectors]);
 
   const normalizeText = (text: string) => {
       return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   };
 
-  const filteredJobs = jobs.filter(job => {
-    if (isClient && job.dentistId !== currentUser?.id) return false;
-    const searchLower = normalizeText(filterText);
-    const matchText = 
-      normalizeText(job.osNumber || '').includes(searchLower) ||
-      normalizeText(job.patientName).includes(searchLower) ||
-      normalizeText(job.dentistName).includes(searchLower);
-    if (!matchText) return false;
-    if (statusFilter !== 'ALL' && job.status !== statusFilter) return false;
-    if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0,0,0,0);
-        if (new Date(job.createdAt) < start) return false;
-    }
-    if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23,59,59,999);
-        if (new Date(job.createdAt) > end) return false;
-    }
-    
-    if (selectedDentists.length > 0 && !selectedDentists.includes(job.dentistId)) return false;
-    if (selectedSectors.length > 0 && !selectedSectors.includes(job.currentSector || '')) return false;
-    if (selectedCollaborators.length > 0) {
-        const hasCollaborator = (job.history || []).some(h => selectedCollaborators.includes(h?.userId));
-        if (!hasCollaborator) return false;
-    }
+  const filteredJobs = useMemo(() => {
+    return jobs.filter(job => {
+        if (isClient && job.dentistId !== currentUser?.id) return false;
+        const searchLower = normalizeText(filterText);
+        const matchText = 
+          normalizeText(job.osNumber || '').includes(searchLower) ||
+          normalizeText(job.patientName).includes(searchLower) ||
+          normalizeText(job.dentistName).includes(searchLower);
+        if (!matchText) return false;
+        if (statusFilter !== 'ALL' && job.status !== statusFilter) return false;
+        if (startDate) {
+            const start = new Date(startDate);
+            start.setHours(0,0,0,0);
+            if (new Date(job.createdAt) < start) return false;
+        }
+        if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23,59,59,999);
+            if (new Date(job.createdAt) > end) return false;
+        }
+        
+        if (selectedDentists.length > 0 && !selectedDentists.includes(job.dentistId)) return false;
+        if (selectedSectors.length > 0 && !selectedSectors.includes(job.currentSector || '')) return false;
+        if (selectedCollaborators.length > 0) {
+            const hasCollaborator = (job.history || []).some(h => selectedCollaborators.includes(h?.userId));
+            if (!hasCollaborator) return false;
+        }
 
-    if (filterUrgency && job.urgency !== filterUrgency) return false;
-    if (filterAttention) {
-        if (!job.sectorEntryTime) return false;
-        const hours = (new Date().getTime() - new Date(job.sectorEntryTime).getTime()) / (1000 * 60 * 60);
-        if (hours < 18) return false;
-    }
-    if (filterOrigin !== 'ALL') {
-        const isWeb = (job.history || []).some(h => h?.action?.toLowerCase().includes('loja virtual'));
-        if (filterOrigin === 'WEB' && !isWeb) return false;
-        if (filterOrigin === 'MANUAL' && isWeb) return false;
-    }
-    return true;
-  });
+        if (filterUrgency && job.urgency !== filterUrgency) return false;
+        if (filterAttention) {
+            if (!job.sectorEntryTime) return false;
+            const hours = (new Date().getTime() - new Date(job.sectorEntryTime).getTime()) / (1000 * 60 * 60);
+            if (hours < 18) return false;
+        }
+        if (filterOrigin !== 'ALL') {
+            const isWeb = (job.history || []).some(h => h?.action?.toLowerCase().includes('loja virtual'));
+            if (filterOrigin === 'WEB' && !isWeb) return false;
+            if (filterOrigin === 'MANUAL' && isWeb) return false;
+        }
+        return true;
+      });
+  }, [jobs, isClient, currentUser?.id, filterText, statusFilter, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
 
   const handleFinalizeJob = async (job: Job) => {
-      // New check: Is the dentist blocked?
       const dentist = allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId);
       if (dentist?.isBlocked) {
           alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível finalizar o trabalho até que a pendência seja resolvida.");
@@ -198,6 +326,21 @@ export const JobsList = () => {
     return { hours, isAttention: hours >= 18, label };
   };
 
+  if (isClient && !activeOrganization) {
+    return (
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                    <Building size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Nenhum Laboratório Selecionado</h2>
+                <p className="text-slate-500 mb-6">Selecione um laboratório parceiro no menu lateral para ver seus pedidos.</p>
+                <button onClick={() => navigate('/dentist/partnerships')} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors w-full">Gerenciar Parcerias</button>
+            </div>
+        </div>
+    );
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 pb-20">
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -233,7 +376,7 @@ export const JobsList = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-slate-100 pt-3">
                 <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
                     <option value="ALL">Todos os Status</option>
-                    {Object.values(JobStatus).map(s => <option key={s} value={s}>{getTranslatedStatus(s)}</option>)}
+                    {Object.values(JobStatus).map(s => <option key={s} value={s}>{getTranslatedStatus(s as JobStatus)}</option>)}
                 </select>
                 <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
                     <option value="">Todas Prioridades</option>
@@ -290,60 +433,28 @@ export const JobsList = () => {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                    {filteredJobs.map(job => {
-                        const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
-                        const canRoute = isLabStaff && job.status === JobStatus.COMPLETED && !job.routeId;
-                        const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
-                        
-                        return (
-                            <tr key={job.id} className={`hover:bg-blue-50/30 transition-colors ${getSectorTimeInfo(job).isAttention ? 'bg-yellow-50/50' : ''}`}>
-                                <td className="p-4 font-mono font-bold text-sm">
-                                    <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 hover:text-blue-800 hover:underline text-left">
-                                        {job.osNumber || '---'}
-                                    </button>
-                                </td>
-                                {!isClient && (
-                                    <td className="p-4">
-                                        {job.boxNumber ? (
-                                            <div 
-                                                className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs shadow-sm border border-black/10"
-                                                style={{ backgroundColor: job.boxColor?.hex || '#f1f5f9', color: job.boxColor ? getContrastColor(job.boxColor.hex) : '#64748b' }}
-                                            >
-                                                {job.boxNumber}
-                                            </div>
-                                        ) : <span className="text-slate-300">-</span>}
-                                    </td>
-                                )}
-                                <td className="p-4 font-bold text-slate-900 text-sm">{job.patientName}</td>
-                                <td className="p-4">
-                                    <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
-                                </td>
-                                <td className="p-4">
-                                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status)}`}>
-                                        {getTranslatedStatus(job.status)}
-                                    </span>
-                                </td>
-                                <td className="p-4">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{job.currentSector || 'Triagem'}</span>
-                                        <div className={`flex items-center gap-1 text-xs font-bold ${getSectorTimeInfo(job).isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
-                                            <Clock size={12} /> {getSectorTimeInfo(job).label}
-                                            {getSectorTimeInfo(job).isAttention && <AlertCircle size={12} className="animate-pulse" />}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="p-4 text-slate-600 text-xs font-bold">{new Date(job.dueDate).toLocaleDateString()}</td>
-                                <td className="p-4 text-right">
-                                    <div className="flex justify-end gap-1">
-                                        {canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 hover:bg-green-100 rounded-lg"><CheckCircle2 size={18} /></button>}
-                                        {canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg"><RotateCcw size={18} /></button>}
-                                        {canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg"><Truck size={18} /></button>}
-                                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Eye size={18} /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        );
-                    })}
+                    {filteredJobs.slice(0, 100).map(job => (
+                        <JobRow 
+                            key={job.id} 
+                            job={job} 
+                            isClient={isClient}
+                            isLabStaff={isLabStaff}
+                            navigate={navigate}
+                            handleFinalizeJob={handleFinalizeJob}
+                            handleReopenJob={handleReopenJob}
+                            setRouteModalJob={setRouteModalJob}
+                            getStatusColor={getStatusColor}
+                            getTranslatedStatus={getTranslatedStatus}
+                            getSectorTimeInfo={getSectorTimeInfo}
+                        />
+                    ))}
+                    {filteredJobs.length > 100 && (
+                        <tr>
+                            <td colSpan={8} className="p-4 text-center text-slate-400 text-xs italic">
+                                Mostrando os 100 resultados mais recentes para melhor desempenho. Use os filtros para refinar sua busca.
+                            </td>
+                        </tr>
+                    )}
                 </tbody>
             </table>
         </div>
@@ -354,53 +465,22 @@ export const JobsList = () => {
         {filteredJobs.length === 0 ? (
             <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-dashed">Nenhum pedido encontrado.</div>
         ) : (
-            filteredJobs.map(job => {
-                const timeInfo = getSectorTimeInfo(job);
-                return (
-                    <div key={job.id} onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${timeInfo.isAttention ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
-                        {job.urgency === UrgencyLevel.VIP && <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden"><div className="bg-orange-500 text-white text-[8px] font-black py-1 px-10 transform rotate-45 translate-x-3 -translate-y-1 text-center shadow-sm uppercase">VIP</div></div>}
-                        {timeInfo.isAttention && <div className="absolute top-0 left-0 w-full h-1 bg-amber-400 animate-pulse" />}
-                        
-                        <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
-                                <span className="font-mono font-black text-blue-600 text-base">#{job.osNumber || '---'}</span>
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status)}`}>
-                                    {getTranslatedStatus(job.status)}
-                                </span>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Entrega</p>
-                                <p className="text-xs font-bold text-slate-800">{new Date(job.dueDate).toLocaleDateString()}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1 mb-4">
-                            <h3 className="font-black text-slate-900 text-lg leading-tight">{job.patientName}</h3>
-                            <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
-                                <User size={12} className="text-blue-500" />
-                                <span className="uppercase truncate">Dr(a). {job.dentistName}</span>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                            <div className="flex items-center gap-2">
-                               {!isClient && job.boxNumber && (
-                                   <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
-                                       <Box size={14} className="text-slate-400" />
-                                       <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
-                                   </div>
-                               )}
-                               <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${timeInfo.isAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
-                                   <MapPin size={14} className={timeInfo.isAttention ? 'text-amber-500' : 'text-blue-400'} />
-                                   <span className="text-xs font-bold truncate max-w-[100px]">{job.currentSector || 'Recepção'}</span>
-                                   <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>
-                               </div>
-                            </div>
-                            <ChevronRight className="text-slate-300" size={20} />
-                        </div>
-                    </div>
-                );
-            })
+            filteredJobs.slice(0, 50).map(job => (
+                <JobCard 
+                    key={job.id}
+                    job={job}
+                    navigate={navigate}
+                    getStatusColor={getStatusColor}
+                    getTranslatedStatus={getTranslatedStatus}
+                    getSectorTimeInfo={getSectorTimeInfo}
+                    isClient={isClient}
+                />
+            ))
+        )}
+        {filteredJobs.length > 50 && (
+            <div className="p-4 text-center text-slate-400 text-xs italic">
+                Refine os filtros para ver mais resultados.
+            </div>
         )}
       </div>
 
