@@ -35,6 +35,8 @@ export const Finance = () => {
   // Advanced Financial View State
   const [showStatement, setShowStatement] = useState(false);
   const [statementClient, setStatementClient] = useState<any | null>(null);
+  const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
+  const [isLoadingStatement, setIsLoadingStatement] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isSaving, setIsSaving] = useState(false);
@@ -59,6 +61,20 @@ export const Finance = () => {
   });
 
   useEffect(() => {
+    if (showStatement && statementClient && currentOrg) {
+        setIsLoadingStatement(true);
+        const unsub = api.subscribeDentistJobs(currentOrg.id, statementClient.id, (data) => {
+            setDentistJobs(data);
+            setIsLoadingStatement(false);
+        });
+        return () => unsub();
+    } else {
+        setDentistJobs([]);
+        setIsLoadingStatement(false);
+    }
+  }, [showStatement, statementClient, currentOrg]);
+
+  useEffect(() => {
     if (currentOrg) {
       const unsubExp = api.subscribeExpenses(currentOrg.id, setExpenses);
       return () => { unsubExp(); };
@@ -69,7 +85,7 @@ export const Finance = () => {
   const chronoHistory = useMemo(() => {
     if (!statementClient) return { history: [], previousBalance: 0 };
     
-    const clientJobs = jobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+    const clientJobs = dentistJobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
     const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
     
     const history = [
@@ -115,7 +131,7 @@ export const Finance = () => {
     });
 
     return { history: filteredHistory, previousBalance };
-  }, [statementClient, jobs, dentistPayments, selectedMonth, selectedYear]);
+  }, [statementClient, dentistJobs, dentistPayments, selectedMonth, selectedYear]);
 
   const generateStatementPDF = () => {
     if (!statementClient) return;
@@ -648,7 +664,14 @@ export const Finance = () => {
                       </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50/50">
+                  <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50/50 relative">
+                      {isLoadingStatement && (
+                          <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+                              <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+                              <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Carregando Histórico Completo...</p>
+                              <p className="text-xs text-slate-400 font-bold mt-1">Isso pode levar alguns segundos dependendo do volume de dados.</p>
+                          </div>
+                      )}
                       {/* Period Selection & Export */}
                       <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
                           <div className="flex items-center gap-4">

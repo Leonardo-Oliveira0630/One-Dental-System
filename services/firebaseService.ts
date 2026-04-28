@@ -267,6 +267,55 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
 export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, `organizations/${orgId}/jobs`, job.id), job);
 export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) => updateDoc(doc(db, `organizations/${orgId}/jobs`, id), updates);
 
+export const subscribeDentistJobs = (orgId: string, dentistId: string, cb: (jobs: Job[]) => void) => {
+    if (!orgId || !dentistId) return () => {};
+    const q = query(
+        collection(db, `organizations/${orgId}/jobs`), 
+        where('dentistId', '==', dentistId),
+        orderBy('createdAt', 'desc'),
+        limit(1000)
+    );
+
+    let jobsCache: Map<string, Job> = new Map();
+
+    return onSnapshot(q, (snap: any) => {
+        try {
+            let hasChanges = false;
+            snap.docChanges().forEach((change: any) => {
+                const docId = change.doc.id;
+                if (change.type === 'removed') {
+                    jobsCache.delete(docId);
+                    hasChanges = true;
+                } else {
+                    const data = change.doc.data();
+                    const job = { 
+                        id: docId, 
+                        ...data,
+                        createdAt: toDate(data.createdAt), 
+                        dueDate: toDate(data.dueDate),
+                        sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
+                        history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) })),
+                        sectorMovements: (data.sectorMovements || []).map((m: any) => ({
+                            ...m,
+                            entryTime: toDate(m.entryTime),
+                            exitTime: m.exitTime ? toDate(m.exitTime) : undefined
+                        }))
+                    } as Job;
+                    jobsCache.set(docId, job);
+                    hasChanges = true;
+                }
+            });
+
+            if (hasChanges || jobsCache.size === 0) {
+              const sortedJobs = Array.from(jobsCache.values()).sort((a: Job, b: Job) => b.createdAt.getTime() - a.createdAt.getTime());
+              cb(sortedJobs);
+            }
+        } catch (err) {
+            console.error("[ProTrack] Erro ao processar lista de trabalhos do dentista:", err);
+        }
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeDentistJobs: ${error.code}`));
+};
+
 export const getDentistJobs = async (orgId: string, dentistId: string): Promise<Job[]> => {
     const q = query(collection(db, `organizations/${orgId}/jobs`), where('dentistId', '==', dentistId));
     const snap = await getDocs(q);

@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
 import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getDentistJobs } from '../../services/firebaseService';
+import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -100,22 +100,17 @@ export const Dentists = () => {
     }, [manualDentists, allUsers]);
 
     useEffect(() => {
-        const loadStatementData = async () => {
-            if (showStatement && statementClient && currentUser?.organizationId) {
-                setIsLoadingStatement(true);
-                try {
-                    const fullJobs = await getDentistJobs(currentUser.organizationId, statementClient.id);
-                    setDentistJobs(fullJobs);
-                } catch (error) {
-                    console.error("Erro ao carregar trabalhos do dentista:", error);
-                } finally {
-                    setIsLoadingStatement(false);
-                }
-            } else {
-                setDentistJobs([]);
-            }
-        };
-        loadStatementData();
+        if (showStatement && statementClient && currentUser?.organizationId) {
+            setIsLoadingStatement(true);
+            const unsub = subscribeDentistJobs(currentUser.organizationId, statementClient.id, (data) => {
+                setDentistJobs(data);
+                setIsLoadingStatement(false);
+            });
+            return () => unsub();
+        } else {
+            setDentistJobs([]);
+            setIsLoadingStatement(false);
+        }
     }, [showStatement, statementClient, currentUser?.organizationId]);
 
     const handleOpenPricing = (client: any) => {
@@ -255,7 +250,7 @@ export const Dentists = () => {
             // Running balance logic should be carefully applied
             return res;
         }).reverse(); // Actually let's just do it simple
-    }, [statementClient, jobs, dentistPayments]);
+    }, [statementClient, dentistJobs, dentistPayments]);
 
     // Advanced chronological statement with previous balance
     const chronoHistory = useMemo(() => {
@@ -307,7 +302,7 @@ export const Dentists = () => {
         });
 
         return { history: filteredHistory, previousBalance };
-    }, [statementClient, jobs, dentistPayments, selectedMonth, selectedYear]);
+    }, [statementClient, dentistJobs, dentistPayments, selectedMonth, selectedYear]);
 
     const generateStatementPDF = () => {
         if (!statementClient) return;
