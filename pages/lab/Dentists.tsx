@@ -9,7 +9,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Dentists = () => {
-    const { jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, currentUser, billingBatches, generateBatchBoleto, dentistPayments, addDentistPayment, updateBillingBatchStatus } = useApp();
+    const { 
+        jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, 
+        currentUser, billingBatches, generateBatchBoleto, dentistPayments, addDentistPayment, updateBillingBatchStatus,
+        cardMachines, bankAccounts
+    } = useApp();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
@@ -32,6 +36,7 @@ export const Dentists = () => {
     
     // Extrato State
     const [showStatement, setShowStatement] = useState(false);
+    const [showAsaasError, setShowAsaasError] = useState(false);
     const [statementClient, setStatementClient] = useState<any | null>(null);
     const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
     const [isLoadingStatement, setIsLoadingStatement] = useState(false);
@@ -47,6 +52,8 @@ export const Dentists = () => {
     const [paymentFees, setPaymentFees] = useState<number>(0);
     const [paymentDiscount, setPaymentDiscount] = useState<number>(0);
     const [paymentMethod, setPaymentMethod] = useState<DentistPayment['paymentMethod']>('PIX');
+    const [paymentCardMachineId, setPaymentCardMachineId] = useState<string>('');
+    const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
     const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
     const [paymentNotes, setPaymentNotes] = useState('');
 
@@ -180,6 +187,8 @@ export const Dentists = () => {
                 fees: paymentFees,
                 discount: paymentDiscount,
                 paymentMethod: paymentMethod,
+                cardMachineId: (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') ? paymentCardMachineId : undefined,
+                bankAccountId: paymentMethod === 'BANK_TRANSFER' ? paymentBankAccountId : undefined,
                 paymentDate: new Date(),
                 type: paymentType,
                 notes: paymentNotes
@@ -188,6 +197,8 @@ export const Dentists = () => {
             setPaymentInterest(0);
             setPaymentFees(0);
             setPaymentDiscount(0);
+            setPaymentCardMachineId('');
+            setPaymentBankAccountId('');
             setPaymentNotes('');
             setShowPaymentForm(false);
         } catch (err) {
@@ -214,43 +225,6 @@ export const Dentists = () => {
             return true;
         });
     }, [combinedClients, searchTerm, statusFilter]);
-
-    const statementData = useMemo(() => {
-        if (!statementClient) return [];
-        
-        const clientJobs = dentistJobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
-        const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
-        
-        const history = [
-            ...clientJobs.map(j => ({
-                id: j.id,
-                date: j.createdAt,
-                type: 'DEBIT' as const,
-                description: `Pedido ${j.osNumber || j.id}- Paciente: ${j.patientName}`,
-                amount: j.totalValue || 0,
-                category: 'JOB'
-            })),
-            ...clientPayments.map(p => ({
-                id: p.id,
-                date: p.paymentDate,
-                type: p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT' as const,
-                description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
-                amount: p.amount,
-                category: 'PAYMENT'
-            }))
-        ];
-        
-        // Sort chronological
-        const sorted = history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        // Calculate running balance
-        let current = 0;
-        return sorted.reverse().map(item => {
-            const res = { ...item, runningBalance: current };
-            // Running balance logic should be carefully applied
-            return res;
-        }).reverse(); // Actually let's just do it simple
-    }, [statementClient, dentistJobs, dentistPayments]);
 
     // Advanced chronological statement with previous balance
     const chronoHistory = useMemo(() => {
@@ -1110,12 +1084,46 @@ export const Dentists = () => {
                                                     >
                                                         <option value="PIX">PIX</option>
                                                         <option value="CASH">Dinheiro</option>
-                                                        <option value="CARD">Cartão</option>
-                                                        <option value="TRANSFER">Transferência</option>
+                                                        <option value="CREDIT_CARD">Cartão de Crédito</option>
+                                                        <option value="DEBIT_CARD">Cartão de Débito</option>
+                                                        <option value="BANK_TRANSFER">Transferência Bancária</option>
                                                         <option value="BOLETO">Boleto (Pago)</option>
                                                         <option value="DISCOUNT">Desconto/Cortesia</option>
                                                     </select>
                                                 </div>
+
+                                                {(paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') && (
+                                                    <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Máquina</label>
+                                                        <select 
+                                                            value={paymentCardMachineId}
+                                                            onChange={e => setPaymentCardMachineId(e.target.value)}
+                                                            className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 h-[46px]"
+                                                        >
+                                                            <option value="">Selecione...</option>
+                                                            {cardMachines.map(m => (
+                                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {paymentMethod === 'BANK_TRANSFER' && (
+                                                    <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Conta</label>
+                                                        <select 
+                                                            value={paymentBankAccountId}
+                                                            onChange={e => setPaymentBankAccountId(e.target.value)}
+                                                            className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 h-[46px]"
+                                                        >
+                                                            <option value="">Selecione...</option>
+                                                            {bankAccounts.map(b => (
+                                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">Total Líquido</label>
                                                     <div className="w-full px-4 py-2.5 bg-slate-200 border border-slate-300 rounded-xl font-black text-slate-800 h-[46px] flex items-center">
@@ -1291,9 +1299,13 @@ export const Dentists = () => {
                                             await generateBatchBoleto(statementClient.id, pendingJobIds, dueDate);
                                             alert('Protocolo de fatura gerado com sucesso!');
                                             setActiveSubTab('FATURAS');
-                                        } catch (err) {
+                                        } catch (err: any) {
                                             console.error(err);
-                                            alert('Erro ao gerar fatura.');
+                                            if (err.message === 'ASAAS_NOT_CONFIGURED') {
+                                                setShowAsaasError(true);
+                                            } else {
+                                                alert('Erro ao gerar fatura.');
+                                            }
                                         }
                                     }}
                                     className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 uppercase text-xs"
@@ -1310,6 +1322,31 @@ export const Dentists = () => {
                                     <Banknote size={18} /> Pagar Manual
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showAsaasError && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                        <div className="flex flex-col items-center text-center gap-4">
+                            <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
+                                <Info size={40} />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight text-red-600">Erro de Geração de Boleto</h3>
+                            <p className="text-slate-500 font-bold">
+                                Sua conta Asaas não está devidamente criada ou configurada para esta operação.
+                            </p>
+                            <p className="text-slate-400 text-sm">
+                                Verifique as chaves de API e o ID da Carteira nas configurações do seu laboratório.
+                            </p>
+                            <button 
+                                onClick={() => setShowAsaasError(false)}
+                                className="w-full mt-6 py-4 bg-slate-800 text-white font-black uppercase rounded-2xl hover:bg-slate-900 transition-all shadow-xl shadow-slate-200"
+                            >
+                                Entendido
+                            </button>
                         </div>
                     </div>
                 </div>

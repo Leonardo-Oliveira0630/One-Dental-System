@@ -26,6 +26,7 @@ export interface Organization {
   trialEndsAt?: Date;
   createdAt: Date;
   orgType?: 'LAB' | 'CLINIC';
+  asaasApiKey?: string;
   ratingAverage?: number;
   ratingCount?: number;
   financialSettings?: {
@@ -503,11 +504,29 @@ export interface DentistPayment {
   interest?: number; // Juros
   fees?: number;     // Taxas
   discount?: number; // Desconto no ato do pagamento
-  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT';
+  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER';
   paymentDate: Date;
+  cardMachineId?: string;
+  bankAccountId?: string;
   type: 'PAYMENT' | 'DISCOUNT';
   notes?: string;
   batchId?: string;
+  createdAt: Date;
+}
+
+export interface CardMachine {
+  id: string;
+  organizationId: string;
+  name: string;
+  active: boolean;
+  createdAt: Date;
+}
+
+export interface BankAccount {
+  id: string;
+  organizationId: string;
+  name: string;
+  active: boolean;
   createdAt: Date;
 }
 

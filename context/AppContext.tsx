@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch, DentistPayment,
+  CardMachine, BankAccount,
   JobStatus, UrgencyLevel
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
@@ -101,6 +102,8 @@ interface AppContextType {
   priceTables: PriceTable[];
   billingBatches: BillingBatch[];
   dentistPayments: DentistPayment[];
+  cardMachines: CardMachine[];
+  bankAccounts: BankAccount[];
   activeAlert: JobAlert | null;
 
   login: (email: string, pass: string) => Promise<void>;
@@ -181,6 +184,14 @@ interface AppContextType {
   updateManualDentist: (id: string, updates: Partial<ManualDentist>) => Promise<void>;
   deleteManualDentist: (id: string) => Promise<void>;
   
+  addCardMachine: (machine: Omit<CardMachine, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
+  updateCardMachine: (id: string, updates: Partial<CardMachine>) => Promise<void>;
+  deleteCardMachine: (id: string) => Promise<void>;
+
+  addBankAccount: (account: Omit<BankAccount, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
+  updateBankAccount: (id: string, updates: Partial<BankAccount>) => Promise<void>;
+  deleteBankAccount: (id: string) => Promise<void>;
+
   addPriceTable: (table: Omit<PriceTable, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updatePriceTable: (id: string, updates: Partial<PriceTable>) => Promise<void>;
   deletePriceTable: (id: string) => Promise<void>;
@@ -226,6 +237,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [manualDentists, setManualDentists] = useState<ManualDentist[]>([]);
   const [priceTables, setPriceTables] = useState<PriceTable[]>([]);
+  const [cardMachines, setCardMachines] = useState<CardMachine[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]);
   const [dentistPayments, setDentistPayments] = useState<DentistPayment[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
@@ -357,6 +370,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeDentistPayments(myOrgId, setDentistPayments));
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
             unsubs.push(api.subscribePriceTables(myOrgId, setPriceTables));
+            unsubs.push(api.subscribeCardMachines(myOrgId, setCardMachines));
+            unsubs.push(api.subscribeBankAccounts(myOrgId, setBankAccounts));
         }
     }
     
@@ -663,6 +678,38 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiDeleteManualDentist(orgId, id);
   };
 
+  const addCardMachine = async (m: Omit<CardMachine, 'id' | 'organizationId' | 'createdAt'>) => {
+      const orgId = activeDataId;
+      if(!orgId) return;
+      await api.apiAddCardMachine(orgId, { ...m, id: `machine_${Date.now()}`, organizationId: orgId, createdAt: new Date() } as CardMachine);
+  };
+  const updateCardMachine = async (id: string, u: Partial<CardMachine>) => {
+      const orgId = activeDataId;
+      if(!orgId) return;
+      await api.apiUpdateCardMachine(orgId, id, u);
+  };
+  const deleteCardMachine = async (id: string) => {
+      const orgId = activeDataId;
+      if(!orgId) return;
+      await api.apiDeleteCardMachine(orgId, id);
+  };
+
+  const addBankAccount = async (acc: Omit<BankAccount, 'id' | 'organizationId' | 'createdAt'>) => {
+      const orgId = activeDataId;
+      if(!orgId) return;
+      await api.apiAddBankAccount(orgId, { ...acc, id: `bank_${Date.now()}`, organizationId: orgId, createdAt: new Date() } as BankAccount);
+  };
+  const updateBankAccount = async (id: string, u: Partial<BankAccount>) => {
+      const orgId = activeDataId;
+      if(!orgId) return;
+      await api.apiUpdateBankAccount(orgId, id, u);
+  };
+  const deleteBankAccount = async (id: string) => {
+      const orgId = activeDataId;
+      if(!orgId) return;
+      await api.apiDeleteBankAccount(orgId, id);
+  };
+
   const addPriceTable = async (table: Omit<PriceTable, 'id' | 'organizationId' | 'createdAt' | 'updatedAt'>) => {
     const orgId = activeDataId;
     if (!orgId) return;
@@ -737,6 +784,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const generateBatchBoleto = async (dentistId: string, jobIds: string[], dueDate: Date) => {
     const orgId = currentUser?.organizationId;
     if (!orgId) return;
+    
+    if (!currentOrg?.asaasApiKey || !currentOrg?.financialSettings?.asaasWalletId) {
+        throw new Error("ASAAS_NOT_CONFIGURED");
+    }
+
     return api.apiGenerateBatchBoleto(orgId, dentistId, jobIds, dueDate);
   };
 
@@ -761,7 +813,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const contextValue = useMemo(() => ({
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-    allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
+    allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, 
+    cardMachines, bankAccounts,
+    activeAlert,
     allPayments,
     login, logout, updateUser, addUser, deleteUser,
     addJob, updateJob, addCommissionRecord, updateCommissionStatus,
@@ -781,6 +835,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
     addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
     addManualDentist, updateManualDentist, deleteManualDentist,
+    addCardMachine, updateCardMachine, deleteCardMachine,
+    addBankAccount, updateBankAccount, deleteBankAccount,
     addPriceTable, updatePriceTable, deletePriceTable,
     addJobToRoute, generateBatchBoleto,
     addDentistPayment, updateBillingBatchStatus
@@ -788,6 +844,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
     allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
+    cardMachines, bankAccounts,
     allPayments, cart, printData, activeOrganization, userConnections, activeDataId
   ]);
 

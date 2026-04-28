@@ -9,18 +9,23 @@ import {
 import { 
   DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, 
   FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, 
-  CreditCard, Loader2, User, Package, Clock, X, ChevronRight, Filter, 
+  CreditCard, Loader2, User, Package, Clock, X, Filter, 
   FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight,
   ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle,
-  ArrowDownCircle, FileSpreadsheet, Building, UserCheck
+  ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight
 } from 'lucide-react';
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const Finance = () => {
-  const { jobs, allUsers, manualDentists, currentOrg, dentistPayments, billingBatches, addDentistPayment, updateBillingBatchStatus, generateBatchBoleto } = useApp();
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'RECEIVABLES' | 'EXPENSES' | 'BATCHES'>('DASHBOARD');
+  const { 
+    jobs, allUsers, manualDentists, currentOrg, dentistPayments, billingBatches, 
+    addDentistPayment, updateBillingBatchStatus, generateBatchBoleto,
+    cardMachines, bankAccounts, addCardMachine, updateCardMachine, deleteCardMachine,
+    addBankAccount, updateBankAccount, deleteBankAccount
+  } = useApp();
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'RECEIVABLES' | 'EXPENSES' | 'BATCHES' | 'SETTINGS'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   
   // States
@@ -37,6 +42,8 @@ export const Finance = () => {
   const [statementClient, setStatementClient] = useState<any | null>(null);
   const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
   const [isLoadingStatement, setIsLoadingStatement] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'EXTRATO' | 'RECEBIMENTOS' | 'FATURAS'>('EXTRATO');
+  const [showAsaasError, setShowAsaasError] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isSaving, setIsSaving] = useState(false);
@@ -48,6 +55,9 @@ export const Finance = () => {
   const [paymentFees, setPaymentFees] = useState<number>(0);
   const [paymentDiscount, setPaymentDiscount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<DentistPayment['paymentMethod']>('PIX');
+  const [paymentCardMachineId, setPaymentCardMachineId] = useState<string>('');
+  const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
+  const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
   const [paymentNotes, setPaymentNotes] = useState('');
 
   // Expense Form State
@@ -223,14 +233,18 @@ export const Finance = () => {
             fees: paymentFees,
             discount: paymentDiscount,
             paymentMethod: paymentMethod,
+            cardMachineId: (paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') ? paymentCardMachineId : undefined,
+            bankAccountId: paymentMethod === 'BANK_TRANSFER' ? paymentBankAccountId : undefined,
             paymentDate: new Date(),
-            type: 'PAYMENT',
+            type: paymentType,
             notes: paymentNotes
         });
         setPaymentAmount(0);
         setPaymentInterest(0);
         setPaymentFees(0);
         setPaymentDiscount(0);
+        setPaymentCardMachineId('');
+        setPaymentBankAccountId('');
         setPaymentNotes('');
         setShowPaymentForm(false);
     } catch (err) {
@@ -387,6 +401,7 @@ export const Finance = () => {
           <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Extrato p/ Faturamento</button>
           <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturas & Boletos</button>
           <button onClick={() => setActiveTab('EXPENSES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Despesas</button>
+          <button onClick={() => setActiveTab('SETTINGS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Configurações</button>
       </div>
 
       {activeTab === 'DASHBOARD' && (
@@ -561,6 +576,63 @@ export const Finance = () => {
       )}
 
       {/* MODAL: SELEÇÃO DE TRABALHOS P/ FATURAMENTO */}
+      {activeTab === 'SETTINGS' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-right-2">
+              {/* Maquinas de Cartão */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+                  <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><CreditCard className="text-blue-600"/> Máquinas de Cartão</h3>
+                      <button 
+                        onClick={() => {
+                            const name = prompt("Nome da Máquina (Ex: Moderninha, Stone):");
+                            if (name) addCardMachine({ name, active: true });
+                        }}
+                        className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100"
+                      >
+                          <Plus size={20}/>
+                      </button>
+                  </div>
+                  <div className="space-y-2">
+                      {cardMachines.map(m => (
+                          <div key={m.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                              <span className="font-bold text-slate-700">{m.name}</span>
+                              <div className="flex items-center gap-2">
+                                  <button onClick={() => deleteCardMachine(m.id)} className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
+                              </div>
+                          </div>
+                      ))}
+                      {cardMachines.length === 0 && <p className="text-sm text-slate-400 italic text-center py-4">Nenhuma máquina cadastrada.</p>}
+                  </div>
+              </div>
+
+              {/* Contas Bancárias */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+                  <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><Building className="text-blue-600"/> Contas Bancárias</h3>
+                      <button 
+                        onClick={() => {
+                            const name = prompt("Nome da Conta (Ex: Itau, Nubank, Banco do Brasil):");
+                            if (name) addBankAccount({ name, active: true });
+                        }}
+                        className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100"
+                      >
+                          <Plus size={20}/>
+                      </button>
+                  </div>
+                  <div className="space-y-2">
+                      {bankAccounts.map(b => (
+                          <div key={b.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+                              <span className="font-bold text-slate-700">{b.name}</span>
+                              <div className="flex items-center gap-2">
+                                  <button onClick={() => deleteBankAccount(b.id)} className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
+                              </div>
+                          </div>
+                      ))}
+                      {bankAccounts.length === 0 && <p className="text-sm text-slate-400 italic text-center py-4">Nenhuma conta cadastrada.</p>}
+                  </div>
+              </div>
+          </div>
+      )}
       {selectedDentist && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
@@ -642,241 +714,484 @@ export const Finance = () => {
           </div>
       )}
 
-      {/* MODAL: EXTRATO DETALHADO (SINC COM DENTISTS.TSX) */}
+      {/* MODAL: EXTRATO COMPLETO (SINC COM DENTISTS.TSX) */}
       {showStatement && statementClient && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col animate-in zoom-in duration-300 overflow-hidden ring-1 ring-slate-200">
-                  <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50 relative">
-                      <div className="flex items-center gap-6">
-                          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-200 animate-in slide-in-from-left duration-500">
-                              <History size={32} />
-                          </div>
-                          <div>
-                              <h3 className="text-2xl font-black text-slate-800 tracking-tight">{statementClient.name}</h3>
-                              <div className="flex items-center gap-3">
-                                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-100">Consultório Individual</span>
-                                  <span className="text-xs text-slate-400 font-bold">• Histórico Financeiro Completo</span>
-                              </div>
-                          </div>
-                      </div>
-                      <button onClick={() => setShowStatement(false)} className="p-3 hover:bg-slate-200 rounded-2xl transition-all active:scale-95 group">
-                          <X size={24} className="text-slate-400 group-hover:text-slate-600" />
-                      </button>
-                  </div>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                    <div className="bg-slate-50 rounded-[40px] shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col animate-in zoom-in duration-300 overflow-hidden border border-white">
+                        {/* HEADER */}
+                        <div className="p-8 border-b border-slate-100 flex justify-between items-start bg-white relative">
+                            <div className="flex items-center gap-6">
+                                <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-blue-200">
+                                    <History size={32} />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">{statementClient.name}</h3>
+                                    <div className="flex items-center gap-3 mt-1">
+                                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-lg">Financeiro Unificado</span>
+                                        <span className="text-xs text-slate-400 font-bold">• {statementClient.clinicName || 'Consultório'}</span>
+                                    </div>
+                                </div>
+                            </div>
 
-                  <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50/50 relative">
-                      {isLoadingStatement && (
-                          <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
-                              <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-                              <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Carregando Histórico Completo...</p>
-                              <p className="text-xs text-slate-400 font-bold mt-1">Isso pode levar alguns segundos dependendo do volume de dados.</p>
-                          </div>
-                      )}
-                      {/* Period Selection & Export */}
-                      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
-                          <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl">
-                                  <button 
-                                      onClick={() => {
-                                          if (selectedMonth === 0) {
-                                              setSelectedMonth(11);
-                                              setSelectedYear(selectedYear - 1);
-                                          } else {
-                                              setSelectedMonth(selectedMonth - 1);
-                                          }
-                                      }}
-                                      className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-600"
-                                  >
-                                      <ChevronDown size={18} className="rotate-90" />
-                                  </button>
-                                  <span className="px-6 font-black text-slate-700 text-sm min-w-[150px] text-center uppercase tracking-widest">
-                                      {["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][selectedMonth]} {selectedYear}
-                                  </span>
-                                  <button 
-                                      onClick={() => {
-                                          if (selectedMonth === 11) {
-                                              setSelectedMonth(0);
-                                              setSelectedYear(selectedYear + 1);
-                                          } else {
-                                              setSelectedMonth(selectedMonth + 1);
-                                          }
-                                      }}
-                                      className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-600"
-                                  >
-                                      <ChevronDown size={18} className="-rotate-90" />
-                                  </button>
-                              </div>
-                              <button
-                                  onClick={() => {
-                                      setShowPaymentForm(true);
-                                  }}
-                                  className="px-6 py-3.5 bg-green-600 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-green-700 hover:shadow-xl hover:shadow-green-100 transition-all flex items-center gap-2"
-                              >
-                                  <Plus size={16} /> Registrar Pagamento
-                              </button>
-                          </div>
-                          <button 
-                              onClick={generateStatementPDF}
-                              className="px-8 py-3.5 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl shadow-slate-200"
-                          >
-                              <Download size={18} /> Exportar Extrato PDF
-                          </button>
-                      </div>
+                            <div className="flex flex-col items-end gap-4">
+                                <button onClick={() => setShowStatement(false)} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
+                                    <X size={24} className="text-slate-400" />
+                                </button>
+                                <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl">
+                                    <button 
+                                        onClick={() => setActiveSubTab('EXTRATO')}
+                                        className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeSubTab === 'EXTRATO' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Extrato
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveSubTab('RECEBIMENTOS')}
+                                        className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeSubTab === 'RECEBIMENTOS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Recebimentos
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveSubTab('FATURAS')}
+                                        className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeSubTab === 'FATURAS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        Faturas/Boletos
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
 
-                      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                          <table className="w-full text-left">
-                              <thead className="bg-slate-50 border-b border-slate-100">
-                                  <tr>
-                                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição</th>
-                                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
-                                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo</th>
-                                  </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-50">
-                                  <tr className="bg-slate-50/70 font-black border-b border-slate-200">
-                                      <td className="px-8 py-5 text-xs text-slate-400 font-bold tracking-widest">PERÍODO ANT.</td>
-                                      <td className="px-8 py-5 text-xs text-slate-500 uppercase tracking-widest">Saldo Devedor / Credor Acumulado</td>
-                                      <td className="px-8 py-5 text-right text-xs">-</td>
-                                      <td className={`px-8 py-5 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                          R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                      </td>
-                                  </tr>
-                                  {chronoHistory.history.length === 0 ? (
-                                      <tr>
-                                          <td colSpan={4} className="px-8 py-16 text-center text-slate-400 font-bold italic bg-slate-50/10">
-                                              Nenhum registro financeiro encontrado neste período.
-                                          </td>
-                                      </tr>
-                                  ) : (
-                                      chronoHistory.history.slice().reverse().map((item, idx) => (
-                                          <tr key={idx} className="hover:bg-slate-50/50 transition-colors group">
-                                              <td className="px-8 py-5 text-xs font-black text-slate-400">
-                                                  {new Date(item.date).toLocaleDateString('pt-BR')}
-                                              </td>
-                                              <td className="px-8 py-5">
-                                                  <div className="flex flex-col gap-1.5">
-                                                      <div className="flex items-center gap-3">
-                                                          <div className={`p-2 rounded-xl ${item.type === 'DEBIT' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-                                                              {item.type === 'DEBIT' ? <ArrowDownCircle size={16} /> : <ArrowUpCircle size={16} />}
-                                                          </div>
-                                                          <span className="text-xs font-black text-slate-800 tracking-tight uppercase">{item.description}</span>
-                                                      </div>
-                                                      {item.type === 'DEBIT' && item.job && (
-                                                          <div className="ml-12 pl-3 border-l-2 border-slate-100 space-y-1">
-                                                              {item.job.items.map((it:any, iIdx:number) => (
-                                                                  <div key={iIdx} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                                                                      <span>{it.quantity} x {it.name}</span>
-                                                                      <span className="text-blue-500/50">R$ {it.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                                                                  </div>
-                                                              ))}
-                                                          </div>
-                                                      )}
-                                                  </div>
-                                              </td>
-                                              <td className={`px-8 py-5 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
-                                                  {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                              </td>
-                                              <td className={`px-8 py-5 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                                  R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                              </td>
-                                          </tr>
-                                      ))
-                                  )}
-                              </tbody>
-                          </table>
-                      </div>
-                  </div>
-              </div>
-          </div>
+                        {/* CONTENT */}
+                        <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 relative">
+                            {isLoadingStatement && (
+                                <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center">
+                                    <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+                                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Sincronizando Dados...</p>
+                                </div>
+                            )}
+
+                            {activeSubTab === 'EXTRATO' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex justify-between items-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                                                <button 
+                                                    onClick={() => selectedMonth === 0 ? (setSelectedMonth(11), setSelectedYear(selectedYear - 1)) : setSelectedMonth(selectedMonth - 1)}
+                                                    className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-600"
+                                                >
+                                                    <ChevronLeft size={18} />
+                                                </button>
+                                                <span className="px-6 font-black text-slate-700 text-sm min-w-[140px] text-center uppercase tracking-widest">
+                                                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][selectedMonth]} {selectedYear}
+                                                </span>
+                                                <button 
+                                                    onClick={() => selectedMonth === 11 ? (setSelectedMonth(0), setSelectedYear(selectedYear + 1)) : setSelectedMonth(selectedMonth + 1)}
+                                                    className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-600"
+                                                >
+                                                    <ChevronRight size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={generateStatementPDF}
+                                            className="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl shadow-slate-200"
+                                        >
+                                            <Download size={16} /> Exportar PDF
+                                        </button>
+                                    </div>
+
+                                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-50 border-b border-slate-100">
+                                                <tr>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Lançamento</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                <tr className="bg-slate-50/50 font-bold border-b border-slate-200">
+                                                    <td className="px-6 py-4 text-xs text-slate-400">01/{(selectedMonth+1).toString().padStart(2,'0')}/{selectedYear}</td>
+                                                    <td className="px-6 py-4 text-xs text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
+                                                    <td className="px-6 py-4 text-right text-xs">-</td>
+                                                    <td className={`px-6 py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                        R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                </tr>
+                                                {chronoHistory.history.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
+                                                            Nenhum registro encontrado neste período.
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    chronoHistory.history.slice().reverse().map((item, idx) => (
+                                                        <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                                                            <td className="px-6 py-4 text-xs font-bold text-slate-500">
+                                                                {new Date(item.date).toLocaleDateString('pt-BR')}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`p-2 rounded-lg ${item.type === 'DEBIT' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+                                                                            {item.type === 'DEBIT' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                                                                        </div>
+                                                                        <span className="text-xs font-black text-slate-800">{item.description}</span>
+                                                                    </div>
+                                                                    {item.type === 'DEBIT' && item.job && (
+                                                                        <div className="ml-10 space-y-1">
+                                                                            {item.job.items.map((it:any, iIdx:number) => (
+                                                                                <div key={iIdx} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
+                                                                                    <span>{it.quantity} x {it.name}</span>
+                                                                                    <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className={`px-6 py-4 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
+                                                                {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className={`px-6 py-4 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                                R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeSubTab === 'RECEBIMENTOS' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Histórico de Recebimentos</h4>
+                                        <button 
+                                            onClick={() => setShowPaymentForm(!showPaymentForm)}
+                                            className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center gap-2"
+                                        >
+                                            {showPaymentForm ? <Trash2 size={14} /> : <Plus size={14} />}
+                                            Novo Recebimento Manual
+                                        </button>
+                                    </div>
+
+                                    {showPaymentForm && (
+                                        <div className="bg-white p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
+                                            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentAmount || ''}
+                                                        onChange={e => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-black text-slate-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-red-500">Juros/Mora (+)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentInterest || ''}
+                                                        onChange={e => setPaymentInterest(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-red-50/50 border border-red-100 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-red-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-green-600">Desconto (-)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentDiscount || ''}
+                                                        onChange={e => setPaymentDiscount(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-green-50/50 border border-green-100 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-green-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest text-orange-600">Taxas (-)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={paymentFees || ''}
+                                                        onChange={e => setPaymentFees(parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-4 py-2.5 bg-orange-50/50 border border-orange-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-orange-700"
+                                                        placeholder="0,00"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Forma</label>
+                                                    <select 
+                                                        value={paymentMethod}
+                                                        onChange={e => setPaymentMethod(e.target.value as any)}
+                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 h-[46px]"
+                                                    >
+                                                        <option value="PIX">PIX</option>
+                                                        <option value="CASH">Dinheiro</option>
+                                                        <option value="CREDIT_CARD">Cartão de Crédito</option>
+                                                        <option value="DEBIT_CARD">Cartão de Débito</option>
+                                                        <option value="BANK_TRANSFER">Transferência Bancária</option>
+                                                        <option value="BOLETO">Boleto (Pago)</option>
+                                                        <option value="DISCOUNT">Desconto/Cortesia</option>
+                                                    </select>
+                                                </div>
+
+                                                {(paymentMethod === 'CREDIT_CARD' || paymentMethod === 'DEBIT_CARD') && (
+                                                    <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Máquina</label>
+                                                        <select 
+                                                            value={paymentCardMachineId}
+                                                            onChange={e => setPaymentCardMachineId(e.target.value)}
+                                                            className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 h-[46px]"
+                                                        >
+                                                            <option value="">Selecione...</option>
+                                                            {cardMachines.map(m => (
+                                                                <option key={m.id} value={m.id}>{m.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                {paymentMethod === 'BANK_TRANSFER' && (
+                                                    <div className="md:col-span-1 animate-in slide-in-from-top-2">
+                                                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Conta</label>
+                                                        <select 
+                                                            value={paymentBankAccountId}
+                                                            onChange={e => setPaymentBankAccountId(e.target.value)}
+                                                            className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 h-[46px]"
+                                                        >
+                                                            <option value="">Selecione...</option>
+                                                            {bankAccounts.map(b => (
+                                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest italic">Total Líquido</label>
+                                                    <div className="w-full px-4 py-2.5 bg-slate-200 border border-slate-300 rounded-xl font-black text-slate-800 h-[46px] flex items-center">
+                                                        R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)}
+                                                    </div>
+                                                </div>
+                                                <div className="md:col-span-full">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Observações/Ref.</label>
+                                                    <input 
+                                                        value={paymentNotes}
+                                                        onChange={e => setPaymentNotes(e.target.value)}
+                                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700"
+                                                        placeholder="Ex: Ref. OS 123, Promoção especial..."
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex justify-end mt-4 gap-3">
+                                                <button onClick={() => setShowPaymentForm(false)} className="px-4 py-2 text-xs font-black text-slate-400 uppercase hover:bg-slate-50 rounded-xl transition-all">Cancelar</button>
+                                                <button 
+                                                    disabled={isSaving || paymentAmount <= 0}
+                                                    onClick={handleSavePayment}
+                                                    className="px-8 py-2 bg-green-600 text-white text-xs font-black uppercase rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                                                >
+                                                    {isSaving ? <Loader2 className="animate-spin" size={14}/> : <Save size={14} />} Confirmar Recebimento (R$ {(paymentAmount + paymentInterest - paymentDiscount - paymentFees).toFixed(2)})
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-50 border-b border-slate-100">
+                                                <tr>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Forma</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Observação</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {dentistPayments.filter(p => p.dentistId === statementClient.id).length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado.</td>
+                                                    </tr>
+                                                ) : (
+                                                    dentistPayments.filter(p => p.dentistId === statementClient.id).map((p, idx) => (
+                                                        <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-6 py-4 text-xs font-bold text-slate-500">
+                                                                {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
+                                                                    {p.paymentMethod}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-xs font-bold text-slate-600 italic">
+                                                                {p.notes || '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-xs font-black text-right text-green-600">
+                                                                R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {activeSubTab === 'FATURAS' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Faturas & Boletos</h4>
+                                    </div>
+
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                        <table className="w-full text-left">
+                                            <thead className="bg-slate-50 border-b border-slate-100">
+                                                <tr>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-50">
+                                                {billingBatches.filter(b => b.dentistId === statementClient.id).length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold italic">Nenhuma fatura gerada para este cliente.</td>
+                                                    </tr>
+                                                ) : (
+                                                    billingBatches.filter(b => b.dentistId === statementClient.id).map((b) => (
+                                                        <tr key={b.id} className="hover:bg-slate-50 transition-colors">
+                                                            <td className="px-6 py-4 text-[10px] font-black text-slate-400">#{b.id.slice(-6).toUpperCase()}</td>
+                                                            <td className="px-6 py-4 text-xs font-bold text-slate-600">
+                                                                {new Date(b.dueDate).toLocaleDateString('pt-BR')}
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-lg ${
+                                                                    b.status === 'PAID' ? 'bg-green-100 text-green-700' : 
+                                                                    b.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                                                }`}>
+                                                                    {b.status === 'PAID' ? 'Paga' : b.status === 'OVERDUE' ? 'Atrasada' : 'Pendente'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-xs font-black text-right text-slate-800">
+                                                                R$ {b.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-center">
+                                                                <div className="flex items-center justify-center gap-2">
+                                                                    {b.status !== 'PAID' && (
+                                                                        <button 
+                                                                            onClick={() => updateBillingBatchStatus(b.id, 'PAID')}
+                                                                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                                                            title="Marcar como Pago"
+                                                                        >
+                                                                            <Check size={16} />
+                                                                        </button>
+                                                                    )}
+                                                                    {b.boletoUrl && (
+                                                                        <a href={b.boletoUrl} target="_blank" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Ver Boleto">
+                                                                            <FileText size={16} />
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* FOOTER */}
+                        <div className="p-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-6">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
+                                    <span className={`text-xl font-black ${chronoHistory.history.length > 0 && chronoHistory.history[chronoHistory.history.length-1].balanceAfter < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                        R$ {Math.abs(chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length-1].balanceAfter : chronoHistory.previousBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                <div className="h-10 w-px bg-slate-100 mx-2 hidden md:block" />
+                                <div className="hidden md:flex flex-col">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Último Pagamento</span>
+                                    <span className="text-sm font-bold text-slate-600">
+                                        {chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()?.date ? new Date(chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()!.date).toLocaleDateString('pt-BR') : '--/--/----'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 w-full md:w-auto">
+                                <button 
+                                    onClick={async () => {
+                                        // Identifying jobs not in any batch yet (simplified)
+                                        const pendingJobIds = chronoHistory.history
+                                            .filter(item => item.type === 'DEBIT')
+                                            .map(item => item.id);
+                                        
+                                        if (pendingJobIds.length === 0) {
+                                            alert('Não há débitos pendentes para gerar fatura.');
+                                            return;
+                                        }
+
+                                        try {
+                                            const dueDate = new Date();
+                                            dueDate.setDate(dueDate.getDate() + 5);
+                                            await generateBatchBoleto(statementClient.id, pendingJobIds, dueDate);
+                                            alert('Protocolo de fatura gerado com sucesso!');
+                                            setActiveSubTab('FATURAS');
+                                        } catch (err: any) {
+                                            console.error(err);
+                                            if (err.message === 'ASAAS_NOT_CONFIGURED') {
+                                                setShowAsaasError(true);
+                                            } else {
+                                                alert('Erro ao gerar fatura.');
+                                            }
+                                        }
+                                    }}
+                                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 uppercase text-xs"
+                                >
+                                    <Receipt size={18} /> Fechar Faturamento
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setActiveSubTab('RECEBIMENTOS');
+                                        setShowPaymentForm(true);
+                                    }}
+                                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all uppercase text-xs"
+                                >
+                                    <Banknote size={18} /> Pagar Manual
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
       )}
 
-      {/* MODAL: REGISTRAR PAGAMENTO (SINC COM DENTISTS.TSX) */}
-      {showPaymentForm && statementClient && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl p-8 animate-in zoom-in duration-200 border border-slate-200">
-                  <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-5">
-                      <div>
-                          <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Registrar Recebimento</h3>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{statementClient.name}</p>
+      {showAsaasError && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                  <div className="flex flex-col items-center text-center gap-4">
+                      <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
+                          <AlertTriangle size={40} />
                       </div>
-                      <button onClick={() => setShowPaymentForm(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
-                      <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Valor Base (R$)</label>
-                          <input 
-                              type="number" 
-                              required 
-                              value={paymentAmount || ''} 
-                              onChange={e => setPaymentAmount(parseFloat(e.target.value))} 
-                              className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all font-black text-slate-700" 
-                              placeholder="0.00" 
-                          />
-                      </div>
-                      <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Juros (R$)</label>
-                          <input 
-                              type="number" 
-                              value={paymentInterest || ''} 
-                              onChange={e => setPaymentInterest(parseFloat(e.target.value))} 
-                              className="w-full px-5 py-3 bg-red-50/30 border border-red-100 rounded-2xl outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-500 transition-all font-black text-red-600" 
-                              placeholder="0.00" 
-                          />
-                      </div>
-                      <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Taxas (R$)</label>
-                          <input 
-                              type="number" 
-                              value={paymentFees || ''} 
-                              onChange={e => setPaymentFees(parseFloat(e.target.value))} 
-                              className="w-full px-5 py-3 bg-red-50/30 border border-red-100 rounded-2xl outline-none focus:ring-4 focus:ring-red-500/10 focus:border-red-500 transition-all font-black text-red-600" 
-                              placeholder="0.00" 
-                          />
-                      </div>
-                      <div>
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Desconto (R$)</label>
-                          <input 
-                              type="number" 
-                              value={paymentDiscount || ''} 
-                              onChange={e => setPaymentDiscount(parseFloat(e.target.value))} 
-                              className="w-full px-5 py-3 bg-green-50/30 border border-green-100 rounded-2xl outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all font-black text-green-600" 
-                              placeholder="0.00" 
-                          />
-                      </div>
-                      <div className="col-span-2">
-                           <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Método</label>
-                           <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as any)} className="w-full px-5 py-3 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-black text-slate-700">
-                               <option value="PIX">PIX</option>
-                               <option value="CASH">Dinheiro</option>
-                               <option value="BANK_TRANSFER">Transferência</option>
-                               <option value="BOLETO">Boleto Pago</option>
-                               <option value="CREDIT_CARD">Cartão de Crédito</option>
-                               <option value="DEBIT_CARD">Cartão de Débito</option>
-                           </select>
-                      </div>
-                  </div>
-
-                  <div className="bg-slate-900 rounded-3xl p-6 mb-8 shadow-xl shadow-slate-200 flex justify-between items-center relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><DollarSign size={80} className="text-white" /></div>
-                      <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Líquido a Receber</p>
-                          <h4 className="text-3xl font-black text-white">
-                              R$ {Math.max(0, (paymentAmount || 0) + (paymentInterest || 0) + (paymentFees || 0) - (paymentDiscount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </h4>
-                      </div>
-                      <Check size={32} className="text-green-500" />
-                  </div>
-
-                  <div className="flex gap-4">
-                      <button onClick={() => setShowPaymentForm(false)} className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest text-xs">Cancelar</button>
+                      <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight text-red-600">Erro de Geração de Boleto</h3>
+                      <p className="text-slate-500 font-bold">
+                          Sua conta Asaas não está devidamente criada ou configurada para esta operação.
+                      </p>
+                      <p className="text-slate-400 text-sm">
+                          Verifique as chaves de API e o ID da Carteira nas configurações do seu laboratório.
+                      </p>
                       <button 
-                          disabled={isSaving || paymentAmount <= 0}
-                          onClick={handleSavePayment}
-                          className="flex-[2] py-4 bg-green-600 text-white font-black rounded-2xl shadow-xl shadow-green-100 hover:bg-green-700 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-xs disabled:opacity-50"
+                          onClick={() => setShowAsaasError(false)}
+                          className="w-full mt-6 py-4 bg-slate-800 text-white font-black uppercase rounded-2xl hover:bg-slate-900 transition-all shadow-xl shadow-slate-200"
                       >
-                          {isSaving ? <Loader2 className="animate-spin" size={18}/> : <><DollarSign size={18}/> Salvar Recebimento</>}
+                          Entendido
                       </button>
                   </div>
               </div>

@@ -22,7 +22,7 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment 
+  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount 
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -649,6 +649,36 @@ export const subscribeDentistPayments = (orgId: string, cb: (p: DentistPayment[]
 };
 
 export const apiAddDentistPayment = (orgId: string, payment: DentistPayment) => setDoc(doc(db, `organizations/${orgId}/dentistPayments`, payment.id), payment);
+
+// --- CARD MACHINES ---
+export const subscribeCardMachines = (orgId: string, cb: (machines: CardMachine[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/cardMachines`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt)
+        } as CardMachine)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeCardMachines: ${error.code}`));
+};
+export const apiAddCardMachine = (orgId: string, machine: CardMachine) => setDoc(doc(db, `organizations/${orgId}/cardMachines`, machine.id), machine);
+export const apiUpdateCardMachine = (orgId: string, id: string, u: Partial<CardMachine>) => updateDoc(doc(db, `organizations/${orgId}/cardMachines`, id), u);
+export const apiDeleteCardMachine = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/cardMachines`, id));
+
+// --- BANK ACCOUNTS ---
+export const subscribeBankAccounts = (orgId: string, cb: (accounts: BankAccount[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/bankAccounts`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt)
+        } as BankAccount)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeBankAccounts: ${error.code}`));
+};
+export const apiAddBankAccount = (orgId: string, account: BankAccount) => setDoc(doc(db, `organizations/${orgId}/bankAccounts`, account.id), account);
+export const apiUpdateBankAccount = (orgId: string, id: string, u: Partial<BankAccount>) => updateDoc(doc(db, `organizations/${orgId}/bankAccounts`, id), u);
+export const apiDeleteBankAccount = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/bankAccounts`, id));
 
 export const apiUpdateBillingBatchStatus = (orgId: string, batchId: string, status: BillingBatch['status']) => 
     updateDoc(doc(db, `organizations/${orgId}/billingBatches`, batchId), { status });
