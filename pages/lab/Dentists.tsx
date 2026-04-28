@@ -361,8 +361,20 @@ export const Dentists = () => {
         doc.setFont("helvetica", "bold");
         doc.text("Endereço:", 120, 45);
         doc.setFont("helvetica", "normal");
-        const address = statementClient.clinicName || 'Consultório';
-        const splitAddr = doc.splitTextToSize(address, 60);
+        
+        let addressStr = '';
+        if (statementClient.address) {
+            addressStr = `${statementClient.address}${statementClient.number ? `, ${statementClient.number}` : ''}`;
+            if (statementClient.neighborhood) addressStr += `, ${statementClient.neighborhood}`;
+            let secondLine = [];
+            if (statementClient.cep) secondLine.push(statementClient.cep);
+            if (statementClient.city) secondLine.push(`${statementClient.city}${statementClient.state ? ` - ${statementClient.state}` : ''}`);
+            if(secondLine.length > 0) addressStr += `\n${secondLine.join(', ')}`;
+        } else {
+            addressStr = statementClient.clinicName || 'Não informado';
+        }
+
+        const splitAddr = doc.splitTextToSize(addressStr, 60);
         doc.text(splitAddr, 140, 45);
 
         doc.line(14, 65, 195, 65);
@@ -463,8 +475,8 @@ export const Dentists = () => {
         doc.setTextColor(34, 197, 94);
         doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
 
-        cY += 12;
-        doc.line(summaryX, cY - 8, valX, cY - 8);
+        cY += 15;
+        doc.line(summaryX, cY - 10, valX, cY - 10);
 
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(10);

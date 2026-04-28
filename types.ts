@@ -327,6 +327,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  phone?: string;
+  cpfCnpj?: string;
   organizationId?: string;
   sector?: string;
   permissions?: PermissionKey[]; 
@@ -343,6 +345,9 @@ export interface User {
     variations?: { [optionId: string]: number };
   }[];
   address?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
   city?: string;
   state?: string;
   cep?: string;
