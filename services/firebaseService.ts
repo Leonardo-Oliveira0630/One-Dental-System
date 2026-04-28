@@ -204,9 +204,19 @@ export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => upd
 
 export const subscribeJobs = (orgId: string, userId: string | null, isClient: boolean, cb: (jobs: Job[]) => void) => {
     if (!orgId) return () => {};
-    let q = query(collection(db, `organizations/${orgId}/jobs`));
+    let q = query(
+        collection(db, `organizations/${orgId}/jobs`),
+        orderBy('createdAt', 'desc'),
+        limit(500)
+    );
+    
     if (isClient && userId) {
-        q = query(collection(db, `organizations/${orgId}/jobs`), where('dentistId', '==', userId));
+        q = query(
+            collection(db, `organizations/${orgId}/jobs`), 
+            where('dentistId', '==', userId),
+            orderBy('createdAt', 'desc'),
+            limit(500)
+        );
     }
 
     // Cache local para evitar mapeamento integral em cada update delta
@@ -256,6 +266,27 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
 
 export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, `organizations/${orgId}/jobs`, job.id), job);
 export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) => updateDoc(doc(db, `organizations/${orgId}/jobs`, id), updates);
+
+export const getDentistJobs = async (orgId: string, dentistId: string): Promise<Job[]> => {
+    const q = query(collection(db, `organizations/${orgId}/jobs`), where('dentistId', '==', dentistId));
+    const snap = await getDocs(q);
+    return snap.docs.map((d: any) => {
+        const data = d.data();
+        return {
+            id: d.id,
+            ...data,
+            createdAt: toDate(data.createdAt),
+            dueDate: toDate(data.dueDate),
+            sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
+            history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) })),
+            sectorMovements: (data.sectorMovements || []).map((m: any) => ({
+                ...m,
+                entryTime: toDate(m.entryTime),
+                exitTime: m.exitTime ? toDate(m.exitTime) : undefined
+            }))
+        } as Job;
+    });
+};
 
 export const subscribeJobTypes = (orgId: string, cb: (types: JobType[]) => void) => {
     if (!orgId) return () => {};

@@ -1,9 +1,10 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
 import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -32,6 +33,8 @@ export const Dentists = () => {
     // Extrato State
     const [showStatement, setShowStatement] = useState(false);
     const [statementClient, setStatementClient] = useState<any | null>(null);
+    const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
+    const [isLoadingStatement, setIsLoadingStatement] = useState(false);
     const [activeSubTab, setActiveSubTab] = useState<'EXTRATO' | 'RECEBIMENTOS' | 'FATURAS'>('EXTRATO');
     const [isSaving, setIsSaving] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -95,6 +98,25 @@ export const Dentists = () => {
 
         return Array.from(clientMap.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [manualDentists, allUsers]);
+
+    useEffect(() => {
+        const loadStatementData = async () => {
+            if (showStatement && statementClient && currentUser?.organizationId) {
+                setIsLoadingStatement(true);
+                try {
+                    const fullJobs = await getDentistJobs(currentUser.organizationId, statementClient.id);
+                    setDentistJobs(fullJobs);
+                } catch (error) {
+                    console.error("Erro ao carregar trabalhos do dentista:", error);
+                } finally {
+                    setIsLoadingStatement(false);
+                }
+            } else {
+                setDentistJobs([]);
+            }
+        };
+        loadStatementData();
+    }, [showStatement, statementClient, currentUser?.organizationId]);
 
     const handleOpenPricing = (client: any) => {
         setSelectedClient({
@@ -201,7 +223,7 @@ export const Dentists = () => {
     const statementData = useMemo(() => {
         if (!statementClient) return [];
         
-        const clientJobs = jobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+        const clientJobs = dentistJobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
         const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
         
         const history = [
@@ -239,7 +261,7 @@ export const Dentists = () => {
     const chronoHistory = useMemo(() => {
         if (!statementClient) return { history: [], previousBalance: 0 };
         
-        const clientJobs = jobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+        const clientJobs = dentistJobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
         const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
         
         const history = [
@@ -467,31 +489,36 @@ export const Dentists = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 mt-6">
-                            <button 
-                                onClick={() => handleOpenPricing(client)}
-                                className="py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-xs"
-                            >
-                                <Tag size={16} /> Tabela Preços
-                            </button>
-                            {hasPerm('clients:statement_view') && (
-                              <button 
-                                  onClick={() => {
-                                      setStatementClient(client);
-                                      setShowStatement(true);
-                                  }}
-                                  className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs shadow-lg shadow-blue-100"
-                              >
-                                  <FileText size={16} /> Extrato
-                              </button>
-                            )}
-                            {!hasPerm('clients:statement_view') && (
-                              <button 
-                                  onClick={() => navigate(`/jobs?dentist=${client.id}`)}
-                                  className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-xs shadow-lg shadow-blue-100"
-                              >
-                                  Trabalhos <ArrowRight size={16} />
-                              </button>
+                        <div className="flex flex-col gap-2 mt-6">
+                            <div className="grid grid-cols-2 gap-2">
+                                {hasPerm('catalog:prices_view') && (
+                                    <button 
+                                        onClick={() => handleOpenPricing(client)}
+                                        className="py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-all flex items-center justify-center gap-2 text-[11px] border border-slate-200"
+                                    >
+                                        <Tag size={14} /> Tabela Preços
+                                    </button>
+                                )}
+                                {hasPerm('jobs:view') && (
+                                    <button 
+                                        onClick={() => navigate(`/jobs?dentist=${client.id}`)}
+                                        className="py-2.5 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-[11px] border border-slate-200"
+                                    >
+                                        <Package size={14} /> Trabalhos
+                                    </button>
+                                )}
+                            </div>
+                            
+                            {(hasPerm('clients:statement_view') || hasPerm('finance:view')) && (
+                                <button 
+                                    onClick={() => {
+                                        setStatementClient(client);
+                                        setShowStatement(true);
+                                    }}
+                                    className="w-full py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[11px] shadow-lg shadow-blue-100 uppercase tracking-widest"
+                                >
+                                    <DollarSign size={14} /> Financeiro
+                                </button>
                             )}
                         </div>
                     </div>
@@ -903,7 +930,15 @@ export const Dentists = () => {
                         </div>
 
                         {/* TAB CONTENT */}
-                        <div className="flex-1 overflow-y-auto p-6">
+                        <div className="flex-1 overflow-y-auto p-6 relative">
+                            {isLoadingStatement && (
+                                <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+                                    <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+                                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Carregando Histórico Completo...</p>
+                                    <p className="text-xs text-slate-400 font-bold mt-1">Isso pode levar alguns segundos dependendo do volume de dados.</p>
+                                </div>
+                            )}
+
                             {activeSubTab === 'EXTRATO' && (
                                 <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                     <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200">
