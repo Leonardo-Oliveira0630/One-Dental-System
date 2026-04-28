@@ -31,9 +31,7 @@ export const Finance = () => {
   // States
   const [expenses, setExpenses] = useState<Expense[]>([]);
   // const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]); // Using from context now for sync
-  const [selectedDentist, setSelectedDentist] = useState<any>(null);
-  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -143,80 +141,192 @@ export const Finance = () => {
     return { history: filteredHistory, previousBalance };
   }, [statementClient, dentistJobs, dentistPayments, selectedMonth, selectedYear]);
 
-  const generateStatementPDF = () => {
-    if (!statementClient) return;
+  const generateStatementPDF = async () => {
+    if (!statementClient || !currentOrg) return;
 
     const doc = new jsPDF();
     const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const periodStr = `${monthNames[selectedMonth]} / ${selectedYear}`;
     
-    doc.setFontSize(20);
-    doc.text("Extrato", 105, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`Período: 01/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear} - ${new Date(selectedYear, selectedMonth + 1, 0).getDate()}/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`, 105, 28, { align: 'center' });
+    const startDateStr = `01/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`;
+    const endDateStr = `${new Date(selectedYear, selectedMonth + 1, 0).getDate()}/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`;
 
-    doc.setFontSize(10);
-    doc.text(`Cliente: ${statementClient.name.toUpperCase()}`, 14, 45);
-    doc.text(`Documento: ${statementClient.cpfCnpj || '-'}`, 14, 52);
+    // Header Background / Setup (Optional light background for header box)
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, 210, 35, 'F'); 
+
+    // Logo
+    if (currentOrg?.logoUrl) {
+        try {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.src = currentOrg.logoUrl;
+            await new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve; 
+            });
+            
+            if (img.width > 0) {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0);
+                    const dataURL = canvas.toDataURL('image/png');
+                    const imgRatio = img.height / img.width;
+                    let finalWidth = 40;
+                    let finalHeight = 40 * imgRatio;
+                    if (finalHeight > 25) {
+                        finalHeight = 25;
+                        finalWidth = 25 / imgRatio;
+                    }
+                    doc.addImage(dataURL, 'PNG', 14, 5, finalWidth, finalHeight);
+                }
+            }
+        } catch (e) {
+            console.error("Erro renderizando logo", e);
+        }
+    }
+
+    // Extrato Title
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text("Extrato", 195, 20, { align: 'right' });
     
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`${startDateStr} - ${endDateStr}`, 195, 26, { align: 'right' });
+
+    doc.setDrawColor(220, 220, 220);
+    doc.line(14, 35, 195, 35);
+
+    // Client Info
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 14, 45);
+    doc.setFont("helvetica", "normal");
+    doc.text(statementClient.name.toUpperCase(), 30, 45);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Documento:", 14, 52);
+    doc.setFont("helvetica", "normal");
+    doc.text(statementClient.cpfCnpj || '-', 36, 52);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Período:", 14, 59);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${startDateStr} - ${endDateStr}`, 30, 59);
+
+    // Address Right Side
+    doc.setFont("helvetica", "bold");
+    doc.text("Endereço:", 120, 45);
+    doc.setFont("helvetica", "normal");
     const address = statementClient.clinicName || 'Consultório';
-    doc.text(`Endereço: ${address}`, 120, 45, { maxWidth: 80 });
+    const splitAddr = doc.splitTextToSize(address, 60);
+    doc.text(splitAddr, 140, 45);
+
+    doc.line(14, 65, 195, 65);
+
+    // Table
+    const tableBody: any[] = [];
+    tableBody.push([
+        { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+        { content: 'Saldo anterior', styles: { fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+        { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+        { content: `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
+    ]);
+
+    chronoHistory.history.forEach((item) => {
+        const isDebit = item.type === 'DEBIT';
+        const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
+        
+        const hasSubItems = isDebit && item.job && item.job.items && item.job.items.length > 0;
+        
+        let description = '';
+        if (isDebit) {
+            const dentistName = (statementClient.name && statementClient.name.split(' ')[0]) || 'Dr.';
+            description = `${item.job?.osNumber || '-'} - Dr(a): ${dentistName.toUpperCase()} - Paciente: ${(item.job?.patientName || '').toUpperCase()}`;
+        } else {
+            description = item.description;
+        }
+
+        tableBody.push([
+            { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+            { content: description, styles: { lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+            { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+            { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
+        ]);
+        
+        if (hasSubItems) {
+            item.job.items.forEach((subItem: any, subIndex: number) => {
+                const isLast = subIndex === item.job.items.length - 1;
+                tableBody.push([
+                    { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: `R$ ${(subItem.price * subItem.quantity).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                    { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
+                ]);
+            });
+        }
+    });
 
     autoTable(doc, {
         startY: 70,
         head: [['Data', 'Descrição', 'Valor', 'Saldo']],
-        body: [
-            ['', 'Saldo anterior', '', `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]
-        ],
-        theme: 'plain',
-        styles: { fontSize: 9, fontStyle: 'bold' },
-        columnStyles: { 3: { halign: 'right' } }
-    });
-
-    const tableBody = chronoHistory.history.map(item => {
-        const amountStr = item.type === 'DEBIT' ? `R$ -${item.amount.toFixed(2)}` : `R$ ${item.amount.toFixed(2)}`;
-        return [
-            new Date(item.date).toLocaleDateString('pt-BR'),
-            item.description,
-            { content: amountStr, styles: { textColor: (item.type === 'DEBIT' ? [255, 0, 0] : [0, 128, 0]) as [number, number, number] } },
-            `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-        ];
-    });
-
-    autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 2,
-        head: [],
         body: tableBody,
-        theme: 'striped',
-        styles: { fontSize: 8 },
-        columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } }
+        theme: 'plain',
+        headStyles: { fontStyle: 'bold', fontSize: 9, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] },
+        styles: { fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+        columnStyles: { 0: { cellWidth: 25 }, 2: { halign: 'left', cellWidth: 35 }, 3: { halign: 'left', cellWidth: 35 } }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
     const totalServices = chronoHistory.history.filter(i => i.type === 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
     const totalPayments = chronoHistory.history.filter(i => i.type !== 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
     const currentBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
 
-    doc.setFontSize(10);
-    doc.text("Saldo anterior", 140, finalY);
-    doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY, { align: 'right' });
-    
-    doc.text("Total de serviços", 140, finalY + 7);
-    doc.setTextColor(255, 0, 0);
-    doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 7, { align: 'right' });
-    
-    doc.setTextColor(0, 0, 0);
-    doc.text("Total de pagamentos", 140, finalY + 14);
-    doc.setTextColor(0, 128, 0);
-    doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 14, { align: 'right' });
-    
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(11);
+    // Draw Summary Box aligned to right side
+    doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text("Saldo atual no período", 140, finalY + 25);
-    const balanceColor = (currentBalance < 0 ? [255, 0, 0] : [0, 128, 0]) as [number, number, number];
-    doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2]);
-    doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 25, { align: 'right' });
+    
+    const summaryX = 80;
+    const valX = 195;
+    let cY = finalY;
+
+    doc.text("Saldo anterior", summaryX, cY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+    
+    cY += 8;
+    doc.setDrawColor(230, 230, 230);
+    doc.line(summaryX, cY - 4, valX, cY - 4);
+    
+    doc.setTextColor(0, 0, 0);
+    doc.text("Total de serviços", summaryX, cY);
+    doc.setTextColor(239, 68, 68);
+    doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+
+    cY += 8;
+    doc.line(summaryX, cY - 4, valX, cY - 4);
+
+    doc.setTextColor(0, 0, 0);
+    doc.text("Total de pagamentos", summaryX, cY);
+    doc.setTextColor(34, 197, 94);
+    doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+
+    cY += 12;
+    doc.line(summaryX, cY - 8, valX, cY - 8);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.text("Saldo atual no período", summaryX, cY);
+    const balanceColor = currentBalance < 0 ? [239, 68, 68] : [34, 197, 94];
+    doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2] as number);
+    doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
 
     doc.save(`Extrato_${statementClient.name}_${periodStr.replace(' / ', '_')}.pdf`);
   };
@@ -304,21 +414,7 @@ export const Finance = () => {
         .sort((a, b) => b.totalPending - a.totalPending);
   }, [jobs, allUsers, manualDentists, searchTerm]);
 
-  const handleCreateBoleto = async () => {
-    if (!currentOrg || !selectedDentist || selectedJobIds.length === 0) return;
-    setIsGenerating(true);
-    try {
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 5);
-        await api.apiGenerateBatchBoleto(currentOrg.id, selectedDentist.id, selectedJobIds, dueDate);
-        alert("Boleto e Fatura gerados com sucesso!");
-        setSelectedDentist(null);
-        setSelectedJobIds([]);
-        setActiveTab('BATCHES');
-    } catch (error: any) {
-        alert("Erro: " + error.message);
-    } finally { setIsGenerating(false); }
-  };
+
 
   const handleWithdrawFunds = async () => {
       if (!currentOrg?.financialSettings?.balance || currentOrg.financialSettings.balance <= 0) {
@@ -443,22 +539,11 @@ export const Finance = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {dentistSummary.map(d => (
-                          <div key={d.id} onClick={() => setSelectedDentist(d)} className="p-5 border border-slate-100 rounded-2xl hover:border-blue-500 cursor-pointer transition-all bg-slate-50 group flex flex-col justify-between">
+                          <div key={d.id} onClick={() => { setStatementClient(d); setShowStatement(true); }} className="p-5 border border-slate-100 rounded-2xl hover:border-blue-500 cursor-pointer transition-all bg-slate-50 group flex flex-col justify-between">
                               <div className="flex items-center gap-3 mb-4">
                                   <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-blue-600 shadow-sm">{d.name.charAt(0)}</div>
                                   <div className="flex-1 overflow-hidden"><p className="font-bold text-slate-800 truncate">{d.name}</p><p className="text-[10px] text-slate-400 font-bold uppercase truncate">{d.clinicName || 'Consultório'}</p></div>
                                   <div className="flex gap-1">
-                                      <button 
-                                          onClick={(e) => {
-                                              e.stopPropagation();
-                                              setStatementClient(d);
-                                              setShowStatement(true);
-                                          }}
-                                          className="p-2 bg-white text-slate-600 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100"
-                                          title="Ver Extrato Detalhado"
-                                      >
-                                          <FileText size={18} />
-                                      </button>
                                       <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-500" />
                                   </div>
                               </div>
@@ -633,56 +718,6 @@ export const Finance = () => {
               </div>
           </div>
       )}
-      {selectedDentist && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                      <div>
-                          <h3 className="text-xl font-black text-slate-800">Extrato de Débitos: {selectedDentist.name}</h3>
-                          <p className="text-xs text-slate-500 font-bold uppercase">Apenas trabalhos internos concluídos</p>
-                      </div>
-                      <button onClick={() => setSelectedDentist(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24}/></button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-                      <div className="lg:col-span-7 space-y-3">
-                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Trabalhos Disponíveis p/ Cobrança</h4>
-                          {selectedDentist.pendingJobs.map((job: Job) => {
-                              const isSelected = selectedJobIds.includes(job.id);
-                              return (
-                                  <div key={job.id} onClick={() => setSelectedJobIds(prev => isSelected ? prev.filter(id => id !== job.id) : [...prev, job.id])} className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex justify-between items-center ${isSelected ? 'border-blue-600 bg-white shadow-md' : 'border-blue-100 bg-white/50 hover:bg-white'}`}>
-                                      <div className="flex items-center gap-3">
-                                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600' : 'border-blue-200'}`}>{isSelected && <Check size={12} className="text-white" />}</div>
-                                          <div>
-                                              <p className="text-sm font-bold text-slate-800">OS #{job.osNumber} - {job.patientName}</p>
-                                              <p className="text-[10px] text-slate-400">Finalizado em: {new Date(job.history[job.history.length-1].timestamp).toLocaleDateString()}</p>
-                                          </div>
-                                      </div>
-                                      <p className="font-black text-blue-800">R$ {job.totalValue.toFixed(2)}</p>
-                                  </div>
-                              );
-                          })}
-                      </div>
-                      <div className="lg:col-span-5 bg-blue-50/50 p-6 rounded-3xl border border-blue-100 h-fit">
-                          <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest mb-4">Total a Faturar</h4>
-                          <div className="flex justify-between items-center mb-6">
-                              <span className="text-xs text-slate-500">{selectedJobIds.length} trabalhos selecionados</span>
-                              <span className="text-2xl font-black text-blue-900">R$ {selectedJobIds.reduce((acc, id) => acc + (selectedDentist.pendingJobs.find((p:any)=>p.id===id)?.totalValue || 0), 0).toFixed(2)}</span>
-                          </div>
-                          
-                          <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100 mb-6 flex gap-2 items-start">
-                              <AlertTriangle className="text-yellow-600 shrink-0" size={18}/>
-                              <p className="text-[11px] text-yellow-800">Um boleto bancário será gerado e os trabalhos serão marcados como **Aguardando Pagamento**.</p>
-                          </div>
-
-                          <button onClick={handleCreateBoleto} disabled={selectedJobIds.length === 0 || isGenerating} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50 transition-all">
-                            {isGenerating ? <Loader2 className="animate-spin"/> : <><Receipt size={20}/> CONFIRMAR E GERAR BOLETO</>}
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      )}
-
       {/* MODAL: NOVA DESPESA */}
       {showExpenseModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">

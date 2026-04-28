@@ -12,7 +12,7 @@ export const Dentists = () => {
     const { 
         jobTypes, updateUser, manualDentists, updateManualDentist, jobs, priceTables, allUsers, 
         currentUser, billingBatches, generateBatchBoleto, dentistPayments, addDentistPayment, updateBillingBatchStatus,
-        cardMachines, bankAccounts
+        cardMachines, bankAccounts, currentOrg
     } = useApp();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
@@ -278,87 +278,200 @@ export const Dentists = () => {
         return { history: filteredHistory, previousBalance };
     }, [statementClient, dentistJobs, dentistPayments, selectedMonth, selectedYear]);
 
-    const generateStatementPDF = () => {
-        if (!statementClient) return;
+    const generateStatementPDF = async () => {
+        if (!statementClient || !currentOrg) return;
 
         const doc = new jsPDF();
         const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
         const periodStr = `${monthNames[selectedMonth]} / ${selectedYear}`;
         
-        // Header
-        doc.setFontSize(20);
-        doc.text("Extrato", 105, 20, { align: 'center' });
-        doc.setFontSize(10);
-        doc.text(`Período: 01/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear} - ${new Date(selectedYear, selectedMonth + 1, 0).getDate()}/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`, 105, 28, { align: 'center' });
+        const startDateStr = `01/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`;
+        const endDateStr = `${new Date(selectedYear, selectedMonth + 1, 0).getDate()}/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`;
+
+        // Header Background
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, 210, 35, 'F'); 
+
+        // Logo
+        if (currentOrg?.logoUrl) {
+            try {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.src = currentOrg.logoUrl;
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; 
+                });
+                
+                if (img.width > 0) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(img, 0, 0);
+                        const dataURL = canvas.toDataURL('image/png');
+                        const imgRatio = img.height / img.width;
+                        let finalWidth = 40;
+                        let finalHeight = 40 * imgRatio;
+                        if (finalHeight > 25) {
+                            finalHeight = 25;
+                            finalWidth = 25 / imgRatio;
+                        }
+                        doc.addImage(dataURL, 'PNG', 14, 5, finalWidth, finalHeight);
+                    }
+                }
+            } catch (e) {
+                console.error("Erro renderizando logo", e);
+            }
+        }
+
+        // Extrato Title
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        doc.text("Extrato", 195, 20, { align: 'right' });
+        
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`${startDateStr} - ${endDateStr}`, 195, 26, { align: 'right' });
+
+        doc.setDrawColor(220, 220, 220);
+        doc.line(14, 35, 195, 35);
 
         // Client Info
-        doc.setFontSize(10);
-        doc.text(`Cliente: ${statementClient.name.toUpperCase()}`, 14, 45);
-        doc.text(`Documento: ${statementClient.cpfCnpj || '-'}`, 14, 52);
-        doc.text(`Período: 01/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear} a ${new Date(selectedYear, selectedMonth + 1, 0).getDate()}/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`, 14, 59);
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "bold");
+        doc.text("Cliente:", 14, 45);
+        doc.setFont("helvetica", "normal");
+        doc.text(statementClient.name.toUpperCase(), 30, 45);
 
-        // Address (Right side)
+        doc.setFont("helvetica", "bold");
+        doc.text("Documento:", 14, 52);
+        doc.setFont("helvetica", "normal");
+        doc.text(statementClient.cpfCnpj || '-', 36, 52);
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("Período:", 14, 59);
+        doc.setFont("helvetica", "normal");
+        doc.text(`${startDateStr} - ${endDateStr}`, 30, 59);
+
+        // Address Right Side
+        doc.setFont("helvetica", "bold");
+        doc.text("Endereço:", 120, 45);
+        doc.setFont("helvetica", "normal");
         const address = statementClient.clinicName || 'Consultório';
-        doc.text(`Endereço: ${address}`, 120, 45, { maxWidth: 80 });
+        const splitAddr = doc.splitTextToSize(address, 60);
+        doc.text(splitAddr, 140, 45);
 
-        // Table Header Manual Row for "Saldo Anterior"
+        doc.line(14, 65, 195, 65);
+
+        // Table
+        const tableBody: any[] = [];
+        tableBody.push([
+            { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+            { content: 'Saldo anterior', styles: { fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+            { content: '', styles: { lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } },
+            { content: `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
+        ]);
+
+        chronoHistory.history.forEach((item) => {
+            const isDebit = item.type === 'DEBIT';
+            const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+            const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
+            
+            const hasSubItems = isDebit && item.job && item.job.items && item.job.items.length > 0;
+            
+            let description = '';
+            if (isDebit) {
+                const dentistName = (statementClient.name && statementClient.name.split(' ')[0]) || 'Dr.';
+                description = `${item.job?.osNumber || '-'} - Dr(a): ${dentistName.toUpperCase()} - Paciente: ${(item.job?.patientName || '').toUpperCase()}`;
+            } else {
+                description = item.description;
+            }
+
+            tableBody.push([
+                { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+                { content: description, styles: { lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+                { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+                { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
+            ]);
+            
+            if (hasSubItems) {
+                item.job.items.forEach((subItem: any, subIndex: number) => {
+                    const isLast = subIndex === item.job.items.length - 1;
+                    tableBody.push([
+                        { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: `R$ ${(subItem.price * subItem.quantity).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
+                    ]);
+                });
+            }
+        });
+
         autoTable(doc, {
             startY: 70,
             head: [['Data', 'Descrição', 'Valor', 'Saldo']],
-            body: [
-                ['', 'Saldo anterior', '', `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`]
-            ],
-            theme: 'plain',
-            styles: { fontSize: 9, fontStyle: 'bold' },
-            columnStyles: { 3: { halign: 'right' } }
-        });
-
-        // Main Table
-        const tableBody = chronoHistory.history.map(item => {
-            const amountStr = item.type === 'DEBIT' ? `R$ -${item.amount.toFixed(2)}` : `R$ ${item.amount.toFixed(2)}`;
-            return [
-                new Date(item.date).toLocaleDateString('pt-BR'),
-                item.description,
-                { content: amountStr, styles: { textColor: (item.type === 'DEBIT' ? [255, 0, 0] : [0, 128, 0]) as [number, number, number] } },
-                `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-            ];
-        });
-
-        autoTable(doc, {
-            startY: (doc as any).lastAutoTable.finalY + 2,
-            head: [],
             body: tableBody,
-            theme: 'striped',
-            styles: { fontSize: 8 },
-            columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' } }
+            theme: 'plain',
+            headStyles: { fontStyle: 'bold', fontSize: 9, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] },
+            styles: { fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+            columnStyles: { 0: { cellWidth: 25 }, 2: { halign: 'left', cellWidth: 35 }, 3: { halign: 'left', cellWidth: 35 } }
         });
 
-        // Totals
-        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        const finalY = (doc as any).lastAutoTable.finalY + 15;
         const totalServices = chronoHistory.history.filter(i => i.type === 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
         const totalPayments = chronoHistory.history.filter(i => i.type !== 'DEBIT').reduce((acc, curr) => acc + curr.amount, 0);
         const currentBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
 
-        doc.setFontSize(10);
-        doc.text("Saldo anterior", 140, finalY);
-        doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY, { align: 'right' });
-        
-        doc.text("Total de serviços", 140, finalY + 7);
-        doc.setTextColor(255, 0, 0);
-        doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 7, { align: 'right' });
-        
-        doc.setTextColor(0, 0, 0);
-        doc.text("Total de pagamentos", 140, finalY + 14);
-        doc.setTextColor(0, 128, 0);
-        doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 14, { align: 'right' });
-        
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(11);
+        // Draw Summary Box aligned to right side
+        doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
-        doc.text("Saldo atual no período", 140, finalY + 25);
-        const balanceColor = (currentBalance < 0 ? [255, 0, 0] : [0, 128, 0]) as [number, number, number];
-        doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2]);
-        doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 195, finalY + 25, { align: 'right' });
+        
+        const summaryX = 80;
+        const valX = 195;
+        let cY = finalY;
+
+        doc.text("Saldo anterior", summaryX, cY);
+        doc.setTextColor(239, 68, 68);
+        doc.text(`R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+        
+        cY += 8;
+        doc.setDrawColor(230, 230, 230);
+        doc.line(summaryX, cY - 4, valX, cY - 4);
+        
+        doc.setTextColor(0, 0, 0);
+        doc.text("Total de serviços", summaryX, cY);
+        doc.setTextColor(239, 68, 68);
+        doc.text(`R$ -${totalServices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+
+        cY += 8;
+        doc.line(summaryX, cY - 4, valX, cY - 4);
+
+        doc.setTextColor(0, 0, 0);
+        doc.text("Total de produtos", summaryX, cY);
+        doc.setTextColor(239, 68, 68);
+        doc.text(`R$ -0,00`, valX, cY, { align: 'right' });
+
+        cY += 8;
+        doc.line(summaryX, cY - 4, valX, cY - 4);
+
+        doc.setTextColor(0, 0, 0);
+        doc.text("Total de pagamentos", summaryX, cY);
+        doc.setTextColor(34, 197, 94);
+        doc.text(`R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
+
+        cY += 12;
+        doc.line(summaryX, cY - 8, valX, cY - 8);
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.text("Saldo atual no período", summaryX, cY);
+        const balanceColor = currentBalance < 0 ? [239, 68, 68] : [34, 197, 94];
+        doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2] as number);
+        doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
 
         doc.save(`Extrato_${statementClient.name}_${periodStr.replace(' / ', '_')}.pdf`);
     };
