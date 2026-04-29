@@ -41,6 +41,14 @@ export interface Organization {
     balance?: number;
     pendingBalance?: number;
   };
+  address?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  cep?: string;
+  country?: string;
 }
 
 export interface ClinicRoom {
@@ -351,6 +359,7 @@ export interface User {
   city?: string;
   state?: string;
   cep?: string;
+  country?: string;
   fcmTokens?: string[];
   deliveryViaPost?: boolean;
   billingLimit?: number;

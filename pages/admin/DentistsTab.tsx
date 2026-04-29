@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
+import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve } from '../../services/addressService';
 
 export const DentistsTab = () => {
   const { manualDentists, addManualDentist, updateManualDentist, deleteManualDentist, priceTables, currentUser, jobTypes } = useApp();
@@ -53,6 +54,57 @@ export const DentistsTab = () => {
   });
 
   const [hasBillingLimit, setHasBillingLimit] = useState(false);
+  const [isInternational, setIsInternational] = useState(false);
+  const [loqateSuggestions, setLoqateSuggestions] = useState<any[]>([]);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
+
+  const handleCEPBlur = async () => {
+    if (formData.country !== 'Brasil' || !formData.cep) return;
+    setIsSearchingCep(true);
+    const result = await searchCEP(formData.cep);
+    if (result) {
+        setFormData(prev => ({
+            ...prev,
+            address: result.address,
+            neighborhood: result.neighborhood,
+            city: result.city,
+            state: result.state
+        }));
+    }
+    setIsSearchingCep(false);
+  };
+
+  const handleLoqateSearch = async (text: string) => {
+    if (text.length < 3) {
+        setLoqateSuggestions([]);
+        return;
+    }
+    const results = await searchLoqateAddress(text);
+    setLoqateSuggestions(results);
+  };
+
+  const handleSelectLoqate = async (item: any) => {
+      if (item.Type === 'Address') {
+          const detailed = await fetchLoqateRetrieve(item.Id);
+          if (detailed) {
+              setFormData(prev => ({
+                  ...prev,
+                  address: detailed.Line1,
+                  number: detailed.BuildingNumber || '',
+                  neighborhood: detailed.AdminAreaName2 || '',
+                  city: detailed.City,
+                  state: detailed.ProvinceCode || detailed.Province,
+                  cep: detailed.PostalCode,
+                  country: detailed.CountryName
+              }));
+          }
+          setLoqateSuggestions([]);
+      } else {
+          // It's a container (city, street etc), drill down
+          const results = await searchLoqateAddress('', item.Id);
+          setLoqateSuggestions(results);
+      }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
@@ -428,18 +480,53 @@ export const DentistsTab = () => {
                       </div>
 
                       <div>
-                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">3. Localização e Logística</h4>
+                        <div className="flex justify-between items-center mb-3 border-b border-blue-100 pb-1">
+                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest">3. Localização e Logística</h4>
+                            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                                <button type="button" onClick={() => { setIsInternational(false); setFormData(prev => ({ ...prev, country: 'Brasil' })); }} className={`px-2 py-1 text-[8px] font-black uppercase rounded-md transition-all ${!isInternational ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Brasil</button>
+                                <button type="button" onClick={() => { setIsInternational(true); setFormData(prev => ({ ...prev, country: '' })); }} className={`px-2 py-1 text-[8px] font-black uppercase rounded-md transition-all ${isInternational ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Internacional</button>
+                            </div>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CEP</label>
-                            <input name="cep" value={formData.cep} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
-                          </div>
-                          <div className="md:col-span-2">
+                          {isInternational ? (
+                              <div className="md:col-span-4 relative">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Buscar Endereço (Internacional)</label>
+                                <div className="relative">
+                                    <Globe className="absolute left-3 top-3 text-slate-400" size={18} />
+                                    <input 
+                                        placeholder="Ex: 1600 Amphitheatre Pkwy, Mountain View..." 
+                                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                                        onChange={(e) => handleLoqateSearch(e.target.value)}
+                                    />
+                                </div>
+                                {loqateSuggestions.length > 0 && (
+                                    <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                                        {loqateSuggestions.map((item, idx) => (
+                                            <button 
+                                                key={idx} 
+                                                type="button"
+                                                onClick={() => handleSelectLoqate(item)}
+                                                className="w-full px-4 py-2 text-left hover:bg-slate-50 text-sm border-b border-slate-50 last:border-0 flex flex-col"
+                                            >
+                                                <span className="font-bold text-slate-700">{item.Text}</span>
+                                                <span className="text-xs text-slate-400">{item.Description}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                              </div>
+                          ) : (
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CEP {isSearchingCep && <Loader2 size={10} className="inline animate-spin text-blue-500"/>}</label>
+                                <input name="cep" value={formData.cep} onChange={handleInputChange} onBlur={handleCEPBlur} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="00000-000" />
+                            </div>
+                          )}
+                          <div className={isInternational ? 'md:col-span-3' : 'md:col-span-2'}>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Logradouro</label>
                             <input name="address" value={formData.address} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Número</label>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">{isInternational ? 'Port/Suite' : 'Número'}</label>
                             <input name="number" value={formData.number} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div className="md:col-span-2">
@@ -447,22 +534,29 @@ export const DentistsTab = () => {
                             <input name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">UF</label>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">{isInternational ? 'Region/State' : 'UF'}</label>
                             <input name="state" value={formData.state} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
                           </div>
                           
-                          <div className="md:col-span-1 flex flex-col justify-end">
-                            <label className="flex items-center gap-2 cursor-pointer p-2 bg-orange-50 border border-orange-100 rounded-xl hover:bg-orange-100 transition-colors">
-                                <input 
-                                    type="checkbox" 
-                                    name="deliveryViaPost" 
-                                    checked={formData.deliveryViaPost} 
-                                    onChange={handleInputChange}
-                                    className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500" 
-                                />
-                                <span className="text-[10px] font-black text-orange-800 uppercase leading-none">Via Correios</span>
-                            </label>
-                          </div>
+                          {isInternational ? (
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">País</label>
+                                <input name="country" value={formData.country} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                              </div>
+                          ) : (
+                            <div className="md:col-span-1 flex flex-col justify-end">
+                                <label className="flex items-center gap-2 cursor-pointer p-2 bg-orange-50 border border-orange-100 rounded-xl hover:bg-orange-100 transition-colors">
+                                    <input 
+                                        type="checkbox" 
+                                        name="deliveryViaPost" 
+                                        checked={formData.deliveryViaPost} 
+                                        onChange={handleInputChange}
+                                        className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500" 
+                                    />
+                                    <span className="text-[10px] font-black text-orange-800 uppercase leading-none">Via Correios</span>
+                                </label>
+                            </div>
+                          )}
                         </div>
                       </div>
 

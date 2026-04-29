@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2 } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin } from 'lucide-react';
 import { Coupon } from '../types';
+import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve } from '../services/addressService';
 
 export const RegisterOrganization = () => {
   const { registerOrganization, registerDentist, allPlans, validateCoupon } = useApp();
@@ -20,6 +21,60 @@ export const RegisterOrganization = () => {
   const [password, setPassword] = useState('');
   const [planId, setPlanId] = useState('');
   
+  // Address State
+  const [cep, setCep] = useState('');
+  const [address, setAddress] = useState('');
+  const [number, setNumber] = useState('');
+  const [complement, setComplement] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [country, setCountry] = useState('Brasil');
+  const [isInternational, setIsInternational] = useState(false);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
+  const [loqateSuggestions, setLoqateSuggestions] = useState<any[]>([]);
+
+  const handleCEPBlur = async () => {
+    if (isInternational || !cep) return;
+    setIsSearchingCep(true);
+    const result = await searchCEP(cep);
+    if (result) {
+        setAddress(result.address);
+        setNeighborhood(result.neighborhood);
+        setCity(result.city);
+        setState(result.state);
+    }
+    setIsSearchingCep(false);
+  };
+
+  const handleLoqateSearch = async (text: string) => {
+    if (text.length < 3) {
+        setLoqateSuggestions([]);
+        return;
+    }
+    const results = await searchLoqateAddress(text);
+    setLoqateSuggestions(results);
+  };
+
+  const handleSelectLoqate = async (item: any) => {
+      if (item.Type === 'Address') {
+          const detailed = await fetchLoqateRetrieve(item.Id);
+          if (detailed) {
+                setAddress(detailed.Line1);
+                setNumber(detailed.BuildingNumber || '');
+                setNeighborhood(detailed.AdminAreaName2 || '');
+                setCity(detailed.City);
+                setState(detailed.ProvinceCode || detailed.Province);
+                setCep(detailed.PostalCode);
+                setCountry(detailed.CountryName);
+          }
+          setLoqateSuggestions([]);
+      } else {
+          const results = await searchLoqateAddress('', item.Id);
+          setLoqateSuggestions(results);
+      }
+  };
+
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
@@ -70,11 +125,15 @@ export const RegisterOrganization = () => {
       }
 
       if (regType === 'LAB') {
-          await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code);
+          await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
+              address, number, complement, neighborhood, city, state, cep, country
+          });
           navigate('/dashboard');
       } else {
           // Register Dentist (Now includes Plan & Org creation)
-          await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code);
+          await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code, {
+              address, number, complement, neighborhood, city, state, cep, country
+          });
           navigate('/store'); // Goes to store (or clinic dashboard if feature enabled)
       }
     } catch (err: any) {
@@ -147,6 +206,95 @@ export const RegisterOrganization = () => {
                     <div className="relative">
                         <Lock className="absolute left-3 top-3 text-slate-500" size={18}/>
                         <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="••••••••" minLength={6} />
+                    </div>
+                </div>
+
+                {/* ENDEREÇO SECTION */}
+                <div className="pt-4 border-t border-slate-700/50">
+                    <div className="flex justify-between items-center mb-4">
+                         <label className="block text-xs font-bold text-slate-400 uppercase">Endereço de Atendimento</label>
+                         <div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-700">
+                             <button type="button" onClick={() => { setIsInternational(false); setCountry('Brasil'); setLoqateSuggestions([]); }} className={`px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${!isInternational ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Brasil</button>
+                             <button type="button" onClick={() => { setIsInternational(true); setCountry(''); setLoqateSuggestions([]); }} className={`px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${isInternational ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Internacional</button>
+                         </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {isInternational ? (
+                            <div className="relative">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Buscar Endereço</label>
+                                <div className="relative">
+                                    <Globe className="absolute left-3 top-3 text-slate-500" size={18}/>
+                                    <input 
+                                        className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                                        placeholder="Comece a digitar o endereço..."
+                                        onChange={(e) => handleLoqateSearch(e.target.value)}
+                                    />
+                                </div>
+                                {loqateSuggestions.length > 0 && (
+                                    <div className="absolute z-20 left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                                        {loqateSuggestions.map((item, idx) => (
+                                            <button 
+                                                key={idx} 
+                                                type="button"
+                                                onClick={() => handleSelectLoqate(item)}
+                                                className="w-full px-4 py-3 text-left hover:bg-slate-700 text-sm border-b border-slate-700 last:border-0 flex flex-col"
+                                            >
+                                                <span className="font-bold text-white">{item.Text}</span>
+                                                <span className="text-xs text-slate-400">{item.Description}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">CEP</label>
+                                    <div className="relative">
+                                        <MapPin className="absolute left-3 top-3 text-slate-500" size={18}/>
+                                        <input 
+                                            required 
+                                            value={cep} 
+                                            onChange={e => setCep(e.target.value)} 
+                                            onBlur={handleCEPBlur} 
+                                            className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                                            placeholder="00000-000" 
+                                        />
+                                        {isSearchingCep && <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-blue-500" />}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Logradouro</label>
+                                    <input required value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                             <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nº</label>
+                                <input required value={number} onChange={e => setNumber(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Bairro</label>
+                                <input value={neighborhood} onChange={e => setNeighborhood(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cidade</label>
+                                <input required value={city} onChange={e => setCity(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">UF / País</label>
+                                <input required value={`${state}${country && country !== 'Brasil' ? ` (${country})` : ''}`} onChange={e => {
+                                    if (isInternational) {
+                                        setCountry(e.target.value);
+                                    } else {
+                                        setState(e.target.value.toUpperCase().slice(0, 2));
+                                    }
+                                }} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                        </div>
                     </div>
                 </div>
 

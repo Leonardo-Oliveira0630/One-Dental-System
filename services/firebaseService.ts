@@ -483,25 +483,27 @@ export const apiCheckSubscriptionStatus = async (orgId: string) => {
     const fn = httpsCallable(functions, 'checkSubscriptionStatus');
     return (await fn({ orgId })).data;
 };
-export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
+export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>): Promise<User> => {
     const userCred = await createUserWithEmailAndPassword(auth, email, pass);
     const orgId = `org_${Date.now()}`;
     const org: Organization = {
-        id: orgId, name: orgName, planId, subscriptionStatus: trialEndsAt ? 'TRIAL' : 'PENDING', trialEndsAt, createdAt: new Date(), orgType: 'LAB'
+        id: orgId, name: orgName, planId, subscriptionStatus: trialEndsAt ? 'TRIAL' : 'PENDING', trialEndsAt, createdAt: new Date(), orgType: 'LAB',
+        ...(address || {})
     };
     await setDoc(doc(db, 'organizations', orgId), org);
-    const profile: User = { id: userCred.user.uid, name: ownerName, email, role: UserRole.ADMIN, organizationId: orgId };
+    const profile: User = { id: userCred.user.uid, name: ownerName, email, role: UserRole.ADMIN, organizationId: orgId, ...(address || {}) };
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
     return profile;
 };
-export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string): Promise<User> => {
+export const apiRegisterDentist = async (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>): Promise<User> => {
     const userCred = await createUserWithEmailAndPassword(auth, email, pass);
     const orgId = `clinic_${Date.now()}`;
     const org: Organization = {
-        id: orgId, name: clinicName, planId, subscriptionStatus: trialEndsAt ? 'TRIAL' : 'PENDING', trialEndsAt, createdAt: new Date(), orgType: 'CLINIC'
+        id: orgId, name: clinicName, planId, subscriptionStatus: trialEndsAt ? 'TRIAL' : 'PENDING', trialEndsAt, createdAt: new Date(), orgType: 'CLINIC',
+        ...(address || {})
     };
     await setDoc(doc(db, 'organizations', orgId), org);
-    const profile: User = { id: userCred.user.uid, name, email, role: UserRole.CLIENT, organizationId: orgId, clinicName };
+    const profile: User = { id: userCred.user.uid, name, email, role: UserRole.CLIENT, organizationId: orgId, clinicName, ...(address || {}) };
     await setDoc(doc(db, 'users', userCred.user.uid), profile);
     return profile;
 };

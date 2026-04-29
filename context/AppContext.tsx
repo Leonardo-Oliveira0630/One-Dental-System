@@ -170,8 +170,8 @@ interface AppContextType {
   addAppointment: (a: Omit<Appointment, 'id' | 'organizationId'>) => Promise<void>;
   updateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
-  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
-  registerDentist: (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => Promise<User>;
+  registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
+  registerDentist: (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
   addSubscriptionPlan: (plan: SubscriptionPlan) => Promise<void>;
   updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
   deleteSubscriptionPlan: (id: string) => Promise<void>;
@@ -646,8 +646,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiDeleteAppointment(orgId, id);
   }
   
-  const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c);
-  const registerDentist = async (e: string, p: string, n: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string) => await api.apiRegisterDentist(e, p, n, clinicName, planId, trialEndsAt, couponCode);
+  const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c, address);
+  const registerDentist = async (e: string, p: string, n: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: any) => await api.apiRegisterDentist(e, p, n, clinicName, planId, trialEndsAt, couponCode, address);
   const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
   const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
   const deleteSubscriptionPlan = async (id: string) => await api.apiDeleteSubscriptionPlan(id);
