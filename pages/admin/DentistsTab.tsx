@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
-import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve } from '../../services/addressService';
+import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../../services/addressService';
 
 export const DentistsTab = () => {
   const { manualDentists, addManualDentist, updateManualDentist, deleteManualDentist, priceTables, currentUser, jobTypes } = useApp();
@@ -59,17 +59,31 @@ export const DentistsTab = () => {
   const [isSearchingCep, setIsSearchingCep] = useState(false);
 
   const handleCEPBlur = async () => {
-    if (formData.country !== 'Brasil' || !formData.cep) return;
+    if (!formData.cep) return;
     setIsSearchingCep(true);
-    const result = await searchCEP(formData.cep);
-    if (result) {
-        setFormData(prev => ({
-            ...prev,
-            address: result.address,
-            neighborhood: result.neighborhood,
-            city: result.city,
-            state: result.state
-        }));
+    
+    if (isInternational) {
+        const countryCode = formData.country && formData.country !== 'Brasil' ? (formData.country.length === 2 ? formData.country.toLowerCase() : 'us') : 'us';
+        const result = await searchInternationalZip(formData.cep, countryCode);
+        if (result) {
+            setFormData(prev => ({
+                ...prev,
+                city: result.city,
+                state: result.state,
+                country: result.country
+            }));
+        }
+    } else {
+        const result = await searchCEP(formData.cep);
+        if (result) {
+            setFormData(prev => ({
+                ...prev,
+                address: result.address,
+                neighborhood: result.neighborhood,
+                city: result.city,
+                state: result.state
+            }));
+        }
     }
     setIsSearchingCep(false);
   };
@@ -488,9 +502,9 @@ export const DentistsTab = () => {
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          {isInternational ? (
+                          {isInternational && (
                               <div className="md:col-span-4 relative">
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Buscar Endereço (Internacional)</label>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Buscar Endereço (Internacional, Opcional)</label>
                                 <div className="relative">
                                     <Globe className="absolute left-3 top-3 text-slate-400" size={18} />
                                     <input 
@@ -515,12 +529,12 @@ export const DentistsTab = () => {
                                     </div>
                                 )}
                               </div>
-                          ) : (
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CEP {isSearchingCep && <Loader2 size={10} className="inline animate-spin text-blue-500"/>}</label>
-                                <input name="cep" value={formData.cep} onChange={handleInputChange} onBlur={handleCEPBlur} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder="00000-000" />
-                            </div>
                           )}
+
+                            <div className={isInternational ? 'md:col-span-1' : 'md:col-span-1'}>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">{isInternational ? 'Zip/Postal Code' : 'CEP'} {isSearchingCep && <Loader2 size={10} className="inline animate-spin text-blue-500"/>}</label>
+                                <input name="cep" value={formData.cep} onChange={handleInputChange} onBlur={handleCEPBlur} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder={isInternational ? "Ex: 90210" : "00000-000"} />
+                            </div>
                           <div className={isInternational ? 'md:col-span-3' : 'md:col-span-2'}>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Logradouro</label>
                             <input name="address" value={formData.address} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />

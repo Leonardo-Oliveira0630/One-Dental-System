@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin } from 'lucide-react';
 import { Coupon } from '../types';
-import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve } from '../services/addressService';
+import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
 
 export const RegisterOrganization = () => {
   const { registerOrganization, registerDentist, allPlans, validateCoupon } = useApp();
@@ -35,14 +35,28 @@ export const RegisterOrganization = () => {
   const [loqateSuggestions, setLoqateSuggestions] = useState<any[]>([]);
 
   const handleCEPBlur = async () => {
-    if (isInternational || !cep) return;
+    if (!cep) return;
     setIsSearchingCep(true);
-    const result = await searchCEP(cep);
-    if (result) {
-        setAddress(result.address);
-        setNeighborhood(result.neighborhood);
-        setCity(result.city);
-        setState(result.state);
+    
+    if (isInternational) {
+        // Find US or others by ZIP
+        const countryCode = country && country !== 'Brasil' ? (country.length === 2 ? country.toLowerCase() : 'us') : 'us';
+        const result = await searchInternationalZip(cep, countryCode);
+        if (result) {
+            setCity(result.city);
+            setState(result.state);
+            setCountry(result.country);
+        } else {
+             // Fallback or warning
+        }
+    } else {
+        const result = await searchCEP(cep);
+        if (result) {
+            setAddress(result.address);
+            setNeighborhood(result.neighborhood);
+            setCity(result.city);
+            setState(result.state);
+        }
     }
     setIsSearchingCep(false);
   };
@@ -220,9 +234,9 @@ export const RegisterOrganization = () => {
                     </div>
 
                     <div className="space-y-4">
-                        {isInternational ? (
+                        {isInternational && (
                             <div className="relative">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Buscar Endereço</label>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Buscar Endereço Inteligente (Loqate, opcional)</label>
                                 <div className="relative">
                                     <Globe className="absolute left-3 top-3 text-slate-500" size={18}/>
                                     <input 
@@ -247,48 +261,51 @@ export const RegisterOrganization = () => {
                                     </div>
                                 )}
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">CEP</label>
-                                    <div className="relative">
-                                        <MapPin className="absolute left-3 top-3 text-slate-500" size={18}/>
-                                        <input 
-                                            required 
-                                            value={cep} 
-                                            onChange={e => setCep(e.target.value)} 
-                                            onBlur={handleCEPBlur} 
-                                            className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
-                                            placeholder="00000-000" 
-                                        />
-                                        {isSearchingCep && <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-blue-500" />}
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Logradouro</label>
-                                    <input required value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'Postal/ZIP Code' : 'CEP'}</label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-3 text-slate-500" size={18}/>
+                                    <input 
+                                        required 
+                                        value={cep} 
+                                        onChange={e => setCep(e.target.value)} 
+                                        onBlur={handleCEPBlur} 
+                                        className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                                        placeholder={isInternational ? "Ex: 90210" : "00000-000"} 
+                                    />
+                                    {isSearchingCep && <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-blue-500" />}
                                 </div>
                             </div>
-                        )}
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'Street / Address' : 'Logradouro'}</label>
+                                <input required value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                        </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nº</label>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'Apt/Suite' : 'Nº'}</label>
                                 <input required value={number} onChange={e => setNumber(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Bairro</label>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'District/Area' : 'Bairro'}</label>
                                 <input value={neighborhood} onChange={e => setNeighborhood(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cidade</label>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'City' : 'Cidade'}</label>
                                 <input required value={city} onChange={e => setCity(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">UF / País</label>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'State & Country' : 'UF / País'}</label>
                                 <input required value={`${state}${country && country !== 'Brasil' ? ` (${country})` : ''}`} onChange={e => {
                                     if (isInternational) {
-                                        setCountry(e.target.value);
+                                        // user might type state and country
+                                        const parts = e.target.value.split('(');
+                                        setState(parts[0].trim());
+                                        if (parts[1]) setCountry(parts[1].replace(')', '').trim());
                                     } else {
                                         setState(e.target.value.toUpperCase().slice(0, 2));
                                     }

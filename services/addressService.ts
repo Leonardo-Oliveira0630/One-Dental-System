@@ -119,3 +119,84 @@ export const fetchLoqateRetrieve = async (id: string): Promise<any | null> => {
     }
     return null;
 };
+
+export const searchInternationalZip = async (zip: string, countryCode: string = 'us'): Promise<AddressResult | null> => {
+    try {
+        // Zippopotam.us (Free, no auth required)
+        const response = await fetch(`https://api.zippopotam.us/${countryCode}/${zip}`);
+        if (response.ok) {
+            const data = await response.json();
+            const place = data.places[0];
+            return {
+                cep: data['post code'],
+                address: '',
+                neighborhood: '',
+                city: place['place name'],
+                state: place['state abbreviation'],
+                country: data.country
+            };
+        }
+    } catch (error) {
+        console.error("Error fetching international ZIP from Zippopotam:", error);
+    }
+    return null;
+};
+
+/**
+ * FedEx Address Validation API
+ * Note: Requires FedEx API Client ID and Client Secret
+ */
+export const searchFedExAddress = async (streetLines: string[], city: string, stateOrProvinceCode: string, postalCode: string, countryCode: string): Promise<any> => {
+    const clientId = (import.meta as any).env.VITE_FEDEX_CLIENT_ID;
+    const clientSecret = (import.meta as any).env.VITE_FEDEX_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+        console.warn("FedEx API keys not configured.");
+        return null; // Can't proceed without token
+    }
+
+    try {
+        // 1. Get OAuth Token
+        const authResponse = await fetch('https://apis.fedex.com/oauth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: clientId,
+                client_secret: clientSecret
+            })
+        });
+
+        if (!authResponse.ok) return null;
+        const authData = await authResponse.json();
+        const token = authData.access_token;
+
+        // 2. Validate Address
+        const validateResponse = await fetch('https://apis.fedex.com/address/v1/addresses/resolve', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                addressesToValidate: [{
+                    address: {
+                        streetLines,
+                        city,
+                        stateOrProvinceCode,
+                        postalCode,
+                        countryCode
+                    }
+                }]
+            })
+        });
+
+        if (validateResponse.ok) {
+            const data = await validateResponse.json();
+            return data;
+        }
+    } catch (error) {
+        console.error("Error with FedEx Address Validation:", error);
+    }
+    return null;
+};
