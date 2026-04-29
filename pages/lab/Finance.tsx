@@ -42,8 +42,14 @@ export const Finance = () => {
   const [isLoadingStatement, setIsLoadingStatement] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'EXTRATO' | 'RECEBIMENTOS' | 'FATURAS'>('EXTRATO');
   const [showAsaasError, setShowAsaasError] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [filterStartDate, setFilterStartDate] = useState(() => {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [filterEndDate, setFilterEndDate] = useState(() => {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   // Manual Payment Form
@@ -117,8 +123,8 @@ export const Finance = () => {
     
     const sorted = history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
-    const startDate = new Date(selectedYear, selectedMonth, 1);
-    const endDate = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
+    const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date(0);
+    const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date(8640000000000000);
 
     let runningBalance = 0;
     let previousBalance = 0;
@@ -127,7 +133,7 @@ export const Finance = () => {
         if (item.type === 'DEBIT') runningBalance -= item.amount;
         else runningBalance += item.amount;
         
-        const isBefore = new Date(item.date) < startDate;
+        const isBefore = new Date(item.date) < sDate;
         if (isBefore) previousBalance = runningBalance;
         
         return { ...item, balanceAfter: runningBalance };
@@ -135,21 +141,22 @@ export const Finance = () => {
 
     const filteredHistory = historyWithBalance.filter(item => {
         const d = new Date(item.date);
-        return d >= startDate && d <= endDate;
+        return d >= sDate && d <= eDate;
     });
 
     return { history: filteredHistory, previousBalance };
-  }, [statementClient, dentistJobs, dentistPayments, selectedMonth, selectedYear]);
+  }, [statementClient, dentistJobs, dentistPayments, filterStartDate, filterEndDate]);
 
   const generateStatementPDF = async () => {
     if (!statementClient || !currentOrg) return;
 
     const doc = new jsPDF();
-    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    const periodStr = `${monthNames[selectedMonth]} / ${selectedYear}`;
-    
-    const startDateStr = `01/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`;
-    const endDateStr = `${new Date(selectedYear, selectedMonth + 1, 0).getDate()}/${(selectedMonth + 1).toString().padStart(2, '0')}/${selectedYear}`;
+    const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date();
+    const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date();
+
+    const periodStr = `${sDate.toLocaleDateString('pt-BR')} - ${eDate.toLocaleDateString('pt-BR')}`;
+    const startDateStr = sDate.toLocaleDateString('pt-BR');
+    const endDateStr = eDate.toLocaleDateString('pt-BR');
 
     // Header Background / Setup (Optional light background for header box)
     doc.setFillColor(255, 255, 255);
@@ -231,7 +238,7 @@ export const Finance = () => {
         if (statementClient.neighborhood) addressStr += `, ${statementClient.neighborhood}`;
         let secondLine = [];
         if (statementClient.cep) secondLine.push(statementClient.cep);
-        if (statementClient.city) secondLine.push(`${statementClient.city}${statementClient.state ? ` - ${statementClient.state}` : ''}`);
+        if (statementClient.city) secondLine.push(`${statementClient.city}${statementClient.state ? `, ${statementClient.state}` : ''}`);
         if(secondLine.length > 0) addressStr += `\n${secondLine.join(', ')}`;
     } else {
         addressStr = statementClient.clinicName || 'Não informado';
@@ -821,21 +828,19 @@ export const Finance = () => {
                                     <div className="flex justify-between items-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
                                         <div className="flex items-center gap-4">
                                             <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
-                                                <button 
-                                                    onClick={() => selectedMonth === 0 ? (setSelectedMonth(11), setSelectedYear(selectedYear - 1)) : setSelectedMonth(selectedMonth - 1)}
-                                                    className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-600"
-                                                >
-                                                    <ChevronLeft size={18} />
-                                                </button>
-                                                <span className="px-6 font-black text-slate-700 text-sm min-w-[140px] text-center uppercase tracking-widest">
-                                                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][selectedMonth]} {selectedYear}
-                                                </span>
-                                                <button 
-                                                    onClick={() => selectedMonth === 11 ? (setSelectedMonth(0), setSelectedYear(selectedYear + 1)) : setSelectedMonth(selectedMonth + 1)}
-                                                    className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-600"
-                                                >
-                                                    <ChevronRight size={18} />
-                                                </button>
+                                                <input 
+                                                    type="date"
+                                                    value={filterStartDate}
+                                                    onChange={(e) => setFilterStartDate(e.target.value)}
+                                                    className="px-4 py-2 bg-transparent text-sm font-bold text-slate-700 outline-none"
+                                                />
+                                                <span className="text-slate-400 font-bold px-2">até</span>
+                                                <input 
+                                                    type="date"
+                                                    value={filterEndDate}
+                                                    onChange={(e) => setFilterEndDate(e.target.value)}
+                                                    className="px-4 py-2 bg-transparent text-sm font-bold text-slate-700 outline-none"
+                                                />
                                             </div>
                                         </div>
                                         <button 
@@ -858,7 +863,9 @@ export const Finance = () => {
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
                                                 <tr className="bg-slate-50/50 font-bold border-b border-slate-200">
-                                                    <td className="px-6 py-4 text-xs text-slate-400">01/{(selectedMonth+1).toString().padStart(2,'0')}/{selectedYear}</td>
+                                                    <td className="px-6 py-4 text-xs text-slate-400">
+                                                        {filterStartDate ? new Date(`${filterStartDate}T00:00:00`).toLocaleDateString('pt-BR') : '-'}
+                                                    </td>
                                                     <td className="px-6 py-4 text-xs text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
                                                     <td className="px-6 py-4 text-right text-xs">-</td>
                                                     <td className={`px-6 py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
@@ -1057,12 +1064,12 @@ export const Finance = () => {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
-                                                {dentistPayments.filter(p => p.dentistId === statementClient.id).length === 0 ? (
+                                                {dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado.</td>
+                                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado neste período.</td>
                                                     </tr>
                                                 ) : (
-                                                    dentistPayments.filter(p => p.dentistId === statementClient.id).map((p, idx) => (
+                                                    dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).map((p, idx) => (
                                                         <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                                                             <td className="px-6 py-4 text-xs font-bold text-slate-500">
                                                                 {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
