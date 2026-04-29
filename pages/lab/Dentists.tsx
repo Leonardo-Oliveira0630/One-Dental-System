@@ -592,7 +592,7 @@ export const Dentists = () => {
         doc.setFontSize(9);
         doc.text("_____________________________________________________", 105, finalY, { align: 'center' });
         doc.text(currentOrg.name || 'Laboratório', 105, finalY + 5, { align: 'center' });
-        doc.text(currentOrg.document || '', 105, finalY + 10, { align: 'center' });
+        doc.text((currentOrg as any).document || '', 105, finalY + 10, { align: 'center' });
 
         doc.save(`Recibos_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
     };

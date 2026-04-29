@@ -293,7 +293,7 @@ const Finance: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-700">{payment.planName}</td>
                   <td className="px-6 py-4 text-sm text-gray-700">
-                    {payment.paymentDate ? format(payment.paymentDate, 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+                    {payment.paymentDate && !isNaN(new Date(payment.paymentDate).getTime()) ? format(new Date(payment.paymentDate), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                   </td>
                   <td className="px-6 py-4 font-medium text-gray-900">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(payment.amount)}

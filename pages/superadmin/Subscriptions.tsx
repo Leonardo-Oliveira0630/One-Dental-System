@@ -125,15 +125,15 @@ const Subscriptions: React.FC = () => {
                 <div className="space-y-1">
                   <p className="text-xs text-gray-400 uppercase font-medium">Desde</p>
                   <p className="text-sm font-medium text-gray-700">
-                    {format(org.createdAt, 'dd/MM/yyyy', { locale: ptBR })}
+                    {org.createdAt && !isNaN(new Date(org.createdAt).getTime()) ? format(new Date(org.createdAt), 'dd/MM/yyyy', { locale: ptBR }) : '-'}
                   </p>
                 </div>
               </div>
 
-              {org.trialEndsAt && (
+              {org.trialEndsAt && !isNaN(new Date(org.trialEndsAt).getTime()) && (
                 <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded-lg">
                   <Clock className="w-4 h-4" />
-                  <span>Trial termina em: {format(org.trialEndsAt, 'dd/MM/yyyy', { locale: ptBR })}</span>
+                  <span>Trial termina em: {format(new Date(org.trialEndsAt), 'dd/MM/yyyy', { locale: ptBR })}</span>
                 </div>
               )}
 
