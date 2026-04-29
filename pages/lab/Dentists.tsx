@@ -67,13 +67,14 @@ export const Dentists = () => {
     const combinedClients = useMemo(() => {
         const clientMap = new Map<string, any>();
 
+        // Sets para verificar duplicações
+        const manualEmails = new Set<string>();
+        const manualDocs = new Set<string>();
+
         // 1. Adiciona os Dentistas Manuais (Offline) - Prioridade de Cadastro
         manualDentists.forEach(d => {
             clientMap.set(d.id, {
-                id: d.id,
-                name: d.name,
-                clinicName: d.clinicName,
-                email: d.email,
+                ...d,
                 isManual: true,
                 globalDiscountPercent: d.globalDiscountPercent || 0,
                 customPrices: d.customPrices || [],
@@ -85,16 +86,25 @@ export const Dentists = () => {
                 blockReason: d.blockReason || '',
                 temporaryUnblockUntil: d.temporaryUnblockUntil || null
             });
+            
+            if (d.email) manualEmails.add(d.email.toLowerCase().trim());
+            const cleanDoc = (d.cpfCnpj || '').replace(/\D/g, '');
+            if (cleanDoc) manualDocs.add(cleanDoc);
         });
 
         // 2. Adiciona os Dentistas Online (Web)
         allUsers.filter(u => u.role === UserRole.CLIENT).forEach(u => {
-            if (!clientMap.has(u.id)) {
+            const hasSameId = clientMap.has(u.id);
+            const userEmail = u.email ? u.email.toLowerCase().trim() : '';
+            const userDoc = (u.cpfCnpj || '').replace(/\D/g, '');
+            
+            const isDuplicateEmail = userEmail && manualEmails.has(userEmail);
+            const isDuplicateDoc = userDoc && manualDocs.has(userDoc);
+
+            if (!hasSameId && !isDuplicateEmail && !isDuplicateDoc) {
                 clientMap.set(u.id, {
-                    id: u.id,
-                    name: u.name,
+                    ...u,
                     clinicName: u.clinicName || 'Cliente Web',
-                    email: u.email, 
                     isManual: false,
                     globalDiscountPercent: u.globalDiscountPercent || 0, 
                     customPrices: u.customPrices || [],
@@ -492,7 +502,99 @@ export const Dentists = () => {
         doc.setTextColor(balanceColor[0], balanceColor[1], balanceColor[2] as number);
         doc.text(`R$ ${currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, valX, cY, { align: 'right' });
 
-        doc.save(`Extrato_${statementClient.name}_${periodStr.replace(' / ', '_')}.pdf`);
+        doc.save(`Extrato_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
+    };
+
+    const generateReceiptsPDF = async () => {
+        if (!statementClient || !currentOrg) return;
+
+        const doc = new jsPDF();
+        const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date(0);
+        const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date(8640000000000000);
+
+        const startDateStr = sDate.toLocaleDateString('pt-BR');
+        const endDateStr = eDate.toLocaleDateString('pt-BR');
+
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, 210, 35, 'F'); 
+
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(16);
+        doc.text("RECIBO DE PAGAMENTOS", 14, 25);
+        
+        doc.setFontSize(10);
+        doc.text("Cliente: ", 14, 45);
+        doc.setFont("helvetica", "normal");
+        doc.text(statementClient.name.toUpperCase(), 30, 45);
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("Documento: ", 14, 52);
+        doc.setFont("helvetica", "normal");
+        doc.text(statementClient.cpfCnpj || '-', 36, 52);
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("Período:", 14, 59);
+        doc.setFont("helvetica", "normal");
+        doc.text(`${startDateStr} - ${endDateStr}`, 30, 59);
+
+        let addressStr = '';
+        if (statementClient.address) {
+            addressStr = `${statementClient.address}${statementClient.number ? `, ${statementClient.number}` : ''}`;
+            if (statementClient.neighborhood) addressStr += `, ${statementClient.neighborhood}`;
+            let secondLine = [];
+            if (statementClient.cep) secondLine.push(statementClient.cep);
+            if (statementClient.city) secondLine.push(`${statementClient.city}${statementClient.state ? `, ${statementClient.state}` : ''}`);
+            if(secondLine.length > 0) addressStr += `\n${secondLine.join(', ')}`;
+        } else {
+            addressStr = statementClient.clinicName || 'Não informado';
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.text("Endereço: ", 120, 45);
+        doc.setFont("helvetica", "normal");
+        const splitAddr = doc.splitTextToSize(addressStr, 75);
+        doc.text(splitAddr, 140, 45);
+
+        doc.line(14, 65, 195, 65);
+
+        const filteredPayments = dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= sDate && new Date(p.paymentDate) <= eDate);
+        
+        const tableBody: any[] = [];
+        let totalPaid = 0;
+
+        filteredPayments.forEach(p => {
+            totalPaid += p.amount;
+            tableBody.push([
+                new Date(p.paymentDate).toLocaleDateString('pt-BR'),
+                p.notes || 'Recebimento de valores',
+                `R$ ${p.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+            ]);
+        });
+
+        tableBody.push([
+            { content: 'TOTAL', styles: { fontStyle: 'bold', halign: 'right' } },
+            '',
+            { content: `R$ ${totalPaid.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { fontStyle: 'bold' } }
+        ]);
+
+        autoTable(doc, {
+            startY: 70,
+            head: [['Data', 'Observação / Forma de Pagamento', 'Valor']],
+            body: tableBody,
+            theme: 'plain',
+            headStyles: { fontStyle: 'bold', fontSize: 9, fillColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] },
+            styles: { fontSize: 8, cellPadding: { top: 3, bottom: 3, left: 2, right: 2 } },
+            columnStyles: { 0: { cellWidth: 30 }, 2: { cellWidth: 40 } }
+        });
+
+        const finalY = (doc as any).lastAutoTable.finalY + 20;
+        doc.setFontSize(9);
+        doc.text("_____________________________________________________", 105, finalY, { align: 'center' });
+        doc.text(currentOrg.name || 'Laboratório', 105, finalY + 5, { align: 'center' });
+        doc.text(currentOrg.document || '', 105, finalY + 10, { align: 'center' });
+
+        doc.save(`Recibos_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
     };
 
     const totals = useMemo(() => {
@@ -1141,13 +1243,22 @@ export const Dentists = () => {
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                     <div className="flex justify-between items-center">
                                         <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Histórico de Recebimentos</h4>
-                                        <button 
-                                            onClick={() => setShowPaymentForm(!showPaymentForm)}
-                                            className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center gap-2"
-                                        >
-                                            {showPaymentForm ? <MinusCircle size={14} /> : <Plus size={14} />}
-                                            Novo Recebimento Manual
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={generateReceiptsPDF}
+                                                className="px-4 py-2 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2"
+                                            >
+                                                <Printer size={14} />
+                                                Recibo em PDF
+                                            </button>
+                                            <button 
+                                                onClick={() => setShowPaymentForm(!showPaymentForm)}
+                                                className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center gap-2"
+                                            >
+                                                {showPaymentForm ? <MinusCircle size={14} /> : <Plus size={14} />}
+                                                Novo Recebimento Manual
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {showPaymentForm && (
