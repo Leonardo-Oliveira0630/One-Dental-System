@@ -371,8 +371,16 @@ export const GlobalScanner: React.FC = () => {
                           if (item.commissionDisabled) return;
                           const setting = user.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
                           if (setting) {
-                              if (setting.type === 'FIXED') totalComm += setting.value * item.quantity;
-                              else totalComm += (item.price * item.quantity * (setting.value / 100));
+                              const secQty = (user.sector && item.sectorQuantities && item.sectorQuantities[user.sector]) 
+                                  ? item.sectorQuantities[user.sector] 
+                                  : item.quantity;
+                                  
+                              if (setting.type === 'FIXED') {
+                                  totalComm += setting.value * secQty;
+                              } else {
+                                  // Percentage is applied to total price, but if qty changes, adjust total price proportionally? Or just item.price * secQty * percentage.
+                                  totalComm += (item.price * secQty * (setting.value / 100));
+                              }
                           }
                       });
                       setCommissionEarned(totalComm);

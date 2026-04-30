@@ -23,7 +23,7 @@ const STLViewer = React.lazy(() => import('../components/STLViewer').then(module
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -38,6 +38,14 @@ export const JobDetails = () => {
   const [selectedDentistObj, setSelectedDentistObj] = useState<any>(null);
   const [showRouteModal, setShowRouteModal] = useState(false);
   const [show3DViewer, setShow3DViewer] = useState(false);
+  const [expandedItemIdx, setExpandedItemIdx] = useState<number | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemEditForm, setItemEditForm] = useState<{
+    quantity: number;
+    price: number;
+    appliedDiscount: number;
+    appliedPriceTable: string;
+  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
@@ -506,6 +514,100 @@ export const JobDetails = () => {
       } finally { setIsUpdatingStatus(false); }
   };
 
+  const handleSectorQuantityChange = async (itemId: string, sectorName: string, newQty: number) => {
+      const updatedItems = job.items.map(item => {
+          if (item.id === itemId) {
+              const currentQuantities = item.sectorQuantities || {};
+              return {
+                  ...item,
+                  sectorQuantities: {
+                      ...currentQuantities,
+                      [sectorName]: newQty
+                  }
+              };
+          }
+          return item;
+      });
+
+      await updateJob(job.id, { items: updatedItems });
+  };
+
+  const startEditingItem = (item: JobItem) => {
+      setEditingItemId(item.id);
+      setItemEditForm({
+          quantity: item.quantity,
+          price: item.basePriceBeforeDiscount ?? item.price,
+          appliedDiscount: item.appliedDiscount || 0,
+          appliedPriceTable: item.appliedPriceTable || 'Padrão'
+      });
+  };
+
+  const cancelEditingItem = () => {
+      setEditingItemId(null);
+  };
+
+  const handleSaveItemEdit = async (item: JobItem) => {
+      const newBasePrice = itemEditForm.price;
+      const finalPrice = newBasePrice * (1 - (itemEditForm.appliedDiscount / 100));
+      
+      const updatedItems = job.items.map(i => {
+          if (i.id === item.id) {
+              return {
+                  ...i,
+                  quantity: itemEditForm.quantity,
+                  price: finalPrice,
+                  basePriceBeforeDiscount: newBasePrice,
+                  appliedDiscount: itemEditForm.appliedDiscount,
+                  appliedPriceTable: itemEditForm.appliedPriceTable
+              };
+          }
+          return i;
+      });
+
+      const newTotalValue = updatedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+
+      await updateJob(job.id, { 
+          items: updatedItems,
+          totalValue: newTotalValue,
+          history: [...(job.history || []).filter(Boolean), {
+              id: `hist_item_edit_${Date.now()}`,
+              timestamp: new Date(),
+              action: `Item "${item.name}" editado (Qtd: ${itemEditForm.quantity}, Total: R$ ${(finalPrice * itemEditForm.quantity).toFixed(2)})`,
+              userId: currentUser?.id || '',
+              userName: currentUser?.name || 'Sistema',
+              sector: currentUser?.sector || 'Gestão'
+          }]
+      });
+
+      setEditingItemId(null);
+  };
+
+  const handlePriceTableSelect = (itemTypeId: string, e: React.ChangeEvent<HTMLSelectElement>) => {
+      const selectedValue = e.target.value;
+      if (selectedValue === 'padrão') {
+          const jType = jobTypes.find(jt => jt.id === itemTypeId);
+          if (jType) {
+              setItemEditForm(prev => ({ ...prev, price: jType.basePrice, appliedPriceTable: 'Padrão' }));
+          }
+      } else if (selectedValue === 'custom') {
+           setItemEditForm(prev => ({ ...prev, appliedPriceTable: 'Personalizado' }));
+      } else {
+          const table = priceTables.find(t => t.id === selectedValue);
+          if (table) {
+              const priceObj = table.prices[itemTypeId];
+              if (priceObj && priceObj.basePrice !== undefined) {
+                  setItemEditForm(prev => ({ ...prev, price: priceObj.basePrice, appliedPriceTable: table.name }));
+              } else {
+                  // Fallback to jobType basePrice
+                  const jType = jobTypes.find(jt => jt.id === itemTypeId);
+                  if (jType) {
+                      setItemEditForm(prev => ({ ...prev, price: jType.basePrice, appliedPriceTable: table.name }));
+                  }
+              }
+          }
+      }
+  };
+
   const showChatTab = isLabStaff || (isClient && job.chatEnabled);
 
   return (
@@ -862,15 +964,165 @@ export const JobDetails = () => {
                     <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
                         <h3 className="text-base md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileText size={20} className="text-blue-500 shrink-0" /> Itens do Pedido</h3>
                         <div className="divide-y divide-slate-100">
-                            {job.items.map((item, idx) => (
-                                <div key={idx} className="py-4 flex justify-between items-center gap-4 min-w-0">
-                                    <div className="min-w-0 flex-1">
-                                        <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {item.name}</p>
-                                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-1 truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
+                            {job.items.map((item, idx) => {
+                                const jType = jobTypes.find(jt => jt.id === item.jobTypeId);
+                                const allowedSecs = jType?.allowedSectors || [];
+                                const isExpanded = expandedItemIdx === idx;
+                                
+                                return (
+                                <div key={idx} className="py-4 flex flex-col min-w-0">
+                                    <div 
+                                      className="flex justify-between items-center gap-4 cursor-pointer hover:bg-slate-50 p-2 -mx-2 rounded-xl transition-colors"
+                                      onClick={() => setExpandedItemIdx(isExpanded ? null : idx)}
+                                    >
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {item.name}</p>
+                                            <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-1 truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <p className="font-black text-slate-600 text-sm md:text-base">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                            <ChevronDown size={18} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </div>
                                     </div>
-                                    <p className="font-black text-slate-600 text-sm md:text-base shrink-0">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                    
+                                    {isExpanded && (
+                                        <div className="mt-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                                            {editingItemId === item.id ? (
+                                                <div className="space-y-4">
+                                                    <div className="flex justify-between items-center bg-blue-50 -my-4 -mx-4 p-4 rounded-t-2xl border-b border-blue-100 mb-4">
+                                                        <span className="font-bold text-blue-800 text-sm flex items-center gap-2"><Edit size={16} /> Editar Detalhes do Serviço</span>
+                                                        <div className="flex gap-2">
+                                                            <button onClick={cancelEditingItem} className="text-slate-500 hover:bg-slate-200 p-1.5 rounded-lg transition-colors"><X size={16}/></button>
+                                                            <button onClick={() => handleSaveItemEdit(item)} className="bg-blue-600 text-white hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold shadow-sm shadow-blue-500/20"><Save size={14}/> Salvar</button>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Tabela de Preço</label>
+                                                            <select 
+                                                                className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                value={priceTables.find(t => t.name === itemEditForm.appliedPriceTable)?.id || (itemEditForm.appliedPriceTable === 'Padrão' ? 'padrão' : 'custom')}
+                                                                onChange={(e) => handlePriceTableSelect(item.jobTypeId, e)}
+                                                            >
+                                                                <option value="padrão">Padrão</option>
+                                                                {itemEditForm.appliedPriceTable === 'Personalizado' && <option value="custom" disabled hidden>Personalizado</option>}
+                                                                {priceTables.map(t => (
+                                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Quantidade</label>
+                                                            <input 
+                                                                type="number" min={1}
+                                                                className="w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                value={itemEditForm.quantity}
+                                                                onChange={(e) => setItemEditForm({...itemEditForm, quantity: Math.max(1, parseInt(e.target.value) || 1)})}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Valor Unitário (Base)</label>
+                                                            <div className="relative">
+                                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                                                                <input 
+                                                                    type="number" min={0} step={0.01}
+                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 pl-8 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    value={itemEditForm.price}
+                                                                    onChange={(e) => setItemEditForm({...itemEditForm, price: parseFloat(e.target.value) || 0, appliedPriceTable: 'Personalizado'})}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Desconto (%)</label>
+                                                            <div className="relative">
+                                                                <input 
+                                                                    type="number" min={0} max={100} step={0.1}
+                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 pr-8 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    value={itemEditForm.appliedDiscount}
+                                                                    onChange={(e) => setItemEditForm({...itemEditForm, appliedDiscount: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))})}
+                                                                />
+                                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">%</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 flex-1">
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Quant. Original</p>
+                                                                <p className="text-sm font-bold text-slate-700">{item.quantity}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Valor Unitário</p>
+                                                                <p className="text-sm font-bold text-slate-700">R$ {(item.basePriceBeforeDiscount ?? item.price).toFixed(2)}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Desconto</p>
+                                                                <p className="text-sm font-bold text-slate-700">{item.appliedDiscount ? `${item.appliedDiscount.toFixed(1)}%` : 'Nenhum'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Tabela Usada</p>
+                                                                <p className="text-sm font-bold text-slate-700 truncate" title={item.appliedPriceTable || 'Padrão'}>{item.appliedPriceTable || 'Padrão'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Preço Total</p>
+                                                                <p className="text-sm font-bold text-slate-700">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                                            </div>
+                                                        </div>
+                                                        {isLabStaff && (
+                                                            <button 
+                                                                onClick={() => startEditingItem(item)}
+                                                                className="ml-4 p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors shrink-0"
+                                                                title="Editar este item"
+                                                            >
+                                                                <Edit size={18} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                            
+                                            {isLabStaff && editingItemId !== item.id && (
+                                                <div className="border-t border-slate-200 pt-4">
+                                                    <h4 className="text-[10px] font-black text-slate-600 uppercase mb-3 flex items-center gap-1"><Briefcase size={12} /> Setores Permitidos e Comissão</h4>
+                                                    {allowedSecs.length === 0 ? (
+                                                        <p className="text-xs text-slate-500 italic">Este serviço não tem setores específicos definidos. Permitido em todos.</p>
+                                                    ) : (
+                                                        <div className="space-y-3">
+                                                            <p className="text-[10px] text-slate-500 leading-tight">Defina a quantidade de unidades para fins de comissão em cada setor (padrão é igual à quantidade original da OS).</p>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                {allowedSecs.map(secName => {
+                                                                    const secQty = item.sectorQuantities?.[secName] ?? item.quantity;
+                                                                    return (
+                                                                        <div key={secName} className="flex items-center justify-between bg-white p-2 md:p-3 rounded-xl border border-slate-200">
+                                                                            <span className="text-xs font-bold text-slate-700 truncate mr-2">{secName}</span>
+                                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                                <span className="text-[9px] font-black text-slate-400 uppercase">Qtd:</span>
+                                                                                <input 
+                                                                                    type="number" 
+                                                                                    min={0.1} 
+                                                                                    step={0.1}
+                                                                                    value={secQty}
+                                                                                    onChange={(e) => handleSectorQuantityChange(item.id, secName, parseFloat(e.target.value) || item.quantity)}
+                                                                                    className="w-16 p-1 text-center text-xs font-bold border border-slate-300 bg-slate-50 focus:bg-white rounded outline-none focus:border-blue-500"
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                         <div className="mt-6 pt-6 border-t border-slate-200 text-right shrink-0">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Valor Total da OS</span>

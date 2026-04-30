@@ -185,10 +185,14 @@ export interface JobItem {
   name: string;
   quantity: number;
   price: number;
+  basePriceBeforeDiscount?: number;
+  appliedDiscount?: number;
+  appliedPriceTable?: string;
   nature: JobNature;
   selectedVariationIds: string[];
   variationValues?: Record<string, string>;
   commissionDisabled?: boolean;
+  sectorQuantities?: Record<string, number>;
 }
 
 export interface JobHistory {

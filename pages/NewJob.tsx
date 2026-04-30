@@ -259,9 +259,28 @@ export const NewJob = () => {
   const handleAddItem = () => {
     if (!activeJobType) return;
     const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
+    
+    let appliedTableName = 'Tabela Padrão';
+    if (selectedDentistObj?.isCustomPricing) {
+        appliedTableName = 'Customizado (Dentista)';
+    } else if (selectedDentistObj?.priceTableId) {
+        const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+        if (table) appliedTableName = table.name;
+    }
+
     const newItem: JobItem = { 
         id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, 
-        jobTypeId: activeJobType.id, name: activeJobType.name, quantity: quantity, nature: itemNature, price: finalItemPrice, selectedVariationIds: allSelectedOptionIds, variationValues: variationTextValues, commissionDisabled: commissionDisabled 
+        jobTypeId: activeJobType.id, 
+        name: activeJobType.name, 
+        quantity: quantity, 
+        nature: itemNature, 
+        price: finalItemPrice, 
+        basePriceBeforeDiscount: manualPrice !== null ? manualPrice : calculatedBasePrice,
+        appliedDiscount: discountPercent,
+        appliedPriceTable: appliedTableName,
+        selectedVariationIds: allSelectedOptionIds, 
+        variationValues: variationTextValues, 
+        commissionDisabled: commissionDisabled 
     };
     setAddedItems([...addedItems, newItem]);
     setQuantity(1); setSelectedVariations({}); setVariationTextValues({}); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL');

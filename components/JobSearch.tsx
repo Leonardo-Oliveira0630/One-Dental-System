@@ -61,8 +61,15 @@ export const JobSearch = () => {
             if (item.commissionDisabled) return;
             const setting = currentUser.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
             if (setting) {
-              if (setting.type === 'FIXED') totalComm += setting.value * item.quantity;
-              else totalComm += (item.price * item.quantity * (setting.value / 100));
+              const secQty = (sector && item.sectorQuantities && item.sectorQuantities[sector])
+                  ? item.sectorQuantities[sector]
+                  : item.quantity;
+                  
+              if (setting.type === 'FIXED') {
+                  totalComm += setting.value * secQty;
+              } else {
+                  totalComm += (item.price * secQty * (setting.value / 100));
+              }
             }
           });
 
