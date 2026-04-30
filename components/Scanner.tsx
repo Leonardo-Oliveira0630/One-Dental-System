@@ -20,7 +20,7 @@ const playNativeHaptic = async (isSuccess: boolean) => {
 };
 
 export const GlobalScanner: React.FC = () => {
-  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes } = useApp();
   const navigate = useNavigate();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
@@ -408,6 +408,39 @@ export const GlobalScanner: React.FC = () => {
     try {
         let newStatus = currentJob.status;
         let sector = user.sector || currentJob.currentSector || 'Gestão';
+        
+        // --- VALIDAÇÃO DE SETORES PERMITIDOS ---
+        const isSectorAllowed = (targetSector: string) => {
+            let hasRestrictions = false;
+            const allowedForAll: Set<string> = new Set();
+            
+            for (const item of currentJob.items) {
+                const jType = jobTypes.find(jt => jt.id === item.jobTypeId);
+                if (jType?.allowedSectors && jType.allowedSectors.length > 0) {
+                    hasRestrictions = true;
+                    jType.allowedSectors.forEach(s => allowedForAll.add(s));
+                }
+            }
+            
+            if (!hasRestrictions) return true;
+            return allowedForAll.has(targetSector);
+        };
+
+        if (actionType === 'ENTRY' && !isSectorAllowed(sector)) {
+            alert(`Ops! Este trabalho não foi destinado para o setor "${sector}". Verifique os serviços solicitados nesta OS.`);
+            await playNativeHaptic(false);
+            playBeep(false);
+            return;
+        }
+
+        if (actionType === 'EXIT' && nextSector && !isSectorAllowed(nextSector)) {
+            alert(`Ops! Este trabalho não foi destinado para o setor "${nextSector}". Verifique os serviços solicitados nesta OS.`);
+            await playNativeHaptic(false);
+            playBeep(false);
+            return;
+        }
+        // ----------------------------------------
+
         let action = actionType === 'ENTRY' ? `Entrada no setor ${sector}` : `Saída do setor ${sector}`;
 
         if (actionType === 'ENTRY' && (currentJob.status === JobStatus.PENDING || currentJob.status === JobStatus.WAITING_APPROVAL)) {

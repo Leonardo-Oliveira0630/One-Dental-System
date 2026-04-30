@@ -296,6 +296,7 @@ export interface JobType {
   variationGroups: VariationGroup[];
   isVisibleInStore?: boolean;
   imageUrl?: string;
+  allowedSectors?: string[];
 }
 
 export interface ClinicService {

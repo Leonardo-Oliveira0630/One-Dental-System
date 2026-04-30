@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -12,7 +12,7 @@ const generateFirestoreId = (prefix: string) => {
 };
 
 export const JobTypes = () => {
-  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile } = useApp();
+  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors } = useApp();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -27,6 +27,7 @@ export const JobTypes = () => {
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [allowedSectors, setAllowedSectors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const resetForm = () => {
@@ -38,6 +39,7 @@ export const JobTypes = () => {
     setImageUrl('');
     setImageFile(null);
     setPreviewUrl('');
+    setAllowedSectors([]);
     setIsEditing(false);
     setEditingId(null);
     setActiveTab('BASIC');
@@ -53,6 +55,7 @@ export const JobTypes = () => {
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
+    setAllowedSectors(type.allowedSectors || []);
     setImageFile(null);
     setActiveTab('BASIC');
   };
@@ -84,12 +87,12 @@ export const JobTypes = () => {
       if (isEditing && editingId) {
           await updateJobType(editingId, { 
               name, category, basePrice, variationGroups, 
-              isVisibleInStore, imageUrl: finalImageUrl 
+              isVisibleInStore, imageUrl: finalImageUrl, allowedSectors
           });
       } else {
           const newType: Omit<JobType, 'id'> = {
               name, category, basePrice, variationGroups,
-              isVisibleInStore, imageUrl: finalImageUrl
+              isVisibleInStore, imageUrl: finalImageUrl, allowedSectors
           };
           await addJobType(newType);
       }
@@ -340,6 +343,32 @@ export const JobTypes = () => {
                                         </div>
                                     </div>
                                 </div>
+                             </div>
+
+                             {/* Allowed Sectors */}
+                             <div className="bg-white p-4 rounded-xl border border-slate-200 mt-6 shadow-sm">
+                                 <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2 mb-3">
+                                     <Briefcase size={18} className="text-blue-500" /> Setores Permitidos
+                                 </h3>
+                                 <p className="text-xs text-slate-500 mb-4">
+                                     Selecione os setores que este trabalho poderá passar. Se nenhum setor for selecionado, o trabalho poderá passar por qualquer setor.
+                                 </p>
+                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                     {sectors.map(sector => (
+                                         <label key={sector.id} className={`flex items-center gap-2 p-2 border rounded-lg cursor-pointer transition-colors ${allowedSectors.includes(sector.name) ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
+                                             <input 
+                                                 type="checkbox" 
+                                                 checked={allowedSectors.includes(sector.name)}
+                                                 onChange={(e) => {
+                                                     if (e.target.checked) setAllowedSectors([...allowedSectors, sector.name]);
+                                                     else setAllowedSectors(allowedSectors.filter(s => s !== sector.name));
+                                                 }}
+                                                 className="rounded text-blue-600 focus:ring-blue-500"
+                                             />
+                                             <span className="text-sm font-medium text-slate-700 truncate">{sector.name}</span>
+                                         </label>
+                                     ))}
+                                 </div>
                              </div>
                         </div>
                     )}
