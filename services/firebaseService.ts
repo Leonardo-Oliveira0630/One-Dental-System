@@ -483,6 +483,10 @@ export const apiCheckSubscriptionStatus = async (orgId: string) => {
     const fn = httpsCallable(functions, 'checkSubscriptionStatus');
     return (await fn({ orgId })).data;
 };
+export const apiSetSubscriptionStatus = async (orgId: string, status: string) => {
+    const fn = httpsCallable(functions, 'setSubscriptionStatus');
+    return (await fn({ orgId, status })).data;
+};
 export const apiRegisterOrganization = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>): Promise<User> => {
     const userCred = await createUserWithEmailAndPassword(auth, email, pass);
     const orgId = `org_${Date.now()}`;

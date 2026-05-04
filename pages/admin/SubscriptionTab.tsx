@@ -1,16 +1,28 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag } from 'lucide-react';
+import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag, Receipt, ExternalLink, Calendar, CreditCard, Landmark, Banknote } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 
 export const SubscriptionTab = () => {
-  const { currentPlan, currentOrg, allPlans, updateOrganization } = useApp();
+  const { currentPlan, currentOrg, allPlans, updateOrganization, getSaaSInvoices } = useApp();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponMessage, setCouponMessage] = useState({ text: '', type: '' });
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+
+  useEffect(() => {
+     if (currentOrg?.id) {
+         setLoadingInvoices(true);
+         getSaaSInvoices(currentOrg.id)
+            .then(data => setInvoices(data || []))
+            .catch(err => console.error(err))
+            .finally(() => setLoadingInvoices(false));
+     }
+  }, [currentOrg?.id]);
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || !currentPlan || !currentOrg) return;
@@ -111,6 +123,66 @@ export const SubscriptionTab = () => {
               </div>
             ))}
          </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <Receipt className="text-blue-600" /> Histórico de Pagamentos e Faturas
+         </h3>
+         
+         {loadingInvoices ? (
+             <p className="text-sm font-bold text-slate-400">Carregando faturas...</p>
+         ) : invoices.length === 0 ? (
+             <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                 <p className="text-sm font-bold text-slate-500 mb-1">Nenhuma fatura encontrada</p>
+                 <p className="text-xs text-slate-400">As faturas da sua assinatura aparecerão aqui.</p>
+             </div>
+         ) : (
+             <div className="space-y-4">
+                 {invoices.map((inv: any) => {
+                     const isPaid = inv.status === 'RECEIVED' || inv.status === 'CONFIRMED';
+                     const isOverdue = inv.status === 'OVERDUE';
+                     return (
+                         <div key={inv.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50 gap-4">
+                             <div className="flex items-center gap-4">
+                                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${isPaid ? 'bg-green-100 text-green-600' : isOverdue ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                                     {inv.billingType === 'PIX' ? <Banknote size={24} /> : inv.billingType === 'CREDIT_CARD' ? <CreditCard size={24} /> : <Landmark size={24}/>}
+                                 </div>
+                                 <div>
+                                     <p className="font-bold text-slate-800 flex items-center gap-2">
+                                         Fatura {inv.invoiceNumber || inv.id?.split('_')[1]}
+                                         <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${isPaid ? 'bg-green-100 text-green-700' : isOverdue ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                             {isPaid ? 'Pago' : isOverdue ? 'Atrasado' : 'Pendente'}
+                                         </span>
+                                     </p>
+                                     <div className="flex items-center gap-4 text-xs font-bold text-slate-500 mt-1">
+                                         <p className="flex items-center gap-1"><Calendar size={12}/> Venc: {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('pt-BR') : 'N/A'}</p>
+                                         <p className="flex items-center gap-1"><Tag size={12}/> {inv.billingType === 'PIX' ? 'Pix' : inv.billingType === 'CREDIT_CARD' ? 'Cartão de Crédito' : inv.billingType === 'BOLETO' ? 'Boleto' : 'Indefinido'}</p>
+                                     </div>
+                                 </div>
+                             </div>
+                             
+                             <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-200 pt-4 md:pt-0">
+                                 <div className="text-right">
+                                     <p className="text-[10px] font-black uppercase text-slate-400">Valor</p>
+                                     <p className="font-bold text-slate-800 text-lg">R$ {parseFloat(inv.netValue || inv.value).toFixed(2)}</p>
+                                 </div>
+                                 {!isPaid && inv.invoiceUrl && (
+                                     <a 
+                                         href={inv.invoiceUrl} 
+                                         target="_blank" 
+                                         rel="noopener noreferrer"
+                                         className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl flex items-center gap-2 hover:bg-blue-600 transition-colors shadow-lg shadow-slate-900/20"
+                                     >
+                                         Pagar <ExternalLink size={14}/>
+                                     </a>
+                                 )}
+                             </div>
+                         </div>
+                     );
+                 })}
+             </div>
+         )}
       </div>
     </div>
   );

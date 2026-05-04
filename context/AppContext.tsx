@@ -162,6 +162,7 @@ interface AppContextType {
   createLabWallet: (payload: any) => Promise<any>;
   getSaaSInvoices: (orgId: string) => Promise<any>;
   checkSubscriptionStatus: (orgId: string) => Promise<any>;
+  setSubscriptionStatus: (orgId: string, status: string) => Promise<any>;
   addAlert: (alert: JobAlert) => Promise<void>;
   dismissAlert: (id: string) => Promise<void>;
   addPatient: (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => Promise<void>;
@@ -603,6 +604,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const createLabWallet = async (p: any) => await api.apiCreateLabSubAccount(p);
   const getSaaSInvoices = async (orgId: string) => await api.apiGetSaaSInvoices(orgId);
   const checkSubscriptionStatus = async (orgId: string) => await api.apiCheckSubscriptionStatus(orgId);
+  const setSubscriptionStatus = async (orgId: string, status: string) => await api.apiSetSubscriptionStatus(orgId, status);
   
   const addAlert = async (a: JobAlert) => {
       const orgId = activeDataId;
@@ -830,7 +832,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
     clearPrint: () => setPrintData(null),
     activeOrganization, switchActiveOrganization, userConnections,
-    updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus,
+    updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus, setSubscriptionStatus,
     addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
     registerOrganization, registerDentist, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
     addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,

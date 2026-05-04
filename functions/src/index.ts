@@ -291,6 +291,33 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
 /**
  * SINCRONIZA STATUS DE ASSINATURA SAAS
  */
+export const setSubscriptionStatus = functions.https.onCall(
+  async (request) => {
+    const {orgId, status} = request.data;
+    const {key, url} = await getAsaasConfig();
+    try {
+      const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
+      const orgData = orgSnap.data();
+      const subId = orgData?.subscriptionId;
+      
+      if (status === 'FREE' || status === 'TEST' || status === 'CANCELLED') {
+         if (subId) {
+             try {
+                await axios.delete(`${url}/subscriptions/${subId}`, { headers: { access_token: key } });
+             } catch (e: any) {
+                console.log("Asaas subscription delete error (ignored):", e.message);
+             }
+         }
+      }
+
+      await admin.firestore().collection("organizations").doc(orgId).update({subscriptionStatus: status});
+      return { success: true };
+    } catch (error: any) {
+      throw new functions.https.HttpsError("internal", error.message);
+    }
+  }
+);
+
 export const checkSubscriptionStatus = functions.https.onCall(
   async (request) => {
     const {orgId} = request.data;
@@ -300,6 +327,10 @@ export const checkSubscriptionStatus = functions.https.onCall(
         .collection("organizations")
         .doc(orgId)
         .get();
+      const currentStatus = orgSnap.data()?.subscriptionStatus;
+      if (currentStatus === "FREE" || currentStatus === "TEST") {
+        return {status: currentStatus};
+      }
       const subId = orgSnap.data()?.subscriptionId;
       if (!subId) return {status: "NONE"};
       const res = await axios.get(`${url}/subscriptions/${subId}`, {
@@ -320,6 +351,82 @@ export const checkSubscriptionStatus = functions.https.onCall(
 /**
  * WEBHOOK PARA ATUALIZAÇÃO AUTOMÁTICA DE PAGAMENTOS
  */
+/**
+ * CRIA ASSINATURA SAAS
+ */
+export const createSaaSSubscription = functions.https.onCall(async (request) => {
+  const { orgId, planId, email, name, cpfCnpj, couponCode } = request.data;
+  const { key, url } = await getAsaasConfig();
+  
+  try {
+    const cleanCpfCnpj = String(cpfCnpj).replace(/\D/g, "");
+    
+    // Buscar ou Criar Customer
+    let customerId = "";
+    try {
+      const existing = await axios.get(`${url}/customers?cpfCnpj=${cleanCpfCnpj}`, { headers: { access_token: key } });
+      if (existing.data.data.length > 0) {
+        customerId = existing.data.data[0].id;
+      } else {
+        const custRes = await axios.post(`${url}/customers`, { name, email, cpfCnpj: cleanCpfCnpj }, { headers: { access_token: key } });
+        customerId = custRes.data.id;
+      }
+    } catch (e: any) { throw new Error("Erro cliente Asaas: " + e.message); }
+
+    // Valor
+    let value = 99.00;
+    const planSnap = await admin.firestore().collection("globalSettings").doc("plans").collection("list").doc(planId).get();
+    if (planSnap.exists && planSnap.data()?.price) {
+       value = planSnap.data()?.price;
+    }
+
+    if (couponCode) {
+       // logic for coupon could go here, for now limit it.
+    }
+
+    const nextDue = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+    
+    // billingType UNDEFINED allows the user to pay with any method (Pix, cc, boleto)
+    const subRes = await axios.post(`${url}/subscriptions`, {
+      customer: customerId,
+      billingType: "UNDEFINED",
+      value: value,
+      nextDueDate: nextDue,
+      cycle: "MONTHLY",
+      description: `Assinatura Plano ${planId}`,
+    }, { headers: { access_token: key } });
+
+    await admin.firestore().collection("organizations").doc(orgId).update({
+      asaasCustomerId: customerId,
+      subscriptionId: subRes.data.id,
+      subscriptionStatus: "PENDING",
+      planId: planId,
+    });
+    return { success: true };
+  } catch (error: any) {
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * BUSCA FATURAS (BOLETOS/PAGAMENTOS) DO SAAS NO ASAAS
+ */
+export const getSaaSInvoices = functions.https.onCall(async (request) => {
+  const { orgId } = request.data;
+  const { key, url } = await getAsaasConfig();
+  
+  try {
+    const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
+    const customerId = orgSnap.data()?.asaasCustomerId;
+    if (!customerId) return [];
+
+    const res = await axios.get(`${url}/payments?customer=${customerId}&limit=50`, { headers: { access_token: key } });
+    return res.data.data;
+  } catch (error: any) {
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+
 export const asaasWebhook = functions.https.onRequest(
   async (req: any, res: any) => {
     const event = req.body;
@@ -328,6 +435,7 @@ export const asaasWebhook = functions.https.onRequest(
       const isPaid = event.event === "PAYMENT_RECEIVED" ||
                      event.event === "PAYMENT_CONFIRMED";
       if (isPaid) {
+        const customerId = event.payment?.customer;
         const ref = event.payment?.externalReference || "";
         if (ref.includes("___")) {
           const [orgId, id] = ref.split("___");
@@ -347,6 +455,13 @@ export const asaasWebhook = functions.https.onRequest(
             });
             await writeBatch.commit();
           }
+        } else if (customerId && event.payment?.subscription) {
+           // SaaS Subscription payment
+           const orgsSnapshot = await db.collection("organizations").where("asaasCustomerId", "==", customerId).get();
+           if (!orgsSnapshot.empty) {
+               const orgDoc = orgsSnapshot.docs[0];
+               await orgDoc.ref.update({ subscriptionStatus: "ACTIVE" });
+           }
         }
       }
       res.status(200).send("OK");

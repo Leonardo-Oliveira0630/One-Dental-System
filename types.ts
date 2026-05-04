@@ -22,7 +22,7 @@ export interface Organization {
   name: string;
   logoUrl?: string; 
   planId: string;
-  subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING';
+  subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING' | 'FREE' | 'TEST';
   trialEndsAt?: Date;
   createdAt: Date;
   orgType?: 'LAB' | 'CLINIC';

@@ -4,14 +4,14 @@ import { useApp } from '../../context/AppContext';
 import { 
   Search, Filter, CheckCircle, XCircle, Pause, Play, 
   MoreVertical, ExternalLink, Mail, Building2, Calendar,
-  AlertTriangle, Clock
+  AlertTriangle, Clock, Activity
 } from 'lucide-react';
 import { Organization, SubscriptionPlan } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const Subscriptions: React.FC = () => {
-  const { allOrganizations, allPlans, updateOrganization } = useApp();
+  const { allOrganizations, allPlans, updateOrganization, setSubscriptionStatus } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
@@ -32,6 +32,8 @@ const Subscriptions: React.FC = () => {
       case 'OVERDUE': return 'bg-red-100 text-red-800 border-red-200';
       case 'CANCELLED': return 'bg-gray-100 text-gray-800 border-gray-200';
       case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'FREE': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'TEST': return 'bg-purple-100 text-purple-800 border-purple-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -43,6 +45,8 @@ const Subscriptions: React.FC = () => {
       case 'OVERDUE': return <AlertTriangle className="w-4 h-4" />;
       case 'CANCELLED': return <XCircle className="w-4 h-4" />;
       case 'PENDING': return <Pause className="w-4 h-4" />;
+      case 'FREE': return <CheckCircle className="w-4 h-4" />;
+      case 'TEST': return <CheckCircle className="w-4 h-4" />;
       default: return null;
     }
   };
@@ -50,7 +54,11 @@ const Subscriptions: React.FC = () => {
   const handleToggleStatus = async (org: Organization, targetStatus?: string) => {
     const newStatus = targetStatus || (org.subscriptionStatus === 'ACTIVE' ? 'PENDING' : 'ACTIVE');
     try {
-      await updateOrganization(org.id, { subscriptionStatus: newStatus as any });
+      if (['FREE', 'TEST', 'CANCELLED'].includes(newStatus)) {
+         await setSubscriptionStatus(org.id, newStatus);
+      } else {
+         await updateOrganization(org.id, { subscriptionStatus: newStatus as any });
+      }
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
     }
@@ -169,9 +177,25 @@ const Subscriptions: React.FC = () => {
                     </button>
                   )}
                   
-                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200">
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
+                  {org.subscriptionStatus !== 'FREE' && (
+                    <button
+                      onClick={() => handleToggleStatus(org, 'FREE')}
+                      className="px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-sm font-medium transition-colors"
+                      title="Tornar Conta Grátis"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                    </button>
+                  )}
+
+                  {org.subscriptionStatus !== 'TEST' && (
+                    <button
+                      onClick={() => handleToggleStatus(org, 'TEST')}
+                      className="px-3 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-lg text-sm font-medium transition-colors"
+                      title="Marcar como Conta Teste"
+                    >
+                      <Activity className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
             </div>
           </div>
