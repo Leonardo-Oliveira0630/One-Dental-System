@@ -292,57 +292,96 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
  * SINCRONIZA STATUS DE ASSINATURA SAAS
  */
 export const setSubscriptionStatus = functions.https.onCall(
-  async (request) => {
-    const {orgId, status} = request.data;
+  async (data, context) => {
+    // Verificar se o usuário é admin/superadmin
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+
+    const {orgId, status} = data;
+    if (!orgId || !status) {
+      throw new functions.https.HttpsError("invalid-argument", "Parâmetros orgId e status são obrigatórios.");
+    }
+
     const {key, url} = await getAsaasConfig();
     try {
       const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
+      if (!orgSnap.exists) {
+        throw new functions.https.HttpsError("not-found", "Organização não encontrada.");
+      }
+
       const orgData = orgSnap.data();
       const subId = orgData?.subscriptionId;
       
-      if (status === 'FREE' || status === 'TEST' || status === 'CANCELLED') {
-         if (subId) {
-             try {
-                await axios.delete(`${url}/subscriptions/${subId}`, { headers: { access_token: key } });
-             } catch (e: any) {
-                console.log("Asaas subscription delete error (ignored):", e.message);
-             }
-         }
+      if (status === "FREE" || status === "TEST" || status === "CANCELLED") {
+        if (subId) {
+          try {
+            functions.logger.info(`Cancelando assinatura Asaas ${subId} para org ${orgId} devido ao status ${status}`);
+            await axios.delete(`${url}/subscriptions/${subId}`, { headers: { access_token: key } });
+          } catch (e: any) {
+            functions.logger.warn("Erro ao deletar assinatura no Asaas (pode já estar deletada):", e.response?.data || e.message);
+          }
+        }
       }
 
-      await admin.firestore().collection("organizations").doc(orgId).update({subscriptionStatus: status});
-      return { success: true };
+      await admin.firestore().collection("organizations").doc(orgId).update({
+        subscriptionStatus: status,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { success: true, status };
     } catch (error: any) {
+      functions.logger.error("Erro em setSubscriptionStatus:", error);
       throw new functions.https.HttpsError("internal", error.message);
     }
   }
 );
 
 export const checkSubscriptionStatus = functions.https.onCall(
-  async (request) => {
-    const {orgId} = request.data;
+  async (data, context) => {
+    const {orgId} = data;
+    if (!orgId) {
+      throw new functions.https.HttpsError("invalid-argument", "orgId é obrigatório.");
+    }
+
     const {key, url} = await getAsaasConfig();
     try {
       const orgSnap = await admin.firestore()
         .collection("organizations")
         .doc(orgId)
         .get();
+      
+      if (!orgSnap.exists) {
+        throw new functions.https.HttpsError("not-found", "Organização não encontrada.");
+      }
+
       const currentStatus = orgSnap.data()?.subscriptionStatus;
       if (currentStatus === "FREE" || currentStatus === "TEST") {
         return {status: currentStatus};
       }
+      
       const subId = orgSnap.data()?.subscriptionId;
       if (!subId) return {status: "NONE"};
+
       const res = await axios.get(`${url}/subscriptions/${subId}`, {
         headers: {access_token: key},
       });
-      const status = res.data.status === "ACTIVE" ? "ACTIVE" : "PENDING";
+      
+      const asaasStatus = res.data.status;
+      let status = "PENDING";
+      
+      if (asaasStatus === "ACTIVE") status = "ACTIVE";
+      else if (asaasStatus === "EXPIRED" || asaasStatus === "OVERDUE") status = "OVERDUE";
+      else if (asaasStatus === "DELETED") status = "CANCELLED";
+
       await admin.firestore()
         .collection("organizations")
         .doc(orgId)
         .update({subscriptionStatus: status});
+        
       return {status};
     } catch (error: any) {
+      functions.logger.error("Erro em checkSubscriptionStatus:", error);
       throw new functions.https.HttpsError("internal", error.message);
     }
   }
@@ -354,8 +393,8 @@ export const checkSubscriptionStatus = functions.https.onCall(
 /**
  * CRIA ASSINATURA SAAS
  */
-export const createSaaSSubscription = functions.https.onCall(async (request) => {
-  const { orgId, planId, email, name, cpfCnpj, couponCode } = request.data;
+export const createSaaSSubscription = functions.https.onCall(async (data, context) => {
+  const { orgId, planId, email, name, cpfCnpj, couponCode } = data;
   const { key, url } = await getAsaasConfig();
   
   try {
@@ -380,10 +419,6 @@ export const createSaaSSubscription = functions.https.onCall(async (request) => 
        value = planSnap.data()?.price;
     }
 
-    if (couponCode) {
-       // logic for coupon could go here, for now limit it.
-    }
-
     const nextDue = new Date(Date.now() + 86400000).toISOString().split("T")[0];
     
     // billingType UNDEFINED allows the user to pay with any method (Pix, cc, boleto)
@@ -404,6 +439,7 @@ export const createSaaSSubscription = functions.https.onCall(async (request) => 
     });
     return { success: true };
   } catch (error: any) {
+    functions.logger.error("Erro em createSaaSSubscription:", error);
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
@@ -411,8 +447,8 @@ export const createSaaSSubscription = functions.https.onCall(async (request) => 
 /**
  * BUSCA FATURAS (BOLETOS/PAGAMENTOS) DO SAAS NO ASAAS
  */
-export const getSaaSInvoices = functions.https.onCall(async (request) => {
-  const { orgId } = request.data;
+export const getSaaSInvoices = functions.https.onCall(async (data, context) => {
+  const { orgId } = data;
   const { key, url } = await getAsaasConfig();
   
   try {
@@ -423,6 +459,7 @@ export const getSaaSInvoices = functions.https.onCall(async (request) => {
     const res = await axios.get(`${url}/payments?customer=${customerId}&limit=50`, { headers: { access_token: key } });
     return res.data.data;
   } catch (error: any) {
+    functions.logger.error("Erro em getSaaSInvoices:", error);
     throw new functions.https.HttpsError("internal", error.message);
   }
 });

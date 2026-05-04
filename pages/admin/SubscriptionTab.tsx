@@ -68,6 +68,20 @@ export const SubscriptionTab = () => {
               </div>
             )}
 
+            {(currentOrg?.subscriptionStatus === 'FREE' || currentOrg?.subscriptionStatus === 'TEST') && (
+              <div className={`mt-6 p-4 ${currentOrg?.subscriptionStatus === 'FREE' ? 'bg-emerald-500/20 border-emerald-500/50' : 'bg-purple-500/20 border-purple-500/50'} border rounded-2xl flex items-center justify-between`}>
+                <div>
+                  <p className={`font-bold ${currentOrg?.subscriptionStatus === 'FREE' ? 'text-emerald-400' : 'text-purple-400'}`}>
+                    Conta {currentOrg?.subscriptionStatus === 'FREE' ? 'Gratuita' : 'de Teste'}
+                  </p>
+                  <p className="text-xs">Você possui acesso ilimitado sem cobranças periódicas.</p>
+                </div>
+                <div className={`p-2 rounded-lg ${currentOrg?.subscriptionStatus === 'FREE' ? 'bg-emerald-500 text-white' : 'bg-purple-500 text-white'}`}>
+                  <Crown size={20} />
+                </div>
+              </div>
+            )}
+
             {currentOrg?.subscriptionStatus === 'TRIAL' && (
               <div className="mt-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-2xl flex items-center justify-between">
                 <div><p className="font-bold text-orange-400">Modo de Avaliação</p><p className="text-xs">Ative agora para manter o acesso.</p></div>
@@ -140,8 +154,11 @@ export const SubscriptionTab = () => {
          ) : (
              <div className="space-y-4">
                  {invoices.map((inv: any) => {
-                     const isPaid = inv.status === 'RECEIVED' || inv.status === 'CONFIRMED';
+                     const isPaid = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH', 'PAYMENT_RECEIVED_IN_CASH_CONFIRMED'].includes(inv.status);
                      const isOverdue = inv.status === 'OVERDUE';
+                     const isDeleted = inv.status === 'DELETED' || inv.status === 'REFUNDED';
+                     if (isDeleted) return null;
+
                      return (
                          <div key={inv.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl border border-slate-200 bg-slate-50 gap-4">
                              <div className="flex items-center gap-4">
@@ -150,7 +167,7 @@ export const SubscriptionTab = () => {
                                  </div>
                                  <div>
                                      <p className="font-bold text-slate-800 flex items-center gap-2">
-                                         Fatura {inv.invoiceNumber || inv.id?.split('_')[1]}
+                                         Fatura {inv.invoiceNumber || inv.id?.split('_').pop()}
                                          <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${isPaid ? 'bg-green-100 text-green-700' : isOverdue ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
                                              {isPaid ? 'Pago' : isOverdue ? 'Atrasado' : 'Pendente'}
                                          </span>
@@ -158,6 +175,9 @@ export const SubscriptionTab = () => {
                                      <div className="flex items-center gap-4 text-xs font-bold text-slate-500 mt-1">
                                          <p className="flex items-center gap-1"><Calendar size={12}/> Venc: {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('pt-BR') : 'N/A'}</p>
                                          <p className="flex items-center gap-1"><Tag size={12}/> {inv.billingType === 'PIX' ? 'Pix' : inv.billingType === 'CREDIT_CARD' ? 'Cartão de Crédito' : inv.billingType === 'BOLETO' ? 'Boleto' : 'Indefinido'}</p>
+                                         {isPaid && inv.paymentDate && (
+                                            <p className="text-green-600 flex items-center gap-1"><CheckCircle size={12}/> Pago em: {new Date(inv.paymentDate).toLocaleDateString('pt-BR')}</p>
+                                         )}
                                      </div>
                                  </div>
                              </div>
@@ -174,7 +194,7 @@ export const SubscriptionTab = () => {
                                          rel="noopener noreferrer"
                                          className="px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-xl flex items-center gap-2 hover:bg-blue-600 transition-colors shadow-lg shadow-slate-900/20"
                                      >
-                                         Pagar <ExternalLink size={14}/>
+                                         Pagar Agora <ExternalLink size={14}/>
                                      </a>
                                  )}
                              </div>
