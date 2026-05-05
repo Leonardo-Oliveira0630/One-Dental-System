@@ -297,6 +297,7 @@ export interface JobType {
   name: string;
   category: string;
   basePrice: number;
+  baseCommission?: number;
   variationGroups: VariationGroup[];
   isVisibleInStore?: boolean;
   imageUrl?: string;

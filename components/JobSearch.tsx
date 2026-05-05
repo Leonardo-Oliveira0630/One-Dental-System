@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole } from '../types';
 
 export const JobSearch = () => {
-  const { jobs, currentUser, updateJob, addCommissionRecord, commissions } = useApp();
+  const { jobs, jobTypes, currentUser, updateJob, addCommissionRecord, commissions } = useApp();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -59,16 +59,21 @@ export const JobSearch = () => {
           let totalComm = 0;
           job.items.forEach(item => {
             if (item.commissionDisabled) return;
+            const secQty = (sector && item.sectorQuantities && item.sectorQuantities[sector])
+                ? item.sectorQuantities[sector]
+                : item.quantity;
+                
             const setting = currentUser.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
             if (setting) {
-              const secQty = (sector && item.sectorQuantities && item.sectorQuantities[sector])
-                  ? item.sectorQuantities[sector]
-                  : item.quantity;
-                  
               if (setting.type === 'FIXED') {
                   totalComm += setting.value * secQty;
               } else {
                   totalComm += (item.price * secQty * (setting.value / 100));
+              }
+            } else {
+              const jobType = jobTypes.find(t => t.id === item.jobTypeId);
+              if (jobType?.baseCommission) {
+                  totalComm += jobType.baseCommission * secQty;
               }
             }
           });

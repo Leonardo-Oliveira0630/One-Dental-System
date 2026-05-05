@@ -22,6 +22,7 @@ export const JobTypes = () => {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [basePrice, setBasePrice] = useState(0);
+  const [baseCommission, setBaseCommission] = useState<number | ''>('');
   const [variationGroups, setVariationGroups] = useState<VariationGroup[]>([]);
   const [isVisibleInStore, setIsVisibleInStore] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
@@ -34,6 +35,7 @@ export const JobTypes = () => {
     setName('');
     setCategory('');
     setBasePrice(0);
+    setBaseCommission('');
     setVariationGroups([]);
     setIsVisibleInStore(true);
     setImageUrl('');
@@ -51,6 +53,7 @@ export const JobTypes = () => {
     setName(type.name);
     setCategory(type.category);
     setBasePrice(type.basePrice);
+    setBaseCommission(type.baseCommission ?? '');
     setVariationGroups(type.variationGroups || []);
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
     setImageUrl(type.imageUrl || '');
@@ -86,12 +89,12 @@ export const JobTypes = () => {
 
       if (isEditing && editingId) {
           await updateJobType(editingId, { 
-              name, category, basePrice, variationGroups, 
+              name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups, 
               isVisibleInStore, imageUrl: finalImageUrl, allowedSectors
           });
       } else {
           const newType: Omit<JobType, 'id'> = {
-              name, category, basePrice, variationGroups,
+              name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups,
               isVisibleInStore, imageUrl: finalImageUrl, allowedSectors
           };
           await addJobType(newType);
@@ -294,6 +297,11 @@ export const JobTypes = () => {
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-1">Preço Base (R$)</label>
                                         <input type="number" step="0.01" value={basePrice} onChange={e => setBasePrice(parseFloat(e.target.value))} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">Valor Base de Comissão (R$)</label>
+                                        <input type="number" step="0.01" value={baseCommission} onChange={e => setBaseCommission(e.target.value === '' ? '' : parseFloat(e.target.value))} placeholder="Ex: 5.00" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
+                                        <p className="text-xs text-slate-500 mt-1">Usado caso o colaborador não tenha valor fixo na aba Ganhos.</p>
                                     </div>
                                 </div>
 

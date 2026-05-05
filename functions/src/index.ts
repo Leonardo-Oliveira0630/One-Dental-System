@@ -15,9 +15,8 @@ const getAsaasConfig = async () => {
   const settingsSnap = await db.collection("settings").doc("global").get();
   const settings = settingsSnap.data();
 
-  // Prioridade: Env Var > Config
-  const apiKey = process.env.ASAAS_API_KEY ||
-                 (functions as any).config().asaas?.key;
+  // Prioridade: Env Var
+  const apiKey = process.env.ASAAS_API_KEY;
 
   if (!apiKey || apiKey === "SUA_CHAVE_AQUI") {
     functions.logger.error("ERRO: ASAAS_API_KEY não configurada.");
@@ -466,6 +465,17 @@ export const getSaaSInvoices = functions.https.onCall(async (data, context) => {
 
 export const asaasWebhook = functions.https.onRequest(
   async (req: any, res: any) => {
+    // Validar Asaas-Access-Token do Webhook
+    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
+    if (webhookToken) {
+      const authHeader = req.headers['asaas-access-token'] || req.headers['Asaas-Access-Token'];
+      if (authHeader !== webhookToken) {
+        functions.logger.warn("Webhook token inválido", { received: authHeader });
+        res.status(401).send("Unauthorized");
+        return;
+      }
+    }
+
     const event = req.body;
     const db = admin.firestore();
     try {

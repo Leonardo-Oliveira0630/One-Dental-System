@@ -11,6 +11,10 @@ export const CommissionsTab = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCommChange = (jobTypeId: string, value: string, type: 'FIXED' | 'PERCENTAGE') => {
+    if (value === '') {
+        setTempCommissions(prev => prev.filter(p => p.jobTypeId !== jobTypeId));
+        return;
+    }
     const val = parseFloat(value) || 0;
     setTempCommissions(prev => {
         const exists = prev.find(p => p.jobTypeId === jobTypeId);
@@ -62,7 +66,7 @@ export const CommissionsTab = () => {
                   <div className="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl">
                       <div>
                           <h3 className="text-xl font-black text-slate-800">Tabela: {configUser.name}</h3>
-                          <p className="text-xs text-slate-500 font-bold uppercase">Configure os valores</p>
+                          <p className="text-xs text-slate-500 font-bold uppercase">Deixe em branco para usar a comissão base do serviço</p>
                       </div>
                       <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24}/></button>
                   </div>
@@ -73,11 +77,16 @@ export const CommissionsTab = () => {
                               <div key={type.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                   <div className="flex-1">
                                       <p className="font-bold text-slate-800">{type.name}</p>
-                                      <p className="text-xs text-slate-400">Base: R$ {type.basePrice.toFixed(2)}</p>
+                                      <div className="flex gap-2">
+                                        <p className="text-xs text-slate-400">Base: R$ {type.basePrice.toFixed(2)}</p>
+                                        {type.baseCommission !== undefined && (
+                                            <p className="text-xs text-indigo-500 font-bold text-right mt-1 w-full flex justify-end gap-1"><span className="text-slate-400 font-normal mt-0.5">Comissão Base:</span> R$ {type.baseCommission.toFixed(2)}</p>
+                                        )}
+                                      </div>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                      <input type="number" value={setting?.value || ''} onChange={e => handleCommChange(type.id, e.target.value, setting?.type || 'PERCENTAGE')} placeholder="0" className="w-20 px-2 py-1.5 border rounded-lg font-bold text-center" />
-                                      <select value={setting?.type || 'PERCENTAGE'} onChange={e => handleCommChange(type.id, (setting?.value || 0).toString(), e.target.value as any)} className="bg-white border rounded-lg px-2 py-1.5 text-xs font-bold">
+                                      <input type="number" step="0.01" value={setting?.value === undefined ? '' : setting.value} onChange={e => handleCommChange(type.id, e.target.value, setting?.type || 'FIXED')} placeholder={type.baseCommission ? `${type.baseCommission.toFixed(2)}` : "0"} className="w-24 px-2 py-1.5 border rounded-lg font-bold text-center" />
+                                      <select value={setting?.type || 'FIXED'} onChange={e => handleCommChange(type.id, setting?.value?.toString() || '', e.target.value as any)} className="bg-white border rounded-lg px-2 py-1.5 text-xs font-bold">
                                           <option value="PERCENTAGE">%</option>
                                           <option value="FIXED">R$</option>
                                       </select>

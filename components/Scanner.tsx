@@ -70,6 +70,7 @@ export const GlobalScanner: React.FC = () => {
   const jobsRef = useRef(jobs);
   const jobMapRef = useRef(jobMap);
   const commissionsRef = useRef(commissions);
+  const jobTypesRef = useRef(jobTypes);
   const scannedJobRef = useRef(scannedJob);
   const scanActionRef = useRef(scanAction);
   const nextSectorRef = useRef(nextSector);
@@ -101,10 +102,11 @@ export const GlobalScanner: React.FC = () => {
     jobsRef.current = jobs;
     jobMapRef.current = jobMap;
     commissionsRef.current = commissions;
+    jobTypesRef.current = jobTypes;
     scannedJobRef.current = scannedJob;
     scanActionRef.current = scanAction;
     nextSectorRef.current = nextSector;
-  }, [currentUser, isCameraActive, jobs, commissions, scannedJob, scanAction, nextSector, jobMap]);
+  }, [currentUser, isCameraActive, jobs, commissions, jobTypes, scannedJob, scanAction, nextSector, jobMap]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -369,17 +371,23 @@ export const GlobalScanner: React.FC = () => {
                       let totalComm = 0;
                       job.items.forEach(item => {
                           if (item.commissionDisabled) return;
+                          
+                          const secQty = (user.sector && item.sectorQuantities && item.sectorQuantities[user.sector]) 
+                              ? item.sectorQuantities[user.sector] 
+                              : item.quantity;
+
                           const setting = user.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
+                          
                           if (setting) {
-                              const secQty = (user.sector && item.sectorQuantities && item.sectorQuantities[user.sector]) 
-                                  ? item.sectorQuantities[user.sector] 
-                                  : item.quantity;
-                                  
                               if (setting.type === 'FIXED') {
                                   totalComm += setting.value * secQty;
                               } else {
-                                  // Percentage is applied to total price, but if qty changes, adjust total price proportionally? Or just item.price * secQty * percentage.
                                   totalComm += (item.price * secQty * (setting.value / 100));
+                              }
+                          } else {
+                              const jobType = jobTypesRef.current.find(t => t.id === item.jobTypeId);
+                              if (jobType?.baseCommission) {
+                                  totalComm += jobType.baseCommission * secQty;
                               }
                           }
                       });
