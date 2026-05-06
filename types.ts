@@ -193,6 +193,7 @@ export interface JobItem {
   variationValues?: Record<string, string>;
   commissionDisabled?: boolean;
   sectorQuantities?: Record<string, number>;
+  sectorCommissionDisabled?: Record<string, boolean>;
 }
 
 export interface JobHistory {

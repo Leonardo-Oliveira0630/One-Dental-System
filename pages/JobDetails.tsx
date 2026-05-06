@@ -46,7 +46,10 @@ export const JobDetails = () => {
     appliedDiscount: number;
     appliedPriceTable: string;
     commissionDisabled: boolean;
-  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false });
+    selectedVariationIds: string[];
+    variationValues: Record<string, string>;
+    sectorCommissionDisabled: Record<string, boolean>;
+  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {} });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
@@ -146,6 +149,7 @@ export const JobDetails = () => {
   const [newItemTypeId, setNewItemTypeId] = useState('');
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
+  const [newItemVariationIds, setNewItemVariationIds] = useState<string[]>([]);
 
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
 
@@ -324,13 +328,14 @@ export const JobDetails = () => {
           name: type.name,
           quantity: newItemQty,
           price: type.basePrice,
-          selectedVariationIds: [],
+          selectedVariationIds: newItemVariationIds,
           nature: newItemNature
       };
       const newItems = [...editItems, newItem];
       setEditItems(newItems);
       setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0));
       setNewItemNature('NORMAL');
+      setNewItemVariationIds([]);
   };
 
   const handleRemoveItemFromJob = (itemId: string) => {
@@ -579,6 +584,24 @@ export const JobDetails = () => {
       await updateJob(job.id, { items: updatedItems });
   };
 
+  const handleSectorCommissionToggle = async (itemId: string, sectorName: string, disabled: boolean) => {
+      const updatedItems = job.items.map(item => {
+          if (item.id === itemId) {
+              const currentDisabled = item.sectorCommissionDisabled || {};
+              return {
+                  ...item,
+                  sectorCommissionDisabled: {
+                      ...currentDisabled,
+                      [sectorName]: disabled
+                  }
+              };
+          }
+          return item;
+      });
+
+      await updateJob(job.id, { items: updatedItems });
+  };
+
   const startEditingItem = (item: JobItem) => {
       setEditingItemId(item.id);
       setItemEditForm({
@@ -586,7 +609,10 @@ export const JobDetails = () => {
           price: item.basePriceBeforeDiscount ?? item.price,
           appliedDiscount: item.appliedDiscount || 0,
           appliedPriceTable: item.appliedPriceTable || 'Padrão',
-          commissionDisabled: item.commissionDisabled || false
+          commissionDisabled: item.commissionDisabled || false,
+          selectedVariationIds: item.selectedVariationIds || [],
+          variationValues: item.variationValues || {},
+          sectorCommissionDisabled: item.sectorCommissionDisabled || {}
       });
   };
 
@@ -607,7 +633,10 @@ export const JobDetails = () => {
                   basePriceBeforeDiscount: newBasePrice,
                   appliedDiscount: itemEditForm.appliedDiscount,
                   appliedPriceTable: itemEditForm.appliedPriceTable,
-                  commissionDisabled: itemEditForm.commissionDisabled
+                  commissionDisabled: itemEditForm.commissionDisabled,
+                  selectedVariationIds: itemEditForm.selectedVariationIds,
+                  variationValues: itemEditForm.variationValues,
+                  sectorCommissionDisabled: itemEditForm.sectorCommissionDisabled
               };
           }
           return i;
@@ -847,6 +876,44 @@ export const JobDetails = () => {
                                   <button onClick={() => setNewItemNature('REPETITION')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
                                   <button onClick={() => setNewItemNature('ADJUSTMENT')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
                               </div>
+                              {(() => {
+                                  const type = jobTypes.find(t => t.id === newItemTypeId);
+                                  if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                  return (
+                                      <div className="grid grid-cols-1 gap-3 mt-2">
+                                          {type.variationGroups.map(group => (
+                                              <div key={group.id} className="space-y-1">
+                                                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{group.name}</h4>
+                                                  <div className="flex flex-wrap gap-1.5">
+                                                      {group.options.map(option => {
+                                                          const isSelected = newItemVariationIds.includes(option.id);
+                                                          return (
+                                                              <button 
+                                                                  key={option.id} 
+                                                                  type="button" 
+                                                                  onClick={() => {
+                                                                      let newSelected = [...newItemVariationIds];
+                                                                      if (group.selectionType === 'SINGLE') {
+                                                                          newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                          if (!isSelected) newSelected.push(option.id);
+                                                                      } else {
+                                                                          if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
+                                                                          else newSelected.push(option.id);
+                                                                      }
+                                                                      setNewItemVariationIds(newSelected);
+                                                                  }} 
+                                                                  className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-blue-400'}`}
+                                                              >
+                                                                  {option.name}
+                                                              </button>
+                                                          );
+                                                      })}
+                                                  </div>
+                                              </div>
+                                          ))}
+                                      </div>
+                                  );
+                              })()}
                           </div>
                       </div>
 
@@ -1164,6 +1231,48 @@ export const JobDetails = () => {
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    
+                                                    {/* Variations Editing */}
+                                                    {(() => {
+                                                        const itemJobType = jobTypes.find(jt => jt.id === item.jobTypeId);
+                                                        if (!itemJobType || !itemJobType.variationGroups || itemJobType.variationGroups.length === 0) return null;
+                                                        
+                                                        return (
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200 pt-4 mt-4">
+                                                                {itemJobType.variationGroups.map(group => (
+                                                                    <div key={group.id} className="space-y-2">
+                                                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{group.name}</h4>
+                                                                        <div className="flex flex-wrap gap-1.5">
+                                                                            {group.options.map(option => {
+                                                                                const isSelected = itemEditForm.selectedVariationIds.includes(option.id);
+                                                                                return (
+                                                                                    <button 
+                                                                                        key={option.id} 
+                                                                                        type="button" 
+                                                                                        onClick={() => {
+                                                                                            let newSelected = [...itemEditForm.selectedVariationIds];
+                                                                                            if (group.selectionType === 'SINGLE') {
+                                                                                                newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                                                if (!isSelected) newSelected.push(option.id);
+                                                                                            } else {
+                                                                                                if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
+                                                                                                else newSelected.push(option.id);
+                                                                                            }
+                                                                                            setItemEditForm({...itemEditForm, selectedVariationIds: newSelected});
+                                                                                        }} 
+                                                                                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-105' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'}`}
+                                                                                    >
+                                                                                        {option.name}
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })()}
+
                                                     {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
                                                         <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 mt-2">
                                                             <div className="relative flex items-start">
@@ -1248,20 +1357,30 @@ export const JobDetails = () => {
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                                 {allowedSecs.map(secName => {
                                                                     const secQty = item.sectorQuantities?.[secName] ?? item.quantity;
+                                                                    const isSectorCommissionDisabled = item.sectorCommissionDisabled?.[secName] ?? (item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT');
                                                                     return (
-                                                                        <div key={secName} className="flex items-center justify-between bg-white p-2 md:p-3 rounded-xl border border-slate-200">
-                                                                            <span className="text-xs font-bold text-slate-700 truncate mr-2">{secName}</span>
-                                                                            <div className="flex items-center gap-2 shrink-0">
-                                                                                <span className="text-[9px] font-black text-slate-400 uppercase">Qtd:</span>
-                                                                                <input 
-                                                                                    type="number" 
-                                                                                    min={0.1} 
-                                                                                    step={0.1}
-                                                                                    value={secQty}
-                                                                                    onChange={(e) => handleSectorQuantityChange(item.id, secName, parseFloat(e.target.value) || item.quantity)}
-                                                                                    className="w-16 p-1 text-center text-xs font-bold border border-slate-300 bg-slate-50 focus:bg-white rounded outline-none focus:border-blue-500"
-                                                                                />
+                                                                        <div key={secName} className="flex flex-col gap-2 bg-white p-2 md:p-3 rounded-xl border border-slate-200">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="text-xs font-bold text-slate-700 truncate mr-2">{secName}</span>
+                                                                                <div className="flex items-center gap-2 shrink-0">
+                                                                                    <span className="text-[9px] font-black text-slate-400 uppercase">Qtd:</span>
+                                                                                    <input 
+                                                                                        type="number" 
+                                                                                        min={0.1} 
+                                                                                        step={0.1}
+                                                                                        value={secQty}
+                                                                                        onChange={(e) => handleSectorQuantityChange(item.id, secName, parseFloat(e.target.value) || item.quantity)}
+                                                                                        className="w-16 p-1 text-center text-xs font-bold border border-slate-300 bg-slate-50 focus:bg-white rounded outline-none focus:border-blue-500"
+                                                                                    />
+                                                                                </div>
                                                                             </div>
+                                                                            <button 
+                                                                                type="button" 
+                                                                                onClick={() => handleSectorCommissionToggle(item.id, secName, !isSectorCommissionDisabled)}
+                                                                                className={`text-[8px] font-black uppercase px-2 py-1.5 rounded-md transition-all flex items-center justify-center gap-1 hover:scale-[1.02] active:scale-95 shadow-sm ${!isSectorCommissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
+                                                                            >
+                                                                                {!isSectorCommissionDisabled ? '✅ COMISSÃO ATIVA' : '🚫 COMISSÃO INATIVA'}
+                                                                            </button>
                                                                         </div>
                                                                     );
                                                                 })}
