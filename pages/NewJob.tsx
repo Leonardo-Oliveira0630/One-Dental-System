@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { getContrastColor } from '../services/mockData';
@@ -12,28 +12,45 @@ type EntryType = 'NEW' | 'CONTINUATION';
 export const NewJob = () => {
   const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const jobTypeDropdownRef = useRef<HTMLDivElement>(null);
 
   // --- Global States ---
-  const [entryType, setEntryType] = useState<EntryType>('NEW');
-  const [patientName, setPatientName] = useState('');
+  const [entryType, setEntryType] = useState<EntryType>((location.state?.entryType as EntryType) || 'NEW');
+  const [patientName, setPatientName] = useState(location.state?.patientName || '');
   const [selectedDentistObj, setSelectedDentistObj] = useState<any | null>(null);
-  const [selectedDentistId, setSelectedDentistId] = useState('');
+  const [selectedDentistId, setSelectedDentistId] = useState(location.state?.dentistId || '');
   const [dentistName, setDentistName] = useState('');
   const [dentistSearchQuery, setDentistSearchQuery] = useState('');
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [jobTypeSearchQuery, setJobTypeSearchQuery] = useState('');
   const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
-  const [osNumber, setOsNumber] = useState('');
+  const [osNumber, setOsNumber] = useState(location.state?.osNumber || '');
   const [dueDate, setDueDate] = useState('');
   const [boxNumber, setBoxNumber] = useState('');
   const [selectedColorId, setSelectedColorId] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [notes, setNotes] = useState('');
-  const [addedItems, setAddedItems] = useState<JobItem[]>([]);
+  const [addedItems, setAddedItems] = useState<JobItem[]>(location.state?.items || []);
   const [lastCreatedJob, setLastCreatedJob] = useState<Job | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    // If state passed a dentistId, we need to find it and populate names
+    if (location.state?.dentistId && allUsers.length > 0) {
+      const dentist = allUsers.find(u => u.id === location.state.dentistId) || manualDentists.find(d => d.id === location.state.dentistId);
+      if (dentist) {
+        setSelectedDentistObj(dentist);
+        setDentistName(dentist.name);
+        setDentistSearchQuery(dentist.name);
+      } else if (location.state?.dentistName) {
+        // Fallback for manual entry
+        setDentistName(location.state.dentistName);
+        setDentistSearchQuery(location.state.dentistName);
+      }
+    }
+  }, [location.state, allUsers, manualDentists]);
 
   useEffect(() => {
     if (boxColors.length > 0 && !selectedColorId) {
@@ -540,8 +557,15 @@ export const NewJob = () => {
                         {addedItems.map(item => (
                             <div key={item.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-2xl border border-slate-200 animate-in slide-in-from-right-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-black text-xs">{item.quantity}</div>
-                                    <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[150px]">{item.name}</p>
+                                    <div className={`w-8 h-8 ${item.nature === 'REPETITION' ? 'bg-red-600' : item.nature === 'ADJUSTMENT' ? 'bg-orange-600' : 'bg-blue-600'} text-white rounded-lg flex items-center justify-center font-black text-xs`}>{item.quantity}</div>
+                                    <div className="min-w-0">
+                                        <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{item.name}</p>
+                                        {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${item.nature === 'REPETITION' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'} inline-block mt-0.5`}>
+                                                {item.nature === 'REPETITION' ? 'Repetição' : 'Ajuste'}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <span className="font-black text-slate-700 text-sm">R$ {(item.price * item.quantity).toFixed(2)}</span>

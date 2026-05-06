@@ -8,7 +8,7 @@ import {
   ArrowLeft, Calendar, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
-  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search
+  LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
@@ -57,7 +57,52 @@ export const JobDetails = () => {
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
 
+  const [showReturnModal, setShowReturnModal] = useState(false);
+
   const job = jobs.find(j => j.id === id);
+
+  const handleReturnAction = (action: 'PROSSEGUIMENTO' | 'AJUSTE' | 'REPETICAO') => {
+    if (!job) return;
+    
+    // Auto-generate next sequence for OS
+    let nextOsNumber = `${job.osNumber || 'RET'}`;
+    const match = nextOsNumber.match(/-(\d+)$/);
+    if (match) {
+        const seq = parseInt(match[1]) + 1;
+        nextOsNumber = nextOsNumber.replace(/-\d+$/, `-${seq}`);
+    } else {
+        nextOsNumber = `${nextOsNumber}-1`;
+    }
+
+    if (action === 'PROSSEGUIMENTO') {
+        navigate('/new-job', {
+            state: {
+                entryType: 'CONTINUATION',
+                patientName: job.patientName,
+                dentistId: job.dentistId,
+                dentistName: job.dentistName,
+                osNumber: nextOsNumber
+            }
+        });
+    } else {
+        const newItems = job.items.map(item => ({
+            ...item,
+            id: `item_${Date.now()}_${Math.random().toString(36).substr(2,5)}`,
+            nature: action === 'AJUSTE' ? ('ADJUSTMENT' as JobNature) : ('REPETITION' as JobNature)
+        }));
+        
+        navigate('/new-job', {
+            state: {
+                entryType: 'CONTINUATION',
+                patientName: job.patientName,
+                dentistId: job.dentistId,
+                dentistName: job.dentistName,
+                osNumber: nextOsNumber,
+                items: newItems
+            }
+        });
+    }
+  };
   
   useEffect(() => {
       if (job?.routeId && currentOrg) {
@@ -621,6 +666,55 @@ export const JobDetails = () => {
 
       {showAlertModal && <CreateAlertModal job={job} onClose={() => setShowAlertModal(false)} />}
       
+      {/* MODAL RETORNO */}
+      {showReturnModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
+                  <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <RefreshCw size={32} className="text-indigo-600" />
+                  </div>
+                  <h3 className="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">Cadastrar Retorno</h3>
+                  <p className="text-sm text-slate-500 font-bold mb-8">O que deseja fazer com esta Ordem de Serviço?</p>
+                  
+                  <div className="grid grid-cols-1 gap-3">
+                      <button onClick={() => { setShowReturnModal(false); handleReturnAction('PROSSEGUIMENTO'); }} className="w-full p-4 border-2 border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 text-indigo-700 rounded-2xl font-black uppercase flex items-center justify-between group transition-all">
+                          <div className="flex items-center gap-3">
+                              <ArrowRightCircle size={20} className="text-indigo-500" />
+                              <div className="text-left">
+                                  <div className="text-sm">Prosseguimento</div>
+                                  <div className="text-[10px] text-indigo-400 font-bold tracking-widest mt-0.5">Criar OS limpa para a próxima fase</div>
+                              </div>
+                          </div>
+                      </button>
+
+                      <button onClick={() => { setShowReturnModal(false); handleReturnAction('REPETICAO'); }} className="w-full p-4 border-2 border-red-100 bg-red-50/50 hover:bg-red-50 text-red-700 rounded-2xl font-black uppercase flex items-center justify-between group transition-all">
+                          <div className="flex items-center gap-3">
+                              <RotateCcw size={20} className="text-red-500" />
+                              <div className="text-left">
+                                  <div className="text-sm">Repetição</div>
+                                  <div className="text-[10px] text-red-400 font-bold tracking-widest mt-0.5">Copiar OS com itens de repetição</div>
+                              </div>
+                          </div>
+                      </button>
+
+                      <button onClick={() => { setShowReturnModal(false); handleReturnAction('AJUSTE'); }} className="w-full p-4 border-2 border-orange-100 bg-orange-50/50 hover:bg-orange-50 text-orange-700 rounded-2xl font-black uppercase flex items-center justify-between group transition-all">
+                          <div className="flex items-center gap-3">
+                              <Edit3 size={20} className="text-orange-500" />
+                              <div className="text-left">
+                                  <div className="text-sm">Ajuste</div>
+                                  <div className="text-[10px] text-orange-400 font-bold tracking-widest mt-0.5">Copiar OS com itens para ajuste</div>
+                              </div>
+                          </div>
+                      </button>
+                  </div>
+                  
+                  <button onClick={() => setShowReturnModal(false)} className="mt-6 w-full py-3 text-slate-400 hover:text-slate-600 font-black text-xs uppercase tracking-widest">
+                      Cancelar
+                  </button>
+              </div>
+          </div>
+      )}
+
       {/* MODAL EDITAR - Mobile Responsive */}
       {showEditModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
@@ -772,9 +866,14 @@ export const JobDetails = () => {
           <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors"><ArrowLeft size={16} /> Lista</button>
           <div className="flex flex-wrap gap-2 w-full xs:w-auto">
               {canReopen && (
-                  <button onClick={handleReopenJob} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-amber-50 border border-amber-100 text-amber-600 rounded-lg hover:bg-amber-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
-                    {isUpdatingStatus ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} REABRIR
-                  </button>
+                  <>
+                    <button onClick={() => setShowReturnModal(true)} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
+                        <Plus size={12} /> CADASTRAR RETORNO
+                    </button>
+                    <button onClick={handleReopenJob} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-amber-50 border border-amber-100 text-amber-600 rounded-lg hover:bg-amber-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
+                      {isUpdatingStatus ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} REABRIR
+                    </button>
+                  </>
               )}
               {!isClient && job.status !== JobStatus.REJECTED && (
                   <>
