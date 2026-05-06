@@ -74,6 +74,7 @@ export const GlobalScanner: React.FC = () => {
   const scannedJobRef = useRef(scannedJob);
   const scanActionRef = useRef(scanAction);
   const nextSectorRef = useRef(nextSector);
+  const isUploadingRef = useRef(isUploading);
 
   useEffect(() => {
     const handleOpenJobScannerPopup = (e: any) => {
@@ -87,7 +88,46 @@ export const GlobalScanner: React.FC = () => {
             const user = currentUserRef.current;
             const isLastActionEntryHere = user?.sector ? job.sectorMovements?.some(m => m.sector === user.sector && !m.exitTime) : false;
             setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
-            setCommissionEarned(0);
+            
+            if (isLastActionEntryHere && user && user.sector) {
+                const alreadyPaid = commissionsRef.current.some(c => 
+                    c.jobId === job.id && 
+                    c.userId === user.id && 
+                    c.sector === user.sector
+                );
+
+                if (!alreadyPaid) {
+                    let totalComm = 0;
+                    job.items.forEach(item => {
+                        if (item.commissionDisabled) return;
+                        
+                        const secQty = (item.sectorQuantities && item.sectorQuantities[user.sector!]) 
+                            ? item.sectorQuantities[user.sector!] 
+                            : item.quantity;
+
+                        const setting = user.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
+                        
+                        if (setting) {
+                            if (setting.type === 'FIXED') {
+                                totalComm += setting.value * secQty;
+                            } else {
+                                totalComm += (item.price * secQty * (setting.value / 100));
+                            }
+                        } else {
+                            const jobType = jobTypesRef.current.find(t => t.id === item.jobTypeId);
+                            if (jobType?.baseCommission) {
+                                totalComm += jobType.baseCommission * secQty;
+                            }
+                        }
+                    });
+                    setCommissionEarned(totalComm);
+                } else {
+                    setCommissionEarned(0);
+                }
+            } else {
+                setCommissionEarned(0);
+            }
+
             setNextSector('');
         }
     };
@@ -106,7 +146,8 @@ export const GlobalScanner: React.FC = () => {
     scannedJobRef.current = scannedJob;
     scanActionRef.current = scanAction;
     nextSectorRef.current = nextSector;
-  }, [currentUser, isCameraActive, jobs, commissions, jobTypes, scannedJob, scanAction, nextSector, jobMap]);
+    isUploadingRef.current = isUploading;
+  }, [currentUser, isCameraActive, jobs, commissions, jobTypes, scannedJob, scanAction, nextSector, jobMap, isUploading]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -414,6 +455,8 @@ export const GlobalScanner: React.FC = () => {
   }, [playBeep]);
 
   const handleMoveJob = async (nextSector?: string) => {
+    if (isUploadingRef.current) return;
+    
     const currentJob = scannedJobRef.current;
     const user = currentUserRef.current;
     const actionType = scanActionRef.current;
@@ -470,7 +513,43 @@ export const GlobalScanner: React.FC = () => {
                 newStatus = JobStatus.SECTOR_TRANSITION;
             }
 
-            if (commissionEarned > 0) {
+            // Calcular comissão em tempo de execução para evitar stale closures
+            const alreadyPaid = commissionsRef.current.some(c => 
+                c.jobId === currentJob.id && 
+                c.userId === user.id && 
+                c.sector === sector
+            );
+
+            let calculatedCommission = 0;
+            if (!alreadyPaid) {
+                currentJob.items.forEach(item => {
+                    if (item.commissionDisabled) return;
+                    
+                    const secQty = (sector && item.sectorQuantities && item.sectorQuantities[sector]) 
+                        ? item.sectorQuantities[sector] 
+                        : item.quantity;
+
+                    const setting = user.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
+                    
+                    if (setting) {
+                        if (setting.type === 'FIXED') {
+                            calculatedCommission += setting.value * secQty;
+                        } else {
+                            calculatedCommission += (item.price * secQty * (setting.value / 100));
+                        }
+                    } else {
+                        const jobType = jobTypesRef.current.find(t => t.id === item.jobTypeId);
+                        if (jobType?.baseCommission) {
+                            calculatedCommission += jobType.baseCommission * secQty;
+                        }
+                    }
+                });
+            }
+            
+            // Atualizar o state para o UI
+            setCommissionEarned(calculatedCommission);
+
+            if (calculatedCommission > 0) {
                 try {
                     await addCommissionRecord({
                         userId: user.id,
@@ -478,7 +557,7 @@ export const GlobalScanner: React.FC = () => {
                         jobId: currentJob.id,
                         osNumber: currentJob.osNumber || 'N/A',
                         patientName: currentJob.patientName,
-                        amount: commissionEarned,
+                        amount: calculatedCommission,
                         status: CommissionStatus.PENDING,
                         createdAt: new Date(),
                         sector: sector
@@ -718,10 +797,16 @@ export const GlobalScanner: React.FC = () => {
         )}
 
         <div className="flex gap-3">
-            <button onClick={() => { setScannedJob(null); setNextSector(''); }} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
-            <button onClick={() => handleMoveJob(nextSector)} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 flex flex-col items-center justify-center leading-tight ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>
-                <span>{isEntry ? 'CONFIRMAR ENTRADA' : 'CONFIRMAR SAÍDA'}</span>
-                <span className="text-[10px] font-medium opacity-80 mt-1">ou bipe novamente</span>
+            <button disabled={isUploading} onClick={() => { setScannedJob(null); setNextSector(''); }} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all disabled:opacity-50">Cancelar</button>
+            <button disabled={isUploading} onClick={() => handleMoveJob(nextSector)} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 flex flex-col items-center justify-center leading-tight disabled:opacity-50 disabled:scale-100 ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>
+                {isUploading ? (
+                    <Loader2 size={24} className="animate-spin" />
+                ) : (
+                    <>
+                        <span>{isEntry ? 'CONFIRMAR ENTRADA' : 'CONFIRMAR SAÍDA'}</span>
+                        <span className="text-[10px] font-medium opacity-80 mt-1">ou bipe novamente</span>
+                    </>
+                )}
             </button>
         </div>
       </div>

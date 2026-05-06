@@ -291,34 +291,53 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
  * SINCRONIZA STATUS DE ASSINATURA SAAS
  */
 export const setSubscriptionStatus = functions.https.onCall(
-  async (data, context) => {
+  async (request) => {
     // Verificar se o usuário é admin/superadmin
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Usuário não autenticado.");
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "Usuário não autenticado."
+      );
     }
 
-    const {orgId, status} = data;
+    const {orgId, status} = request.data;
     if (!orgId || !status) {
-      throw new functions.https.HttpsError("invalid-argument", "Parâmetros orgId e status são obrigatórios.");
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Parâmetros orgId e status são obrigatórios."
+      );
     }
 
     const {key, url} = await getAsaasConfig();
     try {
-      const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
+      const orgSnap = await admin.firestore()
+        .collection("organizations")
+        .doc(orgId)
+        .get();
       if (!orgSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "Organização não encontrada.");
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Organização não encontrada."
+        );
       }
 
       const orgData = orgSnap.data();
       const subId = orgData?.subscriptionId;
-      
+
       if (status === "FREE" || status === "TEST" || status === "CANCELLED") {
         if (subId) {
           try {
-            functions.logger.info(`Cancelando assinatura Asaas ${subId} para org ${orgId} devido ao status ${status}`);
-            await axios.delete(`${url}/subscriptions/${subId}`, { headers: { access_token: key } });
+            functions.logger.info(
+              `Cancelando Asaas ${subId} para org ${orgId} devido a ${status}`
+            );
+            await axios.delete(`${url}/subscriptions/${subId}`, {
+              headers: {access_token: key},
+            });
           } catch (e: any) {
-            functions.logger.warn("Erro ao deletar assinatura no Asaas (pode já estar deletada):", e.response?.data || e.message);
+            functions.logger.warn(
+              "Erro ao deletar assinatura no Asaas:",
+              e.response?.data || e.message
+            );
           }
         }
       }
@@ -328,7 +347,7 @@ export const setSubscriptionStatus = functions.https.onCall(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      return { success: true, status };
+      return {success: true, status};
     } catch (error: any) {
       functions.logger.error("Erro em setSubscriptionStatus:", error);
       throw new functions.https.HttpsError("internal", error.message);
@@ -337,10 +356,13 @@ export const setSubscriptionStatus = functions.https.onCall(
 );
 
 export const checkSubscriptionStatus = functions.https.onCall(
-  async (data, context) => {
-    const {orgId} = data;
+  async (request) => {
+    const {orgId} = request.data;
     if (!orgId) {
-      throw new functions.https.HttpsError("invalid-argument", "orgId é obrigatório.");
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "orgId é obrigatório."
+      );
     }
 
     const {key, url} = await getAsaasConfig();
@@ -349,35 +371,42 @@ export const checkSubscriptionStatus = functions.https.onCall(
         .collection("organizations")
         .doc(orgId)
         .get();
-      
+
       if (!orgSnap.exists) {
-        throw new functions.https.HttpsError("not-found", "Organização não encontrada.");
+        throw new functions.https.HttpsError(
+          "not-found",
+          "Organização não encontrada."
+        );
       }
 
       const currentStatus = orgSnap.data()?.subscriptionStatus;
       if (currentStatus === "FREE" || currentStatus === "TEST") {
         return {status: currentStatus};
       }
-      
+
       const subId = orgSnap.data()?.subscriptionId;
       if (!subId) return {status: "NONE"};
 
       const res = await axios.get(`${url}/subscriptions/${subId}`, {
         headers: {access_token: key},
       });
-      
+
       const asaasStatus = res.data.status;
       let status = "PENDING";
-      
-      if (asaasStatus === "ACTIVE") status = "ACTIVE";
-      else if (asaasStatus === "EXPIRED" || asaasStatus === "OVERDUE") status = "OVERDUE";
-      else if (asaasStatus === "DELETED") status = "CANCELLED";
+
+      if (asaasStatus === "ACTIVE") {
+        status = "ACTIVE";
+      } else if (asaasStatus === "EXPIRED" || asaasStatus === "OVERDUE") {
+        status = "OVERDUE";
+      } else if (asaasStatus === "DELETED") {
+        status = "CANCELLED";
+      }
 
       await admin.firestore()
         .collection("organizations")
         .doc(orgId)
         .update({subscriptionStatus: status});
-        
+
       return {status};
     } catch (error: any) {
       functions.logger.error("Erro em checkSubscriptionStatus:", error);
@@ -392,43 +421,60 @@ export const checkSubscriptionStatus = functions.https.onCall(
 /**
  * CRIA ASSINATURA SAAS
  */
-export const createSaaSSubscription = functions.https.onCall(async (data, context) => {
-  const { orgId, planId, email, name, cpfCnpj, couponCode } = data;
-  const { key, url } = await getAsaasConfig();
-  
+export const createSaaSSubscription = functions.https.onCall(async (req) => {
+  const {orgId, planId, email, name, cpfCnpj} = req.data;
+  const {key, url} = await getAsaasConfig();
+
   try {
     const cleanCpfCnpj = String(cpfCnpj).replace(/\D/g, "");
-    
+
     // Buscar ou Criar Customer
     let customerId = "";
     try {
-      const existing = await axios.get(`${url}/customers?cpfCnpj=${cleanCpfCnpj}`, { headers: { access_token: key } });
+      const existing = await axios.get(
+        `${url}/customers?cpfCnpj=${cleanCpfCnpj}`,
+        {headers: {access_token: key}}
+      );
       if (existing.data.data.length > 0) {
         customerId = existing.data.data[0].id;
       } else {
-        const custRes = await axios.post(`${url}/customers`, { name, email, cpfCnpj: cleanCpfCnpj }, { headers: { access_token: key } });
+        const custRes = await axios.post(
+          `${url}/customers`,
+          {name, email, cpfCnpj: cleanCpfCnpj},
+          {headers: {access_token: key}}
+        );
         customerId = custRes.data.id;
       }
-    } catch (e: any) { throw new Error("Erro cliente Asaas: " + e.message); }
+    } catch (e: any) {
+      throw new Error("Erro cliente Asaas: " + e.message);
+    }
 
     // Valor
     let value = 99.00;
-    const planSnap = await admin.firestore().collection("globalSettings").doc("plans").collection("list").doc(planId).get();
+    const planSnap = await admin.firestore()
+      .collection("globalSettings")
+      .doc("plans")
+      .collection("list")
+      .doc(planId)
+      .get();
     if (planSnap.exists && planSnap.data()?.price) {
-       value = planSnap.data()?.price;
+      value = planSnap.data()?.price;
     }
 
     const nextDue = new Date(Date.now() + 86400000).toISOString().split("T")[0];
-    
-    // billingType UNDEFINED allows the user to pay with any method (Pix, cc, boleto)
-    const subRes = await axios.post(`${url}/subscriptions`, {
-      customer: customerId,
-      billingType: "UNDEFINED",
-      value: value,
-      nextDueDate: nextDue,
-      cycle: "MONTHLY",
-      description: `Assinatura Plano ${planId}`,
-    }, { headers: { access_token: key } });
+
+    const subRes = await axios.post(
+      `${url}/subscriptions`,
+      {
+        customer: customerId,
+        billingType: "UNDEFINED",
+        value: value,
+        nextDueDate: nextDue,
+        cycle: "MONTHLY",
+        description: `Assinatura Plano ${planId}`,
+      },
+      {headers: {access_token: key}}
+    );
 
     await admin.firestore().collection("organizations").doc(orgId).update({
       asaasCustomerId: customerId,
@@ -436,7 +482,7 @@ export const createSaaSSubscription = functions.https.onCall(async (data, contex
       subscriptionStatus: "PENDING",
       planId: planId,
     });
-    return { success: true };
+    return {success: true};
   } catch (error: any) {
     functions.logger.error("Erro em createSaaSSubscription:", error);
     throw new functions.https.HttpsError("internal", error.message);
@@ -446,16 +492,22 @@ export const createSaaSSubscription = functions.https.onCall(async (data, contex
 /**
  * BUSCA FATURAS (BOLETOS/PAGAMENTOS) DO SAAS NO ASAAS
  */
-export const getSaaSInvoices = functions.https.onCall(async (data, context) => {
-  const { orgId } = data;
-  const { key, url } = await getAsaasConfig();
-  
+export const getSaaSInvoices = functions.https.onCall(async (request) => {
+  const {orgId} = request.data;
+  const {key, url} = await getAsaasConfig();
+
   try {
-    const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
+    const orgSnap = await admin.firestore()
+      .collection("organizations")
+      .doc(orgId)
+      .get();
     const customerId = orgSnap.data()?.asaasCustomerId;
     if (!customerId) return [];
 
-    const res = await axios.get(`${url}/payments?customer=${customerId}&limit=50`, { headers: { access_token: key } });
+    const res = await axios.get(
+      `${url}/payments?customer=${customerId}&limit=50`,
+      {headers: {access_token: key}}
+    );
     return res.data.data;
   } catch (error: any) {
     functions.logger.error("Erro em getSaaSInvoices:", error);
@@ -468,9 +520,10 @@ export const asaasWebhook = functions.https.onRequest(
     // Validar Asaas-Access-Token do Webhook
     const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
     if (webhookToken) {
-      const authHeader = req.headers['asaas-access-token'] || req.headers['Asaas-Access-Token'];
+      const authHeader = req.headers["asaas-access-token"] ||
+                         req.headers["Asaas-Access-Token"];
       if (authHeader !== webhookToken) {
-        functions.logger.warn("Webhook token inválido", { received: authHeader });
+        functions.logger.warn("Webhook token inválido", {received: authHeader});
         res.status(401).send("Unauthorized");
         return;
       }
@@ -503,12 +556,13 @@ export const asaasWebhook = functions.https.onRequest(
             await writeBatch.commit();
           }
         } else if (customerId && event.payment?.subscription) {
-           // SaaS Subscription payment
-           const orgsSnapshot = await db.collection("organizations").where("asaasCustomerId", "==", customerId).get();
-           if (!orgsSnapshot.empty) {
-               const orgDoc = orgsSnapshot.docs[0];
-               await orgDoc.ref.update({ subscriptionStatus: "ACTIVE" });
-           }
+          // SaaS Subscription payment
+          const orgsSnapshot = await db.collection("organizations")
+            .where("asaasCustomerId", "==", customerId).get();
+          if (!orgsSnapshot.empty) {
+            const orgDoc = orgsSnapshot.docs[0];
+            await orgDoc.ref.update({subscriptionStatus: "ACTIVE"});
+          }
         }
       }
       res.status(200).send("OK");
@@ -517,3 +571,4 @@ export const asaasWebhook = functions.https.onRequest(
     }
   }
 );
+
