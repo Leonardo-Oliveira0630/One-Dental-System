@@ -45,7 +45,8 @@ export const JobDetails = () => {
     price: number;
     appliedDiscount: number;
     appliedPriceTable: string;
-  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão' });
+    commissionDisabled: boolean;
+  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
@@ -584,7 +585,8 @@ export const JobDetails = () => {
           quantity: item.quantity,
           price: item.basePriceBeforeDiscount ?? item.price,
           appliedDiscount: item.appliedDiscount || 0,
-          appliedPriceTable: item.appliedPriceTable || 'Padrão'
+          appliedPriceTable: item.appliedPriceTable || 'Padrão',
+          commissionDisabled: item.commissionDisabled || false
       });
   };
 
@@ -604,7 +606,8 @@ export const JobDetails = () => {
                   price: finalPrice,
                   basePriceBeforeDiscount: newBasePrice,
                   appliedDiscount: itemEditForm.appliedDiscount,
-                  appliedPriceTable: itemEditForm.appliedPriceTable
+                  appliedPriceTable: itemEditForm.appliedPriceTable,
+                  commissionDisabled: itemEditForm.commissionDisabled
               };
           }
           return i;
@@ -1077,7 +1080,22 @@ export const JobDetails = () => {
                                     >
                                         <div className="min-w-0 flex-1">
                                             <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {item.name}</p>
-                                            <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest mt-1 truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
+                                                {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            const updatedItems = job.items.map(i => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
+                                                            await updateJob(job.id, { items: updatedItems });
+                                                        }}
+                                                        className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm ${!item.commissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
+                                                    >
+                                                        {!item.commissionDisabled ? '✅ COMISSÃO ATIVA' : '🚫 COMISSÃO INATIVA'}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
                                             <p className="font-black text-slate-600 text-sm md:text-base">R$ {(item.price * item.quantity).toFixed(2)}</p>
@@ -1146,6 +1164,26 @@ export const JobDetails = () => {
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                                        <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 mt-2">
+                                                            <div className="relative flex items-start">
+                                                                <div className="flex h-6 items-center">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!itemEditForm.commissionDisabled}
+                                                                        onChange={(e) => setItemEditForm({...itemEditForm, commissionDisabled: !e.target.checked})}
+                                                                        className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-600/20"
+                                                                    />
+                                                                </div>
+                                                                <div className="ml-3 text-sm leading-6">
+                                                                    <label className="font-black text-slate-800 uppercase tracking-tight text-[11px]">
+                                                                        Ativar Comissão para este item
+                                                                    </label>
+                                                                    <p className="text-[10px] text-slate-500 font-bold">Por padrão, ajustes e repetições não geram comissão.</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <>
@@ -1173,13 +1211,27 @@ export const JobDetails = () => {
                                                             </div>
                                                         </div>
                                                         {isLabStaff && (
-                                                            <button 
-                                                                onClick={() => startEditingItem(item)}
-                                                                className="ml-4 p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors shrink-0"
-                                                                title="Editar este item"
-                                                            >
-                                                                <Edit size={18} />
-                                                            </button>
+                                                            <div className="flex flex-col gap-2 shrink-0 ml-4 items-end">
+                                                                <button 
+                                                                    onClick={() => startEditingItem(item)}
+                                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors shrink-0"
+                                                                    title="Editar este item"
+                                                                >
+                                                                    <Edit size={18} />
+                                                                </button>
+                                                                {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onClick={async () => {
+                                                                            const updatedItems = job.items.map(i => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
+                                                                            await updateJob(job.id, { items: updatedItems });
+                                                                        }}
+                                                                        className={`text-[9px] font-black uppercase px-2 py-1 rounded-md transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm ${!item.commissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
+                                                                    >
+                                                                        {!item.commissionDisabled ? '✅ COMISSÃO ATIVA' : '🚫 COMISSÃO INATIVA'}
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </>

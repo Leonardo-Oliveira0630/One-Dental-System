@@ -596,9 +596,9 @@ export const NewJob = () => {
                                                         const updatedItems = addedItems.map(i => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
                                                         setAddedItems(updatedItems);
                                                     }}
-                                                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded transition-all flex items-center gap-1 hover:brightness-95 ${!item.commissionDisabled ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'}`}
+                                                    className={`text-[9px] font-black uppercase px-2 py-1 rounded-md transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm ${!item.commissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
                                                 >
-                                                    COMISSÃO {(!item.commissionDisabled) ? 'ATIVA' : 'INATIVA'}
+                                                    {!item.commissionDisabled ? '✅ COMISSÃO ATIVA' : '🚫 COMISSÃO INATIVA'}
                                                 </button>
                                             )}
                                         </div>
