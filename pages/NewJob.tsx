@@ -434,9 +434,9 @@ export const NewJob = () => {
                             <div className="space-y-2">
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Natureza do Item</label>
                                 <div className="flex gap-2">
-                                    <button type="button" onClick={() => setItemNature('NORMAL')} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>Normal</button>
-                                    <button type="button" onClick={() => setItemNature('REPETITION')} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>Repetição</button>
-                                    <button type="button" onClick={() => setItemNature('ADJUSTMENT')} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
+                                    <button type="button" onClick={() => { setItemNature('NORMAL'); setCommissionDisabled(false); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>Normal</button>
+                                    <button type="button" onClick={() => { setItemNature('REPETITION'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>Repetição</button>
+                                    <button type="button" onClick={() => { setItemNature('ADJUSTMENT'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
                                 </div>
                             </div>
                             <div className="flex gap-3 items-end">
@@ -545,6 +545,29 @@ export const NewJob = () => {
                                     <input type="number" max="100" min="0" value={discountPercent} onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-black focus:ring-2 outline-none" />
                                 </div>
                             </div>
+                            
+                            {(itemNature === 'REPETITION' || itemNature === 'ADJUSTMENT') && (
+                                <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                                    <div className="relative flex items-start">
+                                        <div className="flex h-6 items-center">
+                                            <input
+                                                id="commission-active"
+                                                name="commission-active"
+                                                type="checkbox"
+                                                checked={!commissionDisabled}
+                                                onChange={(e) => setCommissionDisabled(!e.target.checked)}
+                                                className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-600/20"
+                                            />
+                                        </div>
+                                        <div className="ml-3 text-sm leading-6">
+                                            <label htmlFor="commission-active" className="font-black text-slate-800 uppercase tracking-tight text-[11px]">
+                                                Ativar Comissão para este item
+                                            </label>
+                                            <p className="text-[10px] text-slate-500 font-bold">Por padrão, ajustes e repetições não geram comissão no app.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <button type="button" onClick={handleAddItem} disabled={!selectedTypeId} className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-100 disabled:opacity-50">
@@ -560,11 +583,25 @@ export const NewJob = () => {
                                     <div className={`w-8 h-8 ${item.nature === 'REPETITION' ? 'bg-red-600' : item.nature === 'ADJUSTMENT' ? 'bg-orange-600' : 'bg-blue-600'} text-white rounded-lg flex items-center justify-center font-black text-xs`}>{item.quantity}</div>
                                     <div className="min-w-0">
                                         <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{item.name}</p>
-                                        {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
-                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${item.nature === 'REPETITION' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'} inline-block mt-0.5`}>
-                                                {item.nature === 'REPETITION' ? 'Repetição' : 'Ajuste'}
-                                            </span>
-                                        )}
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${item.nature === 'REPETITION' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'} inline-block`}>
+                                                    {item.nature === 'REPETITION' ? 'Repetição' : 'Ajuste'}
+                                                </span>
+                                            )}
+                                            {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => {
+                                                        const updatedItems = addedItems.map(i => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
+                                                        setAddedItems(updatedItems);
+                                                    }}
+                                                    className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded transition-all flex items-center gap-1 hover:brightness-95 ${!item.commissionDisabled ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'}`}
+                                                >
+                                                    COMISSÃO {(!item.commissionDisabled) ? 'ATIVA' : 'INATIVA'}
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">

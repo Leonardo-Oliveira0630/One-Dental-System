@@ -88,7 +88,8 @@ export const JobDetails = () => {
         const newItems = job.items.map(item => ({
             ...item,
             id: `item_${Date.now()}_${Math.random().toString(36).substr(2,5)}`,
-            nature: action === 'AJUSTE' ? ('ADJUSTMENT' as JobNature) : ('REPETITION' as JobNature)
+            nature: action === 'AJUSTE' ? ('ADJUSTMENT' as JobNature) : ('REPETITION' as JobNature),
+            commissionDisabled: true
         }));
         
         navigate('/new-job', {
