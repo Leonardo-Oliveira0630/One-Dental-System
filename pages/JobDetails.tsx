@@ -69,14 +69,19 @@ export const JobDetails = () => {
     if (!job) return;
     
     // Auto-generate next sequence for OS
-    let nextOsNumber = `${job.osNumber || 'RET'}`;
-    const match = nextOsNumber.match(/-(\d+)$/);
-    if (match) {
-        const seq = parseInt(match[1]) + 1;
-        nextOsNumber = nextOsNumber.replace(/-\d+$/, `-${seq}`);
-    } else {
-        nextOsNumber = `${nextOsNumber}-1`;
-    }
+    const baseOs = (job.osNumber || 'RET').split('-')[0];
+    const baseJobs = jobs.filter(j => (j.osNumber || '').startsWith(baseOs));
+    let nextSeq = 1;
+    baseJobs.forEach(j => {
+        const jOs = j.osNumber || '';
+        if (jOs.includes('-')) {
+            const seq = parseInt(jOs.split('-')[1]);
+            if (!isNaN(seq) && seq >= nextSeq) {
+                nextSeq = seq + 1;
+            }
+        }
+    });
+    const nextOsNumber = `${baseOs}-${nextSeq}`;
 
     if (action === 'PROSSEGUIMENTO') {
         navigate('/new-job', {

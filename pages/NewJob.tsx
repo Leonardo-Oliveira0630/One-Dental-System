@@ -35,6 +35,8 @@ export const NewJob = () => {
   const [addedItems, setAddedItems] = useState<JobItem[]>(location.state?.items || []);
   const [lastCreatedJob, setLastCreatedJob] = useState<Job | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOsConflictPopup, setShowOsConflictPopup] = useState(false);
+  const [suggestedOsNumber, setSuggestedOsNumber] = useState('');
 
   useEffect(() => {
     // If state passed a dentistId, we need to find it and populate names
@@ -221,6 +223,36 @@ export const NewJob = () => {
     }
   }, [jobs]);
 
+  const handleOsNumberBlur = () => {
+      if (!osNumber) return;
+      if (osNumber.includes('-')) {
+          const exists = jobs.find(j => j.osNumber === osNumber);
+          if (exists) {
+              const baseOs = osNumber.split('-')[0];
+              const baseJobs = jobs.filter(j => (j.osNumber || '').startsWith(baseOs));
+              let nextSeq = 1;
+              baseJobs.forEach(j => {
+                  const jOs = j.osNumber || '';
+                  if (jOs.includes('-')) {
+                      const seq = parseInt(jOs.split('-')[1]);
+                      if (!isNaN(seq) && seq >= nextSeq) {
+                          nextSeq = seq + 1;
+                      }
+                  } else {
+                      if (nextSeq === 1) nextSeq = 2;
+                  }
+              });
+              setOsNumber(`${baseOs}-${nextSeq}`);
+          }
+      } else {
+          const exists = jobs.find(j => j.osNumber === osNumber);
+          if (exists) {
+              setSuggestedOsNumber(generateNextNewOs());
+              setShowOsConflictPopup(true);
+          }
+      }
+  };
+
   const selectDentist = (dentist: any) => {
     setSelectedDentistId(dentist.id); 
     setSelectedDentistObj(dentist);
@@ -306,8 +338,39 @@ export const NewJob = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Check conflicts before submitting
+    let finalOsNumber = osNumber;
+    if (osNumber.includes('-')) {
+        const exists = jobs.find(j => j.osNumber === osNumber);
+        if (exists) {
+            const baseOs = osNumber.split('-')[0];
+            const baseJobs = jobs.filter(j => (j.osNumber || '').startsWith(baseOs));
+            let nextSeq = 1;
+            baseJobs.forEach(j => {
+                const jOs = j.osNumber || '';
+                if (jOs.includes('-')) {
+                    const seq = parseInt(jOs.split('-')[1]);
+                    if (!isNaN(seq) && seq >= nextSeq) {
+                        nextSeq = seq + 1;
+                    }
+                } else {
+                    if (nextSeq === 1) nextSeq = 2;
+                }
+            });
+            finalOsNumber = `${baseOs}-${nextSeq}`;
+            setOsNumber(finalOsNumber); // Update visually
+        }
+    } else {
+        const exists = jobs.find(j => j.osNumber === osNumber);
+        if (exists) {
+            setSuggestedOsNumber(generateNextNewOs());
+            setShowOsConflictPopup(true);
+            return; // STOP!
+        }
+    }
+
     // VALIDAÇÕES DE PRODUÇÃO
-    if (!osNumber) { alert("O número da OS é obrigatório."); return; }
+    if (!finalOsNumber) { alert("O número da OS é obrigatório."); return; }
     if (!patientName.trim()) { alert("O nome do paciente é obrigatório."); return; }
     if (!selectedDentistId || !dentistName.trim()) { alert("A seleção do dentista é obrigatória."); return; }
 
@@ -326,7 +389,7 @@ export const NewJob = () => {
     const initialSector = currentUser.sector || 'Recepção';
     
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
-        osNumber, 
+        osNumber: finalOsNumber, 
         patientName: patientName.trim(), 
         dentistId: selectedDentistId, 
         dentistName: dentistName.trim(), 
@@ -364,6 +427,40 @@ export const NewJob = () => {
 
   return (
     <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 pb-20 animate-in fade-in duration-500">
+        {showOsConflictPopup && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-300">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={32} className="text-red-600" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-800 text-center mb-2">Número de OS em uso</h2>
+              <p className="text-sm font-bold text-slate-500 text-center mb-6">
+                Já existe um trabalho cadastrado com a ficha <b className="text-slate-800">{osNumber}</b>. Deseja prosseguir com o próximo número disponível ({suggestedOsNumber})?
+              </p>
+              <div className="flex gap-3">
+                <button 
+                    type="button" 
+                    onClick={() => {
+                        setShowOsConflictPopup(false);
+                    }} 
+                    className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors uppercase tracking-widest text-xs"
+                >
+                    Cancelar
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => {
+                        setOsNumber(suggestedOsNumber);
+                        setShowOsConflictPopup(false);
+                    }} 
+                    className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors uppercase tracking-widest text-xs"
+                >
+                    Usar {suggestedOsNumber}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {lastCreatedJob && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
@@ -397,7 +494,7 @@ export const NewJob = () => {
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nº OS <span className="text-red-500">*</span></label>
-                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all" />
+                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} onBlur={handleOsNumberBlur} required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all" />
                     </div>
                     <div className="md:col-span-9">
                          <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nome do Paciente <span className="text-red-500">*</span></label>
