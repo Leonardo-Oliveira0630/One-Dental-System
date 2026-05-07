@@ -136,6 +136,7 @@ export const JobDetails = () => {
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = isAdmin || isManager || isTech;
   const canEdit = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:edit'));
+  const canManageCommissions = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('commissions:manage'));
 
   const [editPatientName, setEditPatientName] = useState('');
   const [editOsNumber, setEditOsNumber] = useState('');
@@ -567,6 +568,7 @@ export const JobDetails = () => {
   };
 
   const handleSectorQuantityChange = async (itemId: string, sectorName: string, newQty: number) => {
+      if (!canManageCommissions) return;
       const updatedItems = job.items.map(item => {
           if (item.id === itemId) {
               const currentQuantities = item.sectorQuantities || {};
@@ -585,6 +587,7 @@ export const JobDetails = () => {
   };
 
   const handleSectorCommissionToggle = async (itemId: string, sectorName: string, disabled: boolean) => {
+      if (!canManageCommissions) return;
       const updatedItems = job.items.map(item => {
           if (item.id === itemId) {
               const currentDisabled = item.sectorCommissionDisabled || {};
@@ -1149,7 +1152,7 @@ export const JobDetails = () => {
                                             <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {item.name}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
-                                                {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                                {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && canManageCommissions && (
                                                     <button 
                                                         type="button" 
                                                         onClick={async (e) => {
@@ -1273,7 +1276,7 @@ export const JobDetails = () => {
                                                         );
                                                     })()}
 
-                                                    {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                                    {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && canManageCommissions && (
                                                         <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 mt-2">
                                                             <div className="relative flex items-start">
                                                                 <div className="flex h-6 items-center">
@@ -1328,7 +1331,7 @@ export const JobDetails = () => {
                                                                 >
                                                                     <Edit size={18} />
                                                                 </button>
-                                                                {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
+                                                                {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && canManageCommissions && (
                                                                     <button 
                                                                         type="button" 
                                                                         onClick={async () => {
@@ -1346,7 +1349,7 @@ export const JobDetails = () => {
                                                 </>
                                             )}
                                             
-                                            {isLabStaff && editingItemId !== item.id && (
+                                            {canManageCommissions && editingItemId !== item.id && (
                                                 <div className="border-t border-slate-200 pt-4">
                                                     <h4 className="text-[10px] font-black text-slate-600 uppercase mb-3 flex items-center gap-1"><Briefcase size={12} /> Setores Permitidos e Comissão</h4>
                                                     {allowedSecs.length === 0 ? (

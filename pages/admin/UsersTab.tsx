@@ -15,6 +15,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'finance:view', label: 'Ver Dashboard Financeiro', category: 'Financeiro' },
     { key: 'finance:manage', label: 'Gerenciar Despesas e Faturas', category: 'Financeiro' },
     { key: 'commissions:view', label: 'Ver Extrato de Comissões', category: 'Financeiro' },
+    { key: 'commissions:manage', label: 'Gerenciar Setores e Comissões nos Itens', category: 'Produção' },
     { key: 'catalog:manage', label: 'Gerenciar Tipos de Serviço', category: 'Catálogo' },
     { key: 'catalog:prices_view', label: 'Ver Tabelas de Preços', category: 'Catálogo' },
     { key: 'clients:manage', label: 'Gerenciar Dentistas e Preços', category: 'Clientes' },

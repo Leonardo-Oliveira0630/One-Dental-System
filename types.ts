@@ -140,6 +140,7 @@ export type PermissionKey =
   | 'vip:view'
   | 'calendar:view'
   | 'commissions:view'
+  | 'commissions:manage'
   | 'logistics:manage'
   | 'catalog:prices_view'
   | 'clients:block_manage'
