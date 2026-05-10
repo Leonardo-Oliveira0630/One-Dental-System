@@ -141,6 +141,8 @@ export type PermissionKey =
   | 'calendar:view'
   | 'commissions:view'
   | 'commissions:manage'
+  | 'receipts:view'
+  | 'receipts:manage'
   | 'logistics:manage'
   | 'catalog:prices_view'
   | 'clients:block_manage'
@@ -587,4 +589,31 @@ export interface ManualDentist {
   isBlocked?: boolean;
   blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
   temporaryUnblockUntil?: Date;
+}
+
+export interface Receipt {
+  id: string;
+  organizationId: string;
+  dtEmissao: Date;
+  numero: string;
+  clienteId: string;
+  clienteName: string;
+  cpfCnpj: string;
+  emitidoComo: 'PF' | 'PJ';
+  titularRecibo: string;
+  empresaId?: string;
+  nomeTitular: string;
+  cpfCnpjTitular: string;
+  referente: string;
+  descricaoServico: string;
+  mensagem: string;
+  cheque: string;
+  banco: string;
+  impostos: string;
+  valorBruto: number;
+  valorDesconto: number;
+  valorBrutoComDesconto: number;
+  valorLiquido: number;
+  createdAt: Date;
+  createdBy: string;
 }

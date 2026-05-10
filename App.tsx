@@ -28,6 +28,7 @@ import { ClinicSettings } from './pages/clinic/ClinicSettings';
 import { Partnerships } from './pages/dentist/Partnerships';
 import { Dentists } from './pages/lab/Dentists';
 import { Finance } from './pages/lab/Finance';
+import { Receipts } from './pages/lab/Receipts';
 import { RoutePlanner } from './pages/lab/RoutePlanner';
 import { PriceTables } from './pages/lab/PriceTables';
 import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
@@ -87,6 +88,7 @@ const AppContent = () => {
       
       <Route path="/lab/dentists" element={<ProtectedRoute><Dentists /></ProtectedRoute>} />
       <Route path="/lab/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
+      <Route path="/lab/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
       <Route path="/lab/logistics" element={<ProtectedRoute><RoutePlanner /></ProtectedRoute>} />
       <Route path="/lab/price-tables" element={<ProtectedRoute><PriceTables /></ProtectedRoute>} />
 
