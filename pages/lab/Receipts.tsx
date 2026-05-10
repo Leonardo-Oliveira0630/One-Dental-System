@@ -57,12 +57,13 @@ export const Receipts: React.FC = () => {
     }, [allUsers]);
 
     const filteredDentistSuggestions = useMemo(() => {
-        if (!dentistSearch || dentistSearch === formData.clienteName) return [];
-        return dentists.filter(d => 
-            d.name.toLowerCase().includes(dentistSearch.toLowerCase()) ||
-            (d.cpfCnpj && d.cpfCnpj.includes(dentistSearch))
-        ).slice(0, 10);
-    }, [dentists, dentistSearch, formData.clienteName]);
+        const querySearch = dentistSearch.toLowerCase();
+        const filtered = dentists.filter(d => 
+            d.name.toLowerCase().includes(querySearch) ||
+            (d.cpfCnpj && d.cpfCnpj.includes(querySearch))
+        );
+        return filtered.slice(0, 15);
+    }, [dentists, dentistSearch]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -404,8 +405,10 @@ export const Receipts: React.FC = () => {
                                 </div>
                                 <div className="md:col-span-2 relative" ref={dropdownRef}>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Cliente (Dentista)</label>
-                                    <div className="relative">
-                                        <div className="absolute left-3 top-3.5 text-slate-400"><Search size={16}/></div>
+                                    <div className="relative group/dentist">
+                                        <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within/dentist:text-blue-500 transition-colors pointer-events-none">
+                                            <Search size={16}/>
+                                        </div>
                                         <input 
                                             type="text" 
                                             value={dentistSearch}
@@ -414,28 +417,42 @@ export const Receipts: React.FC = () => {
                                                 setShowSuggestions(true);
                                             }}
                                             onFocus={() => setShowSuggestions(true)}
-                                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Digite o nome do dentista..."
+                                            className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500 transition-all"
+                                            placeholder="Selecione ou digite o nome do dentista..."
                                         />
-                                        {showSuggestions && filteredDentistSuggestions.length > 0 && (
+                                        <button 
+                                            type="button"
+                                            onClick={() => setShowSuggestions(!showSuggestions)}
+                                            className="absolute right-3 top-3 text-slate-400 hover:text-blue-500 transition-colors"
+                                        >
+                                            <ChevronLeft size={18} className={`transform transition-transform ${showSuggestions ? 'rotate-90' : '-rotate-90'}`} />
+                                        </button>
+                                        
+                                        {showSuggestions && (
                                             <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
-                                                {filteredDentistSuggestions.map(d => (
-                                                    <button
-                                                        key={d.id}
-                                                        type="button"
-                                                        onClick={() => handleSelectDentist(d)}
-                                                        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0"
-                                                    >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Stethoscope size={14}/></div>
-                                                            <div>
-                                                                <p className="text-xs font-black text-slate-800 uppercase">{d.name}</p>
-                                                                <p className="text-[10px] text-slate-400 font-bold">{d.cpfCnpj || 'Sem CPF/CNPJ'}</p>
+                                                {filteredDentistSuggestions.length > 0 ? (
+                                                    filteredDentistSuggestions.map(d => (
+                                                        <button
+                                                            key={d.id}
+                                                            type="button"
+                                                            onClick={() => handleSelectDentist(d)}
+                                                            className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group/item"
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg group-hover/item:scale-110 transition-transform"><Stethoscope size={14}/></div>
+                                                                <div>
+                                                                    <p className="text-xs font-black text-slate-800 uppercase">{d.name}</p>
+                                                                    <p className="text-[10px] text-slate-400 font-bold">{d.cpfCnpj || 'Sem CPF/CNPJ'}</p>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                        {formData.clienteId === d.id && <Check size={16} className="text-blue-600" />}
-                                                    </button>
-                                                ))}
+                                                            {formData.clienteId === d.id && <Check size={16} className="text-blue-600" />}
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-4 py-6 text-center">
+                                                        <p className="text-xs font-bold text-slate-400">Nenhum dentista encontrado</p>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
