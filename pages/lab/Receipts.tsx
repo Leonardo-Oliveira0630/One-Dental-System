@@ -19,7 +19,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export const Receipts: React.FC = () => {
-    const { currentUser, currentOrg, allUsers } = useApp();
+    const { currentUser, currentOrg, allUsers, manualDentists } = useApp();
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -53,16 +53,19 @@ export const Receipts: React.FC = () => {
     });
 
     const dentists = useMemo(() => {
-        return allUsers.filter(u => u.role === 'CLIENT');
-    }, [allUsers]);
+        const online = allUsers.filter(u => u.role === 'CLIENT').map(d => ({ ...d, type: 'ONLINE' }));
+        const offline = (manualDentists || []).map(d => ({ ...d, type: 'OFFLINE' }));
+        return [...online, ...offline];
+    }, [allUsers, manualDentists]);
 
     const filteredDentistSuggestions = useMemo(() => {
         const querySearch = dentistSearch.toLowerCase();
-        const filtered = dentists.filter(d => 
+        // If searching, filter results
+        return dentists.filter(d => 
             d.name.toLowerCase().includes(querySearch) ||
-            (d.cpfCnpj && d.cpfCnpj.includes(querySearch))
-        );
-        return filtered.slice(0, 15);
+            (d.cpfCnpj && d.cpfCnpj.includes(querySearch)) ||
+            ((d as any).clinicName && (d as any).clinicName.toLowerCase().includes(querySearch))
+        ).slice(0, 15);
     }, [dentists, dentistSearch]);
 
     useEffect(() => {
@@ -112,7 +115,7 @@ export const Receipts: React.FC = () => {
         return () => unsubscribe();
     }, [currentOrg?.id]);
 
-    const handleSelectDentist = (dentist: User) => {
+    const handleSelectDentist = (dentist: any) => {
         const isPJ = (dentist.cpfCnpj?.replace(/\D/g, '').length || 0) > 11;
         setFormData(prev => ({
             ...prev,
@@ -439,10 +442,17 @@ export const Receipts: React.FC = () => {
                                                             className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 group/item"
                                                         >
                                                             <div className="flex items-center gap-3">
-                                                                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg group-hover/item:scale-110 transition-transform"><Stethoscope size={14}/></div>
+                                                                <div className={`p-2 ${d.type === 'ONLINE' ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600'} rounded-lg group-hover/item:scale-110 transition-transform`}>
+                                                                    <Stethoscope size={14}/>
+                                                                </div>
                                                                 <div>
-                                                                    <p className="text-xs font-black text-slate-800 uppercase">{d.name}</p>
-                                                                    <p className="text-[10px] text-slate-400 font-bold">{d.cpfCnpj || 'Sem CPF/CNPJ'}</p>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <p className="text-xs font-black text-slate-800 uppercase">{d.name}</p>
+                                                                        {d.type === 'OFFLINE' && <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-1 rounded">OFFLINE</span>}
+                                                                    </div>
+                                                                    <p className="text-[10px] text-slate-400 font-bold">
+                                                                        {d.cpfCnpj || (d as any).clinicName || 'Sem documento'}
+                                                                    </p>
                                                                 </div>
                                                             </div>
                                                             {formData.clienteId === d.id && <Check size={16} className="text-blue-600" />}
