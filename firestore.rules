@@ -142,5 +142,26 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(resource.data.organizationId));
       allow write: if isSuperAdmin();
     }
+
+    match /receipts/{receiptId} {
+      function isValidReceipt(data) {
+        return data.keys().hasAll(['organizationId', 'numero', 'clienteName', 'valorLiquido', 'referente', 'createdBy', 'createdAt', 'dtEmissao']) &&
+               data.organizationId is string &&
+               data.numero is string &&
+               data.clienteName is string &&
+               data.valorLiquido is number &&
+               data.referente is string &&
+               data.createdBy == request.auth.uid &&
+               data.createdAt == request.time;
+      }
+      
+      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(resource.data.organizationId));
+      allow create: if isAuthenticated() && belongsToOrg(request.resource.data.organizationId) && isValidReceipt(request.resource.data);
+      allow update: if isAuthenticated() && belongsToOrg(resource.data.organizationId) && 
+                      (request.resource.data.organizationId == resource.data.organizationId) &&
+                      isValidReceipt(request.resource.data) &&
+                      request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAuthenticated() && belongsToOrg(resource.data.organizationId) && (isAdmin() || resource.data.createdBy == request.auth.uid);
+    }
   }
 }

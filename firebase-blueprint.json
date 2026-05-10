@@ -25,6 +25,25 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "orgType"]
+    },
+    "Receipt": {
+      "title": "Receipt",
+      "description": "Financial receipt document",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "numero": { "type": "string" },
+        "dtEmissao": { "type": "string", "format": "date-time" },
+        "clienteId": { "type": "string" },
+        "clienteName": { "type": "string" },
+        "cpfCnpj": { "type": "string" },
+        "valorLiquido": { "type": "number" },
+        "referente": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["organizationId", "numero", "clienteName", "valorLiquido", "referente", "createdBy"]
     }
   },
   "firestore": {
@@ -43,6 +62,10 @@
     "/organizations/{orgId}/priceTables/{tableId}": {
       "schema": "object",
       "description": "Price tables for the organization"
+    },
+    "/receipts/{receiptId}": {
+      "schema": "Receipt",
+      "description": "Financial receipts"
     },
     "/settings/global": {
       "schema": "object",

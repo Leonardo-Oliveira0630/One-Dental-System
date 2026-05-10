@@ -11,8 +11,10 @@ import {
 import { db } from '../../services/firebaseConfig';
 import { 
   collection, query, where, onSnapshot, addDoc, 
-  updateDoc, deleteDoc, doc, Timestamp, orderBy 
+  updateDoc, deleteDoc, doc, Timestamp, orderBy,
+  getDocFromServer
 } from 'firebase/firestore';
+import { auth } from '../../services/firebaseConfig';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
@@ -20,6 +22,54 @@ import 'jspdf-autotable';
 
 export const Receipts: React.FC = () => {
     const { currentUser, currentOrg, allUsers, manualDentists } = useApp();
+
+    enum OperationType {
+        CREATE = 'create',
+        UPDATE = 'update',
+        DELETE = 'delete',
+        LIST = 'list',
+        GET = 'get',
+        WRITE = 'write',
+    }
+
+    interface FirestoreErrorInfo {
+        error: string;
+        operationType: OperationType;
+        path: string | null;
+        authInfo: {
+            userId?: string | null;
+            email?: string | null;
+            emailVerified?: boolean | null;
+            isAnonymous?: boolean | null;
+            tenantId?: string | null;
+            providerInfo?: {
+                providerId?: string | null;
+                email?: string | null;
+            }[];
+        }
+    }
+
+    const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+        const errInfo: FirestoreErrorInfo = {
+            error: error instanceof Error ? error.message : String(error),
+            authInfo: {
+                userId: auth.currentUser?.uid,
+                email: auth.currentUser?.email,
+                emailVerified: auth.currentUser?.emailVerified,
+                isAnonymous: auth.currentUser?.isAnonymous,
+                tenantId: auth.currentUser?.tenantId,
+                providerInfo: auth.currentUser?.providerData?.map(provider => ({
+                    providerId: provider.providerId,
+                    email: provider.email,
+                })) || []
+            },
+            operationType,
+            path
+        };
+        console.error('Firestore Error: ', JSON.stringify(errInfo));
+        throw new Error(JSON.stringify(errInfo));
+    };
+
     const [receipts, setReceipts] = useState<Receipt[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -79,10 +129,24 @@ export const Receipts: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        const testConnection = async () => {
+            try {
+                await getDocFromServer(doc(db, 'test', 'connection'));
+            } catch (error) {
+                if (error instanceof Error && error.message.includes('the client is offline')) {
+                    console.error("Please check your Firebase configuration.");
+                }
+            }
+        };
+        testConnection();
+    }, []);
+
+    useEffect(() => {
         if (!currentOrg?.id) return;
 
+        const path = 'receipts';
         const q = query(
-            collection(db, 'receipts'),
+            collection(db, path),
             where('organizationId', '==', currentOrg.id),
             orderBy('createdAt', 'desc')
         );
@@ -108,7 +172,7 @@ export const Receipts: React.FC = () => {
                 setFormData(prev => ({ ...prev, numero: '000001' }));
             }
         }, (error) => {
-            console.error("Error fetching receipts:", error);
+            handleFirestoreError(error, OperationType.GET, path);
             setIsLoading(false);
         });
 
@@ -160,10 +224,11 @@ export const Receipts: React.FC = () => {
                 dtEmissao: Timestamp.fromDate(formData.dtEmissao || new Date())
             };
 
+            const path = 'receipts';
             if (editingReceipt) {
-                await updateDoc(doc(db, 'receipts', editingReceipt.id), dataToSave);
+                await updateDoc(doc(db, path, editingReceipt.id), dataToSave);
             } else {
-                await addDoc(collection(db, 'receipts'), dataToSave);
+                await addDoc(collection(db, path), dataToSave);
             }
 
             setShowForm(false);
@@ -171,8 +236,7 @@ export const Receipts: React.FC = () => {
             setDentistSearch('');
             resetForm();
         } catch (error) {
-            console.error("Error saving receipt:", error);
-            alert("Erro ao salvar recibo. Verifique sua conexão.");
+            handleFirestoreError(error, OperationType.WRITE, 'receipts');
         }
     };
 
@@ -203,10 +267,11 @@ export const Receipts: React.FC = () => {
 
     const handleDelete = async (id: string) => {
         if (!window.confirm("Deseja realmente excluir este recibo?")) return;
+        const path = 'receipts';
         try {
-            await deleteDoc(doc(db, 'receipts', id));
+            await deleteDoc(doc(db, path, id));
         } catch (error) {
-            console.error("Error deleting receipt:", error);
+            handleFirestoreError(error, OperationType.DELETE, path);
         }
     };
 
