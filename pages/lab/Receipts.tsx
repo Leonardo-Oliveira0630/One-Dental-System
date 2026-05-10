@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Receipt, User, ManualDentist, PermissionKey } from '../../types';
 import { 
   Plus, Search, FileText, Download, Printer, Trash2, Edit2, 
   ChevronLeft, ChevronRight, X, Save, AlertTriangle, User as UserIcon,
-  Briefcase, DollarSign, MessageCircle, CreditCard, Landmark, Ticket
+  Briefcase, DollarSign, MessageCircle, CreditCard, Landmark, Ticket,
+  Stethoscope, Check
 } from 'lucide-react';
 import { db } from '../../services/firebaseConfig';
 import { 
@@ -24,6 +25,9 @@ export const Receipts: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
+    const [dentistSearch, setDentistSearch] = useState('');
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
     
     // Form State
     const [formData, setFormData] = useState<Partial<Receipt>>({
@@ -51,6 +55,24 @@ export const Receipts: React.FC = () => {
     const dentists = useMemo(() => {
         return allUsers.filter(u => u.role === 'CLIENT');
     }, [allUsers]);
+
+    const filteredDentistSuggestions = useMemo(() => {
+        if (!dentistSearch || dentistSearch === formData.clienteName) return [];
+        return dentists.filter(d => 
+            d.name.toLowerCase().includes(dentistSearch.toLowerCase()) ||
+            (d.cpfCnpj && d.cpfCnpj.includes(dentistSearch))
+        ).slice(0, 10);
+    }, [dentists, dentistSearch, formData.clienteName]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         if (!currentOrg?.id) return;
@@ -89,20 +111,19 @@ export const Receipts: React.FC = () => {
         return () => unsubscribe();
     }, [currentOrg?.id]);
 
-    const handleSelectDentist = (dentistId: string) => {
-        const dentist = dentists.find(d => d.id === dentistId);
-        if (dentist) {
-            const isPJ = (dentist.cpfCnpj?.replace(/\D/g, '').length || 0) > 11;
-            setFormData(prev => ({
-                ...prev,
-                clienteId: dentist.id,
-                clienteName: dentist.name,
-                cpfCnpj: dentist.cpfCnpj || '',
-                nomeTitular: dentist.name,
-                cpfCnpjTitular: dentist.cpfCnpj || '',
-                emitidoComo: isPJ ? 'PJ' : 'PF'
-            }));
-        }
+    const handleSelectDentist = (dentist: User) => {
+        const isPJ = (dentist.cpfCnpj?.replace(/\D/g, '').length || 0) > 11;
+        setFormData(prev => ({
+            ...prev,
+            clienteId: dentist.id,
+            clienteName: dentist.name,
+            cpfCnpj: dentist.cpfCnpj || '',
+            nomeTitular: dentist.name,
+            cpfCnpjTitular: dentist.cpfCnpj || '',
+            emitidoComo: isPJ ? 'PJ' : 'PF'
+        }));
+        setDentistSearch(dentist.name);
+        setShowSuggestions(false);
     };
 
     const calculateTotals = () => {
@@ -143,6 +164,7 @@ export const Receipts: React.FC = () => {
 
             setShowForm(false);
             setEditingReceipt(null);
+            setDentistSearch('');
             resetForm();
         } catch (error) {
             console.error("Error saving receipt:", error);
@@ -151,6 +173,7 @@ export const Receipts: React.FC = () => {
     };
 
     const resetForm = () => {
+        setDentistSearch('');
         setFormData({
             dtEmissao: new Date(),
             numero: '',
@@ -379,16 +402,43 @@ export const Receipts: React.FC = () => {
                                         placeholder="000000"
                                     />
                                 </div>
-                                <div className="md:col-span-2">
+                                <div className="md:col-span-2 relative" ref={dropdownRef}>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Cliente (Dentista)</label>
-                                    <select 
-                                        value={formData.clienteId} 
-                                        onChange={e => handleSelectDentist(e.target.value)}
-                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
-                                    >
-                                        <option value="">Selecione um cliente...</option>
-                                        {dentists.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                    </select>
+                                    <div className="relative">
+                                        <div className="absolute left-3 top-3.5 text-slate-400"><Search size={16}/></div>
+                                        <input 
+                                            type="text" 
+                                            value={dentistSearch}
+                                            onChange={e => {
+                                                setDentistSearch(e.target.value);
+                                                setShowSuggestions(true);
+                                            }}
+                                            onFocus={() => setShowSuggestions(true)}
+                                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                                            placeholder="Digite o nome do dentista..."
+                                        />
+                                        {showSuggestions && filteredDentistSuggestions.length > 0 && (
+                                            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                                                {filteredDentistSuggestions.map(d => (
+                                                    <button
+                                                        key={d.id}
+                                                        type="button"
+                                                        onClick={() => handleSelectDentist(d)}
+                                                        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Stethoscope size={14}/></div>
+                                                            <div>
+                                                                <p className="text-xs font-black text-slate-800 uppercase">{d.name}</p>
+                                                                <p className="text-[10px] text-slate-400 font-bold">{d.cpfCnpj || 'Sem CPF/CNPJ'}</p>
+                                                            </div>
+                                                        </div>
+                                                        {formData.clienteId === d.id && <Check size={16} className="text-blue-600" />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -607,7 +657,12 @@ export const Receipts: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button 
-                                            onClick={() => { setEditingReceipt(receipt); setFormData(receipt); setShowForm(true); }}
+                                            onClick={() => { 
+                                                setEditingReceipt(receipt); 
+                                                setFormData(receipt); 
+                                                setDentistSearch(receipt.clienteName);
+                                                setShowForm(true); 
+                                            }}
                                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                                         >
                                             <Edit2 size={16}/>
