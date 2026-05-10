@@ -71,7 +71,7 @@ const ALL_PERMISSIONS: PermissionKey[] = [
   'finance:view', 'finance:manage', 'catalog:manage',
   'clients:manage', 'sectors:manage', 'users:manage',
   'vip:view', 'calendar:view', 'commissions:view', 'logistics:manage',
-  'catalog:prices_view', 'clients:block_manage'
+  'catalog:prices_view', 'clients:block_manage', 'receipts:view', 'receipts:manage'
 ];
 
 interface AppContextType {

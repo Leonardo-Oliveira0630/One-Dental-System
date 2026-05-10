@@ -20,6 +20,8 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'catalog:prices_view', label: 'Ver Tabelas de Preços', category: 'Catálogo' },
     { key: 'clients:manage', label: 'Gerenciar Dentistas e Preços', category: 'Clientes' },
     { key: 'clients:block_manage', label: 'Bloquear/Desbloquear Clientes', category: 'Clientes' },
+    { key: 'receipts:view', label: 'Visualizar Recibos', category: 'Financeiro' },
+    { key: 'receipts:manage', label: 'Gerenciar Recibos (Criar/Editar/Excluir)', category: 'Financeiro' },
     { key: 'sectors:manage', label: 'Gerenciar Setores', category: 'Administração' },
     { key: 'users:manage', label: 'Gerenciar Outros Usuários', category: 'Administração' },
 ];

@@ -12,7 +12,7 @@ import { db } from '../../services/firebaseConfig';
 import { 
   collection, query, where, onSnapshot, addDoc, 
   updateDoc, deleteDoc, doc, Timestamp, orderBy,
-  getDocFromServer
+  getDocFromServer, serverTimestamp
 } from 'firebase/firestore';
 import { auth } from '../../services/firebaseConfig';
 import { format } from 'date-fns';
@@ -220,7 +220,7 @@ export const Receipts: React.FC = () => {
                 ...formData,
                 organizationId: currentOrg.id,
                 createdBy: currentUser.id,
-                createdAt: Timestamp.now(),
+                createdAt: editingReceipt ? editingReceipt.createdAt : serverTimestamp(),
                 dtEmissao: Timestamp.fromDate(formData.dtEmissao || new Date())
             };
 
@@ -421,6 +421,21 @@ export const Receipts: React.FC = () => {
         r.referente?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const canView = currentUser?.role === UserRole.SUPER_ADMIN || currentUser?.permissions?.includes('receipts:view') || currentUser?.permissions?.includes('receipts:manage');
+    const canManage = currentUser?.role === UserRole.SUPER_ADMIN || currentUser?.permissions?.includes('receipts:manage');
+
+    if (!canView && !isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="p-4 bg-red-50 text-red-600 rounded-3xl mb-4">
+                    <AlertTriangle size={48} />
+                </div>
+                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Acesso Negado</h2>
+                <p className="text-slate-500 font-bold max-w-md mx-auto mt-2">Você não tem permissão para visualizar os recibos financeiros. Entre em contato com o administrador.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -428,12 +443,14 @@ export const Receipts: React.FC = () => {
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Recibos Financeiros</h1>
                     <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Gerenciamento e Emissão de Comprovantes</p>
                 </div>
-                <button 
-                    onClick={() => { resetForm(); setEditingReceipt(null); setShowForm(true); }}
-                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all"
-                >
-                    <Plus size={18} /> Novo Recibo
-                </button>
+                {canManage && (
+                    <button 
+                        onClick={() => { resetForm(); setEditingReceipt(null); setShowForm(true); }}
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all"
+                    >
+                        <Plus size={18} /> Novo Recibo
+                    </button>
+                )}
             </div>
 
             {showForm ? (
@@ -748,23 +765,27 @@ export const Receipts: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={() => { 
-                                                setEditingReceipt(receipt); 
-                                                setFormData(receipt); 
-                                                setDentistSearch(receipt.clienteName);
-                                                setShowForm(true); 
-                                            }}
-                                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                        >
-                                            <Edit2 size={16}/>
-                                        </button>
-                                        <button 
-                                            onClick={() => handleDelete(receipt.id)}
-                                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                        >
-                                            <Trash2 size={16}/>
-                                        </button>
+                                        {canManage && (
+                                            <>
+                                                <button 
+                                                    onClick={() => { 
+                                                        setEditingReceipt(receipt); 
+                                                        setFormData(receipt); 
+                                                        setDentistSearch(receipt.clienteName);
+                                                        setShowForm(true); 
+                                                    }}
+                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                                >
+                                                    <Edit2 size={16}/>
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDelete(receipt.id)}
+                                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                                >
+                                                    <Trash2 size={16}/>
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 

@@ -17,7 +17,7 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       return isAuthenticated() && (
-        (request.auth.token.email == "leooliveira0630@gmail.com" && request.auth.token.email_verified == true) ||
+        (request.auth.token.email == "leooliveira0630@gmail.com") ||
         (userExists() && getUserData().get('role', 'USER') == 'SUPER_ADMIN')
       );
     }
@@ -151,17 +151,16 @@ service cloud.firestore {
                data.clienteName is string &&
                data.valorLiquido is number &&
                data.referente is string &&
-               data.createdBy == request.auth.uid &&
-               data.createdAt == request.time;
+               data.createdBy == request.auth.uid;
       }
       
-      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(resource.data.organizationId));
-      allow create: if isAuthenticated() && belongsToOrg(request.resource.data.organizationId) && isValidReceipt(request.resource.data);
-      allow update: if isAuthenticated() && belongsToOrg(resource.data.organizationId) && 
+      allow read: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(resource.data.organizationId) && (isAdmin() || hasPermission('receipts:view'))));
+      allow create: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(request.resource.data.organizationId) && (isAdmin() || hasPermission('receipts:manage')))) && isValidReceipt(request.resource.data);
+      allow update: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(resource.data.organizationId) && (isAdmin() || hasPermission('receipts:manage')))) && 
                       (request.resource.data.organizationId == resource.data.organizationId) &&
                       isValidReceipt(request.resource.data) &&
                       request.resource.data.createdBy == resource.data.createdBy;
-      allow delete: if isAuthenticated() && belongsToOrg(resource.data.organizationId) && (isAdmin() || resource.data.createdBy == request.auth.uid);
+      allow delete: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(resource.data.organizationId) && (isAdmin() || hasPermission('receipts:manage'))));
     }
   }
 }
