@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Receipt, User, ManualDentist, PermissionKey } from '../../types';
+import { Receipt, User, ManualDentist, PermissionKey, UserRole } from '../../types';
 import { 
   Plus, Search, FileText, Download, Printer, Trash2, Edit2, 
   ChevronLeft, ChevronRight, X, Save, AlertTriangle, User as UserIcon,
