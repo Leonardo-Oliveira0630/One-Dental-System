@@ -58,7 +58,7 @@ export const Receipts: React.FC = () => {
                 emailVerified: auth.currentUser?.emailVerified,
                 isAnonymous: auth.currentUser?.isAnonymous,
                 tenantId: auth.currentUser?.tenantId,
-                providerInfo: auth.currentUser?.providerData?.map(provider => ({
+                providerInfo: auth.currentUser?.providerData?.map((provider: any) => ({
                     providerId: provider.providerId,
                     email: provider.email,
                 })) || []
@@ -351,65 +351,82 @@ export const Receipts: React.FC = () => {
         // Header "Recibo" at top right
         doc.setFont("helvetica", "bold");
         doc.setFontSize(22);
-        doc.text("Recibo", 190, 20, { align: 'right' });
+        doc.text("Recibo", 190, 25, { align: 'right' });
         
         // Recibo Nº
         doc.setFontSize(12);
         doc.text(`Recibo N°: `, 20, 50);
         doc.text(`${receipt.numero}`, 45, 50);
         
+        // Values Table (Right Aligned) - Moved slightly to avoid overlap
+        const tableX = 150;
+        const tableY = 60;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.text("Bruto:", tableX, tableY);
+        doc.text("Desconto:", tableX, tableY + 8);
+        doc.setFont("helvetica", "bold");
+        doc.text("Líquido:", tableX, tableY + 18); // Added more space for liquid value
+
+        doc.setFont("helvetica", "bold");
+        doc.text(receipt.valorBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), 190, tableY, { align: 'right' });
+        doc.text(receipt.valorDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), 190, tableY + 8, { align: 'right' });
+        doc.setFontSize(12);
+        doc.text(`R$ ${receipt.valorLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 190, tableY + 18, { align: 'right' });
+        
+        // Recibo body content with safe maxWidth
+        const safeMaxWidth = 120; // Reduced to avoid hitting the values table
+        
         // Recebemos de
         doc.setFontSize(11);
         doc.setFont("helvetica", "normal");
         doc.text("Recebemos de ", 20, 65);
         doc.setFont("helvetica", "bold");
-        doc.text(`${receipt.clienteName} CPF/CNPJ: ${receipt.cpfCnpj}`, 50, 65);
+        doc.text(`${receipt.clienteName} CPF/CNPJ: ${receipt.cpfCnpj}`, 50, 65, { maxWidth: safeMaxWidth - 30 });
         
         // A quantia de
         doc.setFont("helvetica", "normal");
-        doc.text("a quantia de ", 20, 72);
+        doc.text("a quantia de ", 20, 80); // Increased spacing from previous line
         doc.setFont("helvetica", "bold");
         const extenso = numberToWordsPortuguese(receipt.valorLiquido);
-        doc.text(extenso, 45, 72, { maxWidth: 140 });
+        doc.text(extenso, 45, 80, { maxWidth: safeMaxWidth - 25 });
         
         // Referente a
         doc.setFont("helvetica", "normal");
-        const referenteY = 72 + (extenso.length > 60 ? 10 : 7);
+        // Calculate dynamic spacing based on length of amount in words
+        const extensoLines = doc.splitTextToSize(extenso, safeMaxWidth - 25).length;
+        const referenteY = 80 + (extensoLines * 6);
+        
         doc.text("referente a ", 20, referenteY);
         doc.setFont("helvetica", "bold");
-        doc.text(receipt.referente.toUpperCase(), 43, referenteY, { maxWidth: 140 });
+        doc.text(receipt.referente.toUpperCase(), 43, referenteY, { maxWidth: safeMaxWidth - 23 });
 
-        // Values Table (Right Aligned)
-        const tableX = 145;
-        const tableY = 60;
-        doc.setFont("helvetica", "normal");
-        doc.text("Bruto:", tableX, tableY);
-        doc.text("Desconto:", tableX, tableY + 8);
-        doc.text("Líquido:", tableX, tableY + 16);
-
-        doc.setFont("helvetica", "bold");
-        doc.text(receipt.valorBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), 190, tableY, { align: 'right' });
-        doc.text(receipt.valorDesconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), 190, tableY + 8, { align: 'right' });
-        doc.text(receipt.valorLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 2 }), 190, tableY + 16, { align: 'right' });
-        
         // City and Date
         const city = currentOrg?.city || "Vitória";
         const dateStr = format(receipt.dtEmissao, "d 'de' MMMM 'de' yyyy", { locale: ptBR });
         doc.setFont("helvetica", "bold");
-        doc.text(`${city}, ${dateStr}`, 190, 110, { align: 'right' });
+        doc.setFontSize(11);
+        doc.text(`${city}, ${dateStr}`, 190, 130, { align: 'right' });
         
         // Signature Line
         doc.setDrawColor(200, 200, 200);
-        doc.line(110, 135, 190, 135);
+        doc.line(110, 160, 190, 160);
         
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        const issuerName = currentOrg?.name || currentUser?.name || "";
-        const issuerDoc = currentOrg?.financialSettings?.businessData?.cnpj || currentOrg?.financialSettings?.businessData?.cpf || "";
         
-        doc.text(issuerName, 190, 140, { align: 'right' });
-        if (issuerDoc) {
-            doc.text(issuerDoc, 190, 145, { align: 'right' });
+        // Use Technical Responsible if available
+        const signatureName = currentOrg?.financialSettings?.techResponsibleName || currentOrg?.name || currentUser?.name || "";
+        const signatureDoc = currentOrg?.financialSettings?.techResponsibleCpf || currentOrg?.financialSettings?.businessData?.cnpj || currentOrg?.financialSettings?.businessData?.cpf || "";
+        const isRT = !!currentOrg?.financialSettings?.techResponsibleName;
+        
+        doc.text(signatureName, 150, 165, { align: 'center' });
+        if (signatureDoc) {
+            doc.text(`${isRT ? 'CPF:' : ''} ${signatureDoc}`, 150, 170, { align: 'center' });
+        }
+        if (isRT) {
+            doc.setFontSize(8);
+            doc.text("Responsável Técnico", 150, 175, { align: 'center' });
         }
         
         doc.save(`Recibo_${receipt.numero}_${receipt.clienteName}.pdf`);

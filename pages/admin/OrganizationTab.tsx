@@ -6,6 +6,8 @@ import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2 } fro
 export const OrganizationTab = () => {
   const { currentOrg, updateOrganization, uploadFile } = useApp();
   const [name, setName] = useState(currentOrg?.name || '');
+  const [techResponsibleName, setTechResponsibleName] = useState(currentOrg?.financialSettings?.techResponsibleName || '');
+  const [techResponsibleCpf, setTechResponsibleCpf] = useState(currentOrg?.financialSettings?.techResponsibleCpf || '');
   const [logoPreview, setLogoPreview] = useState(currentOrg?.logoUrl || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,7 +35,12 @@ export const OrganizationTab = () => {
 
       await updateOrganization(currentOrg.id, {
         name: name.trim(),
-        logoUrl: finalLogoUrl
+        logoUrl: finalLogoUrl,
+        financialSettings: {
+          ...currentOrg.financialSettings,
+          techResponsibleName: techResponsibleName.trim(),
+          techResponsibleCpf: techResponsibleCpf.trim()
+        }
       });
       alert("Marca atualizada com sucesso!");
     } catch (err) {
@@ -61,6 +68,28 @@ export const OrganizationTab = () => {
               placeholder="Ex: Laboratório Digital Smile"
             />
             <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">Este nome aparecerá para seus clientes na Loja Virtual e em todos os documentos impressos.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Responsável Técnico</label>
+              <input 
+                value={techResponsibleName}
+                onChange={e => setTechResponsibleName(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                placeholder="Ex: Dr. João Silva"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">CPF do Responsável</label>
+              <input 
+                value={techResponsibleCpf}
+                onChange={e => setTechResponsibleCpf(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                placeholder="000.000.000-00"
+              />
+              <p className="text-[9px] text-slate-400 mt-1">Será usado no rodapé dos recibos e documentos.</p>
+            </div>
           </div>
 
           <div className="space-y-4">

@@ -29,7 +29,7 @@ export interface Organization {
   asaasApiKey?: string;
   ratingAverage?: number;
   ratingCount?: number;
-  financialSettings?: {
+    financialSettings?: {
     pixKey?: string;
     bankInfo?: string;
     instructions?: string;
@@ -40,6 +40,8 @@ export interface Organization {
     businessData?: any;
     balance?: number;
     pendingBalance?: number;
+    techResponsibleName?: string;
+    techResponsibleCpf?: string;
   };
   address?: string;
   number?: string;
