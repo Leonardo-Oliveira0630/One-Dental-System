@@ -148,10 +148,6 @@ service cloud.firestore {
       function isValidReceipt(data) {
         return data.keys().hasAll(['organizationId', 'numero', 'clienteName', 'valorLiquido', 'referente', 'createdBy', 'createdAt', 'dtEmissao']) &&
                data.organizationId is string &&
-               data.numero is string &&
-               data.clienteName is string &&
-               data.valorLiquido is number &&
-               data.referente is string &&
                data.createdBy == request.auth.uid;
       }
       

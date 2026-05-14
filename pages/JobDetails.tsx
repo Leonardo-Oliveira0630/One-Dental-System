@@ -1545,49 +1545,102 @@ export const JobDetails = () => {
                     <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-slate-100">
                         <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
                             <Briefcase size={20} className="text-blue-600" />
-                            Registro de Setores
+                            Execuções por Serviço
                         </h3>
                         
-                        {(!job.sectorMovements || job.sectorMovements.length === 0) ? (
+                        {(!job.items || job.items.length === 0) ? (
                             <div className="text-center py-12">
-                                <p className="text-slate-400 text-sm font-medium">Nenhum registro de setor encontrado.</p>
+                                <p className="text-slate-400 text-sm font-medium">Nenhum serviço registrado nesta OS.</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
-                                {[...(job.sectorMovements || []).filter(Boolean)].sort((a, b) => new Date(a.entryTime).getTime() - new Date(b.entryTime).getTime()).map((movement, idx) => (
-                                    <div key={movement.id || idx} className={`p-4 rounded-2xl border ${!movement.exitTime ? 'border-blue-200 bg-blue-50/50' : 'border-slate-100 bg-slate-50'} flex flex-col md:flex-row gap-4 justify-between items-start md:items-center`}>
-                                        <div className="flex items-start gap-3">
-                                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${!movement.exitTime ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'}`}>
-                                                <Briefcase size={20} />
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-slate-800 text-base">{movement.sector}</h4>
-                                                <div className="flex flex-col gap-1 mt-1 text-xs text-slate-500">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="font-medium text-green-600">Entrada:</span>
-                                                        <span>{new Date(movement.entryTime).toLocaleString()}</span>
-                                                        <span className="text-slate-400">•</span>
-                                                        <span className="font-medium">{movement.entryUserName}</span>
-                                                    </div>
-                                                    {movement.exitTime ? (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="font-medium text-orange-600">Saída:</span>
-                                                            <span>{new Date(movement.exitTime).toLocaleString()}</span>
-                                                            <span className="text-slate-400">•</span>
-                                                            <span className="font-medium">{movement.exitUserName}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-1.5 text-blue-600 font-bold mt-1">
-                                                            <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></div>
-                                                            EM ABERTO
-                                                        </div>
-                                                    )}
+                            <div className="space-y-6">
+                                {job.items.map(item => {
+                                    const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                                    let sectorsToShow = jt?.allowedSectors && jt.allowedSectors.length > 0 
+                                        ? jt.allowedSectors 
+                                        : Array.from(new Set((job.sectorMovements || []).map(m => m.sector)));
+                                    
+                                    if (sectorsToShow.length === 0) sectorsToShow = ['Geral'];
+
+                                    return (
+                                        <div key={item.id} className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                                            <div className="bg-white px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="font-black text-slate-800 text-sm md:text-base">{jt?.name || 'Serviço Desconhecido'}</h4>
+                                                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mt-0.5">Qtd: {item.quantity}</p>
                                                 </div>
                                             </div>
+                                            
+                                            <div className="p-3 md:p-5 space-y-3">
+                                                {sectorsToShow.map(sector => {
+                                                    const execution = (job.itemExecutions || []).find(e => e.itemId === item.id && e.sector === sector);
+                                                    
+                                                    // Buscando entry time e exit time do sectorMovements para este setor
+                                                    const movementsForSector = (job.sectorMovements || []).filter(m => m.sector === sector);
+                                                    const latestMovement = movementsForSector.length > 0 
+                                                        ? movementsForSector.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0]
+                                                        : null;
+
+                                                    return (
+                                                        <div key={sector} className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-3 md:p-4 rounded-xl border border-slate-100 gap-3 md:gap-0">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${execution ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                                    {execution ? <CheckCircle2 size={16} /> : <Briefcase size={16} />}
+                                                                </div>
+                                                                <span className="font-bold text-slate-700 text-sm">{sector}</span>
+                                                            </div>
+                                                            
+                                                            <div className="flex flex-col text-left md:text-right w-full md:w-auto pl-11 md:pl-0">
+                                                                {execution ? (
+                                                                    <>
+                                                                        <span className="text-sm font-black text-blue-600 truncate">{execution.userName}</span>
+                                                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-1 md:justify-end">
+                                                                            {latestMovement?.entryTime && (
+                                                                                <span title="Entrada"><span className="text-emerald-500 font-bold">E:</span> {new Date(latestMovement.entryTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                            )}
+                                                                            <span title="Saída (Execução)"><span className="text-orange-500 font-bold">S:</span> {new Date(execution.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                                                        </div>
+                                                                    </>
+                                                                ) : latestMovement && !latestMovement.exitTime ? (
+                                                                    <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md mb-1 w-fit md:w-auto md:ml-auto">
+                                                                        <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></div>
+                                                                        EM ANDAMENTO
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-100 px-2.5 py-1 rounded-md w-fit md:w-auto md:ml-auto">Pendente</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-slate-100">
+                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
+                            <Clock size={20} className="text-orange-500" />
+                            Histórico de Movimentações
+                        </h3>
+                        {(!job.sectorMovements || job.sectorMovements.length === 0) ? (
+                            <div className="text-center py-8 text-slate-400 text-sm">Sem histórico de movimentações</div>
+                        ) : (
+                            <div className="space-y-4">
+                                {[...(job.sectorMovements || [])].sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime()).map((movement, idx) => (
+                                    <div key={idx} className="flex justify-between items-start text-sm border-b border-slate-100 pb-3 last:border-0">
+                                        <div>
+                                            <p className="font-bold text-slate-700">{movement.sector}</p>
+                                            <p className="text-xs text-slate-500 mt-0.5">Entrada: {new Date(movement.entryTime).toLocaleString()}</p>
+                                            <p className="text-xs text-slate-500">Por: {movement.entryUserName}</p>
                                         </div>
                                         {movement.exitTime && (
-                                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shrink-0">
-                                                Concluído
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-500 mt-0.5">Saída: {new Date(movement.exitTime).toLocaleString()}</p>
+                                                <p className="text-xs text-slate-500">Por: {movement.exitUserName || '?'}</p>
                                             </div>
                                         )}
                                     </div>

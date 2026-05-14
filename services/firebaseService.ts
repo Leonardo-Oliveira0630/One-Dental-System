@@ -317,7 +317,11 @@ export const subscribeDentistJobs = (orgId: string, dentistId: string, cb: (jobs
 };
 
 export const getDentistJobs = async (orgId: string, dentistId: string): Promise<Job[]> => {
-    const q = query(collection(db, `organizations/${orgId}/jobs`), where('dentistId', '==', dentistId));
+    const q = query(
+        collection(db, `organizations/${orgId}/jobs`), 
+        where('dentistId', '==', dentistId),
+        where('status', 'in', ['COMPLETED', 'DELIVERED'])
+    );
     const snap = await getDocs(q);
     return snap.docs.map((d: any) => {
         const data = d.data();
@@ -332,7 +336,8 @@ export const getDentistJobs = async (orgId: string, dentistId: string): Promise<
                 ...m,
                 entryTime: toDate(m.entryTime),
                 exitTime: m.exitTime ? toDate(m.exitTime) : undefined
-            }))
+            })),
+            itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
         } as Job;
     });
 };

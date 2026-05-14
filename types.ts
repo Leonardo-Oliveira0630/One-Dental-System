@@ -233,6 +233,16 @@ export interface ChatMessage {
   deleted?: boolean;
 }
 
+export interface JobItemExecution {
+  itemId: string;
+  jobTypeId: string;
+  jobTypeName: string;
+  sector: string;
+  userId: string;
+  userName: string;
+  timestamp: Date;
+}
+
 export interface SectorMovement {
   id: string;
   sector: string;
@@ -256,6 +266,7 @@ export interface Job {
   items: JobItem[];
   history: JobHistory[];
   sectorMovements?: SectorMovement[];
+  itemExecutions?: JobItemExecution[];
   createdAt: Date;
   dueDate: Date;
   dueTime?: string;

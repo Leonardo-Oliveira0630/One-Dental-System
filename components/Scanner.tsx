@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Job, JobStatus, UserRole, CommissionStatus } from '../types';
+import { Job, JobStatus, UserRole, CommissionStatus, JobItem, JobType } from '../types';
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2, MessageCircle, Loader2, ImagePlus } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
 
@@ -28,6 +28,8 @@ export const GlobalScanner: React.FC = () => {
   const [scannedJob, setScannedJob] = useState<Job | null>(null);
   const [scanAction, setScanAction] = useState<'ENTRY' | 'EXIT'>('ENTRY');
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
+  const [eligibleItems, setEligibleItems] = useState<{item: JobItem, jobType?: JobType}[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [nextSector, setNextSector] = useState<string>('');
@@ -38,9 +40,14 @@ export const GlobalScanner: React.FC = () => {
   const jobMap = useMemo(() => {
     const map = new Map<string, Job>();
     jobs.forEach(j => {
-      if (j.id) map.set(j.id.toUpperCase(), j);
-      if (j.osNumber) map.set(j.osNumber.toUpperCase().replace(/^0+/, ''), j);
-      if (j.osNumber) map.set(j.osNumber.toUpperCase(), j);
+      if (j.id) {
+          map.set(j.id.toUpperCase(), j);
+          map.set(j.id.substring(0,8).toUpperCase(), j);
+      }
+      if (j.osNumber) {
+          map.set(j.osNumber.toUpperCase().replace(/^0+/, ''), j);
+          map.set(j.osNumber.toUpperCase(), j);
+      }
     });
     return map;
   }, [jobs]);
@@ -76,6 +83,56 @@ export const GlobalScanner: React.FC = () => {
   const nextSectorRef = useRef(nextSector);
   const isUploadingRef = useRef(isUploading);
 
+  const getEligibleItemsAndComm = (job: Job, user: any, jobTypes: JobType[]) => {
+      if (!user.sector) return { eligible: [], commission: 0 };
+      const sector = user.sector;
+      const availableItems: { item: JobItem, jobType?: JobType }[] = [];
+      let totalComm = 0;
+      
+      job.items.forEach(item => {
+          const jt = jobTypes.find(t => t.id === item.jobTypeId);
+          if (jt?.allowedSectors && jt.allowedSectors.length > 0 && !jt.allowedSectors.includes(sector)) return;
+          const alreadyExecuted = job.itemExecutions?.some(e => e.itemId === item.id && e.sector === sector);
+          if (alreadyExecuted) return;
+          
+          availableItems.push({ item, jobType: jt });
+
+          if (!item.commissionDisabled) {
+              const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
+              const setting = user.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
+              if (setting) {
+                  if (setting.type === 'FIXED') totalComm += setting.value * secQty;
+                  else totalComm += (item.price * secQty * (setting.value / 100));
+              } else if (jt?.baseCommission) {
+                  totalComm += jt.baseCommission * secQty;
+              }
+          }
+      });
+      return { eligible: availableItems, commission: totalComm };
+  };
+
+  const calculateCommissionForItems = (job: Job, user: any, selectedIds: string[], jobTypes: JobType[]) => {
+      if (!user || (!selectedIds || selectedIds.length === 0)) return 0;
+      const sector = user.sector || 'Gestão';
+      let totalComm = 0;
+      
+      job.items.forEach(item => {
+          if (!selectedIds.includes(item.id)) return;
+          if (item.commissionDisabled) return;
+          
+          const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
+          const setting = user.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
+          if (setting) {
+              if (setting.type === 'FIXED') totalComm += setting.value * secQty;
+              else totalComm += (item.price * secQty * (setting.value / 100));
+          } else {
+              const jt = jobTypes.find(t => t.id === item.jobTypeId);
+              if (jt?.baseCommission) totalComm += jt.baseCommission * secQty;
+          }
+      });
+      return totalComm;
+  };
+
   useEffect(() => {
     const handleOpenJobScannerPopup = (e: any) => {
         const jobId = e.detail?.jobId;
@@ -83,51 +140,20 @@ export const GlobalScanner: React.FC = () => {
         const job = jobMapRef.current.get(jobId.toUpperCase()) || jobsRef.current.find(j => j.id === jobId);
         if (job) {
             setScannedJob(job);
-            
-            // Determine action based on current sector
             const user = currentUserRef.current;
             const isLastActionEntryHere = user?.sector ? job.sectorMovements?.some(m => m.sector === user.sector && !m.exitTime) : false;
             setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
             
             if (isLastActionEntryHere && user && user.sector) {
-                const alreadyPaid = commissionsRef.current.some(c => 
-                    c.jobId === job.id && 
-                    c.userId === user.id && 
-                    c.sector === user.sector
-                );
-
-                if (!alreadyPaid) {
-                    let totalComm = 0;
-                    job.items.forEach(item => {
-                        if (item.commissionDisabled) return;
-                        
-                        const secQty = (item.sectorQuantities && item.sectorQuantities[user.sector!]) 
-                            ? item.sectorQuantities[user.sector!] 
-                            : item.quantity;
-
-                        const setting = user.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
-                        
-                        if (setting) {
-                            if (setting.type === 'FIXED') {
-                                totalComm += setting.value * secQty;
-                            } else {
-                                totalComm += (item.price * secQty * (setting.value / 100));
-                            }
-                        } else {
-                            const jobType = jobTypesRef.current.find(t => t.id === item.jobTypeId);
-                            if (jobType?.baseCommission) {
-                                totalComm += jobType.baseCommission * secQty;
-                            }
-                        }
-                    });
-                    setCommissionEarned(totalComm);
-                } else {
-                    setCommissionEarned(0);
-                }
+                const { eligible, commission } = getEligibleItemsAndComm(job, user, jobTypesRef.current);
+                setEligibleItems(eligible);
+                setSelectedItemIds(eligible.map(e => e.item.id));
+                setCommissionEarned(commission);
             } else {
+                setEligibleItems([]);
+                setSelectedItemIds([]);
                 setCommissionEarned(0);
             }
-
             setNextSector('');
         }
     };
@@ -368,7 +394,8 @@ export const GlobalScanner: React.FC = () => {
 
   const processScan = useCallback(async (code: string) => {
     try {
-        const cleanedCode = code.trim().toUpperCase().replace(/^0+/, ''); // Remove leading zeros and trim
+        const rawCode = code.trim().toUpperCase();
+        const cleanedCode = rawCode.replace(/^0+/, ''); // Remove leading zeros and trim
         console.log(`[Scanner] Processando código: "${cleanedCode}" (Original: "${code}")`);
 
         // Lógica de confirmação por "Bip Duplo"
@@ -376,8 +403,9 @@ export const GlobalScanner: React.FC = () => {
             const currentJob = scannedJobRef.current;
             const jobOs = (currentJob.osNumber || '').trim().toUpperCase().replace(/^0+/, '');
             const jobId = currentJob.id.trim().toUpperCase();
+            const jobIdShort = currentJob.id.substring(0,8).toUpperCase();
             
-            if (jobOs === cleanedCode || jobId === cleanedCode) {
+            if (jobOs === cleanedCode || jobId === cleanedCode || jobIdShort === rawCode) {
                 await playNativeHaptic(true);
                 playBeep(true);
                 await handleMoveJob(nextSectorRef.current);
@@ -388,8 +416,18 @@ export const GlobalScanner: React.FC = () => {
         setCommissionEarned(0);
         setNextSector('');
         
-        // Busca instantânea via Map
-        const job = jobMapRef.current.get(cleanedCode);
+        // Busca instantânea via Map (tenta o raw normal, o raw sem zeros, e depois fuzzy)
+        let job = jobMapRef.current.get(cleanedCode) || jobMapRef.current.get(rawCode);
+        
+        if (!job) {
+            // Busca mais rigorosa no array
+            job = jobsRef.current.find(j => 
+                (j.osNumber && j.osNumber.toUpperCase() === rawCode) ||
+                (j.osNumber && j.osNumber.toUpperCase().replace(/^0+/, '') === cleanedCode) ||
+                j.id.toUpperCase() === rawCode ||
+                j.id.substring(0, 8).toUpperCase() === rawCode
+            );
+        }
         
         if (job) {
           console.log(`[Scanner] Trabalho encontrado: ${job.osNumber} (${job.id})`);
@@ -401,43 +439,14 @@ export const GlobalScanner: React.FC = () => {
               setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
               
               if (isLastActionEntryHere) {
-                  // Verificar se já existe comissão para este job/usuário/setor
-                  const alreadyPaid = commissionsRef.current.some(c => 
-                      c.jobId === job.id && 
-                      c.userId === user.id && 
-                      c.sector === user.sector
-                  );
-
-                  if (!alreadyPaid) {
-                      let totalComm = 0;
-                      job.items.forEach(item => {
-                          if (item.commissionDisabled) return;
-                          
-                          const secQty = (user.sector && item.sectorQuantities && item.sectorQuantities[user.sector]) 
-                              ? item.sectorQuantities[user.sector] 
-                              : item.quantity;
-
-                          const setting = user.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
-                          
-                          if (setting) {
-                              if (setting.type === 'FIXED') {
-                                  totalComm += setting.value * secQty;
-                              } else {
-                                  totalComm += (item.price * secQty * (setting.value / 100));
-                              }
-                          } else {
-                              const jobType = jobTypesRef.current.find(t => t.id === item.jobTypeId);
-                              if (jobType?.baseCommission) {
-                                  totalComm += jobType.baseCommission * secQty;
-                              }
-                          }
-                      });
-                      setCommissionEarned(totalComm);
-                  } else {
-                      setCommissionEarned(0);
-                  }
+                  const { eligible, commission } = getEligibleItemsAndComm(job, user, jobTypesRef.current);
+                  setEligibleItems(eligible);
+                  setSelectedItemIds(eligible.map(e => e.item.id));
+                  setCommissionEarned(commission);
               }
           } else {
+              setEligibleItems([]);
+              setSelectedItemIds([]);
               setScanAction('ENTRY');
           }
           setScannedJob(job);
@@ -513,38 +522,8 @@ export const GlobalScanner: React.FC = () => {
                 newStatus = JobStatus.SECTOR_TRANSITION;
             }
 
-            // Calcular comissão em tempo de execução para evitar stale closures
-            const alreadyPaid = commissionsRef.current.some(c => 
-                c.jobId === currentJob.id && 
-                c.userId === user.id && 
-                c.sector === sector
-            );
-
-            let calculatedCommission = 0;
-            if (!alreadyPaid) {
-                currentJob.items.forEach(item => {
-                    if (item.commissionDisabled) return;
-                    
-                    const secQty = (sector && item.sectorQuantities && item.sectorQuantities[sector]) 
-                        ? item.sectorQuantities[sector] 
-                        : item.quantity;
-
-                    const setting = user.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
-                    
-                    if (setting) {
-                        if (setting.type === 'FIXED') {
-                            calculatedCommission += setting.value * secQty;
-                        } else {
-                            calculatedCommission += (item.price * secQty * (setting.value / 100));
-                        }
-                    } else {
-                        const jobType = jobTypesRef.current.find(t => t.id === item.jobTypeId);
-                        if (jobType?.baseCommission) {
-                            calculatedCommission += jobType.baseCommission * secQty;
-                        }
-                    }
-                });
-            }
+            // Calcular comissão em tempo de execução
+            const calculatedCommission = calculateCommissionForItems(currentJob, user, selectedItemIds, jobTypesRef.current);
             
             // Atualizar o state para o UI
             setCommissionEarned(calculatedCommission);
@@ -586,6 +565,7 @@ export const GlobalScanner: React.FC = () => {
 
         let newSectorMovements = [...(currentJob.sectorMovements || []).filter(Boolean)];
         const currentOpenMovements = newSectorMovements.filter(m => !m.exitTime);
+        let newItemExecutions = [...(currentJob.itemExecutions || [])];
 
         if (actionType === 'ENTRY') {
             // Fechar qualquer movimento em aberto antes de entrar em um novo
@@ -609,6 +589,23 @@ export const GlobalScanner: React.FC = () => {
                 entryUserName: user.name
             });
         } else if (actionType === 'EXIT') {
+            // Register item executions
+            selectedItemIds.forEach(itemId => {
+                const item = currentJob.items.find((i: JobItem) => i.id === itemId);
+                const jt = jobTypesRef.current.find((t: JobType) => t.id === item?.jobTypeId);
+                if (item && jt) {
+                    newItemExecutions.push({
+                        itemId: item.id,
+                        jobTypeId: item.jobTypeId,
+                        jobTypeName: jt.name,
+                        sector: sector,
+                        userId: user.id,
+                        userName: user.name,
+                        timestamp: new Date()
+                    });
+                }
+            });
+
             // Find the open movement for this sector
             const openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);
             if (openMovementIndex !== -1) {
@@ -664,7 +661,8 @@ export const GlobalScanner: React.FC = () => {
             status: newStatus,
             currentSector: sector,
             history: newHistory,
-            sectorMovements: newSectorMovements
+            sectorMovements: newSectorMovements,
+            itemExecutions: newItemExecutions
         });
         
         await playNativeHaptic(true);
@@ -766,6 +764,40 @@ export const GlobalScanner: React.FC = () => {
                 <span>Chat</span>
             </button>
         </div>
+
+        {!isEntry && eligibleItems.length > 0 && (
+            <div className="mb-6 space-y-2">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Trabalhos Executados</label>
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2 rounded-xl border border-slate-100 p-2 bg-slate-50">
+                    {eligibleItems.map(({ item, jobType }) => (
+                        <label key={item.id} className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+                            <input 
+                                type="checkbox" 
+                                className="w-5 h-5 rounded text-orange-500 focus:ring-orange-500 border-slate-300"
+                                checked={selectedItemIds.includes(item.id)}
+                                onChange={(e) => {
+                                    const newIds = e.target.checked 
+                                        ? [...selectedItemIds, item.id] 
+                                        : selectedItemIds.filter(id => id !== item.id);
+                                    setSelectedItemIds(newIds);
+                                    if (currentUserRef.current) {
+                                        setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, newIds, jobTypesRef.current));
+                                    }
+                                }}
+                            />
+                            <div className="flex-1">
+                                <p className="font-bold text-sm text-slate-800">{jobType?.name || 'Item Desconhecido'}</p>
+                                <p className="text-xs text-slate-500">Qtd: {
+                                    (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
+                                        ? item.sectorQuantities[currentUser.sector] 
+                                        : item.quantity
+                                }</p>
+                            </div>
+                        </label>
+                    ))}
+                </div>
+            </div>
+        )}
 
         {!isEntry && commissionEarned > 0 && (
             <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-4 animate-bounce">
