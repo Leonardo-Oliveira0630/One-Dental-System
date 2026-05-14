@@ -136,38 +136,42 @@ export const PrintOverlay = () => {
 
           {printData.mode === 'LABEL' && printData.job && (
             <div 
-              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex bg-white thermal-print px-3 py-2" 
+              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-2 py-1" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
             >
-               {/* Left Column: Information (Stacked exactly like the image) */}
-               <div className="flex-1 flex flex-col justify-center space-y-0.5">
-                  <p className="font-bold text-[12px] leading-tight truncate uppercase">{printData.job.patientName}</p>
-                  <p className="text-[11px] leading-tight truncate uppercase">{printData.job.dentistName}</p>
-                  <p className="text-[11px] leading-tight">{printData.job.osNumber || printData.job.id.substring(0,8)}</p>
-                  <p className="text-[11px] leading-tight">
-                    {new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(printData.job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                  <p className="text-[11px] leading-tight">
-                    {new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                  </p>
-                  {printData.job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
-                      <p className="text-[10px] font-black uppercase leading-tight mt-0.5">
-                          {printData.job.items.find(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT')?.nature === 'REPETITION' ? '*** REPETIÇÃO ***' : '*** AJUSTE ***'}
+               {/* Top Section: Information */}
+               <div className="flex-1 flex flex-col justify-start space-y-0.5 mt-0.5">
+                  <div className="flex justify-between items-start">
+                      <p className="font-bold text-[12px] leading-tight truncate uppercase max-w-[35mm]">{printData.job.patientName}</p>
+                      {printData.job.boxNumber && (
+                        <p className="font-bold text-[14px] leading-none mb-1">CX: {printData.job.boxNumber}</p>
+                      )}
+                  </div>
+                  <p className="text-[10px] leading-tight truncate uppercase max-w-[35mm]">{printData.job.dentistName}</p>
+                  
+                  <div className="flex justify-between items-center pr-1">
+                      <p className="text-[9px] leading-tight flex flex-col">
+                        <span>ENT: {new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                        <span className="font-bold">SAI: {new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                       </p>
-                  )}
+                      {printData.job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
+                          <p className="text-[9px] font-black uppercase leading-tight bg-black text-white px-1">
+                              {printData.job.items.find(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT')?.nature === 'REPETITION' ? 'REPETIÇÃO' : 'AJUSTE'}
+                          </p>
+                      )}
+                  </div>
                </div>
 
-               {/* Right Column: Box Number and Barcode */}
-               <div className="w-[20mm] flex flex-col items-center justify-center">
-                  {printData.job.boxNumber && (
-                    <p className="font-bold text-[15px] leading-none mb-1">CX: {printData.job.boxNumber}</p>
-                  )}
-                  <div className="flex items-center justify-center">
+               {/* Bottom Section: Barcode */}
+               <div className="h-[12mm] w-full flex flex-col items-center justify-end overflow-hidden mb-1">
+                  <div className="flex items-center justify-center scale-x-125 origin-bottom">
                     <Barcode 
                       value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
-                      width={1.1} 
-                      height={50} 
-                      displayValue={false} 
+                      width={1} 
+                      height={40} 
+                      displayValue={true}
+                      fontSize={12}
+                      textMargin={0}
                       margin={0} 
                       format="CODE128" 
                     />

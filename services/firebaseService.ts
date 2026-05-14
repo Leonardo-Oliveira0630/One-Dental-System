@@ -207,7 +207,7 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
     let q = query(
         collection(db, `organizations/${orgId}/jobs`),
         orderBy('createdAt', 'desc'),
-        limit(500)
+        limit(2000)
     );
     
     if (isClient && userId) {
@@ -215,7 +215,7 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
             collection(db, `organizations/${orgId}/jobs`), 
             where('dentistId', '==', userId),
             orderBy('createdAt', 'desc'),
-            limit(500)
+            limit(2000)
         );
     }
 

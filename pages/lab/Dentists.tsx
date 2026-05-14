@@ -125,11 +125,17 @@ export const Dentists = () => {
     useEffect(() => {
         if (showStatement && statementClient && currentUser?.organizationId) {
             setIsLoadingStatement(true);
-            const unsub = subscribeDentistJobs(currentUser.organizationId, statementClient.id, (data) => {
-                setDentistJobs(data);
-                setIsLoadingStatement(false);
+            let isMounted = true;
+            getDentistJobs(currentUser.organizationId, statementClient.id).then(data => {
+                if (isMounted) {
+                    setDentistJobs(data);
+                    setIsLoadingStatement(false);
+                }
+            }).catch(err => {
+                console.error("Error fetching statement jobs", err);
+                if (isMounted) setIsLoadingStatement(false);
             });
-            return () => unsub();
+            return () => { isMounted = false; };
         } else {
             setDentistJobs([]);
             setIsLoadingStatement(false);
