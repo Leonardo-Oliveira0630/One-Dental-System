@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useApp } from '../context/AppContext';
@@ -23,12 +24,12 @@ const STLViewer = React.lazy(() => import('../components/STLViewer').then(module
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'PRODUCTION' | 'CHAT' | 'SECTORS'>('SUMMARY');
+  const [activeTab, setActiveTab] = useState<'SUMMARY' | 'HISTORY' | 'CHAT' | 'PRODUCTION'>('SUMMARY');
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editDentistId, setEditDentistId] = useState('');
@@ -1061,9 +1062,9 @@ export const JobDetails = () => {
 
       {/* ABAS COM OVERFLOW AUTO */}
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar shrink-0 sticky top-0 md:top-16 bg-slate-50 z-20 w-full">
-         <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> Resumo</button>
-         <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><ListChecks size={16} /> Produção</button>
-         <button onClick={() => setActiveTab('SECTORS')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SECTORS' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Briefcase size={16} /> Setores</button>
+         <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> Dados Básicos</button>
+         <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> Produção</button>
+         <button onClick={() => setActiveTab('HISTORY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'HISTORY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Clock size={16} /> Histórico</button>
          {showChatTab && (
             <button onClick={() => setActiveTab('CHAT')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'CHAT' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                 <MessageCircle size={16} /> Chat
@@ -1490,7 +1491,7 @@ export const JobDetails = () => {
             </div>
         )}
 
-        {activeTab === 'PRODUCTION' && (
+        {activeTab === 'HISTORY' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
                 <div className="lg:col-span-2 min-w-0">
                     <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
@@ -1539,110 +1540,111 @@ export const JobDetails = () => {
             </div>
         )}
 
-        {activeTab === 'SECTORS' && (
-            <div className="w-full animate-in fade-in duration-300 pb-8">
-                <div className="max-w-4xl mx-auto space-y-6">
-                    <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-slate-100">
-                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
-                            <Briefcase size={20} className="text-blue-600" />
-                            Execuções por Serviço
-                        </h3>
-                        
-                        {(!job.items || job.items.length === 0) ? (
-                            <div className="text-center py-12">
-                                <p className="text-slate-400 text-sm font-medium">Nenhum serviço registrado nesta OS.</p>
-                            </div>
-                        ) : (
-                            <div className="space-y-6">
-                                {job.items.map(item => {
-                                    const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                                    let sectorsToShow = jt?.allowedSectors && jt.allowedSectors.length > 0 
-                                        ? jt.allowedSectors 
-                                        : Array.from(new Set((job.sectorMovements || []).map(m => m.sector)));
-                                    
-                                    if (sectorsToShow.length === 0) sectorsToShow = ['Geral'];
+        {activeTab === 'PRODUCTION' && (
+            <div className="w-full animate-in fade-in duration-300 pb-8 overflow-x-auto">
+                <div className="min-w-[800px] max-w-6xl mx-auto space-y-6">
+                    {job.items.map(item => {
+                        const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                        const sectorsToRender = jt?.allowedSectors && jt.allowedSectors.length > 0 
+                            ? jt.allowedSectors 
+                            : sectors.map(s => s.name);
 
-                                    return (
-                                        <div key={item.id} className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                                            <div className="bg-white px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-                                                <div>
-                                                    <h4 className="font-black text-slate-800 text-sm md:text-base">{jt?.name || 'Serviço Desconhecido'}</h4>
-                                                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mt-0.5">Qtd: {item.quantity}</p>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="p-3 md:p-5 space-y-3">
-                                                {sectorsToShow.map(sector => {
-                                                    const execution = (job.itemExecutions || []).find(e => e.itemId === item.id && e.sector === sector);
-                                                    
-                                                    // Buscando entry time e exit time do sectorMovements para este setor
-                                                    const movementsForSector = (job.sectorMovements || []).filter(m => m.sector === sector);
-                                                    const latestMovement = movementsForSector.length > 0 
-                                                        ? movementsForSector.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0]
-                                                        : null;
+                        return (
+                            <div key={item.id} className="bg-white rounded-[24px] overflow-hidden border border-slate-100 shadow-sm">
+                                <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                                    <h4 className="font-black text-slate-700 text-xs uppercase tracking-widest">{item.name}</h4>
+                                    <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 uppercase">{jt?.category || 'Geral'}</span>
+                                </div>
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-white border-b border-slate-50">
+                                            <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Etapa</th>
+                                            <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Qtd</th>
+                                            <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Funcionários</th>
+                                            <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Previsão</th>
+                                            <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Início</th>
+                                            <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Término</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {sectorsToRender.map(sector => {
+                                            const execution = (job.itemExecutions || []).find(e => e.itemId === item.id && e.sector === sector);
+                                            const movements = (job.sectorMovements || []).filter(m => m.sector === sector);
+                                            const latestMov = movements.length > 0 
+                                                ? movements.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0]
+                                                : null;
 
-                                                    return (
-                                                        <div key={sector} className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-3 md:p-4 rounded-xl border border-slate-100 gap-3 md:gap-0">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${execution ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
-                                                                    {execution ? <CheckCircle2 size={16} /> : <Briefcase size={16} />}
-                                                                </div>
-                                                                <span className="font-bold text-slate-700 text-sm">{sector}</span>
-                                                            </div>
-                                                            
-                                                            <div className="flex flex-col text-left md:text-right w-full md:w-auto pl-11 md:pl-0">
-                                                                {execution ? (
-                                                                    <>
-                                                                        <span className="text-sm font-black text-blue-600 truncate">{execution.userName}</span>
-                                                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-1 md:justify-end">
-                                                                            {latestMovement?.entryTime && (
-                                                                                <span title="Entrada"><span className="text-emerald-500 font-bold">E:</span> {new Date(latestMovement.entryTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                                            )}
-                                                                            <span title="Saída (Execução)"><span className="text-orange-500 font-bold">S:</span> {new Date(execution.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                                        </div>
-                                                                    </>
-                                                                ) : latestMovement && !latestMovement.exitTime ? (
-                                                                    <div className="flex items-center gap-2 text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md mb-1 w-fit md:w-auto md:ml-auto">
-                                                                        <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-pulse"></div>
-                                                                        EM ANDAMENTO
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-100 px-2.5 py-1 rounded-md w-fit md:w-auto md:ml-auto">Pendente</span>
-                                                                )}
-                                                            </div>
+                                            return (
+                                                <tr key={sector} className="hover:bg-slate-50/50 transition-colors group">
+                                                    <td className="px-5 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-1.5 h-6 rounded-full ${execution ? 'bg-green-500' : latestMov && !latestMov.exitTime ? 'bg-blue-500 animate-pulse' : 'bg-slate-200'}`} />
+                                                            <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{sector}</span>
                                                         </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        <span className="text-xs font-black text-slate-800">{item.quantity}</span>
+                                                    </td>
+                                                    <td className="px-5 py-3">
+                                                        {execution ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-black text-[9px] uppercase shadow-sm">
+                                                                    {execution.userName.charAt(0)}
+                                                                </div>
+                                                                <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{execution.userName}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-300 italic group-hover:text-blue-400 transition-colors">Definir funcionário</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{new Date(job.dueDate).toLocaleDateString([], { day: '2-digit', month: '2-digit' })}</span>
+                                                    </td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        {latestMov ? (
+                                                            <div className="flex items-center justify-center gap-1.5 text-blue-600">
+                                                                <Calendar size={12} className="opacity-50" />
+                                                                <span className="text-[10px] font-black">{new Date(latestMov.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                            </div>
+                                                        ) : <span className="text-slate-200">—</span>}
+                                                    </td>
+                                                    <td className="px-5 py-3 text-center">
+                                                        {execution ? (
+                                                            <div className="flex items-center justify-center gap-1.5 text-emerald-600">
+                                                                <Calendar size={12} className="opacity-50" />
+                                                                <span className="text-[10px] font-black">{new Date(execution.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                            </div>
+                                                        ) : <span className="text-slate-200">—</span>}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
-                        )}
-                    </div>
-                    
-                    <div className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-slate-100">
-                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tighter mb-6 flex items-center gap-2">
-                            <Clock size={20} className="text-orange-500" />
-                            Histórico de Movimentações
+                        );
+                    })}
+
+                    <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Clock size={16} /> Fluxo de Logística do Caso
                         </h3>
                         {(!job.sectorMovements || job.sectorMovements.length === 0) ? (
-                            <div className="text-center py-8 text-slate-400 text-sm">Sem histórico de movimentações</div>
+                            <div className="text-center py-6 text-slate-300 text-xs italic">Nenhuma movimentação para exibir.</div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {[...(job.sectorMovements || [])].sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime()).map((movement, idx) => (
-                                    <div key={idx} className="flex justify-between items-start text-sm border-b border-slate-100 pb-3 last:border-0">
-                                        <div>
-                                            <p className="font-bold text-slate-700">{movement.sector}</p>
-                                            <p className="text-xs text-slate-500 mt-0.5">Entrada: {new Date(movement.entryTime).toLocaleString()}</p>
-                                            <p className="text-xs text-slate-500">Por: {movement.entryUserName}</p>
-                                        </div>
-                                        {movement.exitTime && (
-                                            <div className="text-right">
-                                                <p className="text-xs text-slate-500 mt-0.5">Saída: {new Date(movement.exitTime).toLocaleString()}</p>
-                                                <p className="text-xs text-slate-500">Por: {movement.exitUserName || '?'}</p>
+                                    <div key={idx} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                                        <div className="min-w-0">
+                                            <p className="font-black text-slate-700 text-xs uppercase tracking-tight truncate">{movement.sector}</p>
+                                            <div className="mt-1 flex flex-col gap-0.5">
+                                                <p className="text-[9px] text-slate-500 font-bold uppercase"><span className="text-blue-500">E:</span> {new Date(movement.entryTime).toLocaleString()} ({movement.entryUserName})</p>
+                                                {movement.exitTime && (
+                                                    <p className="text-[9px] text-slate-500 font-bold uppercase"><span className="text-orange-500">S:</span> {new Date(movement.exitTime).toLocaleString()} ({movement.exitUserName || '?'})</p>
+                                                )}
                                             </div>
-                                        )}
+                                        </div>
+                                        <div className={`w-2 h-10 rounded-full shrink-0 ${movement.exitTime ? 'bg-slate-200' : 'bg-blue-500 animate-pulse'}`} />
                                     </div>
                                 ))}
                             </div>

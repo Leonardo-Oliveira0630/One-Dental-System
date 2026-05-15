@@ -1,5 +1,6 @@
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus, JobItem, JobType } from '../types';
@@ -30,7 +31,9 @@ export const GlobalScanner: React.FC = () => {
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
   const [eligibleItems, setEligibleItems] = useState<{item: JobItem, jobType?: JobType}[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [scanSuccess, setScanSuccess] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isTorchOn, setIsTorchOn] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [nextSector, setNextSector] = useState<string>('');
   
@@ -139,6 +142,8 @@ export const GlobalScanner: React.FC = () => {
         if (!jobId) return;
         const job = jobMapRef.current.get(jobId.toUpperCase()) || jobsRef.current.find(j => j.id === jobId);
         if (job) {
+            setScanSuccess(true);
+            setTimeout(() => setScanSuccess(false), 500);
             setScannedJob(job);
             const user = currentUserRef.current;
             const isLastActionEntryHere = user?.sector ? job.sectorMovements?.some(m => m.sector === user.sector && !m.exitTime) : false;
@@ -305,15 +310,17 @@ export const GlobalScanner: React.FC = () => {
           
           const startScanner = async () => {
               try {
+                  const videoConstraints: MediaTrackConstraints = {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                  };
+
                   if (videoRef.current && isMounted) {
                       await activeReader.decodeFromConstraints(
                           {
                               audio: false,
-                              video: {
-                                  facingMode: 'environment',
-                                  width: { ideal: 1280 },
-                                  height: { ideal: 720 }
-                              }
+                              video: videoConstraints
                           },
                           videoRef.current,
                           (result, err) => {
@@ -325,6 +332,16 @@ export const GlobalScanner: React.FC = () => {
                               }
                           }
                       );
+
+                      // Check for torch support after starting
+                      const stream = videoRef.current.srcObject as MediaStream;
+                      const track = stream?.getVideoTracks()[0];
+                      if (track) {
+                        const capabilities = track.getCapabilities() as any;
+                        if (capabilities.torch) {
+                          // Torch is supported
+                        }
+                      }
                   }
               } catch (err) {
                   console.error("Camera error:", err);
@@ -361,6 +378,26 @@ export const GlobalScanner: React.FC = () => {
           }
       };
   }, [isCameraActive]);
+
+  const toggleTorch = useCallback(async () => {
+    if (!videoRef.current) return;
+    try {
+      const stream = videoRef.current.srcObject as MediaStream;
+      const track = stream?.getVideoTracks()[0];
+      if (track) {
+        const capabilities = track.getCapabilities() as any;
+        if (capabilities.torch) {
+          const newState = !isTorchOn;
+          await track.applyConstraints({
+            advanced: [{ torch: newState }] as any
+          });
+          setIsTorchOn(newState);
+        }
+      }
+    } catch (e) {
+      console.error("Torch error:", e);
+    }
+  }, [isTorchOn]);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -697,15 +734,58 @@ export const GlobalScanner: React.FC = () => {
   if (isCameraActive) {
       return (
           <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
-              <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center text-white z-20">
+              <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center text-white z-[120] bg-gradient-to-b from-black/60 to-transparent">
                   <div>
-                      <h3 className="font-bold text-lg">Leitor My Tooth</h3>
-                      <p className="text-xs opacity-70">Aponte para o código de barras</p>
+                      <h3 className="font-bold text-xl tracking-tight">Leitor My Tooth</h3>
+                      <p className="text-xs opacity-70">Aponte para o código de barras da OS</p>
                   </div>
-                  <button onClick={() => setIsCameraActive(false)} className="p-2 bg-white/10 rounded-full"><X/></button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                        onClick={toggleTorch}
+                        className={`p-3 rounded-full transition-all ${isTorchOn ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-200' : 'bg-white/10 text-white'}`}
+                    >
+                        <Volume2 size={24} className={isTorchOn ? 'animate-pulse' : ''} />
+                    </button>
+                    <button onClick={() => { setIsCameraActive(false); setIsTorchOn(false); }} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition-all">
+                        <X size={24}/>
+                    </button>
+                  </div>
               </div>
+              
               <video ref={videoRef} className="w-full h-full object-cover"></video>
-              <div className="scanner-laser"></div>
+              
+              {/* Scanner Overlay UI Re-engineered */}
+              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4 z-[110]">
+                  {/* Scan Frame */}
+                  <div className={`relative w-72 h-44 md:w-96 md:h-56 border-2 transition-all duration-300 ${scanSuccess ? 'border-green-400 scale-95' : 'border-white/30'}`}>
+                      {/* Corners */}
+                      <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-xl" />
+                      <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-xl" />
+                      <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-xl" />
+                      <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-xl" />
+                      
+                      {/* Scanning Line Animation */}
+                      <motion.div 
+                          animate={{ top: ['0%', '100%', '0%'] }}
+                          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                          className="absolute left-0 right-0 h-0.5 bg-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.8)] z-10"
+                      />
+
+                      {/* Success Flash */}
+                      {scanSuccess && (
+                          <motion.div 
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: [0, 0.4, 0] }}
+                              className="absolute inset-0 bg-white"
+                          />
+                      )}
+                  </div>
+
+                  <div className="mt-12 text-center space-y-2">
+                      <p className="text-white/80 text-[10px] uppercase font-black tracking-[0.2em] bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">Scanner de Fluxo Digital</p>
+                      <p className="text-blue-400 text-[11px] font-bold">Posicione o código de barras no quadro</p>
+                  </div>
+              </div>
           </div>
       );
   }
@@ -732,6 +812,25 @@ export const GlobalScanner: React.FC = () => {
         <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6 space-y-3">
             <div className="flex justify-between items-center border-b border-slate-200 pb-2"><span className="text-slate-500 text-xs font-bold uppercase">OS</span><span className="font-mono font-black text-2xl text-blue-600">{scannedJob.osNumber || "N/A"}</span></div>
             <div className="flex justify-between items-center"><span className="text-slate-500 text-xs font-bold uppercase">Paciente</span><span className="font-black text-slate-800">{scannedJob.patientName}</span></div>
+        </div>
+
+        {/* Histórico Recente */}
+        <div className="mb-6">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Últimas Movimentações</h4>
+            <div className="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
+                {(scannedJob.history || []).slice(-3).reverse().map((h, i) => (
+                    <div key={i} className={`px-3 py-2 flex items-center gap-3 ${i !== 0 ? 'border-t border-slate-100' : ''}`}>
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
+                        <div className="flex-1">
+                            <p className="text-[11px] font-bold text-slate-700 leading-tight">{h.action}</p>
+                            <p className="text-[9px] text-slate-400 uppercase font-medium">Por: {h.userName} • {h.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                    </div>
+                ))}
+                {(!scannedJob.history || scannedJob.history.length === 0) && (
+                    <p className="p-3 text-[10px] text-slate-400 text-center italic">Nenhum histórico registrado</p>
+                )}
+            </div>
         </div>
 
         {/* Ações Rápidas (Mobile) */}

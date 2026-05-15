@@ -379,7 +379,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return () => unsubs.forEach(u => u());
   }, [currentUser, activeDataId]);
 
-  // Automatic Blocking Logic
+  // Optimized Automatic Blocking Logic
   useEffect(() => {
     if (!activeDataId || jobs.length === 0 || (currentUser?.role === UserRole.CLIENT)) return;
 
@@ -387,59 +387,52 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const now = new Date();
       const dentists = [...allUsers.filter(u => u.role === UserRole.CLIENT), ...manualDentists];
       
+      // Performance: Pre-calculate all balances in a single pass
+      const balanceMap = new Map<string, number>();
+      jobs.forEach(j => {
+        if (j.dentistId && (j.paymentStatus === 'PENDING' || !j.paymentStatus) && 
+            (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) &&
+            !j.batchId && !j.asaasPaymentId) {
+          balanceMap.set(j.dentistId, (balanceMap.get(j.dentistId) || 0) + (j.totalValue || 0));
+        }
+      });
+      
       for (const d of dentists) {
         // Se estiver temporariamente desbloqueado e o prazo não expirou, pula
         if (d.temporaryUnblockUntil && new Date(d.temporaryUnblockUntil) > now) {
           continue;
         }
 
-        // Bloqueio por Aprovação Financeira (Sempre bloqueado até desbloqueio permanente ou temporário)
+        // Bloqueio por Aprovação Financeira
         if (d.blockReason === 'FINANCIAL_APPROVAL' && !d.isBlocked) {
            const updates = { isBlocked: true, blockReason: 'FINANCIAL_APPROVAL' } as any;
-           if (allUsers.find(u => u.id === d.id)) {
-             await api.apiUpdateUser(d.id, updates);
-           } else {
-             await api.apiUpdateManualDentist(activeDataId, d.id, updates);
-           }
+           if (allUsers.find(u => u.id === d.id)) await api.apiUpdateUser(d.id, updates);
+           else await api.apiUpdateManualDentist(activeDataId, d.id, updates);
            continue;
         }
 
         // Bloqueio por Inadimplência
         if (d.billingLimit && d.billingLimit > 0) {
-          const pendingBalance = jobs
-            .filter(j => 
-              j.dentistId === d.id &&
-              (j.paymentStatus === 'PENDING' || !j.paymentStatus) && 
-              (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED) &&
-              !j.batchId && !j.asaasPaymentId
-            )
-            .reduce((acc, curr) => acc + curr.totalValue, 0);
-
+          const pendingBalance = balanceMap.get(d.id) || 0;
           const shouldBeBlocked = pendingBalance >= d.billingLimit;
 
           if (shouldBeBlocked && !d.isBlocked) {
-             console.log(`Blocking dentist ${d.name} for DEBT - Balance: ${pendingBalance}, Limit: ${d.billingLimit}`);
              const updates = { isBlocked: true, blockReason: 'DEBT' } as any;
-             if (allUsers.find(u => u.id === d.id)) {
-               await api.apiUpdateUser(d.id, updates);
-             } else {
-               await api.apiUpdateManualDentist(activeDataId, d.id, updates);
-             }
+             if (allUsers.find(u => u.id === d.id)) await api.apiUpdateUser(d.id, updates);
+             else await api.apiUpdateManualDentist(activeDataId, d.id, updates);
           } 
-          // Se estava bloqueado por débito mas o saldo agora está ok, desbloqueia (exceto se for aprovação financeira)
           else if (!shouldBeBlocked && d.isBlocked && d.blockReason === 'DEBT') {
              const updates = { isBlocked: false, blockReason: null } as any;
-             if (allUsers.find(u => u.id === d.id)) {
-               await api.apiUpdateUser(d.id, updates);
-             } else {
-               await api.apiUpdateManualDentist(activeDataId, d.id, updates);
-             }
+             if (allUsers.find(u => u.id === d.id)) await api.apiUpdateUser(d.id, updates);
+             else await api.apiUpdateManualDentist(activeDataId, d.id, updates);
           }
         }
       }
     };
 
-    checkBlocking();
+    // Debounce a execução para evitar chamadas excessivas durante updates em massa
+    const timer = setTimeout(checkBlocking, 1000);
+    return () => clearTimeout(timer);
   }, [jobs, allUsers, manualDentists, activeDataId, currentUser]);
 
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };

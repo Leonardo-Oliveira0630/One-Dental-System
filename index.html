@@ -79,6 +79,16 @@
       
       button { touch-action: manipulation; }
       
+      @keyframes scan-line {
+          0% { top: 0%; opacity: 0.5; }
+          50% { top: 100%; opacity: 1; }
+          100% { top: 0%; opacity: 0.5; }
+      }
+
+      .animate-scan-line {
+          animation: scan-line 3s ease-in-out infinite;
+      }
+      
       input, select, textarea { 
         font-size: 16px !important; /* Previne zoom automático no iOS */
         max-width: 100%;

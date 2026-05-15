@@ -204,18 +204,25 @@ export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => upd
 
 export const subscribeJobs = (orgId: string, userId: string | null, isClient: boolean, cb: (jobs: Job[]) => void) => {
     if (!orgId) return () => {};
+    
+    // Performance: Filter out jobs finished more than 3 months ago by default
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
     let q = query(
         collection(db, `organizations/${orgId}/jobs`),
+        where('createdAt', '>=', threeMonthsAgo),
         orderBy('createdAt', 'desc'),
-        limit(2000)
+        limit(1000)
     );
     
     if (isClient && userId) {
         q = query(
             collection(db, `organizations/${orgId}/jobs`), 
             where('dentistId', '==', userId),
+            where('createdAt', '>=', threeMonthsAgo),
             orderBy('createdAt', 'desc'),
-            limit(2000)
+            limit(1000)
         );
     }
 
@@ -389,7 +396,15 @@ export const apiDeleteBoxColor = (orgId: string, id: string) => deleteDoc(doc(db
 
 export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) => void) => {
     if (!orgId) return () => {};
-    const q = query(collection(db, `organizations/${orgId}/commissions`));
+    // Performance: Only fetch commissions from the last 90 days
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const q = query(
+        collection(db, `organizations/${orgId}/commissions`),
+        where('createdAt', '>=', ninetyDaysAgo),
+        orderBy('createdAt', 'desc')
+    );
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ 
             id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt),
@@ -590,7 +605,13 @@ export const apiAddPayment = (p: PaymentRecord) => setDoc(doc(db, 'payments', p.
 
 export const subscribeBillingBatches = (orgId: string, cb: (b: BillingBatch[]) => void) => {
     if (!orgId) return () => {};
-    return onSnapshot(collection(db, `organizations/${orgId}/billingBatches`), (snap: any) => {
+    // Performance: Limit to the 200 most recent batches
+    const q = query(
+        collection(db, `organizations/${orgId}/billingBatches`),
+        orderBy('createdAt', 'desc'),
+        limit(200)
+    );
+    return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt), dueDate: toDate(d.data().dueDate) } as BillingBatch)));
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeBillingBatches: ${error.code}`));
 };
