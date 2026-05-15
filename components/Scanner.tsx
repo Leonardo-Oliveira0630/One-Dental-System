@@ -795,7 +795,7 @@ export const GlobalScanner: React.FC = () => {
   const isEntry = scanAction === 'ENTRY';
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className={`bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md border-t-[12px] ${isEntry ? 'border-blue-600' : 'border-orange-500'} animate-in zoom-in duration-200`}>
+      <div className={`bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md max-h-[95vh] overflow-y-auto overscroll-contain border-t-[12px] ${isEntry ? 'border-blue-600' : 'border-orange-500'} animate-in zoom-in duration-200`}>
         <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-3">
                 <div className={`p-3 rounded-2xl ${isEntry ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
