@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus } from '../types';
 import { 
   ArrowLeft, Calendar, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
-  Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2,
+  Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
   LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
@@ -37,6 +37,21 @@ export const JobDetails = () => {
   const [dentistSearchQuery, setDentistSearchQuery] = useState('');
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [selectedDentistObj, setSelectedDentistObj] = useState<any>(null);
+  
+  const [showExecutionModal, setShowExecutionModal] = useState(false);
+  const [editingExecution, setEditingExecution] = useState<{
+      item: JobItem,
+      sector: string,
+      userId: string,
+      entryTime: string,
+      exitTime: string,
+      originalExecution?: JobItemExecution | null,
+      originalMovement?: SectorMovement | null
+  } | null>(null);
+
+  const { commissions, addCommissionRecord, deleteCommissionRecord, updateCommissionRecord, updateJobType } = useApp(); // Wait, let's just get what's missing if not already destructured
+  const labUsers = useMemo(() => allUsers.filter(u => u.role !== UserRole.CLIENT), [allUsers]);
+
   const [showRouteModal, setShowRouteModal] = useState(false);
   const [show3DViewer, setShow3DViewer] = useState(false);
   const [expandedItemIdx, setExpandedItemIdx] = useState<number | null>(null);
@@ -573,6 +588,181 @@ export const JobDetails = () => {
       } finally { setIsUpdatingStatus(false); }
   };
 
+  const handleOpenEditExecution = (item: JobItem, sector: string, execution?: JobItemExecution | null, latestMov?: SectorMovement | null) => {
+      setEditingExecution({
+          item,
+          sector,
+          userId: execution ? execution.userId : '',
+          entryTime: latestMov ? new Date(latestMov.entryTime.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '',
+          exitTime: execution ? new Date(execution.timestamp.getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '',
+          originalExecution: execution,
+          originalMovement: latestMov
+      });
+      setShowExecutionModal(true);
+  };
+
+  const handleSaveExecutionEdit = async () => {
+      if (!editingExecution || !job) return;
+      if (!editingExecution.userId) return alert('Selecione um funcionário');
+
+      setIsUpdatingStatus(true);
+      try {
+          // Prepare new sectorMovements
+          let newMovements = [...(job.sectorMovements || [])];
+          if (editingExecution.originalMovement) {
+              const idx = newMovements.findIndex(m => m.id === editingExecution.originalMovement!.id);
+              if (idx !== -1) {
+                  newMovements[idx] = {
+                      ...newMovements[idx],
+                      entryTime: new Date(editingExecution.entryTime),
+                      exitTime: editingExecution.exitTime ? new Date(editingExecution.exitTime) : undefined,
+                      exitUserId: editingExecution.exitTime ? editingExecution.userId : undefined,
+                      exitUserName: editingExecution.exitTime ? (labUsers.find(u => u.id === editingExecution.userId)?.name || '') : undefined
+                  };
+              }
+          } else if (editingExecution.entryTime) {
+              newMovements.push({
+                  id: Math.random().toString(),
+                  sector: editingExecution.sector,
+                  entryTime: new Date(editingExecution.entryTime),
+                  entryUserId: editingExecution.userId,
+                  entryUserName: labUsers.find(u => u.id === editingExecution.userId)?.name || '',
+                  exitTime: editingExecution.exitTime ? new Date(editingExecution.exitTime) : undefined,
+                  exitUserId: editingExecution.exitTime ? editingExecution.userId : undefined,
+                  exitUserName: editingExecution.exitTime ? (labUsers.find(u => u.id === editingExecution.userId)?.name || '') : undefined
+              });
+          }
+
+          // Prepare new itemExecutions
+          let newExecutions = [...(job.itemExecutions || [])];
+          if (editingExecution.originalExecution) {
+              const idx = newExecutions.findIndex(e => e.itemId === editingExecution.item.id && e.sector === editingExecution.sector);
+              if (idx !== -1 && editingExecution.exitTime) {
+                  newExecutions[idx] = {
+                      ...newExecutions[idx],
+                      userId: editingExecution.userId,
+                      userName: labUsers.find(u => u.id === editingExecution.userId)?.name || '',
+                      timestamp: new Date(editingExecution.exitTime)
+                  };
+              } else if (idx !== -1 && !editingExecution.exitTime) {
+                  newExecutions.splice(idx, 1);
+              }
+          } else if (editingExecution.exitTime) {
+              const jt = jobTypes.find(t => t.id === editingExecution.item.jobTypeId);
+              newExecutions.push({
+                  itemId: editingExecution.item.id,
+                  jobTypeId: editingExecution.item.jobTypeId,
+                  jobTypeName: jt?.name || '',
+                  sector: editingExecution.sector,
+                  userId: editingExecution.userId,
+                  userName: labUsers.find(u => u.id === editingExecution.userId)?.name || '',
+                  timestamp: new Date(editingExecution.exitTime)
+              });
+          }
+
+          await updateJob(job.id, {
+              sectorMovements: newMovements,
+              itemExecutions: newExecutions
+          });
+
+          // Handle commission: recalculate total commission for this user in this sector
+          const userItemsInSector = newExecutions.filter(e => e.userId === editingExecution.userId && e.sector === editingExecution.sector).map(e => e.itemId);
+          let totalUserComm = 0;
+          const selectedUser = labUsers.find(u => u.id === editingExecution.userId);
+          
+          job.items.forEach(item => {
+              if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
+                  const secQty = (item.sectorQuantities && item.sectorQuantities[editingExecution.sector]) ? item.sectorQuantities[editingExecution.sector] : item.quantity;
+                  const setting = selectedUser?.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
+                  if (setting) {
+                      if (setting.type === 'FIXED') totalUserComm += setting.value * secQty;
+                      else totalUserComm += (item.price * secQty * (setting.value / 100));
+                  } else {
+                      const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                      if (jt?.baseCommission) totalUserComm += jt.baseCommission * secQty;
+                  }
+              }
+          });
+
+          const existingComm = commissions.find(c => c.jobId === job.id && c.sector === editingExecution.sector && c.userId === editingExecution.userId);
+          if (totalUserComm > 0) {
+              if (existingComm) {
+                  await updateCommissionRecord(existingComm.id, {
+                      amount: totalUserComm,
+                      createdAt: editingExecution.exitTime ? new Date(editingExecution.exitTime) : existingComm.createdAt
+                  });
+              } else {
+                  await addCommissionRecord({
+                      jobId: job.id,
+                      osNumber: job.osNumber || 'N/A',
+                      patientName: job.patientName,
+                      sector: editingExecution.sector,
+                      userId: editingExecution.userId,
+                      userName: selectedUser?.name || '',
+                      amount: totalUserComm,
+                      status: CommissionStatus.PENDING,
+                      createdAt: editingExecution.exitTime ? new Date(editingExecution.exitTime) : new Date()
+                  });
+              }
+          } else if (existingComm) {
+              await deleteCommissionRecord(existingComm.id);
+          }
+
+          setShowExecutionModal(false);
+      } catch (err) {
+          console.error(err);
+      } finally {
+          setIsUpdatingStatus(false);
+      }
+  };
+
+  const handleDeleteExecution = async (item: JobItem, sector: string) => {
+      if (!job || !window.confirm("Deseja realmente excluir esta execução? Os registros de ponto, funcionários e comissão serão limpos para este tipo de trabalho.")) return;
+      setIsUpdatingStatus(true);
+      try {
+          const executionToDelete = (job.itemExecutions || []).find(e => e.itemId === item.id && e.sector === sector);
+          const newExecutions = (job.itemExecutions || []).filter(e => !(e.itemId === item.id && e.sector === sector));
+          const newMovements = (job.sectorMovements || []).filter(m => m.sector !== sector);
+          await updateJob(job.id, {
+              itemExecutions: newExecutions,
+              sectorMovements: newMovements
+          });
+
+          if (executionToDelete) {
+              const userItemsInSector = newExecutions.filter(e => e.userId === executionToDelete.userId && e.sector === sector).map(e => e.itemId);
+              let totalUserComm = 0;
+              const selectedUser = labUsers.find(u => u.id === executionToDelete.userId);
+              
+              job.items.forEach(i => {
+                  if (userItemsInSector.includes(i.id) && !i.commissionDisabled) {
+                      const secQty = (i.sectorQuantities && i.sectorQuantities[sector]) ? i.sectorQuantities[sector] : i.quantity;
+                      const setting = selectedUser?.commissionSettings?.find((s: any) => s.jobTypeId === i.jobTypeId);
+                      if (setting) {
+                          if (setting.type === 'FIXED') totalUserComm += setting.value * secQty;
+                          else totalUserComm += (i.price * secQty * (setting.value / 100));
+                      } else {
+                          const jt = jobTypes.find(t => t.id === i.jobTypeId);
+                          if (jt?.baseCommission) totalUserComm += jt.baseCommission * secQty;
+                      }
+                  }
+              });
+
+              const existingComm = commissions.find(c => c.jobId === job.id && c.sector === sector && c.userId === executionToDelete.userId);
+              if (existingComm) {
+                  if (totalUserComm > 0) {
+                      await updateCommissionRecord(existingComm.id, { amount: totalUserComm });
+                  } else {
+                      await deleteCommissionRecord(existingComm.id);
+                  }
+              }
+          }
+      } catch (err) {
+          console.error(err);
+      } finally {
+          setIsUpdatingStatus(false);
+      }
+  };
+
   const handleSectorQuantityChange = async (itemId: string, sectorName: string, newQty: number) => {
       if (!canManageCommissions) return;
       const updatedItems = job.items.map(item => {
@@ -753,6 +943,71 @@ export const JobDetails = () => {
                   <button onClick={() => setShowReturnModal(false)} className="mt-6 w-full py-3 text-slate-400 hover:text-slate-600 font-black text-xs uppercase tracking-widest">
                       Cancelar
                   </button>
+              </div>
+          </div>
+      )}
+
+      {/* MODAL EXECUTION EDIT */}
+      {showExecutionModal && editingExecution && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                          <Settings className="text-slate-400" />
+                          Registro
+                      </h3>
+                      <button onClick={() => setShowExecutionModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest pl-2">Setor</label>
+                          <div className="w-full bg-slate-50 text-slate-600 p-3 rounded-xl border border-slate-200 font-bold">{editingExecution.sector}</div>
+                      </div>
+
+                      <div>
+                          <label className="block text-[10px] font-black uppercase text-blue-500 mb-1 tracking-widest pl-2">Funcionário</label>
+                          <select
+                              value={editingExecution.userId}
+                              onChange={e => setEditingExecution({ ...editingExecution, userId: e.target.value })}
+                              className="w-full bg-white border-2 border-blue-100 text-blue-900 rounded-xl p-3 font-bold focus:ring-0 focus:border-blue-400"
+                          >
+                              <option value="">Selecione...</option>
+                              {labUsers.filter(u => u.sector === editingExecution.sector || u.id === editingExecution.userId).map(u => (
+                                  <option key={u.id} value={u.id}>{u.name}</option>
+                              ))}
+                          </select>
+                      </div>
+
+                      <div>
+                          <label className="block text-[10px] font-black uppercase text-slate-400 mb-1 tracking-widest pl-2">Início (Entrada)</label>
+                          <input
+                              type="datetime-local"
+                              value={editingExecution.entryTime}
+                              onChange={e => setEditingExecution({ ...editingExecution, entryTime: e.target.value })}
+                              className="w-full bg-slate-50 text-slate-700 p-3 rounded-xl border-2 border-slate-200 focus:border-slate-400 font-bold"
+                          />
+                      </div>
+                      
+                      <div>
+                          <label className="block text-[10px] font-black uppercase text-orange-500 mb-1 tracking-widest pl-2">Término (Saída)</label>
+                          <input
+                              type="datetime-local"
+                              value={editingExecution.exitTime}
+                              onChange={e => setEditingExecution({ ...editingExecution, exitTime: e.target.value })}
+                              className="w-full bg-white text-slate-700 p-3 rounded-xl border-2 border-orange-200 focus:border-orange-400 font-bold"
+                          />
+                      </div>
+                  </div>
+
+                  <div className="mt-8 flex gap-3">
+                      <button onClick={() => setShowExecutionModal(false)} className="flex-1 py-3 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 rounded-xl transition-colors">
+                          Cancelar
+                      </button>
+                      <button onClick={handleSaveExecutionEdit} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all flex justify-center items-center gap-2">
+                          {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : 'Salvar'}
+                      </button>
+                  </div>
               </div>
           </div>
       )}
@@ -1564,6 +1819,7 @@ export const JobDetails = () => {
                                             <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Previsão</th>
                                             <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Início</th>
                                             <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Término</th>
+                                            {isLabStaff && <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -1604,7 +1860,7 @@ export const JobDetails = () => {
                                                         {latestMov ? (
                                                             <div className="flex items-center justify-center gap-1.5 text-blue-600">
                                                                 <Calendar size={12} className="opacity-50" />
-                                                                <span className="text-[10px] font-black">{new Date(latestMov.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                <span className="text-[10px] font-black">{new Date(latestMov.entryTime).toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {new Date(latestMov.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                             </div>
                                                         ) : <span className="text-slate-200">—</span>}
                                                     </td>
@@ -1612,10 +1868,32 @@ export const JobDetails = () => {
                                                         {execution ? (
                                                             <div className="flex items-center justify-center gap-1.5 text-emerald-600">
                                                                 <Calendar size={12} className="opacity-50" />
-                                                                <span className="text-[10px] font-black">{new Date(execution.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                                <span className="text-[10px] font-black">{new Date(execution.timestamp).toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {new Date(execution.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                             </div>
                                                         ) : <span className="text-slate-200">—</span>}
                                                     </td>
+                                                    {isLabStaff && (
+                                                        <td className="px-5 py-3 text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    onClick={() => handleOpenEditExecution(item, sector, execution, latestMov)}
+                                                                    title="Editar ou registrar manualmente no setor"
+                                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                >
+                                                                    <Edit3 size={14} />
+                                                                </button>
+                                                                {execution && (
+                                                                    <button
+                                                                        onClick={() => handleDeleteExecution(item, sector)}
+                                                                        title="Excluir execução deste funcionário"
+                                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    )}
                                                 </tr>
                                             );
                                         })}

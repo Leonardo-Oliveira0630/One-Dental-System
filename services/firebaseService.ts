@@ -252,7 +252,8 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
                             ...m,
                             entryTime: toDate(m.entryTime),
                             exitTime: m.exitTime ? toDate(m.exitTime) : undefined
-                        }))
+                        })),
+                        itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
                     } as Job;
                     jobsCache.set(docId, job);
                     hasChanges = true;
@@ -306,7 +307,8 @@ export const subscribeDentistJobs = (orgId: string, dentistId: string, cb: (jobs
                             ...m,
                             entryTime: toDate(m.entryTime),
                             exitTime: m.exitTime ? toDate(m.exitTime) : undefined
-                        }))
+                        })),
+                        itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
                     } as Job;
                     jobsCache.set(docId, job);
                     hasChanges = true;
@@ -414,6 +416,7 @@ export const subscribeCommissions = (orgId: string, cb: (c: CommissionRecord[]) 
 };
 export const apiAddCommission = (orgId: string, rec: CommissionRecord) => setDoc(doc(db, `organizations/${orgId}/commissions`, rec.id), rec);
 export const apiUpdateCommission = (orgId: string, id: string, updates: Partial<CommissionRecord>) => updateDoc(doc(db, `organizations/${orgId}/commissions`, id), updates);
+export const apiDeleteCommission = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/commissions`, id));
 
 export const subscribeAlerts = (orgId: string, cb: (a: JobAlert[]) => void) => {
     if (!orgId) return () => {};

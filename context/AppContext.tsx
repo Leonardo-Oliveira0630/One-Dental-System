@@ -117,6 +117,8 @@ interface AppContextType {
   
   addCommissionRecord: (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => Promise<void>;
   updateCommissionStatus: (id: string, status: CommissionStatus) => Promise<void>;
+  updateCommissionRecord: (id: string, updates: Partial<CommissionRecord>) => Promise<void>;
+  deleteCommissionRecord: (id: string) => Promise<void>;
 
   addJobType: (type: Omit<JobType, 'id'>) => Promise<void>;
   updateJobType: (id: string, updates: Partial<JobType>) => Promise<void>;
@@ -504,6 +506,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiUpdateCommission(orgId, id, { status, paidAt: status === CommissionStatus.PAID ? new Date() : undefined });
   };
 
+  const updateCommissionRecord = async (id: string, updates: Partial<CommissionRecord>) => {
+      const orgId = activeDataId;
+      if(!orgId) return;
+      try {
+          await api.apiUpdateCommission(orgId, id, updates);
+      } catch (err: any) {
+          handleFirestoreError(err, OperationType.UPDATE, `organizations/${orgId}/commissions/${id}`);
+      }
+  };
+
+  const deleteCommissionRecord = async (id: string) => {
+      const orgId = activeDataId;
+      if(!orgId) return;
+      try {
+          await api.apiDeleteCommission(orgId, id);
+      } catch (err: any) {
+          handleFirestoreError(err, OperationType.DELETE, `organizations/${orgId}/commissions/${id}`);
+      }
+  };
+
   const addJobType = async (jt: Omit<JobType, 'id'>) => {
       const orgId = activeDataId;
       if(!orgId) return;
@@ -813,7 +835,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     activeAlert,
     allPayments,
     login, logout, updateUser, addUser, deleteUser,
-    addJob, updateJob, addCommissionRecord, updateCommissionStatus,
+    addJob, updateJob, addCommissionRecord, updateCommissionStatus, updateCommissionRecord, deleteCommissionRecord,
     addJobType, updateJobType, deleteJobType,
     addClinicService, updateClinicService, deleteClinicService,
     addClinicRoom, updateClinicRoom, deleteClinicRoom,
