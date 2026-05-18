@@ -660,15 +660,29 @@ export const JobDetails = () => {
               });
           }
 
+          const selectedUser = labUsers.find(u => u.id === editingExecution.userId);
+
+          const userName = selectedUser?.name || '-';
+          const entryTimeStr = editingExecution.entryTime ? new Date(editingExecution.entryTime).toLocaleString() : '-';
+          const exitTimeStr = editingExecution.exitTime ? new Date(editingExecution.exitTime).toLocaleString() : '-';
+          const historyAction = `Editou a produção do item "${editingExecution.item.name}" no setor "${editingExecution.sector}". Func: ${userName} | Entrada: ${entryTimeStr} | Saída: ${exitTimeStr}`;
+
           await updateJob(job.id, {
               sectorMovements: newMovements,
-              itemExecutions: newExecutions
+              itemExecutions: newExecutions,
+              history: [...(job.history || []).filter(Boolean), {
+                  id: `hist_exec_edit_${Date.now()}`,
+                  timestamp: new Date(),
+                  action: historyAction,
+                  userId: currentUser?.id || '',
+                  userName: currentUser?.name || 'Sistema',
+                  sector: currentUser?.sector || 'Gestão'
+              }]
           });
 
           // Handle commission: recalculate total commission for this user in this sector
           const userItemsInSector = newExecutions.filter(e => e.userId === editingExecution.userId && e.sector === editingExecution.sector).map(e => e.itemId);
           let totalUserComm = 0;
-          const selectedUser = labUsers.find(u => u.id === editingExecution.userId);
           
           job.items.forEach(item => {
               if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
@@ -723,9 +737,20 @@ export const JobDetails = () => {
           const executionToDelete = (job.itemExecutions || []).find(e => e.itemId === item.id && e.sector === sector);
           const newExecutions = (job.itemExecutions || []).filter(e => !(e.itemId === item.id && e.sector === sector));
           const newMovements = (job.sectorMovements || []).filter(m => m.sector !== sector);
+          const deletedUserName = executionToDelete ? executionToDelete.userName : '-';
+          const historyAction = `Excluiu a produção do item "${item.name}" no setor "${sector}". Func: ${deletedUserName}`;
+
           await updateJob(job.id, {
               itemExecutions: newExecutions,
-              sectorMovements: newMovements
+              sectorMovements: newMovements,
+              history: [...(job.history || []).filter(Boolean), {
+                  id: `hist_exec_del_${Date.now()}`,
+                  timestamp: new Date(),
+                  action: historyAction,
+                  userId: currentUser?.id || '',
+                  userName: currentUser?.name || 'Sistema',
+                  sector: currentUser?.sector || 'Gestão'
+              }]
           });
 
           if (executionToDelete) {
