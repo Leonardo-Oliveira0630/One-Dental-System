@@ -456,9 +456,9 @@ export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllOrganizations: ${error.code}`));
 };
 export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
-    const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'));
-    return onSnapshot(q, (snap: any) => {
-        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization)));
+    return onSnapshot(collection(db, 'organizations'), (snap: any) => {
+        const orgs = snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization));
+        cb(orgs.filter((o: Organization) => o.orgType === 'LAB' || !o.orgType));
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllLaboratories: ${error.code}`));
 };
 export const subscribeSubscriptionPlans = (cb: (p: SubscriptionPlan[]) => void) => {
@@ -541,8 +541,23 @@ export const apiAddConnectionByCode = async (clinicOrgId: string, dentistId: str
     const orgSnap = await getDoc(doc(db, 'organizations', code));
     if (!orgSnap.exists()) throw new Error("Laboratório não encontrado.");
     const orgData = orgSnap.data() as any;
-    const conn: OrganizationConnection = { id: `conn_${Date.now()}`, organizationId: code, organizationName: orgData.name, status: 'ACTIVE', createdAt: new Date() };
-    await setDoc(doc(db, `organizations/${clinicOrgId}/connections`, conn.id), conn);
+    
+    let clinicName = 'Clínica/Dentista';
+    const clinicSnap = await getDoc(doc(db, 'organizations', clinicOrgId));
+    if (clinicSnap.exists()) {
+        clinicName = clinicSnap.data().name || clinicName;
+    }
+    
+    // Create connection ID
+    const connId = `conn_${clinicOrgId}_${code}`;
+
+    // Add for Clinic
+    const connClinic: OrganizationConnection = { id: connId, organizationId: code, organizationName: orgData.name, status: 'ACTIVE', createdAt: new Date() };
+    await setDoc(doc(db, `organizations/${clinicOrgId}/connections`, connId), connClinic);
+
+    // Add for Lab
+    const connLab: OrganizationConnection = { id: connId, organizationId: clinicOrgId, organizationName: clinicName, status: 'ACTIVE', createdAt: new Date() };
+    await setDoc(doc(db, `organizations/${code}/connections`, connId), connLab);
 };
 export const subscribeUserConnections = (orgId: string, cb: (c: OrganizationConnection[]) => void) => {
     if (!orgId) return () => {};
