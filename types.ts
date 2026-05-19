@@ -17,6 +17,18 @@ export interface GlobalSettings {
   updatedBy: string;
 }
 
+export interface StoreSettings {
+  banners?: string[];
+  layoutType?: 'CARDS' | 'LIST';
+  portfolio?: {
+    id: string;
+    title: string;
+    imageUrl: string;
+    description?: string;
+  }[];
+  menuOptions?: string[];
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -29,7 +41,8 @@ export interface Organization {
   asaasApiKey?: string;
   ratingAverage?: number;
   ratingCount?: number;
-    financialSettings?: {
+  storeSettings?: StoreSettings;
+  financialSettings?: {
     pixKey?: string;
     bankInfo?: string;
     instructions?: string;

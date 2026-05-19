@@ -1,10 +1,170 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag } from 'lucide-react';
-import { JobType, VariationGroup, CartItem } from '../../types';
+import { 
+    Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, 
+    ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
+    LayoutGrid, List, Heart, ExternalLink, Info, Loader2
+} from 'lucide-react';
+import { JobType, VariationGroup, CartItem, LabRating } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { FeatureLocked } from '../../components/FeatureLocked';
+import { motion, AnimatePresence } from 'motion/react';
+import * as api from '../../services/firebaseService';
+
+// --- Components ---
+
+const BannerCarousel = ({ images }: { images: string[] }) => {
+    const [index, setIndex] = useState(0);
+
+    useEffect(() => {
+        if (images.length <= 1) return;
+        const timer = setInterval(() => {
+            setIndex((prev) => (prev + 1) % images.length);
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [images]);
+
+    if (!images || images.length === 0) {
+        return (
+            <div className="w-full aspect-[21/9] md:aspect-[25/7] bg-gradient-to-r from-indigo-600 to-blue-600 rounded-3xl p-8 flex items-center justify-between text-white overflow-hidden relative">
+                <div className="z-10 animate-in slide-in-from-left duration-700">
+                    <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter">Catálogo Digital</h1>
+                    <p className="text-indigo-100 text-lg font-medium max-w-md opacity-90">Qualidade e precisão para seus casos clínicos.</p>
+                </div>
+                <ShoppingBag size={180} className="absolute -right-10 -bottom-10 text-white/10 rotate-12" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="relative w-full aspect-[21/9] md:aspect-[25/7] rounded-3xl overflow-hidden shadow-2xl shadow-indigo-100 group">
+            <AnimatePresence mode="wait">
+                <motion.img
+                    key={index}
+                    src={images[index]}
+                    initial={{ opacity: 0, scale: 1.1 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="absolute inset-0 w-full h-full object-cover"
+                />
+            </AnimatePresence>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+            
+            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-12 text-white">
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+                   <span className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 inline-block">Destaque</span>
+                   <h2 className="text-3xl md:text-5xl font-black tracking-tighter drop-shadow-lg">Excelência em Próteses</h2>
+                </motion.div>
+            </div>
+
+            {images.length > 1 && (
+                <>
+                    <button onClick={() => setIndex((prev) => (prev - 1 + images.length) % images.length)} 
+                            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40">
+                        <ChevronLeft size={24} />
+                    </button>
+                    <button onClick={() => setIndex((prev) => (prev + 1) % images.length)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40">
+                        <ChevronRight size={24} />
+                    </button>
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                        {images.map((_, i) => (
+                            <button key={i} onClick={() => setIndex(i)} className={`w-2 h-2 rounded-full transition-all ${i === index ? 'bg-white w-6' : 'bg-white/40'}`} />
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
+    if (!portfolio || portfolio.length === 0) {
+        return (
+            <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <ImageIcon size={48} className="mx-auto text-slate-300 mb-4" />
+                <h3 className="text-xl font-bold text-slate-600">Nenhum trabalho no portfólio ainda</h3>
+                <p className="text-slate-400">Em breve mostraremos fotos de casos reais aqui.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in duration-500">
+            {portfolio.map((item, i) => (
+                <motion.div 
+                    key={item.id} 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 }}
+                    className="group bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-2xl transition-all"
+                >
+                    <div className="aspect-square overflow-hidden relative">
+                        <img src={item.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                             <ExternalLink className="text-white" size={32} />
+                        </div>
+                    </div>
+                    <div className="p-6">
+                        <h4 className="font-black text-slate-800 text-lg mb-2">{item.title}</h4>
+                        <p className="text-slate-500 text-sm leading-relaxed">{item.description}</p>
+                    </div>
+                </motion.div>
+            ))}
+        </div>
+    );
+};
+
+const ReviewsSection = ({ labId }: { labId: string }) => {
+    const [reviews, setReviews] = useState<LabRating[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const unsub = api.subscribeLabRatings(labId, (r) => {
+            setReviews(r);
+            setLoading(false);
+        });
+        return unsub;
+    }, [labId]);
+
+    if (loading) return <div className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-indigo-600" /></div>;
+
+    if (reviews.length === 0) {
+        return (
+            <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                <Star size={48} className="mx-auto text-slate-300 mb-4" />
+                <h3 className="text-xl font-bold text-slate-600">Sem avaliações recentes</h3>
+                <p className="text-slate-400">Seja o primeiro a avaliar este laboratório após seu pedido!</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {reviews.map((row) => (
+                <div key={row.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex gap-6">
+                    <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center shrink-0 text-indigo-600 font-bold">
+                        {row.dentistName.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 className="font-bold text-slate-800">{row.dentistName}</h4>
+                                <div className="flex text-amber-400 mt-0.5">
+                                    {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < row.score ? 'currentColor' : 'none'} />)}
+                                </div>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Recente</span>
+                        </div>
+                        <p className="text-slate-600 text-sm italic">"{row.comment}"</p>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
 
 // Variation Configuration Modal (Component)
 const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose: () => void; }) => {
@@ -14,10 +174,8 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
 
     // Logic to calculate final price for a product based on user discounts
-    // IMPORTANT: It now splits the cost between discountable and exempt
     const calculateFinalUnitPrice = (type: JobType, selectedIds: string[]) => {
         if (!currentUser) {
-            // No discount, just sum everything
             let total = type.basePrice;
             selectedIds.forEach(id => {
                 type.variationGroups.forEach(g => {
@@ -28,7 +186,6 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
             return total;
         }
         
-        // 1. Identify which variations are exempt from discount
         let discountableTotal = type.basePrice;
         let exemptTotal = 0;
 
@@ -42,34 +199,22 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
             });
         });
 
-        // 2. Determine the discount rate
-        let discountRate = 0; // e.g. 0.1 for 10%
-        
+        let discountRate = 0; 
         const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
         if (custom) {
-            // Specific item logic
-            if (custom.discountPercent !== undefined) {
-                discountRate = custom.discountPercent / 100;
-            } else if (custom.price !== undefined) {
-                // If the user defined a fixed custom price, we treat the difference as the "discount"
-                // but simpler: we replace the basePrice component only? No, usually custom price 
-                // in the table means "Base Price is now X". 
-                // Let's assume for this logic that if they set a specific price, it overrides the "discountable" sum.
+            if (custom.discountPercent !== undefined) discountRate = custom.discountPercent / 100;
+            else if (custom.price !== undefined) {
                 discountableTotal = custom.price;
-                discountRate = 0; // Override applied
+                discountRate = 0; 
             }
         } else if (currentUser.globalDiscountPercent) {
             discountRate = currentUser.globalDiscountPercent / 100;
         }
 
-        // 3. Apply discount ONLY to discountable sum
         const discountedSum = discountableTotal * (1 - discountRate);
-
-        // 4. Final price is Discounted + Exempt (untouched)
         return discountedSum + exemptTotal;
     };
 
-    // Use current selections to calculate
     const unitPrice = useMemo(() => {
         const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
         return calculateFinalUnitPrice(product, allSelectedOptionIds);
@@ -77,7 +222,6 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
 
     const finalPrice = unitPrice * quantity;
 
-    // --- Conditional Logic ---
     const disabledOptions = useMemo(() => {
         const disabled = new Set<string>();
         const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
@@ -158,40 +302,42 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                <div className="flex justify-between items-center p-4 border-b border-slate-100">
-                    <h3 className="font-bold text-lg text-slate-800">Configurar: {product.name}</h3>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+            <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+            >
+                <div className="flex justify-between items-center p-6 border-b border-slate-100">
+                    <div>
+                        <h3 className="font-black text-2xl text-slate-900 tracking-tighter">{product.name}</h3>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Configuração Personalizada</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-full transition-colors"><X size={24} /></button>
                 </div>
-                <div className="p-6 overflow-y-auto space-y-4">
+                <div className="p-6 md:p-8 overflow-y-auto space-y-6 bg-slate-50/30">
                     {product.variationGroups.map(group => (
-                        <div key={group.id} className="p-3 rounded-lg border bg-white border-slate-200">
-                            <div className="flex justify-between items-center mb-2">
-                                <h4 className="font-bold text-sm text-slate-700">{group.name}</h4>
-                                <span className="text-xs font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-500">
-                                    {group.selectionType === 'SINGLE' ? 'Seleção Única' : group.selectionType === 'MULTIPLE' ? 'Múltipla Escolha' : 'Texto Livre'}
+                        <div key={group.id} className="p-5 rounded-3xl border bg-white border-slate-100 shadow-sm">
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="font-bold text-slate-800 flex items-center gap-2">
+                                    <Tag className="text-indigo-500" size={16} /> {group.name}
+                                </h4>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                                    {group.selectionType === 'SINGLE' ? 'Tipo Único' : group.selectionType === 'MULTIPLE' ? 'Combo' : 'Mensagem'}
                                 </span>
                             </div>
-                            <div className="space-y-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {group.options.map(option => {
                                     const isDisabled = disabledOptions.has(option.id);
-                                    
                                     if (group.selectionType === 'TEXT') {
                                         return (
-                                            <div key={option.id} className={`p-2 rounded bg-slate-50 border border-slate-200 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <div className="flex justify-between mb-1">
+                                            <div key={option.id} className={`col-span-2 p-3 rounded-2xl bg-slate-50 border border-slate-200 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <div className="flex justify-between mb-2">
                                                     <label className="text-xs font-bold text-slate-600">{option.name}</label>
-                                                    <span className="text-xs font-semibold">{option.priceModifier > 0 ? `+ R$ ${option.priceModifier.toFixed(2)}` : ''}</span>
+                                                    <span className="text-[10px] font-black text-indigo-600">{option.priceModifier > 0 ? `+ R$ ${option.priceModifier.toFixed(2)}` : ''}</span>
                                                 </div>
-                                                <input 
-                                                    type="text"
-                                                    disabled={isDisabled}
-                                                    value={variationTextValues[option.id] || ''}
-                                                    onChange={e => handleTextVariationChange(group, option.id, e.target.value)}
-                                                    className="w-full p-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"
-                                                    placeholder="Digite aqui..."
-                                                />
+                                                <input type="text" disabled={isDisabled} value={variationTextValues[option.id] || ''} onChange={e => handleTextVariationChange(group, option.id, e.target.value)}
+                                                    className="w-full px-4 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium" placeholder="Ex: Cor A2..." />
                                             </div>
                                         )
                                     }
@@ -200,195 +346,261 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
                                         ? selectedVariations[group.id] === option.id
                                         : (selectedVariations[group.id] as string[])?.includes(option.id);
                                     return (
-                                        <div key={option.id} onClick={() => !isDisabled && handleVariationChange(group, option.id)}
-                                            className={`p-2 rounded flex justify-between items-center text-sm transition-all ${isDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'} ${isSelected ? 'bg-indigo-50 border border-indigo-300' : 'hover:bg-slate-50'}`}>
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-4 h-4 border border-slate-300 flex items-center justify-center ${group.selectionType === 'SINGLE' ? 'rounded-full' : 'rounded'}`}>
-                                                    {isSelected && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
-                                                </div>
-                                                <div>
-                                                    <span className={isSelected ? 'font-bold text-indigo-800' : 'text-slate-600'}>{option.name}</span>
-                                                    {option.isDiscountExempt && <span className="ml-2 text-[9px] font-black uppercase text-orange-500 bg-orange-50 px-1 rounded">Preço Fixo</span>}
-                                                </div>
+                                        <button key={option.id} onClick={() => !isDisabled && handleVariationChange(group, option.id)}
+                                            className={`p-4 rounded-2xl flex flex-col items-start gap-1 text-sm transition-all border-2 ${isDisabled ? 'cursor-not-allowed opacity-40 grayscale' : 'cursor-pointer'} ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white border-slate-100 hover:border-indigo-300 text-slate-600'}`}>
+                                            <div className="flex justify-between items-center w-full">
+                                                <span className={`font-black uppercase text-[10px] tracking-widest ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>Opção</span>
+                                                {option.priceModifier > 0 && <span className={`font-bold text-[10px] ${isSelected ? 'text-white' : 'text-indigo-600'}`}>+ R$ {option.priceModifier.toFixed(2)}</span>}
                                             </div>
-                                            <span className="text-xs font-semibold">{option.priceModifier > 0 ? `+ R$ ${option.priceModifier.toFixed(2)}` : ''}</span>
-                                        </div>
+                                            <span className="font-bold text-left leading-tight">{option.name}</span>
+                                            {option.isDiscountExempt && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded mt-1 ${isSelected ? 'bg-white/20 text-white' : 'bg-orange-50 text-orange-500'}`}>Fixo</span>}
+                                        </button>
                                     );
                                 })}
                             </div>
                         </div>
                     ))}
                 </div>
-                <div className="p-4 bg-slate-50 border-t border-slate-200 mt-auto flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <label className="text-sm font-bold">Qtd:</label>
-                            <input type="number" min="1" value={quantity} onChange={e => setQuantity(Math.max(1, parseInt(e.target.value)))}
-                                className="w-16 px-2 py-1 border border-slate-300 rounded-md text-center" />
+                <div className="p-8 bg-white border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="flex items-center gap-6 w-full md:w-auto">
+                        <div className="flex items-center gap-3">
+                            <label className="text-xs font-black uppercase tracking-widest text-slate-400">Qtd:</label>
+                            <div className="flex bg-slate-100 p-1 rounded-xl">
+                                <button onClick={() => setQuantity(q => Math.max(1, q-1))} className="w-8 h-8 flex items-center justify-center font-bold text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all">-</button>
+                                <input type="number" readOnly value={quantity} className="w-10 bg-transparent text-center font-black text-slate-800 pointer-events-none" />
+                                <button onClick={() => setQuantity(q => q+1)} className="w-8 h-8 flex items-center justify-center font-bold text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all">+</button>
+                            </div>
                         </div>
-                        <div className="text-right">
-                             <span className="text-xs text-slate-500 uppercase font-bold tracking-tighter">Total Unitário</span>
-                             <p className="font-bold text-xl text-indigo-700">R$ {unitPrice.toFixed(2)}</p>
+                        <div className="h-10 w-[1px] bg-slate-100 hidden md:block" />
+                        <div>
+                             <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block">Total estimado</span>
+                             <p className="font-black text-2xl text-indigo-700 tracking-tighter">R$ {finalPrice.toFixed(2)}</p>
                         </div>
                     </div>
                     <button onClick={handleAddToCart}
-                        className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg transition-all active:scale-95">
-                        Adicionar ao Pedido
+                        className="w-full md:w-auto px-10 py-5 bg-indigo-600 text-white font-black rounded-[20px] hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95 text-lg">
+                        Adicionar ao Carrinho
                     </button>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 };
 
+// --- Main Component ---
+
 export const Catalog = () => {
-  const { jobTypes, currentUser, activeOrganization, currentPlan } = useApp();
-  const navigate = useNavigate();
-  const [term, setTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
+    const { jobTypes, currentUser, activeOrganization, currentPlan } = useApp();
+    const navigate = useNavigate();
+    const [term, setTerm] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('ALL');
+    const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
+    const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PORTFOLIO' | 'REVIEWS'>('PRODUCTS');
 
-  if (!activeOrganization) {
-    return (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
-                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                    <Building size={32} />
+    if (!activeOrganization) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+                <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
+                        <Building size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tighter">Ops! Laboratório ausente.</h2>
+                    <p className="text-slate-500 mb-8 font-medium">
+                        Parece que você ainda não selecionou qual laboratório deseja visitar hoje.
+                    </p>
+                    <button onClick={() => navigate('/dentist/partnerships')}
+                        className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full">
+                        EXPLORAR LABORATÓRIOS
+                    </button>
                 </div>
-                <h2 className="text-xl font-bold text-slate-800 mb-2">Nenhum Laboratório Selecionado</h2>
-                <p className="text-slate-500 mb-6">
-                    Selecione um laboratório para visualizar o catálogo de produtos disponível.
-                </p>
-                <button 
-                    onClick={() => navigate('/dentist/partnerships')}
-                    className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors w-full"
-                >
-                    Gerenciar Parcerias
-                </button>
             </div>
-        </div>
-    );
-  }
-
-  if (currentPlan && !currentPlan.features.hasStoreModule) {
-      return (
-          <FeatureLocked 
-              title="Laboratório sem Loja Virtual" 
-              message={`O laboratório ${activeOrganization.name} não possui o módulo de Loja Virtual habilitado no plano atual. Você não pode realizar pedidos online.`} 
-          />
-      );
-  }
-
-  const visibleProducts = jobTypes.filter(t => t.isVisibleInStore !== false);
-  const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
-
-  const products = visibleProducts.filter(t => {
-      const matchesTerm = t.name.toLowerCase().includes(term.toLowerCase());
-      const matchesCat = selectedCategory === 'ALL' || t.category === selectedCategory;
-      return matchesTerm && matchesCat;
-  });
-
-  const getPrice = (type: JobType) => {
-    if (!currentUser) return { price: type.basePrice, isCustom: false };
-
-    // Priority 1: Specific customPrice object
-    const custom = currentUser.customPrices?.find(c => c.jobTypeId === type.id);
-    if (custom) {
-        if (custom.price !== undefined) return { price: custom.price, isCustom: true };
-        if (custom.discountPercent !== undefined) return { price: type.basePrice * (1 - custom.discountPercent / 100), isCustom: true };
+        );
     }
 
-    // Priority 2: Global discount
-    if (currentUser.globalDiscountPercent) {
-        return { price: type.basePrice * (1 - currentUser.globalDiscountPercent / 100), isCustom: true };
+    if (currentPlan && !currentPlan.features.hasStoreModule) {
+        return (
+            <FeatureLocked 
+                title="Módulo de Loja Bloqueado" 
+                message={`O laboratório ${activeOrganization.name} não possui o módulo de Loja Virtual habilitado no plano atual.`} 
+            />
+        );
     }
 
-    return { price: type.basePrice, isCustom: false };
-  };
+    const storeSettings = activeOrganization.storeSettings || {
+        banners: [],
+        layoutType: 'CARDS',
+        portfolio: [],
+        menuOptions: ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']
+    };
 
-  return (
-    <div className="space-y-8 pb-12">
-       {configuringProduct && <VariationConfigModal product={configuringProduct} onClose={() => setConfiguringProduct(null)} />}
-       <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div>
-                <h1 className="text-3xl font-bold mb-2">Catálogo de Próteses</h1>
-                <p className="text-indigo-100 max-w-lg">Preços personalizados aplicados automaticamente.</p>
-            </div>
-            <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/20">
-                <ShoppingBag size={48} className="text-white opacity-80" />
-            </div>
-       </div>
-       <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-xl shadow-sm border border-slate-100 sticky top-4 z-10">
-            <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-3 text-slate-400" size={20} />
-                <input 
-                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    placeholder="Buscar por nome do serviço..."
-                    value={term}
-                    onChange={(e) => setTerm(e.target.value)}
-                />
-            </div>
-            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-                <button 
-                    onClick={() => setSelectedCategory('ALL')}
-                    className={`px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-colors ${selectedCategory === 'ALL' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >
-                    Todas
-                </button>
-                {categories.map(cat => (
+    const visibleProducts = jobTypes.filter(t => t.isVisibleInStore !== false);
+    const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
+
+    const products = visibleProducts.filter(t => {
+        const matchesTerm = t.name.toLowerCase().includes(term.toLowerCase());
+        const matchesCat = selectedCategory === 'ALL' || t.category === selectedCategory;
+        return matchesTerm && matchesCat;
+    });
+
+    const getPrice = (type: JobType) => {
+        if (!currentUser) return { price: type.basePrice, isCustom: false };
+        const custom = currentUser.customPrices?.find(c => c.jobTypeId === type.id);
+        if (custom) {
+            if (custom.price !== undefined) return { price: custom.price, isCustom: true };
+            if (custom.discountPercent !== undefined) return { price: type.basePrice * (1 - custom.discountPercent / 100), isCustom: true };
+        }
+        if (currentUser.globalDiscountPercent) return { price: type.basePrice * (1 - currentUser.globalDiscountPercent / 100), isCustom: true };
+        return { price: type.basePrice, isCustom: false };
+    };
+
+    return (
+        <div className="space-y-10 pb-20 animate-in fade-in duration-500">
+            {configuringProduct && <VariationConfigModal product={configuringProduct} onClose={() => setConfiguringProduct(null)} />}
+            
+            {/* 1. Header Banner */}
+            <BannerCarousel images={storeSettings.banners || []} />
+
+            {/* 2. Store Menu */}
+            <div className="flex border-b border-slate-200">
+                {(storeSettings.menuOptions || ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']).map(opt => (
                     <button 
-                        key={cat}
-                        onClick={() => setSelectedCategory(cat)}
-                        className={`px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-colors ${selectedCategory === cat ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        key={opt}
+                        onClick={() => setActiveTab(opt as any)}
+                        className={`px-8 py-5 text-sm font-black uppercase tracking-widest transition-all relative ${activeTab === opt ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        {cat}
+                        {opt === 'PRODUCTS' ? 'Catálogo' : opt === 'PORTFOLIO' ? 'Portfólio' : 'Avaliações'}
+                        {activeTab === opt && (
+                            <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-full" />
+                        )}
                     </button>
                 ))}
             </div>
-       </div>
-       {products.length === 0 ? (
-           <div className="text-center py-12"><Package size={48} className="mx-auto text-slate-300 mb-4" /><h3 className="text-xl font-bold text-slate-700">Nenhum produto encontrado</h3><p className="text-slate-500">Tente buscar por outro termo ou categoria.</p></div>
-       ) : (
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {products.map(product => {
-                    const { price, isCustom } = getPrice(product);
-                    return (
-                        <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col">
-                            <div className="h-48 bg-slate-50 flex items-center justify-center relative overflow-hidden">
-                                {product.imageUrl ? (
-                                    <img 
-                                        src={product.imageUrl} 
-                                        alt={product.name} 
-                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                    />
-                                ) : (
-                                    <Package size={64} className="relative z-10 text-slate-300 group-hover:text-indigo-500 transition-colors duration-300" />
-                                )}
-                                
-                                {isCustom && (<div className="absolute top-3 right-3 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-md z-20"><BadgePercent size={10} /> OFERTA</div>)}
-                                <div className="absolute bottom-3 left-3 bg-white/80 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-slate-600 uppercase tracking-wider z-20">{product.category}</div>
+
+            {/* 3. Content Sections */}
+            <AnimatePresence mode="wait">
+                {activeTab === 'PRODUCTS' && (
+                    <motion.div 
+                        key="products"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        className="space-y-8"
+                    >
+                        {/* Filters */}
+                        <div className="flex flex-col md:flex-row gap-6 items-center bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+                            <div className="relative flex-1 w-full">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={24} />
+                                <input 
+                                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-lg"
+                                    placeholder="Qual serviço você procura?"
+                                    value={term}
+                                    onChange={(e) => setTerm(e.target.value)}
+                                />
                             </div>
-                            <div className="p-6 flex flex-col flex-1">
-                                <div className="mb-4 flex-1"><h3 className="font-bold text-slate-900 text-lg leading-tight mb-2 group-hover:text-indigo-700 transition-colors">{product.name}</h3></div>
-                                <div className="pt-4 border-t border-slate-100">
-                                    <div className="flex justify-between items-end mb-4">
-                                        <span className="text-xs text-slate-400 font-medium uppercase">{isCustom ? 'Seu Preço' : 'A partir de'}</span>
-                                        <div className="text-right">
-                                            {isCustom && (<span className="text-xs text-slate-400 line-through block">R$ {product.basePrice.toFixed(2)}</span>)}
-                                            <span className={`font-bold text-xl ${isCustom ? 'text-green-600' : 'text-slate-800'}`}>R$ {price.toFixed(2)}</span>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => setConfiguringProduct(product)}
-                                        className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all">
-                                        <Plus size={18} /> Configurar e Comprar
+                            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                                <button 
+                                    onClick={() => setSelectedCategory('ALL')}
+                                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedCategory === 'ALL' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                                >
+                                    Todos
+                                </button>
+                                {categories.map(cat => (
+                                    <button 
+                                        key={cat}
+                                        onClick={() => setSelectedCategory(cat)}
+                                        className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedCategory === cat ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                                    >
+                                        {cat}
                                     </button>
-                                </div>
+                                ))}
                             </div>
                         </div>
-                    );
-                })}
-           </div>
-       )}
-    </div>
-  );
+
+                        {/* Products List/Grid */}
+                        {products.length === 0 ? (
+                            <div className="text-center py-20 bg-slate-50 rounded-[40px] border-2 border-dashed border-slate-200">
+                                <Package size={64} className="mx-auto text-slate-200 mb-4" />
+                                <h3 className="text-2xl font-black text-slate-800 tracking-tighter">Nenhum resultado</h3>
+                                <p className="text-slate-400 font-medium">Tente uma busca diferente ou selecione outra categoria.</p>
+                            </div>
+                        ) : (
+                            <div className={storeSettings.layoutType === 'LIST' ? 'space-y-4' : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8'}>
+                                {products.map(product => {
+                                    const { price, isCustom } = getPrice(product);
+                                    if (storeSettings.layoutType === 'LIST') {
+                                        return (
+                                            <div key={product.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+                                                <div className="flex items-center gap-6">
+                                                    <div className="w-20 h-20 bg-slate-50 rounded-2xl overflow-hidden shrink-0 border border-slate-100">
+                                                        {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <Package size={32} className="m-auto mt-6 text-slate-300" />}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">{product.category}</span>
+                                                        <h3 className="font-bold text-slate-800 text-lg leading-tight">{product.name}</h3>
+                                                        <div className="flex items-center gap-4 mt-1">
+                                                             <span className="text-xs font-bold text-slate-400">A partir de</span>
+                                                             <span className={`font-black ${isCustom ? 'text-green-600' : 'text-indigo-600'}`}>R$ {price.toFixed(2)}</span>
+                                                             {isCustom && <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded tracking-widest">EXCLUSIVO</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => setConfiguringProduct(product)} className="px-6 py-3 bg-indigo-600 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">
+                                                    CONFIGURAR
+                                                </button>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div key={product.id} className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group flex flex-col">
+                                            <div className="h-60 bg-slate-50 flex items-center justify-center relative overflow-hidden">
+                                                {product.imageUrl ? (
+                                                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                ) : (
+                                                    <Package size={80} className="relative z-10 text-slate-200 group-hover:text-indigo-400 transition-colors duration-300" />
+                                                )}
+                                                {isCustom && (<div className="absolute top-4 right-4 bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow-xl z-20"><BadgePercent size={12} /> SPECIAL PRICE</div>)}
+                                                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-slate-600 uppercase tracking-widest z-20 border border-white/50">{product.category}</div>
+                                                <div className="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors duration-300 pointer-events-none" />
+                                            </div>
+                                            <div className="p-8 flex flex-col flex-1">
+                                                <div className="mb-6 flex-1 text-center md:text-left">
+                                                    <h3 className="font-black text-slate-900 text-xl tracking-tight leading-tight group-hover:text-indigo-600 transition-colors">{product.name}</h3>
+                                                </div>
+                                                <div className="pt-6 border-t border-slate-50">
+                                                    <div className="flex justify-between items-end mb-6">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{isCustom ? 'Sua Oferta' : 'Investimento'}</span>
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className={`font-black text-3xl tracking-tighter ${isCustom ? 'text-green-600' : 'text-slate-900'}`}>R$ {price.toFixed(2)}</span>
+                                                                {isCustom && <span className="text-[10px] text-slate-300 line-through">R$ {product.basePrice.toFixed(2)}</span>}
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => setConfiguringProduct(product)} className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-600 transition-all active:scale-90 shadow-xl shadow-slate-200 group-hover:shadow-indigo-200">
+                                                            <Plus size={24} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+
+                {activeTab === 'PORTFOLIO' && (
+                    <motion.div key="portfolio" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
+                        <PortfolioSection portfolio={storeSettings.portfolio || []} />
+                    </motion.div>
+                )}
+
+                {activeTab === 'REVIEWS' && (
+                    <motion.div key="reviews" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+                        <ReviewsSection labId={activeOrganization.id} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
 };

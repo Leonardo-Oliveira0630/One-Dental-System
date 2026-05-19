@@ -113,6 +113,15 @@ service cloud.firestore {
         );
       }
 
+      match /connections/{connId} {
+        allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isAuthenticated() && (
+          isSuperAdmin() || 
+          belongsToOrg(orgId) ||
+          (userExists() && getUserData().get('organizationId', '') == request.resource.data.get('organizationId', ''))
+        );
+      }
+
       match /{allSubcollections=**} {
         allow read: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(orgId) && (getUserData().get('role', 'USER') != 'CLIENT' || get(/databases/$(database)/documents/organizations/$(orgId)).data.orgType == 'CLINIC')));
         allow write: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(orgId) && (getUserData().get('role', 'USER') != 'CLIENT' || get(/databases/$(database)/documents/organizations/$(orgId)).data.orgType == 'CLINIC')));

@@ -378,6 +378,21 @@ export const JobDetails = () => {
     try {
         const dateParts = editDueDate.split('-');
         const adjustedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+        
+        const changes: string[] = [];
+        if (editPatientName !== job.patientName) changes.push(`- Paciente: ${job.patientName} -> ${editPatientName}`);
+        if (editOsNumber !== job.osNumber) changes.push(`- OS: ${job.osNumber} -> ${editOsNumber}`);
+        if (editBoxNumber !== job.boxNumber) changes.push(`- Caixa: ${job.boxNumber} -> ${editBoxNumber}`);
+        
+        const oldDate = new Date(job.dueDate).toISOString().split('T')[0];
+        if (editDueDate !== oldDate) changes.push(`- Vencimento: ${oldDate} -> ${editDueDate}`);
+        
+        if (editUrgency !== job.urgency) changes.push(`- Urgência: ${job.urgency} -> ${editUrgency}`);
+        if (editDentistName !== job.dentistName) changes.push(`- Dentista: ${job.dentistName} -> ${editDentistName}`);
+
+        const actionText = changes.length > 0 
+            ? `EDIÇÃO DE FICHA:\n${changes.join('\n')}` 
+            : 'Ficha editada manualmente';
 
         await updateJob(job.id, {
             patientName: editPatientName,
@@ -394,7 +409,7 @@ export const JobDetails = () => {
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_edit_${Date.now()}`,
                 timestamp: new Date(),
-                action: 'Ficha editada manualmente',
+                action: actionText,
                 userId: currentUser.id,
                 userName: currentUser.name,
                 sector: 'Gestão'
@@ -661,11 +676,17 @@ export const JobDetails = () => {
           }
 
           const selectedUser = labUsers.find(u => u.id === editingExecution.userId);
-
           const userName = selectedUser?.name || '-';
           const entryTimeStr = editingExecution.entryTime ? new Date(editingExecution.entryTime).toLocaleString() : '-';
           const exitTimeStr = editingExecution.exitTime ? new Date(editingExecution.exitTime).toLocaleString() : '-';
-          const historyAction = `Editou a produção do item "${editingExecution.item.name}" no setor "${editingExecution.sector}". Func: ${userName} | Entrada: ${entryTimeStr} | Saída: ${exitTimeStr}`;
+          
+          const oldUserName = editingExecution.originalExecution?.userName || 'N/A';
+          const oldEntry = editingExecution.originalMovement?.entryTime ? new Date(editingExecution.originalMovement.entryTime).toLocaleString() : 'N/A';
+          const oldExit = editingExecution.originalExecution?.timestamp ? new Date(editingExecution.originalExecution.timestamp).toLocaleString() : 'N/A';
+
+          const historyAction = `ALTERAÇÃO DE PRODUÇÃO: Item "${editingExecution.item.name}" (${editingExecution.sector})\n` +
+                                `- DE: ${oldUserName} | Ent: ${oldEntry} | Sai: ${oldExit}\n` +
+                                `- PARA: ${userName} | Ent: ${entryTimeStr} | Sai: ${exitTimeStr}`;
 
           await updateJob(job.id, {
               sectorMovements: newMovements,
@@ -738,7 +759,10 @@ export const JobDetails = () => {
           const newExecutions = (job.itemExecutions || []).filter(e => !(e.itemId === item.id && e.sector === sector));
           const newMovements = (job.sectorMovements || []).filter(m => m.sector !== sector);
           const deletedUserName = executionToDelete ? executionToDelete.userName : '-';
-          const historyAction = `Excluiu a produção do item "${item.name}" no setor "${sector}". Func: ${deletedUserName}`;
+          
+          const exitTime = executionToDelete?.timestamp ? new Date(executionToDelete.timestamp).toLocaleString() : 'N/A';
+          const historyAction = `EXCLUSÃO DE PRODUÇÃO: Item "${item.name}" no setor "${sector}".\n` +
+                                `- Registro de: ${deletedUserName} finalizado em ${exitTime}`;
 
           await updateJob(job.id, {
               itemExecutions: newExecutions,
