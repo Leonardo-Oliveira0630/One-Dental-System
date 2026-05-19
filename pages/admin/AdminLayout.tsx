@@ -22,12 +22,12 @@ export const AdminLayout = () => {
 
   const navItems = [
     { to: '/admin/organizacao', icon: <Building2 size={16} />, label: 'Marca', show: isAdmin },
-    { to: '/admin/setores', icon: <Briefcase size={16} />, label: 'Setores', show: hasPerm('sectors:manage') },
-    { to: '/admin/caixas', icon: <Box size={16} />, label: 'Caixas', show: hasPerm('sectors:manage') },
-    { to: '/admin/equipe', icon: <Users size={16} />, label: 'Equipe', show: hasPerm('users:manage') },
-    { to: '/admin/clientes', icon: <Stethoscope size={16} />, label: 'Clientes', show: hasPerm('clients:manage') },
-    { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: 'Ganhos', show: hasPerm('finance:manage') },
-    { to: '/admin/pagamentos', icon: <Wallet size={16} />, label: 'Banco', show: hasPerm('finance:manage') },
+    { to: '/admin/setores', icon: <Briefcase size={16} />, label: 'Setores', show: hasPerm('sectors:view') },
+    { to: '/admin/caixas', icon: <Box size={16} />, label: 'Caixas', show: hasPerm('boxes:view') },
+    { to: '/admin/equipe', icon: <Users size={16} />, label: 'Equipe', show: hasPerm('users:view') },
+    { to: '/admin/clientes', icon: <Stethoscope size={16} />, label: 'Clientes', show: hasPerm('clients:view') },
+    { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: 'Ganhos', show: hasPerm('commissions:view') },
+    { to: '/admin/pagamentos', icon: <Wallet size={16} />, label: 'Banco', show: hasPerm('finance:view') },
     { to: '/admin/assinatura', icon: <Crown size={16} />, label: 'Plano', show: isAdmin },
   ].filter(item => item.show);
 

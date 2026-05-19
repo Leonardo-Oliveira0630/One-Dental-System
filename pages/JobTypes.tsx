@@ -12,11 +12,16 @@ const generateFirestoreId = (prefix: string) => {
 };
 
 export const JobTypes = () => {
-  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors } = useApp();
+  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser } = useApp();
   
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('BASIC');
+
+  const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
+  const canCreate = isAdmin || currentUser?.permissions?.includes('catalog:create');
+  const canEdit = isAdmin || currentUser?.permissions?.includes('catalog:edit');
+  const canDelete = isAdmin || currentUser?.permissions?.includes('catalog:delete');
 
   // Form State
   const [name, setName] = useState('');
@@ -179,7 +184,7 @@ export const JobTypes = () => {
             <h1 className="text-2xl font-bold text-slate-900">Catálogo de Serviços</h1>
             <p className="text-slate-500">Gerencie tipos de próteses, preços e suas variações.</p>
         </div>
-        {isEditing && (
+        {isEditing && canCreate && (
             <button 
                 onClick={resetForm}
                 className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 flex items-center gap-2"
@@ -218,7 +223,7 @@ export const JobTypes = () => {
                                     <h3 className={`font-bold truncate ${editingId === type.id ? 'text-blue-800' : 'text-slate-800'}`}>
                                         {type.name}
                                     </h3>
-                                    {editingId !== type.id && (
+                                    {editingId !== type.id && canDelete && (
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); deleteJobType(type.id); }} 
                                             className="text-slate-300 hover:text-red-500"
@@ -529,7 +534,7 @@ export const JobTypes = () => {
                         )}
                         <button 
                             type="submit"
-                            disabled={isSaving}
+                            disabled={isSaving || (isEditing ? !canEdit : !canCreate)}
                             className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl hover:shadow-lg shadow-blue-200 transition-all transform hover:scale-[1.02] flex items-center gap-2 disabled:opacity-50"
                         >
                             <Save size={20} />

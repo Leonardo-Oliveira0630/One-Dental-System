@@ -67,11 +67,17 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 
 const ALL_PERMISSIONS: PermissionKey[] = [
-  'jobs:create', 'jobs:edit', 'jobs:delete', 'jobs:view',
-  'finance:view', 'finance:manage', 'catalog:manage',
-  'clients:manage', 'sectors:manage', 'users:manage',
-  'vip:view', 'calendar:view', 'commissions:view', 'logistics:manage',
-  'catalog:prices_view', 'clients:block_manage', 'receipts:view', 'receipts:manage'
+  'jobs:view', 'jobs:create', 'jobs:edit', 'jobs:delete',
+  'finance:view', 'finance:create', 'finance:edit', 'finance:delete',
+  'catalog:view', 'catalog:create', 'catalog:edit', 'catalog:delete', 'catalog:prices_view',
+  'clients:view', 'clients:create', 'clients:edit', 'clients:delete', 'clients:block_manage', 'clients:statement_view',
+  'sectors:view', 'sectors:create', 'sectors:edit', 'sectors:delete',
+  'users:view', 'users:create', 'users:edit', 'users:delete',
+  'commissions:view', 'commissions:create', 'commissions:edit', 'commissions:delete',
+  'receipts:view', 'receipts:create', 'receipts:edit', 'receipts:delete',
+  'logistics:view', 'logistics:create', 'logistics:edit', 'logistics:delete',
+  'boxes:view', 'boxes:create', 'boxes:edit', 'boxes:delete',
+  'vip:view', 'calendar:view'
 ];
 
 interface AppContextType {

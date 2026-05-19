@@ -9,7 +9,7 @@ import {
 import * as api from '../../services/firebaseService';
 
 export const RoutePlanner = () => {
-    const { currentOrg, manualDentists, allUsers, triggerRoutePrint } = useApp();
+    const { currentOrg, manualDentists, allUsers, triggerRoutePrint, currentUser } = useApp();
     
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [selectedShift, setSelectedShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
@@ -18,6 +18,11 @@ export const RoutePlanner = () => {
     const [isAddingPickup, setIsAddingPickup] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [dentistSearch, setDentistSearch] = useState('');
+
+    const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
+    const canCreate = isAdmin || currentUser?.permissions?.includes('logistics:create');
+    const canEdit = isAdmin || currentUser?.permissions?.includes('logistics:edit');
+    const canDelete = isAdmin || currentUser?.permissions?.includes('logistics:delete');
 
     useEffect(() => {
         if (currentOrg) {
@@ -40,7 +45,7 @@ export const RoutePlanner = () => {
     }, [currentOrg, activeRoute]);
 
     const handleCreateRoute = async (driverName: string) => {
-        if (!currentOrg || !driverName) return;
+        if (!currentOrg || !driverName || (!canCreate && !canEdit)) return;
         const routeId = `route_${selectedDate}_${selectedShift}_${driverName.replace(/\s+/g, '_')}`;
         await api.apiAddRoute(currentOrg.id, {
             id: routeId,
@@ -54,7 +59,7 @@ export const RoutePlanner = () => {
     };
 
     const handleAddPickup = async (dentist: any) => {
-        if (!activeRoute || !currentOrg) return;
+        if (!activeRoute || !currentOrg || (!canCreate && !canEdit)) return;
         const address = dentist.address ? `${dentist.address}, ${dentist.number} - ${dentist.city}` : 'Endereço não cadastrado';
         
         const newItem: RouteItem = {
@@ -73,12 +78,12 @@ export const RoutePlanner = () => {
     };
 
     const handleDeleteItem = async (itemId: string) => {
-        if (!activeRoute || !currentOrg) return;
+        if (!activeRoute || !currentOrg || (!canDelete && !canEdit)) return;
         await api.apiDeleteRouteItem(currentOrg.id, activeRoute.id, itemId);
     };
 
     const handleUpdateStatus = async (status: DeliveryRoute['status']) => {
-        if (!activeRoute || !currentOrg) return;
+        if (!activeRoute || !currentOrg || !canEdit) return;
         await api.apiUpdateRoute(currentOrg.id, activeRoute.id, { status });
     };
 
@@ -133,10 +138,12 @@ export const RoutePlanner = () => {
                             <p className="text-slate-500 mb-6">Inicie uma rota definindo o motorista responsável.</p>
                             <button 
                                 onClick={() => {
+                                    if (!canCreate && !canEdit) return;
                                     const name = window.prompt("Nome do Motorista/Motoboy:");
                                     if (name) handleCreateRoute(name);
                                 }}
-                                className="px-8 py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 shadow-lg"
+                                disabled={!canCreate && !canEdit}
+                                className={`px-8 py-3 font-black rounded-xl shadow-lg ${canCreate || canEdit ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
                             >
                                 INICIAR ROTEIRO
                             </button>
@@ -154,7 +161,10 @@ export const RoutePlanner = () => {
                                 <select 
                                     value={activeRoute.status} 
                                     onChange={e => handleUpdateStatus(e.target.value as any)}
+                                    disabled={!canEdit}
                                     className={`px-4 py-1.5 rounded-full text-xs font-bold border outline-none ${
+                                        !canEdit ? 'opacity-60 cursor-not-allowed' : ''
+                                    } ${
                                         activeRoute.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border-green-200' : 
                                         activeRoute.status === 'IN_TRANSIT' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-600'
                                     }`}
@@ -196,13 +206,15 @@ export const RoutePlanner = () => {
                                             >
                                                 <Navigation size={18} />
                                             </button>
-                                            <button 
-                                                onClick={() => handleDeleteItem(item.id)}
-                                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                                                title="Remover da Rota"
-                                            >
-                                                <Trash2 size={18} />
-                                            </button>
+                                            { (canDelete || canEdit) && (
+                                                <button 
+                                                    onClick={() => handleDeleteItem(item.id)}
+                                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                                                    title="Remover da Rota"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -214,14 +226,16 @@ export const RoutePlanner = () => {
                                 )}
                             </div>
 
-                            <div className="p-4 bg-slate-50 border-t border-slate-100">
-                                <button 
-                                    onClick={() => setIsAddingPickup(true)}
-                                    className="w-full py-3 bg-white border-2 border-dashed border-slate-300 rounded-2xl text-slate-500 font-bold hover:border-blue-400 hover:text-blue-600 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <Plus size={20}/> ADICIONAR PARADA AVULSA (COLETA)
-                                </button>
-                            </div>
+                                { (canCreate || canEdit) && (
+                                    <div className="p-4 bg-slate-50 border-t border-slate-100">
+                                        <button 
+                                            onClick={() => setIsAddingPickup(true)}
+                                            className="w-full py-3 bg-white border-2 border-dashed border-slate-300 rounded-2xl text-slate-500 font-bold hover:border-blue-400 hover:text-blue-600 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Plus size={20}/> ADICIONAR PARADA AVULSA (COLETA)
+                                        </button>
+                                    </div>
+                                )}
                         </div>
                     )}
                 </div>

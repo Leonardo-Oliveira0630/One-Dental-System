@@ -58,6 +58,12 @@ export const DentistsTab = () => {
   const [loqateSuggestions, setLoqateSuggestions] = useState<any[]>([]);
   const [isSearchingCep, setIsSearchingCep] = useState(false);
 
+  const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
+  const canCreate = isAdmin || currentUser?.permissions?.includes('clients:create');
+  const canEdit = isAdmin || currentUser?.permissions?.includes('clients:edit');
+  const canDelete = isAdmin || currentUser?.permissions?.includes('clients:delete');
+  const canBlock = isAdmin || currentUser?.permissions?.includes('clients:block_manage');
+
   const handleCEPBlur = async () => {
     if (!formData.cep) return;
     setIsSearchingCep(true);
@@ -345,12 +351,16 @@ export const DentistsTab = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">Clientes Internos (Offline)</h3>
             <div className="flex gap-2 w-full md:w-auto">
-                <button onClick={() => setIsImportModalOpen(true)} className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200">
-                    <FileSpreadsheet size={18}/> Importar Planilha
-                </button>
-                <button onClick={() => { resetForm(); setIsAddingDentist(true); }} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-all">
-                    <Plus size={20}/> Novo Cadastro
-                </button>
+                {canCreate && (
+                    <button onClick={() => setIsImportModalOpen(true)} className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200">
+                        <FileSpreadsheet size={18}/> Importar Planilha
+                    </button>
+                )}
+                {canCreate && (
+                    <button onClick={() => { resetForm(); setIsAddingDentist(true); }} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-all">
+                        <Plus size={20}/> Novo Cadastro
+                    </button>
+                )}
             </div>
         </div>
 
@@ -423,13 +433,17 @@ export const DentistsTab = () => {
                         </td>
                         <td className="p-4 text-right">
                             <div className="flex justify-end gap-2">
-                                <button onClick={() => {
-                                    setEditingDentistId(dentist.id);
-                                    setFormData({ ...dentist } as any);
-                                    setHasBillingLimit((dentist.billingLimit || 0) > 0);
-                                    setIsAddingDentist(true);
-                                }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit size={18}/></button>
-                                <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500"><Trash2 size={18}/></button>
+                                {canEdit && (
+                                    <button onClick={() => {
+                                        setEditingDentistId(dentist.id);
+                                        setFormData({ ...dentist } as any);
+                                        setHasBillingLimit((dentist.billingLimit || 0) > 0);
+                                        setIsAddingDentist(true);
+                                    }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit size={18}/></button>
+                                )}
+                                {canDelete && (
+                                    <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
+                                )}
                             </div>
                         </td>
                       </tr>
@@ -794,7 +808,7 @@ export const DentistsTab = () => {
                         </div>
                       </div>
 
-                      <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all transform active:scale-95">SALVAR FICHA COMPLETA</button>
+                      <button disabled={editingDentistId ? !canEdit : !canCreate} type="submit" className={`w-full py-4 font-black rounded-2xl shadow-xl transition-all transform active:scale-95 ${editingDentistId ? (canEdit ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed') : (canCreate ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed')}`}>SALVAR FICHA COMPLETA</button>
                   </form>
               </div>
           </div>
