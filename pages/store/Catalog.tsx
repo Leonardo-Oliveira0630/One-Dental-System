@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { 
     Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
-    LayoutGrid, List, Heart, ExternalLink, Info, Loader2
+    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown
 } from 'lucide-react';
 import { JobType, VariationGroup, CartItem, LabRating } from '../../types';
 import { useNavigate } from 'react-router-dom';
@@ -437,7 +437,8 @@ export const Catalog = () => {
     const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
 
     const products = visibleProducts.filter(t => {
-        const matchesTerm = t.name.toLowerCase().includes(term.toLowerCase());
+        const termLower = term.toLowerCase();
+        const matchesTerm = t.name.toLowerCase().includes(termLower) || t.category.toLowerCase().includes(termLower);
         const matchesCat = selectedCategory === 'ALL' || t.category === selectedCategory;
         return matchesTerm && matchesCat;
     });
@@ -497,22 +498,18 @@ export const Catalog = () => {
                                     onChange={(e) => setTerm(e.target.value)}
                                 />
                             </div>
-                            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-                                <button 
-                                    onClick={() => setSelectedCategory('ALL')}
-                                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedCategory === 'ALL' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                            <div className="relative min-w-[200px] w-full md:w-auto">
+                                <select 
+                                    value={selectedCategory} 
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
+                                    className="w-full appearance-none bg-slate-50 border border-slate-100 text-slate-600 font-black text-sm uppercase tracking-widest px-6 py-4 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
                                 >
-                                    Todos
-                                </button>
-                                {categories.map(cat => (
-                                    <button 
-                                        key={cat}
-                                        onClick={() => setSelectedCategory(cat)}
-                                        className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${selectedCategory === cat ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
-                                    >
-                                        {cat}
-                                    </button>
-                                ))}
+                                    <option value="ALL">Todas Categorias</option>
+                                    {categories.map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                             </div>
                         </div>
 
