@@ -222,7 +222,10 @@ export const OrganizationTab = () => {
 
         {/* Banners */}
         <div className="space-y-4">
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Banners do Topo (Carrossel)</label>
+          <div className="flex justify-between items-baseline">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Banners do Topo (Carrossel)</label>
+            <span className="text-[10px] font-bold text-slate-400">Dimensões: 1920x822px (21:9)</span>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {(storeSettings.banners || []).map((url, i) => (
               <div key={i} className="group relative aspect-[21/9] bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
@@ -245,7 +248,10 @@ export const OrganizationTab = () => {
 
         {/* Portfólio */}
         <div className="space-y-4">
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Portfólio de Casos Reais</label>
+          <div className="flex justify-between items-baseline">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Portfólio de Casos Reais</label>
+            <span className="text-[10px] font-bold text-slate-400">Dimensões: 1080x1080px (1:1)</span>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
              {(storeSettings.portfolio || []).map((item) => (
                <div key={item.id} className="flex gap-4 p-3 bg-slate-50 rounded-2xl border border-slate-200 relative group">
