@@ -438,8 +438,8 @@ export const Receipts: React.FC = () => {
         r.referente?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const canView = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.permissions?.includes('receipts:view') || currentUser?.permissions?.includes('receipts:manage');
-    const canManage = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.permissions?.includes('receipts:manage');
+    const canView = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.permissions?.includes('receipts:view') || currentUser?.permissions?.includes('receipts:edit');
+    const canManage = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.permissions?.includes('receipts:edit');
 
     if (!canView && !isLoading) {
         return (

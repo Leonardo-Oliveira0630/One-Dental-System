@@ -326,7 +326,6 @@ export interface Job {
   ratingId?: string; 
   routeId?: string;
   chatEnabled?: boolean;
-  products?: JobProduct[];
 }
 
 export interface Sector {
