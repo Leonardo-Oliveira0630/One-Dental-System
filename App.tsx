@@ -30,6 +30,7 @@ import { Dentists } from './pages/lab/Dentists';
 import { Finance } from './pages/lab/Finance';
 import { Receipts } from './pages/lab/Receipts';
 import { RoutePlanner } from './pages/lab/RoutePlanner';
+import { Inventory } from './pages/lab/Inventory';
 import { PriceTables } from './pages/lab/PriceTables';
 import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
 import { Plans } from './pages/superadmin/Plans';
@@ -90,6 +91,7 @@ const AppContent = () => {
       <Route path="/lab/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
       <Route path="/lab/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
       <Route path="/lab/logistics" element={<ProtectedRoute><RoutePlanner /></ProtectedRoute>} />
+      <Route path="/lab/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
       <Route path="/lab/price-tables" element={<ProtectedRoute><PriceTables /></ProtectedRoute>} />
 
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />

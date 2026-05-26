@@ -77,6 +77,7 @@ const ALL_PERMISSIONS: PermissionKey[] = [
   'receipts:view', 'receipts:create', 'receipts:edit', 'receipts:delete',
   'logistics:view', 'logistics:create', 'logistics:edit', 'logistics:delete',
   'boxes:view', 'boxes:create', 'boxes:edit', 'boxes:delete',
+  'inventory:view', 'inventory:create', 'inventory:edit', 'inventory:delete',
   'vip:view', 'calendar:view'
 ];
 
@@ -110,7 +111,17 @@ interface AppContextType {
   dentistPayments: DentistPayment[];
   cardMachines: CardMachine[];
   bankAccounts: BankAccount[];
+  inventoryCategories: import('../types').InventoryCategory[];
+  inventoryItems: import('../types').InventoryItem[];
   activeAlert: JobAlert | null;
+
+  addInventoryCategory: (category: Omit<import('../types').InventoryCategory, 'id' | 'organizationId'>) => Promise<void>;
+  updateInventoryCategory: (id: string, updates: Partial<import('../types').InventoryCategory>) => Promise<void>;
+  deleteInventoryCategory: (id: string) => Promise<void>;
+
+  addInventoryItem: (item: Omit<import('../types').InventoryItem, 'id' | 'organizationId'>) => Promise<void>;
+  updateInventoryItem: (id: string, updates: Partial<import('../types').InventoryItem>) => Promise<void>;
+  deleteInventoryItem: (id: string) => Promise<void>;
 
   login: (email: string, pass: string) => Promise<void>;
   logout: () => void;
@@ -248,6 +259,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [priceTables, setPriceTables] = useState<PriceTable[]>([]);
   const [cardMachines, setCardMachines] = useState<CardMachine[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [inventoryCategories, setInventoryCategories] = useState<import('../types').InventoryCategory[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<import('../types').InventoryItem[]>([]);
   const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]);
   const [dentistPayments, setDentistPayments] = useState<DentistPayment[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
@@ -381,6 +394,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribePriceTables(myOrgId, setPriceTables));
             unsubs.push(api.subscribeCardMachines(myOrgId, setCardMachines));
             unsubs.push(api.subscribeBankAccounts(myOrgId, setBankAccounts));
+            unsubs.push(api.subscribeInventoryCategories(myOrgId, setInventoryCategories));
+            unsubs.push(api.subscribeInventoryItems(myOrgId, setInventoryItems));
         }
     }
     
@@ -495,6 +510,37 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       } catch (err: any) {
           handleFirestoreError(err, OperationType.UPDATE, `organizations/${orgId}/jobs/${id}`);
       }
+  };
+
+  const addInventoryCategory = async (category: Omit<import('../types').InventoryCategory, 'id' | 'organizationId'>) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiAddInventoryCategory(orgId, { ...category, id: `inv_cat_${Date.now()}`, organizationId: orgId });
+  };
+  const updateInventoryCategory = async (id: string, updates: Partial<import('../types').InventoryCategory>) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiUpdateInventoryCategory(orgId, id, updates);
+  };
+  const deleteInventoryCategory = async (id: string) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiDeleteInventoryCategory(orgId, id);
+  };
+  const addInventoryItem = async (item: Omit<import('../types').InventoryItem, 'id' | 'organizationId'>) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiAddInventoryItem(orgId, { ...item, id: `inv_item_${Date.now()}`, organizationId: orgId });
+  };
+  const updateInventoryItem = async (id: string, updates: Partial<import('../types').InventoryItem>) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiUpdateInventoryItem(orgId, id, updates);
+  };
+  const deleteInventoryItem = async (id: string) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiDeleteInventoryItem(orgId, id);
   };
 
   const addCommissionRecord = async (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => {
@@ -837,11 +883,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
     allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, 
-    cardMachines, bankAccounts,
+    cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     activeAlert,
     allPayments,
     login, logout, updateUser, addUser, deleteUser,
     addJob, updateJob, addCommissionRecord, updateCommissionStatus, updateCommissionRecord, deleteCommissionRecord,
+    addInventoryCategory, updateInventoryCategory, deleteInventoryCategory, addInventoryItem, updateInventoryItem, deleteInventoryItem,
     addJobType, updateJobType, deleteJobType,
     addClinicService, updateClinicService, deleteClinicService,
     addClinicRoom, updateClinicRoom, deleteClinicRoom,
@@ -867,7 +914,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
     allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
-    cardMachines, bankAccounts,
+    cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allPayments, cart, printData, activeOrganization, userConnections, activeDataId
   ]);
 

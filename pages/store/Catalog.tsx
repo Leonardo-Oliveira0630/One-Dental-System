@@ -489,16 +489,29 @@ export const Catalog = () => {
                     >
                         {/* Filters */}
                         <div className="flex flex-col md:flex-row gap-6 items-center bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
-                            <div className="relative flex-1 w-full">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={24} />
-                                <input 
-                                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-lg"
-                                    placeholder="Qual serviço você procura?"
-                                    value={term}
-                                    onChange={(e) => setTerm(e.target.value)}
-                                />
+                            <div className="relative flex-1 w-full flex flex-col gap-3">
+                                <div className="relative">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={24} />
+                                    <input 
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-lg"
+                                        placeholder="Qual serviço você procura? Ex: Coroa, Coping..."
+                                        value={term}
+                                        onChange={(e) => setTerm(e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {categories.slice(0, 8).map(cat => (
+                                        <button 
+                                            key={cat} 
+                                            onClick={() => setSelectedCategory(selectedCategory === cat ? 'ALL' : cat)} 
+                                            className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-full transition-all border ${selectedCategory === cat ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100 hover:text-indigo-500'}`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="relative min-w-[200px] w-full md:w-auto">
+                            <div className="relative min-w-[200px] w-full md:w-auto self-start md:self-center">
                                 <select 
                                     value={selectedCategory} 
                                     onChange={(e) => setSelectedCategory(e.target.value)}

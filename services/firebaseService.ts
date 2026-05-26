@@ -361,6 +361,27 @@ export const apiAddJobType = (orgId: string, type: JobType) => setDoc(doc(db, `o
 export const apiUpdateJobType = (orgId: string, id: string, updates: Partial<JobType>) => updateDoc(doc(db, `organizations/${orgId}/jobTypes`, id), updates);
 export const apiDeleteJobType = (id: string, id2: string) => deleteDoc(doc(db, `organizations/${id}/jobTypes`, id2));
 
+// --- INVENTORY ---
+export const subscribeInventoryCategories = (orgId: string, cb: (categories: any[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/inventoryCategories`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any })));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeInventoryCategories: ${error.code}`));
+};
+export const apiAddInventoryCategory = (orgId: string, category: any) => setDoc(doc(db, `organizations/${orgId}/inventoryCategories`, category.id), category);
+export const apiUpdateInventoryCategory = (orgId: string, id: string, updates: any) => updateDoc(doc(db, `organizations/${orgId}/inventoryCategories`, id), updates);
+export const apiDeleteInventoryCategory = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/inventoryCategories`, id));
+
+export const subscribeInventoryItems = (orgId: string, cb: (items: any[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/inventoryItems`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any })));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeInventoryItems: ${error.code}`));
+};
+export const apiAddInventoryItem = (orgId: string, item: any) => setDoc(doc(db, `organizations/${orgId}/inventoryItems`, item.id), item);
+export const apiUpdateInventoryItem = (orgId: string, id: string, updates: any) => updateDoc(doc(db, `organizations/${orgId}/inventoryItems`, id), updates);
+export const apiDeleteInventoryItem = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/inventoryItems`, id));
+
 // --- PRICE TABLES ---
 export const subscribePriceTables = (orgId: string, cb: (tables: PriceTable[]) => void) => {
     if (!orgId) return () => {};

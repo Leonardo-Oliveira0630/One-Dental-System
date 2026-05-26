@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star } from 'lucide-react';
+import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info } from 'lucide-react';
 import { StoreSettings } from '../../types';
 
 export const OrganizationTab = () => {
@@ -222,9 +222,11 @@ export const OrganizationTab = () => {
 
         {/* Banners */}
         <div className="space-y-4">
-          <div className="flex justify-between items-baseline">
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Banners do Topo (Carrossel)</label>
-            <span className="text-[10px] font-bold text-slate-400">Dimensões: 1920x822px (21:9)</span>
+          <div className="flex flex-col mb-2">
+            <label className="block text-xs font-black text-slate-800 uppercase tracking-widest pl-1 mb-1">Banners do Topo (Carrossel)</label>
+            <p className="text-xs bg-indigo-50 text-indigo-700 py-1.5 px-3 rounded-lg font-bold border border-indigo-100 flex items-center gap-2">
+                <Info size={14}/> Resolução exigida: 1920 x 822 pixels (Formato Paisagem 21:9)
+            </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {(storeSettings.banners || []).map((url, i) => (
@@ -248,9 +250,11 @@ export const OrganizationTab = () => {
 
         {/* Portfólio */}
         <div className="space-y-4">
-          <div className="flex justify-between items-baseline">
-            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Portfólio de Casos Reais</label>
-            <span className="text-[10px] font-bold text-slate-400">Dimensões: 1080x1080px (1:1)</span>
+          <div className="flex flex-col mb-2">
+            <label className="block text-xs font-black text-slate-800 uppercase tracking-widest pl-1 mb-1">Portfólio de Casos Reais</label>
+            <p className="text-xs bg-indigo-50 text-indigo-700 py-1.5 px-3 rounded-lg font-bold border border-indigo-100 flex items-center gap-2">
+                <Info size={14}/> Resolução exigida: 1080 x 1080 pixels (Formato Quadrado 1:1)
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
              {(storeSettings.portfolio || []).map((item) => (

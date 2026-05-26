@@ -355,7 +355,8 @@ export const JobDetails = () => {
       };
       const newItems = [...editItems, newItem];
       setEditItems(newItems);
-      setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0));
+      const productsTotal = (job.products || []).reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
+      setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) + productsTotal);
       setNewItemNature('NORMAL');
       setNewItemVariationIds([]);
   };
@@ -363,7 +364,8 @@ export const JobDetails = () => {
   const handleRemoveItemFromJob = (itemId: string) => {
       const newItems = editItems.filter(i => i.id !== itemId);
       setEditItems(newItems);
-      setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0));
+      const productsTotal = (job.products || []).reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
+      setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) + productsTotal);
   };
 
   const handleToggleChat = async () => {
@@ -890,7 +892,8 @@ export const JobDetails = () => {
           return i;
       });
 
-      const newTotalValue = updatedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+      const productsTotal = (job.products || []).reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
+      const newTotalValue = updatedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) + productsTotal;
 
       await updateJob(job.id, { 
           items: updatedItems,
@@ -1708,6 +1711,31 @@ export const JobDetails = () => {
                                 );
                             })}
                         </div>
+
+                        {job.products && job.products.length > 0 && (
+                            <div className="mt-6 pt-6 border-t border-slate-100">
+                                <h4 className="text-xs font-black text-slate-800 mb-3 flex items-center gap-2 uppercase tracking-widest"><Package size={14} className="text-amber-500" /> Produtos & Componentes Adicionais</h4>
+                                <div className="space-y-2">
+                                    {job.products.map(prod => (
+                                        <div key={prod.id} className="flex justify-between items-center p-3 bg-amber-50/50 rounded-2xl border border-amber-100">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-amber-500 text-white rounded-lg flex items-center justify-center font-black text-xs">{prod.quantity}</div>
+                                                <div className="min-w-0">
+                                                    <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{prod.name}</p>
+                                                    {prod.dentistOwnerId && (
+                                                        <p className="text-[9px] text-amber-700 font-bold uppercase overflow-hidden whitespace-nowrap text-ellipsis mt-1">Estoque do Próprio Dentista</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-black text-slate-700 text-sm">R$ {(prod.unitPrice * prod.quantity).toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="mt-6 pt-6 border-t border-slate-200 text-right shrink-0">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Valor Total da OS</span>
                             <div className="text-2xl md:text-3xl font-black text-slate-900 leading-none mt-1">R$ {job.totalValue.toFixed(2)}</div>

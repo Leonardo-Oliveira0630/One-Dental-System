@@ -152,8 +152,41 @@ export type PermissionKey =
   | 'receipts:view' | 'receipts:create' | 'receipts:edit' | 'receipts:delete'
   | 'logistics:view' | 'logistics:create' | 'logistics:edit' | 'logistics:delete'
   | 'boxes:view' | 'boxes:create' | 'boxes:edit' | 'boxes:delete'
+  | 'inventory:view' | 'inventory:create' | 'inventory:edit' | 'inventory:delete'
   | 'vip:view'
   | 'calendar:view';
+
+export type InventoryItemType = 'MATERIAL' | 'MACHINERY' | 'SUPPLY' | 'IMPLANT' | 'OTHER';
+
+export interface InventoryCategory {
+  id: string;
+  name: string;
+  type: InventoryItemType;
+  organizationId: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  categoryId: string;
+  name: string;
+  description?: string;
+  type: InventoryItemType;
+  currentStock: number;
+  minStock: number;
+  costPrice: number;
+  sellPrice: number;
+  dentistOwnerId?: string | null;
+  organizationId: string;
+}
+
+export interface JobProduct {
+  id: string;
+  inventoryItemId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  dentistOwnerId?: string | null;
+}
 
 export enum JobStatus {
   PENDING = 'PENDING',
@@ -269,6 +302,7 @@ export interface Job {
   status: JobStatus;
   urgency: UrgencyLevel;
   items: JobItem[];
+  products?: JobProduct[];
   history: JobHistory[];
   sectorMovements?: SectorMovement[];
   itemExecutions?: JobItemExecution[];
@@ -292,6 +326,7 @@ export interface Job {
   ratingId?: string; 
   routeId?: string;
   chatEnabled?: boolean;
+  products?: JobProduct[];
 }
 
 export interface Sector {

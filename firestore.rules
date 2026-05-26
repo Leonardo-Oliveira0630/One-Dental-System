@@ -39,6 +39,15 @@ service cloud.firestore {
       return isAuthenticated() && userExists() && getUserData().get('organizationId', '') == orgId;
     }
 
+    match /organizations/{orgId}/inventoryCategories/{categoryId} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+    }
+    match /organizations/{orgId}/inventoryItems/{itemId} {
+      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+    }
+    
     match /users/{userId} {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId || 

@@ -10,7 +10,7 @@ import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Searc
 type EntryType = 'NEW' | 'CONTINUATION';
 
 export const NewJob = () => {
-  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables } = useApp();
+  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -33,10 +33,16 @@ export const NewJob = () => {
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [notes, setNotes] = useState('');
   const [addedItems, setAddedItems] = useState<JobItem[]>(location.state?.items || []);
+  const [addedProducts, setAddedProducts] = useState<import('../types').JobProduct[]>([]);
   const [lastCreatedJob, setLastCreatedJob] = useState<Job | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOsConflictPopup, setShowOsConflictPopup] = useState(false);
   const [suggestedOsNumber, setSuggestedOsNumber] = useState('');
+  
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [productQuantity, setProductQuantity] = useState(1);
+  const [productManualPrice, setProductManualPrice] = useState<number | null>(null);
 
   useEffect(() => {
     // If state passed a dentistId, we need to find it and populate names
@@ -305,6 +311,36 @@ export const NewJob = () => {
   
   useEffect(() => { setSelectedVariations({}); setVariationTextValues({}); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL'); }, [selectedTypeId]);
 
+  const handleAddProduct = () => {
+    if (!selectedProductId) return;
+    const invItem = inventoryItems.find(i => i.id === selectedProductId);
+    if (!invItem) return;
+    
+    if (invItem.currentStock < productQuantity) {
+        alert("Quantidade insuficiente no estoque.");
+        return;
+    }
+
+    const newProd = {
+        id: Math.random().toString(),
+        inventoryItemId: invItem.id,
+        name: invItem.name,
+        quantity: productQuantity,
+        unitPrice: productManualPrice !== null ? productManualPrice : invItem.sellPrice,
+        dentistOwnerId: invItem.dentistOwnerId
+    };
+
+    setAddedProducts([...addedProducts, newProd]);
+    setSelectedProductId('');
+    setProductQuantity(1);
+    setProductManualPrice(null);
+    setIsAddingProduct(false);
+  };
+
+  const handleRemoveProduct = (id: string) => {
+    setAddedProducts(addedProducts.filter(p => p.id !== id));
+  };
+
   const handleAddItem = () => {
     if (!activeJobType) return;
     const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
@@ -384,7 +420,9 @@ export const NewJob = () => {
     if (addedItems.length === 0) { alert("Adicione pelo menos um serviço ao caso."); return; }
     if (!currentUser) return;
 
-    const totalValue = addedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const itemsTotal = addedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const productsTotal = addedProducts.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
+    const totalValue = itemsTotal + productsTotal;
     const boxColor = boxColors.find(c => c.id === selectedColorId);
     const initialSector = currentUser.sector || 'Recepção';
     
@@ -397,6 +435,7 @@ export const NewJob = () => {
         paymentStatus: 'PENDING', 
         urgency, 
         items: addedItems, 
+        products: addedProducts,
         history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Caso registrado manualmente via ${initialSector}`, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
         sectorMovements: [{
             id: Math.random().toString(),
@@ -417,6 +456,17 @@ export const NewJob = () => {
     setIsSubmitting(true);
     try {
         await addJob(newJob); 
+        
+        // Deduct stock for each added product
+        for (const prod of addedProducts) {
+            const invItem = inventoryItems.find(i => i.id === prod.inventoryItemId);
+            if (invItem) {
+                await updateInventoryItem(prod.inventoryItemId, {
+                    currentStock: invItem.currentStock - prod.quantity
+                });
+            }
+        }
+
         setLastCreatedJob({ ...newJob, id: 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
     } catch (err) { 
         alert("Erro ao salvar o caso no sistema. Verifique sua conexão com a internet."); 
@@ -704,6 +754,72 @@ export const NewJob = () => {
                                 <div className="flex items-center gap-3">
                                     <span className="font-black text-slate-700 text-sm">R$ {(item.price * item.quantity).toFixed(2)}</span>
                                     <button type="button" onClick={() => setAddedItems(addedItems.filter(i => i.id !== item.id))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                                </div>
+                            </div>
+                        ))}
+                       </div>
+                    )}
+                </div>
+
+                <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Package size={18} className="text-blue-500" /> Venda de Implantes/Componentes</h2>
+                        <button type="button" onClick={() => setIsAddingProduct(!isAddingProduct)} className={`text-xs font-black px-3 py-1.5 rounded-lg transition-colors ${isAddingProduct ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
+                            {isAddingProduct ? 'Cancelar' : '+ Vender Produto'}
+                        </button>
+                    </div>
+
+                    {isAddingProduct && (
+                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4 mb-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase">Produto / Implante</label>
+                                    <select value={selectedProductId} onChange={e => {
+                                        setSelectedProductId(e.target.value);
+                                        const prod = inventoryItems.find(i => i.id === e.target.value);
+                                        if (prod) setProductManualPrice(prod.sellPrice);
+                                    }} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="">Selecione um item no estoque...</option>
+                                        {inventoryItems.map(item => (
+                                            <option key={item.id} value={item.id} disabled={item.currentStock <= 0}>
+                                                {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : 'Sem Estoque'}) {item.dentistOwnerId ? '- ESTOQUE DO CLIENTE' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="space-y-1 flex-1">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase">Qtd.</label>
+                                        <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
+                                    </div>
+                                    <div className="space-y-1 flex-1">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase">Valor de Venda (R$)</label>
+                                        <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" onClick={handleAddProduct} disabled={!selectedProductId} className="w-full py-3 bg-blue-600 text-white font-black rounded-xl cursor-pointer hover:bg-blue-700 disabled:opacity-50 transition-all text-xs">
+                                ADICIONAR PRODUTO AO CASO
+                            </button>
+                        </div>
+                    )}
+
+                    {addedProducts.length > 0 && (
+                      <div className="space-y-2 mt-4 border-t border-slate-100 pt-4">
+                        {addedProducts.map(prod => (
+                            <div key={prod.id} className="flex justify-between items-center p-3 bg-amber-50/50 rounded-2xl border border-amber-100 animate-in slide-in-from-right-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-amber-500 text-white rounded-lg flex items-center justify-center font-black text-xs">{prod.quantity}</div>
+                                    <div className="min-w-0">
+                                        <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{prod.name}</p>
+                                        {prod.dentistOwnerId && (
+                                            <p className="text-[9px] text-amber-700 font-bold uppercase overflow-hidden whitespace-nowrap text-ellipsis mt-1">Estoque do Próprio Dentista</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="font-black text-slate-700 text-sm">R$ {(prod.unitPrice * prod.quantity).toFixed(2)}</span>
+                                    <button type="button" onClick={() => handleRemoveProduct(prod.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
                                 </div>
                             </div>
                         ))}
