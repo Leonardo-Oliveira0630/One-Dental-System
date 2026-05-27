@@ -60,6 +60,7 @@ export const Inventory = () => {
         const items = itemGroups[activeOwnerGroup] || [];
         return items.filter(i => 
             i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (i.code && i.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
             (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
             (inventoryCategories.find(c => c.id === i.categoryId)?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
         );
@@ -277,7 +278,10 @@ export const Inventory = () => {
                                         return (
                                             <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                                                 <td className="p-4">
-                                                    <div className="font-bold text-slate-800">{item.name}</div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="font-bold text-slate-800">{item.name}</div>
+                                                        {item.code && <span className="text-[10px] font-black bg-slate-100 text-slate-500 py-0.5 px-1.5 rounded uppercase tracking-wider">{item.code}</span>}
+                                                    </div>
                                                     {item.description && <div className="text-xs text-slate-500 mt-1 truncate max-w-[250px]">{item.description}</div>}
                                                     <div className="text-[10px] bg-slate-100 text-slate-500 inline-block px-2 py-0.5 rounded mt-1">{item.type}</div>
                                                 </td>
@@ -363,9 +367,15 @@ export const Inventory = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="md:col-span-2 space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome do Produto</label>
-                                    <input required type="text" value={itemForm.name || ''} onChange={e => setItemForm({...itemForm, name: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ex: Componente Titânio Hexágono Externo" />
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome do Produto</label>
+                                        <input required type="text" value={itemForm.name || ''} onChange={e => setItemForm({...itemForm, name: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ex: Componente Titânio Hexágono Externo" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Código do Item (SKU)</label>
+                                        <input type="text" value={itemForm.code || ''} onChange={e => setItemForm({...itemForm, code: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none uppercase" placeholder="Ex: TIT-HEX-001" />
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Descrição (Opcional)</label>

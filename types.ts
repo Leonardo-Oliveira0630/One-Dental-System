@@ -169,6 +169,7 @@ export interface InventoryItem {
   id: string;
   categoryId: string;
   name: string;
+  code?: string;
   description?: string;
   type: InventoryItemType;
   currentStock: number;
