@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InventoryCategory, InventoryItem, InventoryItemType } from '../../types';
-import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, Save } from 'lucide-react';
+import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, Save, ArrowLeft, ChevronDown, User as UserIcon } from 'lucide-react';
 
 export const Inventory = () => {
     const { 
         inventoryCategories, inventoryItems, 
         addInventoryCategory, updateInventoryCategory, deleteInventoryCategory,
         addInventoryItem, updateInventoryItem, deleteInventoryItem,
-        manualDentists, currentUser 
+        manualDentists, allUsers, currentUser 
     } = useApp();
 
     const [activeTab, setActiveTab] = useState<'ITEMS' | 'CATEGORIES'>('ITEMS');
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeOwnerGroup, setActiveOwnerGroup] = useState<string | null>(null);
+    const [dentistSearch, setDentistSearch] = useState('');
+    const [showDentistDropdown, setShowDentistDropdown] = useState(false);
     
     // Auth & Permissions
     const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
@@ -32,12 +35,49 @@ export const Inventory = () => {
         name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ''
     });
 
+    const clients = React.useMemo(() => {
+        return [
+            ...manualDentists, 
+            ...(allUsers || []).filter(u => u.role === 'CLIENT')
+        ];
+    }, [manualDentists, allUsers]);
+
     const filteredCategories = inventoryCategories.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const filteredItems = inventoryItems.filter(i => {
-        return i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    });
+    // Group all items by owner
+    const itemGroups = React.useMemo(() => {
+        const groups: Record<string, InventoryItem[]> = { 'LAB': [] };
+        inventoryItems.forEach(item => {
+            const owner = item.dentistOwnerId || 'LAB';
+            if (!groups[owner]) groups[owner] = [];
+            groups[owner].push(item);
+        });
+        return groups;
+    }, [inventoryItems]);
+
+    const filteredItems = React.useMemo(() => {
+        if (!activeOwnerGroup) return [];
+        const items = itemGroups[activeOwnerGroup] || [];
+        return items.filter(i => 
+            i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            (inventoryCategories.find(c => c.id === i.categoryId)?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [activeOwnerGroup, itemGroups, searchQuery, inventoryCategories]);
+
+    const getDentistName = (id?: string | null) => {
+        if (!id) return 'Laboratório (Geral)';
+        const d = clients.find(x => x.id === id);
+        return d ? (d.clinicName || d.name) : 'Desconhecido';
+    };
+
+    const ownerOptions = Object.keys(itemGroups).map(key => {
+        return {
+            id: key,
+            name: getDentistName(key === 'LAB' ? null : key),
+            itemCount: itemGroups[key].length
+        };
+    }).filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const openCatModal = (cat?: InventoryCategory) => {
         if (cat) {
@@ -65,11 +105,14 @@ export const Inventory = () => {
         if (item) {
             setEditingItemId(item.id);
             setItemForm({ ...item, dentistOwnerId: item.dentistOwnerId || '' });
+            setDentistSearch(getDentistName(item.dentistOwnerId));
         } else {
             setEditingItemId(null);
+            const ownerId = activeOwnerGroup && activeOwnerGroup !== 'LAB' ? activeOwnerGroup : '';
             setItemForm({
-                name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ''
+                name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ownerId
             });
+            setDentistSearch(ownerId ? getDentistName(ownerId) : '');
         }
         setIsItemModalOpen(true);
     };
@@ -89,11 +132,16 @@ export const Inventory = () => {
         setIsItemModalOpen(false);
     };
 
-    const getDentistName = (id?: string | null) => {
-        if (!id) return 'Estoque do Laboratório';
-        const d = manualDentists.find(x => x.id === id);
-        return d ? d.name : 'Desconhecido';
+    const handleSelectDentist = (dentistId: string | null, dentistName: string) => {
+        setItemForm({ ...itemForm, dentistOwnerId: dentistId || '' });
+        setDentistSearch(dentistName);
+        setShowDentistDropdown(false);
     };
+
+    const activeDentistSuggestions = React.useMemo(() => {
+        const term = dentistSearch.toLowerCase();
+        return clients.filter(c => c.name.toLowerCase().includes(term) || (c.clinicName && c.clinicName.toLowerCase().includes(term))).slice(0, 10);
+    }, [dentistSearch, clients]);
 
     return (
         <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 pb-32">
@@ -172,72 +220,101 @@ export const Inventory = () => {
             )}
 
             {activeTab === 'ITEMS' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[800px]">
-                        <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Produto</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Categoria</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Estoque</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Preço Venda</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Proprietário</th>
-                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filteredItems.map(item => {
-                                const cat = inventoryCategories.find(c => c.id === item.categoryId);
-                                const isLowStock = item.currentStock <= item.minStock;
-                                return (
-                                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-4">
-                                            <div className="font-bold text-slate-800">{item.name}</div>
-                                            {item.description && <div className="text-xs text-slate-500 mt-1 truncate max-w-[250px]">{item.description}</div>}
-                                            <div className="text-[10px] bg-slate-100 text-slate-500 inline-block px-2 py-0.5 rounded mt-1">{item.type}</div>
-                                        </td>
-                                        <td className="p-4 font-medium text-slate-600">{cat?.name || 'Desconhecida'}</td>
-                                        <td className="p-4 text-right">
-                                            <div className={`inline-flex items-center px-3 py-1 rounded-full font-black text-sm ${isLowStock ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
-                                                {item.currentStock}
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-right font-bold text-slate-800">
-                                            {item.sellPrice > 0 ? (
-                                                new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sellPrice)
-                                            ) : (
-                                                <span className="text-slate-400">R$ 0,00</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4">
-                                            {item.dentistOwnerId ? (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-full">
-                                                    <Tag size={12}/> {getDentistName(item.dentistOwnerId)}
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full">
-                                                    <Box size={12}/> Laboratório
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                {canEdit && <button onClick={() => openItemModal(item)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={18}/></button>}
-                                                {canDelete && <button onClick={() => deleteInventoryItem(item.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18}/></button>}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            {filteredItems.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="p-12 text-center text-slate-500">
-                                        Nenhum produto encontrado.
-                                    </td>
-                                </tr>
+                <>
+                    {activeOwnerGroup === null ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {ownerOptions.map(owner => (
+                                <div key={owner.id} onClick={() => setActiveOwnerGroup(owner.id)} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className={`p-4 rounded-2xl ${owner.id === 'LAB' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
+                                            {owner.id === 'LAB' ? <Box size={32} /> : <UserIcon size={32} />}
+                                        </div>
+                                    </div>
+                                    <h3 className="text-lg font-black text-slate-800 line-clamp-2">{owner.name}</h3>
+                                    <div className="mt-4 flex justify-between items-center">
+                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
+                                            <Package size={12}/> {owner.itemCount} Produtos
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {ownerOptions.length === 0 && (
+                                <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-2xl border border-slate-100">
+                                    Nenhuma fonte de estoque encontrada.
+                                </div>
                             )}
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
+                            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <button onClick={() => setActiveOwnerGroup(null)} className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+                                        <ArrowLeft size={18} className="text-slate-600" />
+                                    </button>
+                                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                                        {activeOwnerGroup === 'LAB' ? <Box className="text-indigo-600"/> : <UserIcon className="text-amber-600"/>}
+                                        {getDentistName(activeOwnerGroup === 'LAB' ? null : activeOwnerGroup)}
+                                    </h2>
+                                </div>
+                                <div className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                                    {filteredItems.length} Produtos
+                                </div>
+                            </div>
+                            <table className="w-full text-left border-collapse min-w-[800px]">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-200">
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Produto</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Categoria</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Estoque</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Preço Venda</th>
+                                        <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredItems.map(item => {
+                                        const cat = inventoryCategories.find(c => c.id === item.categoryId);
+                                        const isLowStock = item.currentStock <= item.minStock;
+                                        return (
+                                            <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="p-4">
+                                                    <div className="font-bold text-slate-800">{item.name}</div>
+                                                    {item.description && <div className="text-xs text-slate-500 mt-1 truncate max-w-[250px]">{item.description}</div>}
+                                                    <div className="text-[10px] bg-slate-100 text-slate-500 inline-block px-2 py-0.5 rounded mt-1">{item.type}</div>
+                                                </td>
+                                                <td className="p-4 font-medium text-slate-600">{cat?.name || 'Desconhecida'}</td>
+                                                <td className="p-4 text-right">
+                                                    <div className={`inline-flex items-center px-3 py-1 rounded-full font-black text-sm ${isLowStock ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
+                                                        {item.currentStock}
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 text-right font-bold text-slate-800">
+                                                    {item.sellPrice > 0 ? (
+                                                        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.sellPrice)
+                                                    ) : (
+                                                        <span className="text-slate-400">R$ 0,00</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <div className="flex justify-end gap-2">
+                                                        {canEdit && <button onClick={() => openItemModal(item)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={18}/></button>}
+                                                        {canDelete && <button onClick={() => deleteInventoryItem(item.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18}/></button>}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {filteredItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="p-12 text-center text-slate-500">
+                                                Nenhum produto encontrado.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </>
             )}
 
             {/* Category Modal */}
@@ -309,14 +386,58 @@ export const Inventory = () => {
                                 </select>
                             </div>
 
-                            <div>
+                            <div className="relative">
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Proprietário (Especial Implantes)</label>
-                                <select value={itemForm.dentistOwnerId || ''} onChange={e => setItemForm({...itemForm, dentistOwnerId: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none appearance-none">
-                                    <option value="">Estoque do Laboratório (Geral)</option>
-                                    {manualDentists.map(d => (
-                                        <option key={d.id} value={d.id}>Estoque Cliente: {d.name}</option>
-                                    ))}
-                                </select>
+                                <div className="relative">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                        <Search size={16} />
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={dentistSearch}
+                                        onFocus={() => setShowDentistDropdown(true)}
+                                        onBlur={() => setTimeout(() => setShowDentistDropdown(false), 200)}
+                                        onChange={e => {
+                                            setDentistSearch(e.target.value);
+                                            setShowDentistDropdown(true);
+                                            if (e.target.value === '') {
+                                                setItemForm({ ...itemForm, dentistOwnerId: '' });
+                                            }
+                                        }}
+                                        className="w-full pl-10 pr-4 py-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                        placeholder="Buscar laboratório ou cliente..."
+                                    />
+                                    <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                </div>
+                                {showDentistDropdown && (
+                                    <div className="absolute z-10 w-full mt-2 bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto">
+                                        <button 
+                                            type="button"
+                                            onClick={() => handleSelectDentist(null, 'Laboratório (Geral)')}
+                                            className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3 border-b border-slate-100"
+                                        >
+                                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Box size={16}/></div>
+                                            <div>
+                                                <div className="font-bold text-slate-800">Laboratório (Geral)</div>
+                                                <div className="text-xs text-slate-500">Estoque do próprio laboratório</div>
+                                            </div>
+                                        </button>
+                                        {activeDentistSuggestions.map(d => (
+                                            <button 
+                                                key={d.id}
+                                                type="button"
+                                                onClick={() => handleSelectDentist(d.id, d.clinicName || d.name)}
+                                                className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center gap-3"
+                                            >
+                                                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><UserIcon size={16}/></div>
+                                                <div>
+                                                    <div className="font-bold text-slate-800">{d.clinicName || d.name}</div>
+                                                    <div className="text-xs text-slate-500">Estoque Especial do Cliente</div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                                 <p className="text-[10px] mt-2 text-amber-600 font-medium">Você pode criar um estoque isolado de itens de clientes.</p>
                             </div>
 

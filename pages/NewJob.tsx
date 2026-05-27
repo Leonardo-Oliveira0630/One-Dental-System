@@ -43,6 +43,7 @@ export const NewJob = () => {
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productQuantity, setProductQuantity] = useState(1);
   const [productManualPrice, setProductManualPrice] = useState<number | null>(null);
+  const [productDiscountPercent, setProductDiscountPercent] = useState<number>(0);
 
   useEffect(() => {
     // If state passed a dentistId, we need to find it and populate names
@@ -321,12 +322,17 @@ export const NewJob = () => {
         return;
     }
 
+    const basePrice = productManualPrice !== null ? productManualPrice : invItem.sellPrice;
+    const finalPrice = basePrice * (1 - (productDiscountPercent / 100));
+
     const newProd = {
         id: Math.random().toString(),
         inventoryItemId: invItem.id,
         name: invItem.name,
         quantity: productQuantity,
-        unitPrice: productManualPrice !== null ? productManualPrice : invItem.sellPrice,
+        unitPrice: finalPrice,
+        basePriceBeforeDiscount: basePrice,
+        appliedDiscount: productDiscountPercent,
         dentistOwnerId: invItem.dentistOwnerId
     };
 
@@ -334,6 +340,7 @@ export const NewJob = () => {
     setSelectedProductId('');
     setProductQuantity(1);
     setProductManualPrice(null);
+    setProductDiscountPercent(0);
     setIsAddingProduct(false);
   };
 
@@ -792,9 +799,21 @@ export const NewJob = () => {
                                         <label className="text-[10px] font-black text-slate-500 uppercase">Qtd.</label>
                                         <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
                                     </div>
-                                    <div className="space-y-1 flex-1">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase">Valor de Venda (R$)</label>
+                                    <div className="space-y-1 flex-[1.5]">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase">Valor Un. (R$)</label>
                                         <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(Number(e.target.value))} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white" />
+                                    </div>
+                                    <div className="space-y-1 flex-[1.5]">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase flex justify-between items-center">
+                                           <span>Desc (%)</span>
+                                           {productDiscountPercent > 0 && <span className="text-[8px] text-green-600 font-bold bg-green-50 px-1 rounded">-{(productDiscountPercent).toFixed(1)}%</span>}
+                                        </label>
+                                        <div className="relative">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                <Percent size={14} />
+                                            </div>
+                                            <input type="number" step="0.01" min="0" max="100" value={productDiscountPercent} onChange={e => setProductDiscountPercent(Number(e.target.value))} className="w-full pl-9 pr-2 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>

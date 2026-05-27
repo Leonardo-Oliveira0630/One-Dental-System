@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useApp } from '../context/AppContext';
-import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus } from '../types';
+import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct } from '../types';
 import { 
   ArrowLeft, Calendar, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
@@ -168,6 +168,7 @@ export const JobDetails = () => {
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
   const [editItems, setEditItems] = useState<JobItem[]>([]);
+  const [editProducts, setEditProducts] = useState<JobProduct[]>([]);
   const [newItemTypeId, setNewItemTypeId] = useState('');
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
@@ -221,6 +222,7 @@ export const JobDetails = () => {
         setEditUrgency(job.urgency);
         setEditNotes(job.notes || '');
         setEditItems(job.items);
+        setEditProducts(job.products || []);
         setEditDentistId(job.dentistId || '');
         setEditDentistName(job.dentistName || '');
         setDentistSearchQuery(job.dentistName || '');
@@ -368,6 +370,35 @@ export const JobDetails = () => {
       setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) + productsTotal);
   };
 
+  const handleRemoveProductFromJob = (prodId: string) => {
+      const newProds = editProducts.filter(p => p.id !== prodId);
+      setEditProducts(newProds);
+      const itemsTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+      setEditTotalValue(itemsTotal + newProds.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0));
+  };
+
+  const handleProductChange = (prodId: string, field: 'quantity' | 'basePriceBeforeDiscount' | 'appliedDiscount', value: number) => {
+      const newProds = editProducts.map(p => {
+          if (p.id === prodId) {
+              const basePrice = field === 'basePriceBeforeDiscount' ? value : (p.basePriceBeforeDiscount ?? p.unitPrice);
+              const appliedDiscount = field === 'appliedDiscount' ? value : (p.appliedDiscount || 0);
+              const quantity = field === 'quantity' ? value : p.quantity;
+              
+              const finalPrice = basePrice * (1 - (appliedDiscount / 100));
+              return {
+                  ...p,
+                  [field]: value,
+                  unitPrice: finalPrice,
+                  quantity
+              };
+          }
+          return p;
+      });
+      setEditProducts(newProds);
+      const itemsTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+      setEditTotalValue(itemsTotal + newProds.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0));
+  };
+
   const handleToggleChat = async () => {
       if (!isLabStaff) return;
       const newState = !job.chatEnabled;
@@ -407,6 +438,7 @@ export const JobDetails = () => {
             urgency: editUrgency,
             notes: editNotes,
             items: editItems,
+            products: editProducts,
             totalValue: editTotalValue,
             history: [...(job.history || []).filter(Boolean), {
                 id: `hist_edit_${Date.now()}`,
@@ -1175,6 +1207,40 @@ export const JobDetails = () => {
                                   </div>
                               ))}
                           </div>
+                          
+                          {editProducts.length > 0 && (
+                          <div className="space-y-3 mt-4">
+                              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-1">Produtos Adicionais</h4>
+                              <div className="space-y-2">
+                                  {editProducts.map(prod => (
+                                      <div key={prod.id} className="flex flex-col gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                                          <div className="flex items-center justify-between">
+                                              <div className="text-xs font-bold text-slate-700 truncate"><Package size={12} className="inline mr-1 text-amber-500"/> {prod.name}</div>
+                                              <button type="button" onClick={() => handleRemoveProductFromJob(prod.id)} className="p-1.5 text-slate-400 hover:bg-white hover:text-red-500 rounded-lg transition-colors"><Trash2 size={14}/></button>
+                                          </div>
+                                          <div className="flex gap-2 items-center">
+                                              <div className="flex-1">
+                                                  <label className="text-[9px] font-black text-slate-500 uppercase">Qtd</label>
+                                                  <input type="number" min="1" value={prod.quantity} onChange={(e) => handleProductChange(prod.id, 'quantity', Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
+                                              </div>
+                                              <div className="flex-[1.5]">
+                                                  <label className="text-[9px] font-black text-slate-500 uppercase">Val. Unit</label>
+                                                  <input type="number" step="0.01" value={prod.basePriceBeforeDiscount ?? prod.unitPrice} onChange={(e) => handleProductChange(prod.id, 'basePriceBeforeDiscount', parseFloat(e.target.value) || 0)} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
+                                              </div>
+                                              <div className="flex-[1.5]">
+                                                  <label className="text-[9px] font-black text-slate-500 uppercase">Desc (%)</label>
+                                                  <input type="number" step="0.01" max="100" min="0" value={prod.appliedDiscount || 0} onChange={(e) => handleProductChange(prod.id, 'appliedDiscount', parseFloat(e.target.value) || 0)} className="w-full text-xs font-bold p-1.5 bg-white border border-amber-200 rounded outline-none" />
+                                              </div>
+                                          </div>
+                                          <div className="text-right mt-1 font-black text-slate-700 text-xs">
+                                              Total: R$ {(prod.unitPrice * prod.quantity).toFixed(2)}
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                          )}
+
                           <div className="flex flex-col gap-2 pt-2">
                               <div className="flex flex-wrap gap-2">
                                   <div className="flex-1 min-w-[150px]">

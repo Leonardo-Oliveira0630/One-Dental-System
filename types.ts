@@ -185,6 +185,8 @@ export interface JobProduct {
   name: string;
   quantity: number;
   unitPrice: number;
+  basePriceBeforeDiscount?: number;
+  appliedDiscount?: number;
   dentistOwnerId?: string | null;
 }
 
