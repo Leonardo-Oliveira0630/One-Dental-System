@@ -405,6 +405,7 @@ export interface User {
   organizationId?: string;
   sector?: string;
   permissions?: PermissionKey[]; 
+  termsAcceptedAt?: Date | string;
   clinicName?: string;
   commissionSettings?: UserCommissionSetting[];
   globalDiscountPercent?: number; 

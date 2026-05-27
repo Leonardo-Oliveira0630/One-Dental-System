@@ -37,6 +37,8 @@ import { Plans } from './pages/superadmin/Plans';
 import { Coupons } from './pages/superadmin/Coupons';
 import Subscriptions from './pages/superadmin/Subscriptions';
 import SuperAdminFinance from './pages/superadmin/Finance';
+import { TermsOfUse } from './pages/TermsOfUse';
+import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { Loader2 } from 'lucide-react';
 
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -48,12 +50,18 @@ import { FinancialTab } from './pages/admin/FinancialTab';
 import { SubscriptionTab } from './pages/admin/SubscriptionTab';
 import { OrganizationTab } from './pages/admin/OrganizationTab';
 import { BoxColorsTab } from './pages/admin/BoxColorsTab';
+import { TermsPopup } from './components/TermsPopup';
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, isLoadingAuth } = useApp();
   if (isLoadingAuth) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 text-blue-600 animate-spin" /></div>;
   if (!currentUser) return <Navigate to="/" replace />;
-  return <Layout>{children}</Layout>;
+  return (
+    <>
+      <TermsPopup />
+      <Layout>{children}</Layout>
+    </>
+  );
 };
 
 import Reports from './pages/Reports';
@@ -63,6 +71,8 @@ const AppContent = () => {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/register-lab" element={<RegisterOrganization />} />
+      <Route path="/terms" element={<TermsOfUse />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
       
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
