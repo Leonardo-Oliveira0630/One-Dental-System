@@ -14,10 +14,10 @@ export const TermsPopup = () => {
         setLoading(true);
         try {
             await updateUser(currentUser.id, { termsAcceptedAt: new Date().toISOString() });
+            window.location.reload();
         } catch (error) {
             console.error("Failed to accept terms:", error);
             alert("Ocorreu um erro ao aceitar os termos. Tente novamente.");
-        } finally {
             setLoading(false);
         }
     };
