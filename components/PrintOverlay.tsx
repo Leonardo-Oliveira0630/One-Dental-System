@@ -115,17 +115,33 @@ export const PrintOverlay = () => {
               </div>
               
               <div className="mb-3 flex-1 overflow-hidden flex flex-col">
-                <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Itens do Pedido</h3>
-                <div className="overflow-hidden flex-1">
+                <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Serviços do Pedido</h3>
+                <div className="overflow-hidden">
                   <table className="w-full text-left text-xs">
                       <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24">Natureza</th></tr></thead>
                       <tbody className="divide-y divide-gray-200">
                           {printData.job.items.map((item, idx) => (
-                              <tr key={idx}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{item.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</td></tr>
+                              <tr key={`item-${idx}`}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{item.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</td></tr>
                           ))}
                       </tbody>
                   </table>
                 </div>
+                
+                {printData.job.products && printData.job.products.length > 0 && (
+                  <div className="mt-2">
+                    <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Produtos do Pedido</h3>
+                    <div className="overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                          <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24">Origem</th></tr></thead>
+                          <tbody className="divide-y divide-gray-200">
+                              {printData.job.products.map((prod, idx) => (
+                                  <tr key={`prod-${idx}`}><td className="py-1 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{prod.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td></tr>
+                              ))}
+                          </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="mb-2 border border-gray-300 p-2 rounded h-[60px] shrink-0 overflow-hidden"><h3 className="font-bold text-[10px] uppercase text-gray-500 mb-1">Observações / Instruções</h3><p className="whitespace-pre-wrap text-xs line-clamp-2">{printData.job.notes || "Sem observações."}</p></div>

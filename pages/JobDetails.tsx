@@ -1601,7 +1601,7 @@ export const JobDetails = () => {
                     )}
 
                     <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
-                        <h3 className="text-base md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileText size={20} className="text-blue-500 shrink-0" /> Itens do Pedido</h3>
+                        <h3 className="text-base md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileText size={20} className="text-blue-500 shrink-0" /> Serviços do Pedido</h3>
                         <div className="divide-y divide-slate-100">
                             {job.items.map((item, idx) => {
                                 const jType = jobTypes.find(jt => jt.id === item.jobTypeId);
