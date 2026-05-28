@@ -41,7 +41,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
     });
     
     if (parts.length > 0) {
-        return `${item.name} (${parts.join(', ')})`;
+        return `${item.name} - ${parts.join(' - ')}`;
     }
     return item.name;
 };
