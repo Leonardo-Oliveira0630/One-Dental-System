@@ -24,7 +24,7 @@ const STLViewer = React.lazy(() => import('../components/STLViewer').then(module
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables, inventoryItems } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -173,6 +173,12 @@ export const JobDetails = () => {
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
   const [newItemVariationIds, setNewItemVariationIds] = useState<string[]>([]);
+  
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [productQuantity, setProductQuantity] = useState(1);
+  const [productManualPrice, setProductManualPrice] = useState<number | null>(null);
+  const [productDiscountPercent, setProductDiscountPercent] = useState(0);
 
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
 
@@ -397,6 +403,39 @@ export const JobDetails = () => {
       setEditProducts(newProds);
       const itemsTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
       setEditTotalValue(itemsTotal + newProds.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0));
+  };
+
+  const handleAddProductToJob = () => {
+      if (!selectedProductId) return;
+      const prod = inventoryItems.find(i => i.id === selectedProductId);
+      if (!prod) return;
+
+      const finalPrice = productManualPrice !== null ? productManualPrice : prod.sellPrice;
+      const discount = productDiscountPercent > 0 ? productDiscountPercent : 0;
+      const netPrice = finalPrice * (1 - (discount / 100));
+
+      const newProduct: JobProduct = {
+          id: `edit_prod_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          inventoryItemId: prod.id,
+          name: prod.name,
+          quantity: productQuantity,
+          unitPrice: netPrice,
+          basePriceBeforeDiscount: finalPrice,
+          appliedDiscount: discount,
+          dentistOwnerId: prod.dentistOwnerId || null,
+      };
+
+      const newProds = [...editProducts, newProduct];
+      setEditProducts(newProds);
+      
+      const itemsTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
+      setEditTotalValue(itemsTotal + newProds.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0));
+
+      setSelectedProductId('');
+      setProductQuantity(1);
+      setProductManualPrice(null);
+      setProductDiscountPercent(0);
+      setIsAddingProduct(false);
   };
 
   const handleToggleChat = async () => {
@@ -1241,7 +1280,10 @@ export const JobDetails = () => {
                           </div>
                           )}
 
-                          <div className="flex flex-col gap-2 pt-2">
+                          <div className="flex flex-col gap-2 pt-2 border-b border-slate-100 pb-4">
+                              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                                  Novo Serviço
+                              </h5>
                               <div className="flex flex-wrap gap-2">
                                   <div className="flex-1 min-w-[150px]">
                                       <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
@@ -1296,6 +1338,51 @@ export const JobDetails = () => {
                                       </div>
                                   );
                               })()}
+                          </div>
+                      
+                          <div className="pt-2">
+                              <div className="flex justify-between items-center mb-2">
+                                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Produto / Implante</h4>
+                                  <button type="button" onClick={() => setIsAddingProduct(!isAddingProduct)} className={`text-[10px] font-black px-2 py-1 rounded-lg transition-colors ${isAddingProduct ? 'bg-slate-200 text-slate-600' : 'bg-blue-100 text-blue-700'}`}>
+                                      {isAddingProduct ? 'Cancelar' : '+ Add Produto'}
+                                  </button>
+                              </div>
+
+                              {isAddingProduct && (
+                                  <div className="bg-amber-50/50 p-3 rounded-xl border border-amber-100 space-y-3 mb-3">
+                                      <div className="space-y-1">
+                                          <select value={selectedProductId} onChange={e => {
+                                              setSelectedProductId(e.target.value);
+                                              const prod = inventoryItems.find(i => i.id === e.target.value);
+                                              if (prod) setProductManualPrice(prod.sellPrice);
+                                          }} className="w-full p-2 text-xs font-bold rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                              <option value="">Selecione um item no estoque...</option>
+                                              {inventoryItems.map(item => (
+                                                  <option key={item.id} value={item.id} disabled={item.currentStock <= 0}>
+                                                      {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : 'Sem Estoque'})
+                                                  </option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                      <div className="flex gap-2">
+                                          <div className="flex-1">
+                                              <label className="text-[9px] font-black text-slate-500 uppercase">Qtd</label>
+                                              <input type="number" min="1" value={productQuantity} onChange={e => setProductQuantity(Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-slate-200 rounded outline-none" />
+                                          </div>
+                                          <div className="flex-[1.5]">
+                                              <label className="text-[9px] font-black text-slate-500 uppercase">Val. Unit</label>
+                                              <input type="number" step="0.01" value={productManualPrice !== null ? productManualPrice : ''} onChange={e => setProductManualPrice(Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-slate-200 rounded outline-none" />
+                                          </div>
+                                          <div className="flex-[1.5]">
+                                              <label className="text-[9px] font-black text-slate-500 uppercase">Desc (%)</label>
+                                              <input type="number" step="0.01" min="0" max="100" value={productDiscountPercent} onChange={e => setProductDiscountPercent(Number(e.target.value))} className="w-full text-xs font-bold p-1.5 bg-white border border-slate-200 rounded outline-none" />
+                                          </div>
+                                          <div className="pt-4 shrink-0">
+                                            <button type="button" onClick={handleAddProductToJob} disabled={!selectedProductId} className="h-[28px] px-3 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"><Check size={14}/></button>
+                                          </div>
+                                      </div>
+                                  </div>
+                              )}
                           </div>
                       </div>
 
