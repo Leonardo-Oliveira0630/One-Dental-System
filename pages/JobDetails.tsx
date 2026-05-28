@@ -22,6 +22,30 @@ const { doc, onSnapshot } = firestorePkg as any;
 
 const STLViewer = React.lazy(() => import('../components/STLViewer').then(module => ({ default: module.STLViewer })));
 
+export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => {
+    const jt = jobTypes.find(t => t.id === item.jobTypeId);
+    if (!jt || !jt.variationGroups || jt.variationGroups.length === 0) return item.name;
+    
+    const parts: string[] = [];
+    item.selectedVariationIds?.forEach(optId => {
+        for (const group of jt.variationGroups!) {
+            const opt = group.options.find((o: any) => o.id === optId);
+            if (opt) {
+                if (group.selectionType === 'TEXT' && item.variationValues?.[optId]) {
+                    parts.push(`${group.name}: ${item.variationValues[optId]}`);
+                } else {
+                    parts.push(opt.name); // only include option name directly for brevity, or `group.name: opt.name`
+                }
+            }
+        }
+    });
+    
+    if (parts.length > 0) {
+        return `${item.name} (${parts.join(', ')})`;
+    }
+    return item.name;
+};
+
 export const JobDetails = () => {
   const { id } = useParams();
   const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables, inventoryItems } = useApp();
@@ -1239,7 +1263,7 @@ export const JobDetails = () => {
                               {editItems.map(item => (
                                   <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                                       <div className="flex flex-col min-w-0 mr-2">
-                                          <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {item.name}</div>
+                                          <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {formatItemNameWithVariations(item, jobTypes)}</div>
                                           <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</div>
                                       </div>
                                       <button onClick={() => handleRemoveItemFromJob(item.id)} className="text-red-400 hover:text-red-600 shrink-0"><Trash2 size={16}/></button>
@@ -1615,7 +1639,7 @@ export const JobDetails = () => {
                                       onClick={() => setExpandedItemIdx(isExpanded ? null : idx)}
                                     >
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {item.name}</p>
+                                            <p className="font-black text-slate-800 text-sm md:text-base leading-tight truncate"><span className="text-blue-600 mr-1">{item.quantity}x</span> {formatItemNameWithVariations(item, jobTypes)}</p>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest truncate">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</p>
                                                 {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && canManageCommissions && (
@@ -2037,7 +2061,7 @@ export const JobDetails = () => {
                         return (
                             <div key={item.id} className="bg-white rounded-[24px] overflow-hidden border border-slate-100 shadow-sm">
                                 <div className="bg-slate-50 px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-                                    <h4 className="font-black text-slate-700 text-xs uppercase tracking-widest">{item.name}</h4>
+                                    <h4 className="font-black text-slate-700 text-xs uppercase tracking-widest">{formatItemNameWithVariations(item, jobTypes)}</h4>
                                     <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 uppercase">{jt?.category || 'Geral'}</span>
                                 </div>
                                 <table className="w-full text-left">

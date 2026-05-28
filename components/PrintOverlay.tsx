@@ -4,9 +4,10 @@ import Barcode from 'react-barcode';
 import { useApp } from '../context/AppContext';
 import { UrgencyLevel } from '../types';
 import { Printer, X, MapPin, User, Package, Truck, Clock } from 'lucide-react';
+import { formatItemNameWithVariations } from '../pages/JobDetails';
 
 export const PrintOverlay = () => {
-  const { printData, clearPrint, currentOrg } = useApp();
+  const { printData, clearPrint, currentOrg, jobTypes } = useApp();
 
   if (!printData) return null;
 
@@ -121,7 +122,7 @@ export const PrintOverlay = () => {
                       <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24">Natureza</th></tr></thead>
                       <tbody className="divide-y divide-gray-200">
                           {printData.job.items.map((item, idx) => (
-                              <tr key={`item-${idx}`}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{item.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</td></tr>
+                              <tr key={`item-${idx}`}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{formatItemNameWithVariations(item, jobTypes)}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</td></tr>
                           ))}
                       </tbody>
                   </table>
