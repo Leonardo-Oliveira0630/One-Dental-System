@@ -67,7 +67,7 @@ service cloud.firestore {
     }
     
     match /organizations/{orgId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() || (resource != null && resource.data.get('orgType', '') == 'LAB');
       allow write: if isSuperAdmin() || (belongsToOrg(orgId) && (isAdmin() || getUserData().get('role', 'USER') == 'CLIENT'));
       
       match /jobs/{jobId} {
@@ -98,14 +98,19 @@ service cloud.firestore {
       }
 
       match /jobTypes/{jobTypeId} {
-        allow read: if isAuthenticated() && (
-          isSuperAdmin() || 
-          belongsToOrg(orgId) ||
-          (userExists() && getUserData().get('role', 'USER') == 'CLIENT')
-        );
+        allow read: if true;
         allow write: if isAuthenticated() && (
           isSuperAdmin() || 
           (belongsToOrg(orgId) && isAdmin())
+        );
+      }
+
+      match /ratings/{ratingId} {
+        allow read: if true;
+        allow write: if isAuthenticated() && (
+          isSuperAdmin() || 
+          belongsToOrg(orgId) ||
+          (userExists() && getUserData().get('role', 'USER') == 'CLIENT')
         );
       }
 
