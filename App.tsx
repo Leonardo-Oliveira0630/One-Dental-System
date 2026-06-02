@@ -50,6 +50,7 @@ import { FinancialTab } from './pages/admin/FinancialTab';
 import { SubscriptionTab } from './pages/admin/SubscriptionTab';
 import { OrganizationTab } from './pages/admin/OrganizationTab';
 import { BoxColorsTab } from './pages/admin/BoxColorsTab';
+import { CouponsTab } from './pages/admin/CouponsTab';
 import { TermsPopup } from './components/TermsPopup';
 
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
@@ -93,6 +94,7 @@ const AppContent = () => {
         <Route path="comissoes" element={<CommissionsTab />} />
         <Route path="pagamentos" element={<FinancialTab />} />
         <Route path="assinatura" element={<SubscriptionTab />} />
+        <Route path="cupons" element={<CouponsTab />} />
       </Route>
 
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -105,6 +107,7 @@ const AppContent = () => {
       <Route path="/lab/price-tables" element={<ProtectedRoute><PriceTables /></ProtectedRoute>} />
 
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
+      <Route path="/store/:slug" element={<Catalog />} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
       <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
       <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
-  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch, DentistPayment,
+  ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch, DentistPayment,
   CardMachine, BankAccount,
   JobStatus, UrgencyLevel
 } from '../types';
@@ -220,6 +220,12 @@ interface AppContextType {
   generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date) => Promise<any>;
   addDentistPayment: (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
   updateBillingBatchStatus: (id: string, status: BillingBatch['status']) => Promise<void>;
+
+  labCoupons: LabCoupon[];
+  addLabCoupon: (coupon: Omit<LabCoupon, 'id' | 'organizationId' | 'usedCount'>) => Promise<void>;
+  updateLabCoupon: (id: string, updates: Partial<LabCoupon>) => Promise<void>;
+  deleteLabCoupon: (id: string) => Promise<void>;
+  validateLabCoupon: (orgId: string, code: string) => Promise<LabCoupon | null>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -252,6 +258,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allLaboratories, setAllLaboratories] = useState<Organization[]>([]);
   const [allPlans, setAllPlans] = useState<SubscriptionPlan[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [labCoupons, setLabCoupons] = useState<LabCoupon[]>([]);
   const [allPayments, setAllPayments] = useState<PaymentRecord[]>([]);
   const [patients, setPatients] = useState<ClinicPatient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -270,12 +277,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<AppContextType['printData']>(null);
 
-  // Subscrições Públicas: Apenas Planos são necessários para o registro
+  // Subscrições Públicas: Apenas Planos e Laboratórios são necessários para o registro e lojas públicas
   useEffect(() => {
     if (!db) return;
-    // Planos são públicos agora, mas vamos garantir que a subscrição ocorra sempre
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
-    return () => { unsubPlans(); };
+    const unsubLabs = api.subscribeAllLaboratories(setAllLaboratories);
+    return () => { unsubPlans(); unsubLabs(); };
   }, []);
 
   // Monitoramento de Auth e Perfil
@@ -324,7 +331,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                              });
                         }
                     });
-                    api.subscribeAllLaboratories(setAllLaboratories);
                     api.subscribeClinicServices(profileOrgId, setClinicServices);
                     api.subscribeClinicRooms(profileOrgId, setClinicRooms);
                     api.subscribeClinicDentists(profileOrgId, setClinicDentists);
@@ -335,7 +341,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       } else {
         setCurrentUser(null); setCurrentOrg(null); setCurrentPlan(null); setActiveOrganization(null);
         setUserConnections([]); setAllLaboratories([]); setClinicServices([]); setClinicRooms([]); setClinicDentists([]);
-        setAllUsers([]); setJobs([]); setJobTypes([]); setCoupons([]); setGlobalSettings(null);
+        setAllUsers([]); setJobs([]); setJobTypes([]); setCoupons([]); setLabCoupons([]); setGlobalSettings(null);
       }
       setIsLoadingAuth(false);
     });
@@ -391,6 +397,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeBillingBatches(myOrgId, setBillingBatches));
             unsubs.push(api.subscribeDentistPayments(myOrgId, setDentistPayments));
             unsubs.push(api.subscribeManualDentists(myOrgId, setManualDentists));
+            unsubs.push(api.subscribeLabCoupons(myOrgId, setLabCoupons));
             unsubs.push(api.subscribePriceTables(myOrgId, setPriceTables));
             unsubs.push(api.subscribeCardMachines(myOrgId, setCardMachines));
             unsubs.push(api.subscribeBankAccounts(myOrgId, setBankAccounts));
@@ -731,6 +738,31 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const deleteCoupon = async (id: string) => await api.apiDeleteCoupon(id);
   const addPayment = async (p: PaymentRecord) => await api.apiAddPayment(p);
 
+  const addLabCoupon = async (c: Omit<LabCoupon, 'id' | 'organizationId' | 'usedCount'>) => {
+      const orgId = activeDataId;
+      if (!orgId) return;
+      const newCoupon: LabCoupon = {
+          ...c,
+          id: `lab_coup_${Date.now()}`,
+          organizationId: orgId,
+          usedCount: 0
+      };
+      await api.apiAddLabCoupon(orgId, newCoupon);
+  };
+  const updateLabCoupon = async (id: string, u: Partial<LabCoupon>) => {
+      const orgId = activeDataId;
+      if (!orgId) return;
+      await api.apiUpdateLabCoupon(orgId, id, u);
+  };
+  const deleteLabCoupon = async (id: string) => {
+      const orgId = activeDataId;
+      if (!orgId) return;
+      await api.apiDeleteLabCoupon(orgId, id);
+  };
+  const validateLabCoupon = async (orgId: string, code: string) => {
+      return await api.apiValidateLabCoupon(orgId, code);
+  };
+
   const addManualDentist = async (d: Omit<ManualDentist, 'id' | 'organizationId'>) => {
       const orgId = activeDataId;
       if(!orgId) return;
@@ -909,11 +941,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addBankAccount, updateBankAccount, deleteBankAccount,
     addPriceTable, updatePriceTable, deletePriceTable,
     addJobToRoute, generateBatchBoleto,
-    addDentistPayment, updateBillingBatchStatus
+    addDentistPayment, updateBillingBatchStatus,
+    labCoupons, addLabCoupon, updateLabCoupon, deleteLabCoupon, validateLabCoupon
   }), [
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
-    allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
+    allOrganizations, allLaboratories, allPlans, coupons, labCoupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allPayments, cart, printData, activeOrganization, userConnections, activeDataId
   ]);

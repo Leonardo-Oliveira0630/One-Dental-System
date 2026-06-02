@@ -389,15 +389,66 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
 
 // --- Main Component ---
 
+import { useParams } from 'react-router-dom';
+import { Shield, Lock } from 'lucide-react';
+
 export const Catalog = () => {
-    const { jobTypes, currentUser, activeOrganization, currentPlan } = useApp();
+    const { slug } = useParams<{ slug: string }>();
+    const { allLaboratories, currentUser, activeOrganization, currentPlan } = useApp();
     const navigate = useNavigate();
     const [term, setTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
     const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PORTFOLIO' | 'REVIEWS'>('PRODUCTS');
+    const [localJobTypes, setLocalJobTypes] = useState<JobType[]>([]);
+    const [loadingProducts, setLoadingProducts] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
 
-    if (!activeOrganization) {
+    const selectedLab = useMemo(() => {
+        if (slug) {
+            return allLaboratories.find(l => l.storeSlug === slug) || null;
+        }
+        return activeOrganization;
+    }, [slug, allLaboratories, activeOrganization]);
+
+    useEffect(() => {
+        if (!selectedLab?.id) {
+            setLocalJobTypes([]);
+            setLoadingProducts(false);
+            return;
+        }
+        setLoadingProducts(true);
+        const unsub = api.subscribeJobTypes(selectedLab.id, (types) => {
+            setLocalJobTypes(types);
+            setLoadingProducts(false);
+        });
+        return unsub;
+    }, [selectedLab?.id]);
+
+    const isGuest = !currentUser;
+    const isPriceVisible = !isGuest || (selectedLab?.storeVisibility !== 'PRIVATE');
+
+    if (slug && !selectedLab) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+                <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
+                        <Building size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tighter">Laboratório não encontrado</h2>
+                    <p className="text-slate-500 mb-8 font-medium">
+                        O laboratório solicitado por essa URL não existe ou ainda não configurou seu link de compartilhamento.
+                    </p>
+                    <button onClick={() => navigate('/dentist/partnerships')}
+                        className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full">
+                        EXPLORAR LABORATÓRIOS
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!selectedLab) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
                 <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
@@ -417,23 +468,23 @@ export const Catalog = () => {
         );
     }
 
-    if (currentPlan && !currentPlan.features.hasStoreModule) {
+    if (currentPlan && !currentPlan.features.hasStoreModule && !slug) {
         return (
             <FeatureLocked 
                 title="Módulo de Loja Bloqueado" 
-                message={`O laboratório ${activeOrganization.name} não possui o módulo de Loja Virtual habilitado no plano atual.`} 
+                message={`O laboratório ${selectedLab.name} não possui o módulo de Loja Virtual habilitado no plano atual.`} 
             />
         );
     }
 
-    const storeSettings = activeOrganization.storeSettings || {
+    const storeSettings = selectedLab.storeSettings || {
         banners: [],
         layoutType: 'CARDS',
         portfolio: [],
         menuOptions: ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']
     };
 
-    const visibleProducts = jobTypes.filter(t => t.isVisibleInStore !== false);
+    const visibleProducts = localJobTypes.filter(t => t.isVisibleInStore !== false);
     const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
 
     const products = visibleProducts.filter(t => {
@@ -454,10 +505,54 @@ export const Catalog = () => {
         return { price: type.basePrice, isCustom: false };
     };
 
+    const handleConfigureProduct = (product: JobType) => {
+        if (isGuest) {
+            setShowAuthModal(true);
+        } else {
+            setConfiguringProduct(product);
+        }
+    };
+
     return (
         <div className="space-y-10 pb-20 animate-in fade-in duration-500">
             {configuringProduct && <VariationConfigModal product={configuringProduct} onClose={() => setConfiguringProduct(null)} />}
             
+            {showAuthModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-[32px] max-w-md w-full shadow-2xl text-center space-y-6">
+                        <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
+                            <Shield size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tighter">Fazer Pedido ou Customizar</h3>
+                            <p className="text-slate-500 font-medium text-sm mt-2 leading-relaxed">
+                                Para poder escolher variações, aplicar cupons e enviar trabalhos ao laboratório, você precisa estar cadastrado e logado.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 pt-2">
+                            <button 
+                                onClick={() => navigate('/login?mode=register')} 
+                                className="px-5 py-3.5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all text-xs"
+                            >
+                                Criar Conta
+                            </button>
+                            <button 
+                                onClick={() => navigate('/login')} 
+                                className="px-5 py-3.5 bg-slate-100 text-slate-800 font-bold rounded-2xl hover:bg-slate-200 transition-all text-xs"
+                            >
+                                Fazer Login
+                            </button>
+                        </div>
+                        <button 
+                            onClick={() => setShowAuthModal(false)}
+                            className="text-xs text-slate-400 hover:text-slate-600 font-bold underline"
+                        >
+                            Voltar ao Catálogo
+                        </button>
+                    </motion.div>
+                </div>
+            )}
+
             {/* 1. Header Banner */}
             <BannerCarousel images={storeSettings.banners || []} />
 
@@ -527,7 +622,12 @@ export const Catalog = () => {
                         </div>
 
                         {/* Products List/Grid */}
-                        {products.length === 0 ? (
+                        {loadingProducts ? (
+                            <div className="text-center py-20">
+                                <Loader2 className="animate-spin text-indigo-600 mx-auto" size={36} />
+                                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest block mt-3">Carregando catálogo...</span>
+                            </div>
+                        ) : products.length === 0 ? (
                             <div className="text-center py-20 bg-slate-50 rounded-[40px] border-2 border-dashed border-slate-200">
                                 <Package size={64} className="mx-auto text-slate-200 mb-4" />
                                 <h3 className="text-2xl font-black text-slate-800 tracking-tighter">Nenhum resultado</h3>
@@ -549,12 +649,20 @@ export const Catalog = () => {
                                                         <h3 className="font-bold text-slate-800 text-lg leading-tight">{product.name}</h3>
                                                         <div className="flex items-center gap-4 mt-1">
                                                              <span className="text-xs font-bold text-slate-400">A partir de</span>
-                                                             <span className={`font-black ${isCustom ? 'text-green-600' : 'text-indigo-600'}`}>R$ {price.toFixed(2)}</span>
-                                                             {isCustom && <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded tracking-widest">EXCLUSIVO</span>}
+                                                             {isPriceVisible ? (
+                                                                 <>
+                                                                    <span className={`font-black ${isCustom ? 'text-green-600' : 'text-indigo-600'}`}>R$ {price.toFixed(2)}</span>
+                                                                    {isCustom && <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded tracking-widest">EXCLUSIVO</span>}
+                                                                 </>
+                                                             ) : (
+                                                                 <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 border border-amber-100/50 rounded-lg">
+                                                                    <Lock size={12} /> Faça login para ver valores
+                                                                 </span>
+                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <button onClick={() => setConfiguringProduct(product)} className="px-6 py-3 bg-indigo-600 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">
+                                                <button onClick={() => handleConfigureProduct(product)} className="px-6 py-3 bg-indigo-600 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">
                                                     CONFIGURAR
                                                 </button>
                                             </div>
@@ -581,11 +689,19 @@ export const Catalog = () => {
                                                         <div className="flex flex-col">
                                                             <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">{isCustom ? 'Sua Oferta' : 'Investimento'}</span>
                                                             <div className="flex items-baseline gap-2">
-                                                                <span className={`font-black text-3xl tracking-tighter ${isCustom ? 'text-green-600' : 'text-slate-900'}`}>R$ {price.toFixed(2)}</span>
-                                                                {isCustom && <span className="text-[10px] text-slate-300 line-through">R$ {product.basePrice.toFixed(2)}</span>}
+                                                                {isPriceVisible ? (
+                                                                    <>
+                                                                        <span className={`font-black text-3xl tracking-tighter ${isCustom ? 'text-green-600' : 'text-slate-900'}`}>R$ {price.toFixed(2)}</span>
+                                                                        {isCustom && <span className="text-[10px] text-slate-300 line-through">R$ {product.basePrice.toFixed(2)}</span>}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-1.5 text-xs font-black text-amber-600 bg-amber-50 px-3 py-1.5 border border-amber-100/50 rounded-xl leading-tight">
+                                                                        <Lock size={14} /> Registrar para ver preço
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => setConfiguringProduct(product)} className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-600 transition-all active:scale-90 shadow-xl shadow-slate-200 group-hover:shadow-indigo-200">
+                                                        <button onClick={() => handleConfigureProduct(product)} className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-600 transition-all active:scale-90 shadow-xl shadow-slate-200 group-hover:shadow-indigo-200">
                                                             <Plus size={24} />
                                                         </button>
                                                     </div>
@@ -607,7 +723,7 @@ export const Catalog = () => {
 
                 {activeTab === 'REVIEWS' && (
                     <motion.div key="reviews" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
-                        <ReviewsSection labId={activeOrganization.id} />
+                        <ReviewsSection labId={selectedLab.id} />
                     </motion.div>
                 )}
             </AnimatePresence>

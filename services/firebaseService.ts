@@ -22,7 +22,7 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount 
+  Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount 
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -753,3 +753,44 @@ export const apiDeleteBankAccount = (orgId: string, id: string) => deleteDoc(doc
 
 export const apiUpdateBillingBatchStatus = (orgId: string, batchId: string, status: BillingBatch['status']) => 
     updateDoc(doc(db, `organizations/${orgId}/billingBatches`, batchId), { status });
+
+// --- LAB COUPONS ---
+export const subscribeLabCoupons = (orgId: string, cb: (coupons: LabCoupon[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/labCoupons`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id,
+            ...d.data(),
+        } as LabCoupon)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeLabCoupons: ${error.code}`));
+};
+
+export const apiAddLabCoupon = (orgId: string, coupon: LabCoupon) => setDoc(doc(doc(db, 'organizations', orgId), 'labCoupons', coupon.id), coupon);
+export const apiUpdateLabCoupon = (orgId: string, id: string, u: Partial<LabCoupon>) => updateDoc(doc(doc(db, 'organizations', orgId), 'labCoupons', id), u);
+export const apiDeleteLabCoupon = (orgId: string, id: string) => deleteDoc(doc(doc(db, 'organizations', orgId), 'labCoupons', id));
+
+export const apiValidateLabCoupon = async (orgId: string, code: string): Promise<LabCoupon | null> => {
+    try {
+        const q = query(
+            collection(db, `organizations/${orgId}/labCoupons`),
+            where('code', '==', code.toUpperCase()),
+            where('active', '==', true)
+        );
+        const snap = await getDocs(q);
+        if (snap.empty) return null;
+        const d = snap.docs[0];
+        const coupon = { id: d.id, ...d.data() } as LabCoupon;
+        
+        if (coupon.validUntil) {
+            const expDate = new Date(coupon.validUntil);
+            if (expDate < new Date()) return null;
+        }
+        
+        if (coupon.maxUses && coupon.usedCount >= coupon.maxUses) return null;
+        
+        return coupon;
+    } catch (e) {
+        console.error("Erro ao validar cupom do lab", e);
+        return null;
+    }
+};

@@ -42,6 +42,8 @@ export interface Organization {
   ratingAverage?: number;
   ratingCount?: number;
   storeSettings?: StoreSettings;
+  storeSlug?: string;
+  storeVisibility?: 'PUBLIC' | 'PRIVATE';
   financialSettings?: {
     pixKey?: string;
     bankInfo?: string;
@@ -540,6 +542,18 @@ export interface Coupon {
   usedCount: number;
   active: boolean;
   applicablePlans?: string[];
+}
+
+export interface LabCoupon {
+  id: string;
+  organizationId: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  validUntil?: string;
+  maxUses?: number;
+  usedCount: number;
+  active: boolean;
 }
 
 export enum CommissionStatus {

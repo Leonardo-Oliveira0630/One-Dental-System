@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { NavLink, Outlet } from 'react-router-dom';
 import { 
-  Building2, Users, Stethoscope, DollarSign, Wallet, Crown, Copy, Check, ShieldCheck, Briefcase, Box 
+  Building2, Users, Stethoscope, DollarSign, Wallet, Crown, Copy, Check, ShieldCheck, Briefcase, Box, Ticket 
 } from 'lucide-react';
 
 export const AdminLayout = () => {
@@ -29,6 +29,7 @@ export const AdminLayout = () => {
     { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: 'Ganhos', show: hasPerm('commissions:view') },
     { to: '/admin/pagamentos', icon: <Wallet size={16} />, label: 'Banco', show: hasPerm('finance:view') },
     { to: '/admin/assinatura', icon: <Crown size={16} />, label: 'Plano', show: isAdmin },
+    { to: '/admin/cupons', icon: <Ticket size={16} />, label: 'Cupons', show: isAdmin },
   ].filter(item => item.show);
 
   return (

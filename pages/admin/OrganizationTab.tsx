@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info } from 'lucide-react';
+import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield } from 'lucide-react';
 import { StoreSettings } from '../../types';
 
 export const OrganizationTab = () => {
@@ -11,6 +11,9 @@ export const OrganizationTab = () => {
   const [techResponsibleCpf, setTechResponsibleCpf] = useState(currentOrg?.financialSettings?.techResponsibleCpf || '');
   const [logoPreview, setLogoPreview] = useState(currentOrg?.logoUrl || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [storeSlug, setStoreSlug] = useState(currentOrg?.storeSlug || currentOrg?.name?.toLowerCase().trim().replace(/[^a-z0-9]/g, '-') || '');
+  const [storeVisibility, setStoreVisibility] = useState<'PUBLIC' | 'PRIVATE'>(currentOrg?.storeVisibility || 'PUBLIC');
+  const [copied, setCopied] = useState(false);
   
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(currentOrg?.storeSettings || {
     banners: [],
@@ -108,6 +111,8 @@ export const OrganizationTab = () => {
       await updateOrganization(currentOrg.id, {
         name: name.trim(),
         logoUrl: finalLogoUrl,
+        storeSlug: storeSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''),
+        storeVisibility: storeVisibility,
         financialSettings: {
           ...currentOrg.financialSettings,
           techResponsibleName: techResponsibleName.trim(),
@@ -196,6 +201,101 @@ export const OrganizationTab = () => {
             </div>
           </div>
         </form>
+      </div>
+
+      {/* CONFIGURAÇÕES DE ACESSO E LINK DA LOJA */}
+      <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-indigo-100 transition-all space-y-6">
+        <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
+          <ExternalLink className="text-indigo-600" size={24} /> Link e Privacidade da Loja
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">URL Personalizada (Slug)</label>
+            <div className="flex bg-slate-50 border border-slate-200 rounded-2xl p-1 focus-within:ring-2 focus-within:ring-indigo-500">
+              <span className="text-slate-400 font-bold px-3 py-2 text-sm select-none break-all hidden sm:inline">.../store/</span>
+              <input 
+                required
+                value={storeSlug}
+                onChange={e => setStoreSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                className="flex-1 bg-transparent border-0 outline-none px-3 py-2 font-bold text-slate-800 text-sm"
+                placeholder="nome-do-seu-lab"
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2 ml-1">Use apenas letras minúsculas, números e hífens.</p>
+          </div>
+
+          <div>
+             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Visibilidade de Preço do Catálogo</label>
+             <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl">
+                <button
+                   type="button"
+                   onClick={() => setStoreVisibility('PUBLIC')}
+                   className={`px-4 py-2 text-xs font-black rounded-xl transition-all uppercase ${storeVisibility === 'PUBLIC' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                   Pública
+                </button>
+                <button
+                   type="button"
+                   onClick={() => setStoreVisibility('PRIVATE')}
+                   className={`px-4 py-2 text-xs font-black rounded-xl transition-all uppercase ${storeVisibility === 'PRIVATE' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                   Privada
+                </button>
+             </div>
+          </div>
+        </div>
+
+        {/* Informative banners about selections */}
+        <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-medium leading-relaxed">
+           <div className={`p-4 rounded-2xl border ${storeVisibility === 'PUBLIC' ? 'bg-white border-green-100 text-slate-700' : 'bg-slate-50/50 border-transparent text-slate-400'}`}>
+              <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+                 <span className={`w-2 h-2 rounded-full ${storeVisibility === 'PUBLIC' ? 'bg-green-500' : 'bg-slate-300'}`}></span>
+                 Modo Loja Pública
+              </h4>
+              <p>Qualquer visitante (mesmo sem estar logado) poderá ver os produtos e seus respectivos preços. Para poder validar orçamentos e enviar trabalhos (comprar), eles serão solicitados a se cadastrar/fazer login.</p>
+           </div>
+           <div className={`p-4 rounded-2xl border ${storeVisibility === 'PRIVATE' ? 'bg-white border-amber-100 text-slate-700' : 'bg-slate-50/50 border-transparent text-slate-400'}`}>
+              <h4 className="font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+                 <span className={`w-2 h-2 rounded-full ${storeVisibility === 'PRIVATE' ? 'bg-amber-500' : 'bg-slate-300'}`}></span>
+                 Modo Loja Privada
+              </h4>
+              <p>O catálogo de produtos do laboratório é visível a todos os visitantes, mas para visualizar os preços os dentistas precisam se cadastrar e estar logados no sistema.</p>
+           </div>
+        </div>
+
+        {/* Copy trigger */}
+        {storeSlug && (
+          <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 pt-4 gap-4">
+             <div className="text-left">
+                <span className="text-[10px] font-black uppercase text-indigo-600 tracking-wider">Seu link de compartilhamento</span>
+                <p className="text-sm font-bold text-slate-800 select-all break-all">{`${window.location.origin}/store/${storeSlug}`}</p>
+             </div>
+             <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                   type="button"
+                   onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/store/${storeSlug}`);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                   }}
+                   className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-900 border border-slate-800 text-white font-bold rounded-xl text-xs hover:bg-slate-800 transition-all active:scale-95"
+                >
+                   {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                   {copied ? 'Copiado!' : 'Copiar Link'}
+                </button>
+                <a
+                   href={`/store/${storeSlug}`}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 font-bold rounded-xl text-xs hover:bg-indigo-100 transition-all"
+                >
+                   <ExternalLink size={14} />
+                   Ver Loja
+                </a>
+             </div>
+          </div>
+        )}
       </div>
 
       {/* CONFIGURAÇÕES DA LOJA VIRTUAL */}

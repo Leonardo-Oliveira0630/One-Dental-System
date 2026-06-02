@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building, ShieldCheck, QrCode, CheckCircle, Copy, Check, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +8,7 @@ import * as api from '../../services/firebaseService';
 import { smartCompress } from '../../services/compressionService';
 
 export const Cart = () => {
-  const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, clearCart } = useApp();
+  const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, clearCart, validateLabCoupon, updateLabCoupon } = useApp();
   const navigate = useNavigate();
   
   const [patientName, setPatientName] = useState('');
@@ -29,7 +29,42 @@ export const Cart = () => {
   const [successData, setSuccessData] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
-  const total = cart.reduce((acc, item) => acc + item.finalPrice, 0);
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [couponStatus, setCouponStatus] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' });
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim() || !activeOrganization) return;
+    setValidatingCoupon(true);
+    setCouponStatus({ text: '', type: '' });
+    try {
+      const res = await validateLabCoupon(activeOrganization.id, couponCode.trim().toUpperCase());
+      if (res) {
+        setAppliedCoupon(res);
+        setCouponStatus({ text: `Cupom ${res.code} aplicado com sucesso!`, type: 'success' });
+      } else {
+        setCouponStatus({ text: 'Cupom inválido, expirado ou com limite atingido.', type: 'error' });
+      }
+    } catch (err) {
+      setCouponStatus({ text: 'Erro ao validar o cupom.', type: 'error' });
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const originalTotal = cart.reduce((acc, item) => acc + item.finalPrice, 0);
+
+  const discountAmount = useMemo(() => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.discountType === 'PERCENTAGE') {
+      return originalTotal * (appliedCoupon.discountValue / 100);
+    } else {
+      return appliedCoupon.discountValue;
+    }
+  }, [appliedCoupon, originalTotal]);
+
+  const finalTotal = Math.max(0, originalTotal - discountAmount);
 
   if (!activeOrganization) {
     return (
@@ -111,8 +146,10 @@ export const Cart = () => {
             createdAt: new Date(), 
             sectorEntryTime: new Date(),
             dueDate: new Date(date), 
-            totalValue: total, 
-            notes
+            totalValue: finalTotal, 
+            notes,
+            couponCode: appliedCoupon ? appliedCoupon.code : undefined,
+            discountValue: discountAmount > 0 ? discountAmount : undefined
         };
 
         const paymentData = {
@@ -129,6 +166,9 @@ export const Cart = () => {
         const result = await api.apiCreateOrderPayment(jobData, paymentData);
 
         if (result.success) {
+            if (appliedCoupon) {
+                await updateLabCoupon(appliedCoupon.id, { usedCount: (appliedCoupon.usedCount || 0) + 1 });
+            }
             clearCart();
             setSuccessData(result);
         } else {
@@ -267,10 +307,50 @@ export const Cart = () => {
                 )}
             </div>
 
-            <div className="pt-4 border-t border-slate-100 mt-4">
-                <div className="flex justify-between items-center mb-4">
-                    <span className="text-slate-500 font-bold">Total</span>
-                    <span className="text-2xl font-black text-slate-900">R$ {total.toFixed(2)}</span>
+            {/* Coupon Section */}
+            <div className="pt-4 border-t border-slate-100 mt-4 space-y-3">
+                <label className="block text-xs font-black uppercase text-indigo-600 tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-indigo-500" /> Cupom de Desconto
+                </label>
+                <div className="flex gap-2">
+                    <input 
+                        type="text"
+                        disabled={!!appliedCoupon || validatingCoupon}
+                        placeholder="Código Promocional"
+                        value={couponCode}
+                        onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                        className="flex-1 px-4 py-2 border border-slate-200 rounded-xl uppercase font-bold tracking-widest text-xs focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50/50"
+                    />
+                    <button 
+                        type="button" 
+                        onClick={handleApplyCoupon}
+                        disabled={!couponCode.trim() || !!appliedCoupon || validatingCoupon}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black disabled:opacity-50 tracking-wider transition-all"
+                    >
+                        {validatingCoupon ? 'Validando...' : appliedCoupon ? 'Aplicado' : 'Validar'}
+                    </button>
+                </div>
+                {couponStatus.text && (
+                    <p className={`text-[11px] mt-1 font-bold ${couponStatus.type === 'success' ? 'text-green-600 bg-green-50/50 px-2.5 py-1 rounded-lg border border-green-100/50' : 'text-red-500 bg-red-50/50 px-2.5 py-1 rounded-lg border border-red-100/50'}`}>
+                        {couponStatus.type === 'success' ? '✓ ' : '✗ '} {couponStatus.text}
+                    </p>
+                )}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 mt-4 space-y-2">
+                <div className="flex justify-between items-center text-slate-500 text-sm font-medium">
+                    <span>Subtotal</span>
+                    <span>R$ {originalTotal.toFixed(2)}</span>
+                </div>
+                {discountAmount > 0 && (
+                    <div className="flex justify-between items-center text-green-600 text-sm font-bold bg-green-50 px-2.5 py-1.5 rounded-xl border border-green-100/40">
+                        <span>Desconto Cupom</span>
+                        <span>- R$ {discountAmount.toFixed(2)}</span>
+                    </div>
+                )}
+                <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                    <span className="text-slate-800 font-bold">Total Final</span>
+                    <span className="text-2xl font-black text-slate-900">R$ {finalTotal.toFixed(2)}</span>
                 </div>
                 
                 {compressionStatus && (
