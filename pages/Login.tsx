@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { Logo } from '../components/Logo';
 import { UserRole } from '../types';
 import { ShieldCheck, Lock, Mail, Loader2, ArrowLeft, Send, CheckCircle } from 'lucide-react';
 import * as api from '../services/firebaseService';
@@ -136,9 +137,9 @@ export const Login = () => {
       <div className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] rounded-full bg-[#00B8D9]/10 blur-[120px] pointer-events-none" />
 
       <div className="bg-[#1E293B] w-full max-w-md p-8 md:p-10 rounded-card shadow-premium border border-slate-800/80 relative z-10 animate-in fade-in zoom-in duration-500">
-        <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2 tracking-tight">Smile<span className="text-[#00B8D9]">ProX</span></h1>
-            <p className="text-slate-400 text-xs uppercase tracking-widest font-semibold">Ecossistema Digital Prótese & Odonto</p>
+        <div className="flex flex-col items-center text-center mb-8">
+            <Logo size="xl" variant="light" className="mb-2" />
+            <p className="text-slate-400 text-xs uppercase tracking-widest font-semibold mt-1">Ecossistema Digital Prótese & Odonto</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">

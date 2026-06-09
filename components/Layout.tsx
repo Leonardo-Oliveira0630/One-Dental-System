@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { Logo, LogoIcon } from './Logo';
 import { 
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
@@ -113,12 +114,22 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   <img src={displayBrand.logo} alt="Logo" className="w-full h-full object-contain" />
                 </div>
               ) : (
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shrink-0 shadow-lg font-black text-xl">
-                  {displayBrand.name.charAt(0)}
-                </div>
+                displayBrand.name.toUpperCase() === 'SMILEPROX' ? (
+                  <LogoIcon size={40} className="shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 bg-[#0F4C81] rounded-xl flex items-center justify-center shrink-0 shadow-lg font-black text-white text-xl">
+                    {displayBrand.name.charAt(0)}
+                  </div>
+                )
               )}
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-black tracking-tight leading-none truncate uppercase">{displayBrand.name}</span>
+                {displayBrand.name.toUpperCase() === 'SMILEPROX' ? (
+                  <span className="text-sm font-black tracking-tight leading-none truncate uppercase text-white">
+                    Smile<span className="text-[#00B8D9]">ProX</span>
+                  </span>
+                ) : (
+                  <span className="text-xs font-black tracking-tight leading-none truncate uppercase text-white">{displayBrand.name}</span>
+                )}
                 <span className="text-[9px] text-slate-400 font-bold tracking-widest mt-1 uppercase truncate">{displayBrand.sub}</span>
               </div>
             </div>
@@ -238,8 +249,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
              {!isMobileSearchOpen && (
                <div className="flex items-center gap-2 overflow-hidden">
-                  <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0">S</div>
-                  <span className="font-black text-slate-900 text-base uppercase tracking-tighter truncate font-display">Smile<span className="text-indigo-600">ProX</span></span>
+                  <Logo size="sm" variant="colored" />
                </div>
              )}
          </div>
@@ -297,7 +307,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative">
         <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0">
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
-             <span className="font-black text-slate-900 tracking-tighter text-lg uppercase truncate">Smile<span className="text-indigo-600 font-bold font-display">ProX</span></span>
+             <Logo size="sm" variant="colored" />
           </div>
 
           <div className="flex-1 max-w-xl mx-8">
