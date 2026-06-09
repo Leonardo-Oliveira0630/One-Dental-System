@@ -19,6 +19,30 @@ export const LOGO_ICONE_URL: string = 'http://one-dental-system.firebasestorage.
 // Versão em texto do SVG de dente em alta qualidade para usar como Favicon padrão caso não haja upload
 const DEFAULT_SVG_FAVICON = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="20" y1="15" x2="80" y2="85"><stop offset="0%" stop-color="%231E4D8C" /><stop offset="40%" stop-color="%230F4C81" /><stop offset="100%" stop-color="%230B3256" /></linearGradient><linearGradient id="g2" x1="10" y1="75" x2="90" y2="45"><stop offset="0%" stop-color="%2300E5FF" /><stop offset="50%" stop-color="%2300B8D9" /><stop offset="100%" stop-color="%230D9488" /></linearGradient></defs><path d="M 32 23 C 25 23, 23 35, 27 50 C 30 62, 33 72, 37 77 C 40 81, 43 75, 45 70 C 47 62, 49 62, 51 70 C 53 75, 56 81, 59 77 C 63 72, 65 60, 67 52 C 68 45, 68 39, 68 35 H 61 V 27 C 61 24, 57 23, 51 28 C 47 22, 39 21, 32 23 Z" fill="url(%23g1)" /><rect x="63" y="29" width="6" height="6" rx="1" fill="%230F4C81" /><rect x="71.5" y="23" width="5.5" height="5.5" rx="1" fill="%2300B8D9" /><rect x="71" y="15.5" width="4" height="4" rx="0.5" fill="%2300E5FF" /><path d="M 16 51 C 14 56, 24 64, 43 60 C 62 55, 75 46, 81 37 C 71 47, 51 55, 36 55 C 23 55, 18 51, 16 51 Z" fill="url(%23g2)" /></svg>`;
 
+// Função auxiliar para converter URLs diversas do Firebase Storage para o formato gs://
+const normalizeToGsUrl = (url: string): string => {
+  if (!url) return '';
+  let cleaned = url.trim();
+  
+  // Se for gs:// já está correto
+  if (cleaned.startsWith('gs://')) {
+    return cleaned;
+  }
+  
+  // Remove protocolos se houver
+  cleaned = cleaned.replace(/^https?:\/\//i, '');
+  
+  // Se contiver firebasestorage.app ou firebase-storage, reconstrói o formato gs://
+  if (cleaned.includes('firebasestorage.app')) {
+    const parts = cleaned.split('/');
+    const bucket = parts[0];
+    const path = parts.slice(1).join('/');
+    return `gs://${bucket}/${path}`;
+  }
+  
+  return url;
+};
+
 // Hook utilitário para resolver URLs "gs://" do Firebase Storage em links HTTPS válidos e tratá-los no navegador
 export const useStorageUrl = (url: string) => {
   const [resolvedUrl, setResolvedUrl] = useState<string>('');
@@ -29,16 +53,17 @@ export const useStorageUrl = (url: string) => {
       return;
     }
 
-    if (url.startsWith('gs://')) {
+    const normalized = normalizeToGsUrl(url);
+
+    if (normalized.startsWith('gs://')) {
       if (storage) {
-        getDownloadURL(ref(storage, url))
+        getDownloadURL(ref(storage, normalized))
           .then((downloadUrl: string) => {
             setResolvedUrl(downloadUrl);
           })
           .catch((err: any) => {
-            console.error('[Storage Error] Falha ao obter link de download, usando fallback HTTPS:', err);
-            // Fallback manual para URL REST do Firebase Storage
-            const match = url.match(/^gs:\/\/([^/]+)\/(.+)$/);
+            console.warn('[Storage Info] Usando fallback HTTPS REST público para:', normalized);
+            const match = normalized.match(/^gs:\/\/([^/]+)\/(.+)$/);
             if (match) {
               const bucket = match[1];
               const filePath = match[2];
@@ -49,8 +74,8 @@ export const useStorageUrl = (url: string) => {
             }
           });
       } else {
-        // Fallback se o storage do Firebase não estiver ativado
-        const match = url.match(/^gs:\/\/([^/]+)\/(.+)$/);
+        // Fallback se o storage do Firebase não estiver livre de inicialização
+        const match = normalized.match(/^gs:\/\/([^/]+)\/(.+)$/);
         if (match) {
           const bucket = match[1];
           const filePath = match[2];
@@ -61,7 +86,12 @@ export const useStorageUrl = (url: string) => {
         }
       }
     } else {
-      setResolvedUrl(url);
+      // Se não for Firebase, mas for um link http:// comum, garantir que tentemos servir via HTTPS se possível
+      if (url.startsWith('http://')) {
+        setResolvedUrl(url.replace('http://', 'https://'));
+      } else {
+        setResolvedUrl(url);
+      }
     }
   }, [url]);
 
