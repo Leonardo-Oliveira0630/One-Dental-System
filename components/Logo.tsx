@@ -1,4 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import * as storagePkg from 'firebase/storage';
+import { storage } from '../services/firebaseConfig';
+
+const { ref, getDownloadURL } = storagePkg as any;
 
 // ==========================================
 // CONFIGURAÇÃO DA LOGO DO SMILEPROX
@@ -9,22 +13,93 @@ export const LOGO_COMPLETO_URL: string = '';
 
 // 2. Se você fez o upload APENAS do ícone do dente separado e quer que o sistema continue escrevendo
 //    o texto "SmileProX" ao lado via código, cole o seu link em LOGO_ICONE_URL abaixo:
-export const LOGO_ICONE_URL: string = 'gs://one-dental-system.firebasestorage.app/logo/logoapp.svg'; 
+export const LOGO_ICONE_URL: string = 'http://one-dental-system.firebasestorage.app/logo/logoapp.svg'; 
 // ==========================================
 
-// Função auxiliar para converter URLs "gs://" do Firebase Storage em links HTTPS públicos que o navegador entende
-const getBrowserUrl = (url: string): string => {
-  if (!url) return '';
-  if (url.startsWith('gs://')) {
-    const match = url.match(/^gs:\/\/([^/]+)\/(.+)$/);
-    if (match) {
-      const bucket = match[1];
-      const filePath = match[2];
-      const encodedPath = encodeURIComponent(filePath);
-      return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+// Versão em texto do SVG de dente em alta qualidade para usar como Favicon padrão caso não haja upload
+const DEFAULT_SVG_FAVICON = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="20" y1="15" x2="80" y2="85"><stop offset="0%" stop-color="%231E4D8C" /><stop offset="40%" stop-color="%230F4C81" /><stop offset="100%" stop-color="%230B3256" /></linearGradient><linearGradient id="g2" x1="10" y1="75" x2="90" y2="45"><stop offset="0%" stop-color="%2300E5FF" /><stop offset="50%" stop-color="%2300B8D9" /><stop offset="100%" stop-color="%230D9488" /></linearGradient></defs><path d="M 32 23 C 25 23, 23 35, 27 50 C 30 62, 33 72, 37 77 C 40 81, 43 75, 45 70 C 47 62, 49 62, 51 70 C 53 75, 56 81, 59 77 C 63 72, 65 60, 67 52 C 68 45, 68 39, 68 35 H 61 V 27 C 61 24, 57 23, 51 28 C 47 22, 39 21, 32 23 Z" fill="url(%23g1)" /><rect x="63" y="29" width="6" height="6" rx="1" fill="%230F4C81" /><rect x="71.5" y="23" width="5.5" height="5.5" rx="1" fill="%2300B8D9" /><rect x="71" y="15.5" width="4" height="4" rx="0.5" fill="%2300E5FF" /><path d="M 16 51 C 14 56, 24 64, 43 60 C 62 55, 75 46, 81 37 C 71 47, 51 55, 36 55 C 23 55, 18 51, 16 51 Z" fill="url(%23g2)" /></svg>`;
+
+// Hook utilitário para resolver URLs "gs://" do Firebase Storage em links HTTPS válidos e tratá-los no navegador
+export const useStorageUrl = (url: string) => {
+  const [resolvedUrl, setResolvedUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (!url) {
+      setResolvedUrl('');
+      return;
     }
-  }
-  return url;
+
+    if (url.startsWith('gs://')) {
+      if (storage) {
+        getDownloadURL(ref(storage, url))
+          .then((downloadUrl: string) => {
+            setResolvedUrl(downloadUrl);
+          })
+          .catch((err: any) => {
+            console.error('[Storage Error] Falha ao obter link de download, usando fallback HTTPS:', err);
+            // Fallback manual para URL REST do Firebase Storage
+            const match = url.match(/^gs:\/\/([^/]+)\/(.+)$/);
+            if (match) {
+              const bucket = match[1];
+              const filePath = match[2];
+              const encodedPath = encodeURIComponent(filePath);
+              setResolvedUrl(`https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`);
+            } else {
+              setResolvedUrl(url);
+            }
+          });
+      } else {
+        // Fallback se o storage do Firebase não estiver ativado
+        const match = url.match(/^gs:\/\/([^/]+)\/(.+)$/);
+        if (match) {
+          const bucket = match[1];
+          const filePath = match[2];
+          const encodedPath = encodeURIComponent(filePath);
+          setResolvedUrl(`https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`);
+        } else {
+          setResolvedUrl(url);
+        }
+      }
+    } else {
+      setResolvedUrl(url);
+    }
+  }, [url]);
+
+  return resolvedUrl;
+};
+
+// Hook de efeito para atualizar o favicon e apple-touch-icon globalmente pelas páginas
+export const useBrowserMetadataEffect = (iconicUrl: string, completeUrl: string) => {
+  const finalIconUrl = useStorageUrl(iconicUrl);
+  const finalCompletoUrl = useStorageUrl(completeUrl);
+
+  useEffect(() => {
+    let faviconUrl = DEFAULT_SVG_FAVICON;
+    if (finalCompletoUrl) {
+      faviconUrl = finalCompletoUrl;
+    } else if (finalIconUrl) {
+      faviconUrl = finalIconUrl;
+    }
+
+    // Atualiza / Cria o favicon nas abas do navegador
+    let faviconLink = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    if (!faviconLink) {
+      faviconLink = document.createElement('link');
+      faviconLink.rel = 'icon';
+      document.head.appendChild(faviconLink);
+    }
+    faviconLink.href = faviconUrl;
+    faviconLink.type = faviconUrl.startsWith('data:') ? 'image/svg+xml' : 'image/png';
+
+    // Atualiza / Cria o apple touch icon
+    let appleIconLink = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+    if (!appleIconLink) {
+      appleIconLink = document.createElement('link');
+      appleIconLink.rel = 'apple-touch-icon';
+      document.head.appendChild(appleIconLink);
+    }
+    appleIconLink.href = faviconUrl;
+  }, [finalIconUrl, finalCompletoUrl]);
 };
 
 interface LogoProps extends React.SVGProps<SVGSVGElement> {
@@ -38,6 +113,11 @@ export const LogoIcon: React.FC<LogoProps> = ({
   className = '', 
   ...props 
 }) => {
+  const finalIconUrl = useStorageUrl(LOGO_ICONE_URL);
+  
+  // Executa o hook de metadados de navegador nas abas
+  useBrowserMetadataEffect(LOGO_ICONE_URL, LOGO_COMPLETO_URL);
+
   // Map friendly size presets to dimensions
   const dimensions = typeof size === 'number' 
     ? size 
@@ -50,10 +130,10 @@ export const LogoIcon: React.FC<LogoProps> = ({
       }[size];
 
   // Se o usuário colou o URL do dente separado, renderiza uma tag img de alta qualidade
-  if (LOGO_ICONE_URL) {
+  if (finalIconUrl) {
     return (
       <img 
-        src={getBrowserUrl(LOGO_ICONE_URL)} 
+        src={finalIconUrl} 
         alt="SmileProX Icon" 
         style={{ width: dimensions, height: dimensions }}
         className={`object-contain shrink-0 ${className}`} 
@@ -202,12 +282,14 @@ export const Logo: React.FC<LogoProps> = ({
         xl: 72
       }[size];
 
+  const finalCompletoUrl = useStorageUrl(LOGO_COMPLETO_URL);
+
   // Se o usuário colou a logo completa com ÍCONE E TEXTO juntos, renderiza apenas o link da imagem
-  if (LOGO_COMPLETO_URL) {
+  if (finalCompletoUrl) {
     return (
       <div className={`flex items-center justify-center shrink-0 overflow-hidden ${className}`}>
         <img 
-          src={getBrowserUrl(LOGO_COMPLETO_URL)} 
+          src={finalCompletoUrl} 
           alt="SmileProX Logo" 
           style={{ height: wrapperHeight, width: 'auto' }}
           className="object-contain max-w-full shrink-0"
