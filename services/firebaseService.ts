@@ -483,6 +483,13 @@ export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
         cb(orgs);
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllLaboratories: ${error.code}`));
 };
+export const getOrganizationBySlug = async (slug: string): Promise<Organization | null> => {
+    const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'), where('storeSlug', '==', slug), limit(1));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const d = snap.docs[0];
+    return { id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization;
+};
 export const subscribeSubscriptionPlans = (cb: (p: SubscriptionPlan[]) => void) => {
     return onSnapshot(collection(db, 'subscriptionPlans'), (snap: any) => {
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as SubscriptionPlan)));

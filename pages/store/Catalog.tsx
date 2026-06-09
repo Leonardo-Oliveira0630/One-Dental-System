@@ -27,10 +27,10 @@ const BannerCarousel = ({ images }: { images: string[] }) => {
 
     if (!images || images.length === 0) {
         return (
-            <div className="w-full aspect-[21/9] md:aspect-[25/7] bg-gradient-to-r from-indigo-600 to-blue-600 rounded-3xl p-8 flex items-center justify-between text-white overflow-hidden relative">
+            <div className="w-full aspect-[21/9] md:aspect-[25/7] bg-gradient-to-r from-[#0F4C81] to-[#00B8D9] rounded-card p-8 flex items-center justify-between text-white overflow-hidden relative shadow-premium">
                 <div className="z-10 animate-in slide-in-from-left duration-700">
                     <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter">Catálogo Digital</h1>
-                    <p className="text-indigo-100 text-lg font-medium max-w-md opacity-90">Qualidade e precisão para seus casos clínicos.</p>
+                    <p className="text-slate-100 text-lg font-medium max-w-md opacity-90">Qualidade e precisão para seus casos clínicos.</p>
                 </div>
                 <ShoppingBag size={180} className="absolute -right-10 -bottom-10 text-white/10 rotate-12" />
             </div>
@@ -38,7 +38,7 @@ const BannerCarousel = ({ images }: { images: string[] }) => {
     }
 
     return (
-        <div className="relative w-full aspect-[21/9] md:aspect-[25/7] rounded-3xl overflow-hidden shadow-2xl shadow-indigo-100 group">
+        <div className="relative w-full aspect-[21/9] md:aspect-[25/7] rounded-card overflow-hidden shadow-premium group">
             <AnimatePresence mode="wait">
                 <motion.img
                     key={index}
@@ -54,7 +54,7 @@ const BannerCarousel = ({ images }: { images: string[] }) => {
             
             <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-12 text-white">
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-                   <span className="bg-indigo-600 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 inline-block">Destaque</span>
+                   <span className="bg-[#00B8D9] text-[#1E293B] text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 inline-block">Destaque</span>
                    <h2 className="text-3xl md:text-5xl font-black tracking-tighter drop-shadow-lg">Excelência em Próteses</h2>
                 </motion.div>
             </div>
@@ -404,12 +404,44 @@ export const Catalog = () => {
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
 
+    const [fetchedLab, setFetchedLab] = useState<import('../../types').Organization | null>(null);
+    const [isLoadingLab, setIsLoadingLab] = useState(!!slug);
+
+    useEffect(() => {
+        if (!slug) {
+            setFetchedLab(null);
+            setIsLoadingLab(false);
+            return;
+        }
+
+        let isMounted = true;
+        setIsLoadingLab(true);
+
+        api.getOrganizationBySlug(slug)
+            .then(lab => {
+                if (isMounted) {
+                    setFetchedLab(lab);
+                    setIsLoadingLab(false);
+                }
+            })
+            .catch(err => {
+                console.error("Erro ao obter laboratório por slug:", err);
+                if (isMounted) {
+                    setIsLoadingLab(false);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [slug]);
+
     const selectedLab = useMemo(() => {
         if (slug) {
-            return allLaboratories.find(l => l.storeSlug === slug) || null;
+            return fetchedLab || allLaboratories.find(l => l.storeSlug === slug) || null;
         }
         return activeOrganization;
-    }, [slug, allLaboratories, activeOrganization]);
+    }, [slug, fetchedLab, allLaboratories, activeOrganization]);
 
     useEffect(() => {
         if (!selectedLab?.id) {
@@ -427,6 +459,15 @@ export const Catalog = () => {
 
     const isGuest = !currentUser;
     const isPriceVisible = !isGuest || (selectedLab?.storeVisibility !== 'PRIVATE');
+
+    if (isLoadingLab) {
+        return (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+                <Loader2 className="animate-spin text-indigo-600 mb-4" size={48} />
+                <p className="text-slate-500 font-bold text-sm">Carregando loja do laboratório...</p>
+            </div>
+        );
+    }
 
     if (slug && !selectedLab) {
         return (

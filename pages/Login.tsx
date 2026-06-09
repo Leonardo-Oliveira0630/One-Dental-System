@@ -71,35 +71,35 @@ export const Login = () => {
   // --- FORGOT PASSWORD VIEW ---
   if (view === 'FORGOT_PASSWORD') {
       return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-            <div className="bg-slate-800 w-full max-w-md p-8 rounded-3xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in duration-300">
-                <button onClick={() => { setView('LOGIN'); setResetSent(false); setError(null); }} className="flex items-center gap-2 text-slate-400 hover:text-white mb-6 font-bold text-sm transition-colors">
+        <div className="min-h-screen bg-[#131A23] flex flex-col items-center justify-center p-4">
+            <div className="bg-[#1E293B] w-full max-w-md p-8 rounded-card shadow-premium border border-slate-700/30 animate-in fade-in zoom-in duration-300">
+                <button onClick={() => { setView('LOGIN'); setResetSent(false); setError(null); }} className="flex items-center gap-2 text-slate-400 hover:text-[#00B8D9] mb-8 font-semibold text-sm transition-colors">
                     <ArrowLeft size={16} /> Voltar para o Login
                 </button>
 
                 {resetSent ? (
                     <div className="text-center space-y-4 py-4">
-                        <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto text-green-500">
+                        <div className="w-16 h-16 bg-[#10B981]/15 rounded-full flex items-center justify-center mx-auto text-[#10B981]">
                             <CheckCircle size={32} />
                         </div>
                         <h2 className="text-2xl font-bold text-white">E-mail Enviado!</h2>
-                        <p className="text-slate-400">
-                            Enviamos um link de recuperação para <strong>{resetEmail}</strong>. Verifique sua caixa de entrada e spam.
+                        <p className="text-slate-400 text-sm">
+                            Enviamos um link de recuperação para <strong className="text-[#00B8D9]">{resetEmail}</strong>. Verifique sua caixa de entrada e spam.
                         </p>
-                        <button onClick={() => setView('LOGIN')} className="w-full py-4 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600 transition-all">
+                        <button onClick={() => setView('LOGIN')} className="w-full py-3.5 bg-slate-700 hover:bg-slate-600 text-white font-semibold rounded-input transition-all">
                             Ir para o Login
                         </button>
                     </div>
                 ) : (
                     <>
-                        <div className="text-left mb-8">
+                        <div className="text-left mb-6">
                             <h1 className="text-2xl font-bold text-white mb-2">Recuperar Senha</h1>
-                            <p className="text-slate-400 text-sm">Informe seu e-mail cadastrado para receber as instruções de troca de senha.</p>
+                            <p className="text-slate-400 text-xs font-medium">Informe seu e-mail cadastrado para receber as instruções de troca de senha.</p>
                         </div>
 
-                        <form onSubmit={handleResetPassword} className="space-y-4">
+                        <form onSubmit={handleResetPassword} className="space-y-5">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">E-mail Cadastrado</label>
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">E-mail Cadastrado</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-3.5 text-slate-500" size={18} />
                                     <input 
@@ -108,17 +108,17 @@ export const Login = () => {
                                         value={resetEmail}
                                         onChange={(e) => setResetEmail(e.target.value)}
                                         placeholder="seu@email.com"
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                        className="w-full bg-[#131A23] border border-slate-700/40 rounded-input pl-10 pr-4 py-3 text-white focus:border-[#00B8D9] focus:ring-1 focus:ring-[#00B8D9] outline-none transition-all text-sm"
                                     />
                                 </div>
                             </div>
-                            {error && <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs text-center">{error}</div>}
+                            {error && <div className="p-3 bg-[#EF4444]/10 border border-[#EF4444]/20 rounded-lg text-[#EF4444] text-xs text-center font-medium">{error}</div>}
                             <button 
                                 type="submit"
                                 disabled={loading}
-                                className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                                className="w-full py-4 bg-[#0F4C81] hover:bg-[#0F4C81]/90 text-white font-semibold rounded-input shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 transition-all duration-300 transform hover:scale-[1.01]"
                             >
-                                {loading ? <Loader2 className="animate-spin" /> : <><Send size={18}/> Enviar Link de Recuperação</>}
+                                {loading ? <Loader2 className="animate-spin" /> : <><Send size={16}/> Enviar Recuperação</>}
                             </button>
                         </form>
                     </>
@@ -130,17 +130,20 @@ export const Login = () => {
 
   // --- LOGIN VIEW (Default) ---
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="bg-slate-800 w-full max-w-md p-8 rounded-3xl shadow-2xl border border-slate-700 animate-in fade-in zoom-in duration-300">
+    <div className="min-h-screen bg-[#131A23] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Dynamic graphic accents */}
+      <div className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] rounded-full bg-[#0F4C81]/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] rounded-full bg-[#00B8D9]/10 blur-[120px] pointer-events-none" />
+
+      <div className="bg-[#1E293B] w-full max-w-md p-8 md:p-10 rounded-card shadow-premium border border-slate-800/80 relative z-10 animate-in fade-in zoom-in duration-500">
         <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2 tracking-tighter">MY TOOTH</h1>
-            <p className="text-slate-400 text-sm">Ecossistema Digital para Prótese Dentária</p>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2 tracking-tight">Smile<span className="text-[#00B8D9]">ProX</span></h1>
+            <p className="text-slate-400 text-xs uppercase tracking-widest font-semibold">Ecossistema Digital Prótese & Odonto</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-            
+        <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">E-mail</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">E-mail</label>
                 <div className="relative">
                     <Mail className="absolute left-3 top-3.5 text-slate-500" size={18} />
                     <input 
@@ -149,18 +152,18 @@ export const Login = () => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="seu@email.com"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        className="w-full bg-[#131A23] border border-slate-700/50 rounded-input pl-10 pr-4 py-3 text-white focus:border-[#00B8D9] focus:ring-1 focus:ring-[#00B8D9] outline-none transition-all text-sm"
                     />
                 </div>
             </div>
 
             <div>
-                <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Senha</label>
+                <div className="flex justify-between items-center mb-1.5 ml-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase">Senha</label>
                     <button 
                         type="button" 
                         onClick={() => setView('FORGOT_PASSWORD')}
-                        className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                        className="text-[10px] font-semibold text-[#00B8D9] hover:text-[#00B8D9]/80 transition-colors"
                     >
                         Esqueceu a senha?
                     </button>
@@ -173,13 +176,13 @@ export const Login = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                        className="w-full bg-[#131A23] border border-slate-700/50 rounded-input pl-10 pr-4 py-3 text-white focus:border-[#00B8D9] focus:ring-1 focus:ring-[#00B8D9] outline-none transition-all text-sm"
                     />
                 </div>
             </div>
 
             {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm text-center">
+                <div className="p-3 bg-[#EF4444]/10 border border-[#EF4444]/20 rounded-lg text-[#EF4444] text-xs font-semibold text-center">
                     {error}
                 </div>
             )}
@@ -187,18 +190,18 @@ export const Login = () => {
             <button 
                 type="submit"
                 disabled={loading}
-                className={`w-full py-4 rounded-xl font-bold text-lg shadow-lg transition-all transform hover:scale-[1.01] flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                className={`w-full py-3.5 rounded-input font-bold text-sm tracking-wide shadow-lg transition-all duration-300 transform hover:scale-[1.01] flex items-center justify-center gap-2 bg-[#0F4C81] hover:bg-[#00B8D9] hover:shadow-[#00B8D9]/25 text-white ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-                {loading ? <Loader2 className="animate-spin" /> : 'Entrar na Plataforma'}
+                {loading ? <Loader2 className="animate-spin text-white" /> : 'Acessar Ecossistema'}
             </button>
         </form>
 
-        <div className="mt-8 text-center border-t border-slate-700/50 pt-6">
-            <p className="text-slate-400 text-sm">
-                Não tem uma conta ainda?
+        <div className="mt-8 text-center border-t border-slate-800/80 pt-6">
+            <p className="text-slate-400 text-xs font-normal">
+                Não possui uma conta ainda?
                 <br />
-                <Link to="/register-lab" className="font-black text-blue-400 hover:text-blue-300 inline-flex items-center gap-1 mt-2 uppercase tracking-tight">
-                    Criar nova conta (Lab ou Clínica)
+                <Link to="/register-lab" className="font-bold text-[#00B8D9] hover:text-white inline-flex items-center gap-1 mt-2 uppercase tracking-wide text-[10px] transition-colors">
+                    Criar nova conta (Lab ou Clínica) →
                 </Link>
             </p>
         </div>

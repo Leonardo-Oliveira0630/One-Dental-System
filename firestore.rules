@@ -67,7 +67,7 @@ service cloud.firestore {
     }
     
     match /organizations/{orgId} {
-      allow read: if isAuthenticated() || (resource != null && resource.data.get('orgType', '') == 'LAB');
+      allow read: if isAuthenticated() || (resource != null && resource.data.orgType == 'LAB');
       allow write: if isSuperAdmin() || (belongsToOrg(orgId) && (isAdmin() || getUserData().get('role', 'USER') == 'CLIENT'));
       
       match /jobs/{jobId} {

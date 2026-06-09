@@ -66,7 +66,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length
   , [jobs]);
 
-  const bgClass = isSuperAdmin ? 'bg-slate-950' : (isClient ? 'bg-indigo-950' : 'bg-slate-900');
+  const bgClass = 'bg-[#0F172A]';
   
   const handleLogout = () => { logout(); navigate('/'); };
 
@@ -75,7 +75,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const displayBrand = React.useMemo(() => 
     isViewingLabContext && activeOrganization 
       ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
-      : { name: currentOrg?.name || 'MY TOOTH', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'MY TOOTH SYSTEM' }
+      : { name: currentOrg?.name || 'SMILEPROX', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'SMILEPROX SYSTEM' }
   , [isViewingLabContext, activeOrganization, currentOrg, isClient]);
 
   return (
@@ -238,8 +238,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
              {!isMobileSearchOpen && (
                <div className="flex items-center gap-2 overflow-hidden">
-                  <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0">M</div>
-                  <span className="font-black text-slate-900 text-base uppercase tracking-tighter truncate">MyTooth</span>
+                  <div className="w-8 h-8 bg-gradient-to-br from-teal-500 to-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-xs shrink-0">S</div>
+                  <span className="font-black text-slate-900 text-base uppercase tracking-tighter truncate font-display">Smile<span className="text-indigo-600">ProX</span></span>
                </div>
              )}
          </div>
@@ -297,7 +297,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative">
         <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0">
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
-             <span className="font-black text-slate-900 tracking-tighter text-lg uppercase truncate">MyTooth <span className="text-blue-600">Eco System</span></span>
+             <span className="font-black text-slate-900 tracking-tighter text-lg uppercase truncate">Smile<span className="text-indigo-600 font-bold font-display">ProX</span></span>
           </div>
 
           <div className="flex-1 max-w-xl mx-8">
@@ -364,19 +364,19 @@ interface SidebarItemProps {
 }
 
 const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onClick, badge }) => (
-  <Link to={to} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group ${ active ? 'bg-white/10 text-white font-bold shadow-sm ring-1 ring-white/10' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }`} >
-    <span className="shrink-0">{icon}</span>
-    <span className="text-sm font-medium truncate">{label}</span>
+  <Link to={to} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group ${ active ? 'bg-gradient-to-r from-[#00B8D9]/15 to-[#00B8D9]/5 text-[#00B8D9] font-semibold border-l-4 border-[#00B8D9] pl-3' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }`} >
+    <span className={`shrink-0 transition-colors ${active ? 'text-[#00B8D9]' : 'text-slate-400 group-hover:text-slate-200'}`}>{icon}</span>
+    <span className="text-sm truncate">{label}</span>
     {badge !== undefined && badge > 0 && (
-      <span className="absolute right-4 bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black shadow-lg animate-pulse">{badge}</span>
+      <span className="absolute right-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black shadow-lg animate-pulse">{badge}</span>
     )}
   </Link>
 );
 
 const MobileNavItem = ({ to, icon, label, active, badge }: any) => (
-    <Link to={to} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${active ? 'text-blue-600' : 'text-slate-400'}`}>
+    <Link to={to} className={`flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors relative ${active ? 'text-[#00B8D9]' : 'text-slate-400'}`}>
         <span className="shrink-0">{icon}</span>
-        <span className="text-[9px] font-black uppercase tracking-tighter truncate max-w-full">{label}</span>
+        <span className="text-[9px] font-bold uppercase tracking-tighter truncate max-w-full">{label}</span>
         {badge !== undefined && badge > 0 && (
             <span className="absolute top-2 right-1/4 bg-red-500 text-white text-[8px] min-w-[14px] h-[14px] rounded-full flex items-center justify-center font-bold border border-white">
                 {badge}

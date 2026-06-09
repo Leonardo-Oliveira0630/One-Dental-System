@@ -1,5 +1,5 @@
-// MyTooth PWA Service Worker
-const CACHE_NAME = 'mytooth-v2';
+// SmileProX PWA Service Worker
+const CACHE_NAME = 'smileprox-v2';
 const ASSETS = [
   '/',
   '/index.html',

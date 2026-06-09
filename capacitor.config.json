@@ -1,7 +1,7 @@
 
 {
-  "appId": "com.mytooth.eco",
-  "appName": "My Tooth",
+  "appId": "com.smileprox.app",
+  "appName": "SmileProX",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",

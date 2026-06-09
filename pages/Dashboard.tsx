@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole } from '../types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Activity, Clock, AlertTriangle, CheckCircle, Sparkles, ShoppingBag, Building, Handshake } from 'lucide-react';
+import { Activity, Clock, AlertTriangle, CheckCircle, Sparkles, ShoppingBag, Building, Handshake, ArrowUpRight } from 'lucide-react';
 import { getProductionInsights } from '../services/geminiService';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,17 +16,17 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, icon, color, subtext }: StatCardProps) => (
-  <div className="bg-white p-4 xs:p-5 md:p-6 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-200 hover:shadow-md transition-shadow h-full flex flex-col justify-between overflow-hidden">
+  <div className="bg-white p-5 md:p-6 rounded-card shadow-soft border border-slate-100 hover:shadow-premium transition-all duration-300 transform hover:-translate-y-0.5 h-full flex flex-col justify-between overflow-hidden">
     <div className="flex justify-between items-start gap-2">
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest mb-1 truncate">{title}</p>
-        <h3 className="text-xl md:text-3xl font-black text-slate-800 tracking-tight truncate">{value}</h3>
+        <p className="text-[10px] md:text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2 truncate">{title}</p>
+        <h3 className="text-2xl md:text-3.5xl font-bold text-[#1E293B] tracking-tight truncate">{value}</h3>
       </div>
-      <div className={`p-2 md:p-3 rounded-xl ${color} shadow-sm shrink-0`}>
+      <div className={`p-3 rounded-[12px] ${color} shrink-0 flex items-center justify-center`}>
         {icon}
       </div>
     </div>
-    {subtext && <p className="text-[9px] md:text-[10px] text-slate-400 mt-3 md:mt-4 font-bold italic truncate">{subtext}</p>}
+    {subtext && <p className="text-[9px] md:text-[10px] text-[#64748B] mt-4 font-normal tracking-wide truncate">{subtext}</p>}
   </div>
 );
 
@@ -61,7 +61,8 @@ export const Dashboard = () => {
     return { totalActive: active, completedToday: completed, urgent: isUrgent, delayed: isDelayed, statusData: sData };
   }, [jobs]);
   
-  const COLORS = ['#94a3b8', '#eab308', '#3b82f6', '#8b5cf6', '#22c55e'];
+  // Custom colors matching the requested SaaS visual theme (Primary and Secondary accents)
+  const COLORS = ['#94A3B8', '#F59E0B', '#0F4C81', '#00B8D9', '#10B981'];
 
   const handleGenerateInsights = async () => {
     setLoadingAi(true);
@@ -75,40 +76,46 @@ export const Dashboard = () => {
           <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 w-full overflow-hidden">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <h1 className="text-xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter truncate">Olá, Dr(a). {currentUser.name}</h1>
-                    <p className="text-[10px] md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60 truncate">Status da sua produção digital</p>
+                    <h1 className="text-2xl md:text-3.5xl font-bold text-[#1E293B] tracking-tight truncate">Olá, Dr(a). {currentUser.name}</h1>
+                    <p className="text-[10px] md:text-sm text-[#64748B] font-medium uppercase tracking-widest mt-1 truncate">Acompanhamento e solicitações em tempo real</p>
                   </div>
-                  <button onClick={() => navigate('/store')} className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95 uppercase text-xs tracking-widest shrink-0"><ShoppingBag size={18} /> Novo Pedido Web</button>
+                  <button onClick={() => navigate('/store')} className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3.5 bg-[#0F4C81] hover:bg-[#0F4C81]/90 text-white font-semibold rounded-card shadow-premium hover:shadow-xl transition-all duration-300 uppercase text-xs tracking-wider shrink-0"><ShoppingBag size={18} /> Novo Pedido Web</button>
               </div>
 
               {!activeOrganization ? (
-                  <div className="bg-orange-50 border-2 border-dashed border-orange-200 p-6 md:p-10 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="bg-orange-50 border-2 border-dashed border-orange-200 p-6 md:p-10 rounded-card flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
                       <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left min-w-0">
-                          <div className="p-4 bg-orange-100 text-orange-600 rounded-3xl shrink-0"><Handshake size={32} /></div>
-                          <div className="min-w-0"><h3 className="text-xl font-black text-orange-900 uppercase tracking-tighter truncate">Sem Parceria Selecionada</h3><p className="text-orange-700 text-sm font-medium">Escolha um laboratório parceiro para visualizar o catálogo.</p></div>
+                          <div className="p-4 bg-orange-100 text-orange-600 rounded-card shrink-0"><Handshake size={32} /></div>
+                          <div className="min-w-0">
+                              <h3 className="text-lg font-semibold text-orange-950 uppercase tracking-wider mb-1">Sem Parceria Selecionada</h3>
+                              <p className="text-orange-700 text-sm font-medium">Selecione ou adicione um laboratório parceiro para visualizar produtos e fazer pedidos.</p>
+                          </div>
                       </div>
-                      <button onClick={() => navigate('/dentist/partnerships')} className="w-full md:w-auto px-8 py-3.5 bg-orange-600 text-white font-black rounded-2xl shadow-lg shadow-orange-100 uppercase text-xs shrink-0">Conectar agora</button>
+                      <button onClick={() => navigate('/dentist/partnerships')} className="w-full md:w-auto px-8 py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg shadow-lg shadow-orange-100 uppercase text-xs shrink-0 transition-colors">Conectar agora</button>
                   </div>
               ) : (
-                  <div className="bg-indigo-900 text-white p-6 md:p-10 rounded-[32px] shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><Building size={120} /></div>
+                  <div className="bg-gradient-to-br from-[#0F4C81] to-[#0A365C] text-white p-6 md:p-10 rounded-card shadow-premium flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none transform translate-x-10 translate-y-2"><Building size={160} /></div>
                       <div className="flex-1 relative z-10 text-center md:text-left min-w-0">
-                          <div className="flex items-center justify-center md:justify-start gap-2 text-indigo-300 font-black uppercase text-[10px] tracking-widest mb-3 truncate"><div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shrink-0"></div> Parceria Ativa</div>
-                          <h2 className="text-2xl md:text-4xl font-black mb-2 uppercase tracking-tighter truncate">{activeOrganization.name}</h2>
-                          <p className="text-indigo-200 text-sm font-medium">Acompanhando {jobs.length} pedidos neste laboratório.</p>
+                          <div className="flex items-center justify-center md:justify-start gap-2 text-[#00B8D9] font-bold uppercase text-[10px] tracking-widest mb-3 truncate">
+                            <div className="w-2.5 h-2.5 bg-[#00B8D9] rounded-full animate-ping shrink-0" />
+                            Laboratório Ativo
+                          </div>
+                          <h2 className="text-2xl md:text-4.5xl font-bold mb-2 tracking-tight truncate">{activeOrganization.name}</h2>
+                          <p className="text-slate-100/90 text-sm font-normal">Acompanhando {jobs.length} pedidos em andamento neste parceiro.</p>
                       </div>
                       <div className="flex flex-col xs:flex-row gap-3 w-full md:w-auto relative z-10">
-                          <button onClick={() => navigate('/jobs')} className="flex-1 px-6 py-3.5 bg-white/10 hover:bg-white/20 border border-white/10 font-black rounded-2xl transition-all uppercase text-[10px] tracking-widest truncate">Meus Pedidos</button>
-                          <button onClick={() => navigate('/store')} className="flex-1 px-8 py-3.5 bg-white text-indigo-900 font-black rounded-2xl shadow-xl transition-all hover:scale-105 uppercase text-[10px] tracking-widest truncate">Catálogo</button>
+                          <button onClick={() => navigate('/jobs')} className="flex-1 px-6 py-3.5 bg-white/10 hover:bg-white/20 border border-white/10 font-bold rounded-input transition-all uppercase text-[10px] tracking-widest truncate">Meus Pedidos</button>
+                          <button onClick={() => navigate('/store')} className="flex-1 px-8 py-3.5 bg-white hover:bg-slate-50 text-[#0F4C81] font-bold rounded-input shadow-soft transition-all hover:scale-[1.02] uppercase text-[10px] tracking-widest truncate">Consultar Catálogo</button>
                       </div>
                   </div>
               )}
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-                  <StatCard title="Em Produção" value={totalActive} icon={<Activity size={20} className="text-blue-600" />} color="bg-blue-50" />
-                  <StatCard title="Aprovação" value={jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length} icon={<Clock size={20} className="text-purple-600" />} color="bg-purple-50" />
-                  <StatCard title="Concluídos" value={jobs.filter(j => j.status === JobStatus.COMPLETED).length} icon={<CheckCircle size={20} className="text-green-600" />} color="bg-green-50" />
-                  <StatCard title="Urgências" value={urgent} icon={<AlertTriangle size={20} className="text-orange-600" />} color="bg-orange-50" />
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                  <StatCard title="Em Produção" value={totalActive} icon={<Activity size={20} className="text-[#00B8D9]" />} color="bg-[#00B8D9]/10" />
+                  <StatCard title="Aguardando Aprovação" value={jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length} icon={<Clock size={20} className="text-[#2F80ED]" />} color="bg-[#2F80ED]/10" />
+                  <StatCard title="Concluídos" value={jobs.filter(j => j.status === JobStatus.COMPLETED).length} icon={<CheckCircle size={20} className="text-[#10B981]" />} color="bg-[#10B981]/10" />
+                  <StatCard title="Urgências" value={urgent} icon={<AlertTriangle size={20} className="text-[#F59E0B]" />} color="bg-[#F59E0B]/10" />
               </div>
           </div>
       );
@@ -118,50 +125,56 @@ export const Dashboard = () => {
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 w-full overflow-hidden">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter truncate">Painel de Controle</h1>
-          <p className="text-[10px] md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60 truncate">Visão Geral da Produção em Tempo Real</p>
+          <h1 className="text-2xl md:text-3.5xl font-bold text-[#1E293B] tracking-tight">Painel de Controle</h1>
+          <p className="text-[10px] md:text-sm text-[#64748B] font-medium uppercase tracking-widest mt-1">Visão Geral da Produção e Indicadores em Tempo Real</p>
         </div>
-        <button onClick={handleGenerateInsights} disabled={loadingAi} className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black shadow-xl hover:bg-blue-600 transition-all disabled:opacity-70 text-[10px] md:text-xs tracking-widest uppercase shrink-0"><Sparkles size={18} className={loadingAi ? "animate-spin shrink-0" : "shrink-0"} /> {loadingAi ? 'Analisando...' : 'Insights com IA'}</button>
+        <button onClick={handleGenerateInsights} disabled={loadingAi} className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-[#0F4C81] hover:bg-[#0F4C81]/90 text-white rounded-card font-semibold shadow-premium hover:shadow-xl transition-all disabled:opacity-70 text-xs tracking-wider uppercase shrink-0"><Sparkles size={16} className={loadingAi ? "animate-spin shrink-0" : "shrink-0 text-[#00B8D9]"} /> {loadingAi ? 'Analisando...' : 'Insights com IA'}</button>
       </div>
 
       {aiInsights && (
-        <div className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-5 md:p-8 relative overflow-hidden animate-in zoom-in duration-300">
-            <div className="absolute top-0 right-0 p-4 opacity-10"><Sparkles size={100} className="text-blue-600" /></div>
-            <h3 className="text-xs md:text-sm font-black text-blue-900 mb-4 flex items-center gap-2 uppercase tracking-widest"><Sparkles size={16} /> Relatório Estratégico AI</h3>
-            <div className="text-[11px] md:text-sm text-blue-800 leading-relaxed font-bold whitespace-pre-wrap">{aiInsights}</div>
+        <div className="bg-gradient-to-r from-[#0F4C81]/10 to-[#00B8D9]/5 border border-l-4 border-l-[#0F4C81] border-[#0F4C81]/15 rounded-card p-6 md:p-8 relative overflow-hidden animate-in zoom-in duration-300">
+            <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none"><Sparkles size={160} className="text-[#0F4C81]" /></div>
+            <h3 className="text-xs md:text-sm font-bold text-[#0F4C81] mb-3 flex items-center gap-2 uppercase tracking-widest"><Sparkles size={16} className="text-[#00B8D9]" /> Relatório Estratégico AI</h3>
+            <div className="text-xs md:text-sm text-[#1E293B] leading-relaxed font-normal whitespace-pre-wrap">{aiInsights}</div>
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-        <StatCard title="Produção Ativa" value={totalActive} icon={<Activity size={20} className="text-blue-600" />} color="bg-blue-50" />
-        <StatCard title="Prontos Hoje" value={completedToday} icon={<CheckCircle size={20} className="text-green-600" />} color="bg-green-50" />
-        <StatCard title="VIP/Urgente" value={urgent} icon={<AlertTriangle size={20} className="text-orange-600" />} color="bg-orange-50" />
-        <StatCard title="Atrasados" value={delayed} icon={<Clock size={20} className="text-red-600" />} color="bg-red-50" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <StatCard title="Produção Ativa" value={totalActive} icon={<Activity size={20} className="text-[#00B8D9]" />} color="bg-[#00B8D9]/10" />
+        <StatCard title="Prontos Hoje" value={completedToday} icon={<CheckCircle size={20} className="text-[#10B981]" />} color="bg-[#10B981]/10" />
+        <StatCard title="VIP/Urgente" value={urgent} icon={<AlertTriangle size={20} className="text-[#F59E0B]" />} color="bg-[#F59E0B]/10" />
+        <StatCard title="Atrasados" value={delayed} icon={<Clock size={20} className="text-[#EF4444]" />} color="bg-[#EF4444]/10" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-        <div className="bg-white p-5 md:p-8 rounded-[32px] shadow-sm border border-slate-200 w-full overflow-hidden">
-            <h3 className="text-[10px] md:text-xs font-black text-slate-800 mb-6 md:mb-8 uppercase tracking-widest">Distribuição de Status</h3>
+        <div className="bg-white p-6 md:p-8 rounded-card shadow-soft border border-slate-100 w-full overflow-hidden">
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xs md:text-sm font-semibold text-[#1E293B] uppercase tracking-wider">Distribuição de Status</h3>
+                <span className="text-[10px] bg-slate-50 text-slate-400 font-bold px-2 py-1 rounded-md">Atalhos</span>
+            </div>
             <div className="h-[250px] md:h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={statusData}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                        <Tooltip cursor={{fill: '#f8fafc'}} />
-                        <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10, fontWeight: 'medium' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748B', fontSize: 10 }} />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)' }} cursor={{fill: '#F8FAFC'}} />
+                        <Bar dataKey="value" fill="#0F4C81" radius={[6, 6, 0, 0]} />
                     </BarChart>
                 </ResponsiveContainer>
             </div>
         </div>
         
-        <div className="bg-white p-5 md:p-8 rounded-[32px] shadow-sm border border-slate-200 w-full overflow-hidden">
-            <h3 className="text-[10px] md:text-xs font-black text-slate-800 mb-6 md:mb-8 uppercase tracking-widest">Equilíbrio de Carga</h3>
+        <div className="bg-white p-6 md:p-8 rounded-card shadow-soft border border-slate-100 w-full overflow-hidden">
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xs md:text-sm font-semibold text-[#1E293B] uppercase tracking-wider">Equilíbrio de Carga</h3>
+                <span className="text-[10px] bg-slate-50 text-slate-400 font-bold px-2 py-1 rounded-md">Porcentagem</span>
+            </div>
              <div className="h-[250px] md:h-[300px] w-full flex items-center justify-center">
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                        <Pie data={statusData} cx="50%" cy="50%" innerRadius="40%" outerRadius="80%" paddingAngle={8} dataKey="value">
-                            {statusData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                        <Pie data={statusData} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={4} dataKey="value">
+                            {statusData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#fff" strokeWidth={2} />))}
                         </Pie>
                         <Tooltip />
                     </PieChart>

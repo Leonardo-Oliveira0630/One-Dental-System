@@ -736,7 +736,7 @@ export const GlobalScanner: React.FC = () => {
           <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
               <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center text-white z-[120] bg-gradient-to-b from-black/60 to-transparent">
                   <div>
-                      <h3 className="font-bold text-xl tracking-tight">Leitor My Tooth</h3>
+                      <h3 className="font-bold text-xl tracking-tight">Leitor SmileProX</h3>
                       <p className="text-xs opacity-70">Aponte para o código de barras da OS</p>
                   </div>
                   <div className="flex items-center gap-2">

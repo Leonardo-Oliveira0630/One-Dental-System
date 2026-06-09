@@ -15,7 +15,7 @@ export const PrintOverlay = () => {
     window.print();
   };
 
-  const labName = currentOrg?.name || 'MY TOOTH SYSTEM';
+  const labName = currentOrg?.name || 'SMILEPROX SYSTEM';
   const labLogo = currentOrg?.logoUrl;
 
   return (
@@ -147,7 +147,7 @@ export const PrintOverlay = () => {
               
               <div className="mb-2 border border-gray-300 p-2 rounded h-[60px] shrink-0 overflow-hidden"><h3 className="font-bold text-[10px] uppercase text-gray-500 mb-1">Observações / Instruções</h3><p className="whitespace-pre-wrap text-xs line-clamp-2">{printData.job.notes || "Sem observações."}</p></div>
               
-              <div className="text-center mt-auto pt-2 border-t border-dashed border-gray-400 shrink-0"><p className="text-[10px] text-gray-500">Documento de Uso Interno - Gerado via MY TOOTH</p></div>
+              <div className="text-center mt-auto pt-2 border-t border-dashed border-gray-400 shrink-0"><p className="text-[10px] text-gray-500">Documento de Uso Interno - Gerado via SmileProX</p></div>
             </div>
           )}
 

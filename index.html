@@ -7,7 +7,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>My Tooth System</title>
+    <title>SmileProX System</title>
     
     <link rel="manifest" href="/manifest.json">
     
@@ -15,19 +15,69 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="My Tooth">
+    <meta name="apple-mobile-web-app-title" content="SmileProX">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3467/3467771.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: { sans: ['Inter', 'sans-serif'] },
+            fontFamily: { 
+              sans: ['"Inter"', '"Plus Jakarta Sans"', 'sans-serif'],
+              display: ['"Space Grotesk"', '"Inter"', 'sans-serif']
+            },
             colors: {
-              lab: { 50: '#f0f9ff', 100: '#e0f2fe', 600: '#0284c7', 900: '#0c4a6e' },
-              store: { 50: '#f5f3ff', 600: '#7c3aed', 900: '#4c1d95' }
+              brand: {
+                primary: '#0F4C81',
+                secondary: '#00B8D9',
+                accent: '#2F80ED',
+                background: '#F8FAFC',
+                card: '#FFFFFF',
+                textPrimary: '#1E293B',
+                textSecondary: '#64748B',
+                success: '#10B981',
+                warning: '#F59E0B',
+                error: '#EF4444',
+                info: '#3B82F6',
+                // Dark Mode variables
+                darkBg: '#131A23',
+                darkSidebar: '#0F172A',
+                darkCard: '#1E293B',
+                darkAccent: '#00B8D9'
+              },
+              lab: { 
+                50: '#f0f7fc', 
+                100: '#e0eff9', 
+                600: '#0F4C81', 
+                700: '#0a3a63',
+                900: '#072642' 
+              },
+              store: { 
+                50: '#f0fbfd', 
+                100: '#d5f5fa', 
+                600: '#00B8D9', 
+                700: '#0097b3',
+                900: '#006578' 
+              }
+            },
+            borderRadius: {
+              'none': '0px',
+              'sm': '4px',
+              'DEFAULT': '12px',
+              'md': '12px',
+              'lg': '12px',
+              'xl': '12px',
+              'input': '10px',
+              'card': '16px',
+              '2xl': '16px',
+              '3xl': '24px',
+              'full': '9999px',
+            },
+            boxShadow: {
+              'soft': '0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 12px -1px rgba(15, 23, 42, 0.03)',
+              'premium': '0 10px 30px -5px rgba(15, 76, 129, 0.08), 0 4px 12px -2px rgba(15, 76, 129, 0.03)'
             },
             screens: {
               'xs': '480px',
