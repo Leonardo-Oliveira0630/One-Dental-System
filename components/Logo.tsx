@@ -12,6 +12,21 @@ export const LOGO_COMPLETO_URL: string = '';
 export const LOGO_ICONE_URL: string = 'gs://one-dental-system.firebasestorage.app/logo/logoapp.svg'; 
 // ==========================================
 
+// Função auxiliar para converter URLs "gs://" do Firebase Storage em links HTTPS públicos que o navegador entende
+const getBrowserUrl = (url: string): string => {
+  if (!url) return '';
+  if (url.startsWith('gs://')) {
+    const match = url.match(/^gs:\/\/([^/]+)\/(.+)$/);
+    if (match) {
+      const bucket = match[1];
+      const filePath = match[2];
+      const encodedPath = encodeURIComponent(filePath);
+      return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
+    }
+  }
+  return url;
+};
+
 interface LogoProps extends React.SVGProps<SVGSVGElement> {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | number;
   showText?: boolean;
@@ -38,7 +53,7 @@ export const LogoIcon: React.FC<LogoProps> = ({
   if (LOGO_ICONE_URL) {
     return (
       <img 
-        src={LOGO_ICONE_URL} 
+        src={getBrowserUrl(LOGO_ICONE_URL)} 
         alt="SmileProX Icon" 
         style={{ width: dimensions, height: dimensions }}
         className={`object-contain shrink-0 ${className}`} 
@@ -192,7 +207,7 @@ export const Logo: React.FC<LogoProps> = ({
     return (
       <div className={`flex items-center justify-center shrink-0 overflow-hidden ${className}`}>
         <img 
-          src={LOGO_COMPLETO_URL} 
+          src={getBrowserUrl(LOGO_COMPLETO_URL)} 
           alt="SmileProX Logo" 
           style={{ height: wrapperHeight, width: 'auto' }}
           className="object-contain max-w-full shrink-0"
