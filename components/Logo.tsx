@@ -30,7 +30,7 @@ export const LOGO_COMPLETO_URL: string = '';
 
 // 2. Se você fez o upload APENAS do ícone do dente separado e quer ue o sistema continue escrevendo
 //    o texto "SmileProX" ao lado via código, cole o seu link em LOGO_ICONE_URL abaixo:
-export const LOGO_ICONE_URL: string = 'gs://one-dental-system.firebasestorage.app/logo/logoapp.svg'; 
+export const LOGO_ICONE_URL: string = ''; 
 // ==========================================
 
 // Versão em texto do SVG de dente em alta qualidade para usar como Favicon padrão caso não haja upload
@@ -128,7 +128,9 @@ export const useBrowserMetadataEffect = (iconicUrl: string, completeUrl: string)
       // Converte o SVG Bruto em uma Data URL segura
       faviconUrl = `data:image/svg+xml;utf8,${encodeURIComponent(LOGO_SVG_RAW)}`;
     } else if (LOGO_BASE64) {
-      faviconUrl = LOGO_BASE64;
+      faviconUrl = LOGO_BASE64.startsWith('data:') 
+        ? LOGO_BASE64 
+        : `data:image/svg+xml;base64,${LOGO_BASE64}`;
     } else if (LOGO_LOCAL_PATH) {
       faviconUrl = LOGO_LOCAL_PATH;
     } else if (finalCompletoUrl) {
@@ -200,9 +202,12 @@ export const LogoIcon: React.FC<LogoProps> = ({
 
   // 2. SUPORTE A IMAGENS BASE64
   if (LOGO_BASE64) {
+    const imgSrc = LOGO_BASE64.startsWith('data:') 
+      ? LOGO_BASE64 
+      : `data:image/svg+xml;base64,${LOGO_BASE64}`;
     return (
       <img 
-        src={LOGO_BASE64} 
+        src={imgSrc} 
         alt="SmileProX Icon" 
         style={{ width: dimensions, height: dimensions }}
         className={`object-contain shrink-0 ${className}`} 
