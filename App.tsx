@@ -4,6 +4,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
+import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { JobsList } from './pages/JobsList';
 import { Catalog } from './pages/store/Catalog';
@@ -56,7 +57,7 @@ import { TermsPopup } from './components/TermsPopup';
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { currentUser, isLoadingAuth } = useApp();
   if (isLoadingAuth) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="h-12 w-12 text-blue-600 animate-spin" /></div>;
-  if (!currentUser) return <Navigate to="/" replace />;
+  if (!currentUser) return <Navigate to="/login" replace />;
   return (
     <>
       <TermsPopup />
@@ -70,7 +71,8 @@ import Reports from './pages/Reports';
 const AppContent = () => {
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Login />} />
       <Route path="/register-lab" element={<RegisterOrganization />} />
       <Route path="/terms" element={<TermsOfUse />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />

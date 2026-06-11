@@ -335,7 +335,7 @@ export const RegisterOrganization = () => {
                 </button>
                 
                 <div className="text-center pt-2">
-                    <Link to="/" className="text-slate-400 hover:text-white text-sm transition-colors">Já tem conta? <span className="font-bold underline">Fazer Login</span></Link>
+                    <Link to="/login" className="text-slate-400 hover:text-white text-sm transition-colors">Já tem conta? <span className="font-bold underline">Fazer Login</span></Link>
                 </div>
             </form>
         </div>
