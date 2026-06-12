@@ -107,6 +107,16 @@ export interface RouteItem {
   order: number;
 }
 
+export interface Courier {
+  id: string;
+  organizationId: string;
+  name: string;
+  phone?: string;
+  vehicle?: string;
+  active: boolean;
+  createdAt: Date;
+}
+
 export interface Expense {
   id: string;
   organizationId: string;

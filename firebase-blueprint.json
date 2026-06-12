@@ -62,6 +62,21 @@
         "orderIndex": { "type": "number" }
       },
       "required": ["id", "title", "category", "targetAudience"]
+    },
+    "Courier": {
+      "title": "Courier",
+      "description": "Courier/Motoboy registration data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "vehicle": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "organizationId", "name", "active"]
     }
   },
   "firestore": {
@@ -72,6 +87,10 @@
     "/organizations/{orgId}": {
       "schema": "Organization",
       "description": "Organization documents"
+    },
+    "/organizations/{orgId}/couriers/{courierId}": {
+      "schema": "Courier",
+      "description": "Couriers or motoboys registered by the lab"
     },
     "/organizations/{orgId}/jobs/{jobId}": {
       "schema": "object",

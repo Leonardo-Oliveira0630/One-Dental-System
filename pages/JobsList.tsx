@@ -150,7 +150,7 @@ const JobCard = memo(({
 });
 
 export const JobsList = () => {
-  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists } = useApp();
+  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers } = useApp();
   const navigate = useNavigate();
   
   const [filterText, setFilterText] = useState('');
@@ -506,7 +506,37 @@ export const JobsList = () => {
                       </div>
                       <div>
                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Entregador</label>
-                          <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold" />
+                          {couriers && couriers.filter(c => c.active).length > 0 ? (
+                              <div className="space-y-2">
+                                  <select 
+                                      value={couriers.filter(c => c.active).map(c => c.name).includes(routeDriver) ? routeDriver : (routeDriver ? 'MANUAL' : '')} 
+                                      onChange={e => {
+                                          if (e.target.value === 'MANUAL') {
+                                              setRouteDriver('');
+                                          } else {
+                                              setRouteDriver(e.target.value);
+                                          }
+                                      }} 
+                                      className="w-full px-4 py-2 border rounded-xl bg-white font-bold text-slate-800"
+                                  >
+                                      <option value="">-- Selecione o Motoboy --</option>
+                                      {couriers.filter(c => c.active).map(c => (
+                                          <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>
+                                      ))}
+                                      <option value="MANUAL">Outro (Digitar nome)</option>
+                                  </select>
+                                  {(!couriers.filter(c => c.active).map(c => c.name).includes(routeDriver) || routeDriver === '') && (
+                                      <input 
+                                          placeholder="Digite o nome do Motoboy" 
+                                          value={routeDriver} 
+                                          onChange={e => setRouteDriver(e.target.value)} 
+                                          className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" 
+                                      />
+                                  )}
+                              </div>
+                          ) : (
+                              <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" />
+                          )}
                       </div>
                       <button onClick={handleAddToRoute} disabled={isProcessing} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 active:scale-95 transition-transform">
                           {isProcessing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={20} /> CONFIRMAR NA ROTA</>}

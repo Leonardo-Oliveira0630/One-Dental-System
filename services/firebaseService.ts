@@ -23,7 +23,7 @@ import {
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
-  Tutorial
+  Tutorial, Courier
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -715,6 +715,29 @@ export const subscribeRouteItems = (orgId: string, routeId: string, cb: (items: 
 };
 export const apiAddRouteItem = (orgId: string, routeId: string, item: RouteItem) => setDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, item.id), item);
 export const apiDeleteRouteItem = (orgId: string, routeId: string, itemId: string) => deleteDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, itemId));
+
+export const subscribeCouriers = (orgId: string, cb: (couriers: Courier[]) => void) => {
+  if (!orgId) return () => {};
+  const q = query(collection(db, `organizations/${orgId}/couriers`), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snap: any) => {
+    cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Courier)));
+  }, (error: any) => console.warn(`[Firestore] Erro em subscribeCouriers: ${error.code}`));
+};
+
+export const apiAddCourier = (orgId: string, courier: Courier) => {
+  return setDoc(doc(db, `organizations/${orgId}/couriers`, courier.id), {
+    ...courier,
+    createdAt: courier.createdAt instanceof Date ? courier.createdAt : new Date(courier.createdAt)
+  });
+};
+
+export const apiUpdateCourier = (orgId: string, id: string, updates: Partial<Courier>) => {
+  return updateDoc(doc(db, `organizations/${orgId}/couriers`, id), updates);
+};
+
+export const apiDeleteCourier = (orgId: string, id: string) => {
+  return deleteDoc(doc(db, `organizations/${orgId}/couriers`, id));
+};
 
 export const subscribeDentistPayments = (orgId: string, cb: (p: DentistPayment[]) => void) => {
     if (!orgId) return () => {};

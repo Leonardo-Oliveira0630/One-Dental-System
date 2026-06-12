@@ -48,7 +48,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables, inventoryItems } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables, inventoryItems, couriers } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -2199,6 +2199,67 @@ export const JobDetails = () => {
                 )}
             </div>
         )}
+
+      {showRouteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6 border-b pb-4">
+                      <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter"><Truck className="text-indigo-600" /> Confirmar Logística</h3>
+                      <button onClick={() => setShowRouteModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                  </div>
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Data da Rota</label>
+                          <input type="date" value={routeDate} onChange={e => setRouteDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold bg-slate-50" />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Turno da Rota</label>
+                          <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border rounded-xl bg-slate-50 font-black text-xs text-slate-800">
+                              <option value="MORNING">Manhã</option>
+                              <option value="AFTERNOON">Tarde</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Motorista / Motoboy</label>
+                          {couriers && couriers.filter(c => c.active).length > 0 ? (
+                              <div className="space-y-2">
+                                  <select 
+                                      value={couriers.filter(c => c.active).map(c => c.name).includes(routeDriver) ? routeDriver : (routeDriver ? 'MANUAL' : '')} 
+                                      onChange={e => {
+                                          if (e.target.value === 'MANUAL') {
+                                              setRouteDriver('');
+                                          } else {
+                                              setRouteDriver(e.target.value);
+                                          }
+                                      }} 
+                                      className="w-full px-4 py-2 border rounded-xl bg-white font-bold text-slate-800 text-xs"
+                                  >
+                                      <option value="">-- Selecione o Motoboy --</option>
+                                      {couriers.filter(c => c.active).map(c => (
+                                          <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>
+                                      ))}
+                                      <option value="MANUAL">Outro (Digitar nome)</option>
+                                  </select>
+                                  {(!couriers.filter(c => c.active).map(c => c.name).includes(routeDriver) || routeDriver === '') && (
+                                      <input 
+                                          placeholder="Digite o nome do Motoboy" 
+                                          value={routeDriver} 
+                                          onChange={e => setRouteDriver(e.target.value)} 
+                                          className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800 text-xs" 
+                                      />
+                                  )}
+                              </div>
+                          ) : (
+                              <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800 text-xs bg-slate-50" />
+                          )}
+                      </div>
+                      <button onClick={handleAddToRoute} disabled={isUpdatingStatus} className="w-full py-4 bg-indigo-600 text-white font-black text-xs rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 active:scale-95 transition-transform uppercase tracking-widest mt-2">
+                          {isUpdatingStatus ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={16} /> ADICIONAR AO ROTEIRO</>}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
       </div>
     </div>
   );
