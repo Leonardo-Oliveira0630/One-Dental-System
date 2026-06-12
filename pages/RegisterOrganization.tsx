@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText } from 'lucide-react';
 import { Coupon } from '../types';
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
 
 export const RegisterOrganization = () => {
-  const { registerOrganization, registerDentist, allPlans, validateCoupon } = useApp();
+  const { registerOrganization, registerDentist, allPlans, validateCoupon, createSubscription } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialType = (searchParams.get('type') === 'DENTIST' || searchParams.get('type') === 'CLINIC') ? 'DENTIST' : 'LAB';
@@ -24,6 +24,8 @@ export const RegisterOrganization = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [planId, setPlanId] = useState(initialPlanId);
+  const [cpfCnpj, setCpfCnpj] = useState('');
+  const [phone, setPhone] = useState('');
   
   // Address State
   const [cep, setCep] = useState('');
@@ -120,6 +122,24 @@ export const RegisterOrganization = () => {
     setLoading(true);
     setError('');
 
+    const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
+    if (!cleanCpfCnpj) {
+        setError("Erro ao registrar: O campo CPF ou CNPJ é obrigatório.");
+        setLoading(false);
+        return;
+    }
+    if (cleanCpfCnpj.length !== 11 && cleanCpfCnpj.length !== 14) {
+        setError("Erro ao registrar: O CPF/CNPJ deve conter 11 (CPF) ou 14 (CNPJ) dígitos.");
+        setLoading(false);
+        return;
+    }
+
+    if (!phone || phone.trim().length < 8) {
+        setError("Erro ao registrar: Um número de telefone válido é obrigatório.");
+        setLoading(false);
+        return;
+    }
+
     try {
       // If no plan selected, pick the first one available
       const selectedPlanId = planId || (displayPlans.length > 0 ? displayPlans[0].id : '');
@@ -142,21 +162,50 @@ export const RegisterOrganization = () => {
           const d = new Date(); d.setFullYear(d.getFullYear() + 10); trialEnd = d;
       }
 
+      let regUser;
       if (regType === 'LAB') {
-          await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
-              address, number, complement, neighborhood, city, state, cep, country
+          regUser = await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
+              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone
           });
+          
+          // Automatically register subscription and issue the first payment/boleto via Asaas
+          if (regUser && regUser.organizationId) {
+              try {
+                  await createSubscription(
+                      regUser.organizationId,
+                      selectedPlanId,
+                      email,
+                      labName,
+                      cleanCpfCnpj,
+                      appliedCoupon?.code
+                  );
+              } catch (subErr) {
+                  console.error("Erro ao gerar fatura/assinatura Asaas automática:", subErr);
+              }
+          }
+          
           navigate('/dashboard');
       } else {
           // Register Dentist (Now includes Plan & Org creation)
-          await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code, {
-              address, number, complement, neighborhood, city, state, cep, country
+          regUser = await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code, {
+              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone
           });
           navigate('/store'); // Goes to store (or clinic dashboard if feature enabled)
       }
     } catch (err: any) {
       console.error(err);
-      setError("Erro ao registrar: " + (err.message || "Tente novamente."));
+      let errMsg = err.message || "Tente novamente.";
+      
+      const errorStr = String(err.code || err.message || '');
+      if (errorStr.includes('email-already-in-use') || errorStr.includes('auth/email-already-in-use')) {
+        errMsg = "Este endereço de e-mail já está sendo utilizado por outra conta. Se você já possui uma conta, faça login ou utilize um e-mail diferente para criar o seu laboratório.";
+      } else if (errorStr.includes('weak-password')) {
+        errMsg = "A senha fornecida é muito fraca. Por favor, utilize uma senha com pelo menos 6 caracteres.";
+      } else if (errorStr.includes('invalid-email')) {
+        errMsg = "O e-mail informado é inválido. Verifique se digitou corretamente.";
+      }
+      
+      setError("Erro ao registrar: " + errMsg);
       setLoading(false);
     }
   };
@@ -210,6 +259,24 @@ export const RegisterOrganization = () => {
                         <div className="relative">
                             <User className="absolute left-3 top-3 text-slate-500" size={18}/>
                             <input required value={ownerName} onChange={e => setOwnerName(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Ex: João da Silva" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">CPF ou CNPJ (para Faturamento)</label>
+                        <div className="relative">
+                            <FileText className="absolute left-3 top-3 text-slate-500" size={18}/>
+                            <input required value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Somente números" />
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone / WhatsApp</label>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-3 text-slate-500" size={18}/>
+                            <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Ex: (11) 99999-9999" />
                         </div>
                     </div>
                 </div>

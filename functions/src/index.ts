@@ -428,6 +428,24 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
   try {
     const cleanCpfCnpj = String(cpfCnpj).replace(/\D/g, "");
 
+    // Buscar Informações da Organização para pegar dados de Endereço e Telefone
+    const orgSnap = await admin.firestore()
+      .collection("organizations")
+      .doc(orgId)
+      .get();
+    
+    let orgData: any = {};
+    if (orgSnap.exists) {
+      orgData = orgSnap.data() || {};
+    }
+
+    const phone = orgData.phone || "";
+    const cep = orgData.cep || "";
+    const address = orgData.address || "";
+    const number = orgData.number || "";
+    const complement = orgData.complement || "";
+    const neighborhood = orgData.neighborhood || "";
+
     // Buscar ou Criar Customer
     let customerId = "";
     try {
@@ -437,10 +455,23 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
       );
       if (existing.data.data.length > 0) {
         customerId = existing.data.data[0].id;
+        // Opcional: Atualizar os dados do cliente caso necessário para garantir o faturamento correto
       } else {
         const custRes = await axios.post(
           `${url}/customers`,
-          {name, email, cpfCnpj: cleanCpfCnpj},
+          {
+            name, 
+            email, 
+            cpfCnpj: cleanCpfCnpj,
+            phone: phone,
+            mobilePhone: phone,
+            postalCode: cep,
+            address: address,
+            addressNumber: number,
+            complement: complement,
+            province: neighborhood,
+            externalReference: orgId
+          },
           {headers: {access_token: key}}
         );
         customerId = custRes.data.id;
@@ -449,20 +480,37 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
       throw new Error("Erro cliente Asaas: " + e.message);
     }
 
-    // Valor
+    // Valor do Plano
     let value = 99.00;
     const planSnap = await admin.firestore()
-      .collection("globalSettings")
-      .doc("plans")
-      .collection("list")
+      .collection("subscriptionPlans")
       .doc(planId)
       .get();
-    if (planSnap.exists && planSnap.data()?.price) {
+    if (planSnap.exists && planSnap.data()?.price !== undefined) {
       value = planSnap.data()?.price;
     }
 
-    const nextDue = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+    // Calcular data de vencimento da fatura com base no período de teste
+    let nextDue = new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0]; // 2 dias por padrão se não houver trial
+    
+    if (orgSnap.exists) {
+      const trialEndsAt = orgData.trialEndsAt;
+      if (trialEndsAt) {
+        let trialDate: Date;
+        if (typeof trialEndsAt === 'object' && 'seconds' in (trialEndsAt as any)) {
+          trialDate = new Date((trialEndsAt as any).seconds * 1000);
+        } else {
+          trialDate = new Date(trialEndsAt);
+        }
+        
+        // Garante que a data do próximo vencimento está no futuro (pelo menos hoje + 1 dia)
+        if (trialDate.getTime() > Date.now() + 86400000) {
+          nextDue = trialDate.toISOString().split("T")[0];
+        }
+      }
+    }
 
+    // Criar Assinatura no Asaas
     const subRes = await axios.post(
       `${url}/subscriptions`,
       {
@@ -476,13 +524,28 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
       {headers: {access_token: key}}
     );
 
+    // Buscar a primeira fatura gerada para obter o link direto de pagamento (checkout)
+    let paymentLink = "";
+    try {
+      const paymentsRes = await axios.get(
+        `${url}/payments?subscription=${subRes.data.id}&limit=1`,
+        {headers: {access_token: key}}
+      );
+      if (paymentsRes.data.data && paymentsRes.data.data.length > 0) {
+        paymentLink = paymentsRes.data.data[0].invoiceUrl;
+      }
+    } catch (payErr: any) {
+      functions.logger.warn("Erro ao buscar a fatura inicial da assinatura no Asaas:", payErr.message);
+    }
+
     await admin.firestore().collection("organizations").doc(orgId).update({
       asaasCustomerId: customerId,
       subscriptionId: subRes.data.id,
       subscriptionStatus: "PENDING",
       planId: planId,
     });
-    return {success: true};
+    
+    return {success: true, paymentLink: paymentLink || subRes.data.id};
   } catch (error: any) {
     functions.logger.error("Erro em createSaaSSubscription:", error);
     throw new functions.https.HttpsError("internal", error.message);
@@ -534,8 +597,13 @@ export const asaasWebhook = functions.https.onRequest(
     try {
       const isPaid = event.event === "PAYMENT_RECEIVED" ||
                      event.event === "PAYMENT_CONFIRMED";
+      const isOverdue = event.event === "PAYMENT_OVERDUE";
+      const isCancelled = event.event === "PAYMENT_DELETED" || 
+                          event.event === "PAYMENT_REFUNDED";
+
+      const customerId = event.payment?.customer;
+      
       if (isPaid) {
-        const customerId = event.payment?.customer;
         const ref = event.payment?.externalReference || "";
         if (ref.includes("___")) {
           const [orgId, id] = ref.split("___");
@@ -564,9 +632,30 @@ export const asaasWebhook = functions.https.onRequest(
             await orgDoc.ref.update({subscriptionStatus: "ACTIVE"});
           }
         }
+      } else if (isOverdue) {
+        if (customerId && event.payment?.subscription) {
+          // SaaS Subscription overdue
+          const orgsSnapshot = await db.collection("organizations")
+            .where("asaasCustomerId", "==", customerId).get();
+          if (!orgsSnapshot.empty) {
+            const orgDoc = orgsSnapshot.docs[0];
+            await orgDoc.ref.update({subscriptionStatus: "OVERDUE"});
+          }
+        }
+      } else if (isCancelled) {
+        if (customerId && event.payment?.subscription) {
+          // SaaS Subscription cancelled
+          const orgsSnapshot = await db.collection("organizations")
+            .where("asaasCustomerId", "==", customerId).get();
+          if (!orgsSnapshot.empty) {
+            const orgDoc = orgsSnapshot.docs[0];
+            await orgDoc.ref.update({subscriptionStatus: "CANCELLED"});
+          }
+        }
       }
       res.status(200).send("OK");
     } catch (error) {
+      functions.logger.error("Erro no asaasWebhook:", error);
       res.status(500).send("Erro");
     }
   }
