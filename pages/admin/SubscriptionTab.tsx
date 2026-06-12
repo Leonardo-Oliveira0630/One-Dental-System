@@ -14,6 +14,18 @@ export const SubscriptionTab = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
 
+  const isTrialActive = currentOrg?.trialEndsAt && (() => {
+    let trialDate: Date;
+    if (typeof currentOrg.trialEndsAt === 'object' && 'seconds' in (currentOrg.trialEndsAt as any)) {
+      trialDate = new Date((currentOrg.trialEndsAt as any).seconds * 1000);
+    } else if (currentOrg.trialEndsAt instanceof Date) {
+      trialDate = currentOrg.trialEndsAt;
+    } else {
+      trialDate = new Date(currentOrg.trialEndsAt);
+    }
+    return new Date() < trialDate;
+  })();
+
   useEffect(() => {
      if (currentOrg?.id) {
          setLoadingInvoices(true);
@@ -82,10 +94,23 @@ export const SubscriptionTab = () => {
               </div>
             )}
 
-            {currentOrg?.subscriptionStatus === 'TRIAL' && (
+            {(currentOrg?.subscriptionStatus === 'TRIAL' || isTrialActive) && (
               <div className="mt-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-2xl flex items-center justify-between">
-                <div><p className="font-bold text-orange-400">Modo de Avaliação</p><p className="text-xs">Ative agora para manter o acesso.</p></div>
+                <div>
+                  <p className="font-bold text-orange-400 font-sans tracking-tight">Modo de Avaliação Ativo</p>
+                  <p className="text-xs text-slate-300">Sua conta está liberada para testes. Acesse a área de pagamento para ativar de forma definitiva.</p>
+                </div>
                 <button onClick={() => navigate('/subscribe')} className="px-6 py-2 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-all flex items-center gap-2 shadow-lg shadow-orange-900/40"><Zap size={16}/> ATIVAR</button>
+              </div>
+            )}
+
+            {currentOrg?.subscriptionStatus === 'PENDING' && !isTrialActive && (
+              <div className="mt-6 p-4 bg-red-500/20 border border-red-500/50 rounded-2xl flex items-center justify-between">
+                <div>
+                  <p className="font-bold text-red-400 font-sans tracking-tight">Faturamento Pendente</p>
+                  <p className="text-xs text-slate-300">Seu período de avaliação expirou e a primeira fatura está pendente. Regularize o pagamento para restaurar o acesso completo.</p>
+                </div>
+                <button onClick={() => navigate('/subscribe')} className="px-6 py-2 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all flex items-center gap-2 shadow-lg shadow-red-900/40"><Zap size={16}/> PAGAR AGORA</button>
               </div>
             )}
          </div>

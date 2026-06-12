@@ -433,7 +433,7 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
       .collection("organizations")
       .doc(orgId)
       .get();
-    
+
     let orgData: any = {};
     if (orgSnap.exists) {
       orgData = orgSnap.data() || {};
@@ -455,13 +455,13 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
       );
       if (existing.data.data.length > 0) {
         customerId = existing.data.data[0].id;
-        // Opcional: Atualizar os dados do cliente caso necessário para garantir o faturamento correto
+        // Opcional: Atualizar dados para faturamento correto
       } else {
         const custRes = await axios.post(
           `${url}/customers`,
           {
-            name, 
-            email, 
+            name,
+            email,
             cpfCnpj: cleanCpfCnpj,
             phone: phone,
             mobilePhone: phone,
@@ -470,7 +470,7 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
             addressNumber: number,
             complement: complement,
             province: neighborhood,
-            externalReference: orgId
+            externalReference: orgId,
           },
           {headers: {access_token: key}}
         );
@@ -490,20 +490,23 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
       value = planSnap.data()?.price;
     }
 
-    // Calcular data de vencimento da fatura com base no período de teste
-    let nextDue = new Date(Date.now() + 86400000 * 2).toISOString().split("T")[0]; // 2 dias por padrão se não houver trial
-    
+    // Calcular data de vencimento da fatura com base no trial
+    const delay = 86400000 * 2;
+    let nextDue = new Date(Date.now() + delay).toISOString().split("T")[0];
+
     if (orgSnap.exists) {
       const trialEndsAt = orgData.trialEndsAt;
       if (trialEndsAt) {
         let trialDate: Date;
-        if (typeof trialEndsAt === 'object' && 'seconds' in (trialEndsAt as any)) {
+        const isObj = typeof trialEndsAt === "object" &&
+          "seconds" in (trialEndsAt as any);
+        if (isObj) {
           trialDate = new Date((trialEndsAt as any).seconds * 1000);
         } else {
           trialDate = new Date(trialEndsAt);
         }
-        
-        // Garante que a data do próximo vencimento está no futuro (pelo menos hoje + 1 dia)
+
+        // Garante que a data está no futuro (pelo menos hoje + 1 dia)
         if (trialDate.getTime() > Date.now() + 86400000) {
           nextDue = trialDate.toISOString().split("T")[0];
         }
@@ -524,7 +527,7 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
       {headers: {access_token: key}}
     );
 
-    // Buscar a primeira fatura gerada para obter o link direto de pagamento (checkout)
+    // Buscar a primeira fatura gerada para obter o link do checkout
     let paymentLink = "";
     try {
       const paymentsRes = await axios.get(
@@ -535,7 +538,10 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
         paymentLink = paymentsRes.data.data[0].invoiceUrl;
       }
     } catch (payErr: any) {
-      functions.logger.warn("Erro ao buscar a fatura inicial da assinatura no Asaas:", payErr.message);
+      functions.logger.warn(
+        "Erro ao buscar a fatura inicial da assinatura no Asaas:",
+        payErr.message
+      );
     }
 
     await admin.firestore().collection("organizations").doc(orgId).update({
@@ -544,7 +550,7 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
       subscriptionStatus: "PENDING",
       planId: planId,
     });
-    
+
     return {success: true, paymentLink: paymentLink || subRes.data.id};
   } catch (error: any) {
     functions.logger.error("Erro em createSaaSSubscription:", error);
@@ -598,11 +604,11 @@ export const asaasWebhook = functions.https.onRequest(
       const isPaid = event.event === "PAYMENT_RECEIVED" ||
                      event.event === "PAYMENT_CONFIRMED";
       const isOverdue = event.event === "PAYMENT_OVERDUE";
-      const isCancelled = event.event === "PAYMENT_DELETED" || 
+      const isCancelled = event.event === "PAYMENT_DELETED" ||
                           event.event === "PAYMENT_REFUNDED";
 
       const customerId = event.payment?.customer;
-      
+
       if (isPaid) {
         const ref = event.payment?.externalReference || "";
         if (ref.includes("___")) {

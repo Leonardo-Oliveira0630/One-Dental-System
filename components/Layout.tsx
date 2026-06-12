@@ -40,11 +40,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     
     const status = currentOrg.subscriptionStatus;
     
-    if (status === 'OVERDUE' || status === 'CANCELLED') {
-      return true;
-    }
-    
-    if (status === 'TRIAL' && currentOrg.trialEndsAt) {
+    // Se a organização tem um período de teste ativo (trialEndsAt no futuro), NÃO bloqueia o acesso
+    if (currentOrg.trialEndsAt) {
       let trialDate: Date;
       if (typeof currentOrg.trialEndsAt === 'object' && 'seconds' in (currentOrg.trialEndsAt as any)) {
         trialDate = new Date((currentOrg.trialEndsAt as any).seconds * 1000);
@@ -53,7 +50,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       } else {
         trialDate = new Date(currentOrg.trialEndsAt);
       }
-      return new Date() > trialDate;
+      if (new Date() < trialDate) {
+        return false;
+      }
+    }
+    
+    if (status === 'OVERDUE' || status === 'CANCELLED') {
+      return true;
     }
     
     if (status === 'PENDING') {
