@@ -1590,33 +1590,67 @@ export const JobDetails = () => {
 
                 <div className="lg:col-span-2 space-y-4 md:space-y-6 min-w-0">
                     {routeInfo && (
-                        <div className="bg-indigo-50 rounded-[32px] shadow-sm border border-indigo-200 overflow-hidden animate-in slide-in-from-top-4">
-                            <div className="bg-indigo-600 px-6 py-3 text-white flex justify-between items-center">
+                        <div id="delivery-record-wrapper" className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in slide-in-from-top-4">
+                            <div className={`px-6 py-4 flex justify-between items-center border-b ${
+                                routeInfo.status === 'COMPLETED' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
+                                routeInfo.status === 'IN_TRANSIT' ? 'bg-amber-50 border-amber-100 text-amber-800' : 'bg-slate-50 border-slate-100 text-slate-700'
+                            }`}>
                                 <div className="flex items-center gap-2 min-w-0">
-                                    <Truck size={18} className="shrink-0" />
-                                    <h3 className="font-black text-[10px] uppercase tracking-widest truncate">Logística de Entrega</h3>
+                                    <Truck size={20} className={routeInfo.status === 'IN_TRANSIT' ? 'animate-bounce' : ''} />
+                                    <h3 className="font-black text-xs uppercase tracking-widest truncate">Registro de Entrega (Motoboy)</h3>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase shrink-0 ${
-                                    routeInfo.status === 'COMPLETED' ? 'bg-green-500' : 
-                                    routeInfo.status === 'IN_TRANSIT' ? 'bg-orange-500 animate-pulse' : 'bg-indigo-400'
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 shadow-sm ${
+                                    routeInfo.status === 'COMPLETED' ? 'bg-emerald-600 text-white' : 
+                                    routeInfo.status === 'IN_TRANSIT' ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-500 text-white'
                                 }`}>
-                                    {routeInfo.status}
+                                    {routeInfo.status === 'COMPLETED' ? '✓ Entregue' : 
+                                     routeInfo.status === 'IN_TRANSIT' ? '🛵 Em Trânsito' : '📦 Agendado'}
                                 </span>
                             </div>
-                            <div className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="flex items-center gap-4 min-w-0">
-                                    <div className="p-3 bg-white rounded-xl shadow-sm text-indigo-600 border border-indigo-100 shrink-0"><User size={24}/></div>
+                            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="flex items-center gap-3.5 min-w-0">
+                                    <div className={`p-3 rounded-xl shadow-sm border shrink-0 ${
+                                        routeInfo.status === 'COMPLETED' ? 'bg-emerald-100/40 text-emerald-600 border-emerald-100' : 'bg-slate-100/50 text-slate-500 border-slate-100'
+                                    }`}><User size={20}/></div>
                                     <div className="min-w-0">
-                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Motorista</p>
-                                        <p className="font-black text-indigo-900 text-base md:text-lg uppercase truncate">{routeInfo.driverName}</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Quem Entregou / Motoboy</p>
+                                        <p className="font-extrabold text-slate-800 text-sm md:text-base uppercase truncate mt-0.5">{routeInfo.driverName}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4 min-w-0">
-                                    <div className="p-3 bg-white rounded-xl shadow-sm text-indigo-600 border border-indigo-100 shrink-0"><Navigation size={24}/></div>
+                                <div className="flex items-center gap-3.5 min-w-0">
+                                    <div className="p-3 bg-slate-100/50 text-slate-500 border border-slate-100 rounded-xl shadow-sm shrink-0"><Calendar size={20}/></div>
                                     <div className="min-w-0">
-                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Agendamento</p>
-                                        <p className="font-black text-indigo-900 text-sm md:text-base truncate">
-                                            {new Date(routeInfo.date).toLocaleDateString()} • {routeInfo.shift}
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Data da Entrega / Rota</p>
+                                        <p className="font-extrabold text-slate-800 text-sm md:text-base truncate mt-0.5">
+                                            {(() => {
+                                                try {
+                                                    const d = routeInfo.date instanceof Date ? routeInfo.date : new Date(routeInfo.date);
+                                                    return d.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                                                } catch(e) {
+                                                    try {
+                                                        return new Date(routeInfo.date).toLocaleDateString('pt-BR');
+                                                    } catch(err) {
+                                                        return String(routeInfo.date);
+                                                    }
+                                                }
+                                            })()}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3.5 min-w-0">
+                                    <div className="p-3 bg-slate-100/50 text-slate-500 border border-slate-100 rounded-xl shadow-sm shrink-0"><Clock size={20}/></div>
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Turno do Roteiro</p>
+                                        <p className="font-extrabold text-slate-800 text-sm md:text-base truncate mt-0.5">
+                                            {routeInfo.shift === 'MORNING' ? (
+                                                <span className="inline-flex items-center gap-1 text-amber-600">
+                                                    ☀️ Rota da Manhã
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-indigo-600">
+                                                    🌙 Rota da Tarde
+                                                </span>
+                                            )}
                                         </p>
                                     </div>
                                 </div>
