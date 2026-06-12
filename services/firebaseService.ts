@@ -22,7 +22,8 @@ import { db, auth, storage, functions, messaging } from './firebaseConfig';
 import { 
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
-  Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount 
+  Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
+  Tutorial
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -802,3 +803,14 @@ export const apiValidateLabCoupon = async (orgId: string, code: string): Promise
         return null;
     }
 };
+
+export const subscribeTutorials = (cb: (t: Tutorial[]) => void) => {
+    return onSnapshot(collection(db, 'tutorials'), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any } as Tutorial)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeTutorials: ${error.code}`));
+};
+
+export const apiAddTutorial = (t: Tutorial) => setDoc(doc(db, 'tutorials', t.id), t);
+export const apiUpdateTutorial = (id: string, u: Partial<Tutorial>) => updateDoc(doc(db, 'tutorials', id), u);
+export const apiDeleteTutorial = (id: string) => deleteDoc(doc(db, 'tutorials', id));
+

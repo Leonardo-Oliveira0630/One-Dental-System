@@ -44,6 +44,24 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["organizationId", "numero", "clienteName", "valorLiquido", "referente", "createdBy"]
+    },
+    "Tutorial": {
+      "title": "Tutorial",
+      "description": "System tutorial guides",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "targetAudience": { "type": "string", "enum": ["LAB", "CLINIC"] },
+        "writtenContent": { "type": "string" },
+        "steps": { "type": "array" },
+        "videoUrl": { "type": "string" },
+        "videoSubtitle": { "type": "string" },
+        "orderIndex": { "type": "number" }
+      },
+      "required": ["id", "title", "category", "targetAudience"]
     }
   },
   "firestore": {
@@ -70,6 +88,10 @@
     "/settings/global": {
       "schema": "object",
       "description": "Global settings"
+    },
+    "/tutorials/{tutorialId}": {
+      "schema": "Tutorial",
+      "description": "Tutorial guides"
     }
   }
 }

@@ -38,6 +38,8 @@ import { Plans } from './pages/superadmin/Plans';
 import { Coupons } from './pages/superadmin/Coupons';
 import Subscriptions from './pages/superadmin/Subscriptions';
 import SuperAdminFinance from './pages/superadmin/Finance';
+import { Tutorials } from './pages/superadmin/Tutorials';
+import { TutorialsView } from './pages/TutorialsView';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { Loader2 } from 'lucide-react';
@@ -123,12 +125,14 @@ const AppContent = () => {
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
       <Route path="/subscribe" element={<ProtectedRoute><Subscribe /></ProtectedRoute>} />
+      <Route path="/tutorials" element={<ProtectedRoute><TutorialsView /></ProtectedRoute>} />
 
       <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
       <Route path="/superadmin/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
       <Route path="/superadmin/coupons" element={<ProtectedRoute><Coupons /></ProtectedRoute>} />
       <Route path="/superadmin/subscriptions" element={<ProtectedRoute><Subscriptions /></ProtectedRoute>} />
       <Route path="/superadmin/finance" element={<ProtectedRoute><SuperAdminFinance /></ProtectedRoute>} />
+      <Route path="/superadmin/tutorials" element={<ProtectedRoute><Tutorials /></ProtectedRoute>} />
       
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

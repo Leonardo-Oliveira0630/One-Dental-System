@@ -162,6 +162,11 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    match /tutorials/{tutorialId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
     match /payments/{paymentId} {
       allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(resource.data.organizationId));
       allow write: if isSuperAdmin();

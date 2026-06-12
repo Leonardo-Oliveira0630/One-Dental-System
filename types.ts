@@ -687,3 +687,24 @@ export interface Receipt {
   createdAt: Date;
   createdBy: string;
 }
+
+export interface TutorialStep {
+  title: string;
+  description: string;
+  imageUrl?: string;
+}
+
+export interface Tutorial {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  targetAudience: 'LAB' | 'CLINIC';
+  writtenContent: string;
+  steps: TutorialStep[];
+  videoUrl?: string;
+  videoSubtitle?: string;
+  orderIndex: number;
+  createdAt?: any;
+}
+

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -184,6 +184,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/superadmin/coupons'} />
                 <SidebarItem to="/superadmin/subscriptions" icon={<Users size={20} />} label="Assinaturas" active={location.pathname === '/superadmin/subscriptions'} />
                 <SidebarItem to="/superadmin/finance" icon={<DollarSign size={20} />} label="Financeiro SaaS" active={location.pathname === '/superadmin/finance'} />
+                <SidebarItem to="/superadmin/tutorials" icon={<BookOpen size={20} />} label="Gerenciar Tutoriais" active={location.pathname === '/superadmin/tutorials'} />
               </>
             )}
 
@@ -207,6 +208,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
                 {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
                 {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label="Relatórios" active={location.pathname === '/reports'} />}
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
               </>
             )}
 
@@ -227,6 +229,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 
                 <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Parcerias Lab" active={location.pathname === '/dentist/partnerships'} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
               </>
             )}
 
