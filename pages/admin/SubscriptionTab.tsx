@@ -210,7 +210,7 @@ export const SubscriptionTab = () => {
                              <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-200 pt-4 md:pt-0">
                                  <div className="text-right">
                                      <p className="text-[10px] font-black uppercase text-slate-400">Valor</p>
-                                     <p className="font-bold text-slate-800 text-lg">R$ {parseFloat(inv.netValue || inv.value).toFixed(2)}</p>
+                                     <p className="font-bold text-slate-800 text-lg">R$ {parseFloat(inv.value).toFixed(2)}</p>
                                  </div>
                                  {!isPaid && inv.invoiceUrl && (
                                      <a 
