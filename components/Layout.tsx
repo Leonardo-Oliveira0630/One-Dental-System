@@ -69,7 +69,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   const bgClass = 'bg-[#0F172A]';
   
-  const handleLogout = () => { logout(); navigate('/'); };
+  const handleLogout = () => { logout(); navigate('/login'); };
 
   const isViewingLabContext = isClient && (location.pathname.startsWith('/store') || location.pathname.startsWith('/jobs') || location.pathname.startsWith('/cart'));
   

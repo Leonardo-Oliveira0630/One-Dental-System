@@ -37,6 +37,17 @@ import {
 
 export const LandingPage = () => {
   const navigate = useNavigate();
+  const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault();
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
+
   const [mobileMenuOpen, setMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'NOVA_OS' | 'AGENDA'>('DASHBOARD');
   const [showDemoModal, setShowDemoModal] = useState(false);
@@ -115,19 +126,19 @@ export const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
       
       {/* 1. TOP PREMIUM HEADER */}
-      <header className="relative z-50 bg-white border-b border-slate-200/80 transition-all">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <Logo size="md" variant="colored" />
             <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-600">
-              <a href="#recursos" className="hover:text-blue-600 transition-colors">Recursos</a>
-              <a href="#experiencia" className="hover:text-blue-600 transition-colors">Demonstração Interativa</a>
-              <a href="#diferenciais" className="hover:text-blue-600 transition-colors">Diferenciais</a>
-              <a href="#preco" className="hover:text-blue-600 transition-colors">Planos</a>
-              <a href="#depoimentos" className="hover:text-blue-600 transition-colors">Depoimentos</a>
+              <a href="#recursos" onClick={(e) => scrollToSection(e, 'recursos')} className="hover:text-blue-600 transition-colors">Recursos</a>
+              <a href="#experiencia" onClick={(e) => scrollToSection(e, 'experiencia')} className="hover:text-blue-600 transition-colors">Demonstração Interativa</a>
+              <a href="#diferenciais" onClick={(e) => scrollToSection(e, 'diferenciais')} className="hover:text-blue-600 transition-colors">Diferenciais</a>
+              <a href="#preco" onClick={(e) => scrollToSection(e, 'preco')} className="hover:text-blue-600 transition-colors">Planos</a>
+              <a href="#depoimentos" onClick={(e) => scrollToSection(e, 'depoimentos')} className="hover:text-blue-600 transition-colors">Depoimentos</a>
             </nav>
           </div>
 
@@ -143,10 +154,15 @@ export const LandingPage = () => {
             </Link>
           </div>
 
-          {/* Mobile menu trigger */}
-          <button onClick={() => setMenuOpen(!mobileMenuOpen)} className="md:hidden p-1.5 text-slate-600 hover:text-slate-900">
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          {/* Mobile Login & menu trigger */}
+          <div className="flex md:hidden items-center gap-2">
+            <Link to="/login" className="px-3 py-1.5 text-xs font-bold text-blue-600 border border-blue-200 rounded-lg bg-blue-50/50 hover:bg-blue-50 transition-colors">
+              Fazer Login
+            </Link>
+            <button onClick={() => setMenuOpen(!mobileMenuOpen)} className="p-1.5 text-slate-600 hover:text-slate-900">
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile Dropdown menu */}
@@ -159,11 +175,11 @@ export const LandingPage = () => {
               className="md:hidden bg-white border-b border-slate-200/80 overflow-hidden"
             >
               <div className="px-4 py-6 space-y-4 flex flex-col text-base font-semibold text-slate-700">
-                <a onClick={() => setMenuOpen(false)} href="#recursos" className="hover:text-blue-600 transition-colors py-1">Recursos</a>
-                <a onClick={() => setMenuOpen(false)} href="#experiencia" className="hover:text-blue-600 transition-colors py-1">Demonstração Interativa</a>
-                <a onClick={() => setMenuOpen(false)} href="#diferenciais" className="hover:text-blue-600 transition-colors py-1">Diferenciais</a>
-                <a onClick={() => setMenuOpen(false)} href="#preco" className="hover:text-blue-600 transition-colors py-1">Planos</a>
-                <a onClick={() => setMenuOpen(false)} href="#depoimentos" className="hover:text-blue-600 transition-colors py-1">Depoimentos</a>
+                <a onClick={(e) => { setMenuOpen(false); scrollToSection(e, 'recursos'); }} href="#recursos" className="hover:text-blue-600 transition-colors py-1">Recursos</a>
+                <a onClick={(e) => { setMenuOpen(false); scrollToSection(e, 'experiencia'); }} href="#experiencia" className="hover:text-blue-600 transition-colors py-1">Demonstração Interativa</a>
+                <a onClick={(e) => { setMenuOpen(false); scrollToSection(e, 'diferenciais'); }} href="#diferenciais" className="hover:text-blue-600 transition-colors py-1">Diferenciais</a>
+                <a onClick={(e) => { setMenuOpen(false); scrollToSection(e, 'preco'); }} href="#preco" className="hover:text-blue-600 transition-colors py-1">Planos</a>
+                <a onClick={(e) => { setMenuOpen(false); scrollToSection(e, 'depoimentos'); }} href="#depoimentos" className="hover:text-blue-600 transition-colors py-1">Depoimentos</a>
                 <hr className="border-slate-100" />
                 <Link to="/login" className="py-2 text-sm font-bold text-slate-700 hover:text-blue-600">Entrar no Sistema</Link>
                 <Link 
@@ -746,7 +762,7 @@ export const LandingPage = () => {
       </section>
 
       {/* 3. CORE FEATURES GRID SECTION */}
-      <section id="recursos" className="py-20 bg-white">
+      <section id="recursos" className="py-20 bg-white scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
@@ -824,7 +840,7 @@ export const LandingPage = () => {
       </section>
 
       {/* 4. PRODUCT SECTION: NO MOCKUP GENERIC - REAL CSS EMBEDDED SHOWCASE (PRODUÇÃO & AGENDA) */}
-      <section id="experiencia" className="py-20 bg-slate-100 border-y border-slate-200/60">
+      <section id="experiencia" className="py-20 bg-slate-100 border-y border-slate-200/60 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
           
           {/* SECTION 4.1: PRODUCTION FOCUS */}
@@ -1076,7 +1092,7 @@ export const LandingPage = () => {
       </section>
 
        {/* 6. ADVANCED DIFFERENTIATORS (DIFERENCIAIS) */}
-      <section id="diferenciais" className="py-20 bg-slate-50 border-t border-slate-200/80">
+      <section id="diferenciais" className="py-20 bg-slate-50 border-t border-slate-200/80 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
@@ -1123,7 +1139,7 @@ export const LandingPage = () => {
       </section>
 
       {/* 7. PREMIUM PLAN TABLE (PREÇOS INTEGRADO COM LINKS) */}
-      <section id="preco" className="py-20 bg-white">
+      <section id="preco" className="py-20 bg-white scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
@@ -1227,7 +1243,7 @@ export const LandingPage = () => {
       </section>
 
       {/* 8. MODERN TESTIMONIAL SLIDER */}
-      <section id="depoimentos" className="py-20 bg-slate-100 border-t border-slate-200/80">
+      <section id="depoimentos" className="py-20 bg-slate-100 border-t border-slate-200/80 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
