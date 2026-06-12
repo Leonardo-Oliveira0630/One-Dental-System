@@ -138,6 +138,9 @@ export const Login = () => {
 
       <div className="bg-[#1E293B] w-full max-w-md p-8 md:p-10 rounded-card shadow-premium border border-slate-800/80 relative z-10 animate-in fade-in zoom-in duration-500">
         <div className="flex flex-col items-center text-center mb-8">
+            <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-6">
+                <ArrowLeft size={14} /> Voltar para o Site
+            </Link>
             <Logo size="xl" variant="light" className="mb-2" />
             <p className="text-slate-400 text-xs uppercase tracking-widest font-semibold mt-1">Ecossistema Digital Prótese & Odonto</p>
         </div>

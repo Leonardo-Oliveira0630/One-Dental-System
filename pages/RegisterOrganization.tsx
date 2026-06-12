@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft } from 'lucide-react';
 import { Coupon } from '../types';
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
 
 export const RegisterOrganization = () => {
   const { registerOrganization, registerDentist, allPlans, validateCoupon } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialType = (searchParams.get('type') === 'DENTIST' || searchParams.get('type') === 'CLINIC') ? 'DENTIST' : 'LAB';
+  const initialPlanId = searchParams.get('plan') || '';
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const [regType, setRegType] = useState<'LAB' | 'DENTIST'>('LAB');
+  const [regType, setRegType] = useState<'LAB' | 'DENTIST'>(initialType);
   
   // Separated State for clarity
   const [labName, setLabName] = useState('');
@@ -19,7 +23,7 @@ export const RegisterOrganization = () => {
   const [ownerName, setOwnerName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [planId, setPlanId] = useState('');
+  const [planId, setPlanId] = useState(initialPlanId);
   
   // Address State
   const [cep, setCep] = useState('');
@@ -163,6 +167,9 @@ export const RegisterOrganization = () => {
         
         <div className="flex-1 space-y-6">
             <div className="text-left mb-6">
+                <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-6">
+                    <ArrowLeft size={14} /> Voltar para o Site
+                </Link>
                 <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/20 ${regType === 'LAB' ? 'bg-blue-600' : 'bg-teal-600'}`}>
                     {regType === 'LAB' ? <ShieldCheck size={32} className="text-white" /> : <Stethoscope size={32} className="text-white" />}
                 </div>

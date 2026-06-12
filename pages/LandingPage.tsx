@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Logo, 
@@ -37,6 +38,7 @@ import {
 
 export const LandingPage = () => {
   const navigate = useNavigate();
+  const { allPlans } = useApp();
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     const element = document.getElementById(id);
@@ -290,7 +292,7 @@ export const LandingPage = () => {
                       <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
                     </div>
                     <div className="bg-[#131A23] border border-slate-800 text-[10px] text-slate-500 py-1 px-8 rounded-full font-mono max-w-xs truncate">
-                      one-dental-system.vercel.app/#/admin
+                      www.smileprox.com.br
                     </div>
                     <div className="w-8" />
                   </div>
@@ -314,8 +316,8 @@ export const LandingPage = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="text-right hidden xs:block">
-                          <p className="text-[10px] font-black text-slate-800">CHARLES MARTINS</p>
-                          <p className="text-[8px] text-slate-500 uppercase tracking-widest leading-none font-bold">Lab Padilha</p>
+                          <p className="text-[10px] font-black text-slate-800">Técnico Carlos </p>
+                          <p className="text-[8px] text-slate-500 uppercase tracking-widest leading-none font-bold">Lab SmileProX</p>
                         </div>
                         <div className="w-7 h-7 bg-blue-900 rounded-full flex items-center justify-center text-white text-xs font-extrabold">C</div>
                       </div>
@@ -1151,92 +1153,331 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 max-w-4xl mx-auto gap-8 justify-center items-stretch">
-            
-            {/* PLAN 1: BASIC/INTERMEDIATE */}
-            <div className="bg-slate-50 border border-slate-200 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-soft">
-              <div className="space-y-4">
-                <span className="px-3 py-1 bg-slate-200 rounded-full text-slate-700 text-[9px] font-black uppercase tracking-wider">Essencial</span>
-                <h3 className="text-lg font-black text-[#0F172A] leading-tight">Laboratórios de Prótese</h3>
-                <p className="text-xs text-slate-500 font-semibold leading-relaxed">O conjunto ideal para digitalizar e acabar de vez com planilhas e fechar as caixas diárias do laboratório.</p>
-                <div className="pt-2">
-                  <span className="text-3xl font-black text-slate-900">R$ 149</span>
-                  <span className="text-slate-400 text-xs font-semibold"> / mês</span>
-                </div>
-              </div>
-
-              <ul className="space-y-3.5 border-t border-slate-200 pt-6 text-xs text-slate-700 font-semibold">
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600 font-extrabold" />
-                  <span>Até 1000 casos por mês</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600" />
-                  <span>Painel de Clínicas e Pedidos Web</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600" />
-                  <span>Fechamento Financeiro e Contas</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-blue-600" />
-                  <span>Relatórios de Comissões Básicas</span>
-                </li>
-              </ul>
-
-              <Link 
-                to="/register-lab" 
-                className="w-full text-center py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-input shadow-md block transition-colors"
-              >
-                Começar Teste Gratuito de 7 Dias
-              </Link>
+          {/* LAB PLANS SECTION (ROW 1) */}
+          <div className="mb-16">
+            <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
+              <span className="w-2.5 h-6 bg-blue-600 rounded-full" />
+              <h3 className="text-xl font-extrabold text-[#0F172A] font-display">Para Laboratórios de Prótese</h3>
+              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Gestão Protética Completa</span>
             </div>
 
-            {/* PLAN 2: PREMIUM / TEAM ACCELERATOR (FLAGGED BEST OFFER) */}
-            <div className="bg-blue-900 border border-blue-950 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-2xl relative text-white">
-              <span className="absolute -top-3.5 left-8 px-4 py-1.2 bg-teal-400 rounded-full text-blue-950 font-black text-[9px] uppercase tracking-wider shadow-md">RECOMENDADO</span>
-              
-              <div className="space-y-4">
-                <span className="px-3 py-1 bg-blue-800 rounded-full text-blue-300 text-[9px] font-black uppercase tracking-wider">Completo</span>
-                <h3 className="text-lg font-black leading-tight text-white">Corporativo / Insights com IA</h3>
-                <p className="text-xs text-blue-200 leading-relaxed font-semibold">Aceleração operacional de grandes laboratórios e franquias que necessitam de IA e integrações logísticas complexas.</p>
-                <div className="pt-2">
-                  <span className="text-4xl font-black text-white">R$ 299</span>
-                  <span className="text-blue-300 text-xs font-semibold"> / mês</span>
-                </div>
-              </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-8 justify-center items-stretch">
+              {allPlans && allPlans.filter(p => p.isPublic && p.active && p.targetAudience !== 'CLINIC').length > 0 ? (
+                allPlans.filter(p => p.isPublic && p.active && p.targetAudience !== 'CLINIC').map((plan) => {
+                  const isRecommended = plan.price > 150 && plan.price < 400; // Highlight intermediate plans
+                  
+                  return (
+                    <div 
+                      key={plan.id} 
+                      className={`border p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 relative transition-all duration-300 hover:scale-[1.02] ${
+                        isRecommended 
+                          ? 'bg-blue-900 border-blue-950 text-white shadow-2xl relative'
+                          : 'bg-white border-slate-200 text-slate-800 shadow-soft hover:border-blue-400'
+                      }`}
+                    >
+                      {isRecommended && (
+                        <span className="absolute -top-3.5 left-8 px-4 py-1 bg-teal-400 rounded-full text-blue-950 font-black text-[9px] uppercase tracking-wider shadow-md">
+                          RECOMENDADO
+                        </span>
+                      )}
+                      
+                      <div className="space-y-4">
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          isRecommended 
+                            ? 'bg-blue-800 text-blue-300' 
+                            : 'bg-blue-50 text-blue-600'
+                        }`}>
+                          Laboratório
+                        </span>
+                        <h3 className={`text-lg font-black leading-tight ${isRecommended ? 'text-white' : 'text-[#0F172A]'}`}>
+                          {plan.name}
+                        </h3>
+                        <p className={`text-xs font-semibold leading-relaxed ${isRecommended ? 'text-blue-200' : 'text-slate-500'}`}>
+                          Gestão completa do recebimento, modelagem, CAD/CAM, faturamento e entrega com rastreio inteligente.
+                        </p>
+                        <div className="pt-2">
+                          <span className={`text-3xl font-black ${isRecommended ? 'text-white' : 'text-slate-900'}`}>
+                            R$ {plan.price}
+                          </span>
+                          <span className={`${isRecommended ? 'text-blue-300' : 'text-slate-400'} text-xs font-semibold`}>
+                            {' '}/ mês
+                          </span>
+                          {plan.trialDays && plan.trialDays > 0 ? (
+                            <div className={`text-[10px] font-bold mt-1 uppercase tracking-wider ${isRecommended ? 'text-teal-400' : 'text-blue-600'}`}>
+                              {plan.trialDays} Dias de Teste Grátis
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
 
-              <ul className="space-y-3.5 border-t border-blue-800 pt-6 text-xs text-blue-100 font-semibold">
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-teal-400 font-extrabold" />
-                  <span>Casos e produções ilimitados</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-teal-400" />
-                  <span>Auditor de Insights Inteligentes com IA</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-teal-400" />
-                  <span>Integrações logísticas e de faturamento</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-teal-400" />
-                  <span>Multi-usuários com controle de cargos</span>
-                </li>
-                <li className="flex items-center gap-2.5">
-                  <Check size={16} className="text-teal-400" />
-                  <span>Suporte prioritário e migração VIP integrada</span>
-                </li>
-              </ul>
+                      <ul className={`space-y-3.5 border-t pt-6 text-xs font-semibold ${
+                        isRecommended ? 'border-blue-800 text-blue-100' : 'border-slate-200 text-slate-700'
+                      }`}>
+                        <li className="flex items-center gap-2.5">
+                          <Check size={16} className={isRecommended ? 'text-teal-400 font-extrabold' : 'text-blue-600 font-extrabold'} />
+                          <span>Até {plan.features?.maxUsers === -1 || plan.features?.maxUsers === 99999 ? 'Ilimitados' : plan.features?.maxUsers} usuários</span>
+                        </li>
+                        <li className="flex items-center gap-2.5">
+                          <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
+                          <span>Armazenamento: {plan.features?.maxStorageGB === -1 || plan.features?.maxStorageGB === 99999 ? 'Ilimitado' : `${plan.features?.maxStorageGB} GB`}</span>
+                        </li>
+                        {plan.features?.maxJobsPerMonth !== undefined && (
+                          <li className="flex items-center gap-2.5">
+                            <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
+                            <span>Casos / Mês: {plan.features?.maxJobsPerMonth === -1 || plan.features?.maxJobsPerMonth === 99999 ? 'Ilimitados' : plan.features?.maxJobsPerMonth}</span>
+                          </li>
+                        )}
+                        {plan.features?.hasStoreModule && (
+                          <li className="flex items-center gap-2.5">
+                            <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
+                            <span>Módulo de Loja Ativo</span>
+                          </li>
+                        )}
+                      </ul>
 
-              <Link 
-                to="/register-lab" 
-                className="w-full text-center py-4 bg-teal-400 hover:bg-teal-500 text-blue-950 font-black text-xs rounded-input shadow-lg block transition-colors"
-              >
-                Garantir Licença Gratuita de Teste
-              </Link>
+                      <Link 
+                        to={`/register-lab?plan=${plan.id}&type=LAB`} 
+                        className={`w-full text-center py-3.5 font-bold text-xs rounded-input shadow-md block transition-colors ${
+                          isRecommended 
+                            ? 'bg-teal-400 hover:bg-teal-500 text-blue-950 font-black shadow-lg shadow-teal-400/20' 
+                            : 'bg-slate-800 hover:bg-slate-900 text-white'
+                        }`}
+                      >
+                        {plan.trialDays && plan.trialDays > 0 ? `Começar Teste Grátis de ${plan.trialDays} Dias` : 'Criar Conta e Começar'}
+                      </Link>
+                    </div>
+                  );
+                })
+              ) : (
+                <>
+                  {/* Fallback Lab Essencial */}
+                  <div className="bg-white border border-slate-200 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-soft hover:border-blue-400">
+                    <div className="space-y-4">
+                      <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-wider">Essencial</span>
+                      <h3 className="text-lg font-black text-[#0F172A] leading-tight">Laboratório Essencial</h3>
+                      <p className="text-xs text-slate-500 font-semibold leading-relaxed">O conjunto ideal para digitalizar e acabar de vez com planilhas e fechar as caixas diárias do laboratório.</p>
+                      <div className="pt-2">
+                        <span className="text-3xl font-black text-slate-900">R$ 149</span>
+                        <span className="text-slate-400 text-xs font-semibold"> / mês</span>
+                      </div>
+                    </div>
+                    <ul className="space-y-3.5 border-t border-slate-200 pt-6 text-xs text-slate-700 font-semibold">
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-blue-600 font-extrabold" />
+                        <span>Até 1000 casos por mês</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-blue-600" />
+                        <span>Painel de Clínicas e Pedidos Web</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-blue-600" />
+                        <span>Fechamento Financeiro e Contas</span>
+                      </li>
+                    </ul>
+                    <Link 
+                      to="/register-lab?plan=essencial&type=LAB" 
+                      className="w-full text-center py-3.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-input shadow-md block transition-colors"
+                    >
+                      Começar Teste de 7 Dias
+                    </Link>
+                  </div>
+
+                  {/* Fallback Lab Completo */}
+                  <div className="bg-blue-900 border border-blue-950 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-2xl relative text-white">
+                    <span className="absolute -top-3.5 left-8 px-4 py-1 bg-teal-400 rounded-full text-blue-950 font-black text-[9px] uppercase tracking-wider shadow-md">RECOMENDADO</span>
+                    <div className="space-y-4">
+                      <span className="px-3 py-1 bg-blue-800 text-blue-300 rounded-full text-[9px] font-black uppercase tracking-wider">Completo</span>
+                      <h3 className="text-lg font-black leading-tight text-white">Laboratório Completo</h3>
+                      <p className="text-xs text-blue-200 leading-relaxed font-semibold">Aceleração operacional de grandes laboratórios e franquias que necessitam de IA e integrações logísticas complexas.</p>
+                      <div className="pt-2">
+                        <span className="text-4xl font-black text-white">R$ 299</span>
+                        <span className="text-blue-300 text-xs font-semibold"> / mês</span>
+                      </div>
+                    </div>
+                    <ul className="space-y-3.5 border-t border-blue-800 pt-6 text-xs text-blue-100 font-semibold">
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-teal-400 font-extrabold" />
+                        <span>Casos e produções ilimitados</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-teal-400" />
+                        <span>Auditor de Insights Inteligentes com IA</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-teal-400" />
+                        <span>Suporte prioritário e migração VIP</span>
+                      </li>
+                    </ul>
+                    <Link 
+                      to="/register-lab?plan=completo&type=LAB" 
+                      className="w-full text-center py-4 bg-teal-400 hover:bg-teal-500 text-blue-950 font-black text-xs rounded-input shadow-lg block transition-colors"
+                    >
+                      Garantir Licença Gratuita
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* CLINIC/DENTIST PLANS SECTION (ROW 2) */}
+          <div>
+            <div className="flex items-center gap-3 mb-8 border-b border-slate-100 pb-4">
+              <span className="w-2.5 h-6 bg-teal-600 rounded-full" />
+              <h3 className="text-xl font-extrabold text-[#0F172A] font-display">Para Clínicas & Dentistas</h3>
+              <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Clínica Digital Conectada</span>
             </div>
 
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-8 justify-center items-stretch">
+              {allPlans && allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').length > 0 ? (
+                allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').map((plan) => {
+                  const isRecommended = plan.price > 120; // Highlight premium clinic plan
+                  
+                  return (
+                    <div 
+                      key={plan.id} 
+                      className={`border p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 relative transition-all duration-300 hover:scale-[1.02] ${
+                        isRecommended 
+                          ? 'bg-teal-950 border-teal-900 text-white shadow-2xl relative'
+                          : 'bg-teal-50/40 border-teal-100 text-slate-800 shadow-soft hover:border-teal-400'
+                      }`}
+                    >
+                      {isRecommended && (
+                        <span className="absolute -top-3.5 left-8 px-4 py-1 bg-emerald-400 rounded-full text-teal-950 font-black text-[9px] uppercase tracking-wider shadow-md">
+                          MAIS PROCURADO
+                        </span>
+                      )}
+                      
+                      <div className="space-y-4">
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          isRecommended 
+                            ? 'bg-teal-900 text-teal-300' 
+                            : 'bg-teal-50 text-teal-700 font-bold border border-teal-200'
+                        }`}>
+                          Dentistas & Clínicas
+                        </span>
+                        <h3 className={`text-lg font-black leading-tight ${isRecommended ? 'text-white' : 'text-slate-900'}`}>
+                          {plan.name}
+                        </h3>
+                        <p className={`text-xs font-semibold leading-relaxed ${isRecommended ? 'text-teal-200' : 'text-slate-500'}`}>
+                          Envio de pedidos para laboratórios, controle financeiro, gestão de prontuários e comissões integradas.
+                        </p>
+                        <div className="pt-2">
+                          <span className={`text-3xl font-black ${isRecommended ? 'text-white' : 'text-slate-900'}`}>
+                            R$ {plan.price}
+                          </span>
+                          <span className={`${isRecommended ? 'text-teal-300' : 'text-slate-400'} text-xs font-semibold`}>
+                            {' '}/ mês
+                          </span>
+                          {plan.trialDays && plan.trialDays > 0 ? (
+                            <div className={`text-[10px] font-bold mt-1 uppercase tracking-wider ${isRecommended ? 'text-emerald-400' : 'text-teal-600'}`}>
+                              {plan.trialDays} Dias de Teste Grátis
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <ul className={`space-y-3.5 border-t pt-6 text-xs font-semibold ${
+                        isRecommended ? 'border-teal-900 text-teal-100' : 'border-slate-200 text-slate-700'
+                      }`}>
+                        <li className="flex items-center gap-2.5">
+                          <Check size={16} className={isRecommended ? 'text-emerald-400 font-extrabold' : 'text-teal-600 font-extrabold'} />
+                          <span>Até {plan.features?.maxUsers === -1 || plan.features?.maxUsers === 99999 ? 'Ilimitados' : plan.features?.maxUsers} usuários</span>
+                        </li>
+                        <li className="flex items-center gap-2.5">
+                          <Check size={16} className={isRecommended ? 'text-emerald-400' : 'text-teal-600'} />
+                          <span>Armazenamento: {plan.features?.maxStorageGB === -1 || plan.features?.maxStorageGB === 99999 ? 'Ilimitado' : `${plan.features?.maxStorageGB} GB`}</span>
+                        </li>
+                        {plan.features?.hasClinicModule && (
+                          <li className="flex items-center gap-2.5">
+                            <Check size={16} className={isRecommended ? 'text-emerald-400' : 'text-teal-600'} />
+                            <span>Módulo de Gestão Odonto Ativo</span>
+                          </li>
+                        )}
+                      </ul>
+
+                      <Link 
+                        to={`/register-lab?plan=${plan.id}&type=DENTIST`} 
+                        className={`w-full text-center py-3.5 font-bold text-xs rounded-input shadow-md block transition-colors ${
+                          isRecommended 
+                            ? 'bg-emerald-400 hover:bg-emerald-500 text-teal-950 font-black shadow-lg shadow-emerald-400/20' 
+                            : 'bg-teal-600 hover:bg-teal-700 text-white'
+                        }`}
+                      >
+                        {plan.trialDays && plan.trialDays > 0 ? `Começar Teste Grátis de ${plan.trialDays} Dias` : 'Criar Conta de Dentista'}
+                      </Link>
+                    </div>
+                  );
+                })
+              ) : (
+                <>
+                  {/* Fallback Clinic Básico */}
+                  <div className="bg-teal-50/40 border border-teal-100 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-soft hover:border-teal-400 text-slate-800">
+                    <div className="space-y-4">
+                      <span className="px-3 py-1 bg-teal-50 text-teal-700 font-bold border border-teal-100 rounded-full text-[9px] uppercase tracking-wider">Clínica Light</span>
+                      <h3 className="text-lg font-black text-slate-900 leading-tight font-display">Clínica Essencial</h3>
+                      <p className="text-xs text-slate-500 font-semibold leading-relaxed">Painel de pedidos integrados, envio rápido de moldes e imagens 3D e rastreio de prazos do laboratório.</p>
+                      <div className="pt-2">
+                        <span className="text-3xl font-black text-slate-900">R$ 99</span>
+                        <span className="text-slate-400 text-xs font-semibold"> / mês</span>
+                      </div>
+                    </div>
+                    <ul className="space-y-3.5 border-t border-slate-200 pt-6 text-xs text-slate-700 font-semibold">
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-teal-600 font-extrabold" />
+                        <span>Pedidos e envios ilimitados</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-teal-600" />
+                        <span>Até 3 Dentistas cadastrados</span>
+                      </li>
+                    </ul>
+                    <Link 
+                      to="/register-lab?plan=clinica-light&type=DENTIST" 
+                      className="w-full text-center py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-input shadow-md block transition-colors"
+                    >
+                      Começar Teste de 7 Dias
+                    </Link>
+                  </div>
+
+                  {/* Fallback Clinic Premium */}
+                  <div className="bg-teal-950 border border-teal-900 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-2xl relative text-white">
+                    <span className="absolute -top-3.5 left-8 px-4 py-1 bg-emerald-400 rounded-full text-teal-950 font-black text-[9px] uppercase tracking-wider shadow-md">MAIS PROCURADO</span>
+                    <div className="space-y-4">
+                      <span className="px-3 py-1 bg-teal-900 text-teal-300 rounded-full text-[9px] font-black uppercase tracking-wider">Clínica Pro</span>
+                      <h3 className="text-lg font-black leading-tight text-white font-display">Clínica Total + Prontuário</h3>
+                      <p className="text-xs text-teal-200 leading-relaxed font-semibold">Prontuário clínico digital completo, controle financeiro de caixa, cálculo automático de comissão de equipe e envio express.</p>
+                      <div className="pt-2">
+                        <span className="text-3xl font-black text-white">R$ 189</span>
+                        <span className="text-teal-300 text-xs font-semibold"> / mês</span>
+                      </div>
+                    </div>
+                    <ul className="space-y-3.5 border-t border-teal-900 pt-6 text-xs text-teal-100 font-semibold">
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-emerald-400 font-extrabold" />
+                        <span>Prontuário completo ativo</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-emerald-400" />
+                        <span>Dentistas e secretárias ilimitados</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <Check size={16} className="text-emerald-400" />
+                        <span>Controle de recebíveis e faturamento</span>
+                      </li>
+                    </ul>
+                    {/* Link fallback */}
+                    <Link 
+                      to="/register-lab?plan=clinica-pro&type=DENTIST" 
+                      className="w-full text-center py-3.5 bg-emerald-400 hover:bg-emerald-500 text-teal-950 font-black text-xs rounded-input shadow-lg block transition-colors"
+                    >
+                      Garantir Teste Corporativo
+                    </Link>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
         </div>
