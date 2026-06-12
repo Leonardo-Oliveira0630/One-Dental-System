@@ -23,6 +23,20 @@ export const TutorialsView = () => {
   const isClient = currentUser?.role === UserRole.CLIENT;
   const targetAudience = isClient ? 'CLINIC' : 'LAB';
 
+  // Helper inside component to parse YouTube Video ID
+  const getYouTubeId = (url: string): string | null => {
+    if (!url) return null;
+    const trimmed = url.trim();
+    if (!trimmed.includes('youtube.com') && !trimmed.includes('youtu.be')) {
+      return null;
+    }
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+    const match = trimmed.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  const ytId = selectedTutorial?.videoUrl ? getYouTubeId(selectedTutorial.videoUrl) : null;
+
   useEffect(() => {
     const unsub = subscribeTutorials((data) => {
       setTutorials(data.sort((a, b) => a.orderIndex - b.orderIndex));
@@ -253,22 +267,35 @@ export const TutorialsView = () => {
 
                   <div className="bg-slate-950 aspect-video rounded-2xl overflow-hidden relative group">
                     {!isVideoPlaying ? (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 text-white p-4">
+                      <div 
+                        className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/45 text-white p-4 bg-cover bg-center"
+                        style={ytId ? { backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.6), rgba(15, 23, 42, 0.6)), url(https://img.youtube.com/vi/${ytId}/hqdefault.jpg)` } : undefined}
+                      >
                         <button 
                           onClick={() => setIsVideoPlaying(true)}
-                          className="w-16 h-16 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all transform hover:scale-110 shadow-lg shadow-blue-500/30"
+                          className="w-16 h-16 rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-all transform hover:scale-110 shadow-lg shadow-blue-500/30 relative z-10"
                         >
                           <Play size={28} className="ml-1" />
                         </button>
-                        <p className="text-white font-extrabold text-xs mt-3 bg-slate-900/80 px-4 py-1.5 rounded-full uppercase tracking-wider">Assistir Vídeo Demonstrativo</p>
+                        <p className="text-white font-extrabold text-xs mt-3 bg-slate-900/80 px-4 py-1.5 rounded-full uppercase tracking-wider relative z-10">Assistir Vídeo Demonstrativo</p>
                       </div>
                     ) : (
-                      <video 
-                        src={selectedTutorial.videoUrl} 
-                        controls 
-                        autoPlay 
-                        className="w-full h-full object-contain"
-                      />
+                      ytId ? (
+                        <iframe
+                          src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
+                          className="w-full h-full border-0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          title={selectedTutorial.title}
+                        />
+                      ) : (
+                        <video 
+                          src={selectedTutorial.videoUrl} 
+                          controls 
+                          autoPlay 
+                          className="w-full h-full object-contain"
+                        />
+                      )
                     )}
                   </div>
 
