@@ -4,7 +4,7 @@ import { DeliveryRoute, RouteItem, Job, ManualDentist, User, Courier } from '../
 import { 
   Truck, Calendar, Clock, Plus, Printer, Trash2, CheckCircle, 
   MapPin, Search, ChevronRight, X, User as UserIcon, Building, Loader2, Save, GripVertical, Navigation,
-  Phone, Shield, ShieldAlert, Check, ToggleLeft, ToggleRight, UserPlus
+  Phone, Shield, ShieldAlert, Check, ToggleLeft, ToggleRight, UserPlus, ChevronUp, ChevronDown
 } from 'lucide-react';
 import * as api from '../../services/firebaseService';
 
@@ -33,6 +33,56 @@ export const RoutePlanner = () => {
     const [showStartRouteModal, setShowStartRouteModal] = useState(false);
     const [selectedCourierId, setSelectedCourierId] = useState('');
     const [manualCourierName, setManualCourierName] = useState('');
+
+    // State for Drag & Drop Route Items
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+    const handleMoveItem = async (idxFrom: number, idxTo: number) => {
+        if (!activeRoute || !currentOrg || !canEdit) return;
+        if (idxTo < 0 || idxTo >= routeItems.length) return;
+
+        const newRouteItems = [...routeItems];
+        const [movedItem] = newRouteItems.splice(idxFrom, 1);
+        newRouteItems.splice(idxTo, 0, movedItem);
+
+        const updates = newRouteItems.map((item, index) => {
+            if (item.order !== index + 1) {
+                return api.apiUpdateRouteItem(currentOrg.id, activeRoute.id, item.id, { order: index + 1 });
+            }
+            return null;
+        }).filter((p): p is Promise<void> => p !== null);
+
+        if (updates.length > 0) {
+            await Promise.all(updates);
+        }
+    };
+
+    const handleDropItem = async (targetIdx: number) => {
+        if (draggedIndex === null || draggedIndex === targetIdx) {
+            setDraggedIndex(null);
+            return;
+        }
+
+        const sourceIdx = draggedIndex;
+        setDraggedIndex(null);
+
+        if (!activeRoute || !currentOrg || !canEdit) return;
+
+        const newRouteItems = [...routeItems];
+        const [movedItem] = newRouteItems.splice(sourceIdx, 1);
+        newRouteItems.splice(targetIdx, 0, movedItem);
+
+        const updates = newRouteItems.map((item, index) => {
+            if (item.order !== index + 1) {
+                return api.apiUpdateRouteItem(currentOrg.id, activeRoute.id, item.id, { order: index + 1 });
+            }
+            return null;
+        }).filter((p): p is Promise<void> => p !== null);
+
+        if (updates.length > 0) {
+            await Promise.all(updates);
+        }
+    };
 
     const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
     const canCreate = isAdmin || currentUser?.permissions?.includes('logistics:create');
@@ -238,7 +288,55 @@ export const RoutePlanner = () => {
 
                             <div className="p-5 space-y-3" id="stops-inner-list">
                                 {routeItems.map((item, idx) => (
-                                    <div key={item.id} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl hover:border-blue-200 transition-all group shadow-sm/5 hover:shadow-md" id={`route-stop-${item.id}`}>
+                                    <div 
+                                        key={item.id} 
+                                        draggable={canEdit}
+                                        onDragStart={() => setDraggedIndex(idx)}
+                                        onDragOver={(e) => {
+                                            if (draggedIndex !== null && canEdit) {
+                                                e.preventDefault();
+                                            }
+                                        }}
+                                        onDrop={() => {
+                                            if (draggedIndex !== null && canEdit) {
+                                                handleDropItem(idx);
+                                            }
+                                        }}
+                                        className={`flex items-center gap-3 sm:gap-4 p-4 bg-white border rounded-2xl hover:border-blue-200 transition-all group shadow-sm/5 hover:shadow-md ${
+                                            draggedIndex === idx ? 'opacity-40 border-dashed border-blue-300 bg-slate-50' : 'border-slate-100'
+                                        }`} 
+                                        id={`route-stop-${item.id}`}
+                                    >
+                                        {/* REORDER CONTROLS (DRAG HANDLE AND MOVEMENT BUTTONS) */}
+                                        {canEdit && (
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <div 
+                                                    className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors"
+                                                    title="Arrastar para reordenar"
+                                                >
+                                                    <GripVertical size={16} />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <button
+                                                        onClick={() => handleMoveItem(idx, idx - 1)}
+                                                        disabled={idx === 0}
+                                                        className={`p-0.5 rounded hover:bg-slate-100 transition-colors ${idx === 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600'}`}
+                                                        title="Mover para cima"
+                                                    >
+                                                        <ChevronUp size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleMoveItem(idx, idx + 1)}
+                                                        disabled={idx === routeItems.length - 1}
+                                                        className={`p-0.5 rounded hover:bg-slate-100 transition-colors ${idx === routeItems.length - 1 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600'}`}
+                                                        title="Mover para baixo"
+                                                    >
+                                                        <ChevronDown size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-black text-sm shrink-0 shadow-md">
                                             {idx + 1}
                                         </div>

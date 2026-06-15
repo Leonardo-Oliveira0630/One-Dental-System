@@ -719,6 +719,7 @@ export const subscribeRouteItems = (orgId: string, routeId: string, cb: (items: 
 };
 export const apiAddRouteItem = (orgId: string, routeId: string, item: RouteItem) => setDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, item.id), item);
 export const apiDeleteRouteItem = (orgId: string, routeId: string, itemId: string) => deleteDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, itemId));
+export const apiUpdateRouteItem = (orgId: string, routeId: string, itemId: string, updates: Partial<RouteItem>) => updateDoc(doc(db, `organizations/${orgId}/routes/${routeId}/items`, itemId), updates);
 
 export const subscribeCouriers = (orgId: string, cb: (couriers: Courier[]) => void) => {
   if (!orgId) return () => {};
