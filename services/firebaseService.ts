@@ -830,6 +830,7 @@ export const subscribeDentistPayments = (orgId: string, cb: (p: DentistPayment[]
 };
 
 export const apiAddDentistPayment = (orgId: string, payment: DentistPayment) => setDoc(doc(db, `organizations/${orgId}/dentistPayments`, payment.id), payment);
+export const apiUpdateDentistPayment = (orgId: string, id: string, updates: Partial<DentistPayment>) => updateDoc(doc(db, `organizations/${orgId}/dentistPayments`, id), updates);
 
 // --- CARD MACHINES ---
 export const subscribeCardMachines = (orgId: string, cb: (machines: CardMachine[]) => void) => {

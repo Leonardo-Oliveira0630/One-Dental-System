@@ -21,7 +21,7 @@ import autoTable from 'jspdf-autotable';
 export const Finance = () => {
   const { 
     jobs, allUsers, manualDentists, currentOrg, dentistPayments, billingBatches, 
-    addDentistPayment, updateBillingBatchStatus, generateBatchBoleto,
+    addDentistPayment, updateDentistPayment, uploadFile, updateBillingBatchStatus, generateBatchBoleto,
     cardMachines, bankAccounts, addCardMachine, updateCardMachine, deleteCardMachine,
     addBankAccount, updateBankAccount, deleteBankAccount
   } = useApp();
@@ -63,6 +63,29 @@ export const Finance = () => {
   const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
   const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
   const [paymentNotes, setPaymentNotes] = useState('');
+
+  // Attachment upload states
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [paymentAttachmentUrl, setPaymentAttachmentUrl] = useState('');
+  const [paymentAttachmentName, setPaymentAttachmentName] = useState('');
+
+  // Selected payment detail state
+  const [selectedPaymentForDetail, setSelectedPaymentForDetail] = useState<DentistPayment | null>(null);
+  const [isEditingDetailPayment, setIsEditingDetailPayment] = useState(false);
+
+  // States when editing detailed payment
+  const [editDetailAmount, setEditDetailAmount] = useState<number>(0);
+  const [editDetailInterest, setEditDetailInterest] = useState<number>(0);
+  const [editDetailFees, setEditDetailFees] = useState<number>(0);
+  const [editDetailDiscount, setEditDetailDiscount] = useState<number>(0);
+  const [editDetailMethod, setEditDetailMethod] = useState<DentistPayment['paymentMethod']>('PIX');
+  const [editDetailCardMachineId, setEditDetailCardMachineId] = useState<string>('');
+  const [editDetailBankAccountId, setEditDetailBankAccountId] = useState<string>('');
+  const [editDetailDate, setEditDetailDate] = useState<string>('');
+  const [editDetailNotes, setEditDetailNotes] = useState('');
+  const [editDetailAttachmentUrl, setEditDetailAttachmentUrl] = useState('');
+  const [editDetailAttachmentName, setEditDetailAttachmentName] = useState('');
+  const [uploadingEditAttachment, setUploadingEditAttachment] = useState(false);
 
   // Expense Form State
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -464,7 +487,9 @@ export const Finance = () => {
             bankAccountId: paymentMethod === 'BANK_TRANSFER' ? paymentBankAccountId : undefined,
             paymentDate: new Date(),
             type: paymentType,
-            notes: paymentNotes
+            notes: paymentNotes,
+            attachmentUrl: paymentAttachmentUrl || undefined,
+            attachmentName: paymentAttachmentName || undefined
         });
         setPaymentAmount(0);
         setPaymentInterest(0);
@@ -473,6 +498,8 @@ export const Finance = () => {
         setPaymentCardMachineId('');
         setPaymentBankAccountId('');
         setPaymentNotes('');
+        setPaymentAttachmentUrl('');
+        setPaymentAttachmentName('');
         setShowPaymentForm(false);
     } catch (err) {
         console.error(err);
@@ -1171,6 +1198,63 @@ export const Finance = () => {
                                                         placeholder="Ex: Ref. OS 123, Promoção especial..."
                                                     />
                                                 </div>
+                                                <div className="md:col-span-full border-t border-slate-100 pt-3">
+                                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest flex items-center gap-1.5">
+                                                        <FileText size={12} /> Comprovante de Recebimento
+                                                    </label>
+                                                    <div className="mt-1 flex items-center gap-3 font-sans">
+                                                        <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase rounded-xl transition-all border border-slate-200">
+                                                            {uploadingAttachment ? (
+                                                                <>
+                                                                    <Loader2 className="animate-spin" size={14} />
+                                                                    Enviando...
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Plus size={14} /> Selecionar Comprovante
+                                                                </>
+                                                            )}
+                                                            <input 
+                                                                type="file" 
+                                                                accept="image/*,application/pdf"
+                                                                className="hidden" 
+                                                                onChange={async (e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (!file) return;
+                                                                    setUploadingAttachment(true);
+                                                                    try {
+                                                                        const url = await uploadFile(file);
+                                                                        setPaymentAttachmentUrl(url);
+                                                                        setPaymentAttachmentName(file.name);
+                                                                    } catch (err) {
+                                                                        console.error(err);
+                                                                        alert("Erro ao fazer upload do comprovante.");
+                                                                    } finally {
+                                                                        setUploadingAttachment(false);
+                                                                    }
+                                                                }}
+                                                                disabled={uploadingAttachment}
+                                                            />
+                                                        </label>
+                                                        {paymentAttachmentName ? (
+                                                            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl">
+                                                                <span className="text-[10px] font-black text-emerald-700 truncate max-w-[250px]">{paymentAttachmentName}</span>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setPaymentAttachmentUrl('');
+                                                                        setPaymentAttachmentName('');
+                                                                    }}
+                                                                    className="text-emerald-700 hover:text-emerald-900"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-[10px] font-bold text-slate-400 italic">Nenhum arquivo selecionado (Opcional)</span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="flex justify-end mt-4 gap-3">
                                                 <button onClick={() => setShowPaymentForm(false)} className="px-4 py-2 text-xs font-black text-slate-400 uppercase hover:bg-slate-50 rounded-xl transition-all">Cancelar</button>
@@ -1192,17 +1276,36 @@ export const Finance = () => {
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Forma</th>
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Observação</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Comprovante</th>
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-50">
                                                 {dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).length === 0 ? (
                                                     <tr>
-                                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado neste período.</td>
+                                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado neste período.</td>
                                                     </tr>
                                                 ) : (
                                                     dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).map((p, idx) => (
-                                                        <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                                                        <tr 
+                                                            key={p.id} 
+                                                            onClick={() => {
+                                                                setSelectedPaymentForDetail(p);
+                                                                setIsEditingDetailPayment(false);
+                                                                setEditDetailAmount(p.amount);
+                                                                setEditDetailInterest(p.interest || 0);
+                                                                setEditDetailFees(p.fees || 0);
+                                                                setEditDetailDiscount(p.discount || 0);
+                                                                setEditDetailMethod(p.paymentMethod);
+                                                                setEditDetailCardMachineId(p.cardMachineId || '');
+                                                                setEditDetailBankAccountId(p.bankAccountId || '');
+                                                                setEditDetailDate(new Date(p.paymentDate).toISOString().split('T')[0]);
+                                                                setEditDetailNotes(p.notes || '');
+                                                                setEditDetailAttachmentUrl(p.attachmentUrl || '');
+                                                                setEditDetailAttachmentName(p.attachmentName || '');
+                                                            }}
+                                                            className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                                        >
                                                             <td className="px-6 py-4 text-xs font-bold text-slate-500">
                                                                 {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
                                                             </td>
@@ -1213,6 +1316,15 @@ export const Finance = () => {
                                                             </td>
                                                             <td className="px-6 py-4 text-xs font-bold text-slate-600 italic">
                                                                 {p.notes || '-'}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-center">
+                                                                {p.attachmentUrl ? (
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-lg">
+                                                                        <FileCheck size={10} /> Sim
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="inline-flex px-2 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 text-[9px] font-mono rounded">Não</span>
+                                                                )}
                                                             </td>
                                                             <td className="px-6 py-4 text-xs font-black text-right text-green-600">
                                                                 R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -1379,6 +1491,426 @@ export const Finance = () => {
                       >
                           Entendido
                       </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {selectedPaymentForDetail && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 font-sans">
+              <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                      <div>
+                          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                              <FileText size={18} className="text-green-600" />
+                              {isEditingDetailPayment ? 'Editar Recebimento' : 'Detalhes do Recebimento'}
+                          </h3>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Dentista: {selectedPaymentForDetail.dentistName}</p>
+                      </div>
+                      <button 
+                          onClick={() => {
+                              setSelectedPaymentForDetail(null);
+                              setIsEditingDetailPayment(false);
+                          }} 
+                          className="text-slate-400 hover:text-slate-600 transition-colors"
+                      >
+                          <X size={24}/>
+                      </button>
+                  </div>
+
+                  <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                      {isEditingDetailPayment ? (
+                          /* EDIT MODE FORM */
+                          <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
+                                      <input 
+                                          type="number"
+                                          value={editDetailAmount}
+                                          onChange={e => setEditDetailAmount(parseFloat(e.target.value) || 0)}
+                                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-black text-slate-700 text-xs"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-red-500 uppercase mb-1 tracking-widest">Juros/Mora (+)</label>
+                                      <input 
+                                          type="number"
+                                          value={editDetailInterest}
+                                          onChange={e => setEditDetailInterest(parseFloat(e.target.value) || 0)}
+                                          className="w-full px-4 py-2.5 bg-red-50/50 border border-red-100 rounded-xl focus:ring-2 focus:ring-red-500 outline-none font-bold text-red-700 text-xs"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-green-600 uppercase mb-1 tracking-widest">Desconto (-)</label>
+                                      <input 
+                                          type="number"
+                                          value={editDetailDiscount}
+                                          onChange={e => setEditDetailDiscount(parseFloat(e.target.value) || 0)}
+                                          className="w-full px-4 py-2.5 bg-green-50/50 border border-green-100 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-green-700 text-xs"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-orange-600 uppercase mb-1 tracking-widest">Taxas (-)</label>
+                                      <input 
+                                          type="number"
+                                          value={editDetailFees}
+                                          onChange={e => setEditDetailFees(parseFloat(e.target.value) || 0)}
+                                          className="w-full px-4 py-2.5 bg-orange-50/50 border border-orange-100 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-bold text-orange-700 text-xs"
+                                      />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Forma</label>
+                                      <select 
+                                          value={editDetailMethod}
+                                          onChange={e => setEditDetailMethod(e.target.value as any)}
+                                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 h-[38px] text-xs font-sans"
+                                      >
+                                          <option value="PIX">PIX</option>
+                                          <option value="CASH">Dinheiro</option>
+                                          <option value="CREDIT_CARD">Cartão de Crédito</option>
+                                          <option value="DEBIT_CARD">Cartão de Débito</option>
+                                          <option value="BANK_TRANSFER">Transferência Bancária</option>
+                                          <option value="BOLETO">Boleto (Pago)</option>
+                                          <option value="DISCOUNT">Desconto/Cortesia</option>
+                                      </select>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Data Lanc.</label>
+                                      <input 
+                                          type="date"
+                                          value={editDetailDate}
+                                          onChange={e => setEditDetailDate(e.target.value)}
+                                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 text-xs h-[38px]"
+                                      />
+                                  </div>
+
+                                  {(editDetailMethod === 'CREDIT_CARD' || editDetailMethod === 'DEBIT_CARD') && (
+                                      <div className="animate-in slide-in-from-top-2">
+                                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Máquina</label>
+                                          <select 
+                                              value={editDetailCardMachineId}
+                                              onChange={e => setEditDetailCardMachineId(e.target.value)}
+                                              className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 text-xs h-[38px]"
+                                          >
+                                              <option value="">Selecione...</option>
+                                              {cardMachines.map(m => (
+                                                  <option key={m.id} value={m.id}>{m.name}</option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                  )}
+
+                                  {editDetailMethod === 'BANK_TRANSFER' && (
+                                      <div className="animate-in slide-in-from-top-2">
+                                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Conta</label>
+                                          <select 
+                                              value={editDetailBankAccountId}
+                                              onChange={e => setEditDetailBankAccountId(e.target.value)}
+                                              className="w-full px-4 py-2.5 bg-blue-50 border border-blue-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 text-xs h-[38px]"
+                                          >
+                                              <option value="">Selecione...</option>
+                                              {bankAccounts.map(b => (
+                                                  <option key={b.id} value={b.id}>{b.name}</option>
+                                              ))}
+                                          </select>
+                                      </div>
+                                  )}
+
+                                  <div className="md:col-span-1">
+                                      <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest italic">Total Líquido</label>
+                                      <div className="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl font-black text-slate-800 text-xs h-[38px] flex items-center">
+                                          R$ {(editDetailAmount + editDetailInterest - editDetailDiscount - editDetailFees).toFixed(2)}
+                                      </div>
+                                  </div>
+                              </div>
+
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1 tracking-widest">Observações/Ref.</label>
+                                  <input 
+                                      value={editDetailNotes}
+                                      onChange={e => setEditDetailNotes(e.target.value)}
+                                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none font-bold text-slate-700 text-xs"
+                                      placeholder="Ex: Ref. OS 123..."
+                                  />
+                              </div>
+
+                              <div className="border-t border-slate-100 pt-4">
+                                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-1.5 tracking-widest flex items-center gap-1.5">
+                                      <FileText size={12} /> Comprovante de Recebimento
+                                  </label>
+                                  <div className="flex items-center gap-3">
+                                      <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black uppercase rounded-xl transition-all border border-slate-200">
+                                          {uploadingEditAttachment ? (
+                                              <>
+                                                  <Loader2 className="animate-spin" size={14} />
+                                                  Enviando...
+                                              </>
+                                          ) : (
+                                              <>
+                                                  <Plus size={14} /> Selecionar Comprovante
+                                              </>
+                                          )}
+                                          <input 
+                                              type="file" 
+                                              accept="image/*,application/pdf"
+                                              className="hidden" 
+                                              onChange={async (e) => {
+                                                  const file = e.target.files?.[0];
+                                                  if (!file) return;
+                                                  setUploadingEditAttachment(true);
+                                                  try {
+                                                      const url = await uploadFile(file);
+                                                      setEditDetailAttachmentUrl(url);
+                                                      setEditDetailAttachmentName(file.name);
+                                                  } catch (err) {
+                                                      console.error(err);
+                                                      alert("Erro ao fazer upload do comprovante.");
+                                                  } finally {
+                                                      setUploadingEditAttachment(false);
+                                                  }
+                                              }}
+                                              disabled={uploadingEditAttachment}
+                                          />
+                                      </label>
+                                      {editDetailAttachmentName ? (
+                                          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl">
+                                              <span className="text-[10px] font-black text-emerald-700 truncate max-w-[200px]">{editDetailAttachmentName}</span>
+                                              <button 
+                                                  type="button"
+                                                  onClick={() => {
+                                                      setEditDetailAttachmentUrl('');
+                                                      setEditDetailAttachmentName('');
+                                                  }}
+                                                  className="text-emerald-700 hover:text-emerald-950"
+                                              >
+                                                  <X size={14} />
+                                              </button>
+                                          </div>
+                                      ) : (
+                                          <span className="text-[10px] font-bold text-slate-400 italic">Nenhum arquivo anexado</span>
+                                      )}
+                                  </div>
+                              </div>
+
+                              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                  <button 
+                                      type="button" 
+                                      onClick={() => setIsEditingDetailPayment(false)}
+                                      className="flex-1 py-3 bg-slate-100 text-slate-600 font-black rounded-xl hover:bg-slate-200 transition-all uppercase text-xs animate-in duration-100"
+                                  >
+                                      Cancelar
+                                  </button>
+                                  <button 
+                                      type="button"
+                                      disabled={isSaving || editDetailAmount <= 0}
+                                      onClick={async () => {
+                                          if (!selectedPaymentForDetail) return;
+                                          setIsSaving(true);
+                                          try {
+                                              const updates = {
+                                                  amount: editDetailAmount,
+                                                  interest: editDetailInterest,
+                                                  fees: editDetailFees,
+                                                  discount: editDetailDiscount,
+                                                  paymentMethod: editDetailMethod,
+                                                  cardMachineId: (editDetailMethod === 'CREDIT_CARD' || editDetailMethod === 'DEBIT_CARD') ? editDetailCardMachineId : undefined,
+                                                  bankAccountId: editDetailMethod === 'BANK_TRANSFER' ? editDetailBankAccountId : undefined,
+                                                  paymentDate: new Date(`${editDetailDate}T12:00:00`),
+                                                  notes: editDetailNotes,
+                                                  attachmentUrl: editDetailAttachmentUrl || undefined,
+                                                  attachmentName: editDetailAttachmentName || undefined
+                                              };
+                                              await updateDentistPayment(selectedPaymentForDetail.id, updates);
+                                              setSelectedPaymentForDetail({ ...selectedPaymentForDetail, ...updates });
+                                              setIsEditingDetailPayment(false);
+                                              alert("Lançamento de recebimento atualizado com sucesso!");
+                                          } catch (err) {
+                                              console.error(err);
+                                              alert("Erro ao atualizar o recebimento.");
+                                          } finally {
+                                              setIsSaving(false);
+                                          }
+                                      }}
+                                      className="flex-1 py-3 bg-green-600 text-white font-black rounded-xl hover:bg-green-700 transition-all uppercase text-xs flex items-center justify-center gap-2"
+                                  >
+                                      {isSaving ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                                      Salvar Alterações
+                                  </button>
+                              </div>
+                          </div>
+                      ) : (
+                          /* READ ONLY VIEW MODE */
+                          <div className="space-y-6">
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Valor Recebido</p>
+                                      <p className="text-sm font-black text-slate-800">R$ {selectedPaymentForDetail.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-red-500">Juros/Mora (+)</p>
+                                      <p className="text-sm font-black text-red-600">R$ {(selectedPaymentForDetail.interest || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-green-600">Desconto (-)</p>
+                                      <p className="text-sm font-black text-green-600">R$ {(selectedPaymentForDetail.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-orange-600">Taxas (-)</p>
+                                      <p className="text-sm font-black text-orange-600">R$ {(selectedPaymentForDetail.fees || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Forma de Pagamento</p>
+                                      <span className="inline-block mt-0.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase rounded">
+                                          {selectedPaymentForDetail.paymentMethod}
+                                      </span>
+                                  </div>
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Data do Lançamento</p>
+                                      <p className="text-xs font-bold text-slate-700">{new Date(selectedPaymentForDetail.paymentDate).toLocaleDateString('pt-BR')}</p>
+                                  </div>
+                              </div>
+
+                              {selectedPaymentForDetail.notes && (
+                                  <div>
+                                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Observações/Referência</p>
+                                      <p className="text-xs font-medium text-slate-600 bg-slate-50/50 p-3 rounded-xl border border-slate-100 mt-1 italic">
+                                          "{selectedPaymentForDetail.notes}"
+                                      </p>
+                                  </div>
+                              )}
+
+                              {/* COMPROVANTE ATTACHMENT AREA */}
+                              <div className="border-t border-slate-100 pt-6">
+                                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                      <FileText size={14} className="text-blue-600" />
+                                      Comprovante de Recebimento
+                                  </h4>
+
+                                  {selectedPaymentForDetail.attachmentUrl ? (
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-emerald-50/60 border border-emerald-100 rounded-2xl">
+                                          <div className="flex items-center gap-3">
+                                              <div className="p-3 bg-emerald-100 text-emerald-700 rounded-xl">
+                                                  <FileText size={20} />
+                                              </div>
+                                              <div className="min-w-0">
+                                                  <p className="text-xs font-black text-emerald-800 truncate max-w-[280px]">
+                                                      {selectedPaymentForDetail.attachmentName || "comprovante.pdf"}
+                                                  </p>
+                                                  <p className="text-[10px] text-emerald-600 font-bold">Comprovante anexado</p>
+                                              </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                              <a 
+                                                  href={selectedPaymentForDetail.attachmentUrl} 
+                                                  target="_blank" 
+                                                  rel="noreferrer"
+                                                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+                                              >
+                                                  <ExternalLink size={12} /> Visualizar
+                                              </a>
+                                              <button 
+                                                  onClick={async () => {
+                                                      if (!confirm("Deseja realmente remover o comprovante anexado?")) return;
+                                                      setIsSaving(true);
+                                                      try {
+                                                          await updateDentistPayment(selectedPaymentForDetail.id, {
+                                                              attachmentUrl: undefined,
+                                                              attachmentName: undefined
+                                                          });
+                                                          setSelectedPaymentForDetail({
+                                                              ...selectedPaymentForDetail,
+                                                              attachmentUrl: undefined,
+                                                              attachmentName: undefined
+                                                          });
+                                                          alert("Comprovante removido com sucesso!");
+                                                      } catch (err) {
+                                                          console.error(err);
+                                                          alert("Erro ao remover comprovante.");
+                                                      } finally {
+                                                          setIsSaving(false);
+                                                      }
+                                                  }}
+                                                  className="px-3 py-2 bg-slate-100 hover:bg-red-50 hover:text-red-600 text-slate-500 text-[10px] font-black uppercase rounded-xl transition-all"
+                                              >
+                                                  Remover
+                                              </button>
+                                          </div>
+                                      </div>
+                                  ) : (
+                                      <div className="flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-center">
+                                          <FileText size={32} className="text-slate-300 mb-2" />
+                                          <p className="text-xs font-bold text-slate-500">Nenhum comprovante anexado neste recebimento</p>
+                                          <p className="text-[10px] text-slate-400 mt-1 mb-4">Selecione ou clique abaixo para anexar um documento agora.</p>
+
+                                          <label className="cursor-pointer flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase rounded-xl transition-all shadow-md shadow-blue-100">
+                                              {uploadingAttachment ? (
+                                                  <>
+                                                      <Loader2 className="animate-spin" size={12} />
+                                                      Anexando arquivo...
+                                                  </>
+                                              ) : (
+                                                  <>
+                                                      <Plus size={12} /> Anexar Comprovante
+                                                  </>
+                                              )}
+                                              <input 
+                                                  type="file" 
+                                                  accept="image/*,application/pdf"
+                                                  className="hidden" 
+                                                  disabled={uploadingAttachment}
+                                                  onChange={async (e) => {
+                                                      const file = e.target.files?.[0];
+                                                      if (!file) return;
+                                                      setUploadingAttachment(true);
+                                                      try {
+                                                          const url = await uploadFile(file);
+                                                          await updateDentistPayment(selectedPaymentForDetail.id, {
+                                                              attachmentUrl: url,
+                                                              attachmentName: file.name
+                                                          });
+                                                          setSelectedPaymentForDetail({
+                                                              ...selectedPaymentForDetail,
+                                                              attachmentUrl: url,
+                                                              attachmentName: file.name
+                                                          });
+                                                          alert("Comprovante anexado!");
+                                                      } catch (err) {
+                                                          console.error(err);
+                                                          alert("Erro ao fazer upload do comprovante.");
+                                                      } finally {
+                                                          setUploadingAttachment(false);
+                                                      }
+                                                  }}
+                                              />
+                                          </label>
+                                      </div>
+                                  )}
+                              </div>
+
+                              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                                  <button 
+                                      type="button" 
+                                      onClick={() => {
+                                          setSelectedPaymentForDetail(null);
+                                          setIsEditingDetailPayment(false);
+                                      }}
+                                      className="flex-1 py-3 bg-slate-100 text-slate-600 font-black rounded-xl hover:bg-slate-200 transition-all uppercase text-xs"
+                                  >
+                                      Fechar
+                                  </button>
+                                  <button 
+                                      type="button"
+                                      onClick={() => {
+                                          setIsEditingDetailPayment(true);
+                                      }}
+                                      className="flex-1 py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all uppercase text-xs flex items-center justify-center gap-2"
+                                  >
+                                      <Plus size={14} /> Editar Lançamento
+                                  </button>
+                              </div>
+                          </div>
+                      )}
                   </div>
               </div>
           </div>

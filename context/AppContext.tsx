@@ -220,6 +220,7 @@ interface AppContextType {
   addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => Promise<void>;
   generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date) => Promise<any>;
   addDentistPayment: (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
+  updateDentistPayment: (id: string, updates: Partial<DentistPayment>) => Promise<void>;
   updateBillingBatchStatus: (id: string, status: BillingBatch['status']) => Promise<void>;
 
   labCoupons: LabCoupon[];
@@ -914,6 +915,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     await api.apiAddDentistPayment(orgId, newPayment);
   };
 
+  const updateDentistPayment = async (id: string, updates: Partial<DentistPayment>) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    await api.apiUpdateDentistPayment(orgId, id, updates);
+  };
+
   const updateBillingBatchStatus = async (id: string, status: BillingBatch['status']) => {
     const orgId = currentUser?.organizationId;
     if (!orgId) return;
@@ -974,7 +981,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addBankAccount, updateBankAccount, deleteBankAccount,
     addPriceTable, updatePriceTable, deletePriceTable,
     addJobToRoute, generateBatchBoleto,
-    addDentistPayment, updateBillingBatchStatus,
+    addDentistPayment, updateDentistPayment, updateBillingBatchStatus,
     labCoupons, addLabCoupon, updateLabCoupon, deleteLabCoupon, validateLabCoupon,
     couriers, addCourier, updateCourier, deleteCourier
   }), [

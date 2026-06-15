@@ -629,6 +629,8 @@ export interface DentistPayment {
   notes?: string;
   batchId?: string;
   createdAt: Date;
+  attachmentUrl?: string;
+  attachmentName?: string;
 }
 
 export interface CardMachine {
