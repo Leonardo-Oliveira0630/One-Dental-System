@@ -7,7 +7,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -98,6 +98,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  
+  const isClinicPendingApproval = () => {
+    if (isSuperAdmin) return false;
+    if (currentUser?.role === UserRole.CLIENT && currentOrg?.isApproved !== true) {
+      return true;
+    }
+    return false;
+  };
   
   const hasPerm = (key: PermissionKey) => {
       if (isAdmin) return true;
@@ -383,38 +391,101 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </header>
 
         <div className="p-4 pt-20 md:pt-8 md:p-8 w-full max-w-[1400px] mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative">
-          {isPastDue && !location.pathname.startsWith('/admin/assinatura') && location.pathname !== '/subscribe' && (
-            <>
-              <div 
-                className="absolute inset-0 z-40 cursor-not-allowed bg-white/10 backdrop-blur-[1px]"
-                onClickCapture={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setShowOverduePopup(true);
-                }}
-              />
-              {showOverduePopup && (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                   <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center border border-red-100 animate-in zoom-in">
-                      <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                         <AlertTriangle size={32} />
-                      </div>
-                      <h2 className="text-2xl font-black text-slate-900 mb-2">Assinatura Necessária</h2>
-                      <p className="text-slate-500 mb-6 font-medium">Sua conta de laboratório ou período de testes está com restrição. Para regularizar, acesse o menu de assinatura para visualizar e efetuar o pagamento da fatura gerada no Asaas.</p>
-                      <div className="flex gap-3">
-                        <button onClick={() => setShowOverduePopup(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">
-                           Fechar
-                        </button>
-                        <button onClick={() => { setShowOverduePopup(false); navigate('/admin/assinatura'); }} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30">
-                           Ver Assinatura
-                        </button>
-                      </div>
-                   </div>
+          {isClinicPendingApproval() ? (
+            <div className="flex-1 flex items-center justify-center py-12 px-4">
+              <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">
+                <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md shadow-teal-500/10">
+                  <ShieldCheck size={32} />
                 </div>
+                <h2 className="text-2xl font-black text-slate-900 mb-2">Conta em Análise</h2>
+                <p className="text-slate-500 text-sm max-w-md mx-auto mb-6 leading-relaxed">
+                  Para sua segurança e conformidade regulatória, todos os cadastros de dentistas passam por verificação de registro profissional (CRO).
+                </p>
+
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left space-y-3 mb-6">
+                  <p className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
+                    <Stethoscope size={14} className="text-teal-600" /> Registro Informado
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-white p-2 rounded-xl border border-slate-200/50">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Estado</span>
+                      <span className="text-sm font-black text-slate-700">{currentOrg?.croUf || 'N/A'}</span>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-slate-200/50 col-span-2">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Inscrição CRO</span>
+                      <span className="text-sm font-black text-slate-700">{currentOrg?.croNumero || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-center pt-1">
+                    <div className="bg-white p-2 rounded-xl border border-slate-200/50">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Categoria</span>
+                      <span className="text-sm font-black text-slate-700">{currentOrg?.croCategoria || 'CD'}</span>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-slate-200/50 flex flex-col justify-center">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Status API</span>
+                      <span className={`text-xs font-bold ${currentOrg?.croValid ? 'text-emerald-300' : 'text-amber-500'}`}>
+                        {currentOrg?.croValid ? 'Validado Público' : 'Aguardando Análise'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 text-amber-800 text-xs p-4 rounded-xl mb-8 leading-relaxed text-left border border-amber-100 font-medium">
+                  <strong>Pendente de Homologação:</strong> Detectamos que seu registro profissional necessita de uma aprovação ou verificação adicional. Nossa equipe de Administração de Super Admin foi notificada e está analisando sua conta.
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="flex-grow py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw size={16} /> Atualizar Status
+                  </button>
+                  <button 
+                    onClick={handleLogout} 
+                    className="flex-grow py-3 bg-slate-150 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    <LogOut size={16} /> Sair do App
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {isPastDue && !location.pathname.startsWith('/admin/assinatura') && location.pathname !== '/subscribe' && (
+                <>
+                  <div 
+                    className="absolute inset-0 z-40 cursor-not-allowed bg-white/10 backdrop-blur-[1px]"
+                    onClickCapture={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      setShowOverduePopup(true);
+                    }}
+                  />
+                  {showOverduePopup && (
+                    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                       <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center border border-red-100 animate-in zoom-in">
+                          <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                             <AlertTriangle size={32} />
+                          </div>
+                          <h2 className="text-2xl font-black text-slate-900 mb-2">Assinatura Necessária</h2>
+                          <p className="text-slate-500 mb-6 font-medium">Sua conta de laboratório ou período de testes está com restrição. Para regularizar, acesse o menu de assinatura para visualizar e efetuar o pagamento da fatura gerada no Asaas.</p>
+                          <div className="flex gap-3">
+                            <button onClick={() => setShowOverduePopup(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+                               Fechar
+                            </button>
+                            <button onClick={() => { setShowOverduePopup(false); navigate('/admin/assinatura'); }} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30">
+                               Ver Assinatura
+                            </button>
+                          </div>
+                       </div>
+                    </div>
+                  )}
+                </>
               )}
+              {children}
             </>
           )}
-          {children}
         </div>
       </main>
     </div>

@@ -138,6 +138,48 @@ const Subscriptions: React.FC = () => {
                 </div>
               </div>
 
+              {org.orgType === 'CLINIC' && (
+                <div className="p-3 bg-teal-50/50 border border-teal-150 rounded-lg space-y-2 mb-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-teal-850 uppercase tracking-wider flex items-center gap-1">
+                      <Activity className="w-3 h-3 text-teal-600 animate-pulse" /> Registro CRO de Dentista
+                    </span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      org.isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {org.isApproved ? 'Aprovado' : 'Pendente'}
+                    </span>
+                  </div>
+                  
+                  <div className="text-xs text-gray-650 space-y-0.5 font-medium">
+                    <p><strong>CRO:</strong> {org.croUf || 'N/A'} - {org.croNumero || 'N/A'} ({org.croCategoria || 'CD'})</p>
+                    <p>
+                      <strong>Verificação Pública:</strong>{' '}
+                      <span className={org.croValid ? 'text-emerald-700' : 'text-amber-700'}>
+                        {org.croValid ? 'Validado via API' : 'Não localizado / Não validado'}
+                      </span>
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={async () => {
+                      try {
+                        await updateOrganization(org.id, { isApproved: !org.isApproved });
+                      } catch (err) {
+                        console.error("Erro ao aprovar/reprovar organização clinic:", err);
+                      }
+                    }}
+                    className={`w-full text-center py-1.5 rounded text-[11px] font-bold transition-all border ${
+                      org.isApproved 
+                        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                        : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
+                    }`}
+                  >
+                    {org.isApproved ? 'Revogar Aprovação CRO' : 'Aprovar Manualmente'}
+                  </button>
+                </div>
+              )}
+
               {org.trialEndsAt && !isNaN(new Date(org.trialEndsAt).getTime()) && (
                 <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-2 rounded-lg">
                   <Clock className="w-4 h-4" />

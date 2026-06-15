@@ -621,6 +621,10 @@ export const apiRegisterUserInOrg = async (email: string, pass: string, name: st
     const fn = httpsCallable(functions, 'registerUserInOrg');
     return (await fn({ email, pass, name, role, organizationId, sector })).data;
 };
+export const apiValidateCro = async (uf: string, numero: string, categoria: string) => {
+    const fn = httpsCallable(functions, 'validateCro');
+    return (await fn({ uf, numero, categoria })).data as any;
+};
 
 // SUBSCRIÇÃO DE USUÁRIOS POR ORGANIZAÇÃO
 export const subscribeOrgUsers = (orgId: string, cb: (u: User[]) => void) => {

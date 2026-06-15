@@ -66,6 +66,11 @@ export interface Organization {
   state?: string;
   cep?: string;
   country?: string;
+  croUf?: string;
+  croNumero?: string;
+  croCategoria?: string;
+  croValid?: boolean;
+  isApproved?: boolean;
 }
 
 export interface ClinicRoom {
@@ -444,6 +449,11 @@ export interface User {
   isBlocked?: boolean;
   blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
   temporaryUnblockUntil?: Date;
+  croUf?: string;
+  croNumero?: string;
+  croCategoria?: string;
+  croValid?: boolean;
+  isApproved?: boolean;
 }
 
 export interface CartItem {
