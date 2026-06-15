@@ -488,6 +488,9 @@ export interface ClinicPatient {
   phone: string;
   email?: string;
   cpf?: string;
+  birthDate?: string;
+  planName?: string;
+  clinicalAlerts?: string[];
   createdAt: Date;
 }
 
@@ -727,4 +730,56 @@ export interface Tutorial {
   orderIndex: number;
   createdAt?: any;
 }
+
+export interface ClinicBudget {
+  id: string;
+  patientId: string;
+  title: string;
+  amount: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  date: Date;
+  notes?: string;
+  items?: { description: string; qty: number; value: number }[];
+  createdAt: Date;
+}
+
+export interface ClinicPrescription {
+  id: string;
+  patientId: string;
+  dentistName: string;
+  date: Date;
+  items: { medication: string; instructions: string }[];
+  notes?: string;
+  createdAt: Date;
+}
+
+export interface ClinicClinicalCard {
+  id: string;
+  patientId: string;
+  title: string;
+  date: Date;
+  notes: string;
+  toothNumber?: string;
+  dentistName: string;
+  createdAt: Date;
+}
+
+export interface ClinicAnamnesis {
+  id: string;
+  patientId: string;
+  updatedAt: Date;
+  responses: { [key: string]: boolean | string };
+}
+
+export interface ClinicPatientFinance {
+  id: string;
+  patientId: string;
+  description: string;
+  amount: number;
+  type: 'INCOME' | 'EXPENSE';
+  status: 'PAID' | 'PENDING' | 'OVERDUE';
+  date: Date;
+  createdAt: Date;
+}
+
 

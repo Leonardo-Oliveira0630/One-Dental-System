@@ -23,7 +23,7 @@ import {
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
-  Tutorial, Courier
+  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -461,6 +461,79 @@ export const subscribePatients = (orgId: string, cb: (p: ClinicPatient[]) => voi
 export const apiAddPatient = (orgId: string, p: ClinicPatient) => setDoc(doc(db, `organizations/${orgId}/patients`, p.id), p);
 export const apiUpdatePatient = (orgId: string, id: string, u: Partial<ClinicPatient>) => updateDoc(doc(db, `organizations/${orgId}/patients`, id), u);
 export const apiDeletePatient = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patients`, id));
+
+// Budgets Subcollection
+export const subscribePatientBudgets = (orgId: string, patientId: string, cb: (b: ClinicBudget[]) => void) => {
+    if (!orgId || !patientId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/patients/${patientId}/budgets`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ 
+            id: d.id, 
+            ...d.data(), 
+            date: toDate(d.data().date), 
+            createdAt: toDate(d.data().createdAt) 
+        } as ClinicBudget)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePatientBudgets: ${error.code}`));
+};
+export const apiAddPatientBudget = (orgId: string, patientId: string, b: ClinicBudget) => setDoc(doc(db, `organizations/${orgId}/patients/${patientId}/budgets`, b.id), b);
+export const apiDeletePatientBudget = (orgId: string, patientId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patients/${patientId}/budgets`, id));
+
+// Prescriptions Subcollection
+export const subscribePatientPrescriptions = (orgId: string, patientId: string, cb: (p: ClinicPrescription[]) => void) => {
+    if (!orgId || !patientId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/patients/${patientId}/prescriptions`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ 
+            id: d.id, 
+            ...d.data(), 
+            date: toDate(d.data().date), 
+            createdAt: toDate(d.data().createdAt) 
+        } as ClinicPrescription)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePatientPrescriptions: ${error.code}`));
+};
+export const apiAddPatientPrescription = (orgId: string, patientId: string, p: ClinicPrescription) => setDoc(doc(db, `organizations/${orgId}/patients/${patientId}/prescriptions`, p.id), p);
+export const apiDeletePatientPrescription = (orgId: string, patientId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patients/${patientId}/prescriptions`, id));
+
+// Clinical Cards Subcollection
+export const subscribePatientClinicalCards = (orgId: string, patientId: string, cb: (cc: ClinicClinicalCard[]) => void) => {
+    if (!orgId || !patientId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/patients/${patientId}/clinical_cards`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ 
+            id: d.id, 
+            ...d.data(), 
+            date: toDate(d.data().date), 
+            createdAt: toDate(d.data().createdAt) 
+        } as ClinicClinicalCard)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePatientClinicalCards: ${error.code}`));
+};
+export const apiAddPatientClinicalCard = (orgId: string, patientId: string, cc: ClinicClinicalCard) => setDoc(doc(db, `organizations/${orgId}/patients/${patientId}/clinical_cards`, cc.id), cc);
+export const apiDeletePatientClinicalCard = (orgId: string, patientId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patients/${patientId}/clinical_cards`, id));
+
+// Anamnesis Subcollection
+export const subscribePatientAnamnesis = (orgId: string, patientId: string, cb: (an: ClinicAnamnesis[]) => void) => {
+    if (!orgId || !patientId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/patients/${patientId}/anamnesis`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ 
+            id: d.id, 
+            ...d.data(), 
+            updatedAt: toDate(d.data().updatedAt) 
+        } as ClinicAnamnesis)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePatientAnamnesis: ${error.code}`));
+};
+export const apiSavePatientAnamnesis = (orgId: string, patientId: string, an: ClinicAnamnesis) => setDoc(doc(db, `organizations/${orgId}/patients/${patientId}/anamnesis`, an.id), an);
+
+// Patient Finance Subcollection
+export const subscribePatientFinance = (orgId: string, patientId: string, cb: (f: ClinicPatientFinance[]) => void) => {
+    if (!orgId || !patientId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/patients/${patientId}/finance`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ 
+            id: d.id, 
+            ...d.data(), 
+            date: toDate(d.data().date), 
+            createdAt: toDate(d.data().createdAt) 
+        } as ClinicPatientFinance)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePatientFinance: ${error.code}`));
+};
+export const apiAddPatientFinance = (orgId: string, patientId: string, f: ClinicPatientFinance) => setDoc(doc(db, `organizations/${orgId}/patients/${patientId}/finance`, f.id), f);
+export const apiDeletePatientFinance = (orgId: string, patientId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patients/${patientId}/finance`, id));
 
 export const subscribeAppointments = (orgId: string, cb: (a: Appointment[]) => void) => {
     if (!orgId) return () => {};
