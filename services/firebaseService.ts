@@ -551,7 +551,7 @@ export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllOrganizations: ${error.code}`));
 };
 export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
-    const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'));
+    const q = query(collection(db, 'organizations'), where('orgType', 'in', ['LAB', 'lab']));
     return onSnapshot(q, (snap: any) => {
         const orgs = snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization));
         cb(orgs);
@@ -559,7 +559,7 @@ export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
 };
 export const getOrganizationBySlug = async (slug: string): Promise<Organization | null> => {
     // 1. Try finding by storeSlug
-    const q = query(collection(db, 'organizations'), where('orgType', '==', 'LAB'), where('storeSlug', '==', slug), limit(1));
+    const q = query(collection(db, 'organizations'), where('storeSlug', '==', slug), limit(1));
     const snap = await getDocs(q);
     if (!snap.empty) {
         const d = snap.docs[0];
@@ -568,7 +568,7 @@ export const getOrganizationBySlug = async (slug: string): Promise<Organization 
     // 2. Fallback to direct document mapping by id
     try {
         const docSnap = await getDoc(doc(db, 'organizations', slug));
-        if (docSnap.exists() && docSnap.data().orgType === 'LAB') {
+        if (docSnap.exists() && docSnap.data().orgType !== 'CLINIC') {
             return { id: docSnap.id, ...docSnap.data() as any, createdAt: toDate(docSnap.data().createdAt) } as Organization;
         }
     } catch (e) {

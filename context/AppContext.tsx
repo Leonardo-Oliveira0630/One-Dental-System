@@ -332,11 +332,39 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 if (profile.role === UserRole.CLIENT) {
                     api.subscribeUserConnections(profileOrgId, (conns) => {
                         setUserConnections(conns);
-                        if (conns.length > 0 && !activeOrganization) {
-                             const firstOrgId = conns[0].organizationId;
-                             getDoc(doc(db, 'organizations', firstOrgId)).then((snap: any) => {
-                                 if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);
-                             });
+                        
+                        // Ensure all connected laboratories are loaded and synced with activeOrganization / allLaboratories
+                        if (conns.length > 0) {
+                            if (!activeOrganization) {
+                                const firstOrgId = conns[0].organizationId;
+                                getDoc(doc(db, 'organizations', firstOrgId)).then((snap: any) => {
+                                    if (snap.exists()) {
+                                        const data = snap.data();
+                                        const createdAtVal = data.createdAt;
+                                        const createdAtDate = createdAtVal?.toDate ? createdAtVal.toDate() : (createdAtVal ? new Date(createdAtVal) : new Date());
+                                        const labObj = { id: snap.id, ...data, createdAt: createdAtDate } as Organization;
+                                        setActiveOrganization(labObj);
+                                    }
+                                });
+                            }
+
+                            // Fetch and insert/update details for each connection in the allLaboratories list
+                            conns.forEach(conn => {
+                                getDoc(doc(db, 'organizations', conn.organizationId)).then((snap: any) => {
+                                    if (snap.exists()) {
+                                        const data = snap.data();
+                                        const createdAtVal = data.createdAt;
+                                        const createdAtDate = createdAtVal?.toDate ? createdAtVal.toDate() : (createdAtVal ? new Date(createdAtVal) : new Date());
+                                        const labObj = { id: snap.id, ...data, createdAt: createdAtDate } as Organization;
+                                        setAllLaboratories(prev => {
+                                            if (prev.some(l => l.id === labObj.id)) {
+                                                return prev.map(l => l.id === labObj.id ? labObj : l);
+                                            }
+                                            return [...prev, labObj];
+                                        });
+                                    }
+                                });
+                            });
                         }
                     });
                     api.subscribeClinicServices(profileOrgId, setClinicServices);
@@ -348,7 +376,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
       } else {
         setCurrentUser(null); setCurrentOrg(null); setCurrentPlan(null); setActiveOrganization(null);
-        setUserConnections([]); setAllLaboratories([]); setClinicServices([]); setClinicRooms([]); setClinicDentists([]);
+        setUserConnections([]); setClinicServices([]); setClinicRooms([]); setClinicDentists([]);
         setAllUsers([]); setJobs([]); setJobTypes([]); setCoupons([]); setLabCoupons([]); setGlobalSettings(null);
       }
       setIsLoadingAuth(false);
