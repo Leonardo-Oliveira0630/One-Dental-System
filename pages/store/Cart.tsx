@@ -8,10 +8,11 @@ import * as api from '../../services/firebaseService';
 import { smartCompress } from '../../services/compressionService';
 
 export const Cart = () => {
-  const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, clearCart, validateLabCoupon, updateLabCoupon } = useApp();
+  const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, clearCart, validateLabCoupon, updateLabCoupon, patients } = useApp();
   const navigate = useNavigate();
   
   const [patientName, setPatientName] = useState('');
+  const [selectedPatientId, setSelectedPatientId] = useState('');
   const [date, setDate] = useState('');
   const [notes, setNotes] = useState('');
   
@@ -169,6 +170,53 @@ export const Cart = () => {
             if (appliedCoupon) {
                 await updateLabCoupon(appliedCoupon.id, { usedCount: (appliedCoupon.usedCount || 0) + 1 });
             }
+
+            // Save prosthesis history in selected patient clinical history records
+            if (selectedPatientId && currentUser) {
+                try {
+                    const specsCompiled = cart.map(item => {
+                        const qty = item.quantity;
+                        let name = item.jobType.name.toLowerCase();
+                        // Portuguese plurals
+                        if (qty > 1) {
+                            if (name === 'coroa') name = 'coroas';
+                            else if (name === 'onlay') name = 'onlays';
+                            else if (name === 'modelo') name = 'modelos';
+                            else if (name.endsWith('r')) name = name + 'es';
+                            else if (!name.endsWith('s')) name = name + 's';
+                        }
+                        const variations = getVariationDetails(item).toLowerCase();
+                        const varText = variations && variations !== 'configuração padrão' ? ` em ${variations}` : '';
+                        return `${qty} ${name}${varText}`;
+                    }).join(', ');
+
+                    const labName = activeOrganization?.name || 'Laboratório Virtual';
+                    const descriptionText = `Serviço de Prótese - Laboratório: ${labName}. Especificação: ${specsCompiled}.`;
+
+                    const historyRecord = {
+                        id: `hist_${Date.now()}`,
+                        patientId: selectedPatientId,
+                        type: 'PROSTHESIS' as const,
+                        description: descriptionText,
+                        date: new Date(),
+                        createdAt: new Date(),
+                        professionalId: currentUser.id,
+                        professionalName: currentUser.name,
+                        labName: labName,
+                        labId: activeOrganization?.id || '',
+                        specs: specsCompiled,
+                        attachments: uploadedAttachments || []
+                    };
+
+                    const dentistOrgId = currentUser.organizationId || activeOrganization?.id;
+                    if (dentistOrgId) {
+                        await api.apiAddPatientHistory(dentistOrgId, selectedPatientId, historyRecord);
+                    }
+                } catch (historyErr) {
+                    console.error("Erro ao registrar histórico do paciente:", historyErr);
+                }
+            }
+
             clearCart();
             setSuccessData(result);
         } else {
@@ -286,7 +334,58 @@ export const Cart = () => {
       <div className="bg-white p-6 rounded-2xl shadow-lg border border-indigo-100 h-fit sticky top-6">
         <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">Detalhes do Envio</h2>
         <form onSubmit={handleCheckout} className="space-y-4">
-            <div><label className="block text-sm font-medium text-slate-700 mb-1">Paciente</label><input required value={patientName} onChange={e => setPatientName(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg" /></div>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Paciente</label>
+                {patients && patients.length > 0 ? (
+                    <div className="space-y-2">
+                        <select 
+                            value={selectedPatientId} 
+                            onChange={e => {
+                                const val = e.target.value;
+                                setSelectedPatientId(val);
+                                if (val) {
+                                    const p = patients.find(pat => pat.id === val);
+                                    if (p) {
+                                        setPatientName(p.name);
+                                    }
+                                } else {
+                                    setPatientName('');
+                                }
+                            }}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 font-bold text-slate-700 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        >
+                            <option value="">-- Selecionar Paciente Cadastrado --</option>
+                            {patients.map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                        <input 
+                            required 
+                            value={patientName} 
+                            placeholder="Nome Completo do Paciente"
+                            onChange={e => {
+                                const typed = e.target.value;
+                                setPatientName(typed);
+                                const matched = patients.find(p => p.name.toLowerCase() === typed.toLowerCase());
+                                if (matched) {
+                                    setSelectedPatientId(matched.id);
+                                } else {
+                                    setSelectedPatientId('');
+                                }
+                            }} 
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm" 
+                        />
+                    </div>
+                ) : (
+                    <input 
+                        required 
+                        value={patientName} 
+                        placeholder="Nome Completo do Paciente"
+                        onChange={e => setPatientName(e.target.value)} 
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm" 
+                    />
+                )}
+            </div>
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Data Desejada</label><input required type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg" /></div>
             
             <div>

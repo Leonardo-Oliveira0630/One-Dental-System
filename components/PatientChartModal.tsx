@@ -4,7 +4,7 @@ import {
     X, Plus, Calendar, Clock, FileText, Camera, Box, Activity, 
     UploadCloud, Download, Loader2, User, Phone, Mail, 
     Trash2, Heart, AlertTriangle, Printer, Save, Check, Edit2, Notebook, 
-    DollarSign, Sparkles, FileSpreadsheet, ChevronRight, RefreshCw
+    DollarSign, Sparkles, FileSpreadsheet, ChevronRight, RefreshCw, ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -18,7 +18,7 @@ interface PatientChartModalProps {
     onClose: () => void;
 }
 
-type TabType = 'SOBRE' | 'CONSULTAS' | 'FINANCEIRO' | 'ORCAMENTOS' | 'FICHAS' | 'ANEXOS' | 'PRESCRICOES' | 'ANAMNESE';
+type TabType = 'SOBRE' | 'CONSULTAS' | 'FINANCEIRO' | 'ORCAMENTOS' | 'FICHAS' | 'ANEXOS' | 'PRESCRICOES' | 'ANAMNESE' | 'PROTESES';
 
 export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, onClose }) => {
     const { 
@@ -636,7 +636,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
 
                 {/* HORIZONTAL TABS SYSTEM */}
                 <div className="bg-white border-b border-slate-100 overflow-x-auto scrollbar-none flex gap-1 shrink-0 px-4 md:px-8">
-                    {(['SOBRE', 'CONSULTAS', 'FINANCEIRO', 'ORCAMENTOS', 'FICHAS', 'ANEXOS', 'PRESCRICOES', 'ANAMNESE'] as const).map(tab => {
+                    {(['SOBRE', 'CONSULTAS', 'FINANCEIRO', 'ORCAMENTOS', 'FICHAS', 'ANEXOS', 'PRESCRICOES', 'ANAMNESE', 'PROTESES'] as const).map(tab => {
                         const labels: { [key: string]: string } = {
                             SOBRE: 'Sobre',
                             CONSULTAS: 'Consultas',
@@ -645,7 +645,8 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                             FICHAS: 'Fichas Clínicas',
                             ANEXOS: 'Anexos',
                             PRESCRICOES: 'Prescrições',
-                            ANAMNESE: 'Anamnese'
+                            ANAMNESE: 'Anamnese',
+                            PROTESES: 'Histórico de Próteses'
                         };
                         const isActive = activeTab === tab;
                         return (
@@ -1519,6 +1520,82 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                         {isSaving ? 'PROCESSANDO...' : 'SALVAR FICHA DE ANAMNESE E AUTODETECTAR ALERTAS'}
                                     </button>
                                 </form>
+                            </motion.div>
+                        )}
+
+                        {/* TAB: PROTESES PANEL */}
+                        {activeTab === 'PROTESES' && (
+                            <motion.div key="proteses" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                                        <Sparkles size={18}/> Histórico de Próteses e Serviços Laboratoriais
+                                    </h3>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {patientHistory.filter(h => h.type === 'PROSTHESIS').map((record) => (
+                                        <div key={record.id} className="bg-white p-6 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition relative group">
+                                            <div className="flex justify-between items-start mb-3 border-b pb-3 border-slate-50">
+                                                <div>
+                                                    <h4 className="font-black text-indigo-700 text-sm uppercase flex items-center gap-1.5">
+                                                        <ShieldCheck size={16} className="text-indigo-600" />
+                                                        Serviço de Prótese Realizado
+                                                    </h4>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                                                        Laboratório: <span className="text-slate-700 font-black">{record.labName || 'Laboratório Clínico'}</span>
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                                        Dentista Solicitante: <span className="text-slate-700 font-black">{record.professionalName || 'Clínica Dentária'}</span>
+                                                    </p>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-xs font-black text-slate-700">{new Date(record.date).toLocaleDateString()}</p>
+                                                    <p className="text-[9px] text-slate-400 font-bold mt-0.5">Sem Custos ao Paciente</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Especificações do Caso</p>
+                                                    <p className="text-xs text-slate-700 font-bold capitalize">{record.specs || record.description}</p>
+                                                </div>
+                                                
+                                                {record.attachments && record.attachments.length > 0 && (
+                                                    <div className="pt-2">
+                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Arquivos Enviados (STL / Imagens)</p>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {record.attachments.map((att: any, idx: number) => (
+                                                                <a 
+                                                                    key={idx}
+                                                                    href={att.url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 rounded-lg text-[10px] font-black flex items-center gap-1.5 transition-all uppercase"
+                                                                >
+                                                                    <Download size={10}/> {att.name.length > 20 ? att.name.substring(0, 17) + '...' : att.name}
+                                                                </a>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <button 
+                                                onClick={() => currentUser?.organizationId && api.apiDeletePatientHistory(currentUser.organizationId, patient.id, record.id)}
+                                                className="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 absolute top-4 right-4 transition"
+                                                title="Excluir do Histórico"
+                                            >
+                                                <Trash2 size={14}/>
+                                            </button>
+                                        </div>
+                                    ))}
+
+                                    {patientHistory.filter(h => h.type === 'PROSTHESIS').length === 0 && (
+                                        <div className="py-12 bg-white text-center text-slate-400 italic rounded-2xl border border-dashed border-slate-200">
+                                            Nenhum serviço de prótese realizado de forma online para este paciente.
+                                        </div>
+                                    )}
+                                </div>
                             </motion.div>
                         )}
 

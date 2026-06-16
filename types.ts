@@ -501,13 +501,16 @@ export interface ClinicPatient {
 export interface PatientHistoryRecord {
   id: string;
   patientId: string;
-  type: 'PROCEDURE' | 'SCAN' | 'XRAY' | 'EVOLUTION' | 'NOTE';
+  type: 'PROCEDURE' | 'SCAN' | 'XRAY' | 'EVOLUTION' | 'NOTE' | 'PROSTHESIS';
   description: string;
   date: Date;
   attachments?: Attachment[];
   professionalId?: string;
   professionalName?: string;
   createdAt: Date;
+  labName?: string;
+  labId?: string;
+  specs?: string;
 }
 
 export enum AppointmentStatus {
