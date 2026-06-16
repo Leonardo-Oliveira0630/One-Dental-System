@@ -67,6 +67,8 @@ export interface Organization {
   state?: string;
   cep?: string;
   country?: string;
+  phone?: string;
+  email?: string;
   croUf?: string;
   croNumero?: string;
   croCategoria?: string;

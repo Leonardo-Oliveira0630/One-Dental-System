@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield } from 'lucide-react';
+import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield, MapPin, Phone, Mail } from 'lucide-react';
 import { StoreSettings } from '../../types';
 
 export const OrganizationTab = () => {
@@ -14,6 +14,18 @@ export const OrganizationTab = () => {
   const [storeSlug, setStoreSlug] = useState(currentOrg?.storeSlug || currentOrg?.name?.toLowerCase().trim().replace(/[^a-z0-9]/g, '-') || '');
   const [storeVisibility, setStoreVisibility] = useState<'PUBLIC' | 'PRIVATE'>(currentOrg?.storeVisibility || 'PUBLIC');
   const [copied, setCopied] = useState(false);
+
+  const [address, setAddress] = useState(currentOrg?.address || '');
+  const [number, setNumber] = useState(currentOrg?.number || '');
+  const [complement, setComplement] = useState(currentOrg?.complement || '');
+  const [neighborhood, setNeighborhood] = useState(currentOrg?.neighborhood || '');
+  const [city, setCity] = useState(currentOrg?.city || '');
+  const [stateName, setStateName] = useState(currentOrg?.state || '');
+  const [cep, setCep] = useState(currentOrg?.cep || '');
+  const [phone, setPhone] = useState(currentOrg?.phone || '');
+  const [email, setEmail] = useState(currentOrg?.email || '');
+  const [croNumero, setCroNumero] = useState(currentOrg?.croNumero || '');
+  const [croUf, setCroUf] = useState(currentOrg?.croUf || '');
   
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(currentOrg?.storeSettings || {
     banners: [],
@@ -113,6 +125,17 @@ export const OrganizationTab = () => {
         logoUrl: finalLogoUrl,
         storeSlug: storeSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''),
         storeVisibility: storeVisibility,
+        address: address.trim(),
+        number: number.trim(),
+        complement: complement.trim(),
+        neighborhood: neighborhood.trim(),
+        city: city.trim(),
+        state: stateName.trim(),
+        cep: cep.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        croNumero: croNumero.trim(),
+        croUf: croUf.trim(),
         financialSettings: {
           ...currentOrg.financialSettings,
           techResponsibleName: techResponsibleName.trim(),
@@ -170,6 +193,27 @@ export const OrganizationTab = () => {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">CRO Número</label>
+              <input 
+                value={croNumero}
+                onChange={e => setCroNumero(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                placeholder="Ex: 12345"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">CRO Estado (UF)</label>
+              <input 
+                value={croUf}
+                onChange={e => setCroUf(e.target.value.toUpperCase().slice(0, 2))}
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                placeholder="Ex: ES"
+              />
+            </div>
+          </div>
+
           <div className="space-y-4">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Logomarca Personalizada</label>
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
@@ -201,6 +245,106 @@ export const OrganizationTab = () => {
             </div>
           </div>
         </form>
+      </div>
+
+      {/* CONTATO E LOCALIZAÇÃO */}
+      <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+        <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
+          <MapPin className="text-teal-600" size={24} /> Contato e Localização
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Telefone de Contato</label>
+            <input 
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold"
+              placeholder="Ex: (11) 99999-9999"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">E-mail de Contato</label>
+            <input 
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold"
+              placeholder="Ex: contato@labsmile.com"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-1">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">CEP</label>
+            <input 
+              value={cep}
+              onChange={e => setCep(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold"
+              placeholder="00000-000"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Endereço (Rua/Avenida)</label>
+            <input 
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold"
+              placeholder="Ex: Av. Paulista"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Número</label>
+            <input 
+              value={number}
+              onChange={e => setNumber(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold"
+              placeholder="Ex: 1000"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Complemento</label>
+            <input 
+              value={complement}
+              onChange={e => setComplement(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold"
+              placeholder="Ex: Sala 42"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Bairro</label>
+            <input 
+              value={neighborhood}
+              onChange={e => setNeighborhood(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold"
+              placeholder="Ex: Centro"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cidade</label>
+              <input 
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold text-xs"
+                placeholder="Ex: Vitória"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Estado</label>
+              <input 
+                value={stateName}
+                onChange={e => setStateName(e.target.value.toUpperCase().slice(0, 2))}
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 font-bold text-xs"
+                placeholder="Ex: ES"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* CONFIGURAÇÕES DE ACESSO E LINK DA LOJA */}

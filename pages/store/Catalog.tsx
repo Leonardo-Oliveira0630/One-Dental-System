@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { 
     Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
-    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle
+    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin
 } from 'lucide-react';
 import { JobType, VariationGroup, CartItem, LabRating } from '../../types';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -594,7 +594,7 @@ export const Catalog = () => {
     const [term, setTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
     const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
-    const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PORTFOLIO' | 'REVIEWS'>('PRODUCTS');
+    const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
     const [localJobTypes, setLocalJobTypes] = useState<JobType[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -887,14 +887,14 @@ export const Catalog = () => {
             <BannerCarousel images={storeSettings.banners || []} />
 
             {/* 2. Store Menu */}
-            <div className="flex border-b border-slate-200">
-                {(storeSettings.menuOptions || ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']).map(opt => (
+            <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none">
+                {[...(storeSettings.menuOptions || ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']), 'ABOUT'].map(opt => (
                     <button 
                         key={opt}
                         onClick={() => setActiveTab(opt as any)}
-                        className={`px-8 py-5 text-sm font-black uppercase tracking-widest transition-all relative ${activeTab === opt ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`px-8 py-5 text-sm font-black uppercase tracking-widest transition-all relative shrink-0 ${activeTab === opt ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        {opt === 'PRODUCTS' ? 'Catálogo' : opt === 'PORTFOLIO' ? 'Portfólio' : 'Avaliações'}
+                        {opt === 'PRODUCTS' ? 'Catálogo' : opt === 'PORTFOLIO' ? 'Portfólio' : opt === 'REVIEWS' ? 'Avaliações' : 'Sobre'}
                         {activeTab === opt && (
                             <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-full" />
                         )}
@@ -1054,6 +1054,113 @@ export const Catalog = () => {
                 {activeTab === 'REVIEWS' && (
                     <motion.div key="reviews" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
                         <ReviewsSection labId={selectedLab.id} />
+                    </motion.div>
+                )}
+
+                {activeTab === 'ABOUT' && selectedLab && (
+                    <motion.div 
+                        key="about" 
+                        initial={{ opacity: 0, y: 20 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        exit={{ opacity: 0, y: -20 }}
+                        className="grid grid-cols-1 md:grid-cols-2 gap-8"
+                    >
+                        {/* Location Details */}
+                        <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <MapPin className="text-indigo-600" size={24} /> Localização & Endereço
+                            </h3>
+                            
+                            <div className="space-y-4 font-medium text-slate-600">
+                                {selectedLab.address ? (
+                                    <div className="flex items-start gap-4">
+                                        <div className="p-3 bg-slate-50 text-indigo-600 rounded-2xl shrink-0">
+                                            <MapPin size={22} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-800 mb-1">Endereço Principal</p>
+                                            <p className="text-sm text-slate-500 leading-relaxed">
+                                                {selectedLab.address}, {selectedLab.number}
+                                                {selectedLab.complement && ` - ${selectedLab.complement}`}
+                                            </p>
+                                            <p className="text-sm text-slate-500 font-semibold mt-1">
+                                                {selectedLab.neighborhood && `${selectedLab.neighborhood}, `}
+                                                {selectedLab.city && `${selectedLab.city} - ${selectedLab.state}`}
+                                            </p>
+                                            {selectedLab.cep && <p className="text-xs text-slate-400 mt-2 bg-slate-50 px-2 py-1 rounded w-fit">CEP: {selectedLab.cep}</p>}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-12 text-slate-400 italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                                        Endereço não informado pelo laboratório.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Contacts & General Info */}
+                        <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                            <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <Info className="text-teal-600" size={24} /> Contato & Responsável
+                            </h3>
+
+                            <div className="space-y-6">
+                                {/* Contacts */}
+                                <div className="space-y-4">
+                                    {(selectedLab.phone || selectedLab.email) ? (
+                                        <>
+                                            {selectedLab.phone && (
+                                                <div className="flex items-center gap-4">
+                                                    <span className="p-3 bg-slate-50 text-slate-500 rounded-2xl text-xl">📞</span>
+                                                    <div>
+                                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Telefone</p>
+                                                        <p className="text-base font-black text-slate-800">{selectedLab.phone}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {selectedLab.email && (
+                                                <div className="flex items-center gap-4">
+                                                    <span className="p-3 bg-slate-50 text-slate-500 rounded-2xl text-xl">📧</span>
+                                                    <div>
+                                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">E-mail Comercial</p>
+                                                        <p className="text-base font-black text-slate-800 select-all">{selectedLab.email}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="text-center py-6 text-slate-400 italic bg-slate-50 rounded-2xl">
+                                            Contatos comerciais não preenchidos.
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Technical Responsible */}
+                                <div className="pt-6 border-t border-slate-100 space-y-3">
+                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Responsabilidade Técnica</h4>
+                                    
+                                    <div className="bg-slate-50 p-5 rounded-[24px] border border-slate-100 space-y-3">
+                                        <p className="text-base font-bold text-slate-800">
+                                            {selectedLab.financialSettings?.techResponsibleName || 'Não Informado'}
+                                        </p>
+                                        <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-500 font-medium">
+                                            {selectedLab.croNumero && (
+                                                <p className="bg-white px-3 py-1.5 rounded-xl border border-slate-200">
+                                                    <span className="font-bold text-slate-400 uppercase mr-1">CRO:</span> 
+                                                    <span className="font-black text-slate-700">{selectedLab.croNumero} {selectedLab.croUf && ` / ${selectedLab.croUf}`}</span>
+                                                </p>
+                                            )}
+                                            {selectedLab.financialSettings?.techResponsibleCpf && (
+                                                <p className="bg-white px-3 py-1.5 rounded-xl border border-slate-200">
+                                                    <span className="font-bold text-slate-400 uppercase mr-1">CPF:</span> 
+                                                    <span className="font-black text-slate-700">{selectedLab.financialSettings.techResponsibleCpf}</span>
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>

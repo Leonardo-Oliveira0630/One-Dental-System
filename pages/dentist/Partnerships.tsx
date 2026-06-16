@@ -151,9 +151,19 @@ export const Partnerships = () => {
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <p className="font-black text-slate-800 truncate group-hover:text-blue-600 transition-colors">{conn.organizationName}</p>
-                                                        <div className="flex items-center gap-1 mt-1">
-                                                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                                                            <span className="text-[10px] text-green-600 font-black uppercase tracking-tighter">Parceria Ativa</span>
+                                                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                            <div className="flex items-center gap-1">
+                                                                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                                                                <span className="text-[10px] text-green-600 font-black uppercase tracking-tighter">Parceria Ativa</span>
+                                                            </div>
+                                                            {labInfo?.city && labInfo?.state && (
+                                                                <>
+                                                                    <span className="text-slate-300 text-[10px]">•</span>
+                                                                    <span className="text-[10px] text-slate-500 font-bold flex items-center gap-0.5 whitespace-nowrap">
+                                                                        <MapPin size={10} className="text-slate-400 shrink-0" /> ({labInfo.city}, {labInfo.state})
+                                                                    </span>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <div className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all shrink-0">
@@ -236,8 +246,10 @@ export const Partnerships = () => {
                                             )}
 
                                             <div className="flex items-center gap-1.5 text-slate-500 text-xs">
-                                                <MapPin size={12} className="shrink-0" />
-                                                <span className="truncate">Atendimento Digital & Nacional</span>
+                                                <MapPin size={12} className="shrink-0 text-slate-400" />
+                                                <span className="truncate font-semibold text-slate-700">
+                                                    {lab.city && lab.state ? `${lab.city}, ${lab.state}` : 'Atendimento Digital & Nacional'}
+                                                </span>
                                             </div>
                                         </div>
                                         <p className="text-xs text-slate-400 line-clamp-2 italic mb-4">
