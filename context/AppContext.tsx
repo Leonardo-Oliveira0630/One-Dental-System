@@ -435,6 +435,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           balanceMap.set(j.dentistId, (balanceMap.get(j.dentistId) || 0) + (j.totalValue || 0));
         }
       });
+
+      // Deduct manual/received payments from the balance map
+      dentistPayments.forEach(p => {
+        if (p.dentistId) {
+          const payAmount = p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0));
+          balanceMap.set(p.dentistId, (balanceMap.get(p.dentistId) || 0) - payAmount);
+        }
+      });
       
       for (const d of dentists) {
         // Se estiver temporariamente desbloqueado e o prazo não expirou, pula
@@ -472,7 +480,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     // Debounce a execução para evitar chamadas excessivas durante updates em massa
     const timer = setTimeout(checkBlocking, 1000);
     return () => clearTimeout(timer);
-  }, [jobs, allUsers, manualDentists, activeDataId, currentUser]);
+  }, [jobs, allUsers, manualDentists, dentistPayments, activeDataId, currentUser]);
 
   const login = async (email: string, pass: string) => { await api.apiLogin(email, pass); };
   const logout = async () => await api.apiLogout();

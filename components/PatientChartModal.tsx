@@ -739,7 +739,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                     <div className="bg-white p-6 md:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6">
                                         <div>
                                             <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><AlertTriangle className="text-amber-500" size={18}/> Alertas Clínicos Automáticos</h3>
-                                            <p className="text-slate-400 text-xs font-bold mt-1">Marque ou desmarque comorbidades e alertas críticos para esse paciente.</p>
+                                            <p className="text-slate-400 text-xs font-bold mt-1">Marque ou desmarque comorbidades e alertas críticos para esse paciente, ou adicione outros detalhes personalizados (alergias, comorbidades).</p>
                                         </div>
 
                                         <div className="flex flex-wrap gap-2.5">
@@ -760,6 +760,54 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                                     </button>
                                                 );
                                             })}
+                                            {selectedAlerts.filter(a => !predefinedAlerts.some(p => p.name === a)).map(customAlert => (
+                                                <button
+                                                    key={customAlert}
+                                                    onClick={() => handleToggleAlert(customAlert)}
+                                                    className="px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 bg-red-50 text-red-600 border-transparent shadow-sm"
+                                                    title="Clique para remover este alerta"
+                                                >
+                                                    <Check size={12}/>
+                                                    {customAlert}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div className="border-t border-slate-100 pt-4 space-y-2">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Adicionar Detalhe Personalizado</label>
+                                            <div className="flex gap-2">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Ex: Alergia a Dipirona, Diabetes Tipo 1..." 
+                                                    id="new-custom-alert-input"
+                                                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs focus:ring-2 focus:ring-indigo-500"
+                                                    onKeyDown={async (e) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            const target = e.currentTarget;
+                                                            const val = target.value.trim();
+                                                            if (val) {
+                                                                await handleToggleAlert(val);
+                                                                target.value = '';
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                                <button 
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        const input = document.getElementById('new-custom-alert-input') as HTMLInputElement;
+                                                        const val = input?.value.trim();
+                                                        if (val) {
+                                                            await handleToggleAlert(val);
+                                                            input.value = '';
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 hover:bg-slate-800 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl transition shrink-0"
+                                                >
+                                                    Adicionar
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -269,7 +269,7 @@ export const Dentists = () => {
                 date: p.paymentDate,
                 type: (p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT',
                 description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
-                amount: p.amount + (p.interest || 0) + (p.fees || 0) - (p.discount || 0),
+                amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0)),
                 payment: p
             }))
         ];

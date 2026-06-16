@@ -145,7 +145,7 @@ export const Finance = () => {
             date: p.paymentDate,
             type: (p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT',
             description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
-            amount: p.amount + (p.interest || 0) + (p.fees || 0) - (p.discount || 0),
+            amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0)),
             payment: p
         }))
     ];
@@ -577,11 +577,21 @@ export const Finance = () => {
         }
     });
 
+    // Deduct manual payments/credits from totalPending for each dentist
+    dentistPayments.forEach(p => {
+        const entry = map.get(p.dentistId);
+        if (entry) {
+            const payAmount = p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0));
+            entry.totalPending -= payAmount;
+        }
+    });
+
     return Array.from(map.values())
+        .map(d => ({ ...d, totalPending: Math.max(0, d.totalPending) }))
         .filter(d => d.name.toLowerCase().includes(searchTerm.toLowerCase()))
         .filter(d => d.totalPending > 0)
         .sort((a, b) => b.totalPending - a.totalPending);
-  }, [jobs, allUsers, manualDentists, searchTerm]);
+  }, [jobs, allUsers, manualDentists, dentistPayments, searchTerm]);
 
 
 
