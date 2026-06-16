@@ -320,6 +320,20 @@ export const OrganizationTab = () => {
           </div>
         </div>
 
+        {/* Frase de Efeito */}
+        <div className="space-y-2">
+          <label className="block text-xs font-black text-slate-800 uppercase tracking-widest pl-1">Frase de Efeito (Aparece no Card da Loja/Explorar)</label>
+          <input 
+            type="text"
+            value={storeSettings.catchphrase || ''}
+            onChange={e => setStoreSettings(prev => ({ ...prev, catchphrase: e.target.value }))}
+            maxLength={100}
+            placeholder='Ex: "Referência em reabilitação oral e tecnologia 3D avançada."'
+            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700"
+          />
+          <p className="text-[10px] text-slate-400 pl-1">Aparece para os dentistas na aba de busca de parceiros e no catálogo da sua loja.</p>
+        </div>
+
         {/* Banners */}
         <div className="space-y-4">
           <div className="flex flex-col mb-2">

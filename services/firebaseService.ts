@@ -844,6 +844,45 @@ export const subscribeDentistPayments = (orgId: string, cb: (p: DentistPayment[]
 export const apiAddDentistPayment = (orgId: string, payment: DentistPayment) => setDoc(doc(db, `organizations/${orgId}/dentistPayments`, payment.id), payment);
 export const apiUpdateDentistPayment = (orgId: string, id: string, updates: Partial<DentistPayment>) => updateDoc(doc(db, `organizations/${orgId}/dentistPayments`, id), updates);
 
+// --- PATIENT FINANCES ---
+export const subscribePatientPayments = (orgId: string, cb: (p: import('../types').PatientPayment[]) => void) => {
+    if (!orgId) return () => {};
+    const q = query(collection(db, `organizations/${orgId}/patientPayments`), orderBy('paymentDate', 'desc'));
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            paymentDate: toDate(d.data().paymentDate),
+            createdAt: toDate(d.data().createdAt)
+        } as import('../types').PatientPayment)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePatientPayments: ${error.code}`));
+};
+
+export const apiAddPatientPayment = (orgId: string, payment: import('../types').PatientPayment) => setDoc(doc(db, `organizations/${orgId}/patientPayments`, payment.id), payment);
+export const apiUpdatePatientPayment = (orgId: string, id: string, updates: Partial<import('../types').PatientPayment>) => updateDoc(doc(db, `organizations/${orgId}/patientPayments`, id), updates);
+export const apiDeletePatientPayment = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patientPayments`, id));
+
+export const subscribePatientBillingBatches = (orgId: string, cb: (b: import('../types').PatientBillingBatch[]) => void) => {
+    if (!orgId) return () => {};
+    const q = query(
+        collection(db, `organizations/${orgId}/patientBillingBatches`),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            createdAt: toDate(d.data().createdAt),
+            billingDate: toDate(d.data().billingDate),
+            dueDate: toDate(d.data().dueDate)
+        } as import('../types').PatientBillingBatch)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribePatientBillingBatches: ${error.code}`));
+};
+
+export const apiAddPatientBillingBatch = (orgId: string, batch: import('../types').PatientBillingBatch) => setDoc(doc(db, `organizations/${orgId}/patientBillingBatches`, batch.id), batch);
+export const apiUpdatePatientBillingBatchStatus = (orgId: string, batchId: string, status: import('../types').PatientBillingBatch['status']) => 
+    updateDoc(doc(db, `organizations/${orgId}/patientBillingBatches`, batchId), { status });
+export const apiDeletePatientBillingBatch = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/patientBillingBatches`, id));
+
+
 // --- CARD MACHINES ---
 export const subscribeCardMachines = (orgId: string, cb: (machines: CardMachine[]) => void) => {
     if (!orgId) return () => {};

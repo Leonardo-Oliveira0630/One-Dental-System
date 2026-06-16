@@ -240,7 +240,9 @@ export const Partnerships = () => {
                                                 <span className="truncate">Atendimento Digital & Nacional</span>
                                             </div>
                                         </div>
-                                        <p className="text-xs text-slate-400 line-clamp-2 italic mb-4">"Membro ProTrack com infraestrutura digital completa."</p>
+                                        <p className="text-xs text-slate-400 line-clamp-2 italic mb-4">
+                                            "{lab.storeSettings?.catchphrase || "Membro ProTrack com infraestrutura digital completa."}"
+                                        </p>
                                     </div>
 
                                     <div className="pt-6 border-t border-slate-50 mt-auto">

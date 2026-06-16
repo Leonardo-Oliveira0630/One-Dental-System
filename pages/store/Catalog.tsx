@@ -81,6 +81,40 @@ const BannerCarousel = ({ images }: { images: string[] }) => {
 };
 
 const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
+    const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+
+    const handlePrev = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (selectedIdx === null) return;
+        setSelectedIdx((prev) => (prev! === 0 ? portfolio.length - 1 : prev! - 1));
+    };
+
+    const handleNext = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (selectedIdx === null) return;
+        setSelectedIdx((prev) => (prev! === portfolio.length - 1 ? 0 : prev! + 1));
+    };
+
+    const handleDragEnd = (event: any, info: any) => {
+        const threshold = 50;
+        if (info.offset.x < -threshold) {
+            handleNext();
+        } else if (info.offset.x > threshold) {
+            handlePrev();
+        }
+    };
+
+    useEffect(() => {
+        if (selectedIdx === null) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') handlePrev();
+            if (e.key === 'ArrowRight') handleNext();
+            if (e.key === 'Escape') setSelectedIdx(null);
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedIdx]);
+
     if (!portfolio || portfolio.length === 0) {
         return (
             <div className="py-20 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
@@ -92,28 +126,112 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in duration-500">
-            {portfolio.map((item, i) => (
-                <motion.div 
-                    key={item.id} 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="group bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-2xl transition-all"
-                >
-                    <div className="aspect-square overflow-hidden relative">
-                        <img src={item.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                             <ExternalLink className="text-white" size={32} />
+        <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in duration-500">
+                {portfolio.map((item, i) => (
+                    <motion.div 
+                        key={item.id} 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        onClick={() => setSelectedIdx(i)}
+                        className="group bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-2xl transition-all cursor-pointer"
+                    >
+                        <div className="aspect-square overflow-hidden relative">
+                            <img src={item.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                 <ExternalLink className="text-white animate-in zoom-in-50 duration-300" size={32} />
+                            </div>
                         </div>
-                    </div>
-                    <div className="p-6">
-                        <h4 className="font-black text-slate-800 text-lg mb-2">{item.title}</h4>
-                        <p className="text-slate-500 text-sm leading-relaxed">{item.description}</p>
-                    </div>
-                </motion.div>
-            ))}
-        </div>
+                        <div className="p-6">
+                            <h4 className="font-black text-slate-800 text-lg mb-2">{item.title}</h4>
+                            <p className="text-slate-500 text-sm leading-relaxed">{item.description}</p>
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
+
+            {/* Lightbox / Slideshow Modal */}
+            <AnimatePresence>
+                {selectedIdx !== null && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setSelectedIdx(null)}
+                        className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 md:p-8 select-none"
+                    >
+                        {/* Top action bar */}
+                        <div className="absolute top-6 left-6 right-6 flex items-center justify-between text-white z-10">
+                            <span className="font-mono text-xs bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
+                                {selectedIdx + 1} de {portfolio.length}
+                            </span>
+                            <button 
+                                onClick={() => setSelectedIdx(null)}
+                                className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-all active:scale-95 cursor-pointer"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Main viewer container */}
+                        <div className="relative w-full max-w-4xl h-[70vh] flex items-center justify-center">
+                            {/* Left Arrow (Desktop Only) */}
+                            <button 
+                                onClick={handlePrev}
+                                className="absolute left-2 md:-left-20 z-20 p-4 bg-white/10 hover:bg-white/25 rounded-full text-white transition-all active:scale-90 hidden sm:flex items-center justify-center cursor-pointer border border-white/5"
+                            >
+                                <ChevronLeft size={28} />
+                            </button>
+
+                            {/* Drag image container */}
+                            <motion.div
+                                key={selectedIdx}
+                                drag="x"
+                                dragConstraints={{ left: 0, right: 0 }}
+                                dragElastic={0.6}
+                                onDragEnd={handleDragEnd}
+                                initial={{ opacity: 0, scale: 0.95, x: 50 }}
+                                animate={{ opacity: 1, scale: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, x: -50 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="flex flex-col items-center justify-center max-w-full max-h-full cursor-grab active:cursor-grabbing text-center"
+                            >
+                                <img 
+                                    src={portfolio[selectedIdx].imageUrl} 
+                                    alt={portfolio[selectedIdx].title || "Item do portfólio"} 
+                                    className="max-h-[50vh] md:max-h-[60vh] object-contain rounded-2xl shadow-2xl select-none pointer-events-none border border-white/10"
+                                />
+                                {portfolio[selectedIdx].title && (
+                                    <div className="mt-6 max-w-lg text-white">
+                                        <h4 className="font-black text-xl md:text-2xl tracking-tight">{portfolio[selectedIdx].title}</h4>
+                                        {portfolio[selectedIdx].description && (
+                                            <p className="text-slate-300 text-sm mt-2 leading-relaxed">{portfolio[selectedIdx].description}</p>
+                                        )}
+                                    </div>
+                                )}
+                            </motion.div>
+
+                            {/* Right Arrow (Desktop Only) */}
+                            <button 
+                                onClick={handleNext}
+                                className="absolute right-2 md:-right-20 z-20 p-4 bg-white/10 hover:bg-white/25 rounded-full text-white transition-all active:scale-90 hidden sm:flex items-center justify-center cursor-pointer border border-white/5"
+                            >
+                                <ChevronRight size={28} />
+                            </button>
+                        </div>
+
+                        {/* Swipe instructions (Mobile helper) */}
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-center pointer-events-none">
+                            <p className="text-xs text-slate-400 font-medium tracking-wide">
+                                Deslize para o lado ou utilize as setas do teclado para navegar
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
     );
 };
 

@@ -233,6 +233,15 @@ interface AppContextType {
   addCourier: (c: Omit<Courier, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
   updateCourier: (id: string, updates: Partial<Courier>) => Promise<void>;
   deleteCourier: (id: string) => Promise<void>;
+
+  patientPayments: import('../types').PatientPayment[];
+  patientBillingBatches: import('../types').PatientBillingBatch[];
+  addPatientPayment: (p: Omit<import('../types').PatientPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
+  updatePatientPayment: (id: string, updates: Partial<import('../types').PatientPayment>) => Promise<void>;
+  deletePatientPayment: (id: string) => Promise<void>;
+  addPatientBillingBatch: (b: Omit<import('../types').PatientBillingBatch, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
+  updatePatientBillingBatchStatus: (id: string, status: import('../types').PatientBillingBatch['status']) => Promise<void>;
+  deletePatientBillingBatch: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -277,6 +286,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [inventoryItems, setInventoryItems] = useState<import('../types').InventoryItem[]>([]);
   const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]);
   const [dentistPayments, setDentistPayments] = useState<DentistPayment[]>([]);
+  const [patientPayments, setPatientPayments] = useState<import('../types').PatientPayment[]>([]);
+  const [patientBillingBatches, setPatientBillingBatches] = useState<import('../types').PatientBillingBatch[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
   const [couriers, setCouriers] = useState<Courier[]>([]);
 
@@ -426,7 +437,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         unsubs.push(api.subscribeAppointments(myOrgId, setAppointments));
         unsubs.push(api.subscribeCouriers(myOrgId, setCouriers));
         
-        if (currentUser.role !== UserRole.CLIENT) {
+        if (currentUser.role !== UserRole.CLIENT || currentOrg?.orgType === 'CLINIC') {
             unsubs.push(api.subscribeSectors(myOrgId, setSectors));
             unsubs.push(api.subscribeBoxColors(myOrgId, setBoxColors));
             unsubs.push(api.subscribeCommissions(myOrgId, setCommissions));
@@ -441,6 +452,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeInventoryCategories(myOrgId, setInventoryCategories));
             unsubs.push(api.subscribeInventoryItems(myOrgId, setInventoryItems));
         }
+
+        unsubs.push(api.subscribePatientPayments(myOrgId, setPatientPayments));
+        unsubs.push(api.subscribePatientBillingBatches(myOrgId, setPatientBillingBatches));
     }
     
     return () => unsubs.forEach(u => u());
@@ -963,6 +977,54 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     await api.apiUpdateBillingBatchStatus(orgId, id, status);
   };
 
+  const addPatientPayment = async (p: Omit<import('../types').PatientPayment, 'id' | 'organizationId' | 'createdAt'>) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    const newPayment: import('../types').PatientPayment = {
+      ...p,
+      id: `pat_pay_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      organizationId: orgId,
+      createdAt: new Date()
+    };
+    await api.apiAddPatientPayment(orgId, newPayment);
+  };
+
+  const updatePatientPayment = async (id: string, updates: Partial<import('../types').PatientPayment>) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    await api.apiUpdatePatientPayment(orgId, id, updates);
+  };
+
+  const deletePatientPayment = async (id: string) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    await api.apiDeletePatientPayment(orgId, id);
+  };
+
+  const addPatientBillingBatch = async (b: Omit<import('../types').PatientBillingBatch, 'id' | 'organizationId' | 'createdAt'>) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    const newBatch: import('../types').PatientBillingBatch = {
+      ...b,
+      id: `pat_bat_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      organizationId: orgId,
+      createdAt: new Date()
+    };
+    await api.apiAddPatientBillingBatch(orgId, newBatch);
+  };
+
+  const updatePatientBillingBatchStatus = async (id: string, status: import('../types').PatientBillingBatch['status']) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    await api.apiUpdatePatientBillingBatchStatus(orgId, id, status);
+  };
+
+  const deletePatientBillingBatch = async (id: string) => {
+    const orgId = currentUser?.organizationId;
+    if (!orgId) return;
+    await api.apiDeletePatientBillingBatch(orgId, id);
+  };
+
   const addCourier = async (c: Omit<Courier, 'id' | 'organizationId' | 'createdAt'>) => {
     const orgId = currentUser?.organizationId;
     if (!orgId) return;
@@ -991,6 +1053,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
     allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, 
+    patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     activeAlert,
     allPayments,
@@ -1018,12 +1081,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addPriceTable, updatePriceTable, deletePriceTable,
     addJobToRoute, generateBatchBoleto,
     addDentistPayment, updateDentistPayment, updateBillingBatchStatus,
+    addPatientPayment, updatePatientPayment, deletePatientPayment,
+    addPatientBillingBatch, updatePatientBillingBatchStatus, deletePatientBillingBatch,
     labCoupons, addLabCoupon, updateLabCoupon, deleteLabCoupon, validateLabCoupon,
     couriers, addCourier, updateCourier, deleteCourier
   }), [
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
     allOrganizations, allLaboratories, allPlans, coupons, labCoupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
+    patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers
   ]);

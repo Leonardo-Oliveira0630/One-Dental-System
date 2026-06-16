@@ -286,6 +286,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label="Corpo Clínico" active={location.pathname === '/clinic/dentists'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/services" icon={<Briefcase size={20} />} label="Meus Serviços" active={location.pathname === '/clinic/services'} />
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/inventory" icon={<Package size={20} />} label="Estoque (Insumos)" active={location.pathname === '/clinic/inventory'} />
                     
                     <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Parcerias Lab" active={location.pathname === '/dentist/partnerships'} />

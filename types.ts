@@ -27,6 +27,7 @@ export interface StoreSettings {
     description?: string;
   }[];
   menuOptions?: string[];
+  catchphrase?: string;
 }
 
 export interface Organization {
@@ -783,5 +784,42 @@ export interface ClinicPatientFinance {
   date: Date;
   createdAt: Date;
 }
+
+export interface PatientPayment {
+  id: string;
+  organizationId: string;
+  patientId: string;
+  amount: number;
+  interest?: number;
+  fees?: number;
+  discount?: number;
+  paymentMethod: 'PIX' | 'BOLETO' | 'CREDIT_CARD' | 'CASH' | 'OTHER';
+  paymentDate: Date;
+  createdAt: Date;
+  type: 'PAYMENT' | 'DISCOUNT' | 'REFUND';
+  notes?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+  bankAccountId?: string;
+  cardMachineId?: string;
+}
+
+export interface PatientBillingBatch {
+  id: string;
+  organizationId: string;
+  patientId: string;
+  appointmentIds: string[];
+  totalAmount: number;
+  billingDate: Date;
+  dueDate: Date;
+  status: 'PENDING' | 'CONFIRMED' | 'OVERDUE' | 'RECEIVED' | 'CANCELLED';
+  createdAt: Date;
+  paymentLink?: string;
+  asaasInvoiceId?: string;
+  bankSlipUrl?: string;
+  pixCopyPaste?: string;
+  pixQrCode?: string;
+}
+
 
 
