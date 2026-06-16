@@ -4,10 +4,10 @@ import { useApp } from '../../context/AppContext';
 import { 
     Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
-    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown
+    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle
 } from 'lucide-react';
 import { JobType, VariationGroup, CartItem, LabRating } from '../../types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { FeatureLocked } from '../../components/FeatureLocked';
 import { motion, AnimatePresence } from 'motion/react';
 import * as api from '../../services/firebaseService';
@@ -29,10 +29,10 @@ const BannerCarousel = ({ images }: { images: string[] }) => {
         return (
             <div className="w-full aspect-[21/9] md:aspect-[25/7] bg-gradient-to-r from-[#0F4C81] to-[#00B8D9] rounded-card p-8 flex items-center justify-between text-white overflow-hidden relative shadow-premium">
                 <div className="z-10 animate-in slide-in-from-left duration-700">
-                    <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter">Catálogo Digital</h1>
+                    <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter col-span-1 border-none outline-none">Catálogo Digital</h1>
                     <p className="text-slate-100 text-lg font-medium max-w-md opacity-90">Qualidade e precisão para seus casos clínicos.</p>
                 </div>
-                <ShoppingBag size={180} className="absolute -right-10 -bottom-10 text-white/10 rotate-12" />
+                <ShoppingBag size={180} className="absolute -right-10 -bottom-10 text-white/10 rotate-12 pointer-events-none" />
             </div>
         );
     }
@@ -166,12 +166,17 @@ const ReviewsSection = ({ labId }: { labId: string }) => {
     );
 };
 
-// Variation Configuration Modal (Component)
-const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose: () => void; }) => {
-    const { addToCart, currentUser } = useApp();
+// Variation Configuration Modal (Component with Partner Checking)
+const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobType; selectedLab: import('../../types').Organization; onClose: () => void; }) => {
+    const { addToCart, currentUser, userConnections, addConnectionByCode } = useApp();
     const [quantity, setQuantity] = useState(1);
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
     const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
+
+    // Soft-partnership checkout gate state
+    const [showPartnerModal, setShowPartnerModal] = useState(false);
+    const [isLinking, setIsLinking] = useState(false);
+    const [linkError, setLinkError] = useState('');
 
     // Logic to calculate final price for a product based on user discounts
     const calculateFinalUnitPrice = (type: JobType, selectedIds: string[]) => {
@@ -288,6 +293,13 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
     };
 
     const handleAddToCart = () => {
+        // Guard check: is the dentist partnered with the lab?
+        const isConnected = userConnections.some(c => c.organizationId === selectedLab.id);
+        if (!isConnected) {
+            setShowPartnerModal(true);
+            return;
+        }
+
         const newItem: CartItem = {
             cartItemId: `cart_${Date.now()}`,
             jobType: product,
@@ -301,13 +313,81 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
         onClose();
     };
 
+    const handleLinkAndAddToCart = async () => {
+        setIsLinking(true);
+        setLinkError('');
+        try {
+            // Establish the partnership connection automatically
+            await addConnectionByCode(selectedLab.id);
+            
+            // Add item to cart and dismiss
+            const newItem: CartItem = {
+                cartItemId: `cart_${Date.now()}`,
+                jobType: product,
+                quantity,
+                unitPrice,
+                finalPrice,
+                selectedVariationIds: Object.values(selectedVariations).flat() as string[],
+                variationValues: variationTextValues 
+            };
+            addToCart(newItem);
+            setShowPartnerModal(false);
+            onClose();
+        } catch (err: any) {
+            setLinkError(err.message || 'Ocorreu um erro ao firmar parceria automática. Tente novamente mais tarde.');
+        } finally {
+            setIsLinking(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
             <motion.div 
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+                className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden relative"
+                id="variation-modal-box"
             >
+                {/* PARTNERSHIP PROMPT OVERLAY */}
+                {showPartnerModal && (
+                    <div className="absolute inset-0 z-50 bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300">
+                        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95 duration-200">
+                            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto">
+                                <Handshake size={32} />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-900 tracking-tighter">Firmar Parceria?</h3>
+                                <p className="text-slate-500 font-medium text-sm mt-2 leading-relaxed">
+                                    Para adicionar <span className="font-bold text-slate-800">{product.name}</span> ao carrinho e enviar pedidos, é preciso estar vinculado a <span className="font-bold text-slate-800">{selectedLab.name}</span>. Deseja realizar essa vinculação agora?
+                                </p>
+                            </div>
+
+                            {linkError && (
+                                <div className="p-3 bg-red-50 text-red-600 text-xs rounded-xl border border-red-100 font-medium text-left">
+                                    {linkError}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <button 
+                                    onClick={handleLinkAndAddToCart}
+                                    disabled={isLinking}
+                                    className="px-5 py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-blue-100 disabled:opacity-50"
+                                >
+                                    {isLinking ? <Loader2 className="animate-spin" size={16} /> : "Sim, Vincular"}
+                                </button>
+                                <button 
+                                    onClick={() => setShowPartnerModal(false)}
+                                    disabled={isLinking}
+                                    className="px-5 py-4 bg-slate-100 text-slate-800 font-black rounded-2xl hover:bg-slate-200 transition-all text-xs uppercase tracking-wider"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex justify-between items-center p-6 border-b border-slate-100">
                     <div>
                         <h3 className="font-black text-2xl text-slate-900 tracking-tighter">{product.name}</h3>
@@ -389,12 +469,9 @@ const VariationConfigModal = ({ product, onClose }: { product: JobType; onClose:
 
 // --- Main Component ---
 
-import { useParams } from 'react-router-dom';
-import { Shield, Lock } from 'lucide-react';
-
 export const Catalog = () => {
     const { slug } = useParams<{ slug: string }>();
-    const { allLaboratories, currentUser, activeOrganization, currentPlan } = useApp();
+    const { allLaboratories, currentUser, activeOrganization, currentPlan, userConnections, addConnectionByCode } = useApp();
     const navigate = useNavigate();
     const [term, setTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -403,6 +480,11 @@ export const Catalog = () => {
     const [localJobTypes, setLocalJobTypes] = useState<JobType[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
+
+    // Dynamic Connection states
+    const [connecting, setConnecting] = useState(false);
+    const [connectionMsg, setConnectionMsg] = useState('');
+    const [connectionErr, setConnectionErr] = useState('');
 
     const [fetchedLab, setFetchedLab] = useState<import('../../types').Organization | null>(null);
     const [isLoadingLab, setIsLoadingLab] = useState(!!slug);
@@ -438,7 +520,7 @@ export const Catalog = () => {
 
     const selectedLab = useMemo(() => {
         if (slug) {
-            return fetchedLab || allLaboratories.find(l => l.storeSlug === slug) || null;
+            return fetchedLab || allLaboratories.find(l => l.storeSlug === slug || l.id === slug) || null;
         }
         return activeOrganization;
     }, [slug, fetchedLab, allLaboratories, activeOrganization]);
@@ -459,6 +541,23 @@ export const Catalog = () => {
 
     const isGuest = !currentUser;
     const isPriceVisible = !isGuest || (selectedLab?.storeVisibility !== 'PRIVATE');
+
+    // Callback to link partnership directly in storefront
+    const handleDirectLink = async () => {
+        if (!selectedLab) return;
+        setConnecting(true);
+        setConnectionErr('');
+        setConnectionMsg('');
+        try {
+            await addConnectionByCode(selectedLab.id);
+            setConnectionMsg('Parceria vinculada com sucesso!');
+            setTimeout(() => setConnectionMsg(''), 4000);
+        } catch (e: any) {
+            setConnectionErr(e.message || 'Erro ao firmar parceria com o laboratório.');
+        } finally {
+            setConnecting(false);
+        }
+    };
 
     if (isLoadingLab) {
         return (
@@ -481,7 +580,7 @@ export const Catalog = () => {
                         O laboratório solicitado por essa URL não existe ou ainda não configurou seu link de compartilhamento.
                     </p>
                     <button onClick={() => navigate('/dentist/partnerships')}
-                        className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full">
+                        className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full animate-pulse">
                         EXPLORAR LABORATÓRIOS
                     </button>
                 </div>
@@ -554,9 +653,11 @@ export const Catalog = () => {
         }
     };
 
+    const isLinked = userConnections.some(c => c.organizationId === selectedLab.id);
+
     return (
-        <div className="space-y-10 pb-20 animate-in fade-in duration-500">
-            {configuringProduct && <VariationConfigModal product={configuringProduct} onClose={() => setConfiguringProduct(null)} />}
+        <div className="space-y-8 pb-20 animate-in fade-in duration-500">
+            {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} onClose={() => setConfiguringProduct(null)} />}
             
             {showAuthModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
@@ -593,6 +694,76 @@ export const Catalog = () => {
                     </motion.div>
                 </div>
             )}
+
+            {/* Back to Partnerships Link */}
+            <div className="flex items-center justify-between" id="catalog-header-nav-row">
+                <button 
+                    onClick={() => navigate('/dentist/partnerships')}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:text-slate-900 font-bold text-xs rounded-xl shadow-sm border border-slate-100 transition-all hover:shadow hover:-translate-x-0.5"
+                >
+                    <ChevronLeft size={16} /> VOLTAR PARA PARCERIAS
+                </button>
+            </div>
+
+            {/* Marketplace Laboratory Showcase Header */}
+            <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6" id="marketplace-profile-header">
+                <div className="flex items-center gap-5">
+                    <div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                        {selectedLab.logoUrl ? (
+                            <img src={selectedLab.logoUrl} alt={selectedLab.name} className="w-full h-full object-containScale" />
+                        ) : (
+                            <Building size={36} className="text-slate-400" />
+                        )}
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-tight">{selectedLab.name}</h1>
+                            {isLinked ? (
+                                <span className="text-[10px] bg-green-50 text-green-600 border border-green-200 font-black px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Parceiro Vinculado
+                                </span>
+                            ) : (
+                                <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-200 font-black px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span> Sem Parceria Ativa
+                                </span>
+                            )}
+                        </div>
+                        
+                        <div className="flex items-center gap-4 mt-2 text-slate-500 text-xs flex-wrap font-bold">
+                            <div className="flex items-center gap-1 text-yellow-500 font-black">
+                                <Star fill="currentColor" size={14} className="fill-yellow-500" />
+                                {selectedLab.ratingAverage ? selectedLab.ratingAverage.toFixed(1) : "S/N"}
+                            </div>
+                            <span>•</span>
+                            <span className="font-semibold">{selectedLab.ratingCount || 0} Avaliações</span>
+                            <span>•</span>
+                            <span className="bg-slate-50 text-slate-600 px-2 py-0.5 rounded text-[10px] font-black font-mono">ID: {selectedLab.id}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {!isLinked && (
+                    <div className="w-full md:w-auto relative" id="linking-action-button-area">
+                        {connectionMsg && (
+                            <div className="absolute bottom-full mb-2 right-0 bg-green-50 border border-green-200 text-green-700 text-xs py-2 px-4 rounded-xl font-medium shadow flex items-center gap-1 w-max">
+                                <CheckCircle size={14} /> {connectionMsg}
+                            </div>
+                        )}
+                        {connectionErr && (
+                            <div className="absolute bottom-full mb-2 right-0 bg-red-50 border border-red-200 text-red-700 text-xs py-2 px-4 rounded-xl font-medium shadow w-max">
+                                {connectionErr}
+                            </div>
+                        )}
+                        <button 
+                            onClick={handleDirectLink}
+                            disabled={connecting}
+                            className="w-full md:w-auto px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                        >
+                            {connecting ? <Loader2 className="animate-spin" size={16} /> : <><Handshake size={16} /> FIRMAR PARCERIA REQUERIDA</>}
+                        </button>
+                    </div>
+                )}
+            </div>
 
             {/* 1. Header Banner */}
             <BannerCarousel images={storeSettings.banners || []} />
@@ -683,7 +854,7 @@ export const Catalog = () => {
                                             <div key={product.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
                                                 <div className="flex items-center gap-6">
                                                     <div className="w-20 h-20 bg-slate-50 rounded-2xl overflow-hidden shrink-0 border border-slate-100">
-                                                        {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <Package size={32} className="m-auto mt-6 text-slate-300" />}
+                                                        {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <Package size={32} className="m-auto mt-6 text-slate-300 pointer-events-none" />}
                                                     </div>
                                                     <div>
                                                         <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">{product.category}</span>

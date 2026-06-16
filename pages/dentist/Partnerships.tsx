@@ -1,7 +1,12 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Handshake, Plus, Trash2, Loader2, Building, CheckCircle, Search, MapPin, Globe, Filter, Link as LinkIcon, Star, X, MessageSquare, Calendar } from 'lucide-react';
+import { 
+    Handshake, Plus, Trash2, Loader2, Building, CheckCircle, Search, 
+    MapPin, Globe, Filter, Link as LinkIcon, Star, X, MessageSquare, 
+    Calendar, ChevronRight, ShoppingBag 
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 import { LabRating, Organization } from '../../types';
 
@@ -13,6 +18,7 @@ export const Partnerships = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const navigate = useNavigate();
 
     // Review Modal State
     const [viewingReviewsLab, setViewingReviewsLab] = useState<Organization | null>(null);
@@ -49,21 +55,20 @@ export const Partnerships = () => {
         }
     };
 
+    // Shows *all* laboratories registered in the app (including already connected ones!)
     const exploreLabs = useMemo(() => {
-        const connectedIds = new Set(userConnections.map(c => c.organizationId));
         return allLaboratories
-            .filter(lab => !connectedIds.has(lab.id))
             .filter(lab => 
                 lab.name.toLowerCase().includes(searchTerm.toLowerCase())
             );
-    }, [allLaboratories, userConnections, searchTerm]);
+    }, [allLaboratories, searchTerm]);
     
     return (
-        <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500">
+        <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500" id="partnerships-main-container">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Rede de Parcerias</h1>
-                    <p className="text-slate-500">Conecte seu consultório aos melhores laboratórios da plataforma.</p>
+                    <p className="text-slate-500">Explore laboratórios, produtos e feche parcerias diretamento do marketplace.</p>
                 </div>
             </div>
 
@@ -72,14 +77,16 @@ export const Partnerships = () => {
                 <button 
                     onClick={() => setActiveTab('MY_PARTNERS')}
                     className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'MY_PARTNERS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}
+                    id="tab-my-partners"
                 >
                     <Handshake size={18} /> Minhas Parcerias
                 </button>
                 <button 
                     onClick={() => setActiveTab('EXPLORE')}
                     className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'EXPLORE' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}
+                    id="tab-explore"
                 >
-                    <Search size={18} /> Explorar Laboratórios
+                    <Search size={18} /> Explorar Marketplace
                 </button>
             </div>
 
@@ -92,7 +99,7 @@ export const Partnerships = () => {
                                 <LinkIcon className="text-blue-600" size={20}/> Conexão Direta
                             </h3>
                             <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                                Se você já possui o código enviado pelo seu laboratório, cole-o abaixo.
+                                Se você já possui o código enviado pelo seu laboratório, cole-o abaixo para se conectar.
                             </p>
                             <form onSubmit={(e) => { e.preventDefault(); handleAdd(orgCode); }} className="space-y-3">
                                 <input 
@@ -120,28 +127,37 @@ export const Partnerships = () => {
                                 <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-3xl">
                                     <Globe size={48} className="mb-4 opacity-20" />
                                     <p className="font-medium">Você ainda não possui parcerias firmadas.</p>
-                                    <button onClick={() => setActiveTab('EXPLORE')} className="text-blue-600 font-bold hover:underline mt-2">Explorar laboratórios agora</button>
+                                    <button onClick={() => setActiveTab('EXPLORE')} className="text-blue-600 font-bold hover:underline mt-2">Explorar marketplace agora</button>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {userConnections.map(conn => {
                                         const labInfo = allLaboratories.find(l => l.id === conn.organizationId);
                                         return (
-                                            <div key={conn.id} className="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all group relative overflow-hidden">
-                                                <div className="flex items-center gap-4 relative z-10">
-                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-blue-600 shadow-sm border border-slate-100 overflow-hidden">
+                                            <div 
+                                                key={conn.id} 
+                                                onClick={() => navigate(`/store/${labInfo?.storeSlug || conn.organizationId}`)}
+                                                className="flex justify-between items-center p-5 bg-white rounded-3xl border border-slate-100 hover:border-blue-500 hover:shadow-md cursor-pointer transition-all group relative overflow-hidden"
+                                                id={`partner-card-${conn.id}`}
+                                                title="Clique para acessar a loja do parceiro"
+                                            >
+                                                <div className="flex items-center gap-4 relative z-10 w-full">
+                                                    <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm overflow-hidden shrink-0">
                                                         {labInfo?.logoUrl ? (
                                                           <img src={labInfo.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                                                         ) : (
                                                           <Building size={24} />
                                                         )}
                                                     </div>
-                                                    <div className="min-w-0">
-                                                        <p className="font-bold text-slate-800 truncate">{conn.organizationName}</p>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-black text-slate-800 truncate group-hover:text-blue-600 transition-colors">{conn.organizationName}</p>
                                                         <div className="flex items-center gap-1 mt-1">
                                                             <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                                                             <span className="text-[10px] text-green-600 font-black uppercase tracking-tighter">Parceria Ativa</span>
                                                         </div>
+                                                    </div>
+                                                    <div className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all shrink-0">
+                                                        <ChevronRight size={20} />
                                                     </div>
                                                 </div>
                                             </div>
@@ -163,57 +179,85 @@ export const Partnerships = () => {
                             <input 
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
-                                placeholder="Pesquisar laboratórios por nome..."
+                                placeholder="Pesquisar laboratórios parceiros por nome..."
                                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none font-medium transition-all"
                             />
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {exploreLabs.map(lab => (
-                            <div key={lab.id} className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 overflow-hidden">
-                                        {lab.logoUrl ? (
-                                          <img src={lab.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                                        ) : (
-                                          <Building size={32} />
-                                        )}
-                                    </div>
-                                    <button 
-                                        onClick={() => setViewingReviewsLab(lab)}
-                                        className="text-right hover:scale-105 transition-transform"
-                                    >
-                                        <div className="flex items-center gap-1 text-yellow-500 font-black text-sm mb-1 justify-end">
-                                            <Star size={16} className="fill-yellow-500" />
-                                            {lab.ratingAverage ? lab.ratingAverage.toFixed(1) : 'S/N'}
+                        {exploreLabs.map(lab => {
+                            const isLinked = userConnections.some(c => c.organizationId === lab.id);
+                            return (
+                                <div 
+                                    key={lab.id} 
+                                    onClick={() => navigate(`/store/${lab.storeSlug || lab.id}`)}
+                                    className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col cursor-pointer"
+                                    id={`explore-card-${lab.id}`}
+                                >
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 overflow-hidden shrink-0">
+                                            {lab.logoUrl ? (
+                                              <img src={lab.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                            ) : (
+                                              <Building size={32} />
+                                            )}
                                         </div>
-                                        <span className="text-[9px] font-black text-blue-400 uppercase bg-blue-50 px-2 py-1 rounded flex items-center gap-1">
-                                            <MessageSquare size={10}/> {lab.ratingCount || 0} Avaliações
-                                        </span>
-                                    </button>
-                                </div>
-                                
-                                <div className="flex-1">
-                                    <h3 className="text-xl font-black text-slate-800 leading-tight mb-2 group-hover:text-blue-700 transition-colors">{lab.name}</h3>
-                                    <div className="flex items-center gap-1.5 text-slate-500 text-sm mb-4">
-                                        <MapPin size={14} className="shrink-0" />
-                                        <span className="truncate">Atendimento Digital & Nacional</span>
+                                        <button 
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setViewingReviewsLab(lab);
+                                            }}
+                                            className="text-right hover:scale-105 transition-transform"
+                                        >
+                                            <div className="flex items-center gap-1 text-yellow-500 font-black text-sm mb-1 justify-end">
+                                                <Star size={16} className="fill-yellow-500" />
+                                                {lab.ratingAverage ? lab.ratingAverage.toFixed(1) : 'S/N'}
+                                            </div>
+                                            <span className="text-[9px] font-black text-blue-400 uppercase bg-blue-50 px-2 py-1 rounded flex items-center gap-1">
+                                                <MessageSquare size={10}/> {lab.ratingCount || 0} Avaliações
+                                            </span>
+                                        </button>
                                     </div>
-                                    <p className="text-xs text-slate-400 line-clamp-2 italic mb-4">"Membro ProTrack com infraestrutura digital completa."</p>
-                                </div>
+                                    
+                                    <div className="flex-1">
+                                        <h3 className="text-xl font-black text-slate-800 leading-tight mb-2 group-hover:text-blue-700 transition-colors">{lab.name}</h3>
+                                        
+                                        <div className="flex flex-col gap-2 mb-4">
+                                            {isLinked ? (
+                                                <span className="text-[10px] bg-green-50 text-green-600 border border-green-200 font-black px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 w-fit">
+                                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Parceiro Vinculado
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] bg-slate-50 text-slate-500 border border-slate-200 font-black px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1 w-fit">
+                                                    <span className="w-1.5 h-1.5 bg-slate-400 rounded-full"></span> Sem Parceria Ativa
+                                                </span>
+                                            )}
 
-                                <div className="pt-6 border-t border-slate-50 mt-auto">
-                                    <button 
-                                        onClick={() => handleAdd(lab.id)}
-                                        disabled={loading}
-                                        className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-                                    >
-                                        {loading ? <Loader2 className="animate-spin" size={20} /> : <><Plus size={20}/> FIRMAR PARCERIA</>}
-                                    </button>
+                                            <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+                                                <MapPin size={12} className="shrink-0" />
+                                                <span className="truncate">Atendimento Digital & Nacional</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-slate-400 line-clamp-2 italic mb-4">"Membro ProTrack com infraestrutura digital completa."</p>
+                                    </div>
+
+                                    <div className="pt-6 border-t border-slate-50 mt-auto">
+                                        <button 
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(`/store/${lab.storeSlug || lab.id}`);
+                                            }}
+                                            className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 shadow-lg shadow-slate-100 transition-all flex items-center justify-center gap-2 active:scale-95 text-xs font-black uppercase tracking-wider"
+                                        >
+                                            <ShoppingBag size={16}/> VISITAR LOJA / VER CATÁLOGO
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}
