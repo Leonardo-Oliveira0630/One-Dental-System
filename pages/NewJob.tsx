@@ -73,6 +73,7 @@ export const NewJob = () => {
     const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
     return visible[0]?.id || jobTypes[0]?.id || '';
   });
+  const [hasSetInitialType, setHasSetInitialType] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); 
   const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
@@ -84,11 +85,12 @@ export const NewJob = () => {
   const activeJobType = useMemo(() => jobTypes.find(t => t.id === selectedTypeId), [selectedTypeId, jobTypes]);
 
   useEffect(() => {
-    if (!selectedTypeId && jobTypes.length > 0) {
+    if (!hasSetInitialType && jobTypes.length > 0) {
       const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
       setSelectedTypeId(visible[0]?.id || jobTypes[0]?.id || '');
+      setHasSetInitialType(true);
     }
-  }, [jobTypes, selectedTypeId]);
+  }, [jobTypes, hasSetInitialType]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
