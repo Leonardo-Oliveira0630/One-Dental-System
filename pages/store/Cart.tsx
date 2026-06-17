@@ -362,9 +362,9 @@ export const Cart = () => {
                         <input 
                             required 
                             value={patientName} 
-                            placeholder="Nome Completo do Paciente"
+                            placeholder="NOME COMPLETO DO PACIENTE"
                             onChange={e => {
-                                const typed = e.target.value;
+                                const typed = e.target.value.toUpperCase();
                                 setPatientName(typed);
                                 const matched = patients.find(p => p.name.toLowerCase() === typed.toLowerCase());
                                 if (matched) {
@@ -373,16 +373,16 @@ export const Cart = () => {
                                     setSelectedPatientId('');
                                 }
                             }} 
-                            className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm" 
+                            className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm uppercase" 
                         />
                     </div>
                 ) : (
                     <input 
                         required 
                         value={patientName} 
-                        placeholder="Nome Completo do Paciente"
-                        onChange={e => setPatientName(e.target.value)} 
-                        className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm" 
+                        placeholder="NOME COMPLETO DO PACIENTE"
+                        onChange={e => setPatientName(e.target.value.toUpperCase())} 
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm uppercase" 
                     />
                 )}
             </div>

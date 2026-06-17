@@ -228,15 +228,16 @@ export const JobDetails = () => {
 
   const selectDentist = (dentist: any) => {
     setEditDentistId(dentist.id);
-    setEditDentistName(dentist.name);
-    setDentistSearchQuery(dentist.name);
+    setEditDentistName(dentist.name.toUpperCase());
+    setDentistSearchQuery(dentist.name.toUpperCase());
     setSelectedDentistObj(dentist.type === 'ONLINE' ? dentist : null);
     setShowDentistSuggestions(false);
   };
 
   const handleManualDentistEntry = () => {
+    const capsQuery = dentistSearchQuery.toUpperCase();
     setEditDentistId('manual-entry');
-    setEditDentistName(dentistSearchQuery);
+    setEditDentistName(capsQuery);
     setSelectedDentistObj(null);
     setShowDentistSuggestions(false);
   };
@@ -1180,10 +1181,10 @@ export const JobDetails = () => {
                                   <input 
                                       type="text" 
                                       value={dentistSearchQuery} 
-                                      onChange={e => { setDentistSearchQuery(e.target.value); setShowDentistSuggestions(true); }}
+                                      onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }}
                                       onFocus={() => setShowDentistSuggestions(true)}
                                       placeholder="Buscar dentista ou clínica..."
-                                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm transition-all"
+                                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm transition-all uppercase"
                                   />
                               </div>
 
@@ -1226,7 +1227,7 @@ export const JobDetails = () => {
                           </div>
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Paciente</label>
-                              <input type="text" value={editPatientName} onChange={e => setEditPatientName(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                              <input type="text" value={editPatientName} onChange={e => setEditPatientName(e.target.value.toUpperCase())} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase" />
                           </div>
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nº OS</label>

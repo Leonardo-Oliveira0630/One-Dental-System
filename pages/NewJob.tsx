@@ -18,11 +18,11 @@ export const NewJob = () => {
 
   // --- Global States ---
   const [entryType, setEntryType] = useState<EntryType>((location.state?.entryType as EntryType) || 'NEW');
-  const [patientName, setPatientName] = useState(location.state?.patientName || '');
+  const [patientName, setPatientName] = useState((location.state?.patientName || '').toUpperCase());
   const [selectedDentistObj, setSelectedDentistObj] = useState<any | null>(null);
   const [selectedDentistId, setSelectedDentistId] = useState(location.state?.dentistId || '');
-  const [dentistName, setDentistName] = useState('');
-  const [dentistSearchQuery, setDentistSearchQuery] = useState('');
+  const [dentistName, setDentistName] = useState((location.state?.dentistName || '').toUpperCase());
+  const [dentistSearchQuery, setDentistSearchQuery] = useState((location.state?.dentistName || '').toUpperCase());
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [jobTypeSearchQuery, setJobTypeSearchQuery] = useState('');
   const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
@@ -51,12 +51,12 @@ export const NewJob = () => {
       const dentist = allUsers.find(u => u.id === location.state.dentistId) || manualDentists.find(d => d.id === location.state.dentistId);
       if (dentist) {
         setSelectedDentistObj(dentist);
-        setDentistName(dentist.name);
-        setDentistSearchQuery(dentist.name);
+        setDentistName(dentist.name.toUpperCase());
+        setDentistSearchQuery(dentist.name.toUpperCase());
       } else if (location.state?.dentistName) {
         // Fallback for manual entry
-        setDentistName(location.state.dentistName);
-        setDentistSearchQuery(location.state.dentistName);
+        setDentistName(location.state.dentistName.toUpperCase());
+        setDentistSearchQuery(location.state.dentistName.toUpperCase());
       }
     }
   }, [location.state, allUsers, manualDentists]);
@@ -274,13 +274,18 @@ export const NewJob = () => {
   const selectDentist = (dentist: any) => {
     setSelectedDentistId(dentist.id); 
     setSelectedDentistObj(dentist);
-    setDentistName(dentist.name); 
-    setDentistSearchQuery(dentist.name); 
+    setDentistName(dentist.name.toUpperCase()); 
+    setDentistSearchQuery(dentist.name.toUpperCase()); 
     setShowDentistSuggestions(false);
   };
 
   const handleManualDentistEntry = () => {
-    setSelectedDentistId('manual-entry'); setSelectedDentistObj(null); setDentistName(dentistSearchQuery); setShowDentistSuggestions(false);
+    const capsQuery = dentistSearchQuery.toUpperCase();
+    setSelectedDentistId('manual-entry'); 
+    setSelectedDentistObj(null); 
+    setDentistName(capsQuery); 
+    setDentistSearchQuery(capsQuery); 
+    setShowDentistSuggestions(false);
   };
 
   useEffect(() => {
@@ -446,9 +451,9 @@ export const NewJob = () => {
     
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
         osNumber: finalOsNumber, 
-        patientName: patientName.trim(), 
+        patientName: patientName.trim().toUpperCase(), 
         dentistId: selectedDentistId, 
-        dentistName: dentistName.trim(), 
+        dentistName: dentistName.trim().toUpperCase(), 
         status: JobStatus.PENDING, 
         paymentStatus: 'PENDING', 
         urgency, 
@@ -566,14 +571,14 @@ export const NewJob = () => {
                     </div>
                     <div className="md:col-span-9">
                          <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nome do Paciente <span className="text-red-500">*</span></label>
-                         <input value={patientName} onChange={e => setPatientName(e.target.value)} required placeholder="Ex: Maria das Dores" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold" />
+                         <input value={patientName} onChange={e => setPatientName(e.target.value.toUpperCase())} required placeholder="Ex: MARIA DAS DORES" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold uppercase" />
                     </div>
                     
                     <div className="md:col-span-12 relative" ref={dropdownRef}>
                       <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Selecionar Dentista ou Clínica <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
-                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Digite o nome do dentista..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
+                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Digite o nome do dentista..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
                       </div>
                       {showDentistSuggestions && dentistSearchQuery.length > 0 && (
                           <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
