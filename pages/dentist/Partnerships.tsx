@@ -11,7 +11,7 @@ import * as api from '../../services/firebaseService';
 import { LabRating, Organization } from '../../types';
 
 export const Partnerships = () => {
-    const { userConnections, addConnectionByCode, allLaboratories } = useApp();
+    const { userConnections, addConnectionByCode, allLaboratories, activeOrganization } = useApp();
     const [activeTab, setActiveTab] = useState<'MY_PARTNERS' | 'EXPLORE'>('MY_PARTNERS');
     const [orgCode, setOrgCode] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -59,9 +59,10 @@ export const Partnerships = () => {
     const exploreLabs = useMemo(() => {
         return allLaboratories
             .filter(lab => 
+                lab.id !== activeOrganization?.id &&
                 lab.name.toLowerCase().includes(searchTerm.toLowerCase())
             );
-    }, [allLaboratories, searchTerm]);
+    }, [allLaboratories, searchTerm, activeOrganization]);
     
     return (
         <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500" id="partnerships-main-container">

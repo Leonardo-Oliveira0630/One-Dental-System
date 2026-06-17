@@ -67,7 +67,7 @@ service cloud.firestore {
     }
     
     match /organizations/{orgId} {
-      allow read: if isAuthenticated() || (resource != null && resource.data.orgType == 'LAB');
+      allow read: if isAuthenticated() || (resource != null && (resource.data.orgType == 'LAB' || resource.data.orgType == 'LAB_OUTSOURCED' || resource.data.orgType == 'lab' || resource.data.orgType == 'lab_outsourced'));
       allow create: if isAuthenticated();
       allow update: if isSuperAdmin() || (belongsToOrg(orgId) && (isAdmin() || getUserData().get('role', 'USER') == 'CLIENT'));
       allow delete: if isSuperAdmin();
