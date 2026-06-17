@@ -17,7 +17,7 @@ export const Plans = () => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState(0);
   const [isPublic, setIsPublic] = useState(true);
-  const [targetAudience, setTargetAudience] = useState<'LAB' | 'CLINIC'>('LAB');
+  const [targetAudience, setTargetAudience] = useState<'LAB' | 'CLINIC' | 'LAB_OUTSOURCED'>('LAB');
   const [trialDays, setTrialDays] = useState(7);
   
   // Features State
@@ -133,9 +133,9 @@ export const Plans = () => {
                         {allPlans.map(plan => (
                             <div key={plan.id} className={`bg-white p-6 rounded-[32px] border-2 transition-all relative overflow-hidden group ${plan.isPublic ? 'border-slate-100 shadow-sm' : 'border-amber-100 bg-amber-50/20 shadow-none'}`}>
                                 <div className="flex justify-between items-start mb-4">
-                                    <span className={`text-[9px] font-black px-2 py-1 rounded-lg flex items-center gap-1 border ${plan.targetAudience === 'CLINIC' ? 'bg-teal-50 text-teal-700 border-teal-100' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
-                                        {plan.targetAudience === 'CLINIC' ? <Stethoscope size={10}/> : <Store size={10}/>}
-                                        {plan.targetAudience === 'CLINIC' ? 'CLÍNICA' : 'LABORATÓRIO'}
+                                    <span className={`text-[9px] font-black px-2 py-1 rounded-lg flex items-center gap-1 border ${plan.targetAudience === 'CLINIC' ? 'bg-teal-50 text-teal-700 border-teal-100' : plan.targetAudience === 'LAB_OUTSOURCED' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
+                                        {plan.targetAudience === 'CLINIC' ? <Stethoscope size={10}/> : plan.targetAudience === 'LAB_OUTSOURCED' ? <Package size={10}/> : <Store size={10}/>}
+                                        {plan.targetAudience === 'CLINIC' ? 'CLÍNICA' : plan.targetAudience === 'LAB_OUTSOURCED' ? 'TERCEIRIZAÇÃO' : 'LABORATÓRIO'}
                                     </span>
                                     {!plan.isPublic && <span className="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Privado</span>}
                                 </div>
@@ -200,9 +200,10 @@ export const Plans = () => {
 
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Público do Serviço</label>
-                                <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
-                                    <button type="button" onClick={() => setTargetAudience('LAB')} className={`flex-1 py-3 text-xs font-black uppercase rounded-xl transition-all ${targetAudience === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Laboratório</button>
-                                    <button type="button" onClick={() => setTargetAudience('CLINIC')} className={`flex-1 py-3 text-xs font-black uppercase rounded-xl transition-all ${targetAudience === 'CLINIC' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Clínica</button>
+                                <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl flex-wrap">
+                                    <button type="button" onClick={() => setTargetAudience('LAB')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all min-w-[80px] ${targetAudience === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Laboratório</button>
+                                    <button type="button" onClick={() => setTargetAudience('CLINIC')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all min-w-[80px] ${targetAudience === 'CLINIC' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Clínica</button>
+                                    <button type="button" onClick={() => setTargetAudience('LAB_OUTSOURCED')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all min-w-[80px] ${targetAudience === 'LAB_OUTSOURCED' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Terceirização</button>
                                 </div>
                             </div>
                         </div>

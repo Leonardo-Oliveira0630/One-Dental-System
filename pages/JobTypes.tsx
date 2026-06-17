@@ -30,6 +30,7 @@ export const JobTypes = () => {
   const [baseCommission, setBaseCommission] = useState<number | ''>('');
   const [variationGroups, setVariationGroups] = useState<VariationGroup[]>([]);
   const [isVisibleInStore, setIsVisibleInStore] = useState(true);
+  const [isVisibleInOutsourcing, setIsVisibleInOutsourcing] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -43,6 +44,7 @@ export const JobTypes = () => {
     setBaseCommission('');
     setVariationGroups([]);
     setIsVisibleInStore(true);
+    setIsVisibleInOutsourcing(true);
     setImageUrl('');
     setImageFile(null);
     setPreviewUrl('');
@@ -61,6 +63,7 @@ export const JobTypes = () => {
     setBaseCommission(type.baseCommission ?? '');
     setVariationGroups(type.variationGroups || []);
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
+    setIsVisibleInOutsourcing(type.isVisibleInOutsourcing !== false); // Default true if undefined
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
     setAllowedSectors(type.allowedSectors || []);
@@ -95,12 +98,12 @@ export const JobTypes = () => {
       if (isEditing && editingId) {
           await updateJobType(editingId, { 
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups, 
-              isVisibleInStore, imageUrl: finalImageUrl, allowedSectors
+              isVisibleInStore, isVisibleInOutsourcing, imageUrl: finalImageUrl, allowedSectors
           });
       } else {
           const newType: Omit<JobType, 'id'> = {
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups,
-              isVisibleInStore, imageUrl: finalImageUrl, allowedSectors
+              isVisibleInStore, isVisibleInOutsourcing, imageUrl: finalImageUrl, allowedSectors
           };
           await addJobType(newType);
       }
@@ -312,19 +315,38 @@ export const JobTypes = () => {
 
                                 {/* Store Configuration */}
                                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                                    <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2">
-                                        <Store size={18} className="text-indigo-500" /> Exibição na Loja
+                                    <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2 text-xs uppercase tracking-wider">
+                                        <Store size={18} className="text-zinc-500" /> Canais de Exibição/Vendas
                                     </h3>
                                     
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-sm font-medium text-slate-600">Disponível no Catálogo Web</label>
-                                        <button 
-                                            type="button" 
-                                            onClick={() => setIsVisibleInStore(!isVisibleInStore)}
-                                            className={`relative w-12 h-6 rounded-full transition-colors duration-200 ease-in-out ${isVisibleInStore ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                                        >
-                                            <span className={`block w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInStore ? 'translate-x-6' : 'translate-x-0'}`} />
-                                        </button>
+                                    <div className="space-y-3">
+                                        <div className="flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-800">Loja Clínicas (Dentistas)</span>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setIsVisibleInStore(!isVisibleInStore)}
+                                                    className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInStore ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                >
+                                                    <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInStore ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+                                            <span className="text-[10px] text-slate-400">Exibir no catálogo geral para cirurgiões-dentistas</span>
+                                        </div>
+
+                                        <div className="flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-800">Canal Terceirização</span>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setIsVisibleInOutsourcing(!isVisibleInOutsourcing)}
+                                                    className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInOutsourcing ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                >
+                                                    <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInOutsourcing ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+                                            <span className="text-[10px] text-slate-400">Exibir no catálogo para laboratórios parceiros contratantes</span>
+                                        </div>
                                     </div>
 
                                     <div>

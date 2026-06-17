@@ -97,6 +97,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
+  const isBuyer = isClient || currentOrg?.orgType === 'LAB_OUTSOURCED';
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   
   const isClinicPendingApproval = () => {
@@ -120,12 +121,12 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  const isViewingLabContext = isClient && (location.pathname.startsWith('/store') || location.pathname.startsWith('/jobs') || location.pathname.startsWith('/cart'));
+  const isViewingLabContext = isBuyer && (location.pathname.startsWith('/store') || location.pathname.startsWith('/jobs') || location.pathname.startsWith('/cart'));
   
   const displayBrand = React.useMemo(() => 
     isViewingLabContext && activeOrganization 
       ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
-      : { name: currentOrg?.name || 'SMILEPROX', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : 'SMILEPROX SYSTEM' }
+      : { name: currentOrg?.name || 'SMILEPROX', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Laboratório Terceirizado' : 'SMILEPROX SYSTEM' }
   , [isViewingLabContext, activeOrganization, currentOrg, isClient]);
 
   return (
@@ -185,7 +186,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white p-1"><X size={24} /></button>
           </div>
 
-          {isClient && (
+          {isBuyer && (
              <div className="mb-6 px-2 relative shrink-0">
                 <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2 truncate">Laboratório Ativo</p>
                 <button 
@@ -248,7 +249,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             ) : (
               <>
-                {!isClient && !isSuperAdmin && (
+                {!isBuyer && !isSuperAdmin && (
                   <>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === '/dashboard'} />
                     {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
@@ -272,21 +273,25 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   </>
                 )}
 
-                {isClient && (
+                {isBuyer && (
                   <>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja de Prótese" active={location.pathname === '/store'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/jobs'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
-                    <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                     
-                    <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2 truncate">Minha Clínica</p>
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/finance" icon={<Wallet size={20} />} label="Financeiro" active={location.pathname === '/clinic/finance'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label="Salas" active={location.pathname === '/clinic/rooms'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label="Corpo Clínico" active={location.pathname === '/clinic/dentists'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/services" icon={<Briefcase size={20} />} label="Meus Serviços" active={location.pathname === '/clinic/services'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/inventory" icon={<Package size={20} />} label="Estoque (Insumos)" active={location.pathname === '/clinic/inventory'} />
+                    {currentOrg?.orgType === 'CLINIC' && (
+                      <>
+                        <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
+                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2 truncate">Minha Clínica</p>
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/finance" icon={<Wallet size={20} />} label="Financeiro" active={location.pathname === '/clinic/finance'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label="Salas" active={location.pathname === '/clinic/rooms'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label="Corpo Clínico" active={location.pathname === '/clinic/dentists'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/services" icon={<Briefcase size={20} />} label="Meus Serviços" active={location.pathname === '/clinic/services'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/inventory" icon={<Package size={20} />} label="Estoque (Insumos)" active={location.pathname === '/clinic/inventory'} />
+                      </>
+                    )}
                     
                     <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Parcerias Lab" active={location.pathname === '/dentist/partnerships'} />
@@ -327,7 +332,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
          )}
 
          <div className="flex items-center gap-1 shrink-0">
-             {!isClient && (
+             {!isBuyer && (
                <button 
                  onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
                  className={`p-2 rounded-lg transition-colors ${isMobileSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
@@ -335,7 +340,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                  {isMobileSearchOpen ? <X size={22} /> : <Search size={22} />}
                </button>
              )}
-             {isClient && cart.length > 0 && (
+             {isBuyer && cart.length > 0 && (
                  <Link to="/cart" className="p-2 text-blue-600 relative"><ShoppingCart size={22} /><span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-black border-2 border-white">{cart.length}</span></Link>
              )}
              <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">{currentUser?.name.charAt(0)}</Link>
@@ -345,7 +350,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
           <MobileNavItem to="/dashboard" icon={<Home size={22}/>} label="Home" active={location.pathname === '/dashboard'} />
           
-          {!isClient ? (
+          {!isBuyer ? (
             <>
               <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
@@ -354,6 +359,16 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                  </button>
               </div>
               <MobileNavItem to="/incoming-orders" icon={<InboxIcon size={22}/>} label="Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
+            </>
+          ) : currentOrg?.orgType === 'LAB_OUTSOURCED' ? (
+            <>
+              <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label="Loja" active={location.pathname === '/store'} />
+              <div className="relative -top-5">
+                 <Link to="/cart" className="w-14 h-14 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-purple-300 border-4 border-white active:scale-90 transition-transform">
+                    <ShoppingCart size={28}/>
+                 </Link>
+              </div>
+              <MobileNavItem to="/jobs" icon={<List size={22}/>} label="Pedidos" active={location.pathname === '/jobs'} />
             </>
           ) : (
             <>
@@ -384,7 +399,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <div className="flex flex-col items-end">
                   <span className="text-sm font-black text-slate-800 leading-none uppercase truncate max-w-[150px]">{currentUser?.name}</span>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[150px]">
-                      {isClient ? 'Cirurgião-Dentista' : (currentUser?.sector || 'Acesso Administrativo')}
+                      {isClient ? 'Cirurgião-Dentista' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Lab Terceirizado' : (currentUser?.sector || 'Acesso Administrativo')}
                   </span>
               </div>
               <Link to="/profile" className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md hover:scale-105 transition-transform shrink-0">{currentUser?.name.charAt(0)}</Link>

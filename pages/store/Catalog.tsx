@@ -589,7 +589,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
 
 export const Catalog = () => {
     const { slug } = useParams<{ slug: string }>();
-    const { allLaboratories, currentUser, activeOrganization, currentPlan, userConnections, addConnectionByCode } = useApp();
+    const { allLaboratories, currentUser, currentOrg, activeOrganization, currentPlan, userConnections, addConnectionByCode } = useApp();
     const navigate = useNavigate();
     const [term, setTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -742,7 +742,14 @@ export const Catalog = () => {
         menuOptions: ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']
     };
 
-    const visibleProducts = localJobTypes.filter(t => t.isVisibleInStore !== false);
+    const isOutsourcedUser = currentOrg?.orgType === 'LAB_OUTSOURCED';
+    const visibleProducts = localJobTypes.filter(t => {
+        if (isOutsourcedUser) {
+            return t.isVisibleInOutsourcing !== false;
+        } else {
+            return t.isVisibleInStore !== false;
+        }
+    });
     const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
 
     const products = visibleProducts.filter(t => {

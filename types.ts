@@ -38,7 +38,7 @@ export interface Organization {
   subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING' | 'FREE' | 'TEST';
   trialEndsAt?: Date;
   createdAt: Date;
-  orgType?: 'LAB' | 'CLINIC';
+  orgType?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED';
   asaasApiKey?: string;
   ratingAverage?: number;
   ratingCount?: number;
@@ -379,6 +379,7 @@ export interface JobType {
   baseCommission?: number;
   variationGroups: VariationGroup[];
   isVisibleInStore?: boolean;
+  isVisibleInOutsourcing?: boolean;
   imageUrl?: string;
   allowedSectors?: string[];
 }
@@ -541,7 +542,7 @@ export interface SubscriptionPlan {
   price: number;
   isPublic: boolean;
   active: boolean;
-  targetAudience?: 'LAB' | 'CLINIC';
+  targetAudience?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED';
   trialDays?: number;
   features: {
     maxUsers: number;

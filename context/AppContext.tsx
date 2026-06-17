@@ -191,6 +191,7 @@ interface AppContextType {
   updateAppointment: (id: string, updates: Partial<Appointment>) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
   registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
+  registerOutsourcedLab: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
   registerDentist: (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
   validateCro: (uf: string, numero: string, categoria: string) => Promise<any>;
   addSubscriptionPlan: (plan: SubscriptionPlan) => Promise<void>;
@@ -340,7 +341,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                     }
                 });
 
-                if (profile.role === UserRole.CLIENT) {
+                if (profile.role === UserRole.CLIENT || (profileOrgId && (profileOrgId.includes('outorg') || profileOrgId.includes('clinic')))) {
                     api.subscribeUserConnections(profileOrgId, (conns) => {
                         setUserConnections(conns);
                         
@@ -782,6 +783,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }
   
   const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c, address);
+  const registerOutsourcedLab = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterOutsourcedLab(e, p, on, orn, pid, t, c, address);
   const registerDentist = async (e: string, p: string, n: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: any) => await api.apiRegisterDentist(e, p, n, clinicName, planId, trialEndsAt, couponCode, address);
   const validateCro = async (uf: string, numero: string, categoria: string) => await api.apiValidateCro(uf, numero, categoria);
   const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
@@ -1132,7 +1134,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     activeOrganization, switchActiveOrganization, userConnections,
     updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus, setSubscriptionStatus,
     addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
-    registerOrganization, registerDentist, validateCro, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
+    registerOrganization, registerOutsourcedLab, registerDentist, validateCro, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
     addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
     addManualDentist, updateManualDentist, deleteManualDentist,
     addCardMachine, updateCardMachine, deleteCardMachine,
