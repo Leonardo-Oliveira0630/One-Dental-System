@@ -63,6 +63,13 @@ export const Finance = () => {
   const [paymentBankAccountId, setPaymentBankAccountId] = useState<string>('');
   const [paymentType, setPaymentType] = useState<DentistPayment['type']>('PAYMENT');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [showBoletoModal, setShowBoletoModal] = useState(false);
+  const [customBoletoAmount, setCustomBoletoAmount] = useState<number>(0);
+  const [customBoletoDueDate, setCustomBoletoDueDate] = useState<string>(() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 5);
+      return d.toISOString().split('T')[0];
+  });
 
   // Attachment upload states
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -717,21 +724,44 @@ export const Finance = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {dentistSummary.map(d => (
-                          <div key={d.id} onClick={() => { setStatementClient(d); setShowStatement(true); }} className="p-5 border border-slate-100 rounded-2xl hover:border-blue-500 cursor-pointer transition-all bg-slate-50 group flex flex-col justify-between">
-                              <div className="flex items-center gap-3 mb-4">
-                                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-blue-600 shadow-sm">{d.name.charAt(0)}</div>
-                                  <div className="flex-1 overflow-hidden"><p className="font-bold text-slate-800 truncate">{d.name}</p><p className="text-[10px] text-slate-400 font-bold uppercase truncate">{d.clinicName || 'Consultório'}</p></div>
-                                  <div className="flex gap-1">
-                                      <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-500" />
+                      {dentistSummary.map(d => {
+                          const clientBatches = billingBatches.filter(b => b.dentistId === d.id);
+                          const gBatches = clientBatches.filter(b => b.status === 'PENDING');
+                          const eBatches = clientBatches.filter(b => b.status === 'OVERDUE');
+                          const pBatches = clientBatches.filter(b => b.status === 'PAID');
+
+                          return (
+                              <div key={d.id} onClick={() => { setStatementClient(d); setShowStatement(true); }} className="p-5 border border-slate-100 rounded-2xl hover:border-blue-500 cursor-pointer transition-all bg-slate-50 group flex flex-col justify-between">
+                                  <div className="flex items-center gap-3 mb-4">
+                                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-blue-600 shadow-sm">{d.name.charAt(0)}</div>
+                                      <div className="flex-1 overflow-hidden"><p className="font-bold text-slate-800 truncate">{d.name}</p><p className="text-[10px] text-slate-400 font-bold uppercase truncate">{d.clinicName || 'Consultório'}</p></div>
+                                      <div className="flex gap-1">
+                                          <ChevronRight size={20} className="text-slate-300 group-hover:text-blue-500" />
+                                      </div>
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-2 border-t border-slate-200/50 pt-4">
+                                      <p className="text-[9px] font-bold text-slate-400 uppercase">Débito na Gaveta</p>
+                                      <p className="text-xl font-black text-red-600">R$ {d.totalPending.toFixed(2)}</p>
+                                  </div>
+
+                                  {/* Estatísticas de Boletos */}
+                                  <div className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center text-[9px] uppercase font-black text-slate-500 gap-1 mt-3">
+                                      <div className="text-center flex-1 border-r border-slate-100">
+                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">Gerados</span>
+                                          <span className="text-blue-600 font-black text-xs">{gBatches.length} (R$ {gBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
+                                      </div>
+                                      <div className="text-center flex-1 border-r border-slate-100">
+                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">Expirados</span>
+                                          <span className="text-red-500 font-black text-xs">{eBatches.length} (R$ {eBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
+                                      </div>
+                                      <div className="text-center flex-1">
+                                          <span className="block text-[8px] text-slate-400 font-bold uppercase">Pagos</span>
+                                          <span className="text-green-600 font-black text-xs">{pBatches.length} (R$ {pBatches.reduce((sum, b) => sum + b.totalAmount, 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 })})</span>
+                                      </div>
                                   </div>
                               </div>
-                              <div className="grid grid-cols-1 gap-2 border-t border-slate-200/50 pt-4">
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase">Débito na Gaveta</p>
-                                  <p className="text-xl font-black text-red-600">R$ {d.totalPending.toFixed(2)}</p>
-                              </div>
-                          </div>
-                      ))}
+                          );
+                      })}
                       {dentistSummary.length === 0 && (
                           <div className="col-span-full py-20 text-center text-slate-400 border-2 border-dashed rounded-3xl italic">
                               Nenhum trabalho concluído aguardando faturamento.
@@ -1436,31 +1466,11 @@ export const Finance = () => {
 
                             <div className="flex items-center gap-3 w-full md:w-auto">
                                 <button 
-                                    onClick={async () => {
-                                        // Identifying jobs not in any batch yet (simplified)
-                                        const pendingJobIds = chronoHistory.history
-                                            .filter(item => item.type === 'DEBIT')
-                                            .map(item => item.id);
-                                        
-                                        if (pendingJobIds.length === 0) {
-                                            alert('Não há débitos pendentes para gerar fatura.');
-                                            return;
-                                        }
-
-                                        try {
-                                            const dueDate = new Date();
-                                            dueDate.setDate(dueDate.getDate() + 5);
-                                            await generateBatchBoleto(statementClient.id, pendingJobIds, dueDate);
-                                            alert('Protocolo de fatura gerado com sucesso!');
-                                            setActiveSubTab('FATURAS');
-                                        } catch (err: any) {
-                                            console.error(err);
-                                            if (err.message === 'ASAAS_NOT_CONFIGURED') {
-                                                setShowAsaasError(true);
-                                            } else {
-                                                alert('Erro ao gerar fatura.');
-                                            }
-                                        }
+                                    onClick={() => {
+                                        const lastBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
+                                        const defaultAmount = lastBalance < 0 ? Math.abs(lastBalance) : 0;
+                                        setCustomBoletoAmount(defaultAmount);
+                                        setShowBoletoModal(true);
                                     }}
                                     className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 uppercase text-xs"
                                 >
@@ -1480,6 +1490,89 @@ export const Finance = () => {
                     </div>
                 </div>
       )}
+
+      {showBoletoModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Gerar Boleto de Cobrança</h3>
+                      <button onClick={() => setShowBoletoModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Valor da Cobrança (R$)</label>
+                          <input 
+                              type="number"
+                              step="0.01"
+                              value={customBoletoAmount}
+                              onChange={e => setCustomBoletoAmount(Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800"
+                              placeholder="Valor em R$"
+                          />
+                          <span className="block text-[10px] text-slate-400 font-bold mt-1 font-mono">
+                              Saldo devedor atual do cliente: R$ {(() => {
+                                  const lastBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
+                                  return lastBalance < 0 ? Math.abs(lastBalance).toFixed(2) : '0.00';
+                              })()}
+                          </span>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Data de Vencimento</label>
+                          <input 
+                              type="date"
+                              value={customBoletoDueDate}
+                              onChange={e => setCustomBoletoDueDate(e.target.value)}
+                              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-800"
+                          />
+                      </div>
+                      <div className="pt-4 flex gap-2">
+                           <button 
+                               onClick={() => setShowBoletoModal(false)}
+                               className="flex-1 py-3 px-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all uppercase text-xs"
+                           >
+                               Cancelar
+                           </button>
+                           <button 
+                               onClick={async () => {
+                                   if (customBoletoAmount <= 0) {
+                                       alert('Por favor, informe um valor maior que zero para o boleto.');
+                                       return;
+                                   }
+                                   if (!customBoletoDueDate) {
+                                       alert('Por favor, informe uma data de vencimento válida.');
+                                       return;
+                                   }
+
+                                   const pendingJobIds = chronoHistory.history
+                                       .filter(item => item.type === 'DEBIT')
+                                       .map(item => item.id);
+
+                                   try {
+                                       await generateBatchBoleto(statementClient.id, pendingJobIds, new Date(customBoletoDueDate), customBoletoAmount);
+                                       alert('Boleto de cobrança gerado com sucesso!');
+                                       setShowBoletoModal(false);
+                                       setActiveSubTab('FATURAS');
+                                   } catch (err: any) {
+                                       console.error(err);
+                                       if (err.message === 'ASAAS_NOT_CONFIGURED') {
+                                           setShowBoletoModal(false);
+                                           setShowAsaasError(true);
+                                       } else {
+                                           alert('Erro ao gerar boleto.');
+                                       }
+                                   }
+                               }}
+                               className="flex-1 py-3 px-4 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all uppercase text-xs"
+                           >
+                               Confirmar
+                           </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+       )}
 
       {showAsaasError && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">

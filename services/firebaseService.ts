@@ -916,6 +916,9 @@ export const apiDeleteBankAccount = (orgId: string, id: string) => deleteDoc(doc
 export const apiUpdateBillingBatchStatus = (orgId: string, batchId: string, status: BillingBatch['status']) => 
     updateDoc(doc(db, `organizations/${orgId}/billingBatches`, batchId), { status });
 
+export const apiAddBillingBatch = (orgId: string, batch: BillingBatch) => 
+    setDoc(doc(db, `organizations/${orgId}/billingBatches`, batch.id), batch);
+
 // --- LAB COUPONS ---
 export const subscribeLabCoupons = (orgId: string, cb: (coupons: LabCoupon[]) => void) => {
     if (!orgId) return () => {};
