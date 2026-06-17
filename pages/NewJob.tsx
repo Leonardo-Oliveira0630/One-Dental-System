@@ -26,6 +26,7 @@ export const NewJob = () => {
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [jobTypeSearchQuery, setJobTypeSearchQuery] = useState('');
   const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
+  const [isSearchingJobType, setIsSearchingJobType] = useState(false);
   const [osNumber, setOsNumber] = useState(location.state?.osNumber || '');
   const [dueDate, setDueDate] = useState('');
   const [boxNumber, setBoxNumber] = useState('');
@@ -96,6 +97,7 @@ export const NewJob = () => {
       }
       if (jobTypeDropdownRef.current && !jobTypeDropdownRef.current.contains(event.target as Node)) {
         setShowJobTypeSuggestions(false);
+        setIsSearchingJobType(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -618,13 +620,17 @@ export const NewJob = () => {
                                         </div>
                                         <input 
                                             type="text" 
-                                            value={jobTypeSearchQuery || (activeJobType?.name || '')} 
+                                            value={isSearchingJobType ? jobTypeSearchQuery : (activeJobType?.name || '')} 
                                             onChange={e => {
                                                 setJobTypeSearchQuery(e.target.value);
                                                 setShowJobTypeSuggestions(true);
                                                 if (!e.target.value) setSelectedTypeId('');
                                             }}
-                                            onFocus={() => setShowJobTypeSuggestions(true)}
+                                            onFocus={() => {
+                                                setJobTypeSearchQuery(activeJobType?.name || '');
+                                                setShowJobTypeSuggestions(true);
+                                                setIsSearchingJobType(true);
+                                            }}
                                             placeholder="Buscar tipo de prótese..."
                                             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm"
                                         />
@@ -634,6 +640,7 @@ export const NewJob = () => {
                                                 onClick={() => {
                                                     setSelectedTypeId('');
                                                     setJobTypeSearchQuery('');
+                                                    setIsSearchingJobType(false);
                                                 }}
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                                             >
@@ -652,8 +659,9 @@ export const NewJob = () => {
                                                             type="button"
                                                             onClick={() => {
                                                                 setSelectedTypeId(type.id);
-                                                                setJobTypeSearchQuery('');
+                                                                setJobTypeSearchQuery(type.name);
                                                                 setShowJobTypeSuggestions(false);
+                                                                setIsSearchingJobType(false);
                                                             }} 
                                                             className={`w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center justify-between group transition-colors ${selectedTypeId === type.id ? 'bg-blue-50' : ''}`}
                                                         >
