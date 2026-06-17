@@ -551,9 +551,13 @@ export const subscribeAllOrganizations = (cb: (o: Organization[]) => void) => {
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllOrganizations: ${error.code}`));
 };
 export const subscribeAllLaboratories = (cb: (o: Organization[]) => void) => {
-    const q = query(collection(db, 'organizations'), where('orgType', 'in', ['LAB', 'lab', 'LAB_OUTSOURCED', 'lab_outsourced']));
-    return onSnapshot(q, (snap: any) => {
-        const orgs = snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization));
+    return onSnapshot(collection(db, 'organizations'), (snap: any) => {
+        const orgs = snap.docs
+            .map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as Organization))
+            .filter((org: any) => {
+                const type = (org.orgType || 'LAB').toUpperCase();
+                return type === 'LAB';
+            });
         cb(orgs);
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllLaboratories: ${error.code}`));
 };
