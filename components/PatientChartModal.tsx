@@ -28,6 +28,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
         clinicRooms, 
         clinicServices,
         appointments,
+        updateAppointment,
         uploadFile
     } = useApp();
 
@@ -885,13 +886,24 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                                     <p className="text-slate-800 font-black">{new Date(appt.date).toLocaleDateString()}</p>
                                                     <p className="text-slate-400 font-bold text-[10px] mt-0.5">{new Date(appt.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                                 </div>
-                                                <span className={`px-2.5 py-1 text-[9px] font-black uppercase rounded-full tracking-wider border ${
-                                                    appt.status === AppointmentStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                                                    appt.status === AppointmentStatus.SCHEDULED ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
-                                                    appt.status === AppointmentStatus.CONFIRMED ? 'bg-teal-50 text-teal-600 border-teal-100' : 'bg-red-50 text-red-500 border-red-100'
-                                                }`}>
-                                                    {appt.status}
-                                                </span>
+                                                <select 
+                                                    value={appt.status} 
+                                                    onChange={async (e) => {
+                                                        if (updateAppointment) {
+                                                            await updateAppointment(appt.id, { status: e.target.value as AppointmentStatus });
+                                                        }
+                                                    }}
+                                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider outline-none cursor-pointer border transition-all ${
+                                                        appt.status === AppointmentStatus.COMPLETED ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                        appt.status === AppointmentStatus.SCHEDULED ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                                        appt.status === AppointmentStatus.CONFIRMED ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-red-50 text-red-700 border-red-200'
+                                                    }`}
+                                                >
+                                                    <option value={AppointmentStatus.SCHEDULED}>Agendado</option>
+                                                    <option value={AppointmentStatus.CONFIRMED}>Confirmado</option>
+                                                    <option value={AppointmentStatus.COMPLETED}>Concluído (Fatura)</option>
+                                                    <option value={AppointmentStatus.CANCELED}>Cancelado</option>
+                                                </select>
                                             </div>
                                         </div>
                                     ))}

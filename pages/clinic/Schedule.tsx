@@ -40,6 +40,7 @@ export const Schedule = () => {
   const [notes, setNotes] = useState('');
   const [roomId, setRoomId] = useState('');
   const [clinicDentistId, setClinicDentistId] = useState('');
+  const [status, setStatus] = useState<AppointmentStatus>(AppointmentStatus.SCHEDULED);
 
   // --- PLAN CHECK ---
   if (currentPlan && !currentPlan.features.hasClinicModule) {
@@ -65,6 +66,7 @@ export const Schedule = () => {
       setNotes(appt.notes || '');
       setRoomId(appt.roomId || '');
       setClinicDentistId(appt.clinicDentistId || '');
+      setStatus(appt.status || AppointmentStatus.SCHEDULED);
     } else {
       setSelectedAppt(null);
       setPatientId('');
@@ -74,6 +76,7 @@ export const Schedule = () => {
       setNotes('');
       setRoomId('');
       setClinicDentistId('');
+      setStatus(AppointmentStatus.SCHEDULED);
     }
     setIsModalOpen(true);
   };
@@ -98,7 +101,7 @@ export const Schedule = () => {
 
     const payload = { 
         date, procedure, durationMinutes: duration, notes, patientId, patientName: patient.name,
-        roomId, clinicDentistId
+        roomId, clinicDentistId, status
     };
 
     if (selectedAppt) {
@@ -108,7 +111,6 @@ export const Schedule = () => {
         id: Math.random().toString(36).substr(2, 9),
         organizationId: currentUser.organizationId || 'mock-org',
         dentistId: currentUser.id,
-        status: AppointmentStatus.SCHEDULED,
         ...payload
       };
       addAppointment(newAppt);
@@ -281,11 +283,25 @@ export const Schedule = () => {
                             <span className="text-[10px] font-black text-slate-400 uppercase mt-1.5 tracking-tighter bg-slate-50 rounded px-1">{appt.durationMinutes} MIN</span>
                         </div>
                         <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-2">
+                            <div className="flex justify-between items-start mb-2 gap-2">
                                 <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight truncate pr-4">{appt.patientName}</h4>
-                                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border tracking-widest shrink-0 ${getStatusColor(appt.status)}`}>
-                                    {appt.status}
-                                </span>
+                                <select 
+                                    value={appt.status} 
+                                    onChange={(e) => {
+                                        updateAppointment(appt.id, { status: e.target.value as AppointmentStatus });
+                                    }}
+                                    className={`px-2 py-1 rounded text-[10px] font-black uppercase border tracking-wider outline-none cursor-pointer transition-all ${
+                                        appt.status === AppointmentStatus.COMPLETED ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                                        appt.status === AppointmentStatus.CONFIRMED ? 'bg-teal-100 text-teal-800 border-teal-200' :
+                                        appt.status === AppointmentStatus.CANCELED ? 'bg-red-105 bg-red-100 text-red-700 border-red-200' :
+                                        'bg-slate-100 text-slate-700 border-slate-200'
+                                    }`}
+                                >
+                                    <option value={AppointmentStatus.SCHEDULED}>Agendado</option>
+                                    <option value={AppointmentStatus.CONFIRMED}>Confirmado</option>
+                                    <option value={AppointmentStatus.COMPLETED}>Concluído (Faturado)</option>
+                                    <option value={AppointmentStatus.CANCELED}>Cancelado</option>
+                                </select>
                             </div>
                             <p className="text-sm text-indigo-600 font-bold mb-4 flex items-center gap-1.5"><Briefcase size={14}/> {appt.procedure}</p>
                             
@@ -383,6 +399,41 @@ export const Schedule = () => {
                             {clinicDentists.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                         </select>
                     </div>
+                </div>
+
+                <div className="md:col-span-2 bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Status do Atendimento</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                            { value: AppointmentStatus.SCHEDULED, label: 'Agendado', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
+                            { value: AppointmentStatus.CONFIRMED, label: 'Confirmado', color: 'bg-teal-50 border-teal-200 text-teal-700' },
+                            { value: AppointmentStatus.COMPLETED, label: 'Concluído (Fatura)', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+                            { value: AppointmentStatus.CANCELED, label: 'Cancelado', color: 'bg-red-50 border-red-200 text-red-700' },
+                        ].map(opt => (
+                            <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setStatus(opt.value)}
+                                className={`py-2.5 px-3 text-xs font-bold rounded-xl border text-center transition-all ${
+                                    status === opt.value 
+                                        ? `${opt.color} ring-2 ring-indigo-500 scale-95 shadow-inner` 
+                                        : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                    {status === AppointmentStatus.COMPLETED && (
+                        <p className="text-[11px] text-emerald-600 font-bold mt-2 flex items-center gap-1">
+                            <CheckCircle size={14} /> Faturar: O valor do procedimento será faturado para o paciente e integrado ao fluxo de caixa da clínica.
+                        </p>
+                    )}
+                    {status === AppointmentStatus.CANCELED && (
+                        <p className="text-[11px] text-red-500 font-bold mt-2 flex items-center gap-1">
+                            <AlertCircle size={14} /> Cancelado: Esta consulta não gera faturamento ou lançamentos.
+                        </p>
+                    )}
                 </div>
                 
                 <div className="md:col-span-2">
