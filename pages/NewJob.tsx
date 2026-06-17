@@ -68,7 +68,10 @@ export const NewJob = () => {
   }, [boxColors]);
 
   const [itemNature, setItemNature] = useState<JobNature>('NORMAL');
-  const [selectedTypeId, setSelectedTypeId] = useState(jobTypes[0]?.id || '');
+  const [selectedTypeId, setSelectedTypeId] = useState(() => {
+    const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
+    return visible[0]?.id || jobTypes[0]?.id || '';
+  });
   const [quantity, setQuantity] = useState(1);
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); 
   const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
@@ -78,6 +81,13 @@ export const NewJob = () => {
 
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
   const activeJobType = useMemo(() => jobTypes.find(t => t.id === selectedTypeId), [selectedTypeId, jobTypes]);
+
+  useEffect(() => {
+    if (!selectedTypeId && jobTypes.length > 0) {
+      const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
+      setSelectedTypeId(visible[0]?.id || jobTypes[0]?.id || '');
+    }
+  }, [jobTypes, selectedTypeId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -103,9 +113,10 @@ export const NewJob = () => {
   }, [dentistSearchQuery, connectedDentists, manualDentists]);
 
   const filteredJobTypes = useMemo(() => {
-    if (!jobTypeSearchQuery) return jobTypes.slice(0, 10);
+    const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
+    if (!jobTypeSearchQuery) return visible.slice(0, 10);
     const query = jobTypeSearchQuery.toLowerCase();
-    return jobTypes.filter(t => t.name.toLowerCase().includes(query)).slice(0, 10);
+    return visible.filter(t => t.name.toLowerCase().includes(query)).slice(0, 10);
   }, [jobTypeSearchQuery, jobTypes]);
 
   const calculatedBasePrice = useMemo(() => {

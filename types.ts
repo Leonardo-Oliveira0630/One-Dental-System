@@ -380,6 +380,7 @@ export interface JobType {
   variationGroups: VariationGroup[];
   isVisibleInStore?: boolean;
   isVisibleInOutsourcing?: boolean;
+  isVisibleInternally?: boolean;
   imageUrl?: string;
   allowedSectors?: string[];
 }

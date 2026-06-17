@@ -31,6 +31,7 @@ export const JobTypes = () => {
   const [variationGroups, setVariationGroups] = useState<VariationGroup[]>([]);
   const [isVisibleInStore, setIsVisibleInStore] = useState(true);
   const [isVisibleInOutsourcing, setIsVisibleInOutsourcing] = useState(true);
+  const [isVisibleInternally, setIsVisibleInternally] = useState(true);
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -45,6 +46,7 @@ export const JobTypes = () => {
     setVariationGroups([]);
     setIsVisibleInStore(true);
     setIsVisibleInOutsourcing(true);
+    setIsVisibleInternally(true);
     setImageUrl('');
     setImageFile(null);
     setPreviewUrl('');
@@ -64,6 +66,7 @@ export const JobTypes = () => {
     setVariationGroups(type.variationGroups || []);
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
     setIsVisibleInOutsourcing(type.isVisibleInOutsourcing !== false); // Default true if undefined
+    setIsVisibleInternally(type.isVisibleInternally !== false); // Default true if undefined
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
     setAllowedSectors(type.allowedSectors || []);
@@ -98,12 +101,12 @@ export const JobTypes = () => {
       if (isEditing && editingId) {
           await updateJobType(editingId, { 
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups, 
-              isVisibleInStore, isVisibleInOutsourcing, imageUrl: finalImageUrl, allowedSectors
+              isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors
           });
       } else {
           const newType: Omit<JobType, 'id'> = {
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups,
-              isVisibleInStore, isVisibleInOutsourcing, imageUrl: finalImageUrl, allowedSectors
+              isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors
           };
           await addJobType(newType);
       }
@@ -241,16 +244,23 @@ export const JobTypes = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-2 flex items-center justify-between">
+                        <div className="mt-2 flex items-center justify-between gap-1 flex-wrap">
                             <div className="text-xs text-slate-400 flex items-center gap-1">
                                 <Layers size={12} />
                                 {type.variationGroups.length} grupos
                             </div>
-                            {type.isVisibleInStore === false && (
-                                <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                    <EyeOff size={10} /> Oculto na Loja
-                                </span>
-                            )}
+                            <div className="flex gap-1 flex-wrap">
+                                {type.isVisibleInStore === false && (
+                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        <EyeOff size={10} /> Oculto na Loja
+                                    </span>
+                                )}
+                                {type.isVisibleInternally === false && (
+                                    <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                        <EyeOff size={10} /> Oculto Interno
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -346,6 +356,20 @@ export const JobTypes = () => {
                                                 </button>
                                             </div>
                                             <span className="text-[10px] text-slate-400">Exibir no catálogo para laboratórios parceiros contratantes</span>
+                                        </div>
+
+                                        <div className="flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-800">Trabalhos Internos</span>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={() => setIsVisibleInternally(!isVisibleInternally)}
+                                                    className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternally ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                >
+                                                    <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternally ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+                                            <span className="text-[10px] text-slate-400">Ativar visibilidade para trabalhos manuais ou ordens internas criadas no laboratório</span>
                                         </div>
                                     </div>
 

@@ -256,7 +256,9 @@ export const JobDetails = () => {
         setEditDentistId(job.dentistId || '');
         setEditDentistName(job.dentistName || '');
         setDentistSearchQuery(job.dentistName || '');
-        if (jobTypes.length > 0) setNewItemTypeId(jobTypes[0].id);
+        const visibleTypes = jobTypes.filter(t => t.isVisibleInternally !== false);
+        if (visibleTypes.length > 0) setNewItemTypeId(visibleTypes[0].id);
+        else if (jobTypes.length > 0) setNewItemTypeId(jobTypes[0].id);
     }
   }, [job, jobTypes]);
 
@@ -1311,7 +1313,7 @@ export const JobDetails = () => {
                               <div className="flex flex-wrap gap-2">
                                   <div className="flex-1 min-w-[150px]">
                                       <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
-                                          {jobTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                          {jobTypes.filter(t => t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                       </select>
                                   </div>
                                   <div className="w-16">
