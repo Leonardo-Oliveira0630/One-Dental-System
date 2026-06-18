@@ -24,7 +24,8 @@ export const DentistRequisitions = () => {
     currentUser, 
     currentOrg, 
     onlineRequisitions, 
-    addOnlineRequisition 
+    addOnlineRequisition,
+    patients
   } = useApp();
 
   const userAny = currentUser as any;
@@ -41,6 +42,17 @@ export const DentistRequisitions = () => {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Selector or manual input toggle for patient name
+  const [patientInputMode, setPatientInputMode] = useState<'SELECT' | 'MANUAL'>('MANUAL');
+  const [isModeSetAutomatically, setIsModeSetAutomatically] = useState(false);
+
+  useEffect(() => {
+    if (!isModeSetAutomatically && patients && patients.length > 0) {
+      setPatientInputMode('SELECT');
+      setIsModeSetAutomatically(true);
+    }
+  }, [patients, isModeSetAutomatically]);
 
   // Dynamic service variations and quantity
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
@@ -355,17 +367,80 @@ export const DentistRequisitions = () => {
 
               {/* Patient Name */}
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                  Nome do Paciente *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                  placeholder="DIGITE O NOME COMPLETO DO PACIENTE"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold uppercase text-slate-700"
-                />
+                <div className="flex justify-between items-center mb-1.5 ml-1">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                    Paciente *
+                  </label>
+                  {/* Mode Toggle Button */}
+                  <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPatientInputMode('SELECT');
+                        setPatientName('');
+                      }}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight transition-all ${
+                        patientInputMode === 'SELECT'
+                          ? 'bg-white text-indigo-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Selecionar Cadastrado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPatientInputMode('MANUAL');
+                        setPatientName('');
+                      }}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight transition-all ${
+                        patientInputMode === 'MANUAL'
+                          ? 'bg-white text-indigo-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      Digitar Manual
+                    </button>
+                  </div>
+                </div>
+
+                {patientInputMode === 'SELECT' ? (
+                  patients && patients.length > 0 ? (
+                    <select
+                      required
+                      value={patientName}
+                      onChange={(e) => setPatientName(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700 uppercase"
+                    >
+                      <option value="" disabled>SELECIONE UM PACIENTE CADASTRADO</option>
+                      {patients.map(p => (
+                        <option key={p.id} value={p.name}>
+                          {p.name.toUpperCase()} {p.cpf ? `- CPF: ${p.cpf}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="border border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-500 font-medium">Nenhum paciente cadastrado encontrado.</span>
+                      <button
+                        type="button"
+                        onClick={() => setPatientInputMode('MANUAL')}
+                        className="text-[10px] font-bold uppercase text-indigo-600 hover:underline"
+                      >
+                        Digitar Manualmente
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <input
+                    type="text"
+                    required
+                    value={patientName}
+                    onChange={(e) => setPatientName(e.target.value)}
+                    placeholder="DIGITE O NOME COMPLETO DO PACIENTE"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold uppercase text-slate-700"
+                  />
+                )}
               </div>
 
               {/* Select Service */}
