@@ -138,6 +138,24 @@ service cloud.firestore {
         );
       }
 
+      match /manualDentists/{dentistId} {
+        allow read: if true;
+        allow write: if isAuthenticated() && (
+          isSuperAdmin() || 
+          belongsToOrg(orgId) ||
+          (request.auth.uid == request.resource.data.get('userId', '') && resource.data.get('email', '') == request.auth.token.email)
+        );
+      }
+
+      match /requisitions/{reqId} {
+        allow read, write: if isAuthenticated() && (
+          isSuperAdmin() ||
+          belongsToOrg(orgId) ||
+          (resource != null && resource.data.get('dentistId', '') == request.auth.uid) ||
+          (request.resource != null && request.resource.data.get('dentistId', '') == request.auth.uid)
+        );
+      }
+
       match /{allSubcollections=**} {
         allow read: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(orgId) && (getUserData().get('role', 'USER') != 'CLIENT' || get(/databases/$(database)/documents/organizations/$(orgId)).data.orgType == 'CLINIC')));
         allow write: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(orgId) && (getUserData().get('role', 'USER') != 'CLIENT' || get(/databases/$(database)/documents/organizations/$(orgId)).data.orgType == 'CLINIC')));
@@ -198,6 +216,19 @@ service cloud.firestore {
       );
       
       allow delete: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(resource.data.organizationId) && (isAdmin() || hasPermission('receipts:manage') || hasPermission('receipts:delete'))));
+    }
+
+    match /{path=**}/requisitions/{reqId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (resource.data.get('dentistId', '') == request.auth.uid) ||
+        (userExists() && getUserData().get('organizationId', '') == resource.data.get('labId', '') && getUserData().get('role', 'USER') != 'CLIENT')
+      );
+      allow write: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (request.resource.data.get('dentistId', '') == request.auth.uid) ||
+        (userExists() && getUserData().get('organizationId', '') == request.resource.data.get('labId', '') && getUserData().get('role', 'USER') != 'CLIENT')
+      );
     }
   }
 }

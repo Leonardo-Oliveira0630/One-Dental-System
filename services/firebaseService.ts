@@ -218,11 +218,10 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
     );
     
     if (isClient && userId) {
+        // Query only with equality filter and sort/filter in memory to bypass composite index requirement
         q = query(
             collection(db, `organizations/${orgId}/jobs`), 
             where('dentistId', '==', userId),
-            where('createdAt', '>=', threeMonthsAgo),
-            orderBy('createdAt', 'desc'),
             limit(1000)
         );
     }
@@ -262,7 +261,16 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
             });
 
             if (hasChanges || jobsCache.size === 0) {
-              const sortedJobs = Array.from(jobsCache.values()).sort((a: Job, b: Job) => b.createdAt.getTime() - a.createdAt.getTime());
+              let sortedJobs = Array.from(jobsCache.values());
+              if (isClient && userId) {
+                // Filter in memory for 3 months
+                sortedJobs = sortedJobs.filter((job: Job) => job.createdAt && job.createdAt.getTime() >= threeMonthsAgo.getTime());
+              }
+              sortedJobs.sort((a: Job, b: Job) => {
+                const aTime = a.createdAt ? a.createdAt.getTime() : 0;
+                const bTime = b.createdAt ? b.createdAt.getTime() : 0;
+                return bTime - aTime;
+              });
               cb(sortedJobs);
             }
         } catch (err) {
@@ -281,7 +289,6 @@ export const subscribeDentistJobs = (orgId: string, dentistId: string, cb: (jobs
     const q = query(
         collection(db, `organizations/${orgId}/jobs`), 
         where('dentistId', '==', dentistId),
-        orderBy('createdAt', 'desc'),
         limit(1000)
     );
 
@@ -317,7 +324,11 @@ export const subscribeDentistJobs = (orgId: string, dentistId: string, cb: (jobs
             });
 
             if (hasChanges || jobsCache.size === 0) {
-              const sortedJobs = Array.from(jobsCache.values()).sort((a: Job, b: Job) => b.createdAt.getTime() - a.createdAt.getTime());
+              const sortedJobs = Array.from(jobsCache.values()).sort((a: Job, b: Job) => {
+                const aTime = a.createdAt ? a.createdAt.getTime() : 0;
+                const bTime = b.createdAt ? b.createdAt.getTime() : 0;
+                return bTime - aTime;
+              });
               cb(sortedJobs);
             }
         } catch (err) {
