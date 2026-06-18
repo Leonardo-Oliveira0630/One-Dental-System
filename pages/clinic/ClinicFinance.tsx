@@ -30,6 +30,7 @@ export const ClinicFinance = () => {
     const [showEntryModal, setShowEntryModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showBillingModal, setShowBillingModal] = useState(false);
+    const [showAsaasWarningModal, setShowAsaasWarningModal] = useState(false);
     
     // Form Entry (Cashflow general entry)
     const [entryType, setEntryType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
@@ -87,7 +88,7 @@ export const ClinicFinance = () => {
         return patients.find(p => p.id === selectedPatientId) || null;
     }, [patients, selectedPatientId]);
 
-    // --- LÓGICA DE CÁLCULO DE RECEITA (PROCEDIMENTOS) ---
+    // --- LÓGICA DE CÁLCULO DE RECEITA DE PROCEDIMENTOS (DÉBITO DO PACIENTE) ---
     const procedureRevenue = useMemo(() => {
         return appointments
             .filter(a => a.status === AppointmentStatus.COMPLETED)
@@ -105,6 +106,24 @@ export const ClinicFinance = () => {
             });
     }, [appointments, clinicServices]);
 
+    // --- LÓGICA DE ENTRADAS REAIS (RECEBIMENTOS EFETIVAMENTE PAGOS) ---
+    const actualPatientIncome = useMemo(() => {
+        return patientPayments
+            .filter(pay => pay.type === 'PAYMENT')
+            .map(pay => {
+                const patient = patients.find(p => p.id === pay.patientId);
+                return {
+                    id: pay.id,
+                    patientId: pay.patientId,
+                    description: `Recebimento: ${patient?.name || 'Paciente'} (Método: ${pay.paymentMethod}${pay.notes ? ` - ${pay.notes}` : ''})`,
+                    amount: pay.amount,
+                    date: pay.paymentDate,
+                    type: 'INCOME' as const,
+                    category: 'PRODUCTION' as TransactionCategory
+                };
+            });
+    }, [patientPayments, patients]);
+
     // --- LÓGICA DE CUSTOS DE LABORATÓRIO (PEDIDOS) ---
     const labCosts = useMemo(() => {
         return jobs.map(job => ({
@@ -121,15 +140,15 @@ export const ClinicFinance = () => {
     // --- FLUXO UNIFICADO ---
     const cashFlow = useMemo(() => {
         const manualEntries = expenses.map(e => ({ ...e, type: 'EXPENSE' as const }));
-        const all = [...procedureRevenue, ...labCosts, ...manualEntries];
+        const all = [...actualPatientIncome, ...labCosts, ...manualEntries];
         return all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [procedureRevenue, labCosts, expenses]);
+    }, [actualPatientIncome, labCosts, expenses]);
 
     const stats = useMemo(() => {
-        const income = procedureRevenue.reduce((acc, curr) => acc + curr.amount, 0);
+        const income = actualPatientIncome.reduce((acc, curr) => acc + curr.amount, 0);
         const expense = cashFlow.filter(i => i.type === 'EXPENSE').reduce((acc, curr) => acc + curr.amount, 0);
         return { income, expense, balance: income - expense };
-    }, [procedureRevenue, cashFlow]);
+    }, [actualPatientIncome, cashFlow]);
 
     // Patient Financial Calculators
     const patientCalculations = useMemo(() => {
@@ -350,6 +369,11 @@ export const ClinicFinance = () => {
         setIsSaving(true);
         try {
             const hasWalletId = !!currentOrg?.financialSettings?.asaasWalletId;
+            if (!hasWalletId) {
+                setShowAsaasWarningModal(true);
+                setIsSaving(false);
+                return;
+            }
             const simulatedLink = `https://sandbox.asaas.com/invoice/checkout/simulated-${Math.random().toString(36).substring(2, 8)}`;
             
             await addPatientBillingBatch({
@@ -626,59 +650,92 @@ export const ClinicFinance = () => {
                     <div className="lg:col-span-8 flex flex-col gap-6">
                         {selectedPatient ? (
                             <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-150 space-y-6">
-                                <div className="flex justify-between items-start flex-wrap gap-4 border-b border-slate-100 pb-6">
-                                    <div>
-                                        <h2 className="text-xl font-black text-slate-800">{selectedPatient.name}</h2>
-                                        <div className="flex items-center gap-2 mt-1 text-xs font-bold text-slate-500">
-                                            <span>CPF: {selectedPatient.cpf || '--'}</span>
-                                            <span>•</span>
-                                            <span>Telefone: {selectedPatient.phone || '--'}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button 
-                                            onClick={() => setShowPaymentModal(true)}
-                                            className="px-4 py-2.5 bg-teal-600 text-white font-black rounded-xl hover:bg-teal-700 shadow-sm text-xs flex items-center gap-1.5"
-                                        >
-                                            <Plus size={16}/> Lançar Recebimento
-                                        </button>
-                                        <button 
-                                            onClick={() => {
-                                                const unsavedAppts = appointments.filter(a => a.status === AppointmentStatus.COMPLETED && a.patientId === selectedPatientId);
-                                                const calc = patientCalculations[selectedPatient.id] || { balance: 0 };
-                                                setBillForm({
-                                                    amount: calc.balance > 0 ? calc.balance : 0,
-                                                    selectedAppointmentIds: unsavedAppts.map(a => a.id),
-                                                    paymentMethod: 'PIX'
-                                                });
-                                                setShowBillingModal(true);
-                                            }}
-                                            className="px-4 py-2.5 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 shadow-sm text-xs flex items-center gap-1.5"
-                                        >
-                                            <Receipt size={16}/> Emitir Cobrança
-                                        </button>
+                                <div className="border-b border-slate-100 pb-6">
+                                    <h2 className="text-xl font-black text-slate-800">{selectedPatient.name}</h2>
+                                    <div className="flex items-center gap-2 mt-1 text-xs font-bold text-slate-500">
+                                        <span>CPF: {selectedPatient.cpf || '--'}</span>
+                                        <span>•</span>
+                                        <span>Telefone: {selectedPatient.phone || '--'}</span>
                                     </div>
                                 </div>
 
                                 {/* Patient KPI balance */}
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Ajustado Fechados</p>
-                                        <p className="text-lg font-black text-slate-800">
-                                            R$ {(patientCalculations[selectedPatient.id]?.proceduresTotal || 0).toFixed(2)}
-                                        </p>
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                    <div className="md:col-span-5 flex flex-col justify-between gap-4">
+                                        <div>
+                                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Histórico Consolidado</h3>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Consultas/Procedimentos Concluídos</p>
+                                                    <p className="text-base font-black text-slate-800">
+                                                        R$ {(patientCalculations[selectedPatient.id]?.proceduresTotal || 0).toFixed(2)}
+                                                    </p>
+                                                </div>
+                                                <div className="pt-3 border-t border-slate-200/60">
+                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Total Efetivamente Pago (Liquidado)</p>
+                                                    <p className="text-base font-black text-teal-600">
+                                                        R$ {(patientCalculations[selectedPatient.id]?.paidTotal || 0).toFixed(2)}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider font-bold">Total Liquidado</p>
-                                        <p className="text-lg font-black text-teal-600">
-                                            R$ {(patientCalculations[selectedPatient.id]?.paidTotal || 0).toFixed(2)}
-                                        </p>
-                                    </div>
-                                    <div className="border-l border-slate-200 pl-4">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider font-bold">Saldo Aberto</p>
-                                        <p className={`text-lg font-black ${(patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'text-red-500' : 'text-teal-600'}`}>
-                                            R$ {(patientCalculations[selectedPatient.id]?.balance || 0).toFixed(2)}
-                                        </p>
+                                    
+                                    <div className="md:col-span-7 bg-white p-5 rounded-2xl border-2 border-slate-200 flex flex-col justify-between gap-3">
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <span className={`text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded ${
+                                                    (patientCalculations[selectedPatient.id]?.balance || 0) > 0 
+                                                        ? 'bg-red-50 text-red-600 border border-red-100' 
+                                                        : 'bg-teal-50 text-teal-600 border border-teal-100'
+                                                }`}>
+                                                    {(patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'Débito em Aberto' : 'Status em Dia'}
+                                                </span>
+                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-tight mt-3">Saldo Devedor do Paciente</p>
+                                                <p className={`text-2xl font-black mt-0.5 ${(patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'text-red-500' : 'text-teal-600'}`}>
+                                                    R$ {(patientCalculations[selectedPatient.id]?.balance || 0).toFixed(2)}
+                                                </p>
+                                            </div>
+                                            <div className={`p-2.5 rounded-xl shrink-0 ${
+                                                (patientCalculations[selectedPatient.id]?.balance || 0) > 0 ? 'bg-red-50 text-red-500' : 'bg-teal-50 text-teal-500'
+                                            }`}>
+                                                <AlertCircle size={20} />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                                            <button 
+                                                onClick={() => {
+                                                    const calc = patientCalculations[selectedPatient.id] || { balance: 0 };
+                                                    setPayForm({
+                                                        amount: calc.balance > 0 ? calc.balance : 0,
+                                                        discount: 0,
+                                                        paymentMethod: 'PIX',
+                                                        notes: 'Recebimento manual do saldo devedor',
+                                                        type: 'PAYMENT'
+                                                    });
+                                                    setShowPaymentModal(true);
+                                                }}
+                                                className="w-full py-2.5 bg-teal-600 text-white font-black rounded-xl hover:bg-teal-700 shadow-sm text-[11px] uppercase tracking-tight flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
+                                            >
+                                                <Plus size={14}/> Recebimento Manual
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    const unsavedAppts = appointments.filter(a => a.status === AppointmentStatus.COMPLETED && a.patientId === selectedPatientId);
+                                                    const calc = patientCalculations[selectedPatient.id] || { balance: 0 };
+                                                    setBillForm({
+                                                        amount: calc.balance > 0 ? calc.balance : 0,
+                                                        selectedAppointmentIds: unsavedAppts.map(a => a.id),
+                                                        paymentMethod: 'PIX'
+                                                    });
+                                                    setShowBillingModal(true);
+                                                }}
+                                                className="w-full py-2.5 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700 shadow-sm text-[11px] uppercase tracking-tight flex items-center justify-center gap-1.5 transition-all hover:scale-[1.02]"
+                                            >
+                                                <Receipt size={14}/> Boleto pelo Asaas
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1042,6 +1099,49 @@ export const ClinicFinance = () => {
                                 {isSaving ? <Loader2 size={16} className="animate-spin" /> : 'EMITIR COBRANÇA AUTOMÁTICA'}
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: INTEGRAÇÃO COM ASAAS REQUERIDA (WARNING OVERLAY) */}
+            {showAsaasWarningModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
+                        <div className="p-6 border-b border-rose-50 flex gap-3 items-center bg-rose-50 rounded-t-[32px] text-rose-800">
+                            <AlertCircle className="text-rose-600 animate-pulse" size={24} />
+                            <h3 className="text-sm font-black uppercase tracking-tight">
+                                Conta Asaas Requerida
+                            </h3>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <p className="text-slate-600 font-medium text-sm leading-relaxed">
+                                Você tentou emitir uma cobrança pelo Asaas, mas a sua clínica ainda não possui uma Wallet ID vinculada ou conta Asaas criada.
+                            </p>
+                            <p className="text-slate-600 font-medium text-sm leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                Para gerar faturas automáticas e realizar recebimentos de pacientes dos dentistas, você precisa vincular sua chave ou solicitar uma conta virtual.
+                            </p>
+
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAsaasWarningModal(false)}
+                                    className="w-full sm:w-1/3 py-3 font-black text-slate-500 hover:bg-slate-100 rounded-xl text-xs uppercase tracking-tight transition-all"
+                                >
+                                    Agora Não
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowAsaasWarningModal(false);
+                                        setShowBillingModal(false);
+                                        setActiveTab('ASAAS_SETUP');
+                                    }}
+                                    className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-black rounded-xl text-xs uppercase tracking-tight flex items-center justify-center gap-2 shadow-lg shadow-teal-100 transition-all hover:scale-[1.02]"
+                                >
+                                    <ShieldCheck size={16} /> Configurar Integração
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
