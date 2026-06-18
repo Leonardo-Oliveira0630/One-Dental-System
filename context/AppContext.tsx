@@ -335,6 +335,22 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                             getDoc(planRef).then((pSnap: any) => {
                                 if (pSnap.exists()) {
                                     setCurrentPlan({ id: pSnap.id, ...pSnap.data() as any } as SubscriptionPlan);
+                                } else if (oData.planId === 'basic') {
+                                    setCurrentPlan({
+                                        id: 'basic',
+                                        name: 'Plano Básico Conectado',
+                                        price: 0,
+                                        active: true,
+                                        isPublic: false,
+                                        features: {
+                                            maxUsers: 1,
+                                            maxStorageGB: 1,
+                                            maxDentists: 1,
+                                            maxJobsPerMonth: -1,
+                                            hasStoreModule: true,
+                                            hasClinicModule: false
+                                        }
+                                    });
                                 } else if (profile.role === UserRole.SUPER_ADMIN) {
                                     setCurrentPlan({
                                         id: 'super_plan', name: 'Plano Administrativo', price: 0, active: true, isPublic: false,

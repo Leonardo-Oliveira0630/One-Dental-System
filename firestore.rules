@@ -151,8 +151,8 @@ service cloud.firestore {
         allow read, write: if isAuthenticated() && (
           isSuperAdmin() ||
           belongsToOrg(orgId) ||
-          (resource != null && resource.data.get('dentistId', '') == request.auth.uid) ||
-          (request.resource != null && request.resource.data.get('dentistId', '') == request.auth.uid)
+          (resource != null && resource.data.dentistId == request.auth.uid) ||
+          (request.resource != null && request.resource.data.dentistId == request.auth.uid)
         );
       }
 
@@ -219,15 +219,13 @@ service cloud.firestore {
     }
 
     match /{path=**}/requisitions/{reqId} {
-      allow read: if isAuthenticated() && (
+      allow read, write: if isAuthenticated() && (
         isSuperAdmin() || 
-        (resource.data.get('dentistId', '') == request.auth.uid) ||
-        (userExists() && getUserData().get('organizationId', '') == resource.data.get('labId', '') && getUserData().get('role', 'USER') != 'CLIENT')
-      );
-      allow write: if isAuthenticated() && (
-        isSuperAdmin() || 
-        (request.resource.data.get('dentistId', '') == request.auth.uid) ||
-        (userExists() && getUserData().get('organizationId', '') == request.resource.data.get('labId', '') && getUserData().get('role', 'USER') != 'CLIENT')
+        (resource != null && resource.data.dentistId == request.auth.uid) ||
+        (request.resource != null && request.resource.data.dentistId == request.auth.uid) ||
+        (userExists() && (getUserData().get('role', 'USER') != 'CLIENT') && 
+          (getUserData().get('organizationId', '') == (resource != null ? resource.data.labId : request.resource.data.labId))
+        )
       );
     }
   }
