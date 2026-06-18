@@ -112,6 +112,11 @@ export const RequisitionInvite = () => {
         name: clinicName || `Consultório de ${dentistName}`,
         planId: 'basic', // basic plan without clinic module
         subscriptionStatus: 'ACTIVE',
+        isApproved: true, // Auto-approve invited dentists because they are directly invited by their lab
+        croValid: true,   // Bypasses any external CRO checking
+        croUf: '',        // Placeholders in case checking is ever done on the state level
+        croNumero: cro || '',
+        croCategoria: 'CD',
         createdAt: new Date(),
         orgType: 'CLINIC',
       };
