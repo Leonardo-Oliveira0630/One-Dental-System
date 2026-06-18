@@ -24,6 +24,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
     const { 
         currentUser, 
         currentOrg, 
+        currentPlan,
         clinicDentists, 
         clinicRooms, 
         clinicServices,
@@ -31,6 +32,8 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
         updateAppointment,
         uploadFile
     } = useApp();
+
+    const isLimited = currentPlan ? !currentPlan.features.hasClinicModule : false;
 
     const [activeTab, setActiveTab] = useState<TabType>('SOBRE');
     const [patientInfo, setPatientInfo] = useState<ClinicPatient>(patient);
@@ -600,7 +603,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                             <div className="flex items-center flex-wrap gap-2">
                                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase truncate">{patientInfo.name}</h2>
                                 <div className="flex items-center gap-1">
-                                    {selectedAlerts.slice(0, 3).map((al, idx) => {
+                                    {!isLimited && selectedAlerts.slice(0, 3).map((al, idx) => {
                                         const found = predefinedAlerts.find(p => p.name === al);
                                         return (
                                             <span 
@@ -611,7 +614,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                             </span>
                                         );
                                     })}
-                                    {selectedAlerts.length > 3 && (
+                                    {!isLimited && selectedAlerts.length > 3 && (
                                         <span className="px-2 py-0.5 text-[8px] font-black rounded-full uppercase bg-slate-100 text-slate-500 shrink-0">
                                             +{selectedAlerts.length - 3}
                                         </span>
@@ -637,7 +640,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
 
                 {/* HORIZONTAL TABS SYSTEM */}
                 <div className="bg-white border-b border-slate-100 overflow-x-auto scrollbar-none flex gap-1 shrink-0 px-4 md:px-8">
-                    {(['SOBRE', 'CONSULTAS', 'FINANCEIRO', 'ORCAMENTOS', 'FICHAS', 'ANEXOS', 'PRESCRICOES', 'ANAMNESE', 'PROTESES'] as const).map(tab => {
+                    {(isLimited ? (['SOBRE', 'PROTESES'] as const) : (['SOBRE', 'CONSULTAS', 'FINANCEIRO', 'ORCAMENTOS', 'FICHAS', 'ANEXOS', 'PRESCRICOES', 'ANAMNESE', 'PROTESES'] as const)).map((tab: TabType) => {
                         const labels: { [key: string]: string } = {
                             SOBRE: 'Sobre',
                             CONSULTAS: 'Consultas',
@@ -678,7 +681,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                         {/* TAB: SOBRE PANEL */}
                         {activeTab === 'SOBRE' && (
                             <motion.div key="sobre" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className={`grid grid-cols-1 ${isLimited ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-6`}>
                                     
                                     {/* DADOS CADASTRAIS CARD */}
                                     <div className="bg-white p-6 md:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6 relative overflow-hidden">
@@ -738,80 +741,82 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                     </div>
 
                                     {/* ALERTA CLINICO AUTOMATICO CARD */}
-                                    <div className="bg-white p-6 md:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6">
-                                        <div>
-                                            <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><AlertTriangle className="text-amber-500" size={18}/> Alertas Clínicos Automáticos</h3>
-                                            <p className="text-slate-400 text-xs font-bold mt-1">Marque ou desmarque comorbidades e alertas críticos para esse paciente, ou adicione outros detalhes personalizados (alergias, comorbidades).</p>
-                                        </div>
+                                    {!isLimited && (
+                                        <div className="bg-white p-6 md:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6">
+                                            <div>
+                                                <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><AlertTriangle className="text-amber-500" size={18}/> Alertas Clínicos Automáticos</h3>
+                                                <p className="text-slate-400 text-xs font-bold mt-1">Marque ou desmarque comorbidades e alertas críticos para esse paciente, ou adicione outros detalhes personalizados (alergias, comorbidades).</p>
+                                            </div>
 
-                                        <div className="flex flex-wrap gap-2.5">
-                                            {predefinedAlerts.map(alert => {
-                                                const isAttached = selectedAlerts.includes(alert.name);
-                                                return (
+                                            <div className="flex flex-wrap gap-2.5">
+                                                {predefinedAlerts.map(alert => {
+                                                    const isAttached = selectedAlerts.includes(alert.name);
+                                                    return (
+                                                        <button
+                                                            key={alert.name}
+                                                            onClick={() => handleToggleAlert(alert.name)}
+                                                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                                                                isAttached 
+                                                                ? alert.color + ' border-transparent shadow-sm'
+                                                                : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
+                                                            }`}
+                                                        >
+                                                            {isAttached ? <Check size={12}/> : <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>}
+                                                            {alert.name}
+                                                        </button>
+                                                    );
+                                                })}
+                                                {selectedAlerts.filter(a => !predefinedAlerts.some(p => p.name === a)).map(customAlert => (
                                                     <button
-                                                        key={alert.name}
-                                                        onClick={() => handleToggleAlert(alert.name)}
-                                                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 ${
-                                                            isAttached 
-                                                            ? alert.color + ' border-transparent shadow-sm'
-                                                            : 'bg-white text-slate-400 border-slate-100 hover:border-slate-200'
-                                                        }`}
+                                                        key={customAlert}
+                                                        onClick={() => handleToggleAlert(customAlert)}
+                                                        className="px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 bg-red-50 text-red-600 border-transparent shadow-sm"
+                                                        title="Clique para remover este alerta"
                                                     >
-                                                        {isAttached ? <Check size={12}/> : <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>}
-                                                        {alert.name}
+                                                        <Check size={12}/>
+                                                        {customAlert}
                                                     </button>
-                                                );
-                                            })}
-                                            {selectedAlerts.filter(a => !predefinedAlerts.some(p => p.name === a)).map(customAlert => (
-                                                <button
-                                                    key={customAlert}
-                                                    onClick={() => handleToggleAlert(customAlert)}
-                                                    className="px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 bg-red-50 text-red-600 border-transparent shadow-sm"
-                                                    title="Clique para remover este alerta"
-                                                >
-                                                    <Check size={12}/>
-                                                    {customAlert}
-                                                </button>
-                                            ))}
-                                        </div>
+                                                ))}
+                                            </div>
 
-                                        <div className="border-t border-slate-100 pt-4 space-y-2">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Adicionar Detalhe Personalizado</label>
-                                            <div className="flex gap-2">
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Ex: Alergia a Dipirona, Diabetes Tipo 1..." 
-                                                    id="new-custom-alert-input"
-                                                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs focus:ring-2 focus:ring-indigo-500"
-                                                    onKeyDown={async (e) => {
-                                                        if (e.key === 'Enter') {
-                                                            e.preventDefault();
-                                                            const target = e.currentTarget;
-                                                            const val = target.value.trim();
+                                            <div className="border-t border-slate-100 pt-4 space-y-2">
+                                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Adicionar Detalhe Personalizado</label>
+                                                <div className="flex gap-2">
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Ex: Alergia a Dipirona, Diabetes Tipo 1..." 
+                                                        id="new-custom-alert-input"
+                                                        className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs focus:ring-2 focus:ring-indigo-500"
+                                                        onKeyDown={async (e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                const target = e.currentTarget;
+                                                                const val = target.value.trim();
+                                                                if (val) {
+                                                                    await handleToggleAlert(val);
+                                                                    target.value = '';
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button 
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            const input = document.getElementById('new-custom-alert-input') as HTMLInputElement;
+                                                            const val = input?.value.trim();
                                                             if (val) {
                                                                 await handleToggleAlert(val);
-                                                                target.value = '';
+                                                                input.value = '';
                                                             }
-                                                        }
-                                                    }}
-                                                />
-                                                <button 
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        const input = document.getElementById('new-custom-alert-input') as HTMLInputElement;
-                                                        const val = input?.value.trim();
-                                                        if (val) {
-                                                            await handleToggleAlert(val);
-                                                            input.value = '';
-                                                        }
-                                                    }}
-                                                    className="px-4 py-2 hover:bg-slate-800 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl transition shrink-0"
-                                                >
-                                                    Adicionar
-                                                </button>
+                                                        }}
+                                                        className="px-4 py-2 hover:bg-slate-800 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl transition shrink-0"
+                                                    >
+                                                        Adicionar
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </motion.div>
                         )}

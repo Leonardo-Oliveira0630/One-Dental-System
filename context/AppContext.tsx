@@ -4,7 +4,7 @@ import {
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
   CardMachine, BankAccount,
-  JobStatus, UrgencyLevel
+  JobStatus, UrgencyLevel, OnlineRequisition
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -114,6 +114,10 @@ interface AppContextType {
   inventoryCategories: import('../types').InventoryCategory[];
   inventoryItems: import('../types').InventoryItem[];
   activeAlert: JobAlert | null;
+  onlineRequisitions: OnlineRequisition[];
+
+  addOnlineRequisition: (labId: string, req: Omit<OnlineRequisition, 'id' | 'createdAt' | 'status'>) => Promise<void>;
+  updateOnlineRequisition: (labId: string, id: string, updates: Partial<OnlineRequisition>) => Promise<void>;
 
   addInventoryCategory: (category: Omit<import('../types').InventoryCategory, 'id' | 'organizationId'>) => Promise<void>;
   updateInventoryCategory: (id: string, updates: Partial<import('../types').InventoryCategory>) => Promise<void>;
@@ -291,6 +295,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [patientBillingBatches, setPatientBillingBatches] = useState<import('../types').PatientBillingBatch[]>([]);
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
   const [couriers, setCouriers] = useState<Courier[]>([]);
+  const [onlineRequisitions, setOnlineRequisitions] = useState<OnlineRequisition[]>([]);
 
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
   const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
@@ -452,6 +457,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeBankAccounts(myOrgId, setBankAccounts));
             unsubs.push(api.subscribeInventoryCategories(myOrgId, setInventoryCategories));
             unsubs.push(api.subscribeInventoryItems(myOrgId, setInventoryItems));
+            unsubs.push(api.subscribeLabOnlineRequisitions(myOrgId, setOnlineRequisitions));
+        } else {
+            unsubs.push(api.subscribeDentistOnlineRequisitions(currentUser.id, setOnlineRequisitions));
         }
 
         unsubs.push(api.subscribePatientPayments(myOrgId, setPatientPayments));
@@ -841,6 +849,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await api.apiDeleteManualDentist(orgId, id);
   };
 
+  const addOnlineRequisition = async (labId: string, r: Omit<OnlineRequisition, 'id' | 'createdAt' | 'status'>) => {
+      const id = `req_${Date.now()}`;
+      await api.apiAddOnlineRequisition(labId, {
+          ...r,
+          id,
+          status: 'PENDING',
+          createdAt: new Date()
+      } as OnlineRequisition);
+  };
+
+  const updateOnlineRequisition = async (labId: string, id: string, updates: Partial<OnlineRequisition>) => {
+      await api.apiUpdateOnlineRequisition(labId, id, updates);
+  };
+
   const addCardMachine = async (m: Omit<CardMachine, 'id' | 'organizationId' | 'createdAt'>) => {
       const orgId = activeDataId;
       if(!orgId) return;
@@ -1132,6 +1154,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
     clearPrint: () => setPrintData(null),
     activeOrganization, switchActiveOrganization, userConnections,
+    onlineRequisitions, addOnlineRequisition, updateOnlineRequisition,
     updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus, setSubscriptionStatus,
     addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
     registerOrganization, registerOutsourcedLab, registerDentist, validateCro, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
@@ -1152,7 +1175,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     allOrganizations, allLaboratories, allPlans, coupons, labCoupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
     patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
-    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers
+    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions
   ]);
 
   return (

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList
 } from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
@@ -22,7 +22,7 @@ const { onSnapshotsInSync } = firestorePkg as any;
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { 
-    currentUser, logout, cart, jobs, currentOrg,
+    currentUser, logout, cart, jobs, currentOrg, currentPlan,
     userConnections, activeOrganization, switchActiveOrganization
   } = useApp();
   const navigate = useNavigate();
@@ -116,6 +116,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const pendingOrdersCount = React.useMemo(() => 
     jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length
   , [jobs]);
+
+  const { onlineRequisitions } = useApp();
+  const pendingRequisitionsCount = React.useMemo(() => 
+    (onlineRequisitions || []).filter(r => r.status === 'PENDING').length
+  , [onlineRequisitions]);
 
   const bgClass = 'bg-[#0F172A]';
   
@@ -256,6 +261,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     {hasPerm('receipts:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/receipts" icon={<FileText size={20} />} label="Recibos" active={location.pathname === '/lab/receipts'} />}
                     {hasPerm('commissions:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<Wallet size={20} />} label="Comissões" active={location.pathname === '/commissions'} />}
                     {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
+                    {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/incoming-requisitions'} badge={pendingRequisitionsCount} />}
                     {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
                     {hasPerm('catalog:prices_view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/price-tables" icon={<Table size={20} />} label="Tabelas de Preços" active={location.pathname === '/lab/price-tables'} />}
                     {hasPerm('inventory:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/inventory" icon={<Package size={20} />} label="Inventário" active={location.pathname === '/lab/inventory'} />}
@@ -283,18 +289,32 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                       <>
                         <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                         <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2 truncate">Minha Clínica</p>
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/finance" icon={<Wallet size={20} />} label="Financeiro" active={location.pathname === '/clinic/finance'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label="Salas" active={location.pathname === '/clinic/rooms'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label="Corpo Clínico" active={location.pathname === '/clinic/dentists'} />
+                        
+                        {(!currentPlan || currentPlan.features.hasClinicModule) && (
+                          <>
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/finance" icon={<Wallet size={20} />} label="Financeiro" active={location.pathname === '/clinic/finance'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label="Salas" active={location.pathname === '/clinic/rooms'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label="Corpo Clínico" active={location.pathname === '/clinic/dentists'} />
+                          </>
+                        )}
+                        
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/services" icon={<Briefcase size={20} />} label="Meus Serviços" active={location.pathname === '/clinic/services'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/inventory" icon={<Package size={20} />} label="Estoque (Insumos)" active={location.pathname === '/clinic/inventory'} />
+                        
+                        {(!currentPlan || currentPlan.features.hasClinicModule) && (
+                          <>
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/services" icon={<Briefcase size={20} />} label="Meus Serviços" active={location.pathname === '/clinic/services'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/inventory" icon={<Package size={20} />} label="Estoque (Insumos)" active={location.pathname === '/clinic/inventory'} />
+                          </>
+                        )}
                       </>
                     )}
                     
                     <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Parcerias Lab" active={location.pathname === '/dentist/partnerships'} />
+                    {isBuyer && (
+                      <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/requisitions'} />
+                    )}
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
                   </>
                 )}
@@ -372,13 +392,27 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             </>
           ) : (
             <>
-              <MobileNavItem to="/schedule" icon={<CalendarRange size={22}/>} label="Agenda" active={location.pathname === '/schedule'} />
-              <div className="relative -top-5">
-                 <Link to="/clinic/finance" className="w-14 h-14 bg-teal-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-teal-300 border-4 border-white active:scale-90 transition-transform">
-                    <Wallet size={28}/>
-                 </Link>
-              </div>
-              <MobileNavItem to="/clinic/rooms" icon={<LayoutGrid size={22}/>} label="Salas" active={location.pathname === '/clinic/rooms'} />
+              {(!currentPlan || currentPlan.features.hasClinicModule) ? (
+                <>
+                  <MobileNavItem to="/schedule" icon={<CalendarRange size={22}/>} label="Agenda" active={location.pathname === '/schedule'} />
+                  <div className="relative -top-5">
+                     <Link to="/clinic/finance" className="w-14 h-14 bg-teal-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-teal-300 border-4 border-white active:scale-90 transition-transform">
+                        <Wallet size={28}/>
+                     </Link>
+                  </div>
+                  <MobileNavItem to="/clinic/rooms" icon={<LayoutGrid size={22}/>} label="Salas" active={location.pathname === '/clinic/rooms'} />
+                </>
+              ) : (
+                <>
+                  <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label="Loja" active={location.pathname === '/store'} />
+                  <div className="relative -top-5">
+                     <Link to="/patients" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-indigo-300 border-4 border-white active:scale-90 transition-transform">
+                        <Contact size={28}/>
+                     </Link>
+                  </div>
+                  <MobileNavItem to="/jobs" icon={<List size={22}/>} label="Pedidos" active={location.pathname === '/jobs'} />
+                </>
+              )}
             </>
           )}
           

@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { ManualDentist, UserRole, PermissionKey } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
-  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package, DollarSign, Lock, Unlock, Table, Percent
+  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package, DollarSign, Lock, Unlock, Table, Percent, Link2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
@@ -411,7 +411,18 @@ export const DentistsTab = () => {
                       <tr key={dentist.id} className="hover:bg-slate-50 transition-colors group">
                         <td className="p-4">
                           <div className="font-bold text-slate-800">{dentist.name}</div>
-                          <div className="text-[10px] text-slate-400 font-black uppercase">{dentist.clinicName || '---'}</div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] text-slate-400 font-extrabold uppercase">{dentist.clinicName || '---'}</span>
+                            {(dentist as any).userId ? (
+                              <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">
+                                Ativo Online
+                              </span>
+                            ) : (
+                              <span className="bg-amber-100 text-amber-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">
+                                Convidar Online
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-4 text-xs">
                           <div className="font-bold text-slate-700">{dentist.cpfCnpj || '---'}</div>
@@ -433,6 +444,17 @@ export const DentistsTab = () => {
                         </td>
                         <td className="p-4 text-right">
                             <div className="flex justify-end gap-2">
+                                <button onClick={() => {
+                                    if (!dentist.email) {
+                                        alert("Por favor, edite o cadastro deste dentista e defina um e-mail válido antes de gerar o convite de requisições.");
+                                        return;
+                                    }
+                                    const inviteUrl = `${window.location.origin}/#/requisition-invite?orgId=${currentUser?.organizationId || ''}&dentistId=${dentist.id}`;
+                                    navigator.clipboard.writeText(inviteUrl);
+                                    alert(`Link de requisição online para Dr(a). ${dentist.name} copiado!\n\nLink: ${inviteUrl}`);
+                                }} title="Copiar Link para Requisição Online" className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg">
+                                    <Link2 size={18}/>
+                                </button>
                                 {canEdit && (
                                     <button onClick={() => {
                                         setEditingDentistId(dentist.id);

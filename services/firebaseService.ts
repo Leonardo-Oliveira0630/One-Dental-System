@@ -23,7 +23,7 @@ import {
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
-  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance
+  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -985,4 +985,42 @@ export const subscribeTutorials = (cb: (t: Tutorial[]) => void) => {
 export const apiAddTutorial = (t: Tutorial) => setDoc(doc(db, 'tutorials', t.id), t);
 export const apiUpdateTutorial = (id: string, u: Partial<Tutorial>) => updateDoc(doc(db, 'tutorials', id), u);
 export const apiDeleteTutorial = (id: string) => deleteDoc(doc(db, 'tutorials', id));
+
+// --- ONLINE REQUISITIONS ---
+export const apiAddOnlineRequisition = (labId: string, req: OnlineRequisition) => {
+    return setDoc(doc(db, `organizations/${labId}/requisitions`, req.id), {
+        ...req,
+        createdAt: req.createdAt || new Date()
+    });
+};
+
+export const apiUpdateOnlineRequisition = (labId: string, id: string, updates: Partial<OnlineRequisition>) => {
+    return updateDoc(doc(db, `organizations/${labId}/requisitions`, id), updates);
+};
+
+export const subscribeLabOnlineRequisitions = (labId: string, cb: (reqs: OnlineRequisition[]) => void) => {
+    if (!labId) return () => {};
+    const q = query(collection(db, `organizations/${labId}/requisitions`), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            createdAt: toDate(d.data().createdAt)
+        } as OnlineRequisition)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeLabOnlineRequisitions: ${error.code}`));
+};
+
+export const subscribeDentistOnlineRequisitions = (dentistId: string, cb: (reqs: OnlineRequisition[]) => void) => {
+    if (!dentistId) return () => {};
+    const { collectionGroup } = firestorePkg as any;
+    const q = query(collectionGroup(db, 'requisitions'), where('dentistId', '==', dentistId));
+    return onSnapshot(q, (snap: any) => {
+        const list = snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            createdAt: toDate(d.data().createdAt)
+        } as OnlineRequisition));
+        // Sort in memory by createdAt descending to avoid index requirements for simple queries
+        list.sort((a: OnlineRequisition, b: OnlineRequisition) => b.createdAt.getTime() - a.createdAt.getTime());
+        cb(list);
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeDentistOnlineRequisitions: ${error.code}`));
+};
 

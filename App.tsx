@@ -34,6 +34,8 @@ import { Receipts } from './pages/lab/Receipts';
 import { RoutePlanner } from './pages/lab/RoutePlanner';
 import { Inventory } from './pages/lab/Inventory';
 import { PriceTables } from './pages/lab/PriceTables';
+import { IncomingRequisitions } from './pages/lab/IncomingRequisitions';
+import { DentistRequisitions } from './pages/dentist/DentistRequisitions';
 import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
 import { Plans } from './pages/superadmin/Plans';
 import { Coupons } from './pages/superadmin/Coupons';
@@ -43,6 +45,7 @@ import { Tutorials } from './pages/superadmin/Tutorials';
 import { TutorialsView } from './pages/TutorialsView';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { RequisitionInvite } from './pages/RequisitionInvite';
 import { Loader2 } from 'lucide-react';
 
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -79,13 +82,15 @@ const AppContent = () => {
       <Route path="/register-lab" element={<RegisterOrganization />} />
       <Route path="/terms" element={<TermsOfUse />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/requisition-invite" element={<RequisitionInvite />} />
       
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><JobsList /></ProtectedRoute>} />
       <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
-      <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
+       <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
+      <Route path="/incoming-requisitions" element={<ProtectedRoute><IncomingRequisitions /></ProtectedRoute>} />
       <Route path="/job-types" element={<ProtectedRoute><JobTypes /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       
@@ -123,6 +128,7 @@ const AppContent = () => {
       <Route path="/clinic/inventory" element={<ProtectedRoute><ClinicInventory /></ProtectedRoute>} />
       <Route path="/clinic-settings" element={<ProtectedRoute><ClinicSettings /></ProtectedRoute>} />
       <Route path="/dentist/partnerships" element={<ProtectedRoute><Partnerships /></ProtectedRoute>} />
+      <Route path="/requisitions" element={<ProtectedRoute><DentistRequisitions /></ProtectedRoute>} />
 
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />

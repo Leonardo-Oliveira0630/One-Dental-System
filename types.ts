@@ -499,6 +499,24 @@ export interface ClinicPatient {
   createdAt: Date;
 }
 
+export interface OnlineRequisition {
+  id: string;
+  dentistId: string;
+  dentistName: string;
+  dentistClinicName?: string;
+  dentistManualId?: string;
+  labId: string;
+  labName?: string;
+  patientName: string;
+  serviceId: string;
+  serviceName: string;
+  notes?: string;
+  attachments?: Attachment[];
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: Date;
+  acceptedAsJobId?: string;
+}
+
 // NOVO: Prontuário do Paciente
 export interface PatientHistoryRecord {
   id: string;
