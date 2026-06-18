@@ -16,6 +16,7 @@ interface ServiceOption {
   id: string;
   name: string;
   basePrice?: number;
+  variationGroups?: any[];
 }
 
 export const DentistRequisitions = () => {
@@ -40,6 +41,41 @@ export const DentistRequisitions = () => {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // Dynamic service variations and quantity
+  const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
+  const [quantity, setQuantity] = useState<number>(1);
+
+  useEffect(() => {
+    setSelectedVariations({});
+    setQuantity(1);
+  }, [selectedServiceId]);
+
+  const handleVariationChange = (group: any, optionId: string) => {
+    const isSingle = group.selectionType === 'SINGLE';
+    if (isSingle) {
+      if (selectedVariations[group.id] === optionId) {
+        const copy = { ...selectedVariations };
+        delete copy[group.id];
+        setSelectedVariations(copy);
+      } else {
+        setSelectedVariations({ ...selectedVariations, [group.id]: optionId });
+      }
+    } else {
+      const prev = selectedVariations[group.id] as string[] || [];
+      if (prev.includes(optionId)) {
+        setSelectedVariations({
+          ...selectedVariations,
+          [group.id]: prev.filter(id => id !== optionId)
+        });
+      } else {
+        setSelectedVariations({
+          ...selectedVariations,
+          [group.id]: [...prev, optionId]
+        });
+      }
+    }
+  };
 
   // File Attachments state
   const [attachedFiles, setAttachedFiles] = useState<{ name: string; url: string; size: string }[]>([]);
@@ -110,7 +146,8 @@ export const DentistRequisitions = () => {
             list.push({
               id: data.id,
               name: data.name,
-              basePrice: data.basePrice || 0
+              basePrice: data.basePrice || 0,
+              variationGroups: data.variationGroups || []
             });
           }
         });
@@ -207,6 +244,8 @@ export const DentistRequisitions = () => {
         uploadedAt: new Date()
       }));
 
+      const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
+
       // Create new requisition on Firebase
       const reqPayload: Omit<OnlineRequisition, 'id' | 'createdAt'> = {
         labId: selectedLabId,
@@ -220,7 +259,9 @@ export const DentistRequisitions = () => {
         serviceName: activeService?.name || 'Serviço de Prótese',
         notes: notes.trim(),
         status: 'PENDING',
-        attachments: mappedAttachments
+        attachments: mappedAttachments,
+        selectedVariationIds: allSelectedOptionIds,
+        quantity: quantity
       };
 
       await addOnlineRequisition(selectedLabId, reqPayload);
@@ -229,6 +270,8 @@ export const DentistRequisitions = () => {
       setPatientName('');
       setNotes('');
       setAttachedFiles([]);
+      setSelectedVariations({});
+      setQuantity(1);
     } catch (err: any) {
       console.error('Error submitting online requisition:', err);
       setError(err.message || 'Falha ao transmitir requisição para o laboratório.');
@@ -335,18 +378,84 @@ export const DentistRequisitions = () => {
                     Nenhum serviço disponível listado para este laboratório.
                   </p>
                 ) : (
-                  <select
-                    required
-                    value={selectedServiceId}
-                    onChange={(e) => setSelectedServiceId(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700"
-                  >
-                    {services.map(ser => (
-                      <option key={ser.id} value={ser.id}>
-                        {ser.name} {ser.basePrice ? `(R$ ${ser.basePrice.toFixed(2)})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-4">
+                    <select
+                      required
+                      value={selectedServiceId}
+                      onChange={(e) => setSelectedServiceId(e.target.value)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700 text-sm"
+                    >
+                      <option value="" disabled>SELECIONE UM TRABALHO / SERVIÇO</option>
+                      {services.map(ser => (
+                        <option key={ser.id} value={ser.id}>
+                          {ser.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* Active Service Variations Selection (Strictly NO prices/modifiers) */}
+                    {(() => {
+                      const activeService = services.find(s => s.id === selectedServiceId);
+                      if (!activeService) return null;
+                      
+                      return (
+                        <div className="space-y-4 animate-in fade-in duration-300">
+                          {activeService.variationGroups && activeService.variationGroups.length > 0 && (
+                            <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-4">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-1.5">
+                                Especificações & Variações da Prótese
+                              </p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {activeService.variationGroups.map(group => (
+                                  <div key={group.id} className="space-y-2">
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                      {group.name}
+                                    </label>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {group.options?.map((option: any) => {
+                                        const isSelected = group.selectionType === 'SINGLE' 
+                                          ? selectedVariations[group.id] === option.id 
+                                          : (selectedVariations[group.id] as string[] || []).includes(option.id);
+                                        return (
+                                          <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() => handleVariationChange(group, option.id)}
+                                            className={`px-3 py-2 rounded-xl text-[10px] font-bold uppercase transition-all border ${
+                                              isSelected 
+                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm scale-102 font-black' 
+                                                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600'
+                                            }`}
+                                          >
+                                            {option.name}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Quantity Selector */}
+                          <div className="w-24">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                              Quantidade *
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              required
+                              value={quantity}
+                              onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-center font-black text-slate-700 focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 )}
               </div>
 
@@ -470,7 +579,37 @@ export const DentistRequisitions = () => {
                     <div className="flex justify-between items-start gap-1">
                       <div>
                         <div className="font-bold text-slate-800 text-xs uppercase">{req.patientName}</div>
-                        <div className="text-[10px] text-slate-400">{req.serviceName}</div>
+                        <div className="text-[10px] font-bold text-slate-700">{req.serviceName}</div>
+                        {req.quantity && req.quantity > 0 && (
+                          <div className="text-[9px] font-bold text-slate-500 mt-0.5">
+                            Quantidade: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
+                          </div>
+                        )}
+                        {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {req.selectedVariationIds.map(varId => {
+                              let foundName = '';
+                              for (const s of services) {
+                                if (s.variationGroups) {
+                                  for (const g of s.variationGroups) {
+                                    const opt = g.options?.find((o: any) => o.id === varId);
+                                    if (opt) {
+                                      foundName = `${g.name}: ${opt.name}`;
+                                      break;
+                                    }
+                                  }
+                                }
+                                if (foundName) break;
+                              }
+                              if (!foundName) return null;
+                              return (
+                                <span key={varId} className="bg-slate-100 text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
+                                  {foundName}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                       
                       <span className={`inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${

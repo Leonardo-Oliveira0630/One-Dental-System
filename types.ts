@@ -516,6 +516,8 @@ export interface OnlineRequisition {
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   createdAt: Date;
   acceptedAsJobId?: string;
+  selectedVariationIds?: string[];
+  quantity?: number;
 }
 
 // NOVO: Prontuário do Paciente

@@ -185,6 +185,99 @@ export const NewJob = () => {
     return (discountableSum * (1 - dentistDiscountRate)) + exemptSum;
   }, [selectedVariations, activeJobType, selectedDentistObj, priceTables]);
 
+  const calculateItemPriceWithDentist = (
+    jobType: any | undefined,
+    selectedVariationIds: string[],
+    dentist: any | null,
+    priceTables: any[]
+  ) => {
+    if (!jobType) return 0;
+    
+    let basePrice = jobType.basePrice;
+    let dentistDiscountRate = 0;
+    
+    if (dentist) {
+        if (dentist.isCustomPricing) {
+            const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                    basePrice = custom.fixedPrice;
+                    dentistDiscountRate = 0;
+                } else if (custom.discountPercent !== undefined) {
+                    dentistDiscountRate = custom.discountPercent / 100;
+                } else if (custom.price !== undefined) {
+                    basePrice = custom.price;
+                    dentistDiscountRate = 0;
+                }
+            } else if (dentist.globalDiscountPercent) {
+                dentistDiscountRate = dentist.globalDiscountPercent / 100;
+            }
+        } else if (dentist.priceTableId) {
+            const table = priceTables.find(t => t.id === dentist.priceTableId);
+            if (table && table.prices[jobType.id]) {
+                basePrice = table.prices[jobType.id].basePrice ?? jobType.basePrice;
+            }
+        }
+    }
+
+    let discountableSum = basePrice;
+    let exemptSum = 0;
+    
+    selectedVariationIds.forEach(selectedId => {
+      jobType.variationGroups?.forEach((group: any) => {
+        const option = group.options.find((opt: any) => opt.id === selectedId);
+        if (option) {
+            let modifier = option.priceModifier;
+            
+            if (dentist && !dentist.isCustomPricing && dentist.priceTableId) {
+                const table = priceTables.find(t => t.id === dentist.priceTableId);
+                if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
+                    modifier = table.prices[jobType.id].variations[option.id];
+                }
+            }
+
+            if (option.isDiscountExempt) exemptSum += modifier;
+            else discountableSum += modifier;
+        }
+      });
+    });
+
+    return (discountableSum * (1 - dentistDiscountRate)) + exemptSum;
+  };
+
+  useEffect(() => {
+    if (addedItems.length > 0) {
+      const updated = addedItems.map(item => {
+        const jobType = jobTypes.find(t => t.id === item.jobTypeId);
+        const correctPrice = calculateItemPriceWithDentist(
+          jobType,
+          item.selectedVariationIds || [],
+          selectedDentistObj,
+          priceTables
+        );
+        let appliedTableName = 'Tabela Padrão';
+        if (selectedDentistObj?.isCustomPricing) {
+            appliedTableName = 'Customizado (Dentista)';
+        } else if (selectedDentistObj?.priceTableId) {
+            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+            if (table) appliedTableName = table.name;
+        }
+        
+        return {
+          ...item,
+          price: correctPrice,
+          basePriceBeforeDiscount: correctPrice,
+          appliedPriceTable: appliedTableName
+        };
+      });
+      
+      const hasChanges = updated.some((item, i) => item.price !== addedItems[i].price || item.appliedPriceTable !== addedItems[i].appliedPriceTable);
+      if (hasChanges) {
+        setAddedItems(updated);
+      }
+    }
+  }, [selectedDentistObj, priceTables, jobTypes]);
+
   const finalItemPrice = useMemo(() => {
     let price = manualPrice !== null ? manualPrice : calculatedBasePrice;
     if (discountPercent > 0) price = price * (1 - discountPercent / 100);
@@ -233,7 +326,12 @@ export const NewJob = () => {
   useEffect(() => {
     if (entryType === 'NEW') {
         setOsNumber(generateNextNewOs());
-        setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
+        if (!location.state?.patientName) {
+            setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
+        } else {
+            setPatientName((location.state.patientName || '').toUpperCase());
+            setNotes(location.state.notes || '');
+        }
     }
     const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
   }, [entryType]); // Removed 'jobs' from dependency array to prevent form clearing
