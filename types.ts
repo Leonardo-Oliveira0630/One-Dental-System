@@ -349,6 +349,7 @@ export interface Job {
   ratingId?: string; 
   routeId?: string;
   chatEnabled?: boolean;
+  origin?: 'MANUAL' | 'ONLINE_ORDER' | 'ONLINE_REQUISITION' | 'OUTSOURCING';
 }
 
 export interface Sector {

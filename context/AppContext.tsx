@@ -133,7 +133,7 @@ interface AppContextType {
   addUser: (user: User) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   
-  addJob: (job: Omit<Job, 'id' | 'organizationId'>) => Promise<void>;
+  addJob: (job: Omit<Job, 'id' | 'organizationId'>) => Promise<string>;
   updateJob: (id: string, updates: Partial<Job>) => Promise<void>;
   
   addCommissionRecord: (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => Promise<void>;
@@ -564,12 +564,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = activeDataId;
       if (!orgId) throw new Error("Nenhum laboratório ativo.");
       const now = new Date();
+      const jobId = `job_${Date.now()}`;
       await api.apiAddJob(orgId, { 
           ...j, 
-          id: `job_${Date.now()}`, 
+          id: jobId, 
           organizationId: orgId,
           sectorEntryTime: now
       } as Job);
+      return jobId;
   };
   const updateJob = async (id: string, u: Partial<Job>) => {
       const orgId = activeDataId;

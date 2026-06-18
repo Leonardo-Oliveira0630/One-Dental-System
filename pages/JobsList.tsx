@@ -7,6 +7,26 @@ import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
 
+// Helper function to extract and style the origin of a job
+export const getJobOriginInfo = (job: any) => {
+  const isWebStore = (job.history || []).some((h: any) => h?.action?.toLowerCase().includes('loja virtual') || h?.action?.toLowerCase().includes('pedido online'));
+  const isReq = (job.history || []).some((h: any) => h?.action?.toLowerCase().includes('requisica') || h?.action?.toLowerCase().includes('requisiç') || h?.action?.toLowerCase().includes('portal de requisicoes') || h?.action?.toLowerCase().includes('portal de requisições'));
+
+  const origin = job.origin || (isWebStore ? 'ONLINE_ORDER' : (isReq ? 'ONLINE_REQUISITION' : 'MANUAL'));
+
+  switch(origin) {
+    case 'ONLINE_ORDER':
+      return { label: 'Pedido Online', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' };
+    case 'ONLINE_REQUISITION':
+      return { label: 'Requisição Online', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' };
+    case 'OUTSOURCING':
+      return { label: 'Terceirização', color: 'bg-purple-50 border-purple-200 text-purple-700' };
+    case 'MANUAL':
+    default:
+      return { label: 'Manual', color: 'bg-slate-50 border-slate-200 text-slate-700' };
+  }
+};
+
 // Componente de Linha Memoizado para evitar re-renders desnecessários
 const JobRow = memo(({ 
     job, 
@@ -56,6 +76,16 @@ const JobRow = memo(({
                 </td>
             )}
             <td className="p-4 font-bold text-slate-900 text-sm">{job.patientName}</td>
+            <td className="p-4 text-xs font-bold">
+                {(() => {
+                    const originInfo = getJobOriginInfo(job);
+                    return (
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${originInfo.color}`}>
+                            {originInfo.label}
+                        </span>
+                    );
+                })()}
+            </td>
             <td className="p-4">
                 <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
             </td>
@@ -130,7 +160,7 @@ const JobCard = memo(({
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                    {!isClient && job.boxNumber && (
                        <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
                            <Box size={14} className="text-slate-400" />
@@ -142,8 +172,16 @@ const JobCard = memo(({
                        <span className="text-xs font-bold truncate max-w-[100px]">{job.currentSector || 'Recepção'}</span>
                        <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>
                    </div>
+                   {(() => {
+                        const originInfo = getJobOriginInfo(job);
+                        return (
+                            <span className={`px-2 py-1 rounded-lg text-xs font-bold border ${originInfo.color}`}>
+                                {originInfo.label}
+                            </span>
+                        );
+                   })()}
                 </div>
-                <ChevronRight className="text-slate-300" size={20} />
+                <ChevronRight className="text-slate-300 flex-shrink-0" size={20} />
             </div>
         </div>
     );
@@ -159,7 +197,7 @@ export const JobsList = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterUrgency, setFilterUrgency] = useState('');
-  const [filterOrigin, setFilterOrigin] = useState<'ALL' | 'WEB' | 'MANUAL'>('ALL');
+  const [filterOrigin, setFilterOrigin] = useState<string>('ALL');
   const [filterAttention, setFilterAttention] = useState(false);
   
   const [selectedDentists, setSelectedDentists] = useState<string[]>([]);
@@ -230,9 +268,11 @@ export const JobsList = () => {
             if (hours < 18) return false;
         }
         if (filterOrigin !== 'ALL') {
-            const isWeb = (job.history || []).some(h => h?.action?.toLowerCase().includes('loja virtual'));
-            if (filterOrigin === 'WEB' && !isWeb) return false;
-            if (filterOrigin === 'MANUAL' && isWeb) return false;
+            const isWebStore = (job.history || []).some(h => h?.action?.toLowerCase().includes('loja virtual') || h?.action?.toLowerCase().includes('pedido online'));
+            const isReq = (job.history || []).some(h => h?.action?.toLowerCase().includes('requisica') || h?.action?.toLowerCase().includes('requisiç') || h?.action?.toLowerCase().includes('portal de requisicoes') || h?.action?.toLowerCase().includes('portal de requisições'));
+            const resolvedOrigin = job.origin || (isWebStore ? 'ONLINE_ORDER' : (isReq ? 'ONLINE_REQUISITION' : 'MANUAL'));
+            
+            if (filterOrigin !== resolvedOrigin) return false;
         }
         return true;
       });
@@ -408,6 +448,13 @@ export const JobsList = () => {
 
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Inicial" />
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Final" />
+                <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
+                    <option value="ALL">Todas as Origens</option>
+                    <option value="MANUAL">Cadastrado Manual</option>
+                    <option value="ONLINE_ORDER">Pedido Online</option>
+                    <option value="ONLINE_REQUISITION">Requisição Online</option>
+                    <option value="OUTSOURCING">Terceirização</option>
+                </select>
                 <label className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-slate-50 cursor-pointer">
                     <input type="checkbox" checked={filterAttention} onChange={e => setFilterAttention(e.target.checked)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
                     <span className="text-xs font-bold text-slate-700">Apenas Atenção (+18h)</span>
@@ -425,6 +472,7 @@ export const JobsList = () => {
                         <th className="p-4">OS #</th>
                         {!isClient && <th className="p-4">Caixa</th>}
                         <th className="p-4">Paciente</th>
+                        <th className="p-4">Origem</th>
                         <th className="p-4">Dentista</th>
                         <th className="p-4">Status</th>
                         <th className="p-4">Setor/Tempo</th>

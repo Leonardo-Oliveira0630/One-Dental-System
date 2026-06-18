@@ -10,7 +10,7 @@ import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Searc
 type EntryType = 'NEW' | 'CONTINUATION';
 
 export const NewJob = () => {
-  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem } = useApp();
+  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -453,6 +453,14 @@ export const NewJob = () => {
     const boxColor = boxColors.find(c => c.id === selectedColorId);
     const initialSector = currentUser.sector || 'Recepção';
     
+    const finalOrigin = location.state?.origin || 'MANUAL';
+    const requisitionId = location.state?.onlineRequisitionId;
+
+    let historyAction = `Caso registrado manualmente via ${initialSector}`;
+    if (finalOrigin === 'ONLINE_REQUISITION' && requisitionId) {
+        historyAction = `Requisição online aceita e cadastrada como Ordem de Serviço por ${currentUser.name} via ${initialSector}`;
+    }
+
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
         osNumber: finalOsNumber, 
         patientName: patientName.trim().toUpperCase(), 
@@ -461,9 +469,10 @@ export const NewJob = () => {
         status: JobStatus.PENDING, 
         paymentStatus: 'PENDING', 
         urgency, 
+        origin: finalOrigin,
         items: addedItems, 
         products: addedProducts,
-        history: [{ id: Math.random().toString(), timestamp: new Date(), action: `Caso registrado manualmente via ${initialSector}`, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
+        history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
         sectorMovements: [{
             id: Math.random().toString(),
             sector: initialSector,
@@ -482,7 +491,7 @@ export const NewJob = () => {
 
     setIsSubmitting(true);
     try {
-        await addJob(newJob); 
+        const jobId = await addJob(newJob); 
         
         // Deduct stock for each added product
         for (const prod of addedProducts) {
@@ -494,7 +503,15 @@ export const NewJob = () => {
             }
         }
 
-        setLastCreatedJob({ ...newJob, id: 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
+        // If this came from an online requisition, mark it accepted
+        if (requisitionId && currentUser) {
+            await updateOnlineRequisition(currentUser.organizationId || '', requisitionId, {
+                status: 'ACCEPTED',
+                acceptedAsJobId: jobId
+            });
+        }
+
+        setLastCreatedJob({ ...newJob, id: jobId || 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
     } catch (err) { 
         alert("Erro ao salvar o caso no sistema. Verifique sua conexão com a internet."); 
     } finally {
