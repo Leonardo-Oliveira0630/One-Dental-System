@@ -49,7 +49,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -106,7 +106,45 @@ export const JobDetails = () => {
 
   const [showReturnModal, setShowReturnModal] = useState(false);
 
-  const job = jobs.find(j => j.id === id);
+  const isPseudo = id?.startsWith('pseudo_req_');
+  
+  const resolvedJob = useMemo(() => {
+    if (isPseudo) {
+      const reqId = id?.replace('pseudo_req_', '');
+      const r = (onlineRequisitions || []).find(x => x.id === reqId);
+      if (r) {
+        return {
+          id: `pseudo_req_${r.id}`,
+          osNumber: 'REQ-' + r.id.substring(0, 5).toUpperCase(),
+          patientName: r.patientName,
+          dentistId: r.dentistManualId || r.dentistId,
+          dentistName: r.dentistName,
+          status: (r.status === 'PENDING' ? 'PENDING_REQUISITION' : 'REJECTED_REQUISITION') as any,
+          urgency: 'NORMAL',
+          items: [{
+            id: `pseudo_item_${r.id}`,
+            jobTypeId: r.serviceId,
+            name: r.serviceName,
+            quantity: r.quantity || 1,
+            price: 0,
+            selectedVariationIds: r.selectedVariationIds || []
+          }],
+          history: [],
+          createdAt: r.createdAt instanceof Date ? r.createdAt : (r.createdAt ? new Date((r.createdAt as any).seconds * 1000 || r.createdAt) : new Date()),
+          dueDate: r.createdAt instanceof Date ? r.createdAt : (r.createdAt ? new Date((r.createdAt as any).seconds * 1000 || r.createdAt) : new Date()),
+          totalValue: 0,
+          notes: r.notes || '',
+          origin: 'ONLINE_REQUISITION',
+          attachments: r.attachments || [],
+          isPseudo: true,
+          labName: r.labName || 'Laboratório'
+        } as any;
+      }
+    }
+    return jobs.find(j => j.id === id);
+  }, [id, isPseudo, jobs, onlineRequisitions]);
+
+  const job = resolvedJob;
 
   const handleReturnAction = (action: 'PROSSEGUIMENTO' | 'AJUSTE' | 'REPETICAO') => {
     if (!job) return;
@@ -1045,6 +1083,44 @@ export const JobDetails = () => {
   return (
     <div className="w-full space-y-4 md:space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-x-hidden">
       
+      {job.isPseudo && job.status === 'REJECTED_REQUISITION' && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+          <div className="flex gap-3">
+            <XCircle className="text-red-500 shrink-0 mt-0.5 md:mt-0 animate-bounce" size={24} />
+            <div>
+              <h4 className="font-extrabold text-sm uppercase tracking-tight text-red-900">Requisição Recusada</h4>
+              <p className="text-xs font-semibold text-red-700 mt-1 max-w-2xl">
+                O laboratório {job.labName} optou por não dar andamento nesta requisição. Entre em contato diretamente com o laboratório para obter esclarecimentos.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0">
+            <span className="bg-red-100 text-red-800 border border-red-200 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
+              Recusada pelo Lab
+            </span>
+          </div>
+        </div>
+      )}
+
+      {job.isPseudo && job.status === 'PENDING_REQUISITION' && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+          <div className="flex gap-3">
+            <Clock className="text-amber-500 shrink-0 mt-0.5 md:mt-0" size={24} />
+            <div>
+              <h4 className="font-extrabold text-sm uppercase tracking-tight text-amber-900">Requisição Online Pendente</h4>
+              <p className="text-xs font-semibold text-amber-700 mt-1 max-w-2xl">
+                Esta é uma requisição enviada ao laboratório {job.labName}. O status do trabalho e o chat de acompanhamento estarão disponíveis e ativos assim que o laboratório aceitar este envio e criar a Ordem de Serviço em produção.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0">
+            <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
+              Aguardando Laboratório
+            </span>
+          </div>
+        </div>
+      )}
+      
       {show3DViewer && job.attachments && (
           <Suspense fallback={<div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center text-white"><Loader2 className="animate-spin mr-2"/> Carregando 3D...</div>}>
               <STLViewer files={job.attachments} onClose={() => setShow3DViewer(false)} />
@@ -1561,12 +1637,31 @@ export const JobDetails = () => {
       {/* ABAS COM OVERFLOW AUTO */}
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar shrink-0 sticky top-0 md:top-16 bg-slate-50 z-20 w-full">
          <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> Dados Básicos</button>
-         <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> Produção</button>
-         <button onClick={() => setActiveTab('HISTORY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'HISTORY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Clock size={16} /> Histórico</button>
-         {showChatTab && (
+         
+         {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
+            <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> Produção</button>
+         ) : (
+            <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Controle de produção indisponível para este trabalho">
+              <Lock size={14} className="text-slate-300" /> Produção <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
+            </button>
+         )}
+
+         {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
+            <button onClick={() => setActiveTab('HISTORY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'HISTORY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Clock size={16} /> Histórico</button>
+         ) : (
+            <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Histórico indisponível para este trabalho">
+              <Lock size={14} className="text-slate-300" /> Histórico <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
+            </button>
+         )}
+
+         {(!job.isPseudo && (isLabStaff || job.chatEnabled)) ? (
             <button onClick={() => setActiveTab('CHAT')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'CHAT' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                 <MessageCircle size={16} /> Chat
                 {job.chatEnabled && isLabStaff && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0"></div>}
+            </button>
+         ) : (
+            <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Chat desativado pelo laboratório">
+              <Lock size={14} className="text-slate-300" /> Chat <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
             </button>
          )}
       </div>

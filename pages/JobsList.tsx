@@ -208,7 +208,7 @@ const JobCard = memo(({
 });
 
 export const JobsList = () => {
-  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers } = useApp();
+  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions } = useApp();
   const navigate = useNavigate();
   
   const [filterText, setFilterText] = useState('');
@@ -254,9 +254,44 @@ export const JobsList = () => {
       return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   };
 
+  const combinedJobs = useMemo(() => {
+    if (!isClient) return jobs;
+
+    // Filter pending/rejected requisitions made by this dentist that are not yet accepted as active jobs
+    const rawReqs = onlineRequisitions || [];
+    const nonAcceptedReqs = rawReqs
+      .filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === currentUser?.manualDentistId) && r.status !== 'ACCEPTED')
+      .map(r => ({
+        id: `pseudo_req_${r.id}`,
+        osNumber: 'REQ-' + r.id.substring(0, 5).toUpperCase(),
+        patientName: r.patientName,
+        dentistId: r.dentistManualId || r.dentistId,
+        dentistName: r.dentistName,
+        status: (r.status === 'PENDING' ? 'PENDING_REQUISITION' : 'REJECTED_REQUISITION') as any,
+        urgency: 'NORMAL',
+        items: [{
+          id: `pseudo_item_${r.id}`,
+          jobTypeId: r.serviceId,
+          name: r.serviceName,
+          quantity: r.quantity || 1,
+          price: 0
+        }],
+        history: [],
+        createdAt: r.createdAt instanceof Date ? r.createdAt : (r.createdAt ? new Date((r.createdAt as any).seconds * 1000 || r.createdAt) : new Date()),
+        dueDate: r.createdAt instanceof Date ? r.createdAt : (r.createdAt ? new Date((r.createdAt as any).seconds * 1000 || r.createdAt) : new Date()),
+        totalValue: 0,
+        notes: r.notes || '',
+        origin: 'ONLINE_REQUISITION',
+        isPseudo: true,
+        labName: r.labName || 'Laboratório'
+      } as any));
+
+    return [...nonAcceptedReqs, ...jobs];
+  }, [jobs, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId]);
+
   const filteredJobs = useMemo(() => {
-    return jobs.filter(job => {
-        if (isClient && job.dentistId !== currentUser?.id && job.dentistId !== currentUser?.manualDentistId) return false;
+    return combinedJobs.filter(job => {
+        if (isClient && job.dentistId !== currentUser?.id && job.dentistId !== currentUser?.manualDentistId && !job.isPseudo) return false;
         const searchLower = normalizeText(filterText);
         const matchText = 
           normalizeText(job.osNumber || '').includes(searchLower) ||
@@ -278,7 +313,7 @@ export const JobsList = () => {
         if (selectedDentists.length > 0 && !selectedDentists.includes(job.dentistId)) return false;
         if (selectedSectors.length > 0 && !selectedSectors.includes(job.currentSector || '')) return false;
         if (selectedCollaborators.length > 0) {
-            const hasCollaborator = (job.history || []).some(h => selectedCollaborators.includes(h?.userId));
+            const hasCollaborator = (job.history || []).some((h: any) => selectedCollaborators.includes(h?.userId));
             if (!hasCollaborator) return false;
         }
 
@@ -289,8 +324,8 @@ export const JobsList = () => {
             if (hours < 18) return false;
         }
         if (filterOrigin !== 'ALL') {
-            const isWebStore = (job.history || []).some(h => h?.action?.toLowerCase().includes('loja virtual') || h?.action?.toLowerCase().includes('pedido online'));
-            const isReq = (job.history || []).some(h => h?.action?.toLowerCase().includes('requisica') || h?.action?.toLowerCase().includes('requisiç') || h?.action?.toLowerCase().includes('portal de requisicoes') || h?.action?.toLowerCase().includes('portal de requisições'));
+            const isWebStore = (job.history || []).some((h: any) => h?.action?.toLowerCase().includes('loja virtual') || h?.action?.toLowerCase().includes('pedido online'));
+            const isReq = (job.history || []).some((h: any) => h?.action?.toLowerCase().includes('requisica') || h?.action?.toLowerCase().includes('requisiç') || h?.action?.toLowerCase().includes('portal de requisicoes') || h?.action?.toLowerCase().includes('portal de requisições'));
             const resolvedOrigin = job.origin || (isWebStore ? 'ONLINE_ORDER' : (isReq ? 'ONLINE_REQUISITION' : 'MANUAL'));
             
             if (filterOrigin !== resolvedOrigin) return false;
@@ -345,8 +380,10 @@ export const JobsList = () => {
     } catch (e) { alert("Erro."); } finally { setIsProcessing(false); }
   };
 
-  const getStatusColor = (status: JobStatus) => {
+  const getStatusColor = (status: any) => {
     switch(status) {
+        case 'PENDING_REQUISITION': return 'bg-amber-100 text-amber-700 border border-amber-200';
+        case 'REJECTED_REQUISITION': return 'bg-red-100 text-red-700 border border-red-200';
         case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border border-green-200';
         case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border border-blue-200';
         case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border border-purple-200';
@@ -359,8 +396,10 @@ export const JobsList = () => {
     }
   };
 
-  const getTranslatedStatus = (status: JobStatus) => {
+  const getTranslatedStatus = (status: any) => {
       switch(status) {
+        case 'PENDING_REQUISITION': return 'Req. Pendente';
+        case 'REJECTED_REQUISITION': return 'Req. Recusada';
         case JobStatus.WAITING_APPROVAL: return 'Aguardando';
         case JobStatus.PENDING: return 'Pendente';
         case JobStatus.IN_PROGRESS: return 'Produção';

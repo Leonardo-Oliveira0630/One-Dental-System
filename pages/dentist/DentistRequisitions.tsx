@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, Attachment } from '../../types';
 import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw } from 'lucide-react';
@@ -51,6 +51,27 @@ export const DentistRequisitions = () => {
   // Selector or manual input toggle for patient name
   const [patientInputMode, setPatientInputMode] = useState<'SELECT' | 'MANUAL'>('MANUAL');
   const [isModeSetAutomatically, setIsModeSetAutomatically] = useState(false);
+
+  const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
+  const patientInputContainerRef = useRef<HTMLDivElement>(null);
+
+  const filteredPatients = useMemo(() => {
+    if (!patientName.trim()) return patients || [];
+    const searchLower = patientName.toLowerCase();
+    return (patients || []).filter(p => 
+      p.name.toLowerCase().includes(searchLower)
+    );
+  }, [patients, patientName]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (patientInputContainerRef.current && !patientInputContainerRef.current.contains(event.target as Node)) {
+        setShowPatientSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!isModeSetAutomatically && patients && patients.length > 0) {
@@ -372,80 +393,40 @@ export const DentistRequisitions = () => {
 
               {/* Patient Name */}
               <div>
-                <div className="flex justify-between items-center mb-1.5 ml-1">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                    Paciente *
-                  </label>
-                  {/* Mode Toggle Button */}
-                  <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPatientInputMode('SELECT');
-                        setPatientName('');
-                      }}
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight transition-all ${
-                        patientInputMode === 'SELECT'
-                          ? 'bg-white text-indigo-600 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      Selecionar Cadastrado
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPatientInputMode('MANUAL');
-                        setPatientName('');
-                      }}
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight transition-all ${
-                        patientInputMode === 'MANUAL'
-                          ? 'bg-white text-indigo-600 shadow-sm'
-                          : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      Digitar Manual
-                    </button>
-                  </div>
-                </div>
-
-                {patientInputMode === 'SELECT' ? (
-                  patients && patients.length > 0 ? (
-                    <select
-                      required
-                      value={patientName}
-                      onChange={(e) => setPatientName(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700 uppercase"
-                    >
-                      <option value="" disabled>SELECIONE UM PACIENTE CADASTRADO</option>
-                      {patients.map(p => (
-                        <option key={p.id} value={p.name}>
-                          {p.name.toUpperCase()} {p.cpf ? `- CPF: ${p.cpf}` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="border border-dashed border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center justify-between">
-                      <span className="text-[11px] text-slate-500 font-medium">Nenhum paciente cadastrado encontrado.</span>
-                      <button
-                        type="button"
-                        onClick={() => setPatientInputMode('MANUAL')}
-                        className="text-[10px] font-bold uppercase text-indigo-600 hover:underline"
-                      >
-                        Digitar Manualmente
-                      </button>
-                    </div>
-                  )
-                ) : (
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+                  Paciente *
+                </label>
+                <div ref={patientInputContainerRef} className="relative">
                   <input
                     type="text"
                     required
                     value={patientName}
-                    onChange={(e) => setPatientName(e.target.value)}
-                    placeholder="DIGITE O NOME COMPLETO DO PACIENTE"
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold uppercase text-slate-700"
+                    onChange={(e) => {
+                      setPatientName(e.target.value);
+                      setShowPatientSuggestions(true);
+                    }}
+                    onFocus={() => setShowPatientSuggestions(true)}
+                    placeholder="DIGITE OU SELECIONE UM PACIENTE..."
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold uppercase text-slate-700 placeholder:normal-case placeholder:font-medium placeholder:text-slate-400"
                   />
-                )}
+                  {showPatientSuggestions && filteredPatients.length > 0 && (
+                    <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-150 rounded-2xl shadow-xl max-h-[220px] overflow-y-auto divide-y divide-slate-50">
+                      {filteredPatients.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            setPatientName(p.name.toUpperCase());
+                            setShowPatientSuggestions(false);
+                          }}
+                          className="w-full text-left px-4 py-3.5 hover:bg-slate-50 text-xs font-bold text-slate-700 uppercase transition-colors"
+                        >
+                          {p.name.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Select Service */}
