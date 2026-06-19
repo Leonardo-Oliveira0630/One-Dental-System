@@ -175,7 +175,7 @@ export const JobDetails = () => {
             }
         });
     } else {
-        const newItems = job.items.map(item => ({
+        const newItems = job.items.map((item: any) => ({
             ...item,
             id: `item_${Date.now()}_${Math.random().toString(36).substr(2,5)}`,
             nature: action === 'AJUSTE' ? ('ADJUSTMENT' as JobNature) : ('REPETITION' as JobNature),
@@ -433,8 +433,8 @@ export const JobDetails = () => {
       };
       const newItems = [...editItems, newItem];
       setEditItems(newItems);
-      const productsTotal = (job.products || []).reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
-      setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) + productsTotal);
+      const productsTotal = (job.products || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
+      setEditTotalValue(newItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) + productsTotal);
       setNewItemNature('NORMAL');
       setNewItemVariationIds([]);
   };
@@ -442,15 +442,15 @@ export const JobDetails = () => {
   const handleRemoveItemFromJob = (itemId: string) => {
       const newItems = editItems.filter(i => i.id !== itemId);
       setEditItems(newItems);
-      const productsTotal = (job.products || []).reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
-      setEditTotalValue(newItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) + productsTotal);
+      const productsTotal = (job.products || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
+      setEditTotalValue(newItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) + productsTotal);
   };
 
   const handleRemoveProductFromJob = (prodId: string) => {
       const newProds = editProducts.filter(p => p.id !== prodId);
       setEditProducts(newProds);
-      const itemsTotal = editItems.reduce((acc, i) => acc + (i.price * i.quantity), 0);
-      setEditTotalValue(itemsTotal + newProds.reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0));
+      const itemsTotal = editItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0);
+      setEditTotalValue(itemsTotal + newProds.reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0));
   };
 
   const handleProductChange = (prodId: string, field: 'quantity' | 'basePriceBeforeDiscount' | 'appliedDiscount', value: number) => {
@@ -848,7 +848,7 @@ export const JobDetails = () => {
           const userItemsInSector = newExecutions.filter(e => e.userId === editingExecution.userId && e.sector === editingExecution.sector).map(e => e.itemId);
           let totalUserComm = 0;
           
-          job.items.forEach(item => {
+          job.items.forEach((item: any) => {
               if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
                   const secQty = (item.sectorQuantities && item.sectorQuantities[editingExecution.sector]) ? item.sectorQuantities[editingExecution.sector] : item.quantity;
                   const setting = selectedUser?.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
@@ -898,9 +898,9 @@ export const JobDetails = () => {
       if (!job || !window.confirm("Deseja realmente excluir esta execução? Os registros de ponto, funcionários e comissão serão limpos para este tipo de trabalho.")) return;
       setIsUpdatingStatus(true);
       try {
-          const executionToDelete = (job.itemExecutions || []).find(e => e.itemId === item.id && e.sector === sector);
-          const newExecutions = (job.itemExecutions || []).filter(e => !(e.itemId === item.id && e.sector === sector));
-          const newMovements = (job.sectorMovements || []).filter(m => m.sector !== sector);
+          const executionToDelete = (job.itemExecutions || []).find((e: any) => e.itemId === item.id && e.sector === sector);
+          const newExecutions = (job.itemExecutions || []).filter((e: any) => !(e.itemId === item.id && e.sector === sector));
+          const newMovements = (job.sectorMovements || []).filter((m: any) => m.sector !== sector);
           const deletedUserName = executionToDelete ? executionToDelete.userName : '-';
           
           const exitTime = executionToDelete?.timestamp ? new Date(executionToDelete.timestamp).toLocaleString() : 'N/A';
@@ -921,11 +921,11 @@ export const JobDetails = () => {
           });
 
           if (executionToDelete) {
-              const userItemsInSector = newExecutions.filter(e => e.userId === executionToDelete.userId && e.sector === sector).map(e => e.itemId);
+              const userItemsInSector = newExecutions.filter((e: any) => e.userId === executionToDelete.userId && e.sector === sector).map((e: any) => e.itemId);
               let totalUserComm = 0;
               const selectedUser = labUsers.find(u => u.id === executionToDelete.userId);
               
-              job.items.forEach(i => {
+              job.items.forEach((i: any) => {
                   if (userItemsInSector.includes(i.id) && !i.commissionDisabled) {
                       const secQty = (i.sectorQuantities && i.sectorQuantities[sector]) ? i.sectorQuantities[sector] : i.quantity;
                       const setting = selectedUser?.commissionSettings?.find((s: any) => s.jobTypeId === i.jobTypeId);
@@ -957,7 +957,7 @@ export const JobDetails = () => {
 
   const handleSectorQuantityChange = async (itemId: string, sectorName: string, newQty: number) => {
       if (!canManageCommissions) return;
-      const updatedItems = job.items.map(item => {
+      const updatedItems = job.items.map((item: any) => {
           if (item.id === itemId) {
               const currentQuantities = item.sectorQuantities || {};
               return {
@@ -976,7 +976,7 @@ export const JobDetails = () => {
 
   const handleSectorCommissionToggle = async (itemId: string, sectorName: string, disabled: boolean) => {
       if (!canManageCommissions) return;
-      const updatedItems = job.items.map(item => {
+      const updatedItems = job.items.map((item: any) => {
           if (item.id === itemId) {
               const currentDisabled = item.sectorCommissionDisabled || {};
               return {
@@ -1015,7 +1015,7 @@ export const JobDetails = () => {
       const newBasePrice = itemEditForm.price;
       const finalPrice = newBasePrice * (1 - (itemEditForm.appliedDiscount / 100));
       
-      const updatedItems = job.items.map(i => {
+      const updatedItems = job.items.map((i: any) => {
           if (i.id === item.id) {
               return {
                   ...i,
@@ -1033,8 +1033,8 @@ export const JobDetails = () => {
           return i;
       });
 
-      const productsTotal = (job.products || []).reduce((acc, p) => acc + (p.unitPrice * p.quantity), 0);
-      const newTotalValue = updatedItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) + productsTotal;
+      const productsTotal = (job.products || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
+      const newTotalValue = updatedItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) + productsTotal;
 
       await updateJob(job.id, { 
           items: updatedItems,
@@ -1772,7 +1772,7 @@ export const JobDetails = () => {
                     <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
                         <h3 className="text-base md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileText size={20} className="text-blue-500 shrink-0" /> Serviços do Pedido</h3>
                         <div className="divide-y divide-slate-100">
-                            {job.items.map((item, idx) => {
+                            {job.items.map((item: any, idx: number) => {
                                 const jType = jobTypes.find(jt => jt.id === item.jobTypeId);
                                 const allowedSecs = jType?.allowedSectors || [];
                                 const isExpanded = expandedItemIdx === idx;
@@ -1792,7 +1792,7 @@ export const JobDetails = () => {
                                                         type="button" 
                                                         onClick={async (e) => {
                                                             e.stopPropagation();
-                                                            const updatedItems = job.items.map(i => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
+                                                            const updatedItems = job.items.map((i: any) => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
                                                             await updateJob(job.id, { items: updatedItems });
                                                         }}
                                                         className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm ${!item.commissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
@@ -1970,7 +1970,7 @@ export const JobDetails = () => {
                                                                     <button 
                                                                         type="button" 
                                                                         onClick={async () => {
-                                                                            const updatedItems = job.items.map(i => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
+                                                                            const updatedItems = job.items.map((i: any) => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
                                                                             await updateJob(job.id, { items: updatedItems });
                                                                         }}
                                                                         className={`text-[9px] font-black uppercase px-2 py-1 rounded-md transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm ${!item.commissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
@@ -2038,7 +2038,7 @@ export const JobDetails = () => {
                             <div className="mt-6 pt-6 border-t border-slate-100">
                                 <h4 className="text-xs font-black text-slate-800 mb-3 flex items-center gap-2 uppercase tracking-widest"><Package size={14} className="text-amber-500" /> Produtos & Componentes Adicionais</h4>
                                 <div className="space-y-2">
-                                    {job.products.map(prod => (
+                                    {job.products.map((prod: any) => (
                                         <div key={prod.id} className="flex justify-between items-center p-3 bg-amber-50/50 rounded-2xl border border-amber-100">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 bg-amber-500 text-white rounded-lg flex items-center justify-center font-black text-xs">{prod.quantity}</div>
@@ -2117,7 +2117,7 @@ export const JobDetails = () => {
                             )}
 
                             <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 no-scrollbar shrink-0">
-                                {job.attachments?.map(att => (
+                                {job.attachments?.map((att: any) => (
                                     <div key={att.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-200 transition-all group overflow-hidden">
                                         <button 
                                             type="button"
@@ -2147,7 +2147,7 @@ export const JobDetails = () => {
                                 {(!job.attachments || job.attachments.length === 0) && <p className="text-xs text-slate-300 text-center py-12 italic border border-dashed rounded-[24px]">Sem mídias associadas.</p>}
                             </div>
                             
-                            {job.attachments && job.attachments.some(a => a.name.toLowerCase().endsWith('.stl')) && (
+                            {job.attachments && job.attachments.some((a: any) => a.name.toLowerCase().endsWith('.stl')) && (
                                 <button onClick={() => setShow3DViewer(true)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-slate-800 transition-all mt-2 text-[10px] uppercase tracking-widest shadow-xl shrink-0 active:scale-95">
                                     <Box size={20} className="shrink-0" /> Abrir Visualizador 3D
                                 </button>
@@ -2219,7 +2219,7 @@ export const JobDetails = () => {
             revealJobStatus ? (
                 <div className="w-full animate-in fade-in duration-300 pb-8 overflow-x-auto">
                 <div className="min-w-[800px] max-w-6xl mx-auto space-y-6">
-                    {job.items.map(item => {
+                    {job.items.map((item: any) => {
                         const jt = jobTypes.find(t => t.id === item.jobTypeId);
                         const sectorsToRender = jt?.allowedSectors && jt.allowedSectors.length > 0 
                             ? jt.allowedSectors 
@@ -2245,10 +2245,10 @@ export const JobDetails = () => {
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
                                         {sectorsToRender.map(sector => {
-                                            const execution = (job.itemExecutions || []).find(e => e.itemId === item.id && e.sector === sector);
-                                            const movements = (job.sectorMovements || []).filter(m => m.sector === sector);
+                                            const execution = (job.itemExecutions || []).find((e: any) => e.itemId === item.id && e.sector === sector);
+                                            const movements = (job.sectorMovements || []).filter((m: any) => m.sector === sector);
                                             const latestMov = movements.length > 0 
-                                                ? movements.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0]
+                                                ? movements.sort((a: any, b: any) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0]
                                                 : null;
 
                                             return (

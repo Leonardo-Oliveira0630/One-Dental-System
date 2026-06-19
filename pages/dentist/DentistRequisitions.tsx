@@ -26,7 +26,8 @@ export const DentistRequisitions = () => {
     currentOrg, 
     onlineRequisitions, 
     addOnlineRequisition,
-    patients
+    patients,
+    uploadFile
   } = useApp();
 
   const userAny = currentUser as any;
@@ -116,7 +117,7 @@ export const DentistRequisitions = () => {
   };
 
   // File Attachments state
-  const [attachedFiles, setAttachedFiles] = useState<{ name: string; url: string; size: string }[]>([]);
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; url: string; size: string; isUploading?: boolean; error?: string }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
   // Fetch permitted/linked laboratories
@@ -203,19 +204,11 @@ export const DentistRequisitions = () => {
     fetchLabServices();
   }, [selectedLabId]);
 
-  // Handle fake/mock file upload standard for client-side sandbox
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file upload to real Firebase Storage synchronously/asynchronously on file select
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const filesArr = Array.from(e.target.files);
-      const newAttachments = filesArr.map(file => {
-        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-        return {
-          name: file.name,
-          url: URL.createObjectURL(file), // Local blob URI for fast visual preview
-          size: `${sizeMb} MB`
-        };
-      });
-      setAttachedFiles(prev => [...prev, ...newAttachments]);
+      await processAndUploadFiles(filesArr);
     }
   };
 
@@ -228,20 +221,63 @@ export const DentistRequisitions = () => {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const filesArr = Array.from(e.dataTransfer.files);
-      const newAttachments = filesArr.map(file => {
-        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-        return {
-          name: file.name,
-          url: URL.createObjectURL(file),
-          size: `${sizeMb} MB`
-        };
-      });
-      setAttachedFiles(prev => [...prev, ...newAttachments]);
+      await processAndUploadFiles(filesArr);
+    }
+  };
+
+  const processAndUploadFiles = async (files: File[]) => {
+    const startIndex = attachedFiles.length;
+    const newItems = files.map((file) => {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+      const localUrl = URL.createObjectURL(file); // Keep local Object URL for fast preliminary rendering
+      return {
+        name: file.name,
+        url: localUrl,
+        size: `${sizeMb} MB`,
+        isUploading: true
+      };
+    });
+
+    setAttachedFiles(prev => [...prev, ...newItems]);
+
+    // Sequentially upload each file to Firebase Storage
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const targetIndex = startIndex + i;
+      try {
+        const publicUrl = await uploadFile(file);
+        setAttachedFiles(prev => {
+          return prev.map((item, idx) => {
+            if (idx === targetIndex) {
+              return {
+                ...item,
+                url: publicUrl,
+                isUploading: false
+              };
+            }
+            return item;
+          });
+        });
+      } catch (err: any) {
+        console.error("Error uploading file to Firebase Storage:", err);
+        setAttachedFiles(prev => {
+          return prev.map((item, idx) => {
+            if (idx === targetIndex) {
+              return {
+                ...item,
+                isUploading: false,
+                error: 'Erro no envio'
+              };
+            }
+            return item;
+          });
+        });
+      }
     }
   };
 
@@ -266,6 +302,16 @@ export const DentistRequisitions = () => {
 
     if (!selectedServiceId) {
       setError('Por favor, selecione o serviço desejado.');
+      return;
+    }
+
+    if (attachedFiles.some(f => f.isUploading)) {
+      setError('Aguarde o carregamento completo dos arquivos anexados antes de enviar.');
+      return;
+    }
+
+    if (attachedFiles.some(f => f.error)) {
+      setError('Por favor, remova ou reenvie os arquivos que falharam no carregamento.');
       return;
     }
 
@@ -561,15 +607,29 @@ export const DentistRequisitions = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {attachedFiles.map((file, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-slate-50/55 p-2 rounded-xl border border-slate-100 text-xs">
-                          <span className="font-bold text-slate-700 truncate max-w-[150px]" title={file.name}>
+                          <span className="font-bold text-slate-700 truncate max-w-[130px]" title={file.name}>
                             {file.name}
                           </span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] text-slate-400">{file.size}</span>
+                          <div className="flex items-center gap-1.5 ml-2">
+                            {file.isUploading ? (
+                              <span className="text-[9px] text-indigo-500 font-bold flex items-center gap-1 uppercase tracking-wider shrink-0">
+                                <Loader2 size={10} className="animate-spin shrink-0" /> <span className="hidden xs:inline">Enviando...</span>
+                              </span>
+                            ) : file.error ? (
+                              <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider shrink-0" title={file.error}>
+                                Falhou
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-emerald-600 font-black uppercase tracking-wider shrink-0">
+                                Pronto
+                              </span>
+                            )}
+                            <span className="text-[9px] text-slate-400 shrink-0">{file.size}</span>
                             <button
                               type="button"
                               onClick={() => removeAttachment(idx)}
-                              className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg"
+                              className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg shrink-0"
+                              disabled={file.isUploading}
                             >
                               <Trash2 size={12} />
                             </button>
