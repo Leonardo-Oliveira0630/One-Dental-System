@@ -78,6 +78,22 @@ class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, View
   }
 }
 
+// --- Helper to Proxy URLs to bypass CORS ---
+const getProxiedUrl = (url: string): string => {
+  if (!url) return url;
+  if (url.startsWith('blob:')) {
+    return url;
+  }
+  if (url.startsWith('/') || url.startsWith(window.location.origin)) {
+    return url;
+  }
+  // Avoid double prefixing
+  if (url.includes('corsproxy.io')) {
+    return url;
+  }
+  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+};
+
 // --- Componente Individual de Malha (Mesh) ---
 interface ModelProps {
   url: string;
@@ -87,8 +103,9 @@ interface ModelProps {
 }
 
 const Model: React.FC<ModelProps> = ({ url, color, opacity, visible }) => {
+  const proxiedUrl = getProxiedUrl(url);
   // Carrega o STL
-  const geometry = useLoader(STLLoader, url);
+  const geometry = useLoader(STLLoader, proxiedUrl);
 
   // Computa normais e CENTRALIZA a geometria (Correção para scanners intraorais)
   useEffect(() => {
@@ -141,6 +158,7 @@ interface MeshConfig {
   color: string;
   opacity: number;
   visible: boolean;
+  isStale?: boolean;
 }
 
 const DEFAULT_COLORS = ['#e2e8f0', '#fca5a5', '#93c5fd', '#86efac', '#fde047'];
@@ -151,13 +169,17 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
   
   // Estado de configuração de cada malha
   const [meshes, setMeshes] = useState<MeshConfig[]>(() => 
-    stlFiles.map((f, index) => ({
-      id: f.url, // Usa URL como ID único temporário
-      name: f.name,
-      color: DEFAULT_COLORS[index % DEFAULT_COLORS.length], // Cores cíclicas
-      opacity: 1,
-      visible: true
-    }))
+    stlFiles.map((f, index) => {
+      const isStale = f.url.startsWith('blob:');
+      return {
+        id: f.url, // Usa URL como ID único temporário
+        name: f.name,
+        color: DEFAULT_COLORS[index % DEFAULT_COLORS.length], // Cores cíclicas
+        opacity: 1,
+        visible: !isStale,
+        isStale: isStale
+      };
+    })
   );
 
   const [showControls, setShowControls] = useState(true);
@@ -188,52 +210,72 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
     )
   }
 
+  const allStale = meshes.every(m => m.isStale);
+
   return (
     <div className="fixed inset-0 z-[100] bg-slate-900 flex">
       {/* 3D Canvas Area */}
       <div className="flex-1 relative h-full">
         <button 
             onClick={onClose} 
-            className="absolute top-4 right-4 z-10 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
+            className="absolute top-4 right-4 z-[110] bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-sm transition-colors"
         >
             <X size={24} />
         </button>
 
+        {/* Warning card overlay for stale (blob:) files */}
+        {allStale ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-slate-950/90 z-50">
+            <div className="bg-amber-500/10 p-5 rounded-full mb-4">
+              <AlertTriangle size={48} className="text-amber-500 animate-pulse" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tight">Arquivos de Visualização Expirados</h3>
+            <p className="text-slate-400 text-sm max-w-md mb-2 leading-relaxed">
+              Os arquivos associados a esta requisição foram anexados em uma versão anterior usando links temporários locais do navegador, que expiraram ao fechar a página.
+            </p>
+            <p className="text-blue-400 text-xs max-w-sm font-semibold">
+              Por favor, reenvie (upload) os arquivos STL originais acessando os detalhes do pedido ou da requisição.
+            </p>
+          </div>
+        ) : null}
+
         {/* Wrapping the Canvas in ViewerErrorBoundary to catch 3D rendering or model loading issues */}
-        <ViewerErrorBoundary>
-            <Canvas shadows camera={{ position: [0, 0, 100], fov: 50 }}>
-            <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
-            
-            <Suspense fallback={<Loader />}>
-                {/* Stage provides default environment lighting. Center ensures model is in camera focus. */}
-                <Stage environment="city" intensity={0.6} adjustCamera={false}>
-                    <Center>
-                        {meshes.map((mesh) => (
-                            <Model 
-                                key={mesh.id} 
-                                url={mesh.id} // URL is stored in ID field
-                                color={mesh.color}
-                                opacity={mesh.opacity}
-                                visible={mesh.visible}
-                            />
-                        ))}
-                    </Center>
-                </Stage>
-            </Suspense>
-            
-            <Grid 
-                renderOrder={-1} 
-                position={[0, -50, 0]} // Grid below the model
-                infiniteGrid 
-                cellSize={10} 
-                sectionSize={50} 
-                fadeDistance={400} 
-                sectionColor="#475569" 
-                cellColor="#334155" 
-            />
-            <OrbitControls makeDefault />
-            </Canvas>
-        </ViewerErrorBoundary>
+        {!allStale && (
+          <ViewerErrorBoundary>
+              <Canvas shadows camera={{ position: [0, 0, 100], fov: 50 }}>
+              <Color attach="background" args={['#1e293b']} /> {/* Slate-800 Background */}
+              
+              <Suspense fallback={<Loader />}>
+                  {/* Stage provides default environment lighting. Center ensures model is in camera focus. */}
+                  <Stage environment="city" intensity={0.6} adjustCamera={false}>
+                      <Center>
+                          {meshes.filter(mesh => !mesh.isStale).map((mesh) => (
+                              <Model 
+                                  key={mesh.id} 
+                                  url={mesh.id} // URL is stored in ID field
+                                  color={mesh.color}
+                                  opacity={mesh.opacity}
+                                  visible={mesh.visible}
+                              />
+                          ))}
+                      </Center>
+                  </Stage>
+              </Suspense>
+              
+              <Grid 
+                  renderOrder={-1} 
+                  position={[0, -50, 0]} // Grid below the model
+                  infiniteGrid 
+                  cellSize={10} 
+                  sectionSize={50} 
+                  fadeDistance={400} 
+                  sectionColor="#475569" 
+                  cellColor="#334155" 
+              />
+              <OrbitControls makeDefault />
+              </Canvas>
+          </ViewerErrorBoundary>
+        )}
         
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-xs pointer-events-none select-none">
             Botão Esq: Rotacionar • Botão Dir: Mover • Scroll: Zoom
@@ -251,50 +293,66 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
             </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {meshes.map((mesh) => (
-                <div key={mesh.id} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:border-blue-300 transition-colors">
-                    <div className="flex items-center justify-between mb-3">
+                <div key={mesh.id} className={`rounded-xl border p-3 shadow-sm transition-colors ${mesh.isStale ? 'bg-red-50/40 border-red-100' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
+                    <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5 overflow-hidden flex-1">
-                            <button 
-                                onClick={() => updateMesh(mesh.id, { visible: !mesh.visible })}
-                                className={`p-1.5 rounded-lg shrink-0 ${mesh.visible ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}
-                                title={mesh.visible ? "Ocultar malha" : "Mostrar malha"}
-                            >
-                                {mesh.visible ? <Eye size={16} /> : <EyeOff size={16} />}
-                            </button>
-                            <button 
-                                onClick={() => handleDownload(mesh.id, mesh.name)}
-                                className="p-1.5 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-lg transition-colors shrink-0"
-                                title="Baixar arquivo STL individual"
-                            >
-                                <Download size={14} />
-                            </button>
-                            <span className="text-xs font-bold text-slate-700 truncate" title={mesh.name}>{mesh.name}</span>
+                            {!mesh.isStale ? (
+                              <>
+                                <button 
+                                    onClick={() => updateMesh(mesh.id, { visible: !mesh.visible })}
+                                    className={`p-1.5 rounded-lg shrink-0 ${mesh.visible ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}
+                                    title={mesh.visible ? "Ocultar malha" : "Mostrar malha"}
+                                >
+                                    {mesh.visible ? <Eye size={16} /> : <EyeOff size={16} />}
+                                </button>
+                                <button 
+                                    onClick={() => handleDownload(mesh.id, mesh.name)}
+                                    className="p-1.5 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-lg transition-colors shrink-0"
+                                    title="Baixar arquivo "
+                                >
+                                    <Download size={14} />
+                                </button>
+                              </>
+                            ) : (
+                              <div className="p-1 px-1.5 bg-red-100 border border-red-200 text-red-700 text-[9px] font-black uppercase rounded shrink-0" title="Upload local expirou">
+                                Expirado
+                              </div>
+                            )}
+                            <span className={`text-xs font-bold truncate flex-1 ${mesh.isStale ? 'text-red-600 line-through' : 'text-slate-700'}`} title={mesh.name}>{mesh.name}</span>
                         </div>
-                        <input 
-                            type="color" 
-                            value={mesh.color}
-                            onChange={(e) => updateMesh(mesh.id, { color: e.target.value })}
-                            className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
-                        />
+                        {!mesh.isStale && (
+                          <input 
+                              type="color" 
+                              value={mesh.color}
+                              onChange={(e) => updateMesh(mesh.id, { color: e.target.value })}
+                              className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
+                          />
+                        )}
                     </div>
                     
-                    <div className="space-y-1">
-                        <div className="flex justify-between text-xs text-slate-500 font-medium">
-                            <span>Opacidade</span>
-                            <span>{(mesh.opacity * 100).toFixed(0)}%</span>
-                        </div>
-                        <input 
-                            type="range" 
-                            min="0.1" 
-                            max="1" 
-                            step="0.1" 
-                            value={mesh.opacity} 
-                            onChange={(e) => updateMesh(mesh.id, { opacity: parseFloat(e.target.value) })}
-                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                        />
-                    </div>
+                    {mesh.isStale ? (
+                      <p className="text-[9px] text-red-500/80 leading-normal font-medium">
+                        Este arquivo STL foi anexado via link local provisório no passado. Reenvie o arquivo real para visualizá-lo.
+                      </p>
+                    ) : (
+                      <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-slate-500 font-medium">
+                              <span>Opacidade</span>
+                              <span>{(mesh.opacity * 100).toFixed(0)}%</span>
+                          </div>
+                          <input 
+                              type="range" 
+                              min="0.1" 
+                              max="1" 
+                              step="0.1" 
+                              value={mesh.opacity} 
+                              onChange={(e) => updateMesh(mesh.id, { opacity: parseFloat(e.target.value) })}
+                              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                          />
+                      </div>
+                    )}
                 </div>
             ))}
         </div>
