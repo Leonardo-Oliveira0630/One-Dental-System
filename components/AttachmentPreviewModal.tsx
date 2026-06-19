@@ -12,6 +12,20 @@ interface AttachmentPreviewModalProps {
 
 export const handleDownloadFile = async (url: string, name: string) => {
   try {
+    if (url.startsWith('data:')) {
+      const arr = url.split(',');
+      const mimeMatch = arr[0].match(/:(.*?);/);
+      const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      const blob = new Blob([u8arr], { type: mime });
+      FileSaver.saveAs(blob, name);
+      return;
+    }
     const response = await fetch(url);
     const blob = await response.blob();
     FileSaver.saveAs(blob, name);

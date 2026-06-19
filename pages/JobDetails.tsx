@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
+import { AttachmentPreviewModal, handleDownloadFile } from '../components/AttachmentPreviewModal';
 import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
 import * as firestorePkg from 'firebase/firestore';
@@ -48,12 +49,14 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, allUsers, manualDentists, priceTables, inventoryItems, couriers } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [activeTab, setActiveTab] = useState<'SUMMARY' | 'HISTORY' | 'CHAT' | 'PRODUCTION'>('SUMMARY');
+  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  const [allAttachmentsForPreview, setAllAttachmentsForPreview] = useState<Attachment[]>([]);
   const [showAlertModal, setShowAlertModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editDentistId, setEditDentistId] = useState('');
@@ -180,6 +183,8 @@ export const JobDetails = () => {
   const isTech = currentUser?.role === UserRole.COLLABORATOR;
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = isAdmin || isManager || isTech;
+  const targetLabOrg = isClient ? activeOrganization : currentOrg;
+  const revealJobStatus = !isClient || (targetLabOrg?.revealJobStatusToDentist ?? false);
   const canEdit = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:edit'));
   const canManageCommissions = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('commissions:edit'));
 
@@ -1035,7 +1040,7 @@ export const JobDetails = () => {
       }
   };
 
-  const showChatTab = isLabStaff || (isClient && job.chatEnabled);
+  const showChatTab = true;
 
   return (
     <div className="w-full space-y-4 md:space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-x-hidden">
@@ -1460,9 +1465,15 @@ export const JobDetails = () => {
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                     <span className="font-mono font-black text-2xl md:text-3xl text-slate-900 tracking-tight shrink-0">OS #{job.osNumber || '---'}</span>
                     <div className="relative group shrink-0">
-                        <button className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm`}>
-                            {getTranslatedStatus(job.status)} <ChevronDown size={10}/>
-                        </button>
+                        {revealJobStatus ? (
+                            <button className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm`}>
+                                {getTranslatedStatus(job.status)} {!isClient && <ChevronDown size={10}/>}
+                            </button>
+                        ) : (
+                            <button className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 bg-slate-100 text-slate-400 border-slate-200 shadow-sm cursor-not-allowed" title="Andamento ocultado pelo laboratório">
+                                <Lock size={10} /> Indisponível
+                            </button>
+                        )}
                         {!isClient && (
                             <div className="absolute top-full left-0 mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-2xl z-[60] hidden group-hover:block animate-in fade-in slide-in-from-top-2 overflow-hidden">
                                 <div className="p-1.5 bg-slate-50 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b">Alterar Status</div>
@@ -1579,7 +1590,9 @@ export const JobDetails = () => {
                         <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl shrink-0"><MapPin size={24} /></div>
                         <div className="min-w-0">
                             <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">Localização Atual</p>
-                            <p className="font-black text-lg text-slate-800 uppercase truncate">{job.currentSector || 'Triagem'}</p>
+                            <p className="font-black text-lg text-slate-800 uppercase truncate">
+                                {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
+                            </p>
                         </div>
                     </div>
                     <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100 flex items-center gap-4">
@@ -1592,7 +1605,7 @@ export const JobDetails = () => {
                 </div>
 
                 <div className="lg:col-span-2 space-y-4 md:space-y-6 min-w-0">
-                    {routeInfo && (
+                    {routeInfo && revealJobStatus && (
                         <div id="delivery-record-wrapper" className="bg-white rounded-[32px] shadow-sm border border-slate-100 overflow-hidden animate-in slide-in-from-top-4">
                             <div className={`px-6 py-4 flex justify-between items-center border-b ${
                                 routeInfo.status === 'COMPLETED' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
@@ -2011,15 +2024,28 @@ export const JobDetails = () => {
                             <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 no-scrollbar shrink-0">
                                 {job.attachments?.map(att => (
                                     <div key={att.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 hover:border-blue-200 transition-all group overflow-hidden">
-                                        <a href={att.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 overflow-hidden flex-1">
+                                        <button 
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedAttachment(att);
+                                                setAllAttachmentsForPreview(job.attachments || []);
+                                            }} 
+                                            className="flex items-center gap-3 overflow-hidden flex-1 text-left focus:outline-none"
+                                        >
                                             {getFileIcon(att.name)}
                                             <div className="min-w-0">
-                                                <p className="text-[10px] font-black text-slate-700 truncate uppercase tracking-tighter">{att.name}</p>
+                                                <p className="text-[10px] font-black text-slate-700 truncate uppercase tracking-tighter" title={att.name}>{att.name}</p>
                                                 <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest">{new Date(att.uploadedAt).toLocaleDateString()}</p>
                                             </div>
-                                        </a>
+                                        </button>
                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <a href={att.url} download={att.name} className="p-2 text-slate-400 hover:text-blue-600 transition-colors"><Download size={14} /></a>
+                                            <button 
+                                                onClick={() => handleDownloadFile(att.url, att.name)} 
+                                                className="p-2 text-slate-400 hover:text-blue-600 transition-colors focus:outline-none"
+                                                title="Baixar arquivo original"
+                                            >
+                                                <Download size={14} />
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -2038,56 +2064,65 @@ export const JobDetails = () => {
         )}
 
         {activeTab === 'HISTORY' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
-                <div className="lg:col-span-2 min-w-0">
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
-                        <h3 className="text-base md:text-lg font-black text-slate-800 mb-8 flex items-center gap-2 uppercase tracking-tighter"><ListChecks size={20} className="text-blue-500 shrink-0" /> Linha do Tempo</h3>
-                        <div className="space-y-8 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-50">
-                            {sortedHistory.map((h, idx) => (
-                                <div key={idx} className="flex gap-4 md:gap-6 relative min-w-0">
-                                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm ${idx === 0 ? 'bg-blue-600 text-white shadow-blue-100' : 'bg-slate-100 text-slate-300'}`}>
-                                        {h.action.toLowerCase().includes('concluído') ? <Check size={16} className="shrink-0" /> : idx === 0 ? <Clock size={16} className="shrink-0" /> : <div className="w-2 h-2 bg-slate-300 rounded-full shrink-0" />}
-                                    </div>
-                                    <div className="flex-1 pb-8 border-b border-slate-50 last:border-0 last:pb-0 min-w-0">
-                                        <div className="flex flex-col sm:flex-row justify-between items-start gap-1.5 md:gap-4 mb-2">
-                                            <p className={`font-black text-xs md:text-sm uppercase tracking-tight leading-tight ${idx === 0 ? 'text-blue-600' : 'text-slate-700'}`}>{h.action}</p>
-                                            <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded shrink-0 whitespace-nowrap">{new Date(h.timestamp).toLocaleDateString()} {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            revealJobStatus ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
+                    <div className="lg:col-span-2 min-w-0">
+                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
+                            <h3 className="text-base md:text-lg font-black text-slate-800 mb-8 flex items-center gap-2 uppercase tracking-tighter"><ListChecks size={20} className="text-blue-500 shrink-0" /> Linha do Tempo</h3>
+                            <div className="space-y-8 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-50">
+                                {sortedHistory.map((h, idx) => (
+                                    <div key={idx} className="flex gap-4 md:gap-6 relative min-w-0">
+                                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm ${idx === 0 ? 'bg-blue-600 text-white shadow-blue-100' : 'bg-slate-100 text-slate-300'}`}>
+                                            {h.action.toLowerCase().includes('concluído') ? <Check size={16} className="shrink-0" /> : idx === 0 ? <Clock size={16} className="shrink-0" /> : <div className="w-2 h-2 bg-slate-300 rounded-full shrink-0" />}
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-400 font-bold uppercase truncate"><User size={12} className="shrink-0" /> {h.userName}</div>
-                                            {h.sector && <div className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded shrink-0">{h.sector}</div>}
+                                        <div className="flex-1 pb-8 border-b border-slate-50 last:border-0 last:pb-0 min-w-0">
+                                            <div className="flex flex-col sm:flex-row justify-between items-start gap-1.5 md:gap-4 mb-2">
+                                                <p className={`font-black text-xs md:text-sm uppercase tracking-tight leading-tight ${idx === 0 ? 'text-blue-600' : 'text-slate-700'}`}>{h.action}</p>
+                                                <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded shrink-0 whitespace-nowrap">{new Date(h.timestamp).toLocaleDateString()} {new Date(h.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-3">
+                                                <div className="flex items-center gap-1.5 text-[10px] md:text-xs text-slate-400 font-bold uppercase truncate"><User size={12} className="shrink-0" /> {h.userName}</div>
+                                                {h.sector && <div className="flex items-center gap-1.5 text-[8px] md:text-[9px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded shrink-0">{h.sector}</div>}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0">
-                     <div className={`rounded-[32px] shadow-xl p-6 md:p-8 text-white overflow-hidden relative min-h-[160px] flex flex-col justify-center shrink-0 transition-colors duration-500 ${timeInfo.isAttention ? 'bg-amber-600' : 'bg-indigo-900'}`}>
-                        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Flag size={100} /></div>
-                        <h4 className={`font-black text-[10px] md:text-xs mb-2 flex items-center gap-2 uppercase tracking-widest ${timeInfo.isAttention ? 'text-amber-200' : 'text-indigo-300'}`}><MapPin size={16} className="shrink-0" /> Estágio Atual</h4>
-                        <p className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-tight break-words">{job.currentSector || 'Triagem'}</p>
-                        <div className="mt-4 flex flex-col gap-1">
-                            <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] ${timeInfo.isAttention ? 'text-amber-100' : 'text-indigo-400'} shrink-0`}>
-                                <Clock size={14} /> Permanência: {timeInfo.label}
+                                ))}
                             </div>
-                            {timeInfo.isAttention && (
-                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white bg-white/20 px-3 py-1 rounded-lg w-fit mt-2 animate-pulse">
-                                    <FileWarning size={14} /> Status de Atenção (+18h)
-                                </div>
-                            )}
                         </div>
-                        <div className="mt-6 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-400 shrink-0">
-                            <div className={`w-1.5 h-1.5 rounded-full animate-ping shrink-0 ${timeInfo.isAttention ? 'bg-white' : 'bg-indigo-400'}`}></div> PRODUÇÃO EM CURSO
+                    </div>
+                    <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0">
+                         <div className={`rounded-[32px] shadow-xl p-6 md:p-8 text-white overflow-hidden relative min-h-[160px] flex flex-col justify-center shrink-0 transition-colors duration-500 ${timeInfo.isAttention ? 'bg-amber-600' : 'bg-indigo-900'}`}>
+                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none"><Flag size={100} /></div>
+                            <h4 className={`font-black text-[10px] md:text-xs mb-2 flex items-center gap-2 uppercase tracking-widest ${timeInfo.isAttention ? 'text-amber-200' : 'text-indigo-300'}`}><MapPin size={16} className="shrink-0" /> Estágio Atual</h4>
+                            <p className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-tight break-words">{job.currentSector || 'Triagem'}</p>
+                            <div className="mt-4 flex flex-col gap-1">
+                                <div className={`flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] ${timeInfo.isAttention ? 'text-amber-100' : 'text-indigo-400'} shrink-0`}>
+                                    <Clock size={14} /> Permanência: {timeInfo.label}
+                                </div>
+                                {timeInfo.isAttention && (
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white bg-white/20 px-3 py-1 rounded-lg w-fit mt-2 animate-pulse">
+                                        <FileWarning size={14} /> Status de Atenção (+18h)
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-6 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-indigo-400 shrink-0">
+                                <div className={`w-1.5 h-1.5 rounded-full animate-ping shrink-0 ${timeInfo.isAttention ? 'bg-white' : 'bg-indigo-400'}`}></div> PRODUÇÃO EM CURSO
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-white p-12 md:p-20 rounded-[32px] border border-slate-100 shadow-sm text-center max-w-4xl mx-auto my-6">
+                    <Lock size={48} className="mx-auto text-slate-200 mb-4 shrink-0" />
+                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Histórico Indisponível</h3>
+                    <p className="text-slate-400 max-w-sm mx-auto mt-2 text-sm font-medium">Este laboratório desabilitou o acompanhamento de histórico para os dentistas.</p>
+                </div>
+            )
         )}
 
         {activeTab === 'PRODUCTION' && (
-            <div className="w-full animate-in fade-in duration-300 pb-8 overflow-x-auto">
+            revealJobStatus ? (
+                <div className="w-full animate-in fade-in duration-300 pb-8 overflow-x-auto">
                 <div className="min-w-[800px] max-w-6xl mx-auto space-y-6">
                     {job.items.map(item => {
                         const jt = jobTypes.find(t => t.id === item.jobTypeId);
@@ -2221,6 +2256,13 @@ export const JobDetails = () => {
                     </div>
                 </div>
             </div>
+            ) : (
+                <div className="bg-white p-12 md:p-20 rounded-[32px] border border-slate-100 shadow-sm text-center max-w-4xl mx-auto my-6 animate-in fade-in duration-300">
+                    <Lock size={48} className="mx-auto text-slate-200 mb-4 shrink-0" />
+                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Produção Indisponível</h3>
+                    <p className="text-slate-400 max-w-sm mx-auto mt-2 text-sm font-medium">Este laboratório desabilitou o acompanhamento de etapas de produção para os dentistas.</p>
+                </div>
+            )
         )}
 
         {activeTab === 'CHAT' && showChatTab && (
@@ -2297,6 +2339,16 @@ export const JobDetails = () => {
               </div>
           </div>
       )}
+       {selectedAttachment && (
+           <AttachmentPreviewModal 
+               file={selectedAttachment}
+               allAttachments={allAttachmentsForPreview}
+               onClose={() => {
+                   setSelectedAttachment(null);
+                   setAllAttachmentsForPreview([]);
+               }}
+           />
+       )}
       </div>
     </div>
   );

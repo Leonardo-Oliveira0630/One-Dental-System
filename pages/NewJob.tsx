@@ -584,7 +584,8 @@ export const NewJob = () => {
         boxColor, 
         currentSector: initialSector, 
         totalValue, 
-        notes 
+        notes,
+        chatEnabled: false
     };
 
     setIsSubmitting(true);

@@ -26,6 +26,7 @@ export const OrganizationTab = () => {
   const [email, setEmail] = useState(currentOrg?.email || '');
   const [croNumero, setCroNumero] = useState(currentOrg?.croNumero || '');
   const [croUf, setCroUf] = useState(currentOrg?.croUf || '');
+  const [revealJobStatusToDentist, setRevealJobStatusToDentist] = useState(currentOrg?.revealJobStatusToDentist || false);
   
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(currentOrg?.storeSettings || {
     banners: [],
@@ -136,6 +137,7 @@ export const OrganizationTab = () => {
         email: email.trim(),
         croNumero: croNumero.trim(),
         croUf: croUf.trim(),
+        revealJobStatusToDentist: revealJobStatusToDentist,
         financialSettings: {
           ...currentOrg.financialSettings,
           techResponsibleName: techResponsibleName.trim(),
@@ -440,6 +442,35 @@ export const OrganizationTab = () => {
              </div>
           </div>
         )}
+      </div>
+
+      {/* PORTAL DO CLIENTE */}
+      <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-blue-100 transition-all space-y-6">
+        <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
+          <Shield className="text-blue-600" size={24} /> Portal do Cliente (Dentista)
+        </h3>
+        
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-2xl gap-4">
+          <div className="flex-1">
+             <h4 className="font-bold text-slate-800 mb-1">Acompanhamento de Status pelo Dentista</h4>
+             <p className="text-xs text-slate-500 leading-relaxed">
+               Permitir que os dentistas acompanhem as etapas e o status atualizado dos pedidos/trabalhos diretamente no portal "Meus Pedidos". Caso desativado, as informações de status do trabalho aparecerão como indisponíveis para os clientes.
+             </p>
+          </div>
+          <div>
+             <button
+                type="button"
+                onClick={() => setRevealJobStatusToDentist(!revealJobStatusToDentist)}
+                className={`px-5 py-2.5 text-xs font-black rounded-xl transition-all uppercase whitespace-nowrap shadow-sm border ${
+                  revealJobStatusToDentist 
+                    ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-700' 
+                    : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+             >
+                {revealJobStatusToDentist ? 'Ativado (Visualização Liberada)' : 'Desativado (Ocultação)'}
+             </button>
+          </div>
+        </div>
       </div>
 
       {/* CONFIGURAÇÕES DA LOJA VIRTUAL */}

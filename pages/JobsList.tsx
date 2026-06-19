@@ -16,7 +16,7 @@ export const getJobOriginInfo = (job: any) => {
 
   switch(origin) {
     case 'ONLINE_ORDER':
-      return { label: 'Pedido Online', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' };
+      return { label: 'Loja Online', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' };
     case 'ONLINE_REQUISITION':
       return { label: 'Requisição Online', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' };
     case 'OUTSOURCING':
@@ -38,7 +38,8 @@ const JobRow = memo(({
     setRouteModalJob,
     getStatusColor,
     getTranslatedStatus,
-    getSectorTimeInfo 
+    getSectorTimeInfo,
+    revealJobStatus
 }: { 
     job: Job, 
     isClient: boolean, 
@@ -49,7 +50,8 @@ const JobRow = memo(({
     setRouteModalJob: any,
     getStatusColor: any,
     getTranslatedStatus: any,
-    getSectorTimeInfo: any
+    getSectorTimeInfo: any,
+    revealJobStatus: boolean
 }) => {
     const canFinalize = isLabStaff && job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED && job.status !== JobStatus.REJECTED;
     const canRoute = isLabStaff && job.status === JobStatus.COMPLETED && !job.routeId;
@@ -90,17 +92,27 @@ const JobRow = memo(({
                 <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
             </td>
             <td className="p-4">
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status)}`}>
-                    {getTranslatedStatus(job.status)}
-                </span>
+                {revealJobStatus ? (
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status)}`}>
+                        {getTranslatedStatus(job.status)}
+                    </span>
+                ) : (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200" title="Função de andamento indisponível no momento">
+                        Indisponível
+                    </span>
+                )}
             </td>
             <td className="p-4">
                 <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{job.currentSector || 'Triagem'}</span>
-                    <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
-                        <Clock size={12} /> {timeInfo.label}
-                        {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
-                    </div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
+                    </span>
+                    {revealJobStatus && (
+                        <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
+                            <Clock size={12} /> {timeInfo.label}
+                            {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
+                        </div>
+                    )}
                 </div>
             </td>
             <td className="p-4 text-slate-600 text-xs font-bold">{new Date(job.dueDate).toLocaleDateString()}</td>
@@ -123,14 +135,16 @@ const JobCard = memo(({
     getStatusColor, 
     getTranslatedStatus, 
     getSectorTimeInfo, 
-    isClient 
+    isClient,
+    revealJobStatus
 }: { 
     job: Job, 
     navigate: any, 
     getStatusColor: any, 
     getTranslatedStatus: any, 
     getSectorTimeInfo: any, 
-    isClient: boolean 
+    isClient: boolean,
+    revealJobStatus: boolean
 }) => {
     const timeInfo = getSectorTimeInfo(job);
     return (
@@ -141,9 +155,15 @@ const JobCard = memo(({
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
                     <span className="font-mono font-black text-blue-600 text-base">#{job.osNumber || '---'}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status)}`}>
-                        {getTranslatedStatus(job.status)}
-                    </span>
+                    {revealJobStatus ? (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status)}`}>
+                            {getTranslatedStatus(job.status)}
+                        </span>
+                    ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200">
+                            Indisponível
+                        </span>
+                    )}
                 </div>
                 <div className="text-right">
                     <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Entrega</p>
@@ -167,10 +187,10 @@ const JobCard = memo(({
                            <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
                        </div>
                    )}
-                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${timeInfo.isAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700'}`}>
-                       <MapPin size={14} className={timeInfo.isAttention ? 'text-amber-500' : 'text-blue-400'} />
-                       <span className="text-xs font-bold truncate max-w-[100px]">{job.currentSector || 'Recepção'}</span>
-                       <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>
+                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (timeInfo.isAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700') : 'bg-slate-100 text-slate-400'}`}>
+                       <MapPin size={14} className={revealJobStatus ? (timeInfo.isAttention ? 'text-amber-500' : 'text-blue-400') : 'text-slate-400'} />
+                       <span className="text-xs font-bold truncate max-w-[100px]">{revealJobStatus ? (job.currentSector || 'Recepção') : 'Indisponível'}</span>
+                       {revealJobStatus && <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>}
                    </div>
                    {(() => {
                         const originInfo = getJobOriginInfo(job);
@@ -214,6 +234,7 @@ export const JobsList = () => {
 
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.COLLABORATOR;
+  const revealJobStatus = !isClient || (activeOrganization?.revealJobStatusToDentist ?? false);
 
   const currentOrgId = activeOrganization?.id || currentUser?.organizationId;
 
@@ -235,7 +256,7 @@ export const JobsList = () => {
 
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
-        if (isClient && job.dentistId !== currentUser?.id) return false;
+        if (isClient && job.dentistId !== currentUser?.id && job.dentistId !== currentUser?.manualDentistId) return false;
         const searchLower = normalizeText(filterText);
         const matchText = 
           normalizeText(job.osNumber || '').includes(searchLower) ||
@@ -494,6 +515,7 @@ export const JobsList = () => {
                             getStatusColor={getStatusColor}
                             getTranslatedStatus={getTranslatedStatus}
                             getSectorTimeInfo={getSectorTimeInfo}
+                            revealJobStatus={revealJobStatus}
                         />
                     ))}
                     {filteredJobs.length > 100 && (
@@ -522,6 +544,7 @@ export const JobsList = () => {
                     getTranslatedStatus={getTranslatedStatus}
                     getSectorTimeInfo={getSectorTimeInfo}
                     isClient={isClient}
+                    revealJobStatus={revealJobStatus}
                 />
             ))
         )}

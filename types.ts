@@ -74,6 +74,7 @@ export interface Organization {
   croCategoria?: string;
   croValid?: boolean;
   isApproved?: boolean;
+  revealJobStatusToDentist?: boolean;
 }
 
 export interface ClinicRoom {
@@ -460,6 +461,7 @@ export interface User {
   croCategoria?: string;
   croValid?: boolean;
   isApproved?: boolean;
+  manualDentistId?: string;
 }
 
 export interface CartItem {
