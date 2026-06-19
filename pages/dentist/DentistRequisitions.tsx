@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, Attachment } from '../../types';
 import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw } from 'lucide-react';
+import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
 import { db } from '../../services/firebaseConfig';
 import * as firestorePkg from 'firebase/firestore';
 
@@ -42,6 +43,10 @@ export const DentistRequisitions = () => {
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  // State for attachment previews
+  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  const [allAttachmentsForPreview, setAllAttachmentsForPreview] = useState<Attachment[]>([]);
 
   // Selector or manual input toggle for patient name
   const [patientInputMode, setPatientInputMode] = useState<'SELECT' | 'MANUAL'>('MANUAL');
@@ -706,9 +711,18 @@ export const DentistRequisitions = () => {
                     {req.attachments && req.attachments.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {req.attachments.map((file, i) => (
-                          <span key={i} className="bg-white border border-slate-200 text-[8px] px-1.5 py-0.5 rounded text-slate-500 font-medium truncate max-w-[120px]">
-                            {file.name}
-                          </span>
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => {
+                              setSelectedAttachment(file);
+                              setAllAttachmentsForPreview(req.attachments || []);
+                            }}
+                            className="bg-white hover:bg-slate-50 border border-slate-200 text-[8px] px-1.5 py-0.5 rounded text-indigo-600 hover:text-indigo-800 font-bold truncate max-w-[125px] transition-colors flex items-center gap-1 focus:outline-none"
+                            title="Clique de visualização/download de arquivo"
+                          >
+                            <FileText size={8} className="shrink-0" /> {file.name}
+                          </button>
                         ))}
                       </div>
                     )}
@@ -718,6 +732,17 @@ export const DentistRequisitions = () => {
           </div>
         </div>
       </div>
+
+      {selectedAttachment && (
+        <AttachmentPreviewModal 
+          file={selectedAttachment}
+          allAttachments={allAttachmentsForPreview}
+          onClose={() => {
+            setSelectedAttachment(null);
+            setAllAttachmentsForPreview([]);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -4,8 +4,9 @@ import { Canvas, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stage, Grid, Html, useProgress, Center } from '@react-three/drei';
 import { STLLoader } from 'three-stdlib';
 import { Attachment } from '../types';
-import { Eye, EyeOff, Layers, X, Box, Sun, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Layers, X, Box, Sun, AlertTriangle, Download } from 'lucide-react';
 import * as THREE from 'three';
+import FileSaver from 'file-saver';
 
 // Define R3F elements as any to avoid TypeScript errors with IntrinsicElements
 const Mesh = 'mesh' as any;
@@ -161,6 +162,17 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
 
   const [showControls, setShowControls] = useState(true);
 
+  const handleDownload = async (url: string, name: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      FileSaver.saveAs(blob, name);
+    } catch (e) {
+      console.error("Erro ao baixar pelo Blob. Tentando direto...", e);
+      FileSaver.saveAs(url, name);
+    }
+  };
+
   const updateMesh = (id: string, updates: Partial<MeshConfig>) => {
     setMeshes(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
   };
@@ -243,20 +255,28 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
             {meshes.map((mesh) => (
                 <div key={mesh.id} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:border-blue-300 transition-colors">
                     <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center gap-1.5 overflow-hidden flex-1">
                             <button 
                                 onClick={() => updateMesh(mesh.id, { visible: !mesh.visible })}
-                                className={`p-1.5 rounded-lg ${mesh.visible ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}
+                                className={`p-1.5 rounded-lg shrink-0 ${mesh.visible ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}
+                                title={mesh.visible ? "Ocultar malha" : "Mostrar malha"}
                             >
                                 {mesh.visible ? <Eye size={16} /> : <EyeOff size={16} />}
                             </button>
-                            <span className="text-sm font-bold text-slate-700 truncate" title={mesh.name}>{mesh.name}</span>
+                            <button 
+                                onClick={() => handleDownload(mesh.id, mesh.name)}
+                                className="p-1.5 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-lg transition-colors shrink-0"
+                                title="Baixar arquivo STL individual"
+                            >
+                                <Download size={14} />
+                            </button>
+                            <span className="text-xs font-bold text-slate-700 truncate" title={mesh.name}>{mesh.name}</span>
                         </div>
                         <input 
                             type="color" 
                             value={mesh.color}
                             onChange={(e) => updateMesh(mesh.id, { color: e.target.value })}
-                            className="w-8 h-8 rounded cursor-pointer border-0 p-0 overflow-hidden"
+                            className="w-7 h-7 rounded cursor-pointer border-0 p-0 overflow-hidden shrink-0"
                         />
                     </div>
                     

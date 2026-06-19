@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { OnlineRequisition, Job, JobStatus, UserRole, JobItem } from '../../types';
+import { OnlineRequisition, Job, JobStatus, UserRole, JobItem, Attachment } from '../../types';
 import { ClipboardList, Check, X, FileText, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
 
 export const IncomingRequisitions = () => {
   const { 
@@ -17,6 +18,10 @@ export const IncomingRequisitions = () => {
   } = useApp();
 
   const navigate = useNavigate();
+
+  // State for attachment previews
+  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  const [allAttachmentsForPreview, setAllAttachmentsForPreview] = useState<Attachment[]>([]);
 
   // Filtering status for list
   const [statusFilter, setStatusFilter] = useState<'PENDING' | 'ACCEPTED' | 'REJECTED' | 'ALL'>('PENDING');
@@ -200,15 +205,17 @@ export const IncomingRequisitions = () => {
                       {req.attachments && req.attachments.length > 0 ? (
                         <div className="flex flex-col gap-1 text-xs">
                           {req.attachments.map((file, i) => (
-                            <a
+                            <button
                               key={i}
-                              href={file.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline flex items-center gap-1 font-medium"
+                              onClick={() => {
+                                setSelectedAttachment(file);
+                                setAllAttachmentsForPreview(req.attachments || []);
+                              }}
+                              className="text-blue-600 hover:underline hover:text-blue-800 flex items-center gap-1 font-semibold text-left focus:outline-none"
+                              title="Clique para visualizar ou baixar"
                             >
-                              <FileText size={12} /> {file.name}
-                            </a>
+                              <FileText size={12} className="shrink-0" /> <span className="truncate max-w-[155px]">{file.name}</span>
+                            </button>
                           ))}
                         </div>
                       ) : (
@@ -253,6 +260,17 @@ export const IncomingRequisitions = () => {
           </div>
         )}
       </div>
+
+      {selectedAttachment && (
+        <AttachmentPreviewModal 
+          file={selectedAttachment}
+          allAttachments={allAttachmentsForPreview}
+          onClose={() => {
+            setSelectedAttachment(null);
+            setAllAttachmentsForPreview([]);
+          }}
+        />
+      )}
     </div>
   );
 };
