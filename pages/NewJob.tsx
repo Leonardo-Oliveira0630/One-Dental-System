@@ -570,6 +570,7 @@ export const NewJob = () => {
         origin: finalOrigin,
         items: addedItems, 
         products: addedProducts,
+        attachments: location.state?.attachments || [],
         history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
         sectorMovements: [{
             id: Math.random().toString(),

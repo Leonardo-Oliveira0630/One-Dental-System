@@ -442,7 +442,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     if (activeDataId) {
         const isClient = currentUser.role === UserRole.CLIENT;
-        unsubs.push(api.subscribeJobs(activeDataId, currentUser.id, isClient, setJobs));
+        unsubs.push(api.subscribeJobs(activeDataId, currentUser.id, isClient, setJobs, (currentUser as any).manualDentistId));
         unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
         
         // Colaboradores: Super Admin ou qualquer membro da própria organização

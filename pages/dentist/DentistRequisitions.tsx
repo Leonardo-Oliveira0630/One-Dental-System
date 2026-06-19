@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, Attachment } from '../../types';
+import { apiAddPatientHistory } from '../../services/firebaseService';
 import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw } from 'lucide-react';
 import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
 import { db } from '../../services/firebaseConfig';
@@ -40,6 +41,7 @@ export const DentistRequisitions = () => {
   // Form selections and inputs
   const [selectedLabId, setSelectedLabId] = useState('');
   const [patientName, setPatientName] = useState('');
+  const [selectedPatientId, setSelectedPatientId] = useState('');
   const [selectedServiceId, setSelectedServiceId] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
@@ -350,8 +352,40 @@ export const DentistRequisitions = () => {
 
       await addOnlineRequisition(selectedLabId, reqPayload);
 
+      // Save prosthesis history in selected patient clinical history records
+      if (selectedPatientId && currentUser) {
+        try {
+          const specsCompiled = `${quantity}x ${activeService?.name || 'Serviço de Prótese'}`;
+          const labName = activeLab?.name || 'Laboratório';
+          const descriptionText = `Enviada requisição online ao Laboratório: ${labName}. Requisito: ${specsCompiled}.`;
+
+          const historyRecord: any = {
+            id: `hist_${Date.now()}`,
+            patientId: selectedPatientId,
+            type: 'PROSTHESIS',
+            description: descriptionText,
+            date: new Date(),
+            createdAt: new Date(),
+            professionalId: currentUser.id,
+            professionalName: currentUser.name,
+            labName: labName,
+            labId: selectedLabId,
+            specs: specsCompiled,
+            attachments: mappedAttachments || []
+          };
+
+          const dentistOrgId = currentUser.organizationId;
+          if (dentistOrgId) {
+            await apiAddPatientHistory(dentistOrgId, selectedPatientId, historyRecord);
+          }
+        } catch (historyErr) {
+          console.error("Erro ao registrar histórico do paciente na requisição online:", historyErr);
+        }
+      }
+
       setSuccess(true);
       setPatientName('');
+      setSelectedPatientId('');
       setNotes('');
       setAttachedFiles([]);
       setSelectedVariations({});
@@ -449,6 +483,7 @@ export const DentistRequisitions = () => {
                     value={patientName}
                     onChange={(e) => {
                       setPatientName(e.target.value);
+                      setSelectedPatientId('');
                       setShowPatientSuggestions(true);
                     }}
                     onFocus={() => setShowPatientSuggestions(true)}
@@ -463,6 +498,7 @@ export const DentistRequisitions = () => {
                           type="button"
                           onClick={() => {
                             setPatientName(p.name.toUpperCase());
+                            setSelectedPatientId(p.id);
                             setShowPatientSuggestions(false);
                           }}
                           className="w-full text-left px-4 py-3.5 hover:bg-slate-50 text-xs font-bold text-slate-700 uppercase transition-colors"

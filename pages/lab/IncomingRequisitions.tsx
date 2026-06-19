@@ -66,12 +66,13 @@ export const IncomingRequisitions = () => {
     navigate('/new-job', {
       state: {
         patientName: req.patientName,
-        dentistId: req.dentistManualId || req.dentistId,
+        dentistId: req.dentistId || req.dentistManualId,
         dentistName: getDentistName(req),
         items: items,
         notes: req.notes || '',
         origin: 'ONLINE_REQUISITION',
-        onlineRequisitionId: req.id
+        onlineRequisitionId: req.id,
+        attachments: req.attachments || []
       }
     });
   };

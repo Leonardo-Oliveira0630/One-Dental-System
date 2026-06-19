@@ -203,7 +203,7 @@ export const subscribeGlobalSettings = (cb: (s: GlobalSettings) => void) => {
 };
 export const apiUpdateGlobalSettings = (updates: Partial<GlobalSettings>) => updateDoc(doc(db, 'settings', 'global'), updates);
 
-export const subscribeJobs = (orgId: string, userId: string | null, isClient: boolean, cb: (jobs: Job[]) => void) => {
+export const subscribeJobs = (orgId: string, userId: string | null, isClient: boolean, cb: (jobs: Job[]) => void, manualDentistId?: string) => {
     if (!orgId) return () => {};
     
     // Performance: Filter out jobs finished more than 3 months ago by default
@@ -218,12 +218,20 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
     );
     
     if (isClient && userId) {
-        // Query only with equality filter and sort/filter in memory to bypass composite index requirement
-        q = query(
-            collection(db, `organizations/${orgId}/jobs`), 
-            where('dentistId', '==', userId),
-            limit(1000)
-        );
+        const dentistIds = Array.from(new Set([userId, manualDentistId].filter(Boolean))) as string[];
+        if (dentistIds.length > 0) {
+            q = query(
+                collection(db, `organizations/${orgId}/jobs`), 
+                where('dentistId', 'in', dentistIds),
+                limit(1000)
+            );
+        } else {
+            q = query(
+                collection(db, `organizations/${orgId}/jobs`), 
+                where('dentistId', '==', userId),
+                limit(1000)
+            );
+        }
     }
 
     // Cache local para evitar mapeamento integral em cada update delta
