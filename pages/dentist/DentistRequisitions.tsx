@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { OnlineRequisition, Attachment } from '../../types';
+import { OnlineRequisition, Attachment, JobStatus, Job } from '../../types';
 import { apiAddPatientHistory } from '../../services/firebaseService';
-import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw, Activity, Package } from 'lucide-react';
+import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw, Activity, Package, X, MessageSquare, MessageCircle, Lock } from 'lucide-react';
+import { ChatSystem } from '../../components/ChatSystem';
 import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
 import { db } from '../../services/firebaseConfig';
 import * as firestorePkg from 'firebase/firestore';
@@ -30,8 +31,11 @@ export const DentistRequisitions = () => {
     patients,
     uploadFile,
     jobs,
-    activeManualDentistId
+    activeManualDentistId,
+    activeOrganization
   } = useApp();
+
+  const [chatJob, setChatJob] = useState<Job | null>(null);
 
   const userAny = currentUser as any;
 
@@ -885,59 +889,137 @@ export const DentistRequisitions = () => {
                   Nenhum caso ativo em produção no laboratório no momento.
                 </div>
               ) : (
-                dentistActiveJobs.map(job => (
-                  <div 
-                    key={job.id} 
-                    className="p-4 rounded-2xl border border-slate-100 bg-indigo-50/10 hover:bg-indigo-50/30 transition flex flex-col gap-2 relative overflow-hidden"
-                  >
-                    {job.urgency === 'VIP' && (
-                      <div className="absolute top-0 right-0 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 uppercase rounded-bl-lg">
-                        VIP
-                      </div>
-                    )}
+                dentistActiveJobs.map(job => {
+                  const revealJobStatus = (activeOrganization?.revealJobStatusToDentist ?? false);
+                  
+                  const getStatusColor = (status: string) => {
+                    switch (status) {
+                      case 'WAITING_APPROVAL': return 'bg-amber-50 text-amber-700 border-amber-200';
+                      case 'PENDING': return 'bg-slate-50 text-slate-600 border-slate-200';
+                      case 'IN_PROGRESS': return 'bg-blue-50 text-blue-700 border-blue-200';
+                      case 'COMPLETED': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                      case 'DELIVERED': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                      case 'REJECTED': return 'bg-rose-50 text-rose-700 border-rose-200';
+                      case 'CANCELED': return 'bg-slate-50 text-slate-400 border-slate-200';
+                      case 'RETURNED': return 'bg-orange-50 text-orange-700 border-orange-200';
+                      case 'SECTOR_TRANSITION': return 'bg-violet-50 text-violet-700 border-violet-200';
+                      default: return 'bg-slate-50 text-slate-600 border-slate-200';
+                    }
+                  };
 
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-slate-800 text-xs uppercase">{job.patientName}</div>
-                        <div className="text-[9px] font-mono text-indigo-600 font-extrabold mt-0.5">
-                          OS #{job.osNumber || '---'}
+                  const getTranslatedStatus = (status: string) => {
+                    switch (status) {
+                      case 'WAITING_APPROVAL': return 'Aguardando Aprovação';
+                      case 'PENDING': return 'Pendente';
+                      case 'IN_PROGRESS': return 'Em Produção';
+                      case 'COMPLETED': return 'Concluído';
+                      case 'DELIVERED': return 'Entregue';
+                      case 'REJECTED': return 'Rejeitado';
+                      case 'CANCELED': return 'Cancelado';
+                      case 'RETURNED': return 'Devolvido';
+                      case 'SECTOR_TRANSITION': return 'Em Transição';
+                      default: return status;
+                    }
+                  };
+
+                  return (
+                    <div 
+                      key={job.id} 
+                      className="p-4 rounded-2xl border border-slate-100 bg-indigo-50/10 hover:bg-indigo-50/30 transition flex flex-col gap-2.5 relative overflow-hidden"
+                    >
+                      {job.urgency === 'VIP' && (
+                        <div className="absolute top-0 right-0 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 uppercase rounded-bl-lg">
+                          VIP
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-extrabold text-slate-800 text-xs uppercase">{job.patientName}</div>
+                          <div className="text-[9px] font-mono text-indigo-600 font-extrabold mt-0.5">
+                            OS #{job.osNumber || '---'}
+                          </div>
+                        </div>
+                        {revealJobStatus ? (
+                          <span className={`inline-block text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider border ${getStatusColor(job.status)}`}>
+                            {getTranslatedStatus(job.status)}
+                          </span>
+                        ) : (
+                          <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-slate-100 text-slate-400 border border-slate-200 inline-flex items-center gap-1" title="Visualização desativada pelo laboratório">
+                            <Lock size={8} /> Oculto
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Info grid */}
+                      <div className="grid grid-cols-2 gap-2 mt-0.5 py-1.5 px-2.5 bg-white border border-slate-50 rounded-xl text-[10px]">
+                        <div>
+                          <span className="text-slate-400 block text-[8px] uppercase font-black">Etapa Atual</span>
+                          <span className="font-bold text-slate-800 uppercase">
+                            {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block text-[8px] uppercase font-black">Previsão</span>
+                          <span className="font-bold text-slate-800">
+                            {revealJobStatus && job.dueDate ? new Date(job.dueDate).toLocaleDateString() : 'Indisponível'}
+                          </span>
                         </div>
                       </div>
-                      <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider bg-indigo-100 text-indigo-800">
-                        {job.status === 'COMPLETED' ? 'Concluído' : job.status === 'DELIVERED' ? 'Entregue' : 'Produção'}
-                      </span>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-2 mt-1 py-1.5 px-2.5 bg-white border border-slate-50 rounded-xl text-[10px]">
-                      <div>
-                        <span className="text-slate-400 block text-[8px] uppercase font-black">Etapa Atual</span>
-                        <span className="font-bold text-slate-800 uppercase">{job.currentSector || 'Triagem'}</span>
+                      {job.boxNumber && revealJobStatus && (
+                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 mt-0.5">
+                          <span className="w-2 h-2 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: job.boxColor?.hex || '#cbd5e1' }} />
+                          Caixa #{job.boxNumber}
+                        </div>
+                      )}
+
+                      {/* Status and Chat Fields */}
+                      <div className="mt-1 border-t border-dashed border-slate-100 pt-2 space-y-2">
+                        {/* 1. Status do Trabalho Section */}
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400 font-bold uppercase text-[8px]">Status do Trabalho:</span>
+                          {revealJobStatus ? (
+                            <span className="font-black text-slate-700 uppercase">
+                              {getTranslatedStatus(job.status)}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-black uppercase text-[8px] flex items-center gap-1">
+                              <Lock size={8} /> Desativado
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 2. Chat Section */}
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400 font-bold uppercase text-[8px]">Chat de Acompanhamento:</span>
+                          {job.chatEnabled ? (
+                            <button
+                              type="button"
+                              onClick={() => setChatJob(job)}
+                              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                            >
+                              <MessageSquare size={10} className="animate-pulse" /> Abrir Chat
+                            </button>
+                          ) : (
+                            <span className="text-slate-400 font-black uppercase text-[8px] flex items-center gap-1" title="Canal de chat desativado para esta OS">
+                              <Lock size={8} /> Desativado
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-slate-400 block text-[8px] uppercase font-black">Previsão</span>
-                        <span className="font-bold text-slate-800">
-                          {job.dueDate ? new Date(job.dueDate).toLocaleDateString() : 'Não informada'}
-                        </span>
+
+                      <div className="flex justify-end mt-1 border-t border-slate-50 pt-1.5">
+                        <a 
+                          href={`/jobs/${job.id}`}
+                          className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-1"
+                        >
+                          Visualizar Rastreamento &rarr;
+                        </a>
                       </div>
                     </div>
-
-                    {job.boxNumber && (
-                      <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 mt-0.5">
-                        <span className="w-2 h-2 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: job.boxColor?.hex || '#cbd5e1' }} />
-                        Caixa #{job.boxNumber}
-                      </div>
-                    )}
-
-                    <div className="flex justify-end mt-1">
-                      <a 
-                        href={`/jobs/${job.id}`}
-                        className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-1"
-                      >
-                        Visualizar Rastreamento &rarr;
-                      </a>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )
             )}
           </div>
@@ -953,6 +1035,31 @@ export const DentistRequisitions = () => {
             setAllAttachmentsForPreview([]);
           }}
         />
+      )}
+
+      {chatJob && (
+        <div className="fixed inset-0 z-[210] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping"></span>
+                <h3 className="font-extrabold text-slate-900 text-sm">
+                  Canal Direto com o Lab • OS #{chatJob.osNumber}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setChatJob(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-705 hover:bg-slate-100 rounded-xl transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden p-2 bg-slate-50 max-h-[75vh]">
+              <ChatSystem job={chatJob} orgId={activeOrganization?.id || chatJob.organizationId || ''} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
