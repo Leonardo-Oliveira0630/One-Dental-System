@@ -87,6 +87,11 @@ const getProxiedUrl = (url: string): string => {
   if (url.startsWith('/') || url.startsWith(window.location.origin)) {
     return url;
   }
+  // Firebase Storage has its own native CORS handling (needs setup in the bucket, instructions in UI).
+  // Public CORS proxies like corsproxy.io block googleapis.com/firebasestorage URLs with 403 Forbidden.
+  if (url.includes('firebasestorage.googleapis.com') || url.includes('googleapis.com')) {
+    return url;
+  }
   // Avoid double prefixing
   if (url.includes('corsproxy.io')) {
     return url;
