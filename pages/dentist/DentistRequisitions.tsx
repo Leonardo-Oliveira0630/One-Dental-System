@@ -32,7 +32,8 @@ export const DentistRequisitions = () => {
     uploadFile,
     jobs,
     activeManualDentistId,
-    activeOrganization
+    activeOrganization,
+    switchActiveOrganization
   } = useApp();
 
   const [chatJob, setChatJob] = useState<Job | null>(null);
@@ -198,6 +199,9 @@ export const DentistRequisitions = () => {
         return;
       }
       try {
+        if (activeOrganization?.id !== selectedLabId && switchActiveOrganization) {
+          switchActiveOrganization(selectedLabId);
+        }
         const servSnap = await getDocs(collection(db, 'organizations', selectedLabId, 'jobTypes'));
         const list: ServiceOption[] = [];
         servSnap.forEach((docRef: any) => {

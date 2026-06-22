@@ -561,12 +561,12 @@ export const NewJob = () => {
         historyAction = `Requisição online aceita e cadastrada como Ordem de Serviço por ${currentUser.name} via ${initialSector}`;
     }
 
-    const computedDentistUserId = selectedDentistObj ? (
-        (selectedDentistObj as any).userId || 
-        ((selectedDentistObj as any).role === 'CLIENT' ? selectedDentistObj.id : '')
-    ) : (
-        finalOrigin === 'ONLINE_REQUISITION' ? location.state?.dentistId : ''
-    );
+    const computedDentistUserId = (finalOrigin === 'ONLINE_REQUISITION' && location.state?.dentistId)
+        ? location.state.dentistId
+        : (selectedDentistObj ? (
+            (selectedDentistObj as any).userId || 
+            ((selectedDentistObj as any).role === 'CLIENT' ? selectedDentistObj.id : '')
+          ) : '');
 
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
         osNumber: finalOsNumber, 
