@@ -496,8 +496,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeInventoryCategories(myOrgId, setInventoryCategories));
             unsubs.push(api.subscribeInventoryItems(myOrgId, setInventoryItems));
             unsubs.push(api.subscribeLabOnlineRequisitions(myOrgId, setOnlineRequisitions));
-        } else {
-            unsubs.push(api.subscribeDentistOnlineRequisitions(currentUser.id, setOnlineRequisitions));
+        } else if (activeDataId) {
+            unsubs.push(api.subscribeDentistOnlineRequisitions(activeDataId, currentUser.id, setOnlineRequisitions));
         }
 
         unsubs.push(api.subscribePatientPayments(myOrgId, setPatientPayments));

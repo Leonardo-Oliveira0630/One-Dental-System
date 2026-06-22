@@ -1083,18 +1083,20 @@ export const subscribeLabOnlineRequisitions = (labId: string, cb: (reqs: OnlineR
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeLabOnlineRequisitions: ${error.code}`));
 };
 
-export const subscribeDentistOnlineRequisitions = (dentistId: string, cb: (reqs: OnlineRequisition[]) => void) => {
-    if (!dentistId) return () => {};
-    const { collectionGroup } = firestorePkg as any;
-    const q = query(collectionGroup(db, 'requisitions'), where('dentistId', '==', dentistId));
+export const subscribeDentistOnlineRequisitions = (labId: string, dentistId: string, cb: (reqs: OnlineRequisition[]) => void) => {
+    if (!labId || !dentistId) return () => {};
+    const q = query(
+        collection(db, 'organizations', labId, 'requisitions'),
+        where('dentistId', '==', dentistId)
+    );
     return onSnapshot(q, (snap: any) => {
         const list = snap.docs.map((d: any) => ({
             id: d.id, ...d.data() as any,
             createdAt: toDate(d.data().createdAt)
         } as OnlineRequisition));
-        // Sort in memory by createdAt descending to avoid index requirements for simple queries
+        // Sort in memory by createdAt descending
         list.sort((a: OnlineRequisition, b: OnlineRequisition) => b.createdAt.getTime() - a.createdAt.getTime());
         cb(list);
-    }, (error: any) => console.warn(`[Firestore] Erro em subscribeDentistOnlineRequisitions: ${error.code}`));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeDentistOnlineRequisitions para lab ${labId}, dentist ${dentistId}: ${error.code}`));
 };
 
