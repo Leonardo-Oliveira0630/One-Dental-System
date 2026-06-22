@@ -208,7 +208,7 @@ const JobCard = memo(({
 });
 
 export const JobsList = () => {
-  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions } = useApp();
+  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId } = useApp();
   const navigate = useNavigate();
   
   const [filterText, setFilterText] = useState('');
@@ -260,7 +260,7 @@ export const JobsList = () => {
     // Filter pending/rejected requisitions made by this dentist that are not yet accepted as active jobs
     const rawReqs = onlineRequisitions || [];
     const nonAcceptedReqs = rawReqs
-      .filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === currentUser?.manualDentistId) && r.status !== 'ACCEPTED')
+      .filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === currentUser?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status !== 'ACCEPTED')
       .map(r => ({
         id: `pseudo_req_${r.id}`,
         osNumber: 'REQ-' + r.id.substring(0, 5).toUpperCase(),
@@ -287,11 +287,17 @@ export const JobsList = () => {
       } as any));
 
     return [...nonAcceptedReqs, ...jobs];
-  }, [jobs, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId]);
+  }, [jobs, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId]);
 
   const filteredJobs = useMemo(() => {
     return combinedJobs.filter(job => {
-        if (isClient && job.dentistId !== currentUser?.id && job.dentistId !== currentUser?.manualDentistId && !job.isPseudo) return false;
+        if (isClient && 
+            job.dentistId !== currentUser?.id && 
+            job.dentistId !== currentUser?.manualDentistId && 
+            job.dentistId !== activeManualDentistId && 
+            job.dentistUserId !== currentUser?.id && 
+            !job.isPseudo
+        ) return false;
         const searchLower = normalizeText(filterText);
         const matchText = 
           normalizeText(job.osNumber || '').includes(searchLower) ||
@@ -332,7 +338,7 @@ export const JobsList = () => {
         }
         return true;
       });
-  }, [jobs, isClient, currentUser?.id, filterText, statusFilter, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
+  }, [jobs, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
 
   const handleFinalizeJob = async (job: Job) => {
       const dentist = allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId);

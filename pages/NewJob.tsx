@@ -48,9 +48,11 @@ export const NewJob = () => {
 
   useEffect(() => {
     // If state passed a dentistId, we need to find it and populate names
-    if (location.state?.dentistId && allUsers.length > 0) {
-      const dentist = allUsers.find(u => u.id === location.state.dentistId) || manualDentists.find(d => d.id === location.state.dentistId);
+    if (location.state?.dentistId) {
+      const dentist = allUsers.find(u => u.id === location.state.dentistId) || 
+                      manualDentists.find(d => d.id === location.state.dentistId || (d as any).userId === location.state.dentistId);
       if (dentist) {
+        setSelectedDentistId(dentist.id);
         setSelectedDentistObj(dentist);
         setDentistName(dentist.name.toUpperCase());
         setDentistSearchQuery(dentist.name.toUpperCase());
@@ -559,6 +561,13 @@ export const NewJob = () => {
         historyAction = `Requisição online aceita e cadastrada como Ordem de Serviço por ${currentUser.name} via ${initialSector}`;
     }
 
+    const computedDentistUserId = selectedDentistObj ? (
+        (selectedDentistObj as any).userId || 
+        ((selectedDentistObj as any).role === 'CLIENT' ? selectedDentistObj.id : '')
+    ) : (
+        finalOrigin === 'ONLINE_REQUISITION' ? location.state?.dentistId : ''
+    );
+
     const newJob: Omit<Job, 'id' | 'organizationId'> = { 
         osNumber: finalOsNumber, 
         patientName: patientName.trim().toUpperCase(), 
@@ -568,6 +577,7 @@ export const NewJob = () => {
         paymentStatus: 'PENDING', 
         urgency, 
         origin: finalOrigin,
+        dentistUserId: computedDentistUserId,
         items: addedItems, 
         products: addedProducts,
         attachments: location.state?.attachments || [],

@@ -76,17 +76,20 @@ service cloud.firestore {
         allow read: if isAuthenticated() && (
           isSuperAdmin() || 
           (belongsToOrg(orgId) && getUserData().get('role', 'USER') != 'CLIENT') ||
-          (getUserData().get('role', 'USER') == 'CLIENT' && resource.data.get('dentistId', '') == request.auth.uid)
+          (getUserData().get('role', 'USER') == 'CLIENT' && (resource.data.get('dentistId', '') == request.auth.uid || resource.data.get('dentistUserId', '') == request.auth.uid))
         );
         allow create: if isAuthenticated() && (
           isSuperAdmin() || 
           (belongsToOrg(orgId) && getUserData().get('role', 'USER') != 'CLIENT') ||
-          (getUserData().get('role', 'USER') == 'CLIENT' && request.resource.data.get('dentistId', '') == request.auth.uid)
+          (getUserData().get('role', 'USER') == 'CLIENT' && (request.resource.data.get('dentistId', '') == request.auth.uid || request.resource.data.get('dentistUserId', '') == request.auth.uid))
         );
         allow update: if isAuthenticated() && (
           isSuperAdmin() || 
           (belongsToOrg(orgId) && getUserData().get('role', 'USER') != 'CLIENT') ||
-          (getUserData().get('role', 'USER') == 'CLIENT' && resource.data.get('dentistId', '') == request.auth.uid && request.resource.data.get('dentistId', '') == request.auth.uid)
+          (getUserData().get('role', 'USER') == 'CLIENT' && 
+            (resource.data.get('dentistId', '') == request.auth.uid || resource.data.get('dentistUserId', '') == request.auth.uid) && 
+            (request.resource.data.get('dentistId', '') == resource.data.get('dentistId', '') || request.resource.data.get('dentistUserId', '') == resource.data.get('dentistUserId', ''))
+          )
         );
         allow delete: if isAuthenticated() && (
           isSuperAdmin() || 

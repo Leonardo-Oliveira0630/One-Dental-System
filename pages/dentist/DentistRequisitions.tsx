@@ -233,11 +233,12 @@ export const DentistRequisitions = () => {
   };
 
   const processAndUploadFiles = async (files: File[]) => {
-    const startIndex = attachedFiles.length;
     const newItems = files.map((file) => {
       const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
       const localUrl = URL.createObjectURL(file); // Keep local Object URL for fast preliminary rendering
+      const tempId = `file_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       return {
+        id: tempId,
         name: file.name,
         url: localUrl,
         size: `${sizeMb} MB`,
@@ -247,15 +248,15 @@ export const DentistRequisitions = () => {
 
     setAttachedFiles(prev => [...prev, ...newItems]);
 
-    // Sequentially upload each file to Firebase Storage
+    // Upload each file to Firebase Storage
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const targetIndex = startIndex + i;
+      const targetId = newItems[i].id;
       try {
         const publicUrl = await uploadFile(file);
         setAttachedFiles(prev => {
-          return prev.map((item, idx) => {
-            if (idx === targetIndex) {
+          return prev.map((item) => {
+            if ((item as any).id === targetId) {
               return {
                 ...item,
                 url: publicUrl,
@@ -268,8 +269,8 @@ export const DentistRequisitions = () => {
       } catch (err: any) {
         console.error("Error uploading file to Firebase Storage:", err);
         setAttachedFiles(prev => {
-          return prev.map((item, idx) => {
-            if (idx === targetIndex) {
+          return prev.map((item) => {
+            if ((item as any).id === targetId) {
               return {
                 ...item,
                 isUploading: false,
@@ -332,6 +333,17 @@ export const DentistRequisitions = () => {
 
       const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
 
+      // Auto-assign patient ID on exact name match if ID not already set
+      let finalPatientId = selectedPatientId;
+      if (!finalPatientId && patientName.trim()) {
+        const matchedPatient = (patients || []).find(
+          p => p.name.trim().toLowerCase() === patientName.trim().toLowerCase()
+        );
+        if (matchedPatient) {
+          finalPatientId = matchedPatient.id;
+        }
+      }
+
       // Create new requisition on Firebase
       const reqPayload: Omit<OnlineRequisition, 'id' | 'createdAt'> = {
         labId: selectedLabId,
@@ -353,7 +365,7 @@ export const DentistRequisitions = () => {
       await addOnlineRequisition(selectedLabId, reqPayload);
 
       // Save prosthesis history in selected patient clinical history records
-      if (selectedPatientId && currentUser) {
+      if (finalPatientId && currentUser) {
         try {
           const specsCompiled = `${quantity}x ${activeService?.name || 'Serviço de Prótese'}`;
           const labName = activeLab?.name || 'Laboratório';
@@ -361,7 +373,7 @@ export const DentistRequisitions = () => {
 
           const historyRecord: any = {
             id: `hist_${Date.now()}`,
-            patientId: selectedPatientId,
+            patientId: finalPatientId,
             type: 'PROSTHESIS',
             description: descriptionText,
             date: new Date(),
@@ -376,7 +388,7 @@ export const DentistRequisitions = () => {
 
           const dentistOrgId = currentUser.organizationId;
           if (dentistOrgId) {
-            await apiAddPatientHistory(dentistOrgId, selectedPatientId, historyRecord);
+            await apiAddPatientHistory(dentistOrgId, finalPatientId, historyRecord);
           }
         } catch (historyErr) {
           console.error("Erro ao registrar histórico do paciente na requisição online:", historyErr);

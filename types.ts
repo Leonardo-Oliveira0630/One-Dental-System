@@ -351,6 +351,7 @@ export interface Job {
   routeId?: string;
   chatEnabled?: boolean;
   origin?: 'MANUAL' | 'ONLINE_ORDER' | 'ONLINE_REQUISITION' | 'OUTSOURCING';
+  dentistUserId?: string;
 }
 
 export interface Sector {
@@ -684,6 +685,7 @@ export interface ManualDentist {
   id: string;
   organizationId: string;
   name: string;
+  userId?: string;
   clinicName?: string;
   email?: string;
   phone?: string;

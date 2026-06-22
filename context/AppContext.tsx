@@ -115,6 +115,7 @@ interface AppContextType {
   inventoryItems: import('../types').InventoryItem[];
   activeAlert: JobAlert | null;
   onlineRequisitions: OnlineRequisition[];
+  activeManualDentistId: string | null;
 
   addOnlineRequisition: (labId: string, req: Omit<OnlineRequisition, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   updateOnlineRequisition: (labId: string, id: string, updates: Partial<OnlineRequisition>) => Promise<void>;
@@ -296,6 +297,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [activeAlert, setActiveAlert] = useState<JobAlert | null>(null);
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [onlineRequisitions, setOnlineRequisitions] = useState<OnlineRequisition[]>([]);
+  const [activeManualDentistId, setActiveManualDentistId] = useState<string | null>(null);
 
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
   const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
@@ -424,6 +426,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return currentUser?.organizationId || null;
   }, [currentUser, activeOrganization]);
 
+  // Sincroniza o manualDentistId do dentista dinamicamente com base no laboratório selecionado
+  useEffect(() => {
+    setActiveManualDentistId(null);
+    if (!currentUser || !activeDataId || currentUser.role !== UserRole.CLIENT) return;
+
+    // Busca um dentista manual no lab ativo que tenha o mesmo e-mail do dentista logado
+    const unsub = api.subscribeManualDentists(activeDataId, (manuals) => {
+      const match = manuals.find(m => m.email?.toLowerCase() === currentUser.email?.toLowerCase());
+      if (match) {
+        setActiveManualDentistId(match.id);
+        if (!match.userId || match.userId !== currentUser.id) {
+          api.apiUpdateManualDentist(activeDataId, match.id, { userId: currentUser.id }).catch((err: any) => {
+            console.error("Erro ao atualizar userId do dentista manual:", err);
+          });
+        }
+      }
+    });
+    return () => unsub();
+  }, [currentUser, activeDataId]);
+
   // Subscrições de Dados Protegidos (Só rodam se houver usuário e permissão)
   useEffect(() => {
     if (!db || !currentUser) return;
@@ -442,7 +464,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     if (activeDataId) {
         const isClient = currentUser.role === UserRole.CLIENT;
-        unsubs.push(api.subscribeJobs(activeDataId, currentUser.id, isClient, setJobs, (currentUser as any).manualDentistId));
+        unsubs.push(api.subscribeJobs(activeDataId, currentUser.id, isClient, setJobs, activeManualDentistId || (currentUser as any).manualDentistId));
         unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
         
         // Colaboradores: Super Admin ou qualquer membro da própria organização
@@ -483,7 +505,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
     
     return () => unsubs.forEach(u => u());
-  }, [currentUser, activeDataId]);
+  }, [currentUser, activeDataId, activeManualDentistId]);
 
   // Optimized Automatic Blocking Logic
   useEffect(() => {
@@ -1172,7 +1194,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
     clearPrint: () => setPrintData(null),
     activeOrganization, switchActiveOrganization, userConnections,
-    onlineRequisitions, addOnlineRequisition, updateOnlineRequisition,
+    onlineRequisitions, addOnlineRequisition, updateOnlineRequisition, activeManualDentistId,
     updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus, setSubscriptionStatus,
     addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
     registerOrganization, registerOutsourcedLab, registerDentist, validateCro, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
