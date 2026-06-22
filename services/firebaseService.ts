@@ -210,31 +210,90 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
+    if (isClient && userId) {
+        const dentistIds = Array.from(new Set([userId, manualDentistId].filter(Boolean))) as string[];
+        
+        let q1 = query(
+            collection(db, `organizations/${orgId}/jobs`), 
+            where('dentistId', 'in', dentistIds),
+            limit(1000)
+        );
+        
+        let q2 = query(
+            collection(db, `organizations/${orgId}/jobs`), 
+            where('dentistUserId', '==', userId),
+            limit(1000)
+        );
+
+        let jobsCache1: Map<string, Job> = new Map();
+        let jobsCache2: Map<string, Job> = new Map();
+
+        const processSnapClient = (snap: any, cache: Map<string, Job>, otherCache: Map<string, Job>) => {
+            snap.docChanges().forEach((change: any) => {
+                const docId = change.doc.id;
+                if (change.type === 'removed') {
+                    cache.delete(docId);
+                } else {
+                    const data = change.doc.data();
+                    const job = { 
+                        id: docId, 
+                        ...data,
+                        createdAt: toDate(data.createdAt), 
+                        dueDate: toDate(data.dueDate),
+                        sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
+                        history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) })),
+                        sectorMovements: (data.sectorMovements || []).map((m: any) => ({
+                            ...m,
+                            entryTime: toDate(m.entryTime),
+                            exitTime: m.exitTime ? toDate(m.exitTime) : undefined
+                        })),
+                        itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
+                    } as Job;
+                    cache.set(docId, job);
+                }
+            });
+            
+            // Merge maps to combine distinct jobs
+            const mergedMap = new Map([...otherCache.entries(), ...cache.entries()]);
+            let sortedJobs = Array.from(mergedMap.values());
+            
+            // Filter in memory for 3 months
+            sortedJobs = sortedJobs.filter((job: Job) => job.createdAt && job.createdAt.getTime() >= threeMonthsAgo.getTime());
+            
+            sortedJobs.sort((a: Job, b: Job) => {
+                const aTime = a.createdAt ? a.createdAt.getTime() : 0;
+                const bTime = b.createdAt ? b.createdAt.getTime() : 0;
+                return bTime - aTime;
+            });
+            cb(sortedJobs);
+        };
+
+        const unsub1 = onSnapshot(q1, (snap: any) => {
+            processSnapClient(snap, jobsCache1, jobsCache2);
+        }, (error: any) => {
+            console.warn(`[Firestore] Erro em subscribeJobs q1 para ${orgId}: ${error.code}`);
+        });
+
+        const unsub2 = onSnapshot(q2, (snap: any) => {
+            processSnapClient(snap, jobsCache2, jobsCache1);
+        }, (error: any) => {
+            console.warn(`[Firestore] Erro em subscribeJobs q2 para ${orgId}: ${error.code}`);
+        });
+
+        return () => {
+            unsub1();
+            unsub2();
+        };
+    }
+
     let q = query(
         collection(db, `organizations/${orgId}/jobs`),
         where('createdAt', '>=', threeMonthsAgo),
         orderBy('createdAt', 'desc'),
         limit(1000)
     );
-    
-    if (isClient && userId) {
-        const dentistIds = Array.from(new Set([userId, manualDentistId].filter(Boolean))) as string[];
-        if (dentistIds.length > 0) {
-            q = query(
-                collection(db, `organizations/${orgId}/jobs`), 
-                where('dentistId', 'in', dentistIds),
-                limit(1000)
-            );
-        } else {
-            q = query(
-                collection(db, `organizations/${orgId}/jobs`), 
-                where('dentistId', '==', userId),
-                limit(1000)
-            );
-        }
-    }
 
-    // Cache local para evitar mapeamento integral em cada update delta
+    // Cache local para exigir mapeamento integral apenas em updates deltas
     let jobsCache: Map<string, Job> = new Map();
 
     return onSnapshot(q, (snap: any) => {
@@ -270,10 +329,6 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
 
             if (hasChanges || jobsCache.size === 0) {
               let sortedJobs = Array.from(jobsCache.values());
-              if (isClient && userId) {
-                // Filter in memory for 3 months
-                sortedJobs = sortedJobs.filter((job: Job) => job.createdAt && job.createdAt.getTime() >= threeMonthsAgo.getTime());
-              }
               sortedJobs.sort((a: Job, b: Job) => {
                 const aTime = a.createdAt ? a.createdAt.getTime() : 0;
                 const bTime = b.createdAt ? b.createdAt.getTime() : 0;

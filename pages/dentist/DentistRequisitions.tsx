@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, Attachment } from '../../types';
 import { apiAddPatientHistory } from '../../services/firebaseService';
-import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw } from 'lucide-react';
+import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw, Activity, Package } from 'lucide-react';
 import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
 import { db } from '../../services/firebaseConfig';
 import * as firestorePkg from 'firebase/firestore';
@@ -28,10 +28,14 @@ export const DentistRequisitions = () => {
     onlineRequisitions, 
     addOnlineRequisition,
     patients,
-    uploadFile
+    uploadFile,
+    jobs,
+    activeManualDentistId
   } = useApp();
 
   const userAny = currentUser as any;
+
+  const [rightTab, setRightTab] = useState<'REQS' | 'JOBS'>('REQS');
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -65,6 +69,17 @@ export const DentistRequisitions = () => {
       p.name.toLowerCase().includes(searchLower)
     );
   }, [patients, patientName]);
+
+  const dentistActiveJobs = useMemo(() => {
+    return (jobs || []).filter(job => {
+      return (
+        job.dentistId === currentUser?.id ||
+        job.dentistId === userAny?.manualDentistId ||
+        job.dentistId === activeManualDentistId ||
+        job.dentistUserId === currentUser?.id
+      );
+    });
+  }, [jobs, currentUser?.id, userAny?.manualDentistId, activeManualDentistId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -725,98 +740,205 @@ export const DentistRequisitions = () => {
 
         {/* Right Side: Requisition History Tracker */}
         <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-6 flex flex-col h-fit">
-          <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-2">
-              <Clock className="text-slate-500" size={20} />
-              <h3 className="font-extrabold text-slate-800">Acompanhamento de Envios</h3>
+          <div className="flex flex-col gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="text-indigo-600" size={20} />
+                <h3 className="font-extrabold text-slate-800">Acompanhamento de Casos</h3>
+              </div>
+            </div>
+            
+            {/* Elegant Tabs */}
+            <div className="flex bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setRightTab('REQS')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                  rightTab === 'REQS' 
+                    ? 'bg-white text-slate-800 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Package size={14} />
+                Solicitações ({onlineRequisitions ? onlineRequisitions.filter(r => r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId).length : 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightTab('JOBS')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                  rightTab === 'JOBS' 
+                    ? 'bg-white text-slate-800 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Activity size={14} />
+                Casos Ativos ({dentistActiveJobs.length})
+              </button>
             </div>
           </div>
 
           <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
-            {(!onlineRequisitions || onlineRequisitions.filter(r => r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId).length === 0) ? (
-              <div className="p-12 text-center text-slate-400 italic text-xs">
-                Nenhuma requisição enviada recentemente por você.
-              </div>
-            ) : (
-              onlineRequisitions
-                .filter(r => r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId)
-                .map(req => (
-                  <div 
-                    key={req.id} 
-                    className="p-4 rounded-2xl border border-slate-100 bg-slate-50/40 hover:bg-slate-50/90 transition flex flex-col gap-2"
-                  >
-                    <div className="flex justify-between items-start gap-1">
-                      <div>
-                        <div className="font-bold text-slate-800 text-xs uppercase">{req.patientName}</div>
-                        <div className="text-[10px] font-bold text-slate-700">{req.serviceName}</div>
-                        {req.quantity && req.quantity > 0 && (
-                          <div className="text-[9px] font-bold text-slate-500 mt-0.5">
-                            Quantidade: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
+            {rightTab === 'REQS' ? (
+              (!onlineRequisitions || onlineRequisitions.filter(r => r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId).length === 0) ? (
+                <div className="p-12 text-center text-slate-400 italic text-xs">
+                  Nenhuma requisição enviada recentemente por você.
+                </div>
+              ) : (
+                onlineRequisitions
+                  .filter(r => r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId)
+                  .map(req => {
+                    const linkedJob = (jobs || []).find(j => j.id === req.acceptedAsJobId || j.osNumber === 'REQ-' + req.id.substring(0, 5).toUpperCase());
+                    
+                    return (
+                      <div 
+                        key={req.id} 
+                        className="p-4 rounded-2xl border border-slate-100 bg-slate-50/40 hover:bg-slate-50/90 transition flex flex-col gap-2"
+                      >
+                        <div className="flex justify-between items-start gap-1">
+                          <div>
+                            <div className="font-bold text-slate-800 text-xs uppercase">{req.patientName}</div>
+                            <div className="text-[10px] font-bold text-slate-700">{req.serviceName}</div>
+                            {req.quantity && req.quantity > 0 && (
+                              <div className="text-[9px] font-bold text-slate-500 mt-0.5">
+                                Quantidade: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
+                              </div>
+                            )}
+                            {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {req.selectedVariationIds.map(varId => {
+                                  let foundName = '';
+                                  for (const s of services) {
+                                    if (s.variationGroups) {
+                                      for (const g of s.variationGroups) {
+                                        const opt = g.options?.find((o: any) => o.id === varId);
+                                        if (opt) {
+                                          foundName = `${g.name}: ${opt.name}`;
+                                          break;
+                                        }
+                                      }
+                                    }
+                                    if (foundName) break;
+                                  }
+                                  if (!foundName) return null;
+                                  return (
+                                    <span key={varId} className="bg-slate-100 text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
+                                      {foundName}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <span className={`inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
+                            req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                            req.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {req.status === 'PENDING' ? 'Pendente' :
+                             req.status === 'ACCEPTED' ? 'Aceito' : 'Recusado'}
+                          </span>
+                        </div>
+
+                        {linkedJob && (
+                          <div className="mt-1 p-2 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between text-[10px]">
+                            <span className="font-bold text-emerald-800">
+                              Fase no Lab: <span className="uppercase font-black text-emerald-900">{linkedJob.currentSector || 'Triagem'}</span>
+                            </span>
+                            <span className="text-slate-500">
+                              OS: #{linkedJob.osNumber}
+                            </span>
                           </div>
                         )}
-                        {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {req.selectedVariationIds.map(varId => {
-                              let foundName = '';
-                              for (const s of services) {
-                                if (s.variationGroups) {
-                                  for (const g of s.variationGroups) {
-                                    const opt = g.options?.find((o: any) => o.id === varId);
-                                    if (opt) {
-                                      foundName = `${g.name}: ${opt.name}`;
-                                      break;
-                                    }
-                                  }
-                                }
-                                if (foundName) break;
-                              }
-                              if (!foundName) return null;
-                              return (
-                                <span key={varId} className="bg-slate-100 text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
-                                  {foundName}
-                                </span>
-                              );
-                            })}
+
+                        {req.notes && (
+                          <p className="text-[10px] text-slate-500 italic line-clamp-2">
+                            "{req.notes}"
+                          </p>
+                        )}
+
+                        {req.attachments && req.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {req.attachments.map((file, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAttachment(file);
+                                  setAllAttachmentsForPreview(req.attachments || []);
+                                }}
+                                className="bg-white hover:bg-slate-50 border border-slate-200 text-[8px] px-1.5 py-0.5 rounded text-indigo-600 hover:text-indigo-800 font-bold truncate max-w-[125px] transition-colors flex items-center gap-1 focus:outline-none"
+                                title="Clique de visualização/download de arquivo"
+                              >
+                                <FileText size={8} className="shrink-0" /> {file.name}
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>
-                      
-                      <span className={`inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
-                        req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
-                        req.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {req.status === 'PENDING' ? 'Pendente' :
-                         req.status === 'ACCEPTED' ? 'Aceito' : 'Recusado'}
+                    );
+                  })
+              )
+            ) : (
+              dentistActiveJobs.length === 0 ? (
+                <div className="p-12 text-center text-slate-400 italic text-xs">
+                  Nenhum caso ativo em produção no laboratório no momento.
+                </div>
+              ) : (
+                dentistActiveJobs.map(job => (
+                  <div 
+                    key={job.id} 
+                    className="p-4 rounded-2xl border border-slate-100 bg-indigo-50/10 hover:bg-indigo-50/30 transition flex flex-col gap-2 relative overflow-hidden"
+                  >
+                    {job.urgency === 'VIP' && (
+                      <div className="absolute top-0 right-0 bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 uppercase rounded-bl-lg">
+                        VIP
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-bold text-slate-800 text-xs uppercase">{job.patientName}</div>
+                        <div className="text-[9px] font-mono text-indigo-600 font-extrabold mt-0.5">
+                          OS #{job.osNumber || '---'}
+                        </div>
+                      </div>
+                      <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider bg-indigo-100 text-indigo-800">
+                        {job.status === 'COMPLETED' ? 'Concluído' : job.status === 'DELIVERED' ? 'Entregue' : 'Produção'}
                       </span>
                     </div>
 
-                    {req.notes && (
-                      <p className="text-[10px] text-slate-500 italic line-clamp-2">
-                        "{req.notes}"
-                      </p>
-                    )}
+                    <div className="grid grid-cols-2 gap-2 mt-1 py-1.5 px-2.5 bg-white border border-slate-50 rounded-xl text-[10px]">
+                      <div>
+                        <span className="text-slate-400 block text-[8px] uppercase font-black">Etapa Atual</span>
+                        <span className="font-bold text-slate-800 uppercase">{job.currentSector || 'Triagem'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[8px] uppercase font-black">Previsão</span>
+                        <span className="font-bold text-slate-800">
+                          {job.dueDate ? new Date(job.dueDate).toLocaleDateString() : 'Não informada'}
+                        </span>
+                      </div>
+                    </div>
 
-                    {req.attachments && req.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {req.attachments.map((file, i) => (
-                          <button
-                            key={i}
-                            type="button"
-                            onClick={() => {
-                              setSelectedAttachment(file);
-                              setAllAttachmentsForPreview(req.attachments || []);
-                            }}
-                            className="bg-white hover:bg-slate-50 border border-slate-200 text-[8px] px-1.5 py-0.5 rounded text-indigo-600 hover:text-indigo-800 font-bold truncate max-w-[125px] transition-colors flex items-center gap-1 focus:outline-none"
-                            title="Clique de visualização/download de arquivo"
-                          >
-                            <FileText size={8} className="shrink-0" /> {file.name}
-                          </button>
-                        ))}
+                    {job.boxNumber && (
+                      <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 mt-0.5">
+                        <span className="w-2 h-2 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: job.boxColor?.hex || '#cbd5e1' }} />
+                        Caixa #{job.boxNumber}
                       </div>
                     )}
+
+                    <div className="flex justify-end mt-1">
+                      <a 
+                        href={`/jobs/${job.id}`}
+                        className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-1"
+                      >
+                        Visualizar Rastreamento &rarr;
+                      </a>
+                    </div>
                   </div>
                 ))
+              )
             )}
           </div>
         </div>
