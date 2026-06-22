@@ -975,14 +975,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const switchActiveOrganization = (id: string | null) => {
     if (!id) { setActiveOrganization(null); return; }
     
-    const isSuper = currentUser?.role === UserRole.SUPER_ADMIN;
-    const found = isSuper || userConnections.find(o => o.organizationId === id);
-    
-    if (found) {
-        getDoc(doc(db, 'organizations', id)).then((snap: any) => {
-             if(snap.exists()) setActiveOrganization({ id: snap.id, ...snap.data() as any } as Organization);
-        });
-    }
+    getDoc(doc(db, 'organizations', id)).then((snap: any) => {
+         if (snap.exists()) {
+             const data = snap.data();
+             const createdAtDate = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt ? new Date(data.createdAt) : new Date());
+             setActiveOrganization({ id: snap.id, ...data, createdAt: createdAtDate } as Organization);
+         }
+    }).catch((err: any) => {
+         console.warn(`[Firestore] Error in switchActiveOrganization for id ${id}:`, err);
+    });
   };
 
   const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => {
