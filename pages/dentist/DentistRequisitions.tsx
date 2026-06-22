@@ -37,6 +37,7 @@ export const DentistRequisitions = () => {
   } = useApp();
 
   const [chatJob, setChatJob] = useState<Job | null>(null);
+  const [popupJob, setPopupJob] = useState<Job | null>(null);
 
   const userAny = currentUser as any;
 
@@ -971,6 +972,16 @@ export const DentistRequisitions = () => {
                         </div>
                       </div>
 
+                      {/* Summary of services/items */}
+                      <div className="text-[10px] text-slate-600 py-1.5 px-2.5 bg-slate-50 border border-slate-100 rounded-xl">
+                        <span className="text-slate-400 block text-[8px] uppercase font-black">Serviços</span>
+                        <div className="font-semibold text-slate-700 mt-0.5 line-clamp-2">
+                          {job.items && job.items.length > 0 
+                            ? job.items.map(item => `${item.quantity || 1}x ${item.name}`).join(', ') 
+                            : 'Nenhum serviço cadastrado'}
+                        </div>
+                      </div>
+
                       {job.boxNumber && revealJobStatus && (
                         <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 mt-0.5">
                           <span className="w-2 h-2 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: job.boxColor?.hex || '#cbd5e1' }} />
@@ -1014,12 +1025,13 @@ export const DentistRequisitions = () => {
                       </div>
 
                       <div className="flex justify-end mt-1 border-t border-slate-50 pt-1.5">
-                        <a 
-                          href={`/jobs/${job.id}`}
-                          className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-1"
+                        <button 
+                          type="button"
+                          onClick={() => setPopupJob(job)}
+                          className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 uppercase tracking-wider flex items-center gap-1 cursor-pointer hover:underline"
                         >
-                          Visualizar Rastreamento &rarr;
-                        </a>
+                          Visualizar Resumo &rarr;
+                        </button>
                       </div>
                     </div>
                   );
@@ -1029,6 +1041,187 @@ export const DentistRequisitions = () => {
           </div>
         </div>
       </div>
+
+      {popupJob && (() => {
+        const revealJobStatus = (activeOrganization?.revealJobStatusToDentist ?? false);
+        const modalStatusColor = (status: string) => {
+          switch (status) {
+            case 'WAITING_APPROVAL': return 'bg-amber-50 text-amber-700 border-amber-200';
+            case 'PENDING': return 'bg-slate-50 text-slate-600 border-slate-200';
+            case 'IN_PROGRESS': return 'bg-blue-50 text-blue-700 border-blue-200';
+            case 'COMPLETED': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            case 'DELIVERED': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+            case 'REJECTED': return 'bg-rose-50 text-rose-700 border-rose-200';
+            case 'CANCELED': return 'bg-slate-50 text-slate-400 border-slate-200';
+            case 'RETURNED': return 'bg-orange-50 text-orange-700 border-orange-200';
+            case 'SECTOR_TRANSITION': return 'bg-violet-50 text-violet-700 border-violet-200';
+            default: return 'bg-slate-50 text-slate-600 border-slate-200';
+          }
+        };
+
+        const modalStatusTranslation = (status: string) => {
+          switch (status) {
+            case 'WAITING_APPROVAL': return 'Aguardando Aprovação';
+            case 'PENDING': return 'Pendente';
+            case 'IN_PROGRESS': return 'Em Produção';
+            case 'COMPLETED': return 'Concluído';
+            case 'DELIVERED': return 'Entregue';
+            case 'REJECTED': return 'Rejeitado';
+            case 'CANCELED': return 'Cancelado';
+            case 'RETURNED': return 'Devolvido';
+            case 'SECTOR_TRANSITION': return 'Em Transição';
+            default: return status;
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-[200] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+              
+              {/* Header */}
+              <div className="p-5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">Resumo do Caso</h3>
+                  <p className="text-[10px] font-mono text-indigo-600 font-extrabold mt-0.5">
+                    OS #{popupJob.osNumber || '---'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPopupJob(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+                {/* Paciente and Basic info */}
+                <div className="bg-indigo-50/10 border border-indigo-50/30 rounded-2xl p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">Paciente</span>
+                      <span className="font-black text-slate-800 text-sm uppercase">{popupJob.patientName}</span>
+                    </div>
+                    {popupJob.urgency === 'VIP' && (
+                      <span className="bg-amber-500 text-white text-[8px] font-black px-2 py-0.5 uppercase rounded-lg">
+                        VIP
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 text-xs">
+                    <div>
+                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">Etapa / Setor Atual</span>
+                      <span className="font-semibold text-slate-800 uppercase">
+                        {revealJobStatus ? (popupJob.currentSector || 'Triagem') : 'Indisponível'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-slate-400 block mb-0.5">Previsão</span>
+                      <span className="font-semibold text-slate-800">
+                        {revealJobStatus && popupJob.dueDate ? new Date(popupJob.dueDate).toLocaleDateString() : 'Indisponível'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Serviços Solicitados */}
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">Serviços Solicitados</span>
+                  <div className="space-y-2">
+                    {popupJob.items && popupJob.items.length > 0 ? (
+                      popupJob.items.map((item, idx) => (
+                        <div key={item.id || idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                          <div className="flex items-center gap-2.5">
+                            <span className="font-black text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
+                              {item.quantity || 1}x
+                            </span>
+                            <span className="font-extrabold text-slate-700">{item.name}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-400 italic">
+                        Nenhum detalhe de serviço disponível
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Detalhes de Status */}
+                <div>
+                  <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">Campos de Status</span>
+                  <div className="p-4 bg-slate-50 rounded-[20px] border border-slate-100 space-y-3 text-xs">
+                    <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
+                      <span className="text-slate-500 font-bold">Status do Trabalho:</span>
+                      {revealJobStatus ? (
+                        <span className={`px-2.5 py-1 rounded-full uppercase font-black text-[9px] tracking-wider border ${modalStatusColor(popupJob.status)}`}>
+                          {modalStatusTranslation(popupJob.status)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-bold flex items-center gap-1 text-[10px]">
+                          <Lock size={10} /> Oculto pelo laboratório
+                        </span>
+                      )}
+                    </div>
+                    
+                    {popupJob.boxNumber && revealJobStatus && (
+                      <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
+                        <span className="text-slate-500 font-bold">Número da Caixa:</span>
+                        <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: popupJob.boxColor?.hex || '#cbd5e1' }} />
+                          Caixa #{popupJob.boxNumber}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500 font-bold">Canal de Chat:</span>
+                      <span className="font-black text-slate-700 uppercase text-[10px]">
+                        {popupJob.chatEnabled ? 'Ativo' : 'Desabilitado'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chat and Actions */}
+                <div className="pt-3 flex gap-3">
+                  {popupJob.chatEnabled ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChatJob(popupJob);
+                        setPopupJob(null);
+                      }}
+                      className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
+                    >
+                      <MessageSquare size={16} className="animate-pulse" /> Abrir Chat de Acompanhamento
+                    </button>
+                  ) : (
+                    <div className="w-full text-center p-3 bg-slate-100 rounded-2xl text-[10px] text-slate-400 font-extrabold uppercase flex items-center justify-center gap-2">
+                      <Lock size={12} /> Chat de Acompanhamento Desabilitado
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setPopupJob(null)}
+                  className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 font-bold text-xs uppercase tracking-wider text-slate-700 rounded-xl transition"
+                >
+                  Fechar
+                </button>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
       {selectedAttachment && (
         <AttachmentPreviewModal 
