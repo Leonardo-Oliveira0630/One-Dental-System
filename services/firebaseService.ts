@@ -24,7 +24,7 @@ import {
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
-  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition
+  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -1152,7 +1152,7 @@ export const subscribeSupplierOrders = (supplierId: string, cb: (orders: Supplie
             id: d.id, ...d.data() as any,
             createdAt: toDate(d.data().createdAt)
         } as SupplierOrder));
-        list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        list.sort((a: SupplierOrder, b: SupplierOrder) => b.createdAt.getTime() - a.createdAt.getTime());
         cb(list);
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeSupplierOrders: ${error.code}`));
 };
@@ -1164,7 +1164,7 @@ export const subscribeBuyerSupplierOrders = (buyerOrgId: string, cb: (orders: Su
             id: d.id, ...d.data() as any,
             createdAt: toDate(d.data().createdAt)
         } as SupplierOrder));
-        list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        list.sort((a: SupplierOrder, b: SupplierOrder) => b.createdAt.getTime() - a.createdAt.getTime());
         cb(list);
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeBuyerSupplierOrders: ${error.code}`));
 };
