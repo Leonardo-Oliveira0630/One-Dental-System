@@ -17,6 +17,14 @@ export interface GlobalSettings {
   updatedBy: string;
 }
 
+export interface StoreLayoutBlock {
+  id: string;
+  type: 'BANNER' | 'CAROUSEL' | 'GRID' | 'RELATED' | 'LIST';
+  title: string;
+  productIds?: string[];
+  categoryId?: string;
+}
+
 export interface StoreSettings {
   banners?: string[];
   layoutType?: 'CARDS' | 'LIST';
@@ -28,6 +36,8 @@ export interface StoreSettings {
   }[];
   menuOptions?: string[];
   catchphrase?: string;
+  theme?: 'shopee' | 'light' | 'dark' | 'amber' | 'indigo' | 'emerald' | 'orange';
+  layoutBlocks?: StoreLayoutBlock[];
 }
 
 export interface Organization {
@@ -201,6 +211,10 @@ export interface InventoryItem {
   organizationId: string;
   isVisibleInStore?: boolean;
   imageUrl?: string;
+  imageUrls?: string[];
+  variations?: Array<{ id: string; name: string; priceModifier: number; imageUrl?: string; currentStock?: number }>;
+  isCombo?: boolean;
+  comboItems?: Array<{ productId: string; name: string; quantity: number }>;
 }
 
 export interface JobProduct {

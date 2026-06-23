@@ -54,6 +54,11 @@ export const RegisterOrganization = () => {
     });
     observer.observe(el);
 
+    const handleScroll = () => {
+      checkOverflow();
+    };
+    el.addEventListener('scroll', handleScroll);
+
     const timer = setTimeout(() => {
       checkOverflow();
     }, 150);
@@ -63,6 +68,7 @@ export const RegisterOrganization = () => {
 
     return () => {
       observer.disconnect();
+      el.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
       clearTimeout(timer);
     };
@@ -660,7 +666,7 @@ export const RegisterOrganization = () => {
                                         <div 
                                             key={plan.id} 
                                             onClick={() => setPlanId(plan.id)}
-                                            className={`cursor-pointer border-2 rounded-2xl p-4 sm:p-5 transition-all relative overflow-hidden flex flex-col justify-between w-[275px] sm:w-[290px] md:w-[250px] lg:w-[265px] flex-shrink-0 snap-center ${
+                                            className={`cursor-pointer border-2 rounded-2xl p-4 sm:p-5 transition-all relative overflow-hidden flex flex-col justify-between w-[250px] xs:w-[270px] sm:w-[290px] md:w-[245px] lg:w-[260px] flex-shrink-0 snap-center ${
                                                 isSelected 
                                                     ? `${themeBorder} bg-slate-800 shadow-lg shadow-black/20`
                                                     : 'border-slate-700 bg-slate-800/50 hover:bg-slate-750 hover:border-slate-600'

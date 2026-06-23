@@ -48,6 +48,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { RequisitionInvite } from './pages/RequisitionInvite';
 import { SupplierDashboard } from './pages/supplier/Dashboard';
 import { SupplierProducts } from './pages/supplier/Products';
+import { SupplierSettings } from './pages/supplier/Settings';
 import { SupplierStore } from './pages/store/SupplierStore';
 import { Loader2 } from 'lucide-react';
 
@@ -136,6 +137,7 @@ const AppContent = () => {
 
       <Route path="/supplier/dashboard" element={<ProtectedRoute><SupplierDashboard /></ProtectedRoute>} />
       <Route path="/supplier/products" element={<ProtectedRoute><SupplierProducts /></ProtectedRoute>} />
+      <Route path="/supplier/settings" element={<ProtectedRoute><SupplierSettings /></ProtectedRoute>} />
 
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />
