@@ -213,6 +213,7 @@ export interface InventoryItem {
   imageUrl?: string;
   imageUrls?: string[];
   variations?: Array<{ id: string; name: string; priceModifier: number; imageUrl?: string; currentStock?: number }>;
+  variationGroups?: VariationGroup[];
   isCombo?: boolean;
   comboItems?: Array<{ productId: string; name: string; quantity: number }>;
 }
@@ -381,6 +382,7 @@ export interface VariationOption {
   priceModifier: number;
   disablesOptions?: string[];
   isDiscountExempt?: boolean; 
+  imageUrl?: string;
 }
 
 export interface VariationGroup {

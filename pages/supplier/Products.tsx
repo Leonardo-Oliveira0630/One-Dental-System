@@ -4,7 +4,8 @@ import { InventoryItem, InventoryItemType } from '../../types';
 import { smartCompress } from '../../services/compressionService';
 import { 
   Package, Plus, Trash2, Edit2, Search, X, Box, Tag, 
-  Info, Check, Save, Image, Eye, EyeOff, Loader2, Sparkles, Layers, RefreshCw
+  Info, Check, Save, Image, Eye, EyeOff, Loader2, Sparkles, Layers, RefreshCw,
+  Folder, ToggleLeft, ToggleRight, Type, PercentCircle, AlertCircle
 } from 'lucide-react';
 
 export const SupplierProducts = () => {
@@ -149,6 +150,7 @@ export const SupplierProducts = () => {
         ...item,
         imageUrls: item.imageUrls || [],
         variations: item.variations || [],
+        variationGroups: item.variationGroups || [],
         isCombo: !!item.isCombo,
         comboItems: item.comboItems || []
       });
@@ -167,6 +169,7 @@ export const SupplierProducts = () => {
         imageUrl: '',
         imageUrls: [],
         variations: [],
+        variationGroups: [],
         isCombo: false,
         comboItems: []
       });
@@ -239,6 +242,119 @@ export const SupplierProducts = () => {
     }));
   };
 
+  // --- Group Variation Handlers (Supplier Customization) ---
+  const addGroup = () => {
+    const list = form.variationGroups || [];
+    const newGroup = {
+      id: `grp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      name: `Novo Grupo ${list.length + 1}`,
+      selectionType: 'SINGLE' as 'SINGLE' | 'MULTIPLE' | 'TEXT',
+      options: [] as any[]
+    };
+    setForm(prev => ({
+      ...prev,
+      variationGroups: [...(prev.variationGroups || []), newGroup]
+    }));
+  };
+
+  const updateGroup = (groupId: string, updates: any) => {
+    setForm(prev => {
+      const groups = prev.variationGroups || [];
+      const updated = groups.map(g => g.id === groupId ? { ...g, ...updates } : g);
+      return { ...prev, variationGroups: updated };
+    });
+  };
+
+  const deleteGroup = (groupId: string) => {
+    setForm(prev => ({
+      ...prev,
+      variationGroups: (prev.variationGroups || []).filter(g => g.id !== groupId)
+    }));
+  };
+
+  const addOption = (groupId: string) => {
+    const newOption = {
+      id: `opt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      name: 'Nova Opção',
+      priceModifier: 0,
+      disablesOptions: [] as string[],
+      isDiscountExempt: false,
+      imageUrl: ''
+    };
+    setForm(prev => {
+      const groups = prev.variationGroups || [];
+      const updated = groups.map(g => {
+        if (g.id === groupId) {
+          return {
+            ...g,
+            options: [...(g.options || []), newOption]
+          };
+        }
+        return g;
+      });
+      return { ...prev, variationGroups: updated };
+    });
+  };
+
+  const updateOption = (groupId: string, optionId: string, updates: any) => {
+    setForm(prev => {
+      const groups = prev.variationGroups || [];
+      const updated = groups.map(g => {
+        if (g.id === groupId) {
+          const updatedOptions = (g.options || []).map((o: any) => 
+            o.id === optionId ? { ...o, ...updates } : o
+          );
+          return { ...g, options: updatedOptions };
+        }
+        return g;
+      });
+      return { ...prev, variationGroups: updated };
+    });
+  };
+
+  const deleteOption = (groupId: string, optionId: string) => {
+    setForm(prev => {
+      const groups = prev.variationGroups || [];
+      const updated = groups.map(g => {
+        if (g.id === groupId) {
+          return {
+            ...g,
+            options: (g.options || []).filter((o: any) => o.id !== optionId)
+          };
+        }
+        return g;
+      });
+      return { ...prev, variationGroups: updated };
+    });
+  };
+
+  const handleOptionImageUpload = async (groupId: string, optionId: string, file: File) => {
+    try {
+      const compressed = await smartCompress(file);
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64 = evt.target?.result as string;
+        updateOption(groupId, optionId, { imageUrl: base64 });
+      };
+      reader.readAsDataURL(compressed);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao carregar foto da variação.');
+    }
+  };
+
+  const cycleSelectionType = (current: 'SINGLE' | 'MULTIPLE' | 'TEXT') => {
+    if (current === 'SINGLE') return 'MULTIPLE';
+    if (current === 'MULTIPLE') return 'TEXT';
+    return 'SINGLE';
+  };
+
+  const getSelectionTypeLabel = (type: 'SINGLE' | 'MULTIPLE' | 'TEXT') => {
+    if (type === 'SINGLE') return 'Seleção Única';
+    if (type === 'MULTIPLE') return 'Seleção Múltipla';
+    return 'Campo de Texto Livre';
+  };
+
   const handleAddComboItem = () => {
     if (!comboProdId) {
       alert('Selecione um produto para o Combo');
@@ -301,6 +417,7 @@ export const SupplierProducts = () => {
       imageUrl: form.imageUrl || '',
       imageUrls: form.imageUrls || [],
       variations: form.variations || [],
+      variationGroups: form.isCombo ? [] : (form.variationGroups || []),
       isCombo: !!form.isCombo,
       comboItems: form.isCombo ? (form.comboItems || []) : []
     };
@@ -449,6 +566,11 @@ export const SupplierProducts = () => {
                         {item.variations && item.variations.length > 0 && (
                           <span className="bg-orange-500/15 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
                             <Sparkles size={8} /> {item.variations.length} Opções
+                          </span>
+                        )}
+                        {item.variationGroups && item.variationGroups.length > 0 && (
+                          <span className="bg-orange-500/15 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
+                            <Plus size={8} /> {item.variationGroups.length} Atributos
                           </span>
                         )}
                       </div>
@@ -828,101 +950,217 @@ export const SupplierProducts = () => {
                     </div>
                   )}
 
-                  {/* COLOURED OR SPEC VARIATIONS (Shopee Model) */}
+                  {/* DYNAMIC VARIATION GROUPS (Matched with Prosthesis/Lab System) */}
                   {!form.isCombo && (
-                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl space-y-4">
-                      <div>
-                        <h4 className="font-bold text-xs uppercase tracking-wider text-orange-400">3. Variações do Produto (Modelo Shopee)</h4>
-                        <p className="text-[10px] text-slate-500 mt-1">Crie opções como Cor, Tamanho, Voltagem, que podem mudar preço e imagem.</p>
-                      </div>
-
-                      <div className="space-y-2 bg-slate-950/60 p-3 rounded-xl border border-slate-850">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="col-span-2">
-                            <input
-                              type="text"
-                              placeholder="Nome da Variação (Ex: Azul, Tamanho G)"
-                              value={varName}
-                              onChange={e => setVarName(e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none"
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="number"
-                              step="0.01"
-                              placeholder="Preço Adicional R$"
-                              value={varPriceMod || ''}
-                              onChange={e => setVarPriceMod(Number(e.target.value))}
-                              className="w-full bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none"
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="number"
-                              placeholder="Estoque Unico"
-                              value={varStock}
-                              onChange={e => setVarStock(Number(e.target.value))}
-                              className="w-full bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none"
-                            />
-                          </div>
-                          <div className="col-span-2 flex gap-1.5 items-center">
-                            <input
-                              type="url"
-                              placeholder="URL para Mudar Foto (Opcional)"
-                              value={varImageUrl}
-                              onChange={e => setVarImageUrl(e.target.value)}
-                              className="flex-1 bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none"
-                            />
-                            <input
-                              type="file"
-                              accept="image/*"
-                              id="prod-var-image-upload"
-                              className="hidden"
-                              onChange={handleVariationImageUpload}
-                            />
-                            <label
-                              htmlFor="prod-var-image-upload"
-                              className="cursor-pointer bg-slate-800 hover:bg-slate-755 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5"
-                            >
-                              <Sparkles size={11} className="text-orange-400" /> Upload
-                            </label>
-                          </div>
+                    <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-orange-400">3. Grupos de Atributos e Variações</h4>
+                          <p className="text-[10px] text-slate-500 mt-1">Crie grupos (ex: "Tamanho", "Cor") com opções e regras de desabilitação inteligente.</p>
                         </div>
-
                         <button
                           type="button"
-                          onClick={handleAddVariation}
-                          className="w-full py-2 bg-orange-600 hover:bg-orange-550 text-white rounded-lg text-xs font-bold transition-all"
+                          onClick={addGroup}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all"
                         >
-                          Adicionar Variação
+                          <Plus size={14} /> Novo Grupo
                         </button>
                       </div>
 
-                      {/* Render variations catalog */}
-                      {form.variations && form.variations.length > 0 && (
-                        <div className="space-y-2 max-h-48 overflow-y-auto divide-y divide-slate-850">
-                          {form.variations.map((v, idx) => (
-                            <div key={v.id || idx} className="py-2.5 flex items-center justify-between text-xs font-mono">
-                              <div className="flex items-center gap-2">
-                                {v.imageUrl && (
-                                  <img src={v.imageUrl} alt="" className="w-8 h-8 rounded object-cover bg-slate-950 border border-slate-850" referrerPolicy="no-referrer" />
-                                )}
-                                <div>
-                                  <p className="font-bold text-slate-305 text-slate-300">{v.name}</p>
-                                  <span className="text-[10px] text-slate-500">Estoque: {v.currentStock ?? 0}</span>
+                      {(!form.variationGroups || form.variationGroups.length === 0) ? (
+                        <div className="text-center py-6 text-slate-500 border border-dashed border-slate-800 rounded-xl text-xs">
+                          Nenhum grupo de variação cadastrado. Clique em "Novo Grupo" para começar.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {(form.variationGroups || []).map(group => (
+                            <div key={group.id} className="bg-slate-950/40 p-4 rounded-xl border border-slate-850 space-y-4">
+                              {/* Group Header */}
+                              <div className="flex justify-between items-center pb-3 border-b border-slate-850">
+                                <div className="flex items-center gap-2 flex-1 max-w-[65%]">
+                                  <Folder size={16} className="text-orange-400" />
+                                  <input
+                                    value={group.name}
+                                    onChange={e => updateGroup(group.id, { name: e.target.value })}
+                                    className="font-bold text-xs text-slate-200 bg-transparent hover:bg-slate-900 focus:bg-slate-950 border-0 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 outline-none w-full"
+                                    placeholder="Ex: Cor ou Tamanho"
+                                  />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateGroup(group.id, { selectionType: cycleSelectionType(group.selectionType) })}
+                                    className="flex items-center gap-1 text-[10px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-2 py-1 rounded hover:bg-slate-800"
+                                    title="Mudar tipo de seleção"
+                                  >
+                                    {group.selectionType === 'SINGLE' && <ToggleLeft size={13} />}
+                                    {group.selectionType === 'MULTIPLE' && <ToggleRight size={13} />}
+                                    {group.selectionType === 'TEXT' && <Type size={13} />}
+                                    <span>{getSelectionTypeLabel(group.selectionType)}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteGroup(group.id)}
+                                    className="text-slate-500 hover:text-red-400 p-1"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <span className={v.priceModifier > 0 ? 'text-emerald-400' : 'text-slate-400'}>
-                                  {v.priceModifier >= 0 ? `+ R$ ${v.priceModifier.toFixed(2)}` : `- R$ ${Math.abs(v.priceModifier).toFixed(2)}`}
-                                </span>
+
+                              {/* Options Box */}
+                              <div className="space-y-3">
+                                {(group.options || []).map(option => (
+                                  <div key={option.id} className="bg-slate-950 p-3 rounded-lg border border-slate-900 space-y-3">
+                                    <div className="grid grid-cols-12 gap-2.5 items-end">
+                                      <div className="col-span-12 sm:col-span-5">
+                                        <label className="text-[9px] text-slate-500 font-bold block mb-1">
+                                          {group.selectionType === 'TEXT' ? 'Rótulo do Campo (ex: Cor)' : 'Nome da Opção'}
+                                        </label>
+                                        <input
+                                          value={option.name}
+                                          onChange={e => updateOption(group.id, option.id, { name: e.target.value })}
+                                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                                          placeholder={group.selectionType === 'TEXT' ? "Ex: Especifique a cor" : "Ex: A2 ou C15"}
+                                        />
+                                      </div>
+                                      <div className="col-span-6 sm:col-span-3">
+                                        <label className="text-[9px] text-slate-500 font-bold block mb-1">Preço Adicional (R$)</label>
+                                        <div className="relative">
+                                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">R$</span>
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            value={option.priceModifier}
+                                            onChange={e => updateOption(group.id, option.id, { priceModifier: parseFloat(e.target.value) || 0 })}
+                                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 text-right pr-2.5 pl-7"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="col-span-6 sm:col-span-3 flex flex-col items-center">
+                                        <label className="text-[9px] text-slate-500 font-bold block mb-1">Isento de Desconto</label>
+                                        <button
+                                          type="button"
+                                          onClick={() => updateOption(group.id, option.id, { isDiscountExempt: !option.isDiscountExempt })}
+                                          className={`px-3 py-1.5 text-xs rounded-lg border transition-all flex items-center justify-center gap-1 w-full ${
+                                            option.isDiscountExempt 
+                                              ? 'bg-orange-950/50 border-orange-850 text-orange-400' 
+                                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'
+                                          }`}
+                                          title={option.isDiscountExempt ? 'Valor fixo (não aceita descontos)' : 'Valor descontável'}
+                                        >
+                                          <PercentCircle size={14} />
+                                          <span className="text-[9px] font-bold">{option.isDiscountExempt ? 'Ativo' : 'Inativo'}</span>
+                                        </button>
+                                      </div>
+                                      <div className="col-span-12 sm:col-span-1 flex justify-end pb-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={() => deleteOption(group.id, option.id)}
+                                          className="text-slate-500 hover:text-red-400 p-1"
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {/* PHOTO FOR VARIATION */}
+                                    <div className="pt-2 border-t border-slate-900 flex flex-col sm:flex-row gap-2 items-center">
+                                      <div className="flex-1 w-full">
+                                        <label className="text-[9px] text-slate-500 font-bold block mb-1">Foto da Variação (URL ou Upload)</label>
+                                        <div className="flex gap-1.5 items-center">
+                                          <input
+                                            type="url"
+                                            placeholder="URL da Imagem para esta variação"
+                                            value={option.imageUrl || ''}
+                                            onChange={e => updateOption(group.id, option.id, { imageUrl: e.target.value })}
+                                            className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-650"
+                                          />
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            id={`file-upload-${group.id}-${option.id}`}
+                                            className="hidden"
+                                            onChange={e => {
+                                              const file = e.target.files?.[0];
+                                              if (file) handleOptionImageUpload(group.id, option.id, file);
+                                            }}
+                                          />
+                                          <label
+                                            htmlFor={`file-upload-${group.id}-${option.id}`}
+                                            className="cursor-pointer bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:text-white px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5 whitespace-nowrap"
+                                          >
+                                            <Sparkles size={11} className="text-orange-400" /> Upload
+                                          </label>
+                                        </div>
+                                      </div>
+                                      {option.imageUrl && (
+                                        <div className="relative shrink-0 w-11 h-11 bg-slate-900 rounded-lg border border-slate-800 overflow-hidden group hover:border-slate-700">
+                                          <img
+                                            src={option.imageUrl}
+                                            alt=""
+                                            className="w-full h-full object-cover"
+                                            referrerPolicy="no-referrer"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => updateOption(group.id, option.id, { imageUrl: '' })}
+                                            className="absolute top-0 right-0 bg-red-600/80 hover:bg-red-600 text-white rounded-bl p-0.5"
+                                          >
+                                            <X size={8} />
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* CONDITIONAL DISABLING CONSTRAINTS */}
+                                    <div className="pt-2 pl-1">
+                                      <label className="text-[9px] text-slate-500 font-bold block mb-1 flex items-center gap-1">
+                                        <AlertCircle size={10} className="text-orange-400" />
+                                        Se esta opção for escolhida, DESABILITAR as seguintes opções:
+                                      </label>
+                                      <div className="w-full border border-slate-900 rounded bg-slate-950 max-h-24 overflow-y-auto p-2 scrollbar-thin">
+                                        {form.variationGroups && form.variationGroups.filter((g: any) => g.id !== group.id).length === 0 && (
+                                          <p className="text-[9px] text-slate-600 italic p-1">Adicione outros grupos de atributos para configurar dependências de desabilitação.</p>
+                                        )}
+                                        {form.variationGroups && form.variationGroups.filter((g: any) => g.id !== group.id).map((otherGroup: any) => (
+                                          <div key={otherGroup.id} className="mb-2">
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">{otherGroup.name}</p>
+                                            <div className="flex flex-wrap gap-1.5 pl-1">
+                                              {(otherGroup.options || []).map((otherOption: any) => {
+                                                const isChecked = (option.disablesOptions || []).includes(otherOption.id);
+                                                return (
+                                                  <label key={otherOption.id} className="flex items-center gap-1.5 cursor-pointer bg-slate-900 hover:bg-slate-850 rounded px-2 py-1 text-[10px] text-slate-300">
+                                                    <input
+                                                      type="checkbox"
+                                                      checked={isChecked}
+                                                      onChange={() => {
+                                                        const current = option.disablesOptions || [];
+                                                        const newList = isChecked
+                                                          ? current.filter((id: string) => id !== otherOption.id)
+                                                          : [...current, otherOption.id];
+                                                        updateOption(group.id, option.id, { disablesOptions: newList });
+                                                      }}
+                                                      className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 w-3 h-3 bg-slate-950"
+                                                    />
+                                                    <span>{otherOption.name}</span>
+                                                  </label>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+
                                 <button
                                   type="button"
-                                  onClick={() => handleRemoveVariation(v.id)}
-                                  className="text-slate-500 hover:text-red-400 font-bold"
+                                  onClick={() => addOption(group.id)}
+                                  className="w-full text-[11px] text-center py-2 bg-slate-900 text-slate-300 hover:bg-slate-850 hover:text-white rounded-lg border border-slate-800 font-bold transition-all"
                                 >
-                                  ✕
+                                  + Adicionar Opção
                                 </button>
                               </div>
                             </div>
