@@ -90,41 +90,56 @@ export const validateCro = functions.https.onCall(async (request) => {
 
   const apiKey = process.env.CONSULTARIO_API_KEY;
   if (!apiKey || apiKey === "SUA_CHAVE_AQUI" || apiKey === "") {
-    functions.logger.warn("Chave CONSULTARIO_API_KEY não configurada. Simulando retorno válido.");
+    functions.logger.warn(
+      "Chave CONSULTARIO_API_KEY não configurada. " +
+      "Simulando retorno válido."
+    );
     return {
       success: true,
       valido: true,
       name: "DENTISTA TESTE INTEGRACAO",
       situacao: "ATIVO",
-      message: "Modo Desenvolvimento (Chave de API não configurada)."
+      message: "Modo Desenvolvimento (Chave de API não configurada).",
     };
   }
 
   try {
-    functions.logger.info(`Consultando CRO na consultar.io... UF: ${uf}, Numero: ${numero}, Categoria: ${categoria}`);
-    
-    const response = await axios.post("https://consultar.io/api/v1/cro/consultar", {
-      uf,
-      numero,
-      categoria
-    }, {
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+    functions.logger.info(
+      "Consultando CRO na consultar.io... " +
+      `UF: ${uf}, Numero: ${numero}, Categoria: ${categoria}`
+    );
+
+    const response = await axios.post(
+      "https://consultar.io/api/v1/cro/consultar",
+      {
+        uf,
+        numero,
+        categoria,
       },
-      timeout: 10000
-    });
+      {
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        timeout: 10000,
+      }
+    );
 
     const data = response.data;
     functions.logger.info("Resposta consultar.io CRO:", data);
 
-    const situacao = (data?.situacao || data?.status || data?.situacao_inscricao || data?.situacao_cadastral || "").toString().toUpperCase();
+    const rawSituacao = data?.situacao ||
+      data?.status ||
+      data?.situacao_inscricao ||
+      data?.situacao_cadastral ||
+      "";
+    const situacao = rawSituacao.toString().toUpperCase();
     const nomeProfissional = data?.nome || data?.nome_profissional || "";
 
     const isValido = (
-      situacao.includes("ATIVO") || 
-      situacao.includes("REGULAR") || 
+      situacao.includes("ATIVO") ||
+      situacao.includes("REGULAR") ||
       situacao.includes("CONSTA") ||
       situacao === "" ||
       data?.valido === true ||
@@ -135,11 +150,16 @@ export const validateCro = functions.https.onCall(async (request) => {
       success: true,
       valido: isValido,
       name: nomeProfissional,
-      situacao: situacao || "NÃO INFORMADA"
+      situacao: situacao || "NÃO INFORMADA",
     };
   } catch (error: any) {
-    functions.logger.error("Erro ao validar CRO na consultar.io:", error?.response?.data || error?.message);
-    const apiMsg = error.response?.data?.error || error.response?.data?.message || error.message;
+    functions.logger.error(
+      "Erro ao validar CRO na consultar.io:",
+      error?.response?.data || error?.message
+    );
+    const apiMsg = error.response?.data?.error ||
+      error.response?.data?.message ||
+      error.message;
     throw new functions.https.HttpsError(
       "internal",
       `Falha na integração com consultar.io: ${apiMsg}`
@@ -219,7 +239,8 @@ export const generateBatchBoleto = functions.https.onCall(async (request) => {
     let finalSplitPercent = splitPercent;
     const planId = orgSnap.data()?.planId;
     if (planId) {
-      const planSnap = await db.collection("subscriptionPlans").doc(planId).get();
+      const planSnap = await db.collection("subscriptionPlans")
+        .doc(planId).get();
       if (planSnap.exists) {
         const planSplit = planSnap.data()?.features?.splitPercent;
         if (planSplit !== undefined && planSplit !== null) {
