@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { StoreLayoutBlock, StoreSettings } from '../../types';
+import { smartCompress } from '../../services/compressionService';
 import { 
   Settings, Store, Sparkles, Tag, HelpCircle, Save, Plus, Trash2, 
   ArrowUp, ArrowDown, ChevronRight, CheckCircle2, DollarSign, Wallet, 
@@ -84,6 +85,23 @@ export const SupplierSettings = () => {
 
   const handleRemoveBanner = (index: number) => {
     setBanners(banners.filter((_, i) => i !== index));
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await smartCompress(file);
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64 = evt.target?.result as string;
+        setBanners([...banners, base64]);
+      };
+      reader.readAsDataURL(compressed);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao processar imagem banner.');
+    }
   };
 
   // Layout Block Sorters & Builders
@@ -239,7 +257,7 @@ export const SupplierSettings = () => {
           }`}
         >
           <Store size={18} />
-          Configurar Loja Autoral
+          Configurar Loja
         </button>
         <button
           onClick={() => setActiveTab('plans')}
@@ -250,7 +268,7 @@ export const SupplierSettings = () => {
           }`}
         >
           <Crown size={18} />
-          Planos de Adesão
+          Planos
         </button>
         <button
           onClick={() => setActiveTab('asaas')}
@@ -261,7 +279,7 @@ export const SupplierSettings = () => {
           }`}
         >
           <Wallet size={18} />
-          Conta Asaas e Recebíveis
+          Configurar Conta Asaas
         </button>
       </div>
 
@@ -329,9 +347,22 @@ export const SupplierSettings = () => {
                       onChange={e => setNewBanner(e.target.value)}
                       className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-650"
                     />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="banner-image-upload-settings"
+                      className="hidden"
+                      onChange={handleBannerUpload}
+                    />
+                    <label
+                      htmlFor="banner-image-upload-settings"
+                      className="px-4 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <Sparkles size={14} className="text-orange-400" /> Upload
+                    </label>
                     <button
                       onClick={handleAddBanner}
-                      className="px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all"
+                      className="px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all animate-in zoom-in-50"
                     >
                       <Plus size={18} />
                     </button>
@@ -489,6 +520,7 @@ export const SupplierSettings = () => {
                         onChange={e => setBlockType(e.target.value as any)}
                         className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                       >
+                        <option value="BANNER">Banner Único Destacado</option>
                         <option value="CAROUSEL">Carrossel Deslizante</option>
                         <option value="GRID">Grade Expandida</option>
                         <option value="RELATED">Produtos Relacionados (Por Categoria)</option>

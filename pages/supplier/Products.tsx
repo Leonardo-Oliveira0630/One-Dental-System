@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InventoryItem, InventoryItemType } from '../../types';
+import { smartCompress } from '../../services/compressionService';
 import { 
   Package, Plus, Trash2, Edit2, Search, X, Box, Tag, 
   Info, Check, Save, Image, Eye, EyeOff, Loader2, Sparkles, Layers, RefreshCw
@@ -8,10 +9,11 @@ import {
 
 export const SupplierProducts = () => {
   const { 
-    inventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem 
+    inventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem, inventoryCategories, currentUser
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<'ALL' | 'PRODUCTS' | 'COMBOS'>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   
@@ -21,6 +23,7 @@ export const SupplierProducts = () => {
     code: '',
     description: '',
     type: 'MATERIAL',
+    categoryId: '',
     currentStock: 0,
     minStock: 2,
     costPrice: 0,
@@ -44,11 +47,100 @@ export const SupplierProducts = () => {
   const [comboProdId, setComboProdId] = useState('');
   const [comboQty, setComboQty] = useState(1);
 
-  const filteredItems = (inventoryItems || []).filter(item => 
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    (item.code && item.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredItems = (inventoryItems || []).filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (item.code && item.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    if (!matchesSearch) return false;
+    
+    if (filterType === 'PRODUCTS') return !item.isCombo;
+    if (filterType === 'COMBOS') return !!item.isCombo;
+    return true;
+  });
+
+  const handleMainImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await smartCompress(file);
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        setForm(prev => ({ ...prev, imageUrl: evt.target?.result as string }));
+      };
+      reader.readAsDataURL(compressed);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao processar imagem.');
+    }
+  };
+
+  const handleAdditionalImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    try {
+      const newUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const compressed = await smartCompress(files[i]);
+        const base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (evt) => resolve(evt.target?.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(compressed);
+        });
+        newUrls.push(base64);
+      }
+      setForm(prev => ({
+        ...prev,
+        imageUrls: [...(prev.imageUrls || []), ...newUrls]
+      }));
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao carregar fotos adicionais.');
+    }
+  };
+
+  const handleVariationImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await smartCompress(file);
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        setVarImageUrl(evt.target?.result as string);
+      };
+      reader.readAsDataURL(compressed);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao processar imagem.');
+    }
+  };
+
+  const handleAddNewCategoryInline = async () => {
+    const name = prompt('Informe o nome da nova categoria de insumos:');
+    if (!name || !name.trim()) return;
+    const cleanName = name.trim();
+    const newCat = {
+      id: `cat_${Date.now()}`,
+      name: cleanName,
+      type: 'MATERIAL'
+    };
+    try {
+      const orgId = inventoryItems?.[0]?.organizationId || currentUser?.organizationId || '';
+      if (!orgId) {
+        alert('Erro: ID do fornecedor não localizado.');
+        return;
+      }
+      const { apiAddInventoryCategory } = await import('../../services/firebaseService');
+      await apiAddInventoryCategory(orgId, newCat);
+      setForm(prev => ({ ...prev, categoryId: newCat.id }));
+      alert('Categoria criada com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao criar categoria.');
+    }
+  };
 
   const openModal = (item?: InventoryItem) => {
     if (item) {
@@ -89,6 +181,15 @@ export const SupplierProducts = () => {
     setComboQty(1);
     
     setIsModalOpen(true);
+  };
+
+  const openComboModal = () => {
+    openModal();
+    setForm(prev => ({
+      ...prev,
+      isCombo: true,
+      code: `COMBO-${Date.now().toString().substring(8)}`
+    }));
   };
 
   const handleAddImageUrl = () => {
@@ -190,6 +291,8 @@ export const SupplierProducts = () => {
       code: form.code || '',
       description: form.description || '',
       type: (form.type || 'MATERIAL') as InventoryItemType,
+      categoryId: form.categoryId || '',
+      category: form.categoryId ? (inventoryCategories.find(c => c.id === form.categoryId)?.name || 'Outros') : '',
       currentStock: Number(form.currentStock || 0),
       minStock: Number(form.minStock || 0),
       costPrice: Number(form.costPrice || 0),
@@ -238,17 +341,26 @@ export const SupplierProducts = () => {
           <p className="text-slate-400 text-sm mt-0.5">Efetue o controle e exponha fotos adicionais, variações inteligentes ou crie combos.</p>
         </div>
 
-        <button
-          onClick={() => openModal()}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg shadow-indigo-950/40 flex items-center gap-2 self-start"
-        >
-          <Plus size={18} /> Novo Produto
-        </button>
+        <div className="flex gap-2.5">
+          <button
+            onClick={() => openModal()}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg shadow-indigo-950/40 flex items-center gap-2 self-start"
+          >
+            <Plus size={18} /> Novo Produto
+          </button>
+          
+          <button
+            onClick={openComboModal}
+            className="bg-purple-650 bg-purple-600 hover:bg-purple-500 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg shadow-purple-950/40 flex items-center gap-2 self-start"
+          >
+            <Layers size={18} /> Novo Combo
+          </button>
+        </div>
       </div>
 
       {/* Control Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex gap-3 items-center">
-        <div className="relative flex-1">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3.5 top-3.5 text-slate-500" size={18} />
           <input
             type="text"
@@ -257,6 +369,43 @@ export const SupplierProducts = () => {
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm placeholder-slate-650"
           />
+        </div>
+
+        {/* Filter Type Options */}
+        <div className="flex bg-slate-955 bg-slate-950 border border-slate-800 rounded-xl p-1 gap-1 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={() => setFilterType('ALL')}
+            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              filterType === 'ALL' 
+                ? 'bg-slate-800 text-white' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Todos os Itens
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType('PRODUCTS')}
+            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              filterType === 'PRODUCTS' 
+                ? 'bg-slate-800 text-white' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Apenas Produtos
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterType('COMBOS')}
+            className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              filterType === 'COMBOS' 
+                ? 'bg-slate-800 text-white' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Apenas Combos
+          </button>
         </div>
       </div>
 
@@ -426,7 +575,24 @@ export const SupplierProducts = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Foto Principal URL</label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-xs font-bold text-slate-400 uppercase">Foto Principal URL</label>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id="prod-main-image-upload"
+                            className="hidden"
+                            onChange={handleMainImageUpload}
+                          />
+                          <label
+                            htmlFor="prod-main-image-upload"
+                            className="cursor-pointer text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded-md font-bold transition-all flex items-center gap-0.5"
+                          >
+                            <Sparkles size={10} className="text-orange-400" /> Upload
+                          </label>
+                        </div>
+                      </div>
                       <input
                         type="url"
                         value={form.imageUrl}
@@ -442,9 +608,32 @@ export const SupplierProducts = () => {
                     <textarea
                       value={form.description}
                       onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-350 outline-none focus:ring-1 focus:ring-indigo-500 h-16 resize-none"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-355 text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 h-16 resize-none"
                       placeholder="Mais detalhes sobre o produto..."
                     />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-slate-400 uppercase">Categoria de Insumo</label>
+                      <button
+                        type="button"
+                        onClick={handleAddNewCategoryInline}
+                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold"
+                      >
+                        + Nova Categoria
+                      </button>
+                    </div>
+                    <select
+                      value={form.categoryId || ''}
+                      onChange={e => setForm(prev => ({ ...prev, categoryId: e.target.value }))}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="">Selecione uma categoria...</option>
+                      {inventoryCategories && inventoryCategories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -542,12 +731,26 @@ export const SupplierProducts = () => {
                         onChange={e => setTempImageUrl(e.target.value)}
                         className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-250 outline-none focus:ring-1 focus:ring-indigo-500"
                       />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        id="prod-gallery-image-upload"
+                        className="hidden"
+                        onChange={handleAdditionalImageUpload}
+                      />
+                      <label
+                        htmlFor="prod-gallery-image-upload"
+                        className="cursor-pointer px-3 bg-slate-800 hover:bg-slate-750 border border-slate-800 text-slate-300 hover:text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Sparkles size={11} className="text-orange-400" /> Upload
+                      </label>
                       <button
                         type="button"
                         onClick={handleAddImageUrl}
-                        className="px-4 py-2 bg-slate-850 text-slate-200 hover:text-white hover:bg-slate-800 font-bold rounded-xl text-xs"
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-555 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs"
                       >
-                        Inserir Foto
+                        Inserir URL
                       </button>
                     </div>
 
@@ -663,14 +866,27 @@ export const SupplierProducts = () => {
                               className="w-full bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none"
                             />
                           </div>
-                          <div className="col-span-2">
+                          <div className="col-span-2 flex gap-1.5 items-center">
                             <input
                               type="url"
                               placeholder="URL para Mudar Foto (Opcional)"
                               value={varImageUrl}
                               onChange={e => setVarImageUrl(e.target.value)}
-                              className="w-full bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-[11px] text-slate-250 outline-none"
+                              className="flex-1 bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-[11px] text-slate-200 outline-none"
                             />
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id="prod-var-image-upload"
+                              className="hidden"
+                              onChange={handleVariationImageUpload}
+                            />
+                            <label
+                              htmlFor="prod-var-image-upload"
+                              className="cursor-pointer bg-slate-800 hover:bg-slate-755 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-2 rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5"
+                            >
+                              <Sparkles size={11} className="text-orange-400" /> Upload
+                            </label>
                           </div>
                         </div>
 
