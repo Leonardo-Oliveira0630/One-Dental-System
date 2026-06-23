@@ -216,6 +216,18 @@ export const generateBatchBoleto = functions.https.onCall(async (request) => {
     const orgSnap = await db.collection("organizations").doc(orgId).get();
     const walletId = orgSnap.data()?.financialSettings?.asaasWalletId;
 
+    let finalSplitPercent = splitPercent;
+    const planId = orgSnap.data()?.planId;
+    if (planId) {
+      const planSnap = await db.collection("subscriptionPlans").doc(planId).get();
+      if (planSnap.exists) {
+        const planSplit = planSnap.data()?.features?.splitPercent;
+        if (planSplit !== undefined && planSplit !== null) {
+          finalSplitPercent = Number(planSplit);
+        }
+      }
+    }
+
     // 1. Buscar dados do Dentista
     let dentist: any = null;
     const manualSnap = await db.collection("organizations")
@@ -284,7 +296,7 @@ export const generateBatchBoleto = functions.https.onCall(async (request) => {
     };
 
     if (walletId && walletId.length > 10) {
-      payload.split = [{walletId, percentualValue: 100 - splitPercent}];
+      payload.split = [{walletId, percentualValue: 100 - finalSplitPercent}];
     }
 
     const payRes = await axios.post(`${url}/payments`, payload, {

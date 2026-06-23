@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight, Percent } from 'lucide-react';
 import { Coupon } from '../types';
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
 
@@ -156,7 +156,7 @@ export const RegisterOrganization = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
   // Filter plans based on Registration Type (LAB vs CLINIC vs LAB_OUTSOURCED vs SUPPLIER)
-  const publicPlans = allPlans.filter(p => p.isPublic && p.active && (p.targetAudience === (regType === 'LAB' ? 'LAB' : regType === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : regType === 'SUPPLIER' ? 'LAB' : 'CLINIC')));
+  const publicPlans = allPlans.filter(p => p.isPublic && p.active && (p.targetAudience === (regType === 'LAB' ? 'LAB' : regType === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : regType === 'SUPPLIER' ? 'SUPPLIER' : 'CLINIC')));
   
   // Use displayPlans for rendering
   const displayPlans = publicPlans; 
@@ -336,6 +336,32 @@ export const RegisterOrganization = () => {
       setLoading(false);
     }
   };
+
+  const themeColor = 
+    regType === 'LAB' ? 'blue' : 
+    regType === 'LAB_OUTSOURCED' ? 'purple' : 
+    regType === 'SUPPLIER' ? 'indigo' : 'teal';
+
+  const themeBorder = 
+    regType === 'LAB' ? 'border-blue-500' : 
+    regType === 'LAB_OUTSOURCED' ? 'border-purple-500' : 
+    regType === 'SUPPLIER' ? 'border-indigo-500' : 'border-teal-500';
+
+  const themeText = 
+    regType === 'LAB' ? 'text-blue-400' : 
+    regType === 'LAB_OUTSOURCED' ? 'text-purple-400' : 
+    regType === 'SUPPLIER' ? 'text-indigo-400' : 'text-teal-400';
+
+  const themeBg = 
+    regType === 'LAB' ? 'bg-blue-500' : 
+    regType === 'LAB_OUTSOURCED' ? 'bg-purple-500' : 
+    regType === 'SUPPLIER' ? 'bg-indigo-500' : 'bg-teal-500';
+
+  const themeBtnBg = 
+    regType === 'LAB' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/50' : 
+    regType === 'LAB_OUTSOURCED' ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/50' : 
+    regType === 'SUPPLIER' ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-900/50' : 
+    'bg-teal-600 hover:bg-teal-500 shadow-teal-900/50';
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-2 sm:p-4">
@@ -572,14 +598,18 @@ export const RegisterOrganization = () => {
                 {/* PLAN SELECTION SECTION (Placa de planos) */}
                 <div className="pt-6 border-t border-slate-700/50 space-y-4">
                     <div className="flex items-center gap-2 text-white">
-                        <Activity className={regType === 'LAB' ? 'text-blue-500' : 'text-teal-500'} size={18} />
+                        <Activity className={themeText} size={18} />
                         <label className="block text-xs font-bold text-slate-400 uppercase">Escolha seu Plano de Assinatura</label>
                     </div>
 
                     {displayPlans.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-slate-400 border-2 border-dashed border-slate-700 rounded-2xl">
-                            <Loader2 className="animate-spin mb-2 text-blue-500" />
-                            <p className="text-sm">Carregando planos para {regType === 'LAB' ? 'Laboratórios' : 'Dentistas'}...</p>
+                            <Loader2 className={`animate-spin mb-2 ${themeText}`} />
+                            <p className="text-sm">Carregando planos para {
+                                regType === 'LAB' ? 'Laboratórios' : 
+                                regType === 'LAB_OUTSOURCED' ? 'Terceirização' : 
+                                regType === 'SUPPLIER' ? 'Fornecedores' : 'Dentistas'
+                            }...</p>
                         </div>
                     ) : (
                         <div className="relative group/carousel px-1">
@@ -632,7 +662,7 @@ export const RegisterOrganization = () => {
                                             onClick={() => setPlanId(plan.id)}
                                             className={`cursor-pointer border-2 rounded-2xl p-4 sm:p-5 transition-all relative overflow-hidden flex flex-col justify-between w-[275px] sm:w-[290px] md:w-[250px] lg:w-[265px] flex-shrink-0 snap-center ${
                                                 isSelected 
-                                                    ? (regType === 'LAB' ? 'border-blue-500 bg-slate-800 shadow-lg shadow-black/20' : 'border-teal-500 bg-slate-800 shadow-lg shadow-black/20')
+                                                    ? `${themeBorder} bg-slate-800 shadow-lg shadow-black/20`
                                                     : 'border-slate-700 bg-slate-800/50 hover:bg-slate-750 hover:border-slate-600'
                                             }`}
                                         >
@@ -646,13 +676,13 @@ export const RegisterOrganization = () => {
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <h4 className="text-white font-bold uppercase tracking-wider text-xs">{plan.name}</h4>
-                                                        <p className={`text-2xl font-bold mt-1 ${regType === 'LAB' ? 'text-blue-400' : 'text-teal-400'}`}>
+                                                        <p className={`text-2xl font-bold mt-1 ${themeText}`}>
                                                             R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-500 font-normal">/mês</span>
                                                         </p>
                                                     </div>
                                                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                                                         isSelected 
-                                                            ? (regType === 'LAB' ? 'border-blue-500 bg-blue-500' : 'border-teal-500 bg-teal-500') 
+                                                            ? `${themeBorder} ${themeBg}` 
                                                             : 'border-slate-600'
                                                     }`}>
                                                         {isSelected && <CheckCircle size={14} className="text-white" />}
@@ -660,16 +690,39 @@ export const RegisterOrganization = () => {
                                                 </div>
 
                                                 <div className="space-y-1.5 text-xs text-slate-400 pt-3 border-t border-slate-700/50">
-                                                    {regType === 'LAB' ? (
+                                                    {regType === 'LAB' && (
                                                         <>
-                                                            <div className="flex items-center gap-2"><Users size={12} className="text-blue-500"/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
-                                                            <div className="flex items-center gap-2"><Database size={12} className="text-blue-500"/>{plan.features.maxStorageGB} GB de Armazenamento</div>
+                                                            <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
+                                                            <div className="flex items-center gap-2"><Database size={12} className={themeText}/>{plan.features.maxStorageGB} GB de Armazenamento</div>
                                                             <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Store size={12} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-600'}/>Loja Virtual</div>
                                                             <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão Clínica (Demo)</div>
                                                         </>
-                                                    ) : (
+                                                    )}
+                                                    {regType === 'SUPPLIER' && (
                                                         <>
-                                                            <div className="flex items-center gap-2"><CheckCircle size={12} className="text-teal-500"/>Pedidos Online Ilimitados</div>
+                                                            <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Ativação de Vitrine Pública</div>
+                                                            <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
+                                                            <div className="flex items-center gap-2"><Database size={12} className={themeText}/>Estoque & Vendas Digitais</div>
+                                                            <div className="flex items-center gap-2 text-amber-400 font-bold">
+                                                                <Percent size={12} className="text-amber-400"/>
+                                                                Split na Plataforma: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Taxa Padrão'}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {regType === 'LAB_OUTSOURCED' && (
+                                                        <>
+                                                            <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Recebimento de Pedidos</div>
+                                                            <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
+                                                            <div className="flex items-center gap-2"><Building size={12} className={themeText}/>Mapeamento de Serviços</div>
+                                                            <div className="flex items-center gap-2 text-amber-400 font-bold">
+                                                                <Percent size={12} className="text-amber-400"/>
+                                                                Split na Plataforma: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Taxa Padrão'}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {regType === 'DENTIST' && (
+                                                        <>
+                                                            <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Pedidos Online Ilimitados</div>
                                                             <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão de Consultório</div>
                                                             <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300 font-medium' : 'text-slate-600 line-through'}`}><Users size={12} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Cadastro de Pacientes</div>
                                                         </>
@@ -699,7 +752,7 @@ export const RegisterOrganization = () => {
 
                 {error && <div className="p-3 bg-red-500/20 text-red-300 rounded-lg text-sm text-center border border-red-500/30 font-medium">{error}</div>}
 
-                <button type="submit" disabled={loading} className={`w-full py-4 font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 text-white mt-4 flex items-center justify-center gap-2 ${regType === 'LAB' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/50' : 'bg-teal-600 hover:bg-teal-500 shadow-teal-900/50'}`}>
+                <button type="submit" disabled={loading} className={`w-full py-4 font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 text-white mt-4 flex items-center justify-center gap-2 ${themeBtnBg}`}>
                     {loading ? 'Processando...' : 'Finalizar Cadastro'}
                 </button>
                 

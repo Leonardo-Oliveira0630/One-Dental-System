@@ -17,7 +17,7 @@ export const Plans = () => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState(0);
   const [isPublic, setIsPublic] = useState(true);
-  const [targetAudience, setTargetAudience] = useState<'LAB' | 'CLINIC' | 'LAB_OUTSOURCED'>('LAB');
+  const [targetAudience, setTargetAudience] = useState<'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER'>('LAB');
   const [trialDays, setTrialDays] = useState(7);
   
   // Features State
@@ -27,6 +27,7 @@ export const Plans = () => {
   const [maxJobsPerMonth, setMaxJobsPerMonth] = useState(-1);
   const [hasStore, setHasStore] = useState(true);
   const [hasClinic, setHasClinic] = useState(true);
+  const [splitPercent, setSplitPercent] = useState<number>(0);
 
   const resetForm = () => {
     setName('');
@@ -40,6 +41,7 @@ export const Plans = () => {
     setMaxJobsPerMonth(-1);
     setHasStore(true);
     setHasClinic(true);
+    setSplitPercent(0);
     setIsEditing(false);
     setEditingId(null);
   };
@@ -58,6 +60,7 @@ export const Plans = () => {
     setMaxJobsPerMonth(plan.features.maxJobsPerMonth || -1);
     setHasStore(plan.features.hasStoreModule);
     setHasClinic(plan.features.hasClinicModule);
+    setSplitPercent(plan.features.splitPercent || 0);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -76,7 +79,8 @@ export const Plans = () => {
             maxDentists,
             maxJobsPerMonth,
             hasStoreModule: hasStore,
-            hasClinicModule: hasClinic
+            hasClinicModule: hasClinic,
+            splitPercent
         }
     };
 
@@ -133,17 +137,32 @@ export const Plans = () => {
                         {allPlans.map(plan => (
                             <div key={plan.id} className={`bg-white p-6 rounded-[32px] border-2 transition-all relative overflow-hidden group ${plan.isPublic ? 'border-slate-100 shadow-sm' : 'border-amber-100 bg-amber-50/20 shadow-none'}`}>
                                 <div className="flex justify-between items-start mb-4">
-                                    <span className={`text-[9px] font-black px-2 py-1 rounded-lg flex items-center gap-1 border ${plan.targetAudience === 'CLINIC' ? 'bg-teal-50 text-teal-700 border-teal-100' : plan.targetAudience === 'LAB_OUTSOURCED' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
-                                        {plan.targetAudience === 'CLINIC' ? <Stethoscope size={10}/> : plan.targetAudience === 'LAB_OUTSOURCED' ? <Package size={10}/> : <Store size={10}/>}
-                                        {plan.targetAudience === 'CLINIC' ? 'CLÍNICA' : plan.targetAudience === 'LAB_OUTSOURCED' ? 'TERCEIRIZAÇÃO' : 'LABORATÓRIO'}
+                                    <span className={`text-[9px] font-black px-2 py-1 rounded-lg flex items-center gap-1 border ${
+                                        plan.targetAudience === 'CLINIC' 
+                                            ? 'bg-teal-50 text-teal-700 border-teal-100' 
+                                            : plan.targetAudience === 'LAB_OUTSOURCED' 
+                                            ? 'bg-purple-50 text-purple-700 border-purple-100' 
+                                            : plan.targetAudience === 'SUPPLIER'
+                                            ? 'bg-amber-50 text-amber-700 border-amber-100'
+                                            : 'bg-blue-50 text-blue-700 border-blue-100'
+                                    }`}>
+                                        {plan.targetAudience === 'CLINIC' ? <Stethoscope size={10}/> : plan.targetAudience === 'LAB_OUTSOURCED' ? <Package size={10}/> : plan.targetAudience === 'SUPPLIER' ? <Store size={10}/> : <Layers size={10}/>}
+                                        {plan.targetAudience === 'CLINIC' ? 'CLÍNICA' : plan.targetAudience === 'LAB_OUTSOURCED' ? 'TERCEIRIZAÇÃO' : plan.targetAudience === 'SUPPLIER' ? 'FORNECEDOR' : 'LABORATÓRIO'}
                                     </span>
                                     {!plan.isPublic && <span className="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">Privado</span>}
                                 </div>
 
                                 <h3 className="text-xl font-black text-slate-800 leading-tight mb-1">{plan.name}</h3>
-                                <div className="flex items-baseline gap-1 mb-6">
-                                    <span className="text-2xl font-black text-slate-900">R$ {plan.price.toFixed(2)}</span>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase">/mês</span>
+                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-6">
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-2xl font-black text-slate-900">R$ {plan.price.toFixed(2)}</span>
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase">/mês</span>
+                                    </div>
+                                    {(plan.targetAudience === 'SUPPLIER' || plan.targetAudience === 'LAB_OUTSOURCED') && (
+                                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase tracking-tighter">
+                                            Split: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Padrão'}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 mb-6">
@@ -204,8 +223,31 @@ export const Plans = () => {
                                     <button type="button" onClick={() => setTargetAudience('LAB')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all min-w-[80px] ${targetAudience === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Laboratório</button>
                                     <button type="button" onClick={() => setTargetAudience('CLINIC')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all min-w-[80px] ${targetAudience === 'CLINIC' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Clínica</button>
                                     <button type="button" onClick={() => setTargetAudience('LAB_OUTSOURCED')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all min-w-[80px] ${targetAudience === 'LAB_OUTSOURCED' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Terceirização</button>
+                                    <button type="button" onClick={() => setTargetAudience('SUPPLIER')} className={`flex-1 py-2 text-[10px] font-black uppercase rounded-xl transition-all min-w-[80px] ${targetAudience === 'SUPPLIER' ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>Fornecedor</button>
                                 </div>
                             </div>
+
+                            {(targetAudience === 'SUPPLIER' || targetAudience === 'LAB_OUTSOURCED') && (
+                                <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-[24px] space-y-2">
+                                    <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Split da Plataforma (%)</label>
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            max="100" 
+                                            step="0.01" 
+                                            value={splitPercent} 
+                                            onChange={e => setSplitPercent(parseFloat(e.target.value) || 0)} 
+                                            className="w-full px-4 py-2.5 bg-white border border-amber-200 rounded-xl font-black text-amber-800 outline-none focus:ring-2 focus:ring-amber-500" 
+                                            placeholder="Ex: 5" 
+                                        />
+                                        <span className="text-sm font-black text-amber-700">%</span>
+                                    </div>
+                                    <p className="text-[10px] text-amber-600 font-medium leading-normal">
+                                        Esse plano aplica uma taxa de split configurada para cada venda realizada. Se você colocar 0%, o split será zerado e apenas a mensalidade do plano será cobrada.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         {/* SEÇÃO DE LIMITES - CUSTOMIZAÇÃO REQUERIDA */}

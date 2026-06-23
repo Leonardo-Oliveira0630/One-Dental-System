@@ -569,7 +569,7 @@ export interface SubscriptionPlan {
   price: number;
   isPublic: boolean;
   active: boolean;
-  targetAudience?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED';
+  targetAudience?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
   trialDays?: number;
   features: {
     maxUsers: number;
@@ -578,6 +578,7 @@ export interface SubscriptionPlan {
     maxJobsPerMonth: number;
     hasStoreModule: boolean;
     hasClinicModule: boolean;
+    splitPercent?: number;
   };
 }
 
