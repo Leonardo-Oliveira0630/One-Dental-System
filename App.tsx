@@ -46,6 +46,9 @@ import { TutorialsView } from './pages/TutorialsView';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { RequisitionInvite } from './pages/RequisitionInvite';
+import { SupplierDashboard } from './pages/supplier/Dashboard';
+import { SupplierProducts } from './pages/supplier/Products';
+import { SupplierStore } from './pages/store/SupplierStore';
 import { Loader2 } from 'lucide-react';
 
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -117,6 +120,7 @@ const AppContent = () => {
       <Route path="/lab/price-tables" element={<ProtectedRoute><PriceTables /></ProtectedRoute>} />
 
       <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
+      <Route path="/store-suppliers" element={<ProtectedRoute><SupplierStore /></ProtectedRoute>} />
       <Route path="/store/:slug" element={<Catalog />} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
       <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
@@ -129,6 +133,9 @@ const AppContent = () => {
       <Route path="/clinic-settings" element={<ProtectedRoute><ClinicSettings /></ProtectedRoute>} />
       <Route path="/dentist/partnerships" element={<ProtectedRoute><Partnerships /></ProtectedRoute>} />
       <Route path="/requisitions" element={<ProtectedRoute><DentistRequisitions /></ProtectedRoute>} />
+
+      <Route path="/supplier/dashboard" element={<ProtectedRoute><SupplierDashboard /></ProtectedRoute>} />
+      <Route path="/supplier/products" element={<ProtectedRoute><SupplierProducts /></ProtectedRoute>} />
 
       <Route path="/calendar" element={<ProtectedRoute><ProductionCalendar /></ProtectedRoute>} />
       <Route path="/promised" element={<ProtectedRoute><PromisedJobs /></ProtectedRoute>} />

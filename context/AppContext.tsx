@@ -198,6 +198,12 @@ interface AppContextType {
   registerOrganization: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
   registerOutsourcedLab: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
   registerDentist: (email: string, pass: string, name: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
+  registerSupplier: (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>) => Promise<User>;
+  allSuppliers: Organization[];
+  allSupplierProducts: import('../types').InventoryItem[];
+  supplierOrders: import('../types').SupplierOrder[];
+  addSupplierOrder: (order: import('../types').SupplierOrder) => Promise<void>;
+  updateSupplierOrder: (id: string, updates: Partial<import('../types').SupplierOrder>) => Promise<void>;
   validateCro: (uf: string, numero: string, categoria: string) => Promise<any>;
   addSubscriptionPlan: (plan: SubscriptionPlan) => Promise<void>;
   updateSubscriptionPlan: (id: string, updates: Partial<SubscriptionPlan>) => Promise<void>;
@@ -290,6 +296,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [inventoryCategories, setInventoryCategories] = useState<import('../types').InventoryCategory[]>([]);
   const [inventoryItems, setInventoryItems] = useState<import('../types').InventoryItem[]>([]);
+  const [allSuppliers, setAllSuppliers] = useState<Organization[]>([]);
+  const [allSupplierProducts, setAllSupplierProducts] = useState<import('../types').InventoryItem[]>([]);
+  const [supplierOrders, setSupplierOrders] = useState<import('../types').SupplierOrder[]>([]);
   const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]);
   const [dentistPayments, setDentistPayments] = useState<DentistPayment[]>([]);
   const [patientPayments, setPatientPayments] = useState<import('../types').PatientPayment[]>([]);
@@ -304,12 +313,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<AppContextType['printData']>(null);
 
-  // Subscrições Públicas: Apenas Planos e Laboratórios são necessários para o registro e lojas públicas
+  // Subscrições Públicas: Planos, Laboratórios e Fornecedores são públicos
   useEffect(() => {
     if (!db) return;
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
     const unsubLabs = api.subscribeAllLaboratories(setAllLaboratories);
-    return () => { unsubPlans(); unsubLabs(); };
+    const unsubSuppliers = api.subscribeAllSuppliers(setAllSuppliers);
+    const unsubSupplierProducts = api.subscribeAllSupplierProducts(setAllSupplierProducts);
+    return () => { 
+      unsubPlans(); 
+      unsubLabs(); 
+      unsubSuppliers(); 
+      unsubSupplierProducts(); 
+    };
   }, []);
 
   // Monitoramento de Auth e Perfil
@@ -498,6 +514,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeLabOnlineRequisitions(myOrgId, setOnlineRequisitions));
         } else if (activeDataId) {
             unsubs.push(api.subscribeDentistOnlineRequisitions(activeDataId, currentUser.id, setOnlineRequisitions));
+        }
+
+        if (currentOrg?.orgType === 'SUPPLIER') {
+            unsubs.push(api.subscribeSupplierOrders(myOrgId, setSupplierOrders));
+        } else {
+            unsubs.push(api.subscribeBuyerSupplierOrders(myOrgId, setSupplierOrders));
         }
 
         unsubs.push(api.subscribePatientPayments(myOrgId, setPatientPayments));
@@ -833,6 +855,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const registerOrganization = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterOrganization(e, p, on, orn, pid, t, c, address);
   const registerOutsourcedLab = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterOutsourcedLab(e, p, on, orn, pid, t, c, address);
   const registerDentist = async (e: string, p: string, n: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: any) => await api.apiRegisterDentist(e, p, n, clinicName, planId, trialEndsAt, couponCode, address);
+  const registerSupplier = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterSupplier(e, p, on, orn, pid, t, c, address);
+  const addSupplierOrder = async (order: import('../types').SupplierOrder) => await api.apiAddSupplierOrder(order);
+  const updateSupplierOrder = async (id: string, updates: Partial<import('../types').SupplierOrder>) => await api.apiUpdateSupplierOrder(id, updates);
   const validateCro = async (uf: string, numero: string, categoria: string) => await api.apiValidateCro(uf, numero, categoria);
   const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
   const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
@@ -1198,7 +1223,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     onlineRequisitions, addOnlineRequisition, updateOnlineRequisition, activeManualDentistId,
     updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus, setSubscriptionStatus,
     addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
-    registerOrganization, registerOutsourcedLab, registerDentist, validateCro, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
+    registerOrganization, registerOutsourcedLab, registerDentist, registerSupplier, validateCro, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
+    allSuppliers, allSupplierProducts, supplierOrders, addSupplierOrder, updateSupplierOrder,
     addConnectionByCode, addCoupon, updateCoupon, deleteCoupon, addPayment,
     addManualDentist, updateManualDentist, deleteManualDentist,
     addCardMachine, updateCardMachine, deleteCardMachine,
@@ -1216,6 +1242,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     allOrganizations, allLaboratories, allPlans, coupons, labCoupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
     patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
+    allSuppliers, allSupplierProducts, supplierOrders,
     allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions
   ]);
 

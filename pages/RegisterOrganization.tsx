@@ -6,7 +6,7 @@ import { Coupon } from '../types';
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
 
 export const RegisterOrganization = () => {
-  const { registerOrganization, registerOutsourcedLab, registerDentist, validateCro, allPlans, validateCoupon, createSubscription } = useApp();
+  const { registerOrganization, registerOutsourcedLab, registerDentist, registerSupplier, validateCro, allPlans, validateCoupon, createSubscription } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialType = (searchParams.get('type') === 'DENTIST' || searchParams.get('type') === 'CLINIC') ? 'DENTIST' : searchParams.get('type') === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : 'LAB';
@@ -15,7 +15,7 @@ export const RegisterOrganization = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const [regType, setRegType] = useState<'LAB' | 'DENTIST' | 'LAB_OUTSOURCED'>(initialType as any);
+  const [regType, setRegType] = useState<'LAB' | 'DENTIST' | 'LAB_OUTSOURCED' | 'SUPPLIER'>(initialType as any);
   
   // Separated State for clarity
   const [labName, setLabName] = useState('');
@@ -103,8 +103,8 @@ export const RegisterOrganization = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
-  // Filter plans based on Registration Type (LAB vs CLINIC vs LAB_OUTSOURCED)
-  const publicPlans = allPlans.filter(p => p.isPublic && p.active && (p.targetAudience === (regType === 'LAB' ? 'LAB' : regType === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : 'CLINIC')));
+  // Filter plans based on Registration Type (LAB vs CLINIC vs LAB_OUTSOURCED vs SUPPLIER)
+  const publicPlans = allPlans.filter(p => p.isPublic && p.active && (p.targetAudience === (regType === 'LAB' ? 'LAB' : regType === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : regType === 'SUPPLIER' ? 'LAB' : 'CLINIC')));
   
   // Use displayPlans for rendering
   const displayPlans = publicPlans; 
@@ -211,6 +211,25 @@ export const RegisterOrganization = () => {
           }
           
           navigate('/store');
+      } else if (regType === 'SUPPLIER') {
+          regUser = await registerSupplier(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
+              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone
+          });
+          if (regUser && regUser.organizationId) {
+              try {
+                  await createSubscription(
+                      regUser.organizationId,
+                      selectedPlanId,
+                      email,
+                      labName,
+                      cleanCpfCnpj,
+                      appliedCoupon?.code
+                  );
+              } catch (subErr) {
+                  console.error("Erro ao gerar fatura/assinatura Asaas automática:", subErr);
+              }
+          }
+          navigate('/supplier/dashboard');
       } else {
           // Validate CRO first
           if (!croUf || !croNumero || !croCategoria) {
@@ -275,12 +294,12 @@ export const RegisterOrganization = () => {
                 <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-6">
                     <ArrowLeft size={14} /> Voltar para o Site
                 </Link>
-                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/20 ${regType === 'LAB' ? 'bg-blue-600' : regType === 'LAB_OUTSOURCED' ? 'bg-purple-600' : 'bg-teal-600'}`}>
-                    {regType === 'LAB' ? <ShieldCheck size={32} className="text-white" /> : regType === 'LAB_OUTSOURCED' ? <Building size={32} className="text-white" /> : <Stethoscope size={32} className="text-white" />}
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/20 ${regType === 'LAB' ? 'bg-blue-600' : regType === 'LAB_OUTSOURCED' ? 'bg-purple-600' : regType === 'SUPPLIER' ? 'bg-indigo-600' : 'bg-teal-600'}`}>
+                    {regType === 'LAB' ? <ShieldCheck size={32} className="text-white" /> : regType === 'LAB_OUTSOURCED' ? <Building size={32} className="text-white" /> : regType === 'SUPPLIER' ? <Database size={32} className="text-white" /> : <Stethoscope size={32} className="text-white" />}
                 </div>
                 <h1 className="text-3xl font-bold text-white mb-2">Crie sua Conta</h1>
                 <p className="text-slate-400">
-                    {regType === 'LAB' ? 'Gestão completa para seu Laboratório.' : regType === 'LAB_OUTSOURCED' ? 'Contrate outros laboratórios através da nossa plataforma.' : 'Gestão clínica e pedidos para Dentistas.'}
+                    {regType === 'LAB' ? 'Gestão completa para seu Laboratório.' : regType === 'LAB_OUTSOURCED' ? 'Contrate outros laboratórios através da nossa plataforma.' : regType === 'SUPPLIER' ? 'Venda seus produtos e controle estoque para dentistas e laboratórios.' : 'Gestão clínica e pedidos para Dentistas.'}
                 </p>
             </div>
 
@@ -288,17 +307,20 @@ export const RegisterOrganization = () => {
                 <button type="button" onClick={() => { setRegType('LAB'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Building size={18} /> Sou Laboratório</button>
                 <button type="button" onClick={() => { setRegType('DENTIST'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'DENTIST' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Stethoscope size={18} /> Sou Dentista</button>
                 <button type="button" onClick={() => { setRegType('LAB_OUTSOURCED'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'LAB_OUTSOURCED' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Store size={18} /> Terceirização Lab</button>
+                <button type="button" onClick={() => { setRegType('SUPPLIER'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'SUPPLIER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Database size={18} /> Sou Fornecedor</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {(regType === 'LAB' || regType === 'LAB_OUTSOURCED') ? (
+                    {(regType === 'LAB' || regType === 'LAB_OUTSOURCED' || regType === 'SUPPLIER') ? (
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome do Laboratório</label>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                                {regType === 'SUPPLIER' ? 'Nome do Fornecedor / Empresa' : 'Nome do Laboratório'}
+                            </label>
                             <div className="relative">
                                 <Building className="absolute left-3 top-3 text-slate-500" size={18}/>
-                                <input required value={labName} onChange={e => setLabName(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600" placeholder="Ex: Laboratório Smile" />
+                                <input required value={labName} onChange={e => setLabName(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600" placeholder={regType === 'SUPPLIER' ? 'Ex: Fornecedor Dental Dental' : 'Ex: Laboratório Smile'} />
                             </div>
                         </div>
                     ) : (

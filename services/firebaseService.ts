@@ -7,7 +7,8 @@ import * as messagingPkg from 'firebase/messaging';
 
 const { 
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, 
-  onSnapshot, query, where, Timestamp, arrayUnion, arrayRemove, orderBy, limit, increment, addDoc
+  onSnapshot, query, where, Timestamp, arrayUnion, arrayRemove, orderBy, limit, increment, addDoc,
+  collectionGroup
 } = firestorePkg as any;
 
 const { 
@@ -1099,4 +1100,73 @@ export const subscribeDentistOnlineRequisitions = (labId: string, dentistId: str
         cb(list);
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeDentistOnlineRequisitions para lab ${labId}, dentist ${dentistId}: ${error.code}`));
 };
+
+// --- SUPPLIERS SERVICES ---
+export const apiRegisterSupplier = async (email: string, pass: string, ownerName: string, orgName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: Partial<User>): Promise<User> => {
+    const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+    const orgId = `supplier_${Date.now()}`;
+    const org: Organization = {
+        id: orgId, name: orgName, planId, subscriptionStatus: trialEndsAt ? 'TRIAL' : 'PENDING', trialEndsAt, createdAt: new Date(), orgType: 'SUPPLIER',
+        ...(address || {})
+    };
+    await setDoc(doc(db, 'organizations', orgId), org);
+    const profile: User = { id: userCred.user.uid, name: ownerName, email, role: UserRole.ADMIN, organizationId: orgId, ...(address || {}) };
+    await setDoc(doc(db, 'users', userCred.user.uid), profile);
+    return profile;
+};
+
+export const subscribeAllSuppliers = (cb: (orgs: Organization[]) => void) => {
+    const q = query(collection(db, 'organizations'), where('orgType', '==', 'SUPPLIER'));
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            createdAt: toDate(d.data().createdAt)
+        } as Organization)));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllSuppliers: ${error.code}`));
+};
+
+export const subscribeAllSupplierProducts = (cb: (items: any[]) => void) => {
+    const q = query(collectionGroup(db, 'inventoryItems'), where('isVisibleInStore', '==', true));
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any
+        })));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllSupplierProducts: ${error.code}`));
+};
+
+export const apiAddSupplierOrder = (order: SupplierOrder) => {
+    return setDoc(doc(db, 'supplierOrders', order.id), {
+        ...order,
+        createdAt: order.createdAt || new Date()
+    });
+};
+
+export const apiUpdateSupplierOrder = (id: string, updates: Partial<SupplierOrder>) => {
+    return updateDoc(doc(db, 'supplierOrders', id), updates);
+};
+
+export const subscribeSupplierOrders = (supplierId: string, cb: (orders: SupplierOrder[]) => void) => {
+    const q = query(collection(db, 'supplierOrders'), where('supplierId', '==', supplierId));
+    return onSnapshot(q, (snap: any) => {
+        const list = snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            createdAt: toDate(d.data().createdAt)
+        } as SupplierOrder));
+        list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        cb(list);
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeSupplierOrders: ${error.code}`));
+};
+
+export const subscribeBuyerSupplierOrders = (buyerOrgId: string, cb: (orders: SupplierOrder[]) => void) => {
+    const q = query(collection(db, 'supplierOrders'), where('buyerOrgId', '==', buyerOrgId));
+    return onSnapshot(q, (snap: any) => {
+        const list = snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            createdAt: toDate(d.data().createdAt)
+        } as SupplierOrder));
+        list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        cb(list);
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeBuyerSupplierOrders: ${error.code}`));
+};
+
 

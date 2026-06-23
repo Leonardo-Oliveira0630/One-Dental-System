@@ -66,7 +66,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     return false;
   };
 
-  const isPastDue = isSubscriptionPastDue();
+  const isSupplier = currentOrg?.orgType === 'SUPPLIER';
+  const isPastDue = isSubscriptionPastDue() && !isSupplier;
 
   useEffect(() => {
     if (isPastDue && !location.pathname.startsWith('/admin') && location.pathname !== '/subscribe' && location.pathname !== '/profile') {
@@ -97,7 +98,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
-  const isBuyer = isClient || currentOrg?.orgType === 'LAB_OUTSOURCED';
+  const isBuyer = (isClient || currentOrg?.orgType === 'LAB_OUTSOURCED') && !isSupplier;
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
   
   const isClinicPendingApproval = () => {
@@ -254,7 +255,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             ) : (
               <>
-                {!isBuyer && !isSuperAdmin && (
+                {isSupplier && (
+                  <>
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/dashboard" icon={<LayoutDashboard size={20} />} label="Painel de Pedidos" active={location.pathname === '/supplier/dashboard'} />
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/products" icon={<Package size={20} />} label="Meus Produtos" active={location.pathname === '/supplier/products'} />
+                  </>
+                )}
+
+                {!isSupplier && !isBuyer && !isSuperAdmin && (
                   <>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === '/dashboard'} />
                     {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
@@ -265,6 +273,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
                     {hasPerm('catalog:prices_view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/price-tables" icon={<Table size={20} />} label="Tabelas de Preços" active={location.pathname === '/lab/price-tables'} />}
                     {hasPerm('inventory:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/inventory" icon={<Package size={20} />} label="Inventário" active={location.pathname === '/lab/inventory'} />}
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store-suppliers" icon={<Globe size={20} />} label="Loja Fornecedores" active={location.pathname === '/store-suppliers'} />
                     {hasPerm('logistics:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
                     
                     <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>
@@ -282,6 +291,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {isBuyer && (
                   <>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja de Prótese" active={location.pathname === '/store'} />
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store-suppliers" icon={<Globe size={20} />} label="Loja Fornecedores" active={location.pathname === '/store-suppliers'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/jobs'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
                     

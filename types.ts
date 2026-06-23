@@ -38,7 +38,7 @@ export interface Organization {
   subscriptionStatus?: 'TRIAL' | 'ACTIVE' | 'OVERDUE' | 'CANCELLED' | 'PENDING' | 'FREE' | 'TEST';
   trialEndsAt?: Date;
   createdAt: Date;
-  orgType?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED';
+  orgType?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
   asaasApiKey?: string;
   ratingAverage?: number;
   ratingCount?: number;
@@ -188,7 +188,7 @@ export interface InventoryCategory {
 
 export interface InventoryItem {
   id: string;
-  categoryId: string;
+  categoryId?: string;
   name: string;
   code?: string;
   description?: string;
@@ -199,6 +199,8 @@ export interface InventoryItem {
   sellPrice: number;
   dentistOwnerId?: string | null;
   organizationId: string;
+  isVisibleInStore?: boolean;
+  imageUrl?: string;
 }
 
 export interface JobProduct {
@@ -851,6 +853,36 @@ export interface PatientBillingBatch {
   bankSlipUrl?: string;
   pixCopyPaste?: string;
   pixQrCode?: string;
+}
+
+export interface SupplierOrder {
+  id: string;
+  supplierId: string;
+  supplierName: string;
+  buyerOrgId: string;
+  buyerOrgName: string;
+  buyerName: string;
+  buyerEmail: string;
+  items: {
+    productId: string;
+    name: string;
+    quantity: number;
+    price: number;
+  }[];
+  totalValue: number;
+  status: 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  createdAt: Date;
+  notes?: string;
+  paymentMethod: 'CREDIT_CARD' | 'PIX';
+  buyerAddress?: {
+    street?: string;
+    number?: string;
+    complement?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+  };
 }
 
 
