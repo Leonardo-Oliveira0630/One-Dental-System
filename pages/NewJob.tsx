@@ -33,6 +33,8 @@ export const NewJob = () => {
   const [selectedColorId, setSelectedColorId] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [notes, setNotes] = useState('');
+  const [lastJobFound, setLastJobFound] = useState<Job | null>(null);
+  const loadedJobIdRef = useRef<string | null>(null);
   const [addedItems, setAddedItems] = useState<JobItem[]>(location.state?.items || []);
   const [addedProducts, setAddedProducts] = useState<import('../types').JobProduct[]>([]);
   const [lastCreatedJob, setLastCreatedJob] = useState<Job | null>(null);
@@ -334,6 +336,19 @@ export const NewJob = () => {
             setPatientName((location.state.patientName || '').toUpperCase());
             setNotes(location.state.notes || '');
         }
+        setLastJobFound(null);
+        loadedJobIdRef.current = null;
+    } else {
+        // CONTINUATION - allow loading from previous sheet/card
+        setOsNumber('');
+        setPatientName('');
+        setDentistName('');
+        setSelectedDentistId('');
+        setSelectedDentistObj(null);
+        setDentistSearchQuery('');
+        setNotes('');
+        setLastJobFound(null);
+        loadedJobIdRef.current = null;
     }
     const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
   }, [entryType]); // Removed 'jobs' from dependency array to prevent form clearing
@@ -369,8 +384,26 @@ export const NewJob = () => {
       } else {
           const exists = jobs.find(j => j.osNumber === osNumber);
           if (exists) {
-              setSuggestedOsNumber(generateNextNewOs());
-              setShowOsConflictPopup(true);
+              if (entryType === 'CONTINUATION') {
+                  const baseOs = osNumber;
+                  const baseJobs = jobs.filter(j => (j.osNumber || '').startsWith(baseOs));
+                  let nextSeq = 1;
+                  baseJobs.forEach(j => {
+                      const jOs = j.osNumber || '';
+                      if (jOs.includes('-')) {
+                          const seq = parseInt(jOs.split('-')[1]);
+                          if (!isNaN(seq) && seq >= nextSeq) {
+                              nextSeq = seq + 1;
+                          }
+                      } else {
+                          if (nextSeq === 1) nextSeq = 2;
+                      }
+                  });
+                  setOsNumber(`${baseOs}-${nextSeq}`);
+              } else {
+                  setSuggestedOsNumber(generateNextNewOs());
+                  setShowOsConflictPopup(true);
+              }
           }
       }
   };
@@ -392,17 +425,104 @@ export const NewJob = () => {
     setShowDentistSuggestions(false);
   };
 
-  useEffect(() => {
-    if ((itemNature === 'REPETITION' || itemNature === 'ADJUSTMENT') && patientName.trim() && selectedDentistId) {
-      const previousJob = [...jobs]
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .find(j => j.patientName.toLowerCase() === patientName.trim().toLowerCase() && j.dentistId === selectedDentistId);
-      
-      if (previousJob && previousJob.notes) {
-        setNotes(previousJob.notes);
+  // Helper to load previous job data when matches are found
+  const loadPreviousJobData = (prevJob: Job) => {
+    if (loadedJobIdRef.current === prevJob.id) return;
+    loadedJobIdRef.current = prevJob.id;
+    setLastJobFound(prevJob);
+
+    // Populate patient name if empty
+    if (!patientName.trim()) {
+      setPatientName(prevJob.patientName.toUpperCase());
+    }
+
+    // Populate dentist
+    if (!selectedDentistId) {
+      setSelectedDentistId(prevJob.dentistId);
+      const dentist = allUsers.find(u => u.id === prevJob.dentistId) || 
+                      manualDentists.find(d => d.id === prevJob.dentistId || (d as any).userId === prevJob.dentistId);
+      if (dentist) {
+        setSelectedDentistObj(dentist);
+        setDentistName(dentist.name.toUpperCase());
+        setDentistSearchQuery(dentist.name.toUpperCase());
+      } else {
+        setDentistName(prevJob.dentistName.toUpperCase());
+        setDentistSearchQuery(prevJob.dentistName.toUpperCase());
       }
     }
-  }, [itemNature, patientName, selectedDentistId, jobs]);
+
+    // Accumulate observations: setting the notes field with pre-existing notes
+    if (prevJob.notes) {
+      if (!notes || notes.trim() === '') {
+        setNotes(prevJob.notes);
+      } else if (!notes.toLowerCase().includes(prevJob.notes.toLowerCase())) {
+        // Safe append if they already entered some short text, keeping it formatted
+        setNotes(`${prevJob.notes}\n---\n${notes}`);
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Only detect previous information if it's a repetition, adjustment, or continuation
+    const isContinuationOrAdjustment = 
+      entryType === 'CONTINUATION' || 
+      itemNature === 'REPETITION' || 
+      itemNature === 'ADJUSTMENT';
+
+    if (!isContinuationOrAdjustment) {
+      setLastJobFound(null);
+      loadedJobIdRef.current = null;
+      return;
+    }
+
+    // 1. First, search by OS Number/Card number (numerical base part before hyphens)
+    if (osNumber) {
+      const baseOs = osNumber.split('-')[0].trim();
+      if (baseOs && baseOs !== '0000' && baseOs !== '0001') {
+        const foundByOs = [...jobs]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .find(j => {
+            const jBaseOs = j.osNumber?.split('-')[0].trim();
+            return jBaseOs === baseOs || j.osNumber === osNumber;
+          });
+
+        if (foundByOs) {
+          loadPreviousJobData(foundByOs);
+          return;
+        }
+      }
+    }
+
+    // 2. Second, search by Patient Name (with optional dentist filter)
+    if (patientName.trim()) {
+      const patientClean = patientName.trim().toLowerCase();
+      
+      const foundByPatientAndDentist = [...jobs]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .find(j => {
+          const nameMatches = j.patientName.toLowerCase() === patientClean;
+          const dentistMatches = selectedDentistId ? j.dentistId === selectedDentistId : true;
+          return nameMatches && dentistMatches;
+        });
+
+      if (foundByPatientAndDentist) {
+        loadPreviousJobData(foundByPatientAndDentist);
+        return;
+      }
+
+      // Fallback: search by patient name only across all dentists when selectedDentistId is empty
+      if (!selectedDentistId) {
+        const foundByPatientOnly = [...jobs]
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .find(j => j.patientName.toLowerCase() === patientClean);
+
+        if (foundByPatientOnly) {
+          loadPreviousJobData(foundByPatientOnly);
+          return;
+        }
+      }
+    }
+  }, [entryType, itemNature, osNumber, patientName, selectedDentistId, jobs]);
 
   const handleVariationChange = (group: VariationGroup, optionId: string) => {
     setSelectedVariations(prev => {
@@ -1046,8 +1166,35 @@ export const NewJob = () => {
                 </div>
 
                 <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Observações Técnicas</label>
-                    <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold resize-none" placeholder="Digite aqui instruções para a produção..." />
+                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Observações Técnicas / Histórico acumulado</label>
+                    <textarea 
+                        value={notes} 
+                        onChange={e => setNotes(e.target.value)} 
+                        rows={5} 
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-xs font-bold" 
+                        placeholder="Insira as observações aqui. O histórico anterior será reservado e continuará acumulando." 
+                    />
+                    
+                    {lastJobFound && (
+                        <div className="mt-2 text-xs border border-blue-100 bg-blue-50/70 p-3 rounded-2xl flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                            <div className="flex items-center gap-1.5 font-bold text-blue-800">
+                                <AlertCircle size={14} className="text-blue-600 flex-shrink-0" />
+                                <span>Vínculo com Caso Anterior Detectado!</span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 leading-normal">
+                                Importamos observações da <span className="font-extrabold text-blue-900">OS #{lastJobFound.osNumber}</span> (Paciente: <span className="font-semibold uppercase text-slate-800">{lastJobFound.patientName}</span>). 
+                                O campo observações agora é acumulativo com os detalhes do histórico.
+                            </p>
+                            {lastJobFound.notes ? (
+                                <div className="mt-1 bg-white border border-blue-100 text-slate-600 p-2.5 rounded-xl text-[11px] leading-relaxed font-mono max-h-32 overflow-y-auto whitespace-pre-line shadow-sm">
+                                    <div className="text-[9px] font-bold text-blue-600 mb-1 uppercase tracking-wider border-b border-blue-50 pb-1">Observações da OS #{lastJobFound.osNumber}:</div>
+                                    {lastJobFound.notes}
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-slate-400 italic bg-white border border-blue-100 p-2 rounded-xl text-center">Nenhuma observação técnica registrada no caso anterior.</p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="pt-6 border-t border-slate-100">
