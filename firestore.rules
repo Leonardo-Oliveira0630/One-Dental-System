@@ -44,8 +44,12 @@ service cloud.firestore {
       allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
     }
     match /organizations/{orgId}/inventoryItems/{itemId} {
-      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      allow read: if isAuthenticated();
       allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+    }
+    
+    match /{path=**}/inventoryItems/{itemId} {
+      allow read: if isAuthenticated();
     }
     
     match /users/{userId} {

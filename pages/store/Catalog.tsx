@@ -589,7 +589,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
 
 export const Catalog = () => {
     const { slug } = useParams<{ slug: string }>();
-    const { allLaboratories, currentUser, currentOrg, activeOrganization, currentPlan, userConnections, addConnectionByCode } = useApp();
+    const { allLaboratories, allSuppliers, currentUser, currentOrg, activeOrganization, currentPlan, userConnections, addConnectionByCode } = useApp();
     const navigate = useNavigate();
     const [term, setTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -638,10 +638,10 @@ export const Catalog = () => {
 
     const selectedLab = useMemo(() => {
         if (slug) {
-            return fetchedLab || allLaboratories.find(l => l.storeSlug === slug || l.id === slug) || null;
+            return fetchedLab || allLaboratories.find(l => l.storeSlug === slug || l.id === slug) || allSuppliers?.find(s => s.storeSlug === slug || s.id === slug) || null;
         }
         return activeOrganization;
-    }, [slug, fetchedLab, allLaboratories, activeOrganization]);
+    }, [slug, fetchedLab, allLaboratories, allSuppliers, activeOrganization]);
 
     useEffect(() => {
         if (!selectedLab?.id) {
@@ -650,12 +650,30 @@ export const Catalog = () => {
             return;
         }
         setLoadingProducts(true);
-        const unsub = api.subscribeJobTypes(selectedLab.id, (types) => {
-            setLocalJobTypes(types);
-            setLoadingProducts(false);
-        });
-        return unsub;
-    }, [selectedLab?.id]);
+        if (selectedLab.orgType === 'SUPPLIER') {
+            const unsub = api.subscribeInventoryItems(selectedLab.id, (items) => {
+                const mapped: JobType[] = items.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    category: item.type || 'MATERIAL',
+                    basePrice: item.sellPrice || 0,
+                    variationGroups: item.variationGroups || [],
+                    isVisibleInStore: item.isVisibleInStore !== false,
+                    imageUrl: item.imageUrl || '',
+                    description: item.description || ''
+                } as any));
+                setLocalJobTypes(mapped);
+                setLoadingProducts(false);
+            });
+            return unsub;
+        } else {
+            const unsub = api.subscribeJobTypes(selectedLab.id, (types) => {
+                setLocalJobTypes(types);
+                setLoadingProducts(false);
+            });
+            return unsub;
+        }
+    }, [selectedLab?.id, selectedLab?.orgType]);
 
     const isGuest = !currentUser;
     const isPriceVisible = !isGuest || (selectedLab?.storeVisibility !== 'PRIVATE');

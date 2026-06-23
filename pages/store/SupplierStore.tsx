@@ -446,33 +446,125 @@ export const SupplierStore = () => {
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
         </div>
       ) : (
-        /* General Shopee Marketplace welcome Banner */
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-gradient-to-r from-orange-600 to-red-600 border border-slate-800 rounded-2xl relative overflow-hidden">
-          <div className="relative z-10">
-            <span className="text-[10px] bg-white/20 text-white font-bold py-0.5 px-3 rounded-full uppercase tracking-widest font-mono">
-              SHOPEE DENTAL MARKETPLACE
-            </span>
-            <h1 className="text-2xl font-bold tracking-tight mt-1 text-white">Mais Barato Direct dos Fornecedores</h1>
-            <p className="text-white/95 text-xs mt-2 max-w-xl leading-relaxed">
-              Pesquise qualquer insumo, compare ofertas, compre combos econômicos e dezenas de variações exclusivas para clínicas e laboratórios na hora.
-            </p>
+        <>
+          {/* General Shopee Marketplace welcome Banner */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-gradient-to-r from-orange-600 to-red-600 border border-slate-800 rounded-2xl relative overflow-hidden">
+            <div className="relative z-10">
+              <span className="text-[10px] bg-white/20 text-white font-bold py-0.5 px-3 rounded-full uppercase tracking-widest font-mono">
+                SHOPEE DENTAL MARKETPLACE
+              </span>
+              <h1 className="text-2xl font-bold tracking-tight mt-1 text-white">Mais Barato Direct dos Fornecedores</h1>
+              <p className="text-white/95 text-xs mt-2 max-w-xl leading-relaxed">
+                Pesquise qualquer insumo, compare ofertas, compre combos econômicos e dezenas de variações exclusivas para clínicas e laboratórios na hora.
+              </p>
+            </div>
+            <div className="relative z-10 flex items-center gap-3">
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="px-5 py-3 bg-white text-[#EE4D2D] hover:bg-orange-50 font-bold rounded-xl transition-all shadow-xl flex items-center gap-2"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <span className="text-sm">Meu Carrinho</span>
+                {cart.length > 0 && (
+                  <span className="bg-[#EE4D2D] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center font-bold">
+                    {cart.reduce((s, i) => s + i.quantity, 0)}
+                  </span>
+                )}
+              </button>
+            </div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20" />
           </div>
-          <div className="relative z-10 flex items-center gap-3">
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="px-5 py-3 bg-white text-[#EE4D2D] hover:bg-orange-50 font-bold rounded-xl transition-all shadow-xl flex items-center gap-2"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              <span className="text-sm">Meu Carrinho</span>
-              {cart.length > 0 && (
-                <span className="bg-[#EE4D2D] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center font-bold">
-                  {cart.reduce((s, i) => s + i.quantity, 0)}
-                </span>
-              )}
-            </button>
+
+          {/* LOJAS OFICIAIS EM DESTAQUE (Mercado Livre Mockup Style) */}
+          <div className="bg-slate-900/50 border border-slate-900 rounded-2xl p-6 md:p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-sm md:text-base font-extrabold tracking-widest text-slate-100 uppercase flex items-center justify-center gap-1.5">
+                <span className="text-orange-500 text-lg">✧</span> LOJAS OFICIAIS EM DESTAQUE <span className="text-orange-500 text-lg">✧</span>
+              </h2>
+              <p className="text-xs text-slate-400 max-w-lg mx-auto leading-relaxed">
+                As Lojas Oficiais das melhores marcas, você encontra aqui, acesse a sua preferida.
+              </p>
+            </div>
+
+            {/* Circular Store Logos Slider */}
+            <div className="relative group/slider max-w-5xl mx-auto flex items-center">
+              {/* Carousel Container */}
+              <div 
+                id="official-stores-carousel"
+                className="flex gap-4 sm:gap-6 overflow-x-auto py-2 scroll-smooth w-full px-2 items-center justify-start sm:justify-center"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {allSuppliers.length === 0 ? (
+                  // Fallback beautiful mockup brands if there are no registered suppliers
+                  [
+                    { id: 'm1', name: 'Adidas Dental', logo: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=120&auto=format&fit=crop&q=60', initials: 'AD' },
+                    { id: 'm2', name: 'Mondial Lab', logo: '', initials: 'ML' },
+                    { id: 'm3', name: 'Omo Dental', logo: '', initials: 'OD' },
+                    { id: 'm4', name: 'Pandora Inc', logo: '', initials: 'PI' },
+                    { id: 'm5', name: 'Taiff Equip', logo: '', initials: 'TE' },
+                    { id: 'm6', name: 'Wella Medical', logo: '', initials: 'WM' },
+                    { id: 'm7', name: 'Wap Clean', logo: '', initials: 'WC' },
+                  ].map((brand) => (
+                    <div 
+                      key={brand.id}
+                      className="flex flex-col items-center gap-2.5 flex-shrink-0 cursor-not-allowed group/brand"
+                    >
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-full flex items-center justify-center shadow-lg border border-slate-200 transition-all duration-300 group-hover/brand:scale-105 group-hover/brand:shadow-xl relative overflow-hidden">
+                        {brand.logo ? (
+                          <img src={brand.logo} alt={brand.name} className="w-14 h-14 object-contain rounded-full" />
+                        ) : (
+                          <span className="text-slate-800 font-black text-xl tracking-tight">{brand.initials}</span>
+                        )}
+                        <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover/brand:opacity-100 transition-opacity" />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-400 group-hover/brand:text-slate-200 transition-colors max-w-[85px] text-center truncate">{brand.name}</span>
+                    </div>
+                  ))
+                ) : (
+                  allSuppliers.map((supplier) => {
+                    const initials = supplier.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+                    return (
+                      <button 
+                        key={supplier.id}
+                        onClick={() => setSelectedSupplierId(supplier.id)}
+                        className="flex flex-col items-center gap-2.5 flex-shrink-0 cursor-pointer group/brand outline-none focus:outline-none"
+                      >
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-full flex items-center justify-center shadow-lg border border-slate-200 transition-all duration-300 group-hover/brand:scale-105 group-hover/brand:shadow-xl relative overflow-hidden">
+                          {supplier.logoUrl ? (
+                            <img 
+                              src={supplier.logoUrl} 
+                              alt={supplier.name} 
+                              className="w-16 h-16 object-contain rounded-full"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-full flex items-center justify-center shadow-inner">
+                              <span className="text-white font-black text-base tracking-tight">{initials}</span>
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-slate-900/5 opacity-0 group-hover/brand:opacity-100 transition-opacity" />
+                        </div>
+                        <span className="text-[11px] font-black text-slate-400 group-hover/brand:text-[#EE4D2D] transition-colors max-w-[95px] text-center truncate uppercase tracking-tight">{supplier.name}</span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Slider Right Navigation Button */}
+              <button 
+                onClick={() => {
+                  const el = document.getElementById('official-stores-carousel');
+                  if (el) el.scrollLeft += 240;
+                }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 bg-white hover:bg-slate-50 text-slate-800 shadow-xl border border-slate-100 w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 z-10"
+                title="Próximas lojas"
+              >
+                <ChevronRight size={18} className="text-[#EE4D2D] stroke-[3]" />
+              </button>
+            </div>
           </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20" />
-        </div>
+        </>
       )}
 
       {/* Control Panel: Search, Filter Supplier & Shopee Sorting options */}
