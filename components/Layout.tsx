@@ -166,7 +166,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <div className="flex items-center justify-between mb-8 shrink-0">
             <div className="flex items-center gap-3 overflow-hidden">
               {displayBrand.logo ? (
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shrink-0 overflow-hidden shadow-lg">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 overflow-hidden">
                   <img src={displayBrand.logo} alt="Logo" className="w-full h-full object-contain" />
                 </div>
               ) : (
@@ -200,7 +200,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 group"
                 >
                    <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                          {activeOrganization?.logoUrl ? (
                            <img src={activeOrganization.logoUrl} alt="Lab Logo" className="w-full h-full object-contain" />
                          ) : (

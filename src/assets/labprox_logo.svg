@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="2048" viewBox="0 0 2048 2048">
+  <defs>
+    <style>
+      .cls-1 { fill: #10203a; }
+      .cls-2 { fill: #0254cc; }
+      .cls-3 { fill: #02b8d9; }
+      .cls-4 { fill: #ffffff; }
+    </style>
+  </defs>
+  <g>
+    <!-- Tooth Icon (White) -->
+    <path class="cls-4" d="M1024 400c-150 0-250 100-250 250v200c0 100 50 150 100 200l50 50v200c0 50 50 100 100 100h100c50 0 100-50 100-100v-200l50-50c50-50 100-100 100-200v-200c0-150-100-250-250-250z" />
+    <!-- Stylized P Icon (Dark Navy) -->
+    <path class="cls-1" d="M600 400h200v800H600z" />
+    <path class="cls-1" d="M800 400h200c150 0 250 100 250 250v100c0 150-100 250-250 250H800z" />
+    <!-- Pixel Particles (Cyan) -->
+    <rect class="cls-3" x="400" y="600" width="50" height="50" />
+    <rect class="cls-3" x="450" y="700" width="50" height="50" />
+    <rect class="cls-3" x="500" y="650" width="50" height="50" />
+    <rect class="cls-3" x="450" y="550" width="50" height="50" />
+    
+    <!-- Text LAB PROX -->
+    <!-- LAB -->
+    <text x="1400" y="900" font-family="Neuropolitical" font-size="300" font-style="italic" font-weight="bold" fill="#10203A">LAB</text>
+    <!-- PROX -->
+    <text x="1900" y="900" font-family="Neuropolitical" font-size="300" font-style="italic" font-weight="bold" fill="#0254CC">PROX</text>
+    <!-- Accent on X -->
+    <path d="M2350 700 L2450 800 L2350 800 Z" fill="#02B8D9" />
+  </g>
+</svg>
