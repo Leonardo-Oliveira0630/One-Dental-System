@@ -397,12 +397,29 @@ export const Logo: React.FC<LogoProps> = ({
   }
 
   return (
-    <div className={`flex items-center gap-2.5 overflow-hidden shrink-0 ${className}`}>
-      <LogoIcon size={size} {...props} />
+    <div className={`flex items-center gap-3 overflow-hidden shrink-0 ${className}`}>
+      <div style={{ transform: 'scale(1.6)', transformOrigin: 'left center' }}>
+        <LogoIcon size={size} {...props} />
+      </div>
       {showText && (
-        <span className={`font-black font-display uppercase tracking-tight select-none ${textSizes} leading-none flex items-center`}>
-          <span className={smileColor}>Smile</span>
-          <span className={proXColor}>ProX</span>
+        <span 
+          style={{ fontFamily: 'Neuropolitical, sans-serif', fontStyle: 'italic' }}
+          className={`font-black uppercase tracking-tight select-none ${textSizes} leading-none flex items-center`}
+        >
+          <span style={{ color: '#10203A' }}>LAB</span>
+          <span style={{ color: '#0254CC', display: 'flex' }}>
+            <span>PRO</span>
+            <span style={{ position: 'relative' }}>
+              X
+              <span style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: 0, 
+                color: '#02B8D9',
+                clipPath: 'polygon(50% 0%, 100% 0%, 100% 50%)'
+              }}>X</span>
+            </span>
+          </span>
         </span>
       )}
     </div>

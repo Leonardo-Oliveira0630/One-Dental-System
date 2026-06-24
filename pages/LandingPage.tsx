@@ -480,7 +480,7 @@ export const LandingPage = () => {
                     <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between">
                       <div className="flex items-center gap-1 font-extrabold text-blue-900 text-sm">
                         <LogoIcon size="sm" />
-                        <span className="tracking-tight uppercase font-black text-xs font-display">Smile<span className="text-[#00B8D9]">ProX</span></span>
+                        <span className="tracking-tight uppercase font-black text-xs font-display">LAB<span className="text-[#00B8D9]">PROX</span></span>
                       </div>
                       <div className="relative max-w-xs hidden sm:block">
                         <Search className="absolute left-2.5 top-2 text-slate-400" size={14} />
@@ -494,7 +494,7 @@ export const LandingPage = () => {
                       <div className="flex items-center gap-2">
                         <div className="text-right hidden xs:block">
                           <p className="text-[10px] font-black text-slate-800">Técnico Carlos </p>
-                          <p className="text-[8px] text-slate-500 uppercase tracking-widest leading-none font-bold">Lab SmileProX</p>
+                          <p className="text-[8px] text-slate-500 uppercase tracking-widest leading-none font-bold">Lab LABPROX</p>
                         </div>
                         <div className="w-7 h-7 bg-blue-900 rounded-full flex items-center justify-center text-white text-xs font-extrabold">C</div>
                       </div>
