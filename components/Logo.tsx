@@ -194,11 +194,11 @@ export const LogoIcon: React.FC<LogoProps> = ({
   const dimensions = typeof size === 'number' 
     ? size 
     : {
-        xs: 24,
-        sm: 32,
-        md: 40,
-        lg: 48,
-        xl: 64
+        xs: 48,
+        sm: 64,
+        md: 80,
+        lg: 96,
+        xl: 128
       }[size];
 
   // 1. SUPORTE A CÓDIGO SVG BRUTO (ALTAMENTE SEGURO)
