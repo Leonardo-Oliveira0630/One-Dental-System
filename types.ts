@@ -25,8 +25,20 @@ export interface StoreLayoutBlock {
   categoryId?: string;
 }
 
+export interface BannerConfig {
+  imageUrl: string;
+  title?: string;
+  subtitle?: string;
+  buttonText?: string;
+  buttonLink?: string;
+  buttonColor?: string;
+  buttonSize?: 'small' | 'medium' | 'large';
+  buttonBorderRadius?: string;
+}
+
 export interface StoreSettings {
-  banners?: string[];
+  banners?: BannerConfig[];
+  profilePhotoUrl?: string;
   layoutType?: 'CARDS' | 'LIST';
   portfolio?: {
     id: string;

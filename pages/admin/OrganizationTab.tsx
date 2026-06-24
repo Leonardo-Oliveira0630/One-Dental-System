@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield, MapPin, Phone, Mail } from 'lucide-react';
-import { StoreSettings } from '../../types';
+import { StoreSettings, BannerConfig } from '../../types';
 
 export const OrganizationTab = () => {
   const { currentOrg, updateOrganization, uploadFile } = useApp();
@@ -54,7 +54,7 @@ export const OrganizationTab = () => {
         const url = await uploadFile(e.target.files[0]);
         setStoreSettings(prev => ({
           ...prev,
-          banners: [...(prev.banners || []), url]
+          banners: [...(prev.banners || []), { imageUrl: url }]
         }));
       } catch (error) {
         alert("Erro ao enviar banner.");
@@ -518,9 +518,9 @@ export const OrganizationTab = () => {
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {(storeSettings.banners || []).map((url, i) => (
+            {(storeSettings.banners || []).map((banner, i) => (
               <div key={i} className="group relative aspect-[21/9] bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
-                 <img src={url} className="w-full h-full object-cover" />
+                 <img src={banner.imageUrl} className="w-full h-full object-cover" />
                  <button 
                     onClick={() => removeBanner(i)}
                     className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"

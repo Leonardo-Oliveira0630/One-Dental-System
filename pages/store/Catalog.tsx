@@ -6,7 +6,7 @@ import {
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
     LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin
 } from 'lucide-react';
-import { JobType, VariationGroup, CartItem, LabRating } from '../../types';
+import { JobType, VariationGroup, CartItem, LabRating, BannerConfig } from '../../types';
 import { useNavigate, useParams } from 'react-router-dom';
 import { FeatureLocked } from '../../components/FeatureLocked';
 import { motion, AnimatePresence } from 'motion/react';
@@ -14,7 +14,7 @@ import * as api from '../../services/firebaseService';
 
 // --- Components ---
 
-const BannerCarousel = ({ images }: { images: string[] }) => {
+const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
     const [index, setIndex] = useState(0);
 
     useEffect(() => {
@@ -42,7 +42,7 @@ const BannerCarousel = ({ images }: { images: string[] }) => {
             <AnimatePresence mode="wait">
                 <motion.img
                     key={index}
-                    src={images[index]}
+                    src={images[index].imageUrl}
                     initial={{ opacity: 0, scale: 1.1 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}

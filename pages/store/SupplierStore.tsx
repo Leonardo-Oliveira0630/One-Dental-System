@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InventoryItem, Organization, SupplierOrder, StoreLayoutBlock } from '../../types';
+import { useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, Search, Filter, ShoppingCart, Plus, Minus, Trash2, 
   X, MapPin, CreditCard, Sparkles, Building2, Package, Check, 
@@ -55,6 +56,31 @@ export const SupplierStore = () => {
   const [detailSelectedVar, setDetailSelectedVar] = useState<any>(null);
   const [detailActiveImg, setDetailActiveImg] = useState<string>('');
   const [isDescExpanded, setIsDescExpanded] = useState(false);
+  const [bannerIndex, setBannerIndex] = useState(0);
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (activeSupplierOrg?.storeSettings?.banners && activeSupplierOrg.storeSettings.banners.length > 1) {
+      const interval = setInterval(() => {
+        setBannerIndex((prev) => (prev + 1) % activeSupplierOrg.storeSettings!.banners!.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeSupplierOrg]);
+
+  const StoreHeader = () => (
+    <header className="flex items-center justify-between p-4 bg-white border-b border-slate-200">
+      <button onClick={() => navigate('/marketplace')} className="flex items-center gap-2 text-slate-600 font-medium text-sm">
+        <ChevronLeft size={16} /> Voltar ao Marketplace
+      </button>
+      <div className="flex items-center gap-3">
+          {activeSupplierOrg?.storeSettings?.profilePhotoUrl && <img src={activeSupplierOrg.storeSettings.profilePhotoUrl} className="w-10 h-10 rounded-full object-cover border border-slate-200" />}
+          <h1 className="text-xl font-bold">{activeSupplierOrg?.name}</h1>
+      </div>
+      <div className="w-40"></div> {/* Spacer to keep title centered */}
+    </header>
+  );
 
   // Auto-fill address from organization as a fallback
   useEffect(() => {
@@ -407,16 +433,17 @@ export const SupplierStore = () => {
   };
 
   return (
-    <main id="supplier-store-container" className="flex-1 p-6 space-y-6 overflow-y-auto bg-white text-slate-900 min-h-screen">
+    <main id="supplier-store-container" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
       
       {/* Dynamic Header/Banner depending on Selected Supplier to support custom Store settings */}
       {selectedSupplierId !== 'ALL' && activeSupplierOrg ? (
         <div className="w-full">
+          <StoreHeader />
           {/* Banner Hero Area */}
           <div className="relative w-full h-[300px] bg-slate-200 flex items-center justify-center overflow-hidden">
             {activeSupplierOrg.storeSettings?.banners && activeSupplierOrg.storeSettings.banners.length > 0 ? (
               <img 
-                src={activeSupplierOrg.storeSettings.banners[0]} 
+                src={activeSupplierOrg.storeSettings.banners[bannerIndex].imageUrl} 
                 alt="Banner" 
                 className="w-full h-full object-cover"
               />
@@ -731,7 +758,7 @@ export const SupplierStore = () => {
                 {block.type === 'BANNER' && (
                   <div className="relative rounded-2xl overflow-hidden aspect-[21/9] bg-slate-900 border border-slate-800">
                     <img 
-                      src={activeSupplierOrg.storeSettings?.banners?.[0] || 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=1200'} 
+                      src={activeSupplierOrg.storeSettings?.banners?.[0]?.imageUrl || 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=1200'} 
                       alt="Banner Loja" 
                       className="w-full h-full object-cover"
                       referrerPolicy="no-referrer"

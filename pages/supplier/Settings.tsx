@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { StoreLayoutBlock, StoreSettings } from '../../types';
+import { StoreLayoutBlock, StoreSettings, BannerConfig } from '../../types';
 import { smartCompress } from '../../services/compressionService';
 import { 
   Settings, Store, Sparkles, Tag, HelpCircle, Save, Plus, Trash2, 
@@ -20,8 +20,9 @@ export const SupplierSettings = () => {
 
   // Store Customization state
   const [theme, setTheme] = useState<'shopee' | 'light' | 'dark' | 'amber' | 'indigo' | 'emerald' | 'orange'>('shopee');
-  const [banners, setBanners] = useState<string[]>([]);
+  const [banners, setBanners] = useState<BannerConfig[]>([]);
   const [newBanner, setNewBanner] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState<string>('');
   const [layoutBlocks, setLayoutBlocks] = useState<StoreLayoutBlock[]>([]);
   
   // Custom layout block creator state
@@ -50,6 +51,7 @@ export const SupplierSettings = () => {
       const settings = currentOrg.storeSettings || {};
       setTheme(settings.theme || 'shopee');
       setBanners(settings.banners || []);
+      setProfilePhoto(settings.profilePhotoUrl || '');
       setLayoutBlocks(settings.layoutBlocks || [
         { id: 'default_carousel', type: 'CAROUSEL', title: 'Destaques' },
         { id: 'default_grid', type: 'GRID', title: 'Nossos Produtos' }
@@ -79,7 +81,7 @@ export const SupplierSettings = () => {
 
   const handleAddBanner = () => {
     if (!newBanner.trim()) return;
-    setBanners([...banners, newBanner.trim()]);
+    setBanners([...banners, { imageUrl: newBanner.trim() }]);
     setNewBanner('');
   };
 
@@ -95,7 +97,7 @@ export const SupplierSettings = () => {
       const reader = new FileReader();
       reader.onload = (evt) => {
         const base64 = evt.target?.result as string;
-        setBanners([...banners, base64]);
+        setBanners([...banners, { imageUrl: base64 }]);
       };
       reader.readAsDataURL(compressed);
     } catch (err) {
@@ -170,6 +172,7 @@ export const SupplierSettings = () => {
       const updatedStoreSettings: StoreSettings = {
         theme,
         banners,
+        profilePhotoUrl: profilePhoto,
         layoutBlocks
       };
       
@@ -372,10 +375,10 @@ export const SupplierSettings = () => {
                     <p className="text-slate-500 text-xs italic">Nenhum banner cadastrado de momento.</p>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                      {banners.map((url, idx) => (
+                      {banners.map((banner, idx) => (
                         <div key={idx} className="bg-slate-950 border border-slate-850 rounded-xl overflow-hidden p-2 flex items-center justify-between gap-3">
                           <img 
-                            src={url} 
+                            src={banner.imageUrl} 
                             alt={`Banner ${idx}`} 
                             className="w-16 h-10 object-cover rounded-lg bg-slate-900 border border-slate-800"
                             referrerPolicy="no-referrer"
@@ -383,7 +386,7 @@ export const SupplierSettings = () => {
                               (e.target as any).src = 'https://placehold.co/600x400?text=Banner+Error';
                             }}
                           />
-                          <span className="text-[10px] text-slate-500 truncate flex-1 font-mono">{url}</span>
+                          <span className="text-[10px] text-slate-500 truncate flex-1 font-mono">{banner.imageUrl}</span>
                           <button
                             onClick={() => handleRemoveBanner(idx)}
                             className="text-slate-500 hover:text-red-400 p-1.5"
@@ -394,6 +397,24 @@ export const SupplierSettings = () => {
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Profile Photo */}
+              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+                <h3 className="font-bold text-md flex items-center gap-2">
+                  <ImageIcon className="text-indigo-400" />
+                  Foto de Perfil da Loja
+                </h3>
+                <div className="flex items-center gap-4">
+                  <img src={profilePhoto || 'https://placehold.co/100x100?text=Logo'} className="w-16 h-16 rounded-full border border-slate-700 bg-slate-800 object-cover" />
+                  <input
+                    type="url"
+                    placeholder="URL da logo da loja"
+                    value={profilePhoto}
+                    onChange={e => setProfilePhoto(e.target.value)}
+                    className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
                 </div>
               </div>
 
