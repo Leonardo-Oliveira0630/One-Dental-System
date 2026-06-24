@@ -411,41 +411,79 @@ export const SupplierStore = () => {
       
       {/* Dynamic Header/Banner depending on Selected Supplier to support custom Store settings */}
       {selectedSupplierId !== 'ALL' && activeSupplierOrg ? (
-        <div className={`p-6 bg-gradient-to-r ${activeTheme.bg} border border-slate-800 rounded-2xl relative overflow-hidden transition-all duration-350`}>
-          <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-slate-950/70 border border-white/10 flex items-center justify-center font-bold text-2xl text-white">
-                {activeSupplierOrg.name.charAt(0).toUpperCase()}
+        <div className="w-full">
+          {/* Banner Hero Area */}
+          <div className="relative w-full h-[300px] bg-slate-200 flex items-center justify-center overflow-hidden">
+            {activeSupplierOrg.storeSettings?.banners && activeSupplierOrg.storeSettings.banners.length > 0 ? (
+              <img 
+                src={activeSupplierOrg.storeSettings.banners[0]} 
+                alt="Banner" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="text-center p-10 text-slate-500">
+                <h1 className="text-4xl font-bold">{activeSupplierOrg.name}</h1>
+                <p className="mt-2 text-lg">{activeSupplierOrg.storeSettings?.catchphrase || 'Bem-vindo à nossa loja!'}</p>
               </div>
-              <div>
-                <span className="text-[10px] bg-white/20 text-white font-bold py-0.5 px-2 rounded-full uppercase tracking-wider">
-                  LOJA OFICIAL
-                </span>
-                <h1 className="text-2xl font-bold tracking-tight text-white mt-1">{activeSupplierOrg.name}</h1>
-                <p className="text-white/80 text-xs mt-0.5 max-w-xl">
-                  {activeSupplierOrg.storeSettings?.catchphrase || `Compre diretamente com as melhores condições e entrega expressa do fornecedor.`}
-                </p>
-              </div>
-            </div>
+            )}
             
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setSelectedSupplierId('ALL')}
-                className="px-4 py-2 bg-slate-950/30 hover:bg-slate-950/50 border border-white/10 rounded-xl text-xs font-bold text-white transition-all"
-              >
-                Voltar ao Marketplace
-              </button>
-
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="px-4 py-2 bg-white text-slate-900 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-md"
-              >
-                <ShoppingCart size={14} /> Minha Cesta ({cart.reduce((s, i) => s + i.quantity, 0)})
+            {/* Banner Content overlay (If text/button configured) */}
+            <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-white p-6 text-center">
+              <h1 className="text-5xl font-extrabold tracking-tight">
+                {activeSupplierOrg.storeSettings?.catchphrase || activeSupplierOrg.name}
+              </h1>
+              <button className="mt-6 px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full transition-all">
+                Ver Produtos
               </button>
             </div>
           </div>
-          
-          <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+
+          <div className="max-w-7xl mx-auto p-6 space-y-12">
+            {/* Featured Products */}
+            <section>
+              <h2 className="text-2xl font-bold mb-6">Produtos em Destaque</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).slice(0, 4).map(p => (
+                  <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
+                      {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}
+                    </div>
+                    <h3 className="font-bold text-sm">{p.name}</h3>
+                    <p className="font-mono font-bold text-emerald-600 mt-1">R$ {p.sellPrice.toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Categories */}
+            <section>
+              <h2 className="text-2xl font-bold mb-6">Explore nossas Categorias</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-slate-200 h-64 rounded-2xl flex items-end p-6">Produtos</div>
+                <div className="bg-slate-200 h-64 rounded-2xl flex items-end p-6">Serviços</div>
+                <div className="bg-slate-200 h-64 rounded-2xl flex items-end p-6">Combos</div>
+              </div>
+            </section>
+
+            {/* Most Popular */}
+            <section>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Mais Populares</h2>
+                <button className="px-4 py-2 border border-slate-300 rounded-full text-sm font-bold">Ver Tudo</button>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).slice(0, 8).map(p => (
+                  <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
+                      {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}
+                    </div>
+                    <h3 className="font-bold text-sm">{p.name}</h3>
+                    <p className="font-mono font-bold text-emerald-600 mt-1">R$ {p.sellPrice.toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
         </div>
       ) : (
         <>
