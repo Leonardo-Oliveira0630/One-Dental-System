@@ -228,6 +228,7 @@ export interface InventoryItem {
   variationGroups?: VariationGroup[];
   isCombo?: boolean;
   comboItems?: Array<{ productId: string; name: string; quantity: number }>;
+  targetAudience?: 'DENTIST' | 'LAB' | 'BOTH';
 }
 
 export interface JobProduct {

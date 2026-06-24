@@ -419,7 +419,8 @@ export const SupplierProducts = () => {
       variations: form.variations || [],
       variationGroups: form.isCombo ? [] : (form.variationGroups || []),
       isCombo: !!form.isCombo,
-      comboItems: form.isCombo ? (form.comboItems || []) : []
+      comboItems: form.isCombo ? (form.comboItems || []) : [],
+      targetAudience: form.targetAudience || 'BOTH'
     };
 
     try {
@@ -723,6 +724,19 @@ export const SupplierProducts = () => {
                         placeholder="Ex: https://link.com/imagem.jpg"
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Público Alvo</label>
+                    <select
+                      value={form.targetAudience || 'BOTH'}
+                      onChange={e => setForm(prev => ({ ...prev, targetAudience: e.target.value as 'DENTIST' | 'LAB' | 'BOTH' }))}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                    >
+                      <option value="DENTIST">Dentistas</option>
+                      <option value="LAB">Laboratório de Prótese</option>
+                      <option value="BOTH">Ambos</option>
+                    </select>
                   </div>
 
                   <div>

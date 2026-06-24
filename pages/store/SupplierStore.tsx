@@ -515,31 +515,25 @@ export const SupplierStore = () => {
       ) : (
         <>
           {/* General Shopee Marketplace welcome Banner */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-gradient-to-r from-orange-100 to-red-100 border border-orange-200 rounded-2xl relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-gradient-to-r from-indigo-600 to-purple-600 border border-indigo-700 rounded-3xl relative overflow-hidden text-white shadow-2xl">
             <div className="relative z-10">
-              <span className="text-[10px] bg-orange-500 text-white font-bold py-0.5 px-3 rounded-full uppercase tracking-widest font-mono">
-                SHOPEE DENTAL MARKETPLACE
+              <span className="text-[10px] bg-white/20 text-white font-bold py-0.5 px-3 rounded-full uppercase tracking-widest font-mono backdrop-blur-sm">
+                NOVIDADES
               </span>
-              <h1 className="text-2xl font-bold tracking-tight mt-1 text-slate-900">Mais Barato Direct dos Fornecedores</h1>
-              <p className="text-slate-700 text-xs mt-2 max-w-xl leading-relaxed">
-                Pesquise qualquer insumo, compare ofertas, compre combos econômicos e dezenas de variações exclusivas para clínicas e laboratórios na hora.
+              <h1 className="text-3xl font-black tracking-tight mt-2 text-white">Destaques da Semana</h1>
+              <p className="text-indigo-100 text-sm mt-2 max-w-xl leading-relaxed">
+                Confira os produtos selecionados pelos nossos especialistas para potencializar sua clínica ou laboratório.
               </p>
             </div>
             <div className="relative z-10 flex items-center gap-3">
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="px-5 py-3 bg-white text-[#EE4D2D] hover:bg-orange-50 font-bold rounded-xl transition-all shadow-xl flex items-center gap-2 border border-orange-200"
+                className="px-5 py-3 bg-white text-indigo-700 hover:bg-indigo-50 font-black rounded-2xl transition-all shadow-xl flex items-center gap-2"
               >
                 <ShoppingCart className="w-5 h-5" />
                 <span className="text-sm">Meu Carrinho</span>
-                {cart.length > 0 && (
-                  <span className="bg-[#EE4D2D] text-white rounded-full w-5 h-5 text-xs flex items-center justify-center font-bold">
-                    {cart.reduce((s, i) => s + i.quantity, 0)}
-                  </span>
-                )}
               </button>
             </div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/50 rounded-full blur-3xl -mr-20 -mt-20" />
           </div>
 
           {/* LOJAS OFICIAIS EM DESTAQUE (Mercado Livre Mockup Style) */}
@@ -630,6 +624,13 @@ export const SupplierStore = () => {
                 <ChevronRight size={18} className="text-[#EE4D2D] stroke-[3]" />
               </button>
             </div>
+          </div>
+          
+          {/* Footer Sponsor Banner */}
+          <div className="bg-gradient-to-br from-slate-900 to-black p-10 rounded-3xl text-center text-white border border-slate-800 shadow-2xl mt-8">
+            <h3 className="text-2xl font-black mb-2">Quer patrocinar o Marketplace?</h3>
+            <p className="text-slate-400 text-sm mb-6 max-w-lg mx-auto">Entre em contato para expor sua marca em banner de destaque para milhares de profissionais.</p>
+            <button className="bg-white text-black font-black px-8 py-4 rounded-2xl">Quero Patrocinar</button>
           </div>
         </>
       )}
