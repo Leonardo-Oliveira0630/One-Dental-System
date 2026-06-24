@@ -38,7 +38,7 @@ export const LOGO_BASE64: string = '';
 // ALTERNATIVA 4: LINKS DE ARMAZENAMENTO NUVEM (Requer permissões públicas de leitura configuradas no console do Firebase)
 // 1. Se você fez o upload da imagem da LOGO COMPLETA (que já contém o dente E o texto "SmileProX" juntos),
 //    substitua as aspas simples de LOGO_COMPLETO_URL pelo seu link. Exemplo: 'https://sua-url-do-firebase.svg'
-export const LOGO_COMPLETO_URL: string = ''; 
+export const LOGO_COMPLETO_URL: string = 'gs://one-dental-system.firebasestorage.app/logo/Sem título'; 
 
 // 2. Se você fez o upload APENAS do ícone do dente separado e quer ue o sistema continue escrevendo
 //    o texto "SmileProX" ao lado via código, cole o seu link em LOGO_ICONE_URL abaixo:
