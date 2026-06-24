@@ -54,6 +54,7 @@ export const SupplierStore = () => {
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<InventoryItem | null>(null);
   const [detailSelectedVar, setDetailSelectedVar] = useState<any>(null);
   const [detailActiveImg, setDetailActiveImg] = useState<string>('');
+  const [isDescExpanded, setIsDescExpanded] = useState(false);
 
   // Auto-fill address from organization as a fallback
   useEffect(() => {
@@ -258,6 +259,7 @@ export const SupplierStore = () => {
   const openProductDetail = (p: InventoryItem) => {
     setSelectedItemForDetail(p);
     setDetailActiveImg(p.imageUrl || '');
+    setIsDescExpanded(false);
     if (p.variations && p.variations.length > 0) {
       // select first variation by default
       setDetailSelectedVar(p.variations[0]);
@@ -822,11 +824,11 @@ export const SupplierStore = () => {
                 <div 
                   key={p.id} 
                   onClick={() => openProductDetail(p)}
-                  className="bg-slate-900 border border-slate-800 hover:border-orange-500/50 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all cursor-pointer relative"
+                  className="bg-white border border-slate-200 hover:border-orange-500/50 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all cursor-pointer relative shadow-sm hover:shadow-md"
                 >
                   <div className="p-4 space-y-3.5">
                     {/* Image/Placeholder wrapper */}
-                    <div className="aspect-square bg-slate-950 border border-slate-850 rounded-xl overflow-hidden flex items-center justify-center relative">
+                    <div className="aspect-square bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
                       {p.imageUrl ? (
                         <img 
                           src={p.imageUrl} 
@@ -839,17 +841,17 @@ export const SupplierStore = () => {
                           }}
                         />
                       ) : (
-                        <Package className="w-12 h-12 text-slate-750 stroke-1" />
+                        <Package className="w-12 h-12 text-slate-300 stroke-1" />
                       )}
                       
                       {/* Floating Supplier Origin Tag */}
-                      <div className="absolute top-2 left-2 bg-slate-900/90 backdrop-blur border border-slate-800 px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold text-slate-400 flex items-center gap-1">
-                        <Building2 size={10} className="text-orange-400" />
+                      <div className="absolute top-2 left-2 bg-white/90 backdrop-blur border border-slate-100 px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold text-slate-500 flex items-center gap-1 shadow-sm">
+                        <Building2 size={10} className="text-orange-500" />
                         {getSupplierName(p.organizationId).toUpperCase().substring(0, 18)}
                       </div>
 
                       {p.isCombo && (
-                        <span className="absolute top-2 right-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-[8px] tracking-wider py-0.5 px-2 rounded-full uppercase shadow">
+                        <span className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-[8px] tracking-wider py-0.5 px-2 rounded-full uppercase shadow">
                           Combo Especial
                         </span>
                       )}
@@ -857,10 +859,10 @@ export const SupplierStore = () => {
 
                     {/* Info */}
                     <div className="space-y-1">
-                      <h3 className="font-bold text-slate-200 line-clamp-1 group-hover:text-orange-400 transition-colors">
+                      <h3 className="font-bold text-slate-900 line-clamp-1 group-hover:text-orange-600 transition-colors">
                         {p.name}
                       </h3>
-                      <p className="text-slate-400 text-xs line-clamp-2 h-8">
+                      <p className="text-slate-500 text-xs line-clamp-2 h-8">
                         {p.description || 'Nenhuma descrição detalhada informada.'}
                       </p>
                     </div>
@@ -869,7 +871,7 @@ export const SupplierStore = () => {
                     {p.variations && p.variations.length > 0 && (
                       <div className="flex gap-1.5 flex-wrap">
                         {p.variations.slice(0, 3).map((v, i) => (
-                          <span key={i} className="text-[9px] bg-slate-950 border border-slate-850 text-slate-400 px-1.5 py-0.5 rounded font-mono">
+                          <span key={i} className="text-[9px] bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-mono">
                             {v.name}
                           </span>
                         ))}
@@ -879,29 +881,29 @@ export const SupplierStore = () => {
                       </div>
                     )}
 
-                    <div className="pt-2 border-t border-slate-850 flex items-center justify-between">
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                       <div>
-                        <p className="text-[9px] font-mono text-slate-500">VALOR UNITÁRIO</p>
-                        <p className="text-base font-bold font-mono text-emerald-400">R$ {p.sellPrice.toFixed(2)}</p>
+                        <p className="text-[9px] font-mono text-slate-400">VALOR UNITÁRIO</p>
+                        <p className="text-base font-bold font-mono text-emerald-600">R$ {p.sellPrice.toFixed(2)}</p>
                       </div>
                       <div>
                         {p.currentStock && p.currentStock <= p.minStock ? (
-                          <span className="text-[10px] text-red-400 font-bold bg-red-500/10 px-2 py-0.5 rounded-md font-mono">Esgotando</span>
+                          <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-md font-mono">Esgotando</span>
                         ) : (
-                          <span className="text-[10px] text-slate-500 font-mono">Estoque: {p.currentStock || 0}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">Estoque: {p.currentStock || 0}</span>
                         )}
                       </div>
                     </div>
                   </div>
 
                   {/* Buy Button */}
-                  <div className="p-3 bg-slate-950/40 border-t border-slate-855 border-t-slate-850">
+                  <div className="p-3 bg-slate-50 border-t border-slate-100">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         openProductDetail(p);
                       }}
-                      className="w-full py-2 bg-slate-800 hover:bg-[#EE4D2D] hover:text-white text-xs font-bold text-slate-300 rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      className="w-full py-2 bg-white border border-slate-200 hover:bg-[#EE4D2D] hover:text-white text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
                     >
                       <Plus size={13} /> Ver Opções & Comprar
                     </button>
@@ -1012,17 +1014,17 @@ export const SupplierStore = () => {
       {/* DETAILED PRODUCT DIALOG (Shopee-like options configuration) */}
       {selectedItemForDetail && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl text-slate-100 flex flex-col max-h-[92vh]">
-            <div className="p-5 border-b border-slate-850 flex items-center justify-between bg-slate-950/30">
+          <div className="bg-white border border-slate-200 w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl text-slate-900 flex flex-col max-h-[92vh]">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">DETALHES DO PRODUTO:</span>
-                <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded uppercase font-bold">
+                <span className="text-[10px] uppercase font-bold text-slate-500 font-mono">DETALHES DO PRODUTO:</span>
+                <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded uppercase font-bold">
                   {getSupplierName(selectedItemForDetail.organizationId)}
                 </span>
               </div>
               <button 
                 onClick={() => setSelectedItemForDetail(null)}
-                className="text-slate-400 hover:text-white p-2"
+                className="text-slate-400 hover:text-slate-900 p-2"
               >
                 ✕
               </button>
@@ -1069,13 +1071,9 @@ export const SupplierStore = () => {
                 {/* Text specifications and option Pickers */}
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-xl font-bold text-slate-100">{selectedItemForDetail.name}</h2>
-                    <p className="text-xs text-slate-500 mt-1 font-mono">SKU: {selectedItemForDetail.code || 'S/ SKU'}</p>
+                    <h2 className="text-xl font-bold text-slate-900">{selectedItemForDetail.name}</h2>
+                    <p className="text-xs text-slate-400 mt-1 font-mono">SKU: {selectedItemForDetail.code || 'S/ SKU'}</p>
                   </div>
-
-                  <p className="text-xs text-slate-300 leading-relaxed max-h-24 overflow-y-auto">
-                    {selectedItemForDetail.description || 'Nenhum detalhe adicional fornecido para este produto.'}
-                  </p>
 
                   {/* Combo contents list */}
                   {selectedItemForDetail.isCombo && selectedItemForDetail.comboItems && selectedItemForDetail.comboItems.length > 0 && (
@@ -1109,8 +1107,8 @@ export const SupplierStore = () => {
                             }}
                             className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all ${
                               detailSelectedVar?.id === v.id 
-                                ? 'border-orange-500 bg-orange-500/10 text-orange-400' 
-                                : 'border-slate-800 bg-slate-950 text-slate-350 hover:bg-slate-850'
+                                ? 'border-orange-500 bg-orange-500/10 text-orange-600' 
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                             }`}
                           >
                             {v.name}
@@ -1148,6 +1146,18 @@ export const SupplierStore = () => {
                     <ShoppingCart size={16} /> Adicionar Esta Especificação à Cesta
                   </button>
 
+                  {/* Specifications (Expandable) */}
+                  <div className="text-sm text-slate-700 mt-6 border-t border-slate-100 pt-4">
+                    <h4 className="font-bold mb-2">Especificações</h4>
+                    <div className={`transition-all duration-300 ${isDescExpanded ? 'max-h-96 overflow-y-auto' : 'max-h-20 overflow-hidden'}`}>
+                      {selectedItemForDetail.description || 'Nenhum detalhe adicional fornecido para este produto.'}
+                    </div>
+                    {selectedItemForDetail.description && selectedItemForDetail.description.length > 150 && (
+                      <button onClick={() => setIsDescExpanded(!isDescExpanded)} className="text-orange-600 font-bold mt-2 text-xs">
+                        {isDescExpanded ? 'Ver menos' : 'Ver mais'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
               </div>
