@@ -39,7 +39,7 @@ export const compressImage = async (file: File, maxWidth = 2048, quality = 0.85)
                 type: 'image/jpeg',
                 lastModified: Date.now(),
               });
-              console.log(`[SmileProX] Imagem otimizada: ${(file.size / 1024).toFixed(1)}KB -> ${(compressedFile.size / 1024).toFixed(1)}KB`);
+              console.log(`[LABPROX] Imagem otimizada: ${(file.size / 1024).toFixed(1)}KB -> ${(compressedFile.size / 1024).toFixed(1)}KB`);
               resolve(compressedFile);
             } else {
               reject(new Error("Compression failed"));
@@ -61,7 +61,7 @@ export const processSTLFile = async (file: File): Promise<File> => {
   if (file.size < 3 * 1024 * 1024) return file;
 
   const zip = new JSZip();
-  // Padronização SmileProX: prefixo 3D_ para fácil identificação
+  // Padronização LABPROX: prefixo 3D_ para fácil identificação
   zip.file(`3D_${file.name}`, file);
   const blob = await zip.generateAsync({ 
     type: 'blob', 
@@ -74,7 +74,7 @@ export const processSTLFile = async (file: File): Promise<File> => {
     lastModified: Date.now(),
   });
   
-  console.log(`[SmileProX] STL Compactado: ${(file.size / 1024 / 1024).toFixed(1)}MB -> ${(zippedFile.size / 1024 / 1024).toFixed(1)}MB`);
+  console.log(`[LABPROX] STL Compactado: ${(file.size / 1024 / 1024).toFixed(1)}MB -> ${(zippedFile.size / 1024 / 1024).toFixed(1)}MB`);
   return zippedFile;
 };
 
@@ -93,7 +93,7 @@ export const smartCompress = async (file: File): Promise<File> => {
       return await processSTLFile(file);
     }
   } catch (e) {
-    console.error("[SmileProX] Falha na compressão, usando original:", e);
+    console.error("[LABPROX] Falha na compressão, usando original:", e);
   }
 
   return file;

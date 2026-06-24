@@ -52,7 +52,7 @@ export const PWAInstallPrompt: React.FC = () => {
                 <Smartphone size={32} />
             </div>
             <div>
-                <h3 className="font-bold text-lg leading-tight">Instale o SmileProX</h3>
+                <h3 className="font-bold text-lg leading-tight">Instale o LABPROX</h3>
                 <p className="text-xs text-slate-400">Tenha uma experiência nativa e mais rápida em seu celular.</p>
             </div>
         </div>

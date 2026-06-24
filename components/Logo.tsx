@@ -397,7 +397,7 @@ export const Logo: React.FC<LogoProps> = ({
   }
 
   return (
-    <div className={`flex items-center gap-3 overflow-hidden shrink-0 ${className}`}>
+    <div className={`flex items-center gap-6 overflow-visible shrink-0 ${className}`}>
       <div style={{ transform: 'scale(1.6)', transformOrigin: 'left center' }}>
         <LogoIcon size={size} {...props} />
       </div>
