@@ -1126,7 +1126,7 @@ export const subscribeAllSuppliers = (cb: (orgs: Organization[]) => void) => {
 };
 
 export const subscribeAllSupplierProducts = (cb: (items: any[]) => void) => {
-    const q = query(collectionGroup(db, 'inventoryItems'), where('isVisibleInStore', '==', true));
+    const q = collectionGroup(db, 'inventoryItems');
     return onSnapshot(q, (snap: any) => {
         cb(snap.docs.map((d: any) => ({
             id: d.id, ...d.data() as any
