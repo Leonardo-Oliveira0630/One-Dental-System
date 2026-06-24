@@ -405,7 +405,7 @@ export const SupplierStore = () => {
   };
 
   return (
-    <main id="supplier-store-container" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-950 text-slate-100 min-h-screen">
+    <main id="supplier-store-container" className="flex-1 p-6 space-y-6 overflow-y-auto bg-white text-slate-900 min-h-screen">
       
       {/* Dynamic Header/Banner depending on Selected Supplier to support custom Store settings */}
       {selectedSupplierId !== 'ALL' && activeSupplierOrg ? (
@@ -448,20 +448,20 @@ export const SupplierStore = () => {
       ) : (
         <>
           {/* General Shopee Marketplace welcome Banner */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-gradient-to-r from-orange-600 to-red-600 border border-slate-800 rounded-2xl relative overflow-hidden">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-gradient-to-r from-orange-100 to-red-100 border border-orange-200 rounded-2xl relative overflow-hidden">
             <div className="relative z-10">
-              <span className="text-[10px] bg-white/20 text-white font-bold py-0.5 px-3 rounded-full uppercase tracking-widest font-mono">
+              <span className="text-[10px] bg-orange-500 text-white font-bold py-0.5 px-3 rounded-full uppercase tracking-widest font-mono">
                 SHOPEE DENTAL MARKETPLACE
               </span>
-              <h1 className="text-2xl font-bold tracking-tight mt-1 text-white">Mais Barato Direct dos Fornecedores</h1>
-              <p className="text-white/95 text-xs mt-2 max-w-xl leading-relaxed">
+              <h1 className="text-2xl font-bold tracking-tight mt-1 text-slate-900">Mais Barato Direct dos Fornecedores</h1>
+              <p className="text-slate-700 text-xs mt-2 max-w-xl leading-relaxed">
                 Pesquise qualquer insumo, compare ofertas, compre combos econômicos e dezenas de variações exclusivas para clínicas e laboratórios na hora.
               </p>
             </div>
             <div className="relative z-10 flex items-center gap-3">
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="px-5 py-3 bg-white text-[#EE4D2D] hover:bg-orange-50 font-bold rounded-xl transition-all shadow-xl flex items-center gap-2"
+                className="px-5 py-3 bg-white text-[#EE4D2D] hover:bg-orange-50 font-bold rounded-xl transition-all shadow-xl flex items-center gap-2 border border-orange-200"
               >
                 <ShoppingCart className="w-5 h-5" />
                 <span className="text-sm">Meu Carrinho</span>
@@ -472,7 +472,7 @@ export const SupplierStore = () => {
                 )}
               </button>
             </div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20" />
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/50 rounded-full blur-3xl -mr-20 -mt-20" />
           </div>
 
           {/* LOJAS OFICIAIS EM DESTAQUE (Mercado Livre Mockup Style) */}
@@ -569,26 +569,26 @@ export const SupplierStore = () => {
 
       {/* Control Panel: Search, Filter Supplier & Shopee Sorting options */}
       <div className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-100 border border-slate-200 rounded-2xl p-4">
           {/* Search */}
           <div className="md:col-span-2 relative">
-            <Search className="absolute left-3.5 top-3.5 text-slate-500" size={18} />
+            <Search className="absolute left-3.5 top-3.5 text-slate-400" size={18} />
             <input
               type="text"
               placeholder="Pesquise o produto que deseja (Ex: silicone, resina, gesso...)"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-orange-500 placeholder-slate-600"
+              className="w-full bg-white border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-orange-500 placeholder-slate-400"
             />
           </div>
 
           {/* Supplier Selector */}
           <div className="md:col-span-2 flex items-center gap-2">
-            <Filter className="text-slate-500 flex-shrink-0" size={18} />
+            <Filter className="text-slate-400 flex-shrink-0" size={18} />
             <select
               value={selectedSupplierId}
               onChange={e => setSelectedSupplierId(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-orange-500"
+              className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-orange-500"
             >
               <option value="ALL">Selecionar Loja de Fornecedor</option>
               {allSuppliers.map(s => (
@@ -599,16 +599,16 @@ export const SupplierStore = () => {
         </div>
 
         {/* Shopee Style Sorting Tabs */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-2 flex flex-wrap items-center justify-between text-xs gap-2">
+        <div className="bg-slate-100 border border-slate-200 rounded-xl p-2 flex flex-wrap items-center justify-between text-xs gap-2">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-slate-400 px-2 font-medium">Ordenar por:</span>
+            <span className="text-slate-500 px-2 font-medium">Ordenar por:</span>
             
             <button
               onClick={() => setSortOption('RELEVANCE')}
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
                 sortOption === 'RELEVANCE' 
                   ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200'
+                  : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
               Popular / Relevância
@@ -619,7 +619,7 @@ export const SupplierStore = () => {
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
                 sortOption === 'LATEST' 
                   ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200'
+                  : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
               Mais Recentes
@@ -630,7 +630,7 @@ export const SupplierStore = () => {
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
                 sortOption === 'SALES' 
                   ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200'
+                  : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
               Mais Vendidos
@@ -641,7 +641,7 @@ export const SupplierStore = () => {
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
                 sortOption === 'PRICE_ASC' 
                   ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200'
+                  : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
               Menor Preço
@@ -652,7 +652,7 @@ export const SupplierStore = () => {
               className={`px-4 py-1.5 rounded-lg font-bold transition-all relative ${
                 sortOption === 'PRICE_DESC' 
                   ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-slate-950 text-slate-400 hover:text-slate-200'
+                  : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
               Maior Preço
@@ -833,6 +833,10 @@ export const SupplierStore = () => {
                           alt={p.name} 
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-350" 
                           referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            console.error('Image load error for:', p.imageUrl, p);
+                            e.currentTarget.src = 'https://via.placeholder.com/150';
+                          }}
                         />
                       ) : (
                         <Package className="w-12 h-12 text-slate-750 stroke-1" />
