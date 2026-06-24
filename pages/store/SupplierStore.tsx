@@ -60,6 +60,12 @@ export const SupplierStore = () => {
 
   const navigate = useNavigate();
 
+  // Get active supplier organization information if a specific supplier is selected
+  const activeSupplierOrg = useMemo(() => {
+    if (selectedSupplierId === 'ALL') return null;
+    return allSuppliers.find(s => s.id === selectedSupplierId) || null;
+  }, [allSuppliers, selectedSupplierId]);
+
   useEffect(() => {
     if (activeSupplierOrg?.storeSettings?.banners && activeSupplierOrg.storeSettings.banners.length > 1) {
       const interval = setInterval(() => {
@@ -112,12 +118,6 @@ export const SupplierStore = () => {
     setCart(newCart);
     localStorage.setItem('supplier_cart_data_new', JSON.stringify(newCart));
   };
-
-  // Get active supplier organization information if a specific supplier is selected
-  const activeSupplierOrg = useMemo(() => {
-    if (selectedSupplierId === 'ALL') return null;
-    return allSuppliers.find(s => s.id === selectedSupplierId) || null;
-  }, [allSuppliers, selectedSupplierId]);
 
   // Theme helper mapping
   const getThemeClasses = (themeId?: string) => {
