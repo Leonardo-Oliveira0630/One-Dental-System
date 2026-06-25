@@ -491,11 +491,28 @@ export const SupplierStore = () => {
             {/* Banner Content overlay (If text/button configured) */}
             <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-white p-6 text-center">
               <h1 className="text-5xl font-extrabold tracking-tight">
-                {activeSupplierOrg.storeSettings?.catchphrase || activeSupplierOrg.name}
+                {(activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.title) || activeSupplierOrg.storeSettings?.catchphrase || activeSupplierOrg.name}
               </h1>
-              <button className="mt-6 px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full transition-all">
-                Ver Produtos
-              </button>
+              {activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.subtitle && (
+                <p className="text-xl mt-4 max-w-2xl text-slate-100 font-medium">
+                  {activeSupplierOrg.storeSettings.banners[bannerIndex].subtitle}
+                </p>
+              )}
+              {activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.buttonText ? (
+                <button 
+                  onClick={() => {
+                     const link = activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.buttonLink;
+                     if(link) window.location.href = link;
+                  }}
+                  className="mt-6 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-full transition-all"
+                >
+                  {activeSupplierOrg.storeSettings.banners[bannerIndex].buttonText}
+                </button>
+              ) : (
+                <button className="mt-6 px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full transition-all">
+                  Ver Produtos
+                </button>
+              )}
             </div>
           </div>
 

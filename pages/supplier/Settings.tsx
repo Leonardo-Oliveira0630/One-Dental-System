@@ -106,6 +106,23 @@ export const SupplierSettings = () => {
     }
   };
 
+  const handleProfilePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await smartCompress(file);
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64 = evt.target?.result as string;
+        setProfilePhoto(base64);
+      };
+      reader.readAsDataURL(compressed);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao processar foto de perfil.');
+    }
+  };
+
   // Layout Block Sorters & Builders
   const handleMoveBlock = (index: number, direction: 'up' | 'down') => {
     const nextIndex = direction === 'up' ? index - 1 : index + 1;
@@ -374,25 +391,86 @@ export const SupplierSettings = () => {
                   {banners.length === 0 ? (
                     <p className="text-slate-500 text-xs italic">Nenhum banner cadastrado de momento.</p>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div className="grid grid-cols-1 gap-4 pt-2">
                       {banners.map((banner, idx) => (
-                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden p-2 flex items-center justify-between gap-3">
-                          <img 
-                            src={banner.imageUrl} 
-                            alt={`Banner ${idx}`} 
-                            className="w-16 h-10 object-cover rounded-lg bg-white border border-slate-200"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as any).src = 'https://placehold.co/600x400?text=Banner+Error';
-                            }}
-                          />
-                          <span className="text-[10px] text-slate-500 truncate flex-1 font-mono">{banner.imageUrl}</span>
-                          <button
-                            onClick={() => handleRemoveBanner(idx)}
-                            className="text-slate-500 hover:text-red-400 p-1.5"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-4">
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={banner.imageUrl} 
+                              alt={`Banner ${idx}`} 
+                              className="w-20 h-12 object-cover rounded-lg bg-white border border-slate-200"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                (e.target as any).src = 'https://placehold.co/600x400?text=Banner+Error';
+                              }}
+                            />
+                            <span className="text-[10px] text-slate-500 truncate flex-1 font-mono">{banner.imageUrl}</span>
+                            <button
+                              onClick={() => handleRemoveBanner(idx)}
+                              className="text-slate-500 hover:text-red-400 p-1.5"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-200">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Título Central</label>
+                              <input 
+                                type="text" 
+                                value={banner.title || ''} 
+                                onChange={(e) => {
+                                  const newBanners = [...banners];
+                                  newBanners[idx].title = e.target.value;
+                                  setBanners(newBanners);
+                                }}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                                placeholder="Ex: Mega Oferta"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Subtítulo (Opcional)</label>
+                              <input 
+                                type="text" 
+                                value={banner.subtitle || ''} 
+                                onChange={(e) => {
+                                  const newBanners = [...banners];
+                                  newBanners[idx].subtitle = e.target.value;
+                                  setBanners(newBanners);
+                                }}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                                placeholder="Ex: Toda a loja com 50% de desconto"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Texto do Botão</label>
+                              <input 
+                                type="text" 
+                                value={banner.buttonText || ''} 
+                                onChange={(e) => {
+                                  const newBanners = [...banners];
+                                  newBanners[idx].buttonText = e.target.value;
+                                  setBanners(newBanners);
+                                }}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                                placeholder="Ex: Comprar Agora"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Link do Botão</label>
+                              <input 
+                                type="text" 
+                                value={banner.buttonLink || ''} 
+                                onChange={(e) => {
+                                  const newBanners = [...banners];
+                                  newBanners[idx].buttonLink = e.target.value;
+                                  setBanners(newBanners);
+                                }}
+                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                                placeholder="Ex: /loja/categoria..."
+                              />
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -407,14 +485,29 @@ export const SupplierSettings = () => {
                   Foto de Perfil da Loja
                 </h3>
                 <div className="flex items-center gap-4">
-                  <img src={profilePhoto || 'https://placehold.co/100x100?text=Logo'} className="w-16 h-16 rounded-full border border-slate-700 bg-slate-100 object-cover" />
-                  <input
-                    type="url"
-                    placeholder="URL da logo da loja"
-                    value={profilePhoto}
-                    onChange={e => setProfilePhoto(e.target.value)}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
+                  <img src={profilePhoto || 'https://placehold.co/100x100?text=Logo'} className="w-16 h-16 rounded-full border border-slate-700 bg-slate-100 object-cover flex-shrink-0" />
+                  <div className="flex-1 flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="URL da logo da loja"
+                      value={profilePhoto}
+                      onChange={e => setProfilePhoto(e.target.value)}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      id="profile-image-upload"
+                      className="hidden"
+                      onChange={handleProfilePhotoUpload}
+                    />
+                    <label
+                      htmlFor="profile-image-upload"
+                      className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-colors border border-slate-200"
+                    >
+                      <Sparkles size={14} className="mr-1 text-indigo-500" /> Upload
+                    </label>
+                  </div>
                 </div>
               </div>
 

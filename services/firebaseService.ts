@@ -786,7 +786,7 @@ export const uploadJobFile = async (file: File): Promise<string> => {
     return getDownloadURL(fileRef);
 };
 export const uploadBannerImage = async (file: File): Promise<string> => {
-    const fileRef = ref(storage, `banners/${Date.now()}_${file.name}`);
+    const fileRef = ref(storage, `jobs/banners_${Date.now()}_${file.name}`);
     await uploadBytes(fileRef, file);
     return getDownloadURL(fileRef);
 };
