@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Building, Crown, Users, Ticket, ArrowRight, Activity, Calendar, Settings, Percent, Save, Loader2, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { MarketplaceBannersAdmin } from './MarketplaceBannersAdmin';
 
 export const SuperAdminDashboard = () => {
     const { allOrganizations, allPlans, allUsers, coupons, globalSettings, updateGlobalSettings } = useApp();
@@ -153,6 +154,9 @@ export const SuperAdminDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Marketplace Banners Configuration */}
+            <MarketplaceBannersAdmin />
 
             {/* Subscribers Table */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">

@@ -238,25 +238,25 @@ export const SupplierSettings = () => {
   };
 
   return (
-    <main id="supplier-settings" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-950 text-slate-100 min-h-screen">
+    <main id="supplier-settings" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-slate-900 border border-slate-800 rounded-2xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white border border-slate-200 rounded-2xl">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Configurações de Fornecedor</h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             Personalize seu tema e vitrine autoral, confira seu plano atual, limites ou configure sua wallet do Asaas.
           </p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-800 gap-1 overflow-x-auto no-scrollbar">
+      <div className="flex border-b border-slate-200 gap-1 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('store')}
           className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'store' 
-              ? 'border-indigo-550 border-indigo-500 text-indigo-400 bg-slate-900/40' 
-              : 'border-transparent text-slate-450 text-slate-400 hover:text-white'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
+              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Store size={18} />
@@ -266,8 +266,8 @@ export const SupplierSettings = () => {
           onClick={() => setActiveTab('plans')}
           className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'plans' 
-              ? 'border-indigo-550 border-indigo-500 text-indigo-400 bg-slate-900/40' 
-              : 'border-transparent text-slate-450 text-slate-400 hover:text-white'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
+              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Crown size={18} />
@@ -277,8 +277,8 @@ export const SupplierSettings = () => {
           onClick={() => setActiveTab('asaas')}
           className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'asaas' 
-              ? 'border-indigo-550 border-indigo-500 text-indigo-400 bg-slate-900/40' 
-              : 'border-transparent text-slate-450 text-slate-400 hover:text-white'
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
+              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
           <Wallet size={18} />
@@ -296,12 +296,12 @@ export const SupplierSettings = () => {
             <div className="lg:col-span-2 space-y-6">
               
               {/* Theme Settings */}
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <Sparkles className="text-indigo-400" />
                   Tema Personalizado da Vitrine
                 </h3>
-                <p className="text-slate-400 text-xs">
+                <p className="text-slate-500 text-xs">
                   Modifique as cores predominantes e visual do seu espaço interno de produtos de acordo com a sua identidade visual.
                 </p>
 
@@ -309,7 +309,7 @@ export const SupplierSettings = () => {
                   {[
                     { id: 'shopee', name: 'Shopee Oficial', color: 'bg-orange-600' },
                     { id: 'light', name: 'Clean Light', color: 'bg-slate-200 text-slate-800' },
-                    { id: 'dark', name: 'Cosmic Obsidian', color: 'bg-slate-950 text-slate-100 border border-slate-800' },
+                    { id: 'dark', name: 'Cosmic Obsidian', color: 'bg-slate-50 text-slate-900 border border-slate-200' },
                     { id: 'amber', name: 'Premium Gold', color: 'bg-amber-500 text-slate-950' },
                     { id: 'indigo', name: 'Corporate Purple', color: 'bg-indigo-650 bg-indigo-600' },
                     { id: 'emerald', name: 'Bio Emerald', color: 'bg-emerald-600' },
@@ -321,7 +321,7 @@ export const SupplierSettings = () => {
                       className={`p-3.5 rounded-xl border text-xs font-black transition-all flex flex-col items-center gap-2 ${
                         theme === t.id 
                           ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400 shadow-lg' 
-                          : 'border-slate-800 bg-slate-950/50 text-slate-400 hover:border-slate-700'
+                          : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
                       }`}
                     >
                       <div className={`w-6 h-6 rounded-full ${t.color}`} />
@@ -332,12 +332,12 @@ export const SupplierSettings = () => {
               </div>
 
               {/* Banner Carousel customizer */}
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <ImageIcon className="text-indigo-400" />
                   Banners Deslizantes da Loja
                 </h3>
-                <p className="text-slate-400 text-xs">
+                <p className="text-slate-500 text-xs">
                   Insira URLs de banners promocionais para aparecer em carrossel no topo da sua vitrine da loja.
                 </p>
 
@@ -348,7 +348,7 @@ export const SupplierSettings = () => {
                       placeholder="Ex: https://comercial.com/banner-promocao.jpg"
                       value={newBanner}
                       onChange={e => setNewBanner(e.target.value)}
-                      className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-650"
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-650"
                     />
                     <input
                       type="file"
@@ -359,7 +359,7 @@ export const SupplierSettings = () => {
                     />
                     <label
                       htmlFor="banner-image-upload-settings"
-                      className="px-4 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                      className="px-4 bg-slate-100 hover:bg-slate-750 text-slate-800 hover:text-indigo-600 font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
                     >
                       <Sparkles size={14} className="text-orange-400" /> Upload
                     </label>
@@ -376,11 +376,11 @@ export const SupplierSettings = () => {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                       {banners.map((banner, idx) => (
-                        <div key={idx} className="bg-slate-950 border border-slate-850 rounded-xl overflow-hidden p-2 flex items-center justify-between gap-3">
+                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden p-2 flex items-center justify-between gap-3">
                           <img 
                             src={banner.imageUrl} 
                             alt={`Banner ${idx}`} 
-                            className="w-16 h-10 object-cover rounded-lg bg-slate-900 border border-slate-800"
+                            className="w-16 h-10 object-cover rounded-lg bg-white border border-slate-200"
                             referrerPolicy="no-referrer"
                             onError={(e) => {
                               (e.target as any).src = 'https://placehold.co/600x400?text=Banner+Error';
@@ -401,32 +401,32 @@ export const SupplierSettings = () => {
               </div>
 
               {/* Profile Photo */}
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <ImageIcon className="text-indigo-400" />
                   Foto de Perfil da Loja
                 </h3>
                 <div className="flex items-center gap-4">
-                  <img src={profilePhoto || 'https://placehold.co/100x100?text=Logo'} className="w-16 h-16 rounded-full border border-slate-700 bg-slate-800 object-cover" />
+                  <img src={profilePhoto || 'https://placehold.co/100x100?text=Logo'} className="w-16 h-16 rounded-full border border-slate-700 bg-slate-100 object-cover" />
                   <input
                     type="url"
                     placeholder="URL da logo da loja"
                     value={profilePhoto}
                     onChange={e => setProfilePhoto(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               {/* Layout arrangements and blocks */}
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-200 pb-3">
                   <div>
                     <h3 className="font-bold text-md flex items-center gap-2">
                       <Layout className="text-indigo-400" />
                       Blocos Autorais da Sua Vitrine
                     </h3>
-                    <p className="text-slate-400 text-xs mt-0.5">
+                    <p className="text-slate-500 text-xs mt-0.5">
                       Crie carrosséis de produtos, listas ou grids de destaque e mude a ordem de visualização na loja de acordo com sua estratégia!
                     </p>
                   </div>
@@ -440,15 +440,15 @@ export const SupplierSettings = () => {
 
                 <div className="space-y-3 pt-1">
                   {layoutBlocks.map((block, idx) => (
-                    <div key={block.id} className="bg-slate-950 border border-slate-850 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-700 transition-colors">
+                    <div key={block.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-300 transition-colors">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
                           {block.type === 'CAROUSEL' ? <RefreshCw size={18} /> : block.type === 'GRID' ? <Grid size={18} /> : block.type === 'BANNER' ? <ImageIcon size={18} /> : <ListIcon size={18} />}
                         </div>
                         <div>
-                          <p className="font-bold text-sm text-slate-200">{block.title || 'Sem título'}</p>
+                          <p className="font-bold text-sm text-slate-900">{block.title || 'Sem título'}</p>
                           <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono mt-0.5">
-                            <span className="bg-slate-905 bg-slate-900 px-2 py-0.5 rounded border border-slate-800 text-slate-400">
+                            <span className="bg-slate-905 bg-slate-900 px-2 py-0.5 rounded border border-slate-200 text-slate-500">
                               {block.type === 'CAROUSEL' ? 'Carrossel' : block.type === 'GRID' ? 'Grade' : block.type === 'RELATED' ? 'Recomendações' : block.type === 'LIST' ? 'Lista' : 'Banner slider'}
                             </span>
                             {block.categoryId && <span>Filtrado: Categoria ativa</span>}
@@ -462,14 +462,14 @@ export const SupplierSettings = () => {
                         <button
                           disabled={idx === 0}
                           onClick={() => handleMoveBlock(idx, 'up')}
-                          className="p-1 px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:border-slate-600 disabled:opacity-30 disabled:pointer-events-none"
+                          className="p-1 px-2.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-indigo-600 hover:border-slate-600 disabled:opacity-30 disabled:pointer-events-none"
                         >
                           <ArrowUp size={14} />
                         </button>
                         <button
                           disabled={idx === layoutBlocks.length - 1}
                           onClick={() => handleMoveBlock(idx, 'down')}
-                          className="p-1 px-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-400 hover:text-white hover:border-slate-600 disabled:opacity-30 disabled:pointer-events-none"
+                          className="p-1 px-2.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-indigo-600 hover:border-slate-600 disabled:opacity-30 disabled:pointer-events-none"
                         >
                           <ArrowDown size={14} />
                         </button>
@@ -492,7 +492,7 @@ export const SupplierSettings = () => {
                   ))}
 
                   {layoutBlocks.length === 0 && (
-                    <p className="text-center py-6 text-slate-600 text-xs italic border-2 border-dashed border-slate-850 rounded-xl">Sem blocos no layout. A vitrine exibirá a visualização padrão.</p>
+                    <p className="text-center py-6 text-slate-600 text-xs italic border-2 border-dashed border-slate-200 rounded-xl">Sem blocos no layout. A vitrine exibirá a visualização padrão.</p>
                   )}
                 </div>
               </div>
@@ -516,30 +516,30 @@ export const SupplierSettings = () => {
               
               {/* BLOCK CONFIG EDIT MODAL/DRAWER (renders inline for better UX in sidebar) */}
               {editingBlockId && (
-                <div className="bg-slate-900 border-2 border-indigo-500/40 rounded-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                <div className="bg-white border-2 border-indigo-500/40 rounded-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+                  <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                     <h4 className="font-bold text-sm text-indigo-400">Configurar Bloco de Produtos</h4>
-                    <button onClick={() => setEditingBlockId(null)} className="text-slate-400 hover:text-white">✕</button>
+                    <button onClick={() => setEditingBlockId(null)} className="text-slate-500 hover:text-indigo-600">✕</button>
                   </div>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Título do Bloco</label>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Título do Bloco</label>
                       <input
                         type="text"
                         value={blockTitle}
                         onChange={e => setBlockTitle(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
                         placeholder="Ex: Ofertas da Semana"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Tipo de Layout</label>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Tipo de Layout</label>
                       <select
                         value={blockType}
                         onChange={e => setBlockType(e.target.value as any)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
                       >
                         <option value="BANNER">Banner Único Destacado</option>
                         <option value="CAROUSEL">Carrossel Deslizante</option>
@@ -552,13 +552,13 @@ export const SupplierSettings = () => {
                     {/* Filter Option */}
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[11px] font-bold text-slate-400 uppercase">Filtro de Conteúdo</label>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Filtro de Conteúdo</label>
                         <span className="text-[9px] text-slate-500">Opcional</span>
                       </div>
                       <select
                         value={blockCategoryId}
                         onChange={e => setBlockCategoryId(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
                       >
                         <option value="">Exibir Todos (Sem Filtrar Categoria)</option>
                         {categories.map(cat => (
@@ -569,10 +569,10 @@ export const SupplierSettings = () => {
 
                     {/* Specific items picker */}
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Selecionar Itens Específicos</label>
+                      <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Selecionar Itens Específicos</label>
                       <p className="text-[10px] text-slate-500 mb-2">Caso queira colocar uma curadoria de produtos específica neste bloco.</p>
                       
-                      <div className="max-h-48 overflow-y-auto divide-y divide-slate-850 bg-slate-950 rounded-xl border border-slate-850 p-2">
+                      <div className="max-h-48 overflow-y-auto divide-y divide-slate-850 bg-slate-50 rounded-xl border border-slate-200 p-2">
                         {inventoryItems.map(p => {
                           const isSelected = blockProductIds.includes(p.id);
                           return (
@@ -584,7 +584,7 @@ export const SupplierSettings = () => {
                             >
                               <span className="truncate text-slate-350">{p.name}</span>
                               <div className={`w-4.5 h-4.5 rounded border flex items-center justify-center shrink-0 ${
-                                isSelected ? 'border-indigo-500 bg-indigo-500/20 text-indigo-400' : 'border-slate-800 bg-transparent text-transparent'
+                                isSelected ? 'border-indigo-500 bg-indigo-500/20 text-indigo-400' : 'border-slate-200 bg-transparent text-transparent'
                               }`}>
                                 <CheckCircle size={10} />
                               </div>
@@ -610,12 +610,12 @@ export const SupplierSettings = () => {
               )}
 
               {/* Informative Help Center Panel */}
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <HelpCircle className="text-indigo-400" />
                   Como funcionam as Lojas Autorais?
                 </h3>
-                <div className="text-xs text-slate-400 space-y-3 leading-relaxed">
+                <div className="text-xs text-slate-500 space-y-3 leading-relaxed">
                   <p>
                     Com as Lojas Autorais, os fornecedores parceiros podem montar seu próprio portal web customizado dentro de nossa plataforma.
                   </p>
@@ -637,12 +637,12 @@ export const SupplierSettings = () => {
         {/* TAB 2: PLANS & UPGRADES */}
         {activeTab === 'plans' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
                <div className="absolute top-0 right-0 p-8 opacity-10"><Crown size={120} /></div>
                <div className="relative z-10">
                   <p className="text-indigo-400 font-bold uppercase text-xs tracking-widest mb-1">Seu Plano Atual de Fornecedor</p>
                   <h2 className="text-4xl font-black mb-4">{currentPlan?.name || 'Fornecedor Standard'}</h2>
-                  <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-300">
+                  <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-800">
                      <div className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> Produtos Ilimitados</div>
                      <div className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> Exposição no Feed Global Shopee</div>
                      <div className="flex items-center gap-1.5"><CheckCircle2 size={16} className="text-emerald-400" /> Configuração de Wallet Asaas para Splits</div>
@@ -670,8 +670,8 @@ export const SupplierSettings = () => {
             </div>
 
             {/* Application of Promo Coupon keys */}
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl">
-               <h3 className="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+            <div className="bg-white border border-slate-200 p-6 rounded-3xl">
+               <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                  <Tag className="text-indigo-400" /> Resgatar Cupom de Parceria Fornecedora
                </h3>
                <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
@@ -680,7 +680,7 @@ export const SupplierSettings = () => {
                     placeholder="Código do Cupom Parceiro" 
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    className="flex-1 bg-slate-950 border border-slate-800 px-4 py-3 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-900 outline-none uppercase font-bold tracking-widest text-sm"
+                    className="flex-1 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-900 outline-none uppercase font-bold tracking-widest text-sm"
                   />
                   <button 
                     onClick={handleApplyCoupon}
@@ -698,8 +698,8 @@ export const SupplierSettings = () => {
             </div>
 
             {/* Invoices summary */}
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl space-y-4">
-              <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            <div className="bg-white border border-slate-200 p-6 rounded-3xl space-y-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <DollarSign className="text-indigo-400" /> Histórico de Recibos/Mensalidades
               </h3>
               {loadingInvoices ? (
@@ -711,7 +711,7 @@ export const SupplierSettings = () => {
                   {invoices.map((inv: any, idx) => (
                     <div key={idx} className="py-3 flex justify-between items-center text-xs">
                       <div>
-                        <p className="font-bold text-slate-300">Fatura Mensalidade #{inv.id.substring(inv.id.length - 8).toUpperCase()}</p>
+                        <p className="font-bold text-slate-800">Fatura Mensalidade #{inv.id.substring(inv.id.length - 8).toUpperCase()}</p>
                         <p className="text-slate-500 mt-1 font-mono">Vencimento: {inv.dueDate}</p>
                       </div>
                       <div className="text-right">
@@ -730,63 +730,63 @@ export const SupplierSettings = () => {
 
         {/* TAB 3: ASAAS SUB-ACCOUNT CREDENTIALS */}
         {activeTab === 'asaas' && (
-          <div className="bg-slate-900 border border-slate-800/80 p-6 rounded-2xl space-y-6 animate-in fade-in duration-300 max-w-3xl">
-            <h3 className="font-bold text-md flex items-center gap-2 border-b border-slate-800 pb-3">
+          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl space-y-6 animate-in fade-in duration-300 max-w-3xl">
+            <h3 className="font-bold text-md flex items-center gap-2 border-b border-slate-200 pb-3">
               <Wallet className="text-indigo-400" />
               Credenciamento e Split do Asaas
             </h3>
             
-            <p className="text-slate-400 text-xs leading-relaxed">
+            <p className="text-slate-500 text-xs leading-relaxed">
               Associe sua conta digital ASAAS para recolhimento direto das vendas de seus produtos, possibilitando liberação imediata de splits financeiros automáticos e transferências de saldo em conta.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">ID da Carteira ASAAS (Wallet ID)</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">ID da Carteira ASAAS (Wallet ID)</label>
                 <input
                   type="text"
                   placeholder="Ex: account_1234567..."
                   value={asaasWalletId}
                   onChange={e => setAsaasWalletId(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 font-mono placeholder-slate-700"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 font-mono placeholder-slate-700"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">ID da conta fornecido pelo Administrador ou localizado em sua conta comercial Asaas.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Chave Pix Comercial</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Chave Pix Comercial</label>
                 <input
                   type="text"
                   placeholder="Ex: CNPJ ou E-mail ou Celular"
                   value={pixKey}
                   onChange={e => setPixKey(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Dados Bancários Alternativos</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Dados Bancários Alternativos</label>
                 <input
                   type="text"
                   placeholder="Ex: Banco Itaú - Ag 1234, Cc 5678-9"
                   value={bankInfo}
                   onChange={e => setBankInfo(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-3 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Orientação de Faturamento e Checkout</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Orientação de Faturamento e Checkout</label>
                 <textarea
                   placeholder="Instruções para exibição ao comprador dental / laboratório no checkout..."
                   value={instructions}
                   onChange={e => setInstructions(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-indigo-500 h-24 resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 h-24 resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end border-t border-slate-800 pt-4">
+            <div className="flex justify-end border-t border-slate-200 pt-4">
               <button
                 onClick={handleSaveFinancials}
                 disabled={loading}

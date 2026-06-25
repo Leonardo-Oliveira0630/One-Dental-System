@@ -11,8 +11,22 @@ export type TransactionCategory =
   | 'OFFICE'   
   | 'OTHER';
 
+export interface MarketplaceBannerConfig {
+  id: string;
+  imageUrl: string;
+  text?: string;
+  button?: {
+    show: boolean;
+    text: string;
+    link: string;
+    color: string;
+    size: 'sm' | 'md' | 'lg';
+  };
+}
+
 export interface GlobalSettings {
   platformCommission: number;
+  marketplaceBanners?: MarketplaceBannerConfig[];
   updatedAt: Date;
   updatedBy: string;
 }
