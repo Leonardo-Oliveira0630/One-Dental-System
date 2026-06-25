@@ -20,6 +20,13 @@ interface SupplierCartItem {
     priceModifier: number;
     imageUrl?: string;
   };
+  selectedOptions?: {
+    groupId: string;
+    groupName: string;
+    optionId: string;
+    optionName: string;
+    priceModifier: number;
+  }[];
 }
 
 type SortOption = 'RELEVANCE' | 'LATEST' | 'SALES' | 'PRICE_ASC' | 'PRICE_DESC';
@@ -56,6 +63,7 @@ export const SupplierStore = () => {
   // Detailed Product Modal (Shopee style switcher)
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<InventoryItem | null>(null);
   const [detailSelectedVar, setDetailSelectedVar] = useState<any>(null);
+  const [detailSelectedOptions, setDetailSelectedOptions] = useState<{groupId: string, groupName: string, optionId: string, optionName: string, priceModifier: number}[]>([]);
   const [detailActiveImg, setDetailActiveImg] = useState<string>('');
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [bannerIndex, setBannerIndex] = useState(0);
@@ -299,10 +307,18 @@ export const SupplierStore = () => {
     }
   };
 
-  const addToCart = (product: InventoryItem, customVar?: any) => {
+  const addToCart = (product: InventoryItem, customVar?: any, selectedOptions?: any[]) => {
     // Generate unique ID for cart item (product id + variation suffix if any)
-    const cartItemId = customVar ? `${product.id}_var_${customVar.id}` : product.id;
-    const finalPrice = product.sellPrice + (customVar?.priceModifier || 0);
+    let cartItemId = product.id;
+    if (customVar) cartItemId += `_var_${customVar.id}`;
+    if (selectedOptions && selectedOptions.length > 0) {
+      const optsHash = selectedOptions.map(o => o.optionId).sort().join('_');
+      cartItemId += `_opts_${optsHash}`;
+    }
+
+    const finalPrice = product.sellPrice 
+      + (customVar?.priceModifier || 0)
+      + (selectedOptions?.reduce((sum, o) => sum + o.priceModifier, 0) || 0);
 
     const existing = cart.find(item => item.id === cartItemId);
     const availableStock = customVar ? (customVar.currentStock ?? product.currentStock) : product.currentStock;
@@ -326,7 +342,8 @@ export const SupplierStore = () => {
           name: customVar.name,
           priceModifier: customVar.priceModifier,
           imageUrl: customVar.imageUrl
-        } : undefined
+        } : undefined,
+        selectedOptions: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined
       };
       saveCartToStorage([...cart, targetCartItem]);
     }
@@ -361,7 +378,9 @@ export const SupplierStore = () => {
 
   const cartTotal = useMemo(() => {
     return cart.reduce((total, item) => {
-      const price = item.product.sellPrice + (item.variation?.priceModifier || 0);
+      const price = item.product.sellPrice 
+        + (item.variation?.priceModifier || 0)
+        + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
       return total + (price * item.quantity);
     }, 0);
   }, [cart]);
@@ -388,7 +407,9 @@ export const SupplierStore = () => {
       for (const [supId, items] of Object.entries(itemsBySupplier)) {
         const orderId = `order_sup_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
         const totalVal = items.reduce((sum, i) => {
-          const unitPrice = i.product.sellPrice + (i.variation?.priceModifier || 0);
+          const unitPrice = i.product.sellPrice 
+            + (i.variation?.priceModifier || 0)
+            + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
           return sum + (unitPrice * i.quantity);
         }, 0);
         
@@ -401,10 +422,21 @@ export const SupplierStore = () => {
           buyerName: currentUser.name,
           buyerEmail: currentUser.email,
           items: items.map(i => {
-            const unitPrice = i.product.sellPrice + (i.variation?.priceModifier || 0);
+            const unitPrice = i.product.sellPrice 
+              + (i.variation?.priceModifier || 0)
+              + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
+            
+            let itemName = i.product.name;
+            if (i.variation) {
+              itemName += ` (Opção: ${i.variation.name})`;
+            }
+            if (i.selectedOptions && i.selectedOptions.length > 0) {
+              itemName += ` [${i.selectedOptions.map(o => o.optionName).join(', ')}]`;
+            }
+
             return {
               productId: i.product.id,
-              name: i.variation ? `${i.product.name} (Opção: ${i.variation.name})` : i.product.name,
+              name: itemName,
               quantity: i.quantity,
               price: unitPrice
             };
@@ -518,23 +550,25 @@ export const SupplierStore = () => {
         <>
           {/* Marketplace Top Menu */}
           <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
-            <div className="flex items-center gap-6">
+            <div className="w-auto md:w-32 flex-shrink-0"></div>
+            
+            <div className="flex items-center justify-center flex-1 gap-2 md:gap-6">
               <button 
                 onClick={() => setSelectedSupplierId('ALL')}
-                className="text-[#15263f] font-black text-lg hover:text-blue-600 transition-colors"
+                className="px-4 py-2 rounded-xl text-[#15263f] font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors"
               >
                 Home
               </button>
-              <div className="hidden md:flex gap-4">
-                <button className="text-slate-600 font-bold hover:text-blue-600 transition-colors">Categorias</button>
-                <button className="text-slate-600 font-bold hover:text-blue-600 transition-colors">Mais Vendidos</button>
+              <div className="hidden md:flex gap-2 md:gap-6">
+                <button className="px-4 py-2 rounded-xl text-slate-600 font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors">Categorias</button>
+                <button className="px-4 py-2 rounded-xl text-slate-600 font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors">Mais Vendidos</button>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-end gap-4 w-auto md:w-32 flex-shrink-0">
               <button
                 onClick={() => setIsCartOpen(true)}
-                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 font-bold rounded-xl transition-all shadow-md flex items-center gap-2"
+                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
               >
                 <ShoppingCart className="w-5 h-5" />
                 <span className="text-sm">Carrinho ({cart.length})</span>
@@ -935,7 +969,9 @@ export const SupplierStore = () => {
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => {
-                    const unitPrice = item.product.sellPrice + (item.variation?.priceModifier || 0);
+                    const unitPrice = item.product.sellPrice 
+                      + (item.variation?.priceModifier || 0)
+                      + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
                     return (
                       <div key={item.id} className="p-4 bg-slate-950 border border-slate-850 rounded-xl space-y-3">
                         <div className="flex justify-between items-start gap-3">
@@ -945,6 +981,15 @@ export const SupplierStore = () => {
                               <p className="text-xs text-orange-400 font-bold mt-1">
                                 Opção: {item.variation.name}
                               </p>
+                            )}
+                            {item.selectedOptions && item.selectedOptions.length > 0 && (
+                              <div className="mt-1 space-y-0.5">
+                                {item.selectedOptions.map(opt => (
+                                  <p key={opt.optionId} className="text-xs text-orange-400 font-bold">
+                                    {opt.groupName}: <span className="text-white">{opt.optionName}</span>
+                                  </p>
+                                ))}
+                              </div>
                             )}
                             <p className="text-[10px] text-slate-500 font-mono uppercase mt-1">
                               FORNECEDOR: {getSupplierName(item.product.organizationId)}
@@ -1084,7 +1129,7 @@ export const SupplierStore = () => {
                     </div>
                   )}
 
-                  {/* Variation Picker Options (SHOOPE MODEL) */}
+                  {/* Variation Picker Options (LEGACY MODEL) */}
                   {selectedItemForDetail.variations && selectedItemForDetail.variations.length > 0 && (
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Selecione uma Opção (Variação):</label>
@@ -1112,12 +1157,81 @@ export const SupplierStore = () => {
                     </div>
                   )}
 
+                  {/* Variation Groups Picker (NEW MODEL) */}
+                  {selectedItemForDetail.variationGroups && selectedItemForDetail.variationGroups.length > 0 && (
+                    <div className="space-y-4">
+                      {selectedItemForDetail.variationGroups.map(group => (
+                        <div key={group.id} className="space-y-2">
+                          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                            {group.name} {group.selectionType === 'MULTIPLE' ? '(Múltipla Escolha)' : '(Escolha Única)'}
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {group.options.map(opt => {
+                              const isSelected = detailSelectedOptions.some(o => o.groupId === group.id && o.optionId === opt.id);
+                              return (
+                                <button
+                                  key={opt.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (opt.imageUrl) {
+                                      setDetailActiveImg(opt.imageUrl);
+                                    }
+                                    setDetailSelectedOptions(prev => {
+                                      if (group.selectionType === 'SINGLE') {
+                                        // Replace if same group
+                                        const filtered = prev.filter(o => o.groupId !== group.id);
+                                        return [...filtered, {
+                                          groupId: group.id,
+                                          groupName: group.name,
+                                          optionId: opt.id,
+                                          optionName: opt.name,
+                                          priceModifier: opt.priceModifier
+                                        }];
+                                      } else {
+                                        // Toggle for multiple
+                                        if (isSelected) {
+                                          return prev.filter(o => !(o.groupId === group.id && o.optionId === opt.id));
+                                        } else {
+                                          return [...prev, {
+                                            groupId: group.id,
+                                            groupName: group.name,
+                                            optionId: opt.id,
+                                            optionName: opt.name,
+                                            priceModifier: opt.priceModifier
+                                          }];
+                                        }
+                                      }
+                                    });
+                                  }}
+                                  className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all flex flex-col items-start ${
+                                    isSelected 
+                                      ? 'border-orange-500 bg-orange-500/10 text-orange-600' 
+                                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <span>{opt.name}</span>
+                                  {opt.priceModifier > 0 && (
+                                    <span className="text-[10px] font-mono opacity-80">+ R$ {opt.priceModifier.toFixed(2)}</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Dynamic Price Display */}
                   <div className="p-4 bg-slate-950 rounded-2xl border border-slate-850 flex items-center justify-between">
                     <div>
                       <p className="text-[9px] text-slate-500 font-mono">PREÇO CONFIGURADO</p>
                       <p className="text-2xl font-bold font-mono text-emerald-400">
-                        R$ {(selectedItemForDetail.sellPrice + (detailSelectedVar?.priceModifier || 0)).toFixed(2)}
+                        R$ {(
+                          selectedItemForDetail.sellPrice 
+                          + (detailSelectedVar?.priceModifier || 0)
+                          + detailSelectedOptions.reduce((sum, opt) => sum + opt.priceModifier, 0)
+                        ).toFixed(2)}
                       </p>
                     </div>
                     
@@ -1132,7 +1246,7 @@ export const SupplierStore = () => {
                   {/* Action insert to Cesta */}
                   <button
                     onClick={() => {
-                      addToCart(selectedItemForDetail, detailSelectedVar);
+                      addToCart(selectedItemForDetail, detailSelectedVar, detailSelectedOptions);
                       setSelectedItemForDetail(null);
                     }}
                     className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"

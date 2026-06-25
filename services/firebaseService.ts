@@ -785,6 +785,12 @@ export const uploadJobFile = async (file: File): Promise<string> => {
     await uploadBytes(fileRef, file);
     return getDownloadURL(fileRef);
 };
+export const uploadBannerImage = async (file: File): Promise<string> => {
+    const fileRef = ref(storage, `banners/${Date.now()}_${file.name}`);
+    await uploadBytes(fileRef, file);
+    return getDownloadURL(fileRef);
+};
+
 export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
     const fn = httpsCallable(functions, 'createOrderPayment');
     return (await fn({ jobData, paymentData })).data;

@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Plus, Trash2, Save, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Save, Loader2, Image as ImageIcon, Upload } from 'lucide-react';
 import { MarketplaceBannerConfig } from '../../types';
+import { uploadBannerImage } from '../../services/firebaseService';
 
 export const MarketplaceBannersAdmin = () => {
     const { globalSettings, updateGlobalSettings } = useApp();
     const [banners, setBanners] = useState<MarketplaceBannerConfig[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [uploadingId, setUploadingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (globalSettings?.marketplaceBanners) {
@@ -38,6 +40,22 @@ export const MarketplaceBannersAdmin = () => {
             }
             return b;
         }));
+    };
+
+    const handleFileUpload = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingId(id);
+        try {
+            const url = await uploadBannerImage(file);
+            handleUpdateBanner(id, 'imageUrl', url);
+        } catch (error) {
+            console.error("Erro ao fazer upload da imagem:", error);
+            alert("Erro ao fazer upload da imagem. Tente novamente.");
+        } finally {
+            setUploadingId(null);
+        }
     };
 
     const handleSave = async () => {
@@ -81,14 +99,31 @@ export const MarketplaceBannersAdmin = () => {
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">URL da Imagem</label>
-                                <input 
-                                    type="text" 
-                                    value={banner.imageUrl} 
-                                    onChange={e => handleUpdateBanner(banner.id, 'imageUrl', e.target.value)}
-                                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm"
-                                    placeholder="https://..."
-                                />
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">URL da Imagem ou Upload</label>
+                                <div className="flex gap-2">
+                                    <input 
+                                        type="text" 
+                                        value={banner.imageUrl} 
+                                        onChange={e => handleUpdateBanner(banner.id, 'imageUrl', e.target.value)}
+                                        className="flex-1 p-3 bg-white border border-slate-200 rounded-xl outline-none text-sm"
+                                        placeholder="https://..."
+                                    />
+                                    <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl flex items-center justify-center transition-colors border border-slate-200">
+                                        {uploadingId === banner.id ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            className="hidden" 
+                                            onChange={(e) => handleFileUpload(banner.id, e)}
+                                            disabled={uploadingId === banner.id}
+                                        />
+                                    </label>
+                                </div>
+                                {banner.imageUrl && (
+                                    <div className="mt-2 w-full h-32 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                                        <img src={banner.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Texto Central (Opcional)</label>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as storagePkg from 'firebase/storage';
 import { storage } from '../services/firebaseConfig';
+import logoLocal from '../icone-com-texto.svg';
 
 const { ref, getDownloadURL } = storagePkg as any;
 
@@ -12,7 +13,7 @@ const { ref, getDownloadURL } = storagePkg as any;
 // Se você fez o upload do arquivo 'logoapp.svg' ou de um 'logo.png' diretamente para a pasta raiz 
 // ou pasta pública do seu projeto (usando a barra lateral esquerda do AI Studio), digite o caminho abaixo.
 // Exemplo: '/logoapp.svg' se estiver carregado na pasta pública do servidor.
-export const LOGO_LOCAL_PATH: string = '/icone-com-texto.svg'; 
+export const LOGO_LOCAL_PATH: string = logoLocal; 
 
 // ALTERNATIVA 2: CÓDIGO SVG BRUTO (MUITO SEGURO E RÁPIDO)
 // Abra o seu arquivo '.svg' no Bloco de Notas ou qualquer editor de texto, copie todo o código 
