@@ -17,20 +17,7 @@ export const LOGO_LOCAL_PATH: string = '/icone-com-texto.svg';
 // ALTERNATIVA 2: CÓDIGO SVG BRUTO (MUITO SEGURO E RÁPIDO)
 // Abra o seu arquivo '.svg' no Bloco de Notas ou qualquer editor de texto, copie todo o código 
 // (começando com `<svg` e terminando com `</svg>`) e cole-o entre as aspas abaixo:
-export const LOGO_SVG_RAW: string = `<svg viewBox="0 0 300 100" xmlns="http://www.w3.org/2000/svg">
-  <!-- Icone -->
-  <path d="M 32 23 C 25 23, 23 35, 27 50 C 30 62, 33 72, 37 77 C 40 81, 43 75, 45 70 C 47 62, 49 62, 51 70 C 53 75, 56 81, 59 77 C 63 72, 65 60, 67 52 C 68 45, 68 39, 68 35 H 61 V 27 C 61 24, 57 23, 51 28 C 47 22, 39 21, 32 23 Z" fill="#10203A" />
-  <path d="M 16 51 C 14 56, 24 64, 43 60 C 62 55, 75 46, 81 37 C 71 47, 51 55, 36 55 C 23 55, 18 51, 16 51 Z" fill="#02B8D9" />
-  
-  <!-- Texto LABPROX (Simulado com caminhos ou fontes padrão) -->
-  <text x="90" y="65" font-family="sans-serif" font-weight="bold" font-style="italic" font-size="40">
-    <tspan fill="#10203A">LAB</tspan>
-    <tspan fill="#0254CC">PROX</tspan>
-  </text>
-  <!-- Detalhe do X -->
-  <path d="M 230 40 L 260 70 M 230 70 L 260 40" stroke="#0254CC" stroke-width="5" />
-  <path d="M 245 55 L 260 40" stroke="#02B8D9" stroke-width="5" />
-</svg>`;
+export const LOGO_SVG_RAW: string = '';
 // ALTERNATIVA 3: IMAGEM EM BASE64
 // Se você converteu o seu logo para Base64 (usando conversores online), cole o resultado aqui:
 export const LOGO_BASE64: string = '';
@@ -178,7 +165,9 @@ interface LogoProps extends React.SVGProps<SVGSVGElement> {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | number;
   showText?: boolean;
   variant?: 'light' | 'dark' | 'colored';
+  padding?: string | number;
 }
+
 
 export const LogoIcon: React.FC<LogoProps> = ({ 
   size = 'md', 
@@ -194,11 +183,11 @@ export const LogoIcon: React.FC<LogoProps> = ({
   const dimensions = typeof size === 'number' 
     ? size 
     : {
-        xs: 48,
-        sm: 64,
+        xs: 40,
+        sm: 60,
         md: 80,
-        lg: 96,
-        xl: 128
+        lg: 120,
+        xl: 160
       }[size];
 
   // 1. SUPORTE A CÓDIGO SVG BRUTO (ALTAMENTE SEGURO)
@@ -352,6 +341,7 @@ export const Logo: React.FC<LogoProps> = ({
   variant = 'colored', 
   showText = true, 
   className = '',
+  padding = -100,
   ...props
 }) => {
   // Determine standard colors for "Smile" and "ProX" parts based on theme variant
@@ -382,11 +372,11 @@ export const Logo: React.FC<LogoProps> = ({
   const wrapperHeight = typeof size === 'number'
     ? size
     : {
-        xs: 24,
-        sm: 32,
-        md: 40,
-        lg: 48,
-        xl: 72
+        xs: 38,
+        sm: 51,
+        md: 64,
+        lg: 77,
+        xl: 115
       }[size];
 
   const finalCompletoUrl = useStorageUrl(LOGO_COMPLETO_URL);
@@ -406,7 +396,8 @@ export const Logo: React.FC<LogoProps> = ({
   }
 
   return (
-    <div className={`flex items-center gap-6 overflow-visible shrink-0 ${className}`}>
+    <div className={`flex items-center gap-0 overflow-visible shrink-0 p-0 m-0 ${className}`}
+    style={{ padding: padding }}>
       <LogoIcon size={size} {...props} />
     </div>
   );

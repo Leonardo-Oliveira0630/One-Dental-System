@@ -370,19 +370,19 @@ export const RegisterOrganization = () => {
     'bg-teal-600 hover:bg-teal-500 shadow-teal-900/50';
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-slate-800 w-full max-w-4xl p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-700 space-y-6">
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-2 sm:p-4">
+      <div className="bg-white w-full max-w-4xl p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 space-y-6">
         
         <div className="space-y-6">
             <div className="text-left mb-6">
-                <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-6">
+                <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#15263f] transition-colors mb-6">
                     <ArrowLeft size={14} /> Voltar para o Site
                 </Link>
-                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/20 ${regType === 'LAB' ? 'bg-blue-600' : regType === 'LAB_OUTSOURCED' ? 'bg-purple-600' : regType === 'SUPPLIER' ? 'bg-indigo-600' : 'bg-teal-600'}`}>
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/5 ${regType === 'LAB' ? 'bg-blue-600' : regType === 'LAB_OUTSOURCED' ? 'bg-purple-600' : regType === 'SUPPLIER' ? 'bg-indigo-600' : 'bg-teal-600'}`}>
                     {regType === 'LAB' ? <ShieldCheck size={32} className="text-white" /> : regType === 'LAB_OUTSOURCED' ? <Building size={32} className="text-white" /> : regType === 'SUPPLIER' ? <Database size={32} className="text-white" /> : <Stethoscope size={32} className="text-white" />}
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-2">Crie sua Conta</h1>
-                <p className="text-slate-400">
+                <h1 className="text-3xl font-bold text-[#15263f] mb-2">Crie sua Conta</h1>
+                <p className="text-slate-500">
                     {regType === 'LAB' ? 'Gestão completa para seu Laboratório.' : regType === 'LAB_OUTSOURCED' ? 'Contrate outros laboratórios através da nossa plataforma.' : regType === 'SUPPLIER' ? 'Venda seus produtos e controle estoque para dentistas e laboratórios.' : 'Gestão clínica e pedidos para Dentistas.'}
                 </p>
             </div>
@@ -399,64 +399,64 @@ export const RegisterOrganization = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(regType === 'LAB' || regType === 'LAB_OUTSOURCED' || regType === 'SUPPLIER') ? (
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                            <label className="block text-xs font-bold text-[#15263f] uppercase mb-1">
                                 {regType === 'SUPPLIER' ? 'Nome do Fornecedor / Empresa' : 'Nome do Laboratório'}
                             </label>
                             <div className="relative">
-                                <Building className="absolute left-3 top-3 text-slate-500" size={18}/>
-                                <input required value={labName} onChange={e => setLabName(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600" placeholder={regType === 'SUPPLIER' ? 'Ex: Fornecedor Dental Dental' : 'Ex: Laboratório Smile'} />
+                                <Building className="absolute left-3 top-3 text-slate-400" size={18}/>
+                                <input required value={labName} onChange={e => setLabName(e.target.value)} className="w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] focus:ring-2 focus:ring-blue-500 outline-none placeholder-gray-400" placeholder={regType === 'SUPPLIER' ? 'Ex: Fornecedor Dental Dental' : 'Ex: Laboratório Smile'} />
                             </div>
                         </div>
                     ) : (
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome da Clínica</label>
+                            <label className="block text-xs font-bold text-[#15263f] uppercase mb-1">Nome da Clínica</label>
                             <div className="relative">
                                 <Store className="absolute left-3 top-3 text-slate-400" size={18}/>
-                                <input required value={clinicName} onChange={e => setClinicName(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-teal-500 outline-none placeholder-slate-600" placeholder="Ex: Clínica Sorriso" />
+                                <input required value={clinicName} onChange={e => setClinicName(e.target.value)} className="w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] focus:ring-2 focus:ring-teal-500 outline-none placeholder-gray-400" placeholder="Ex: Clínica Sorriso" />
                             </div>
                         </div>
                     )}
                     
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Seu Nome Completo</label>
+                        <label className="block text-xs font-bold text-[#15263f] uppercase mb-1">Seu Nome Completo</label>
                         <div className="relative">
-                            <User className="absolute left-3 top-3 text-slate-500" size={18}/>
-                            <input required value={ownerName} onChange={e => setOwnerName(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Ex: João da Silva" />
+                            <User className="absolute left-3 top-3 text-slate-400" size={18}/>
+                            <input required value={ownerName} onChange={e => setOwnerName(e.target.value)} className={`w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Ex: João da Silva" />
                         </div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">CPF ou CNPJ (para Faturamento)</label>
+                        <label className="block text-xs font-bold text-[#15263f] uppercase mb-1">CPF ou CNPJ (para Faturamento)</label>
                         <div className="relative">
-                            <FileText className="absolute left-3 top-3 text-slate-500" size={18}/>
-                            <input required value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Somente números" />
+                            <FileText className="absolute left-3 top-3 text-slate-400" size={18}/>
+                            <input required value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} className={`w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Somente números" />
                         </div>
                     </div>
                     
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone / WhatsApp</label>
+                        <label className="block text-xs font-bold text-[#15263f] uppercase mb-1">Telefone / WhatsApp</label>
                         <div className="relative">
-                            <Phone className="absolute left-3 top-3 text-slate-500" size={18}/>
-                            <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Ex: (11) 99999-9999" />
+                            <Phone className="absolute left-3 top-3 text-slate-400" size={18}/>
+                            <input required type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={`w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="Ex: (11) 99999-9999" />
                         </div>
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email de Acesso</label>
+                    <label className="block text-xs font-bold text-[#15263f] uppercase mb-1">Email de Acesso</label>
                     <div className="relative">
-                        <Mail className="absolute left-3 top-3 text-slate-500" size={18}/>
-                        <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="seu@email.com" />
+                        <Mail className="absolute left-3 top-3 text-slate-400" size={18}/>
+                        <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className={`w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="seu@email.com" />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Senha</label>
+                    <label className="block text-xs font-bold text-[#15263f] uppercase mb-1">Senha</label>
                     <div className="relative">
-                        <Lock className="absolute left-3 top-3 text-slate-500" size={18}/>
-                        <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className={`w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="••••••••" minLength={6} />
+                        <Lock className="absolute left-3 top-3 text-slate-400" size={18}/>
+                        <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className={`w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] outline-none focus:ring-2 ${regType === 'LAB' ? 'focus:ring-blue-500' : 'focus:ring-teal-500'}`} placeholder="••••••••" minLength={6} />
                     </div>
                 </div>
 
@@ -522,26 +522,26 @@ export const RegisterOrganization = () => {
                     <div className="space-y-4">
                         {isInternational && (
                             <div className="relative">
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Buscar Endereço Inteligente (Loqate, opcional)</label>
+                                <label className="block text-[10px] font-bold text-[#15263f] uppercase mb-1">Buscar Endereço Inteligente (Loqate, opcional)</label>
                                 <div className="relative">
-                                    <Globe className="absolute left-3 top-3 text-slate-500" size={18}/>
+                                    <Globe className="absolute left-3 top-3 text-slate-400" size={18}/>
                                     <input 
-                                        className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                                        className="w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-blue-500" 
                                         placeholder="Comece a digitar o endereço..."
                                         onChange={(e) => handleLoqateSearch(e.target.value)}
                                     />
                                 </div>
                                 {loqateSuggestions.length > 0 && (
-                                    <div className="absolute z-20 left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                                    <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
                                         {loqateSuggestions.map((item, idx) => (
                                             <button 
                                                 key={idx} 
                                                 type="button"
                                                 onClick={() => handleSelectLoqate(item)}
-                                                className="w-full px-4 py-3 text-left hover:bg-slate-700 text-sm border-b border-slate-700 last:border-0 flex flex-col"
+                                                className="w-full px-4 py-3 text-left hover:bg-gray-100 text-sm border-b border-gray-100 last:border-0 flex flex-col"
                                             >
-                                                <span className="font-bold text-white">{item.Text}</span>
-                                                <span className="text-xs text-slate-400">{item.Description}</span>
+                                                <span className="font-bold text-[#15263f]">{item.Text}</span>
+                                                <span className="text-xs text-slate-500">{item.Description}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -551,41 +551,41 @@ export const RegisterOrganization = () => {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'Postal/ZIP Code' : 'CEP'}</label>
+                                <label className="block text-[10px] font-bold text-[#15263f] uppercase mb-1">{isInternational ? 'Postal/ZIP Code' : 'CEP'}</label>
                                 <div className="relative">
-                                    <MapPin className="absolute left-3 top-3 text-slate-500" size={18}/>
+                                    <MapPin className="absolute left-3 top-3 text-slate-400" size={18}/>
                                     <input 
                                         required 
                                         value={cep} 
                                         onChange={e => setCep(e.target.value)} 
                                         onBlur={handleCEPBlur} 
-                                        className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                                        className="w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-blue-500" 
                                         placeholder={isInternational ? "Ex: 90210" : "00000-000"} 
                                     />
                                     {isSearchingCep && <Loader2 size={16} className="absolute right-3 top-3 animate-spin text-blue-500" />}
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'Street / Address' : 'Logradouro'}</label>
-                                <input required value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                <label className="block text-[10px] font-bold text-[#15263f] uppercase mb-1">{isInternational ? 'Street / Address' : 'Logradouro'}</label>
+                                <input required value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'Apt/Suite' : 'Nº'}</label>
-                                <input required value={number} onChange={e => setNumber(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                <label className="block text-[10px] font-bold text-[#15263f] uppercase mb-1">{isInternational ? 'Apt/Suite' : 'Nº'}</label>
+                                <input required value={number} onChange={e => setNumber(e.target.value)} className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-blue-500" />
                              </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'District/Area' : 'Bairro'}</label>
-                                <input value={neighborhood} onChange={e => setNeighborhood(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                <label className="block text-[10px] font-bold text-[#15263f] uppercase mb-1">{isInternational ? 'District/Area' : 'Bairro'}</label>
+                                <input value={neighborhood} onChange={e => setNeighborhood(e.target.value)} className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'City' : 'Cidade'}</label>
-                                <input required value={city} onChange={e => setCity(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                <label className="block text-[10px] font-bold text-[#15263f] uppercase mb-1">{isInternational ? 'City' : 'Cidade'}</label>
+                                <input required value={city} onChange={e => setCity(e.target.value)} className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{isInternational ? 'State & Country' : 'UF / País'}</label>
+                                <label className="block text-[10px] font-bold text-[#15263f] uppercase mb-1">{isInternational ? 'State & Country' : 'UF / País'}</label>
                                 <input required value={`${state}${country && country !== 'Brasil' ? ` (${country})` : ''}`} onChange={e => {
                                     if (isInternational) {
                                         // user might type state and country
@@ -595,7 +595,7 @@ export const RegisterOrganization = () => {
                                     } else {
                                         setState(e.target.value.toUpperCase().slice(0, 2));
                                     }
-                                }} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                }} className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-blue-500" />
                             </div>
                         </div>
                     </div>
