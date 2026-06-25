@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { MarketplaceBanner } from '../components/MarketplaceBanner';
+import { OfficialStores } from '../components/OfficialStores';
 import { 
   Logo, 
   LogoIcon 
@@ -943,7 +945,7 @@ export const LandingPage = () => {
 
       {/* DENTIST ONLINE STORE PRESENTATION SECTION */}
       {landingPageTab === 'LOJA_ONLINE' && (
-      <section id="loja-online" className="py-20 bg-slate-900 text-white relative overflow-hidden scroll-mt-20">
+      <section id="loja-online" className="bg-white min-h-screen text-slate-800">
         {/* Background accent lights */}
         <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-[100px] pointer-events-none" />
