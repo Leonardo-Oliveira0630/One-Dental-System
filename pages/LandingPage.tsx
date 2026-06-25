@@ -230,7 +230,7 @@ export const LandingPage = () => {
 
   const testimonials = [
     {
-      text: "O SmileProX revolucionou como controlamos as mais de 600 caixas físicas de produção ativa no laboratório. A precisão no controle de etapas reduziu nossos atrasos em incríveis 90% logo no primeiro mês!",
+      text: "O LabProX revolucionou como controlamos as mais de 600 caixas físicas de produção ativa no laboratório. A precisão no controle de etapas reduziu nossos atrasos em incríveis 90% logo no primeiro mês!",
       author: "Charles Martins",
       role: "Diretor Comercial do Laboratório Padilha",
       avatar: "C",
@@ -1184,7 +1184,7 @@ export const LandingPage = () => {
                           <div className="space-y-1.5">
                             <h4 className="text-sm font-black text-slate-900 uppercase">OS Gerada com Sucesso!</h4>
                             <p className="text-[10.5px] text-slate-600 leading-relaxed font-semibold">
-                              O faturamento automático SmilePro via Asaas foi liquidado e o arquivo STL de escaneamento 3D do paciente <strong>{patientName || "LUCAS OLIVEIRA MENEZES"}</strong> foi enviado diretamente para o painel de bancada técnica do <strong>Laboratório Oliveira</strong>!
+                              O faturamento automático LabPro via Asaas foi liquidado e o arquivo STL de escaneamento 3D do paciente <strong>{patientName || "LUCAS OLIVEIRA MENEZES"}</strong> foi enviado diretamente para o painel de bancada técnica do <strong>Laboratório Oliveira</strong>!
                             </p>
                           </div>
                           <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-left space-y-1">
@@ -1219,7 +1219,7 @@ export const LandingPage = () => {
                     <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
                       <div className="flex items-center gap-1.5">
                         <span className="text-teal-500 text-sm">🦷</span>
-                        <span className="text-[9px] font-black text-slate-800 uppercase tracking-widest font-mono">SMILEPROX PRO</span>
+                        <span className="text-[9px] font-black text-slate-800 uppercase tracking-widest font-mono">LABPROX PRO</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="text-right">
@@ -2155,7 +2155,7 @@ export const LandingPage = () => {
           
           <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
             <h2 className="text-2xl sm:text-3xl font-black font-display text-[#0F172A]">
-              Por que laboratórios líderes escolhem o SmileProX?
+              Por que laboratórios líderes escolhem o LabProX?
             </h2>
             <p className="text-xs sm:text-sm text-slate-500 font-semibold leading-relaxed">
               Estudamos de perto a mecânica diária de laboratórios de prótese para eliminar as maiores dores administrativas do negócio.
@@ -2640,7 +2640,7 @@ export const LandingPage = () => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
                 <div className="lg:col-span-4 text-center lg:text-left space-y-6 relative z-10">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-teal-50 border border-teal-200 rounded-full text-xs font-black text-teal-700 uppercase tracking-wider">
-                    <Sparkles size={11} className="text-teal-600 animate-pulse" /> SmileProX Clin — Gestão Inteligente
+                    <Sparkles size={11} className="text-teal-600 animate-pulse" /> LabProX Clin — Gestão Inteligente
                   </span>
                   
                   <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-display tracking-tight text-[#0F172A] leading-tight text-left">
@@ -2692,7 +2692,7 @@ export const LandingPage = () => {
                           <span className="w-3 h-3 rounded-full bg-yellow-500/80 inline-block" />
                           <span className="w-3 h-3 rounded-full bg-green-500/80 inline-block" />
                           <div className="flex items-center gap-2 ml-4">
-                            <span className="text-[10px] text-teal-450 font-black tracking-wider uppercase">SMILEPROX</span>
+                            <span className="text-[10px] text-teal-450 font-black tracking-wider uppercase">LabPROX</span>
                             <span className="w-1 h-3 bg-slate-800 rounded" />
                             <span className="text-[9px] text-slate-400 font-mono font-bold tracking-wider">TESTE2 - CIRURGIÃO-DENTISTA</span>
                           </div>
@@ -2706,7 +2706,7 @@ export const LandingPage = () => {
                       <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-sm z-10">
                         <div className="flex items-center gap-1.5">
                           <span className="text-slate-900 font-bold text-xs tracking-tight uppercase flex items-center gap-1">
-                            🦷 SmileProX <span className="text-[9px] font-medium text-slate-400">v1.5</span>
+                            🦷 LabProX <span className="text-[9px] font-medium text-slate-400">v1.5</span>
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600">
@@ -3684,7 +3684,7 @@ export const LandingPage = () => {
           </div>
 
           <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] text-slate-500 font-semibold tracking-wide uppercase">
-            <span>© 2026 SmileProX Operating System. Todos os direitos reservados.</span>
+            <span>© 2026 LabProX Operating System. Todos os direitos reservados.</span>
             <span>CNPJ: 00.000.000/0001-00 · Contato: comercial@smileprox.app</span>
           </div>
         </div>
