@@ -105,13 +105,13 @@ export const SupplierStore = () => {
 
   const handleShareStore = () => {
     if (!activeSupplierOrg) return;
-    const shareUrl = `${window.location.origin}/#/store-suppliers?supplierId=${activeSupplierOrg.id}`;
+    const shareUrl = `http://labprox.com.br/#/store-suppliers?supplierId=${activeSupplierOrg.id}`;
     navigator.clipboard.writeText(shareUrl);
     alert('Link da loja copiado para a área de transferência!');
   };
 
   const handleShareProduct = (product: InventoryItem) => {
-    const shareUrl = `${window.location.origin}/#/store-suppliers?supplierId=${product.organizationId}&productId=${product.id}`;
+    const shareUrl = `http://labprox.com.br/#/store-suppliers?supplierId=${product.organizationId}&productId=${product.id}`;
     navigator.clipboard.writeText(shareUrl);
     alert('Link do produto copiado para a área de transferência!');
   };

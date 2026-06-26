@@ -212,7 +212,8 @@ export type PermissionKey =
   | 'boxes:view' | 'boxes:create' | 'boxes:edit' | 'boxes:delete'
   | 'inventory:view' | 'inventory:create' | 'inventory:edit' | 'inventory:delete'
   | 'vip:view'
-  | 'calendar:view';
+  | 'calendar:view'
+  | 'store_suppliers:view';
 
 export type InventoryItemType = 'MATERIAL' | 'MACHINERY' | 'SUPPLY' | 'IMPLANT' | 'OTHER';
 

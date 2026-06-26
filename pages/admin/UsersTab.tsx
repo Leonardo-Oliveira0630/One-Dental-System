@@ -50,6 +50,11 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
     { key: 'boxes:create', label: 'Criar Caixas', category: 'Produção' },
     { key: 'boxes:edit', label: 'Editar Caixas', category: 'Produção' },
     { key: 'boxes:delete', label: 'Excluir Caixas', category: 'Produção' },
+    { key: 'inventory:view', label: 'Ver Estoque', category: 'Estoque' },
+    { key: 'inventory:create', label: 'Cadastrar Itens no Estoque', category: 'Estoque' },
+    { key: 'inventory:edit', label: 'Editar Itens de Estoque', category: 'Estoque' },
+    { key: 'inventory:delete', label: 'Excluir Itens de Estoque', category: 'Estoque' },
+    { key: 'store_suppliers:view', label: 'Acessar Loja de Fornecedores', category: 'Lojas' }
 ];
 
 export const UsersTab = () => {

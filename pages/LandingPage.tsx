@@ -160,7 +160,7 @@ export const LandingPage = () => {
   // Tabs & checkout mockup state variables
   const [storeTab, setStoreTab] = useState<'CATALOGO' | 'CARRINHO'>('CATALOGO');
   const [storePaymentMethod, setStorePaymentMethod] = useState<'CARTAO' | 'PIX'>('CARTAO');
-  const [couponCode, setCouponCode] = useState<string>('SMILEPROX10');
+  const [couponCode, setCouponCode] = useState<string>('LABPROX10');
   const [couponApplied, setCouponApplied] = useState<boolean>(false);
   const [simulatedCheckoutSuccess, setSimulatedCheckoutSuccess] = useState<boolean>(false);
 
@@ -469,7 +469,7 @@ export const LandingPage = () => {
                       <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
                     </div>
                     <div className="bg-[#131A23] border border-slate-800 text-[10px] text-slate-500 py-1 px-8 rounded-full font-mono max-w-xs truncate">
-                      www.smileprox.com.br
+                      www.labprox.com.br
                     </div>
                     <div className="w-8" />
                   </div>
@@ -1082,7 +1082,7 @@ export const LandingPage = () => {
                     <span className="w-2.5 h-2.5 rounded-full bg-green-500/80 inline-block" />
                   </div>
                   <div className="bg-slate-900 border border-slate-800 text-[10px] text-slate-400 py-0.5 px-6 rounded-full font-mono max-w-xs truncate">
-                    smileprox.com.br/dentista/loja_oliveira
+                    labprox.com.br/dentista/loja_oliveira
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-black px-1.5 py-0.5 rounded uppercase">Ativo</span>
@@ -1667,17 +1667,17 @@ export const LandingPage = () => {
                                     type="text" 
                                     value={couponCode} 
                                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                                    placeholder="INSIRA: SMILEPROX10"
+                                    placeholder="INSIRA: LABPROX10"
                                     className="flex-1 bg-slate-50 border border-slate-205 text-[9.5px] px-2.5 py-1.5 rounded-xl uppercase font-mono tracking-widest text-[#0F172A] font-bold placeholder-slate-455" 
                                   />
                                   <button 
                                     type="button"
                                     onClick={() => {
-                                      if (couponCode === 'SMILEPROX10') {
+                                      if (couponCode === 'LABPROX10') {
                                         setCouponApplied(true);
-                                        setStoreNotification("Cupom SMILEPROX10 ativado com sucesso! 10% OFF!");
+                                        setStoreNotification("Cupom LABPROX10 ativado com sucesso! 10% OFF!");
                                       } else {
-                                        setStoreNotification("Copie e tente o código: SMILEPROX10");
+                                        setStoreNotification("Copie e tente o código: LABPROX10");
                                       }
                                       setTimeout(() => setStoreNotification(null), 3000);
                                     }}
@@ -1761,7 +1761,7 @@ export const LandingPage = () => {
 
                         {/* Interactive tips footer */}
                         <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 mt-2 text-slate-500 font-bold text-[8px]">
-                          💡 Mude a forma de pagamento para <strong>PIX</strong> para acumular desconto, ou use o cupom <strong>SMILEPROX10</strong> para testar.
+                          💡 Mude a forma de pagamento para <strong>PIX</strong> para acumular desconto, ou use o cupom <strong>LABPROX10</strong> para testar.
                         </div>
 
                       </div>
@@ -3426,7 +3426,7 @@ export const LandingPage = () => {
                                           doctor: newApptDoctor
                                         }]);
                                         setShowAddApptForm(false);
-                                        setClinicNotification('Consulta agendada no SmileProX Clin!');
+                                        setClinicNotification('Consulta agendada no LabProX Clin!');
                                         setTimeout(() => setClinicNotification(null), 3000);
                                       }}
                                       className="px-3.5 py-1 bg-[#4f46e5] text-white rounded-lg font-black uppercase tracking-wider"
@@ -3555,7 +3555,7 @@ export const LandingPage = () => {
             </div>
           </section>
 
-          {/* Features description list detailed in SmileProX style */}
+          {/* Features description list detailed in LabProX style */}
           <section className="py-20 bg-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
@@ -3572,7 +3572,7 @@ export const LandingPage = () => {
                   {
                     icon: <CheckCircle2 className="text-teal-500" />,
                     title: "CRO e UF Validados na Entrada",
-                    desc: "Para garantir segurança jurídica completa, todos os dentistas cadastrados no SmileProX têm o registro de CRO e UF validados de forma proativa."
+                    desc: "Para garantir segurança jurídica completa, todos os dentistas cadastrados no LabProX têm o registro de CRO e UF validados de forma proativa."
                   },
                   {
                     icon: <Users className="text-teal-500" />,
@@ -3617,7 +3617,7 @@ export const LandingPage = () => {
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
               <span className="inline-flex text-5xl text-teal-400 font-serif">“</span>
               <p className="text-base sm:text-lg md:text-xl text-slate-700 italic font-semibold leading-relaxed text-center">
-                "Paramos de ligar para o laboratório para perguntar se o modelo de gesso foi vazado ou se a coroa monolítica já estava na rota do courier. Ver a barra de progresso em tempo real pelo SmileProX Clin economiza horas da nossa recepção todos os dias."
+                "Paramos de ligar para o laboratório para perguntar se o modelo de gesso foi vazado ou se a coroa monolítica já estava na rota do courier. Ver a barra de progresso em tempo real pelo LabProX Clin economiza horas da nossa recepção todos os dias."
               </p>
               <div>
                 <h4 className="font-black text-slate-950 text-base text-center">Dra. Clarice Rocha Guimarães</h4>
@@ -3685,7 +3685,7 @@ export const LandingPage = () => {
 
           <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] text-slate-500 font-semibold tracking-wide uppercase">
             <span>© 2026 LabProX Operating System. Todos os direitos reservados.</span>
-            <span>CNPJ: 00.000.000/0001-00 · Contato: comercial@smileprox.app</span>
+            <span>CNPJ: 00.000.000/0001-00 · Contato: comercial@labprox.com.br</span>
           </div>
         </div>
       </footer>
