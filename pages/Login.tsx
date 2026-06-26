@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Logo } from '../components/Logo';
 import { UserRole } from '../types';
@@ -10,6 +10,7 @@ import * as api from '../services/firebaseService';
 export const Login = () => {
   const { login, currentUser, isLoadingAuth } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +27,12 @@ export const Login = () => {
   // --- AUTO-REDIRECT LOGIC ---
   useEffect(() => {
     if (!isLoadingAuth && currentUser) {
-        if (currentUser.role === UserRole.CLIENT) {
+        const searchParams = new URLSearchParams(location.search);
+        const redirect = searchParams.get('redirect');
+        
+        if (redirect) {
+            navigate(redirect);
+        } else if (currentUser.role === UserRole.CLIENT) {
             navigate('/store');
         } else if (currentUser.role === UserRole.SUPER_ADMIN) {
             navigate('/superadmin');
@@ -34,7 +40,7 @@ export const Login = () => {
             navigate('/dashboard');
         }
     }
-  }, [currentUser, isLoadingAuth, navigate]);
+  }, [currentUser, isLoadingAuth, navigate, location.search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

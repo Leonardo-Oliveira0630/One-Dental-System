@@ -247,7 +247,8 @@ export const RegisterOrganization = () => {
               }
           }
           
-          navigate('/dashboard');
+          const redirectUrl = searchParams.get('redirect');
+          navigate(redirectUrl || '/dashboard');
       } else if (regType === 'LAB_OUTSOURCED') {
           regUser = await registerOutsourcedLab(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
               address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone
@@ -268,7 +269,8 @@ export const RegisterOrganization = () => {
               }
           }
           
-          navigate('/store');
+          const redirectUrl = searchParams.get('redirect');
+          navigate(redirectUrl || '/store');
       } else if (regType === 'SUPPLIER') {
           regUser = await registerSupplier(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
               address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone
@@ -287,7 +289,8 @@ export const RegisterOrganization = () => {
                   console.error("Erro ao gerar fatura/assinatura Asaas automática:", subErr);
               }
           }
-          navigate('/supplier/dashboard');
+          const redirectUrl = searchParams.get('redirect');
+          navigate(redirectUrl || '/supplier/dashboard');
       } else {
           // Validate CRO first
           if (!croUf || !croNumero || !croCategoria) {
@@ -310,7 +313,8 @@ export const RegisterOrganization = () => {
                   croValid: check?.valido || false,
                   isApproved: check?.valido || false
               });
-              navigate('/store'); // Goes to store
+              const redirectUrl = searchParams.get('redirect');
+              navigate(redirectUrl || '/store'); // Goes to store
           } catch (validateErr: any) {
               console.error("Erro na consulta de CRO:", validateErr);
               // Safe fallback if API has trouble: let register but require manual review
@@ -322,7 +326,8 @@ export const RegisterOrganization = () => {
                   croValid: false,
                   isApproved: false
               });
-              navigate('/store');
+              const redirectUrl = searchParams.get('redirect');
+              navigate(redirectUrl || '/store');
           }
       }
     } catch (err: any) {

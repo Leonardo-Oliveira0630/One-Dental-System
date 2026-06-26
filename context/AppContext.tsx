@@ -469,14 +469,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsubs: (() => void)[] = [];
     const isSuper = currentUser.role === UserRole.SUPER_ADMIN;
 
-    // Apenas Super Admin ouve cupons e configurações globais
+    // Apenas Super Admin ouve cupons e outras coisas
     if (isSuper) {
         unsubs.push(api.subscribeCoupons(setCoupons));
-        unsubs.push(api.subscribeGlobalSettings(setGlobalSettings));
         unsubs.push(api.subscribeAllOrganizations(setAllOrganizations));
         unsubs.push(api.subscribeAllUsers(setAllUsers));
         unsubs.push(api.subscribeAllPayments(setAllPayments));
     }
+    
+    // Todos os usuários ouvem as configurações globais (banners, etc)
+    unsubs.push(api.subscribeGlobalSettings(setGlobalSettings));
 
     if (activeDataId) {
         const isClient = currentUser.role === UserRole.CLIENT;

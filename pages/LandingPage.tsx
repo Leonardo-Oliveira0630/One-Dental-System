@@ -244,7 +244,7 @@ export const LandingPage = () => {
       stats: "Redução de 75% no tempo de ligação"
     },
     {
-      text: "Calcular comissões de bancada no fechamento da semana sempre foi um pesadelo demorado. Com o SmileProX, cada setor lança seu trabalho e a folha se auto-compõe conforme o material (Zircônia, Emax, etc.). Recomendadíssimo!",
+      text: "Calcular comissões de bancada no fechamento da semana sempre foi um pesadelo demorado. Com o LabProX, cada setor lança seu trabalho e a folha se auto-compõe conforme o material (Zircônia, Emax, etc.). Recomendadíssimo!",
       author: "Felipe Assis",
       role: "Protético-Chefe e Reabilitador Oral",
       avatar: "F",

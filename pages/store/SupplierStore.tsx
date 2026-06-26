@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InventoryItem, Organization, SupplierOrder, StoreLayoutBlock } from '../../types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MarketplaceBanner } from '../../components/MarketplaceBanner';
 import { OfficialStores } from '../../components/OfficialStores';
 import { 
@@ -69,6 +69,24 @@ export const SupplierStore = () => {
   const [bannerIndex, setBannerIndex] = useState(0);
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const supplierIdParam = searchParams.get('supplierId');
+    const productIdParam = searchParams.get('productId');
+
+    if (supplierIdParam) {
+      setSelectedSupplierId(supplierIdParam);
+    }
+    
+    if (productIdParam && allSupplierProducts.length > 0) {
+      const product = allSupplierProducts.find(p => p.id === productIdParam);
+      if (product) {
+        setSelectedItemForDetail(product);
+      }
+    }
+  }, [location.search, allSupplierProducts]);
 
   // Get active supplier organization information if a specific supplier is selected
   const activeSupplierOrg = useMemo(() => {
@@ -85,16 +103,33 @@ export const SupplierStore = () => {
     }
   }, [activeSupplierOrg]);
 
+  const handleShareStore = () => {
+    if (!activeSupplierOrg) return;
+    const shareUrl = `${window.location.origin}/#/store-suppliers?supplierId=${activeSupplierOrg.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert('Link da loja copiado para a área de transferência!');
+  };
+
+  const handleShareProduct = (product: InventoryItem) => {
+    const shareUrl = `${window.location.origin}/#/store-suppliers?supplierId=${product.organizationId}&productId=${product.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert('Link do produto copiado para a área de transferência!');
+  };
+
   const StoreHeader = () => (
     <header className="flex items-center justify-between p-4 bg-white border-b border-slate-200">
-      <button onClick={() => navigate('/marketplace')} className="flex items-center gap-2 text-slate-600 font-medium text-sm">
+      <button onClick={() => setSelectedSupplierId('ALL')} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium text-sm">
         <ChevronLeft size={16} /> Voltar ao Marketplace
       </button>
       <div className="flex items-center gap-3">
           {activeSupplierOrg?.storeSettings?.profilePhotoUrl && <img src={activeSupplierOrg.storeSettings.profilePhotoUrl} className="w-10 h-10 rounded-full object-cover border border-slate-200" />}
           <h1 className="text-xl font-bold">{activeSupplierOrg?.name}</h1>
       </div>
-      <div className="w-40"></div> {/* Spacer to keep title centered */}
+      <div className="flex items-center justify-end gap-3 w-auto">
+         <button onClick={handleShareStore} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+            <ClipboardCheck size={14} /> Compartilhar Loja
+         </button>
+      </div>
     </header>
   );
 
@@ -1078,12 +1113,20 @@ export const SupplierStore = () => {
                   {getSupplierName(selectedItemForDetail.organizationId)}
                 </span>
               </div>
-              <button 
-                onClick={() => setSelectedItemForDetail(null)}
-                className="text-slate-400 hover:text-slate-900 p-2"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleShareProduct(selectedItemForDetail)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 rounded-lg hover:bg-indigo-50 transition-colors"
+                >
+                  <ClipboardCheck size={14} /> Compartilhar Produto
+                </button>
+                <button 
+                  onClick={() => setSelectedItemForDetail(null)}
+                  className="text-slate-400 hover:text-slate-900 p-2"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
