@@ -23,15 +23,12 @@ const getAsaasConfig = async () => {
     throw new Error("Chave de API do Asaas não configurada no servidor.");
   }
 
-  // Identifica ambiente pelo prefixo da chave ($a = Produção)
-  const isProduction = apiKey.startsWith("$a");
+  // Identifica ambiente
+  const isProduction = true; // Forcing production as requested
 
   // URLs Oficiais do Asaas:
-  // Sandbox: https://sandbox.asaas.com/api/v3
   // Produção: https://api.asaas.com/v3 (ou https://www.asaas.com/api/v3)
-  const baseUrl = isProduction ?
-    "https://api.asaas.com/v3" :
-    "https://sandbox.asaas.com/api/v3";
+  const baseUrl = "https://api.asaas.com/v3";
 
   const envName = isProduction ? "PRODUÇÃO" : "SANDBOX";
   functions.logger.info(`Conectando ao Asaas em modo: ${envName}`);
@@ -237,14 +234,20 @@ export const generateBatchBoleto = functions.https.onCall(async (request) => {
     const walletId = orgSnap.data()?.financialSettings?.asaasWalletId;
 
     let finalSplitPercent = splitPercent;
-    const planId = orgSnap.data()?.planId;
-    if (planId) {
-      const planSnap = await db.collection("subscriptionPlans")
-        .doc(planId).get();
-      if (planSnap.exists) {
-        const planSplit = planSnap.data()?.features?.splitPercent;
-        if (planSplit !== undefined && planSplit !== null) {
-          finalSplitPercent = Number(planSplit);
+    const customSplit = orgSnap.data()?.financialSettings?.customSplitPercent;
+
+    if (customSplit !== undefined && customSplit !== null) {
+      finalSplitPercent = Number(customSplit);
+    } else {
+      const planId = orgSnap.data()?.planId;
+      if (planId) {
+        const planSnap = await db.collection("subscriptionPlans")
+          .doc(planId).get();
+        if (planSnap.exists) {
+          const planSplit = planSnap.data()?.features?.splitPercent;
+          if (planSplit !== undefined && planSplit !== null) {
+            finalSplitPercent = Number(planSplit);
+          }
         }
       }
     }
@@ -382,12 +385,201 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
       .collection("organizations")
       .doc(orgId)
       .update({
-        "financialSettings.asaasWalletId": res.data.apiKey,
+        "financialSettings.asaasWalletId": res.data.walletId || res.data.id || res.data.apiKey,
+        "financialSettings.asaasApiKey": res.data.apiKey,
         "financialSettings.asaasWalletStatus": "PENDING",
       });
     return {success: true};
   } catch (error: any) {
     throw new functions.https.HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * CRIA PAGAMENTO PARA PEDIDO DA LOJA VIRTUAL (CARTÃO/PIX)
+ */
+export const createOrderPayment = functions.https.onCall(async (request) => {
+  const {jobData, paymentData} = request.data;
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+  }
+  
+  const db = admin.firestore();
+  
+  try {
+    const {key, url, splitPercent} = await getAsaasConfig();
+    const orgSnap = await db.collection("organizations").doc(jobData.organizationId).get();
+    const walletId = orgSnap.data()?.financialSettings?.asaasWalletId;
+
+    let finalSplitPercent = splitPercent;
+    const customSplit = orgSnap.data()?.financialSettings?.customSplitPercent;
+    if (customSplit !== undefined && customSplit !== null) {
+      finalSplitPercent = Number(customSplit);
+    } else {
+      const planId = orgSnap.data()?.planId;
+      if (planId) {
+        const planSnap = await db.collection("subscriptionPlans").doc(planId).get();
+        if (planSnap.exists) {
+          const planSplit = planSnap.data()?.features?.splitPercent;
+          if (planSplit !== undefined && planSplit !== null) {
+            finalSplitPercent = Number(planSplit);
+          }
+        }
+      }
+    }
+
+    // Criar/buscar cliente
+    let customerId = "";
+    try {
+      const docNum = paymentData.cpfCnpj;
+      const searchRes = await axios.get(`${url}/customers?cpfCnpj=${docNum}`, {
+        headers: {access_token: key},
+      });
+      if (searchRes.data.data && searchRes.data.data.length > 0) {
+        customerId = searchRes.data.data[0].id;
+      } else {
+        const customerRes = await axios.post(`${url}/customers`, {
+          name: jobData.dentistName || "Cliente Loja",
+          cpfCnpj: docNum,
+          notificationDisabled: true,
+        }, {headers: {access_token: key}});
+        customerId = customerRes.data.id;
+      }
+    } catch (err: any) {
+      throw new Error("Erro cliente Asaas: " + (err.response?.data?.errors?.[0]?.description || err.message));
+    }
+
+    const payload: any = {
+      customer: customerId,
+      billingType: paymentData.method,
+      value: jobData.totalValue,
+      dueDate: new Date().toISOString().split("T")[0],
+      description: `Pedido Loja - ${jobData.organizationId}`,
+    };
+
+    if (paymentData.method === "CREDIT_CARD" && paymentData.creditCard) {
+      payload.creditCard = {
+        holderName: paymentData.creditCard.holderName,
+        number: paymentData.creditCard.number,
+        expiryMonth: paymentData.creditCard.expiry.split("/")[0],
+        expiryYear: "20" + paymentData.creditCard.expiry.split("/")[1],
+        ccv: paymentData.creditCard.cvv
+      };
+      payload.creditCardHolderInfo = {
+        name: paymentData.creditCard.holderName,
+        email: "email@cliente.com",
+        cpfCnpj: paymentData.cpfCnpj,
+        postalCode: "01001-000",
+        addressNumber: "123",
+        phone: "11999999999"
+      };
+    }
+
+    if (walletId && walletId.length > 10) {
+      payload.split = [{walletId, percentualValue: 100 - finalSplitPercent}];
+    }
+
+    const payRes = await axios.post(`${url}/payments`, payload, {
+      headers: {access_token: key},
+    });
+
+    const newJobId = `web_${Date.now()}`;
+    const newJobData = {
+      ...jobData,
+      id: newJobId,
+      asaasPaymentId: payRes.data.id,
+      paymentStatus: payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED' ? 'PAID' : 'PENDING'
+    };
+
+    await db.collection("organizations")
+      .doc(jobData.organizationId)
+      .collection("jobs")
+      .doc(newJobId)
+      .set(newJobData);
+
+    return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, pixQrCode: payRes.data.pixQrCode || null };
+  } catch (error: any) {
+    const msg = error.response?.data?.errors?.[0]?.description || error.message;
+    throw new functions.https.HttpsError("internal", msg);
+  }
+});
+
+/**
+ * CRIA COBRANÇA PARA PACIENTE DA CLÍNICA
+ */
+export const createPatientPayment = functions.https.onCall(async (request) => {
+  const {orgId, patientId, totalAmount, dueDate, title} = request.data;
+  if (!request.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+  }
+  
+  const db = admin.firestore();
+  
+  try {
+    const {key, url, splitPercent} = await getAsaasConfig();
+    const orgSnap = await db.collection("organizations").doc(orgId).get();
+    const walletId = orgSnap.data()?.financialSettings?.asaasWalletId;
+
+    let finalSplitPercent = splitPercent;
+    const customSplit = orgSnap.data()?.financialSettings?.customSplitPercent;
+    if (customSplit !== undefined && customSplit !== null) {
+      finalSplitPercent = Number(customSplit);
+    } else {
+      const planId = orgSnap.data()?.planId;
+      if (planId) {
+        const planSnap = await db.collection("subscriptionPlans").doc(planId).get();
+        if (planSnap.exists) {
+          const planSplit = planSnap.data()?.features?.splitPercent;
+          if (planSplit !== undefined && planSplit !== null) {
+            finalSplitPercent = Number(planSplit);
+          }
+        }
+      }
+    }
+
+    const patientSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(patientId).get();
+    const patientData = patientSnap.data() || { name: "Paciente " + patientId, document: "00000000000" };
+
+    let customerId = "";
+    try {
+      const docNum = (patientData.document || "00000000000").replace(/\D/g, "");
+      const searchRes = await axios.get(`${url}/customers?cpfCnpj=${docNum}`, {
+        headers: {access_token: key},
+      });
+      if (searchRes.data.data && searchRes.data.data.length > 0) {
+        customerId = searchRes.data.data[0].id;
+      } else {
+        const customerRes = await axios.post(`${url}/customers`, {
+          name: patientData.name,
+          cpfCnpj: docNum,
+          notificationDisabled: true,
+        }, {headers: {access_token: key}});
+        customerId = customerRes.data.id;
+      }
+    } catch (err: any) {
+      throw new Error("Erro cliente Asaas (Paciente): " + (err.response?.data?.errors?.[0]?.description || err.message));
+    }
+
+    const payload: any = {
+      customer: customerId,
+      billingType: "BOLETO", // Pode ser configurado pelo dentista
+      value: totalAmount,
+      dueDate: dueDate.split("T")[0],
+      description: title || "Fatura Clínica",
+    };
+
+    if (walletId && walletId.length > 10) {
+      payload.split = [{walletId, percentualValue: 100 - finalSplitPercent}];
+    }
+
+    const payRes = await axios.post(`${url}/payments`, payload, {
+      headers: {access_token: key},
+    });
+
+    return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl };
+  } catch (error: any) {
+    const msg = error.response?.data?.errors?.[0]?.description || error.message;
+    throw new functions.https.HttpsError("internal", msg);
   }
 });
 

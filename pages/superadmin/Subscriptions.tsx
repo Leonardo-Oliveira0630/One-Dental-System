@@ -239,6 +239,54 @@ const Subscriptions: React.FC = () => {
                     </button>
                   )}
                 </div>
+                
+                <div className="pt-4 border-t border-gray-100 mt-2 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-gray-700 uppercase tracking-widest">Split Customizado</span>
+                    <span className="text-gray-500 font-mono">
+                      {org.financialSettings?.customSplitPercent !== undefined 
+                        ? `${org.financialSettings.customSplitPercent}%` 
+                        : 'Padrão do Plano'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="number" 
+                      min="0" max="100" step="0.01"
+                      placeholder="%"
+                      className="w-16 px-2 py-1 text-xs border rounded-md"
+                      id={`split-input-${org.id}`}
+                    />
+                    <button 
+                      onClick={async () => {
+                        const input = document.getElementById(`split-input-${org.id}`) as HTMLInputElement;
+                        if (input && input.value !== '') {
+                          const val = parseFloat(input.value);
+                          await updateOrganization(org.id, {
+                            financialSettings: {
+                              ...org.financialSettings,
+                              customSplitPercent: val
+                            }
+                          });
+                          input.value = '';
+                        }
+                      }}
+                      className="px-2 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-bold rounded-md border border-amber-300"
+                    >
+                      Salvar
+                    </button>
+                    <button 
+                      onClick={async () => {
+                         const patch: any = { financialSettings: { ...org.financialSettings } };
+                         patch.financialSettings.customSplitPercent = null;
+                         await updateOrganization(org.id, patch);
+                      }}
+                      className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-md border border-gray-300"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
             </div>
           </div>
         ))}

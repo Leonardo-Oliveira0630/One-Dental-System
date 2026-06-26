@@ -795,6 +795,10 @@ export const apiCreateOrderPayment = async (jobData: any, paymentData: any) => {
     const fn = httpsCallable(functions, 'createOrderPayment');
     return (await fn({ jobData, paymentData })).data;
 };
+export const apiCreatePatientPayment = async (orgId: string, patientId: string, totalAmount: number, dueDate: string, title?: string) => {
+    const fn = httpsCallable(functions, 'createPatientPayment');
+    return (await fn({ orgId, patientId, totalAmount, dueDate, title })).data;
+};
 export const apiManageOrderDecision = async (orgId: string, jobId: string, decision: 'APPROVE' | 'REJECT', reason?: string) => {
     const fn = httpsCallable(functions, 'manageOrderDecision');
     return (await fn({ orgId, jobId, decision, reason })).data;

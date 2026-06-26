@@ -370,11 +370,28 @@ export const ClinicFinance = () => {
         try {
             const hasWalletId = !!currentOrg?.financialSettings?.asaasWalletId;
             if (!hasWalletId) {
-                setShowAsaasWarningModal(true);
-                setIsSaving(false);
-                return;
+                 setShowAsaasWarningModal(true);
+                 setIsSaving(false);
+                 return;
             }
-            const simulatedLink = `https://sandbox.asaas.com/invoice/checkout/simulated-${Math.random().toString(36).substring(2, 8)}`;
+            
+            let finalPaymentLink = '';
+            
+            if (hasWalletId) {
+                 const dueDateStr = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+                 try {
+                     const res: any = await api.apiCreatePatientPayment(currentOrg.id, selectedPatientId, billForm.amount, dueDateStr, "Fatura Paciente");
+                     if (res.success && res.invoiceUrl) {
+                         finalPaymentLink = res.invoiceUrl;
+                     }
+                 } catch (e: any) {
+                     alert("Erro ao criar fatura no Asaas: " + e.message);
+                     setIsSaving(false);
+                     return;
+                 }
+            } else {
+                 finalPaymentLink = `https://www.asaas.com/invoice/checkout/simulated-${Math.random().toString(36).substring(2, 8)}`;
+            }
             
             await addPatientBillingBatch({
                 patientId: selectedPatientId,
@@ -383,9 +400,9 @@ export const ClinicFinance = () => {
                 billingDate: new Date(),
                 dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
                 status: 'PENDING',
-                paymentLink: simulatedLink,
+                paymentLink: finalPaymentLink,
                 pixCopyPaste: `00020126360014BR.GOV.BCB.PIX0114clinicanas${selectedPatientId.substring(0,4)}5204000053039865405${billForm.amount.toFixed(2)}5802BR5915SmileproxClin6009SaoPaulo62070503***6304A1B2`,
-                bankSlipUrl: simulatedLink
+                bankSlipUrl: finalPaymentLink
             });
 
             alert(`Fatura gerada com sucesso! ${hasWalletId ? 'Emitido boleto via Asaas Wallet cadastrado.' : 'Gerado modo Pix/Boleto simplificado.'}`);

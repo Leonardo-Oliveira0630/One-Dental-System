@@ -1059,11 +1059,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       status: 'PENDING',
       dueDate,
       createdAt: new Date(),
-      boletoUrl: `https://sandbox.asaas.com/api/v3/payments/dummy_${batchId}/pdf`,
-      invoiceUrl: `https://sandbox.asaas.com/api/v3/payments/dummy_${batchId}/invoice`
+      boletoUrl: `https://www.asaas.com/api/v3/payments/dummy_${batchId}/pdf`,
+      invoiceUrl: `https://www.asaas.com/api/v3/payments/dummy_${batchId}/invoice`
     };
 
-    if (currentOrg?.asaasApiKey && currentOrg?.financialSettings?.asaasWalletId) {
+    if (currentOrg?.financialSettings?.asaasWalletId) {
        try {
          const result = await api.apiGenerateBatchBoleto(orgId, dentistId, jobIds, dueDate);
          if (result) {

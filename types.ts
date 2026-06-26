@@ -90,6 +90,7 @@ export interface Organization {
     asaasWalletId?: string;
     asaasWalletStatus?: string;
     asaasAccountNumber?: string;
+    customSplitPercent?: number;
     businessData?: any;
     balance?: number;
     pendingBalance?: number;

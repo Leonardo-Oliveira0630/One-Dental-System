@@ -158,11 +158,9 @@ export const Plans = () => {
                                         <span className="text-2xl font-black text-slate-900">R$ {plan.price.toFixed(2)}</span>
                                         <span className="text-[10px] text-slate-400 font-bold uppercase">/mês</span>
                                     </div>
-                                    {(plan.targetAudience === 'SUPPLIER' || plan.targetAudience === 'LAB_OUTSOURCED') && (
-                                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase tracking-tighter">
-                                            Split: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Padrão'}
-                                        </span>
-                                    )}
+                                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase tracking-tighter">
+                                        Split: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Padrão'}
+                                    </span>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 mb-6">
@@ -227,7 +225,6 @@ export const Plans = () => {
                                 </div>
                             </div>
 
-                            {(targetAudience === 'SUPPLIER' || targetAudience === 'LAB_OUTSOURCED') && (
                                 <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-[24px] space-y-2">
                                     <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest ml-1">Split da Plataforma (%)</label>
                                     <div className="flex items-center gap-2">
@@ -244,10 +241,9 @@ export const Plans = () => {
                                         <span className="text-sm font-black text-amber-700">%</span>
                                     </div>
                                     <p className="text-[10px] text-amber-600 font-medium leading-normal">
-                                        Esse plano aplica uma taxa de split configurada para cada venda realizada. Se você colocar 0%, o split será zerado e apenas a mensalidade do plano será cobrada.
+                                        Esse plano aplica uma taxa de split configurada para cada venda/pagamento realizado. Se você colocar 0%, o split será zerado e apenas a mensalidade do plano será cobrada.
                                     </p>
                                 </div>
-                            )}
                         </div>
 
                         {/* SEÇÃO DE LIMITES - CUSTOMIZAÇÃO REQUERIDA */}
