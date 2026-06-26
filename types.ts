@@ -27,6 +27,7 @@ export interface MarketplaceBannerConfig {
 export interface GlobalSettings {
   platformCommission: number;
   marketplaceBanners?: MarketplaceBannerConfig[];
+  officialStoresIds?: string[];
   updatedAt: Date;
   updatedBy: string;
 }

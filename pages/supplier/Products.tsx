@@ -5,7 +5,7 @@ import { smartCompress } from '../../services/compressionService';
 import { 
   Package, Plus, Trash2, Edit2, Search, X, Box, Tag, 
   Info, Check, Save, Image, Eye, EyeOff, Loader2, Sparkles, Layers, RefreshCw,
-  Folder, ToggleLeft, ToggleRight, Type, PercentCircle, AlertCircle
+  Folder, ToggleLeft, ToggleRight, Type, PercentCircle, AlertCircle, ClipboardCheck
 } from 'lucide-react';
 
 export const SupplierProducts = () => {
@@ -450,6 +450,20 @@ export const SupplierProducts = () => {
     }
   };
 
+  const handleShareStore = () => {
+    if (!currentUser?.organizationId) return;
+    const shareUrl = `${window.location.origin}/#/store-suppliers?supplierId=${currentUser.organizationId}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert('Link da loja copiado para a área de transferência!');
+  };
+
+  const handleShareProduct = (productId: string) => {
+    if (!currentUser?.organizationId) return;
+    const shareUrl = `${window.location.origin}/#/store-suppliers?supplierId=${currentUser.organizationId}&productId=${productId}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert('Link do produto copiado para a área de transferência!');
+  };
+
   return (
     <main id="supplier-products" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-950 text-slate-100 min-h-screen">
       {/* Header */}
@@ -459,7 +473,14 @@ export const SupplierProducts = () => {
           <p className="text-slate-400 text-sm mt-0.5">Efetue o controle e exponha fotos adicionais, variações inteligentes ou crie combos.</p>
         </div>
 
-        <div className="flex gap-2.5">
+        <div className="flex flex-wrap gap-2.5">
+          <button
+            onClick={handleShareStore}
+            className="bg-slate-800 hover:bg-slate-700 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg flex items-center gap-2 self-start"
+          >
+            <ClipboardCheck size={18} /> Copiar Link da Loja
+          </button>
+          
           <button
             onClick={() => openModal()}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg shadow-indigo-950/40 flex items-center gap-2 self-start"
@@ -657,12 +678,23 @@ export const SupplierProducts = () => {
                 <Package className="text-indigo-400" />
                 {editingItemId ? 'Editar Produto / Combo' : 'Cadastrar Novo Produto / Combo'}
               </h3>
-              <button 
-                onClick={() => setIsModalOpen(false)} 
-                className="text-slate-400 hover:text-white"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-3">
+                {editingItemId && (
+                  <button
+                    type="button"
+                    onClick={() => handleShareProduct(editingItemId)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors"
+                  >
+                    <ClipboardCheck size={14} /> Copiar Link
+                  </button>
+                )}
+                <button 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="text-slate-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
             <form onSubmit={saveItem} className="p-6 overflow-y-auto space-y-6 flex-1">

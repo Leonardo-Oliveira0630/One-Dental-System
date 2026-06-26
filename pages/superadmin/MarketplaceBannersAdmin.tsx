@@ -5,14 +5,18 @@ import { MarketplaceBannerConfig } from '../../types';
 import { uploadBannerImage } from '../../services/firebaseService';
 
 export const MarketplaceBannersAdmin = () => {
-    const { globalSettings, updateGlobalSettings } = useApp();
+    const { globalSettings, updateGlobalSettings, allSuppliers } = useApp();
     const [banners, setBanners] = useState<MarketplaceBannerConfig[]>([]);
+    const [officialStoresIds, setOfficialStoresIds] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [uploadingId, setUploadingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (globalSettings?.marketplaceBanners) {
             setBanners(globalSettings.marketplaceBanners);
+        }
+        if (globalSettings?.officialStoresIds) {
+            setOfficialStoresIds(globalSettings.officialStoresIds);
         }
     }, [globalSettings]);
 
@@ -61,8 +65,11 @@ export const MarketplaceBannersAdmin = () => {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await updateGlobalSettings({ marketplaceBanners: banners });
-            alert("Banners do marketplace atualizados com sucesso!");
+            await updateGlobalSettings({ 
+                marketplaceBanners: banners,
+                officialStoresIds: officialStoresIds 
+            });
+            alert("Configurações do marketplace atualizadas com sucesso!");
         } catch (err) {
             alert("Erro ao salvar.");
         } finally {
@@ -70,12 +77,18 @@ export const MarketplaceBannersAdmin = () => {
         }
     };
 
+    const toggleOfficialStore = (id: string) => {
+        setOfficialStoresIds(prev => 
+            prev.includes(id) ? prev.filter(storeId => storeId !== id) : [...prev, id]
+        );
+    };
+
     return (
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
             <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <ImageIcon className="text-slate-600" />
-                    <h2 className="font-black text-slate-800 text-lg uppercase tracking-tight">Banners do Marketplace (Fornecedores)</h2>
+                    <h2 className="font-black text-slate-800 text-lg uppercase tracking-tight">Banners e Lojas Oficiais (Marketplace)</h2>
                 </div>
                 <button 
                     onClick={handleSave}
@@ -83,12 +96,48 @@ export const MarketplaceBannersAdmin = () => {
                     className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2"
                 >
                     {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    Salvar Banners
+                    Salvar Configurações
                 </button>
             </div>
             
-            <div className="p-6 space-y-6">
-                {banners.map((banner, index) => (
+            <div className="p-6 space-y-12">
+                {/* Lojas Oficiais Section */}
+                <div className="space-y-4">
+                    <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2">Lojas Oficiais (Destaque)</h3>
+                    <p className="text-xs text-slate-500">Selecione quais fornecedores devem aparecer na seção "Lojas Oficiais" do Marketplace.</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {allSuppliers.map(supplier => (
+                            <label key={supplier.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+                                <input 
+                                    type="checkbox" 
+                                    checked={officialStoresIds.includes(supplier.id)}
+                                    onChange={() => toggleOfficialStore(supplier.id)}
+                                    className="w-4 h-4 text-blue-600 rounded"
+                                />
+                                <div className="flex items-center gap-2">
+                                    {supplier.logoUrl ? (
+                                        <img src={supplier.logoUrl} alt={supplier.name} className="w-6 h-6 rounded-full object-cover" />
+                                    ) : (
+                                        <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[8px] font-bold">
+                                            {supplier.name.slice(0, 2).toUpperCase()}
+                                        </div>
+                                    )}
+                                    <span className="text-sm font-semibold text-slate-700 truncate" title={supplier.name}>{supplier.name}</span>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Banners Section */}
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                        <h3 className="font-bold text-slate-800">Banners Rotativos</h3>
+                        <button onClick={handleAddBanner} className="flex items-center gap-1 text-sm text-blue-600 font-bold hover:text-blue-700">
+                            <Plus size={16} /> Adicionar Banner
+                        </button>
+                    </div>
+                    {banners.map((banner, index) => (
                     <div key={banner.id} className="p-6 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-4">
                         <div className="flex justify-between items-center">
                             <h4 className="font-bold text-slate-700">Banner #{index + 1}</h4>
@@ -201,6 +250,7 @@ export const MarketplaceBannersAdmin = () => {
                 >
                     <Plus /> Adicionar Novo Banner
                 </button>
+                </div>
             </div>
         </div>
     );

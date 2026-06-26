@@ -33,7 +33,7 @@ type SortOption = 'RELEVANCE' | 'LATEST' | 'SALES' | 'PRICE_ASC' | 'PRICE_DESC';
 
 export const SupplierStore = () => {
   const { 
-    allSuppliers, allSupplierProducts, addSupplierOrder, currentUser, currentOrg 
+    allSuppliers, allSupplierProducts, addSupplierOrder, currentUser, currentOrg, globalSettings 
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -633,14 +633,14 @@ export const SupplierStore = () => {
 
           {/* LOJAS OFICIAIS */}
           <div className="bg-white border-b border-gray-200">
-            <OfficialStores suppliers={allSuppliers} />
-          </div>
-          
-          {/* Footer Sponsor Banner */}
-          <div className="bg-gradient-to-br from-[#15263f] to-[#0d1726] p-10 rounded-3xl text-center text-white shadow-2xl mt-8 mx-6">
-            <h3 className="text-2xl font-black mb-2">Quer patrocinar o Marketplace?</h3>
-            <p className="text-slate-400 text-sm mb-6 max-w-lg mx-auto">Entre em contato para expor sua marca em banner de destaque para milhares de profissionais.</p>
-            <button className="bg-white text-black font-black px-8 py-4 rounded-2xl">Quero Patrocinar</button>
+            <OfficialStores 
+              suppliers={
+                globalSettings?.officialStoresIds?.length 
+                  ? allSuppliers.filter(s => globalSettings.officialStoresIds?.includes(s.id))
+                  : allSuppliers
+              } 
+              onStoreClick={(id) => setSelectedSupplierId(id)}
+            />
           </div>
         </>
       )}
