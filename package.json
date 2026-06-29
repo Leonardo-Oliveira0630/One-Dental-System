@@ -34,6 +34,8 @@
     "date-fns": "^4.1.0",
     "file-saver": "^2.0.5",
     "firebase": "^10.9.0",
+    "firebase-admin": "^13.10.0",
+    "firebase-functions": "^7.2.5",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",

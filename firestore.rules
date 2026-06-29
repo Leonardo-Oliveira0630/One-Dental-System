@@ -169,6 +169,25 @@ service cloud.firestore {
       }
     }
     
+    match /supplierOrders/{orderId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || 
+        belongsToOrg(resource.data.buyerOrgId) || 
+        belongsToOrg(resource.data.supplierId)
+      );
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() || 
+        belongsToOrg(request.resource.data.buyerOrgId) || 
+        belongsToOrg(request.resource.data.supplierId)
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() || 
+        belongsToOrg(resource.data.buyerOrgId) || 
+        belongsToOrg(resource.data.supplierId)
+      );
+      allow delete: if isSuperAdmin();
+    }
+
     match /settings/global {
       allow read: if isAuthenticated();
       allow write: if isSuperAdmin();

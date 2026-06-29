@@ -1,8 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
-import * as functions from "firebase-functions";
+import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import * as logger from "firebase-functions/logger";
+import { setGlobalOptions } from "firebase-functions/v2";
+
+setGlobalOptions({ maxInstances: 10 });
 import * as admin from "firebase-admin";
 import axios from "axios";
-
+// Triggers sync 2
 if (admin.apps.length === 0) {
   admin.initializeApp();
 }
@@ -15,12 +19,12 @@ const getAsaasConfig = async () => {
   const settingsSnap = await db.collection("settings").doc("global").get();
   const settings = settingsSnap.data();
 
-  // Prioridade: Env Var
-  const apiKey = process.env.ASAAS_API_KEY;
+  // Prioridade: Database (settings/global) -> Env Var (Google Cloud Secret Manager ou .env)
+  const apiKey = settings?.asaasApiKey || process.env.ASAAS_API_KEY;
 
   if (!apiKey || apiKey === "SUA_CHAVE_AQUI") {
-    functions.logger.error("ERRO: ASAAS_API_KEY não configurada.");
-    throw new Error("Chave de API do Asaas não configurada no servidor.");
+    logger.error("ERRO: ASAAS_API_KEY não configurada.");
+    throw new Error("Chave de API do Asaas não configurada no servidor. Configure a chave no menu Admin > Configurações.");
   }
 
   // Identifica ambiente
@@ -31,7 +35,7 @@ const getAsaasConfig = async () => {
   const baseUrl = "https://api.asaas.com/v3";
 
   const envName = isProduction ? "PRODUÇÃO" : "SANDBOX";
-  functions.logger.info(`Conectando ao Asaas em modo: ${envName}`);
+  logger.info(`Conectando ao Asaas em modo: ${envName}`);
 
   return {
     key: apiKey,
@@ -43,10 +47,10 @@ const getAsaasConfig = async () => {
 /**
  * REGISTRA UM NOVO USUÁRIO EM UMA ORGANIZAÇÃO
  */
-export const registerUserInOrg = functions.https.onCall(async (request) => {
+export const registerUserInOrg = onCall(async (request) => {
   const {email, pass, name, role, organizationId, sector} = request.data;
   if (!request.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+    throw new HttpsError("unauthenticated", "Não logado.");
   }
   try {
     const userRecord = await admin.auth().createUser({
@@ -69,17 +73,17 @@ export const registerUserInOrg = functions.https.onCall(async (request) => {
       .set(userData);
     return {success: true, uid: userRecord.uid};
   } catch (error: any) {
-    throw new functions.https.HttpsError("internal", error.message);
+    throw new HttpsError("internal", error.message);
   }
 });
 
 /**
  * VALIDA O REGISTRO DO CRO DE UM DENTISTA USANDO A API CONSULTAR.IO
  */
-export const validateCro = functions.https.onCall(async (request) => {
+export const validateCro = onCall(async (request) => {
   const {uf, numero, categoria} = request.data;
   if (!uf || !numero || !categoria) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "UF, número de registro e categoria são obrigatórios."
     );
@@ -87,7 +91,7 @@ export const validateCro = functions.https.onCall(async (request) => {
 
   const apiKey = process.env.CONSULTARIO_API_KEY;
   if (!apiKey || apiKey === "SUA_CHAVE_AQUI" || apiKey === "") {
-    functions.logger.warn(
+    logger.warn(
       "Chave CONSULTARIO_API_KEY não configurada. " +
       "Simulando retorno válido."
     );
@@ -101,7 +105,7 @@ export const validateCro = functions.https.onCall(async (request) => {
   }
 
   try {
-    functions.logger.info(
+    logger.info(
       "Consultando CRO na consultar.io... " +
       `UF: ${uf}, Numero: ${numero}, Categoria: ${categoria}`
     );
@@ -124,7 +128,7 @@ export const validateCro = functions.https.onCall(async (request) => {
     );
 
     const data = response.data;
-    functions.logger.info("Resposta consultar.io CRO:", data);
+    logger.info("Resposta consultar.io CRO:", data);
 
     const rawSituacao = data?.situacao ||
       data?.status ||
@@ -150,14 +154,14 @@ export const validateCro = functions.https.onCall(async (request) => {
       situacao: situacao || "NÃO INFORMADA",
     };
   } catch (error: any) {
-    functions.logger.error(
+    logger.error(
       "Erro ao validar CRO na consultar.io:",
       error?.response?.data || error?.message
     );
     const apiMsg = error.response?.data?.error ||
       error.response?.data?.message ||
       error.message;
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "internal",
       `Falha na integração com consultar.io: ${apiMsg}`
     );
@@ -167,10 +171,10 @@ export const validateCro = functions.https.onCall(async (request) => {
 /**
  * EXCLUI UM USUÁRIO VIA ADMIN (AUTH E FIRESTORE)
  */
-export const deleteUserAdmin = functions.https.onCall(async (request) => {
+export const deleteUserAdmin = onCall(async (request) => {
   const {targetUserId} = request.data;
   if (!request.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+    throw new HttpsError("unauthenticated", "Não logado.");
   }
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(request.auth.uid).get();
@@ -179,7 +183,7 @@ export const deleteUserAdmin = functions.https.onCall(async (request) => {
                   callerData?.role === "SUPER_ADMIN";
 
   if (!isAdmin) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "permission-denied",
       "Apenas administradores podem excluir usuários."
     );
@@ -194,38 +198,38 @@ export const deleteUserAdmin = functions.https.onCall(async (request) => {
 
     return {success: true};
   } catch (error: any) {
-    throw new functions.https.HttpsError("internal", error.message);
+    throw new HttpsError("internal", error.message);
   }
 });
 
 /**
  * ATUALIZA PERFIL DE USUÁRIO VIA ADMIN
  */
-export const updateUserAdmin = functions.https.onCall(async (request) => {
+export const updateUserAdmin = onCall(async (request) => {
   const {targetUserId, updates} = request.data;
   if (!request.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+    throw new HttpsError("unauthenticated", "Não logado.");
   }
   const db = admin.firestore();
   try {
     await db.collection("users").doc(targetUserId).update(updates);
     return {success: true};
   } catch (error: any) {
-    throw new functions.https.HttpsError("internal", error.message);
+    throw new HttpsError("internal", error.message);
   }
 });
 
 /**
  * GERA BOLETO EM LOTE PARA TRABALHOS INTERNOS FINALIZADOS
  */
-export const generateBatchBoleto = functions.https.onCall(async (request) => {
+export const generateBatchBoleto = onCall(async (request: any) => {
   const {orgId, dentistId, jobIds, dueDate} = request.data;
   const db = admin.firestore();
 
-  functions.logger.info("Iniciando generateBatchBoleto", {orgId, dentistId});
+  logger.info("Iniciando generateBatchBoleto", {orgId, dentistId});
 
   if (!request.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Acesso negado.");
+    throw new HttpsError("unauthenticated", "Acesso negado.");
   }
 
   try {
@@ -300,7 +304,7 @@ export const generateBatchBoleto = functions.https.onCall(async (request) => {
     } catch (err: any) {
       const apiErr = err.response?.data?.errors?.[0]?.description;
       const finalMsg = apiErr || err.message;
-      functions.logger.error("Erro no cliente Asaas", err.response?.data);
+      logger.error("Erro no cliente Asaas", err.response?.data);
       throw new Error(`Asaas (Cliente): ${finalMsg}`);
     }
 
@@ -363,18 +367,18 @@ export const generateBatchBoleto = functions.https.onCall(async (request) => {
   } catch (error: any) {
     const asaasMsg = error.response?.data?.errors?.[0]?.description;
     const msg = asaasMsg || error.message || "Erro interno no servidor";
-    functions.logger.error("Falha no faturamento", {
+    logger.error("Falha no faturamento", {
       msg,
       d: error.response?.data,
     });
-    throw new functions.https.HttpsError("internal", msg);
+    throw new HttpsError("internal", msg);
   }
 });
 
 /**
  * CRIA SUB-CONTA (WALLET) NO ASAAS PARA O LABORATÓRIO
  */
-export const createLabSubAccount = functions.https.onCall(async (request) => {
+export const createLabSubAccount = onCall(async (request: any) => {
   const {orgId, accountData} = request.data;
   const {key, url} = await getAsaasConfig();
   try {
@@ -391,17 +395,17 @@ export const createLabSubAccount = functions.https.onCall(async (request) => {
       });
     return {success: true};
   } catch (error: any) {
-    throw new functions.https.HttpsError("internal", error.message);
+    throw new HttpsError("internal", error.message);
   }
 });
 
 /**
  * CRIA PAGAMENTO PARA PEDIDO DA LOJA VIRTUAL (CARTÃO/PIX)
  */
-export const createOrderPayment = functions.https.onCall(async (request) => {
+export const createOrderPayment = onCall(async (request: any) => {
   const {jobData, paymentData} = request.data;
   if (!request.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+    throw new HttpsError("unauthenticated", "Não logado.");
   }
   
   const db = admin.firestore();
@@ -500,17 +504,17 @@ export const createOrderPayment = functions.https.onCall(async (request) => {
     return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, pixQrCode: payRes.data.pixQrCode || null };
   } catch (error: any) {
     const msg = error.response?.data?.errors?.[0]?.description || error.message;
-    throw new functions.https.HttpsError("internal", msg);
+    throw new HttpsError("internal", msg);
   }
 });
 
 /**
  * CRIA COBRANÇA PARA PACIENTE DA CLÍNICA
  */
-export const createPatientPayment = functions.https.onCall(async (request) => {
+export const createPatientPayment = onCall(async (request: any) => {
   const {orgId, patientId, totalAmount, dueDate, title} = request.data;
   if (!request.auth) {
-    throw new functions.https.HttpsError("unauthenticated", "Não logado.");
+    throw new HttpsError("unauthenticated", "Não logado.");
   }
   
   const db = admin.firestore();
@@ -579,18 +583,18 @@ export const createPatientPayment = functions.https.onCall(async (request) => {
     return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl };
   } catch (error: any) {
     const msg = error.response?.data?.errors?.[0]?.description || error.message;
-    throw new functions.https.HttpsError("internal", msg);
+    throw new HttpsError("internal", msg);
   }
 });
 
 /**
  * SINCRONIZA STATUS DE ASSINATURA SAAS
  */
-export const setSubscriptionStatus = functions.https.onCall(
-  async (request) => {
+export const setSubscriptionStatus = onCall(
+  async (request: any) => {
     // Verificar se o usuário é admin/superadmin
     if (!request.auth) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "unauthenticated",
         "Usuário não autenticado."
       );
@@ -598,7 +602,7 @@ export const setSubscriptionStatus = functions.https.onCall(
 
     const {orgId, status} = request.data;
     if (!orgId || !status) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "Parâmetros orgId e status são obrigatórios."
       );
@@ -611,7 +615,7 @@ export const setSubscriptionStatus = functions.https.onCall(
         .doc(orgId)
         .get();
       if (!orgSnap.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organização não encontrada."
         );
@@ -623,14 +627,14 @@ export const setSubscriptionStatus = functions.https.onCall(
       if (status === "FREE" || status === "TEST" || status === "CANCELLED") {
         if (subId) {
           try {
-            functions.logger.info(
+            logger.info(
               `Cancelando Asaas ${subId} para org ${orgId} devido a ${status}`
             );
             await axios.delete(`${url}/subscriptions/${subId}`, {
               headers: {access_token: key},
             });
           } catch (e: any) {
-            functions.logger.warn(
+            logger.warn(
               "Erro ao deletar assinatura no Asaas:",
               e.response?.data || e.message
             );
@@ -645,17 +649,17 @@ export const setSubscriptionStatus = functions.https.onCall(
 
       return {success: true, status};
     } catch (error: any) {
-      functions.logger.error("Erro em setSubscriptionStatus:", error);
-      throw new functions.https.HttpsError("internal", error.message);
+      logger.error("Erro em setSubscriptionStatus:", error);
+      throw new HttpsError("internal", error.message);
     }
   }
 );
 
-export const checkSubscriptionStatus = functions.https.onCall(
-  async (request) => {
+export const checkSubscriptionStatus = onCall(
+  async (request: any) => {
     const {orgId} = request.data;
     if (!orgId) {
-      throw new functions.https.HttpsError(
+      throw new HttpsError(
         "invalid-argument",
         "orgId é obrigatório."
       );
@@ -669,7 +673,7 @@ export const checkSubscriptionStatus = functions.https.onCall(
         .get();
 
       if (!orgSnap.exists) {
-        throw new functions.https.HttpsError(
+        throw new HttpsError(
           "not-found",
           "Organização não encontrada."
         );
@@ -705,8 +709,8 @@ export const checkSubscriptionStatus = functions.https.onCall(
 
       return {status};
     } catch (error: any) {
-      functions.logger.error("Erro em checkSubscriptionStatus:", error);
-      throw new functions.https.HttpsError("internal", error.message);
+      logger.error("Erro em checkSubscriptionStatus:", error);
+      throw new HttpsError("internal", error.message);
     }
   }
 );
@@ -717,7 +721,7 @@ export const checkSubscriptionStatus = functions.https.onCall(
 /**
  * CRIA ASSINATURA SAAS
  */
-export const createSaaSSubscription = functions.https.onCall(async (req) => {
+export const createSaaSSubscription = onCall(async (req: any) => {
   const {orgId, planId, email, name, cpfCnpj} = req.data;
   const {key, url} = await getAsaasConfig();
 
@@ -834,7 +838,7 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
         paymentLink = paymentsRes.data.data[0].invoiceUrl;
       }
     } catch (payErr: any) {
-      functions.logger.warn(
+      logger.warn(
         "Erro ao buscar a fatura inicial da assinatura no Asaas:",
         payErr.message
       );
@@ -849,15 +853,15 @@ export const createSaaSSubscription = functions.https.onCall(async (req) => {
 
     return {success: true, paymentLink: paymentLink || subRes.data.id};
   } catch (error: any) {
-    functions.logger.error("Erro em createSaaSSubscription:", error);
-    throw new functions.https.HttpsError("internal", error.message);
+    logger.error("Erro em createSaaSSubscription:", error);
+    throw new HttpsError("internal", error.message);
   }
 });
 
 /**
  * BUSCA FATURAS (BOLETOS/PAGAMENTOS) DO SAAS NO ASAAS
  */
-export const getSaaSInvoices = functions.https.onCall(async (request) => {
+export const getSaaSInvoices = onCall(async (request: any) => {
   const {orgId} = request.data;
   const {key, url} = await getAsaasConfig();
 
@@ -875,12 +879,12 @@ export const getSaaSInvoices = functions.https.onCall(async (request) => {
     );
     return res.data.data;
   } catch (error: any) {
-    functions.logger.error("Erro em getSaaSInvoices:", error);
-    throw new functions.https.HttpsError("internal", error.message);
+    logger.error("Erro em getSaaSInvoices:", error);
+    throw new HttpsError("internal", error.message);
   }
 });
 
-export const asaasWebhook = functions.https.onRequest(
+export const asaasWebhook = onRequest(
   async (req: any, res: any) => {
     // Validar Asaas-Access-Token do Webhook
     const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
@@ -888,7 +892,7 @@ export const asaasWebhook = functions.https.onRequest(
       const authHeader = req.headers["asaas-access-token"] ||
                          req.headers["Asaas-Access-Token"];
       if (authHeader !== webhookToken) {
-        functions.logger.warn("Webhook token inválido", {received: authHeader});
+        logger.warn("Webhook token inválido", {received: authHeader});
         res.status(401).send("Unauthorized");
         return;
       }
@@ -957,7 +961,7 @@ export const asaasWebhook = functions.https.onRequest(
       }
       res.status(200).send("OK");
     } catch (error) {
-      functions.logger.error("Erro no asaasWebhook:", error);
+      logger.error("Erro no asaasWebhook:", error);
       res.status(500).send("Erro");
     }
   }

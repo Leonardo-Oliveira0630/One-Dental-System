@@ -292,42 +292,36 @@ export const RegisterOrganization = () => {
           const redirectUrl = searchParams.get('redirect');
           navigate(redirectUrl || '/supplier/dashboard');
       } else {
-          // Validate CRO first
-          if (!croUf || !croNumero || !croCategoria) {
-              setError("Erro ao registrar: Todos os campos do CRO (UF, Número, Categoria) são obrigatórios.");
-              setLoading(false);
-              return;
+          // Validate CRO if provided, but don't force it
+          let croValid = false;
+          
+          if (croUf && croNumero && croCategoria) {
+              setError("Verificando registro profissional (CRO)...");
+              try {
+                  const check = await validateCro(croUf, croNumero, croCategoria);
+                  croValid = check?.valido || false;
+                  setError(""); // Clear validating state
+              } catch (validateErr: any) {
+                  console.error("Erro na consulta de CRO:", validateErr);
+                  // Continuar mesmo com erro na validação
+                  setError("");
+              }
           }
 
-          setError("Verificando registro profissional (CRO)...");
           try {
-              const check = await validateCro(croUf, croNumero, croCategoria);
-              setError(""); // Clear validating state
-
               // Register Dentist with validation flags
               regUser = await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code, {
                   address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone,
-                  croUf,
-                  croNumero,
-                  croCategoria,
-                  croValid: check?.valido || false,
-                  isApproved: check?.valido || false
+                  croUf: croUf || "",
+                  croNumero: croNumero || "",
+                  croCategoria: croCategoria || "",
+                  croValid: croValid,
+                  isApproved: croValid
               });
               const redirectUrl = searchParams.get('redirect');
               navigate(redirectUrl || '/store'); // Goes to store
-          } catch (validateErr: any) {
-              console.error("Erro na consulta de CRO:", validateErr);
-              // Safe fallback if API has trouble: let register but require manual review
-              regUser = await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code, {
-                  address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone,
-                  croUf,
-                  croNumero,
-                  croCategoria,
-                  croValid: false,
-                  isApproved: false
-              });
-              const redirectUrl = searchParams.get('redirect');
-              navigate(redirectUrl || '/store');
+          } catch (regErr: any) {
+              throw regErr;
           }
       }
     } catch (err: any) {
@@ -468,13 +462,12 @@ export const RegisterOrganization = () => {
                 {regType === 'DENTIST' && (
                     <div className="p-4 bg-teal-950/35 rounded-2xl border border-teal-500/20 space-y-4">
                         <h3 className="text-sm font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <ShieldCheck size={16} /> Validação Profissional (CRO Obrigatório)
+                            <ShieldCheck size={16} /> Validação Profissional (CRO - Opcional)
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1">UF do Registro</label>
                                 <select 
-                                    required 
                                     value={croUf} 
                                     onChange={e => setCroUf(e.target.value.toUpperCase())} 
                                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-teal-500"
@@ -488,7 +481,6 @@ export const RegisterOrganization = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Número do CRO</label>
                                 <input 
-                                    required 
                                     type="text" 
                                     value={croNumero} 
                                     onChange={e => setCroNumero(e.target.value.replace(/\D/g, ''))} 
@@ -499,7 +491,6 @@ export const RegisterOrganization = () => {
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
                                 <select 
-                                    required 
                                     value={croCategoria} 
                                     onChange={e => setCroCategoria(e.target.value)} 
                                     className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-teal-500"
