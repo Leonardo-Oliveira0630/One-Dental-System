@@ -222,7 +222,7 @@ exports.updateUserAdmin = (0, https_1.onCall)(async (request) => {
  */
 exports.generateBatchBoleto = (0, https_1.onCall)(async (request) => {
     var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
-    const { orgId, dentistId, jobIds, dueDate } = request.data;
+    const { orgId, dentistId, jobIds, dueDate, customAmount } = request.data;
     const db = admin.firestore();
     logger.info("Iniciando generateBatchBoleto", { orgId, dentistId });
     if (!request.auth) {
@@ -267,13 +267,23 @@ exports.generateBatchBoleto = (0, https_1.onCall)(async (request) => {
         // 2. Somar valores
         let total = 0;
         const patients = [];
-        for (const id of jobIds) {
-            const jSnap = await db.collection("organizations")
-                .doc(orgId).collection("jobs").doc(id).get();
-            if (jSnap.exists) {
-                total += ((_h = jSnap.data()) === null || _h === void 0 ? void 0 : _h.totalValue) || 0;
-                patients.push(((_j = jSnap.data()) === null || _j === void 0 ? void 0 : _j.patientName) || "Paciente");
+        if (customAmount !== undefined && customAmount !== null && Number(customAmount) > 0) {
+            total = Number(customAmount);
+            patients.push("Fatura Personalizada");
+        }
+        else {
+            for (const id of jobIds) {
+                const jSnap = await db.collection("organizations")
+                    .doc(orgId).collection("jobs").doc(id).get();
+                if (jSnap.exists) {
+                    const val = (_h = jSnap.data()) === null || _h === void 0 ? void 0 : _h.totalValue;
+                    total += (val ? Number(val) : 0);
+                    patients.push(((_j = jSnap.data()) === null || _j === void 0 ? void 0 : _j.patientName) || "Paciente");
+                }
             }
+        }
+        if (isNaN(total) || total <= 0) {
+            throw new Error("O valor da cobrança deve ser maior que 0 e válido.");
         }
         // 3. Garantir Cliente no Asaas (Tenta buscar por CPF/CNPJ antes de criar)
         let customerId = "";

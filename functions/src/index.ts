@@ -282,14 +282,15 @@ export const generateBatchBoleto = onCall(async (request: any) => {
         const jSnap = await db.collection("organizations")
           .doc(orgId).collection("jobs").doc(id).get();
         if (jSnap.exists) {
-          total += jSnap.data()?.totalValue || 0;
+          const val = jSnap.data()?.totalValue;
+          total += (val ? Number(val) : 0);
           patients.push(jSnap.data()?.patientName || "Paciente");
         }
       }
     }
     
-    if (total <= 0) {
-      throw new Error("O valor da cobrança deve ser maior que 0.");
+    if (isNaN(total) || total <= 0) {
+      throw new Error("O valor da cobrança deve ser maior que 0 e válido.");
     }
 
     // 3. Garantir Cliente no Asaas (Tenta buscar por CPF/CNPJ antes de criar)
