@@ -1065,7 +1065,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     if (currentOrg?.financialSettings?.asaasWalletId) {
        try {
-         const result = await api.apiGenerateBatchBoleto(orgId, dentistId, jobIds, dueDate);
+         const result = await api.apiGenerateBatchBoleto(orgId, dentistId, jobIds, dueDate, customAmount);
          if (result) {
            if (result.id) newBatch.id = result.id;
            if (result.boletoUrl) newBatch.boletoUrl = result.boletoUrl;

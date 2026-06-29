@@ -223,7 +223,7 @@ export const updateUserAdmin = onCall(async (request) => {
  * GERA BOLETO EM LOTE PARA TRABALHOS INTERNOS FINALIZADOS
  */
 export const generateBatchBoleto = onCall(async (request: any) => {
-  const {orgId, dentistId, jobIds, dueDate} = request.data;
+  const {orgId, dentistId, jobIds, dueDate, customAmount} = request.data;
   const db = admin.firestore();
 
   logger.info("Iniciando generateBatchBoleto", {orgId, dentistId});
@@ -273,13 +273,23 @@ export const generateBatchBoleto = onCall(async (request: any) => {
     // 2. Somar valores
     let total = 0;
     const patients: string[] = [];
-    for (const id of jobIds) {
-      const jSnap = await db.collection("organizations")
-        .doc(orgId).collection("jobs").doc(id).get();
-      if (jSnap.exists) {
-        total += jSnap.data()?.totalValue || 0;
-        patients.push(jSnap.data()?.patientName || "Paciente");
+    
+    if (customAmount !== undefined && customAmount !== null && Number(customAmount) > 0) {
+      total = Number(customAmount);
+      patients.push("Fatura Personalizada");
+    } else {
+      for (const id of jobIds) {
+        const jSnap = await db.collection("organizations")
+          .doc(orgId).collection("jobs").doc(id).get();
+        if (jSnap.exists) {
+          total += jSnap.data()?.totalValue || 0;
+          patients.push(jSnap.data()?.patientName || "Paciente");
+        }
       }
+    }
+    
+    if (total <= 0) {
+      throw new Error("O valor da cobrança deve ser maior que 0.");
     }
 
     // 3. Garantir Cliente no Asaas (Tenta buscar por CPF/CNPJ antes de criar)

@@ -853,9 +853,9 @@ export const subscribeBillingBatches = (orgId: string, cb: (b: BillingBatch[]) =
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt), dueDate: toDate(d.data().dueDate) } as BillingBatch)));
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeBillingBatches: ${error.code}`));
 };
-export const apiGenerateBatchBoleto = async (orgId: string, dentistId: string, jobIds: string[], dueDate: Date) => {
+export const apiGenerateBatchBoleto = async (orgId: string, dentistId: string, jobIds: string[], dueDate: Date, customAmount?: number) => {
     const fn = httpsCallable(functions, 'generateBatchBoleto');
-    return (await fn({ orgId, dentistId, jobIds, dueDate })).data;
+    return (await fn({ orgId, dentistId, jobIds, dueDate, customAmount })).data;
 };
 export const subscribeExpenses = (orgId: string, cb: (e: Expense[]) => void) => {
     if (!orgId) return () => {};
