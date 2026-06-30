@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InventoryCategory, InventoryItem, InventoryItemType } from '../../types';
-import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, Save, ArrowLeft, ChevronDown, User as UserIcon } from 'lucide-react';
+import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, Save, ArrowLeft, ChevronDown, User as UserIcon, Sparkles } from 'lucide-react';
 
 export const Inventory = () => {
     const { 
@@ -36,6 +36,58 @@ export const Inventory = () => {
         name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ''
     });
     const [showCatalogSuggestions, setShowCatalogSuggestions] = useState(false);
+    
+    // Bulk Import Logic
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+    const [bulkText, setBulkText] = useState('');
+    const [isParsingBulk, setIsParsingBulk] = useState(false);
+
+    const handleBulkImport = async () => {
+        if (!bulkText.trim()) return;
+        setIsParsingBulk(true);
+        try {
+            const parsedItems = await import('../../services/geminiService').then(m => m.parseBulkInventory(bulkText));
+            if (parsedItems && parsedItems.length > 0) {
+                // Determine destination
+                for (const item of parsedItems) {
+                    if (activeTab === 'CATALOG') {
+                        await addProductCatalogItem({
+                            name: item.name || 'Sem Nome',
+                            code: item.code || '',
+                            description: item.description || '',
+                            type: 'MATERIAL',
+                            categoryId: item.categoryId || '',
+                            costPrice: Number(item.costPrice) || 0,
+                            sellPrice: Number(item.sellPrice) || 0,
+                        } as any);
+                    } else if (activeTab === 'ITEMS') {
+                        await addInventoryItem({
+                            name: item.name || 'Sem Nome',
+                            code: item.code || '',
+                            description: item.description || '',
+                            type: 'MATERIAL',
+                            categoryId: item.categoryId || '',
+                            currentStock: Number(item.currentStock) || 0,
+                            minStock: Number(item.minStock) || 0,
+                            costPrice: Number(item.costPrice) || 0,
+                            sellPrice: Number(item.sellPrice) || 0,
+                            dentistOwnerId: activeOwnerGroup && activeOwnerGroup !== 'LAB' ? activeOwnerGroup : null,
+                        } as any);
+                    }
+                }
+                alert(`Sucesso! ${parsedItems.length} itens importados.`);
+                setIsBulkModalOpen(false);
+                setBulkText('');
+            } else {
+                alert("Nenhum item válido encontrado no texto.");
+            }
+        } catch (error) {
+            console.error("Erro no import bulk:", error);
+            alert("Erro ao importar itens.");
+        } finally {
+            setIsParsingBulk(false);
+        }
+    };
 
     const clients = React.useMemo(() => {
         return [
@@ -226,6 +278,11 @@ export const Inventory = () => {
                         className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                     />
                 </div>
+                {(activeTab === 'ITEMS' || activeTab === 'CATALOG') && canCreate && (
+                    <button onClick={() => setIsBulkModalOpen(true)} className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2 whitespace-nowrap">
+                        <Sparkles size={20} /> Importação Inteligente
+                    </button>
+                )}
                 {activeTab === 'ITEMS' && canCreate && (
                     <button onClick={() => openItemModal()} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2 whitespace-nowrap">
                         <Plus size={20} /> Novo Produto no Estoque
@@ -689,6 +746,52 @@ export const Inventory = () => {
                     </form>
                 </div>
             )}
+            {/* Bulk Import Modal */}
+            {isBulkModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white rounded-3xl p-8 max-w-3xl w-full shadow-2xl relative my-auto">
+                        <button type="button" onClick={() => setIsBulkModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
+                            <X size={20}/>
+                        </button>
+                        <h2 className="text-2xl font-black text-slate-900 mb-2 flex items-center gap-2">
+                            <Sparkles className="text-emerald-500" />
+                            Importação Inteligente com IA
+                        </h2>
+                        <p className="text-slate-500 mb-6 text-sm">Cole sua tabela (Excel, CSV) ou lista de produtos. A IA vai ler os campos (Código, Produto, Categoria, Descrição, Estoque Atual, Estoque Mínimo, Custo Médio, Preço de Venda) e extraí-los automaticamente. Você está importando para: <span className="font-bold text-slate-700">{activeTab === 'CATALOG' ? 'Banco de Produtos Base' : 'Estoque / Insumos'}</span></p>
+
+                        <div className="mb-6">
+                            <textarea
+                                value={bulkText}
+                                onChange={e => setBulkText(e.target.value)}
+                                placeholder="Cole aqui sua planilha, CSV ou lista de texto..."
+                                className="w-full h-64 p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-xs whitespace-pre-wrap resize-none"
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button type="button" onClick={() => setIsBulkModalOpen(false)} className="px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
+                            <button 
+                                type="button" 
+                                onClick={handleBulkImport}
+                                disabled={isParsingBulk || !bulkText.trim()}
+                                className="px-8 py-4 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            >
+                                {isParsingBulk ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                        Analisando...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Sparkles size={20}/> Extrair e Cadastrar em Massa
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };

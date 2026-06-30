@@ -47,3 +47,59 @@ export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
     return "Falha ao gerar insights. Verifique a configuração da API.";
   }
 };
+
+export const parseBulkInventory = async (text: string) => {
+  const prompt = `
+    Analise o texto a seguir (pode ser CSV, TSV, tabela colada ou texto livre) e extraia os itens de estoque.
+    
+    Tente encontrar os seguintes campos:
+    - Código (SKU)
+    - Produto (Nome)
+    - Categoria
+    - Descrição
+    - Estoque Atual (número)
+    - Estoque Mínimo (número)
+    - Custo Médio / Unitário (número, ex: 10.50)
+    - Preço de Venda (número, ex: 25.90)
+
+    Retorne APENAS um JSON array válido de objetos. Exemplo:
+    [
+      {
+        "code": "123",
+        "name": "Produto A",
+        "category": "Resinas",
+        "description": "Descrição do Produto A",
+        "currentStock": 10,
+        "minStock": 2,
+        "costPrice": 10.50,
+        "sellPrice": 25.90
+      }
+    ]
+
+    O texto de entrada é:
+    ${text}
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json'
+      }
+    });
+    
+    if (!response.text) return [];
+    
+    try {
+      const parsed = JSON.parse(response.text);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error("Failed to parse JSON", e);
+      return [];
+    }
+  } catch (error) {
+    console.error("Gemini Bulk Parse Error:", error);
+    return [];
+  }
+};
