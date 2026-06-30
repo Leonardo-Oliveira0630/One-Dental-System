@@ -41,6 +41,8 @@ export const SupplierStore = () => {
   const [selectedMarketplaceCategoryId, setSelectedMarketplaceCategoryId] = useState<string | null>(null);
   const [isCategoriesDropdownOpen, setIsCategoriesDropdownOpen] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('RELEVANCE');
+  const [userLocation, setUserLocation] = useState('');
+  const [searchRadius, setSearchRadius] = useState<number>(50);
   
   // Local Supplier Cart
   const [cart, setCart] = useState<SupplierCartItem[]>([]);
@@ -120,9 +122,6 @@ export const SupplierStore = () => {
 
   const StoreHeader = () => (
     <header className="flex items-center justify-between p-4 bg-white border-b border-slate-200">
-      <button onClick={() => setSelectedSupplierId('ALL')} className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-medium text-sm">
-        <ChevronLeft size={16} /> Voltar ao Marketplace
-      </button>
       <div className="flex items-center gap-3">
           {activeSupplierOrg?.storeSettings?.profilePhotoUrl && <img src={activeSupplierOrg.storeSettings.profilePhotoUrl} className="w-10 h-10 rounded-full object-cover border border-slate-200" />}
           <h1 className="text-xl font-bold">{activeSupplierOrg?.name}</h1>
@@ -299,6 +298,24 @@ export const SupplierStore = () => {
       );
     }
 
+    // Apply location filter (mocked based on city/state if radius is provided)
+    if (userLocation.trim().length > 2 && selectedSupplierId === 'ALL') {
+       const userLocLower = userLocation.toLowerCase().trim();
+       currentFiltered = currentFiltered.filter(item => {
+          const supplier = allSuppliers.find(s => s.id === item.product.organizationId);
+          if (!supplier) return false;
+          const cityMatch = supplier.city?.toLowerCase().includes(userLocLower) || false;
+          const stateMatch = supplier.state?.toLowerCase().includes(userLocLower) || false;
+          
+          if (searchRadius <= 50) {
+             return cityMatch;
+          } else if (searchRadius <= 200) {
+             return cityMatch || stateMatch;
+          }
+          return true; // > 200km acts like national/no filter
+       });
+    }
+
     // 3. Apply sorting options
     switch (sortOption) {
       case 'LATEST':
@@ -323,7 +340,7 @@ export const SupplierStore = () => {
     }
 
     return currentFiltered.map(item => item.product);
-  }, [allSupplierProducts, searchQuery, selectedSupplierId, sortOption, allSuppliers]);
+  }, [allSupplierProducts, searchQuery, selectedSupplierId, sortOption, allSuppliers, selectedMarketplaceCategoryId, userLocation, searchRadius]);
 
   // Helpers
   const getSupplierName = (orgId: string) => {
@@ -513,6 +530,88 @@ export const SupplierStore = () => {
   return (
     <main id="supplier-store-container" className="flex-1 flex flex-col overflow-y-auto bg-white text-[#15263f] min-h-screen">
       
+      {/* ALWAYS SHOW MARKETPLACE TOP MENU */}
+      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
+        <div className="w-auto md:w-32 flex-shrink-0"></div>
+        
+        <div className="flex items-center justify-center flex-1 gap-2 md:gap-6">
+          <button 
+            onClick={() => setSelectedSupplierId('ALL')}
+            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${selectedSupplierId === 'ALL' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+          >
+            Home
+          </button>
+          <div className="hidden md:flex gap-2 md:gap-6">
+            <div 
+              className="relative"
+              onMouseEnter={() => setIsCategoriesDropdownOpen(true)}
+              onMouseLeave={() => setIsCategoriesDropdownOpen(false)}
+            >
+              <button className={`px-4 py-2 rounded-xl font-bold text-base flex items-center gap-1 transition-colors ${selectedMarketplaceCategoryId ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}>
+                Categorias <CornerDownRight size={16} />
+              </button>
+              {isCategoriesDropdownOpen && globalSettings?.marketplaceCategories && (
+                <div className="absolute top-full left-0 mt-0 pt-2 w-72 z-50">
+                  <div className="bg-white border border-slate-200 shadow-xl rounded-xl p-2 max-h-[70vh] overflow-y-auto">
+                    <div 
+                      className={`p-2 rounded-lg cursor-pointer hover:bg-slate-100 ${!selectedMarketplaceCategoryId ? 'bg-slate-100 font-bold text-[#15263f]' : 'text-slate-600'}`}
+                      onClick={() => { setSelectedMarketplaceCategoryId(null); setIsCategoriesDropdownOpen(false); }}
+                    >
+                      Todas as Categorias
+                    </div>
+                    {globalSettings.marketplaceCategories.map(cat => (
+                      <div key={cat.id} className="space-y-1 mt-1">
+                        <div 
+                          className={`p-2 rounded-lg cursor-pointer font-bold hover:bg-slate-100 text-slate-800 ${selectedMarketplaceCategoryId === cat.id ? 'text-orange-600 bg-orange-50' : ''}`}
+                          onClick={() => { setSelectedMarketplaceCategoryId(cat.id); setIsCategoriesDropdownOpen(false); }}
+                        >
+                          {cat.name}
+                        </div>
+                        {cat.subcategories?.map(sub => (
+                          <div key={sub.id} className="space-y-1 pl-4 border-l-2 border-slate-100 ml-2">
+                            <div 
+                              className={`p-1.5 rounded-lg cursor-pointer text-sm hover:bg-slate-50 text-slate-600 ${selectedMarketplaceCategoryId === sub.id ? 'text-orange-600 font-bold bg-orange-50/50' : ''}`}
+                              onClick={() => { setSelectedMarketplaceCategoryId(sub.id); setIsCategoriesDropdownOpen(false); }}
+                            >
+                              {sub.name}
+                            </div>
+                            {sub.subcategories?.map(subsub => (
+                              <div 
+                                key={subsub.id} 
+                                className={`p-1 pl-4 rounded-lg cursor-pointer text-xs hover:bg-slate-50 text-slate-500 ${selectedMarketplaceCategoryId === subsub.id ? 'text-orange-600 font-bold' : ''}`}
+                                onClick={() => { setSelectedMarketplaceCategoryId(subsub.id); setIsCategoriesDropdownOpen(false); }}
+                              >
+                                {subsub.name}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <button 
+              onClick={() => setSortOption('SALES')}
+              className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${sortOption === 'SALES' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+            >
+              Mais Vendidos
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex items-center justify-end gap-4 w-auto md:w-32 flex-shrink-0">
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            <span className="text-sm">Carrinho ({cart.length})</span>
+          </button>
+        </div>
+      </div>
+
       {/* Dynamic Header/Banner depending on Selected Supplier to support custom Store settings */}
       {selectedSupplierId !== 'ALL' && activeSupplierOrg ? (
         <div className="w-full">
@@ -609,88 +708,6 @@ export const SupplierStore = () => {
         </div>
       ) : (
         <>
-          {/* Marketplace Top Menu */}
-          <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
-            <div className="w-auto md:w-32 flex-shrink-0"></div>
-            
-            <div className="flex items-center justify-center flex-1 gap-2 md:gap-6">
-              <button 
-                onClick={() => setSelectedSupplierId('ALL')}
-                className="px-4 py-2 rounded-xl text-[#15263f] font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors"
-              >
-                Home
-              </button>
-              <div className="hidden md:flex gap-2 md:gap-6">
-                <div 
-                  className="relative"
-                  onMouseEnter={() => setIsCategoriesDropdownOpen(true)}
-                  onMouseLeave={() => setIsCategoriesDropdownOpen(false)}
-                >
-                  <button className="px-4 py-2 rounded-xl text-slate-600 font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors flex items-center gap-1">
-                    Categorias <CornerDownRight size={16} />
-                  </button>
-                  {isCategoriesDropdownOpen && globalSettings?.marketplaceCategories && (
-                    <div className="absolute top-full left-0 mt-0 pt-2 w-72 z-50">
-                      <div className="bg-white border border-slate-200 shadow-xl rounded-xl p-2 max-h-[70vh] overflow-y-auto">
-                        <div 
-                          className={`p-2 rounded-lg cursor-pointer hover:bg-slate-100 ${!selectedMarketplaceCategoryId ? 'bg-slate-100 font-bold text-[#15263f]' : 'text-slate-600'}`}
-                          onClick={() => { setSelectedMarketplaceCategoryId(null); setIsCategoriesDropdownOpen(false); }}
-                        >
-                          Todas as Categorias
-                        </div>
-                        {globalSettings.marketplaceCategories.map(cat => (
-                          <div key={cat.id} className="space-y-1 mt-1">
-                            <div 
-                              className={`p-2 rounded-lg cursor-pointer font-bold hover:bg-slate-100 text-slate-800 ${selectedMarketplaceCategoryId === cat.id ? 'text-orange-600 bg-orange-50' : ''}`}
-                              onClick={() => { setSelectedMarketplaceCategoryId(cat.id); setIsCategoriesDropdownOpen(false); }}
-                            >
-                              {cat.name}
-                            </div>
-                            {cat.subcategories?.map(sub => (
-                              <div key={sub.id} className="space-y-1 pl-4 border-l-2 border-slate-100 ml-2">
-                                <div 
-                                  className={`p-1.5 rounded-lg cursor-pointer text-sm hover:bg-slate-50 text-slate-600 ${selectedMarketplaceCategoryId === sub.id ? 'text-orange-600 font-bold bg-orange-50/50' : ''}`}
-                                  onClick={() => { setSelectedMarketplaceCategoryId(sub.id); setIsCategoriesDropdownOpen(false); }}
-                                >
-                                  {sub.name}
-                                </div>
-                                {sub.subcategories?.map(subsub => (
-                                  <div 
-                                    key={subsub.id} 
-                                    className={`p-1 pl-4 rounded-lg cursor-pointer text-xs hover:bg-slate-50 text-slate-500 ${selectedMarketplaceCategoryId === subsub.id ? 'text-orange-600 font-bold' : ''}`}
-                                    onClick={() => { setSelectedMarketplaceCategoryId(subsub.id); setIsCategoriesDropdownOpen(false); }}
-                                  >
-                                    {subsub.name}
-                                  </div>
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <button 
-                  onClick={() => setSortOption('SALES')}
-                  className="px-4 py-2 rounded-xl text-slate-600 font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors"
-                >
-                  Mais Vendidos
-                </button>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-end gap-4 w-auto md:w-32 flex-shrink-0">
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                <span className="text-sm">Carrinho ({cart.length})</span>
-              </button>
-            </div>
-          </div>
-
           {/* Banner configuration from Super Admin */}
           <MarketplaceBanner />
 
@@ -738,6 +755,35 @@ export const SupplierStore = () => {
               ))}
             </select>
           </div>
+
+          {/* Location / Radius (Only active when in ALL Suppliers) */}
+          {selectedSupplierId === 'ALL' && (
+            <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="relative">
+                  <MapPin className="absolute left-3.5 top-3.5 text-slate-400" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por cidade (Ex: São Paulo)"
+                    value={userLocation}
+                    onChange={e => setUserLocation(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-orange-500 placeholder-slate-400"
+                  />
+               </div>
+               
+               <div className="flex items-center gap-4 bg-white border border-slate-300 rounded-xl px-4 py-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Raio: {searchRadius === 201 ? '+200' : searchRadius} km</span>
+                  <input
+                     type="range"
+                     min="10"
+                     max="201"
+                     step="10"
+                     value={searchRadius}
+                     onChange={e => setSearchRadius(Number(e.target.value))}
+                     className="w-full accent-orange-500"
+                  />
+               </div>
+            </div>
+          )}
         </div>
 
         {/* Shopee Style Sorting Tabs */}
