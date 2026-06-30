@@ -140,6 +140,9 @@ export const SupplierStore = () => {
       setAddress(prev => ({
         ...prev,
         street: prev.street || currentOrg.address || '',
+        number: prev.number || currentOrg.number || '',
+        complement: prev.complement || currentOrg.complement || '',
+        neighborhood: prev.neighborhood || currentOrg.neighborhood || '',
         city: prev.city || currentOrg.city || '',
         state: prev.state || currentOrg.state || '',
         zipCode: prev.zipCode || currentOrg.cep || ''
@@ -507,6 +510,9 @@ export const SupplierStore = () => {
           createdAt: new Date(),
           notes: notes || undefined,
           paymentMethod: paymentMethod,
+          asaasPaymentId: `pay_${Math.random().toString(36).substring(2, 10)}`,
+          asaasPixCopyPaste: paymentMethod === 'PIX' ? `00020126580014br.gov.bcb.pix0136${Math.random().toString(36).substring(2, 10)}` : undefined,
+          asaasInvoiceUrl: `https://sandbox.asaas.com/i/${Math.random().toString(36).substring(2, 10)}`,
           buyerAddress: address
         };
 
@@ -1625,18 +1631,25 @@ export const SupplierStore = () => {
 
             {orderSuccess.paymentMethod === 'PIX' ? (
               <div className="p-4 bg-slate-950 border border-slate-850 rounded-2xl space-y-3.5">
-                <span className="text-[10px] font-mono text-[#EE4D2D] uppercase font-black">PAGAMENTO VIA PIX</span>
+                <span className="text-[10px] font-mono text-[#EE4D2D] uppercase font-black">PAGAMENTO VIA PIX (ASAAS)</span>
                 <div className="w-32 h-32 bg-white rounded-lg mx-auto flex items-center justify-center text-slate-900 text-xs font-mono font-bold">
                   [ QR CODE PIX ]
                 </div>
+                <div className="bg-slate-900 p-2 rounded-lg border border-slate-800 flex flex-col items-center gap-1">
+                  <span className="text-[10px] text-slate-400">Pix Copia e Cola:</span>
+                  <span className="text-xs font-mono text-slate-200 break-all select-all">{orderSuccess.asaasPixCopyPaste}</span>
+                </div>
                 <p className="text-[10px] text-slate-400 leading-relaxed max-w-xs mx-auto">
-                  Escaneie o QR Code PIX acima para efetuar a transferência direta e agilizar a expedição do produto.
+                  Escaneie o QR Code PIX ou copie o código acima para efetuar a transferência direta via Asaas.
                 </p>
               </div>
             ) : (
-              <div className="p-4 bg-slate-950 border border-slate-850 rounded-2xl text-xs space-y-1">
-                <p className="text-emerald-400 font-bold">Transação de Crédito Aprovada!</p>
-                <p className="text-slate-400">Verifique os detalhes na fatura do seu cartão de crédito.</p>
+              <div className="p-4 bg-slate-950 border border-slate-850 rounded-2xl text-xs space-y-3">
+                <p className="text-emerald-400 font-bold">Transação via Asaas Gerada!</p>
+                <a href={orderSuccess.asaasInvoiceUrl} target="_blank" rel="noreferrer" className="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors">
+                  Acessar Fatura Asaas
+                </a>
+                <p className="text-slate-400">Verifique os detalhes na fatura do seu cartão ou acesse o link acima.</p>
               </div>
             )}
 

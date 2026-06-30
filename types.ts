@@ -929,6 +929,10 @@ export interface SupplierOrder {
   createdAt: Date;
   notes?: string;
   paymentMethod: 'CREDIT_CARD' | 'PIX';
+  asaasPaymentId?: string;
+  asaasPixQrCode?: string;
+  asaasPixCopyPaste?: string;
+  asaasInvoiceUrl?: string;
   buyerAddress?: {
     street?: string;
     number?: string;
