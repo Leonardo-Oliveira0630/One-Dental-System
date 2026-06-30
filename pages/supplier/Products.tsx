@@ -10,7 +10,7 @@ import {
 
 export const SupplierProducts = () => {
   const { 
-    inventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem, inventoryCategories, currentUser
+    inventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem, inventoryCategories, currentUser, globalSettings
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +25,7 @@ export const SupplierProducts = () => {
     description: '',
     type: 'MATERIAL',
     categoryId: '',
+    marketplaceCategoryIds: [],
     currentStock: 0,
     minStock: 2,
     costPrice: 0,
@@ -408,6 +409,7 @@ export const SupplierProducts = () => {
       description: form.description || '',
       type: (form.type || 'MATERIAL') as InventoryItemType,
       categoryId: form.categoryId || '',
+      marketplaceCategoryIds: form.marketplaceCategoryIds || [],
       category: form.categoryId ? (inventoryCategories.find(c => c.id === form.categoryId)?.name || 'Outros') : '',
       currentStock: Number(form.currentStock || 0),
       minStock: Number(form.minStock || 0),
@@ -783,7 +785,7 @@ export const SupplierProducts = () => {
 
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="block text-xs font-bold text-slate-400 uppercase">Categoria de Insumo</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase">Categoria Interna (Estoque)</label>
                       <button
                         type="button"
                         onClick={handleAddNewCategoryInline}
@@ -797,12 +799,76 @@ export const SupplierProducts = () => {
                       onChange={e => setForm(prev => ({ ...prev, categoryId: e.target.value }))}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
                     >
-                      <option value="">Selecione uma categoria...</option>
+                      <option value="">Selecione uma categoria interna...</option>
                       {inventoryCategories && inventoryCategories.map(cat => (
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
                     </select>
                   </div>
+
+                  {globalSettings?.marketplaceCategories && globalSettings.marketplaceCategories.length > 0 && (
+                    <div className="space-y-2 mt-4 mb-4 bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+                      <label className="block text-xs font-bold text-indigo-400 uppercase">Classificação no Marketplace</label>
+                      <div className="flex flex-col gap-2">
+                        {/* Level 0 */}
+                        <select
+                          value={form.marketplaceCategoryIds?.[0] || ''}
+                          onChange={e => setForm(prev => ({ ...prev, marketplaceCategoryIds: e.target.value ? [e.target.value] : [] }))}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                          <option value="">Categoria Principal...</option>
+                          {globalSettings.marketplaceCategories.map(cat => (
+                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                          ))}
+                        </select>
+
+                        {/* Level 1 */}
+                        {form.marketplaceCategoryIds && form.marketplaceCategoryIds[0] && (
+                          (() => {
+                            const l0 = globalSettings.marketplaceCategories.find(c => c.id === form.marketplaceCategoryIds![0]);
+                            if (l0 && l0.subcategories && l0.subcategories.length > 0) {
+                              return (
+                                <select
+                                  value={form.marketplaceCategoryIds?.[1] || ''}
+                                  onChange={e => setForm(prev => ({ ...prev, marketplaceCategoryIds: e.target.value ? [form.marketplaceCategoryIds![0], e.target.value] : [form.marketplaceCategoryIds![0]] }))}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                                >
+                                  <option value="">Subcategoria...</option>
+                                  {l0.subcategories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
+                                </select>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                        
+                        {/* Level 2 */}
+                        {form.marketplaceCategoryIds && form.marketplaceCategoryIds[1] && (
+                          (() => {
+                            const l0 = globalSettings.marketplaceCategories.find(c => c.id === form.marketplaceCategoryIds![0]);
+                            const l1 = l0?.subcategories?.find(c => c.id === form.marketplaceCategoryIds![1]);
+                            if (l1 && l1.subcategories && l1.subcategories.length > 0) {
+                              return (
+                                <select
+                                  value={form.marketplaceCategoryIds?.[2] || ''}
+                                  onChange={e => setForm(prev => ({ ...prev, marketplaceCategoryIds: e.target.value ? [form.marketplaceCategoryIds![0], form.marketplaceCategoryIds![1], e.target.value] : [form.marketplaceCategoryIds![0], form.marketplaceCategoryIds![1]] }))}
+                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                                >
+                                  <option value="">Sub-subcategoria...</option>
+                                  {l1.subcategories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                  ))}
+                                </select>
+                              );
+                            }
+                            return null;
+                          })()
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>

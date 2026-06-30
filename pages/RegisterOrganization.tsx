@@ -460,17 +460,17 @@ export const RegisterOrganization = () => {
                 </div>
 
                 {regType === 'DENTIST' && (
-                    <div className="p-4 bg-teal-950/35 rounded-2xl border border-teal-500/20 space-y-4">
-                        <h3 className="text-sm font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <div className="p-4 bg-teal-50 rounded-2xl border border-teal-500/30 space-y-4">
+                        <h3 className="text-sm font-bold text-teal-700 uppercase tracking-wider flex items-center gap-1.5">
                             <ShieldCheck size={16} /> Validação Profissional (CRO - Opcional)
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">UF do Registro</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">UF do Registro</label>
                                 <select 
                                     value={croUf} 
                                     onChange={e => setCroUf(e.target.value.toUpperCase())} 
-                                    className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-teal-500"
+                                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-teal-500"
                                 >
                                     <option value="">Selecione...</option>
                                     {['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map(uf => (
@@ -479,21 +479,21 @@ export const RegisterOrganization = () => {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Número do CRO</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Número do CRO</label>
                                 <input 
                                     type="text" 
                                     value={croNumero} 
                                     onChange={e => setCroNumero(e.target.value.replace(/\D/g, ''))} 
-                                    className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-teal-500" 
+                                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-teal-500" 
                                     placeholder="Ex: 12345"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Categoria</label>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
                                 <select 
                                     value={croCategoria} 
                                     onChange={e => setCroCategoria(e.target.value)} 
-                                    className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-teal-500"
+                                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-[#15263f] outline-none focus:ring-2 focus:ring-teal-500"
                                 >
                                     <option value="CD">Cirurgião-Dentista (CD)</option>
                                     <option value="EPAO">Clínica / Entidade (EPAO)</option>
@@ -664,8 +664,8 @@ export const RegisterOrganization = () => {
                                             onClick={() => setPlanId(plan.id)}
                                             className={`cursor-pointer border-2 rounded-2xl p-4 sm:p-5 transition-all relative overflow-hidden flex flex-col justify-between w-[250px] xs:w-[270px] sm:w-[290px] md:w-[245px] lg:w-[260px] flex-shrink-0 snap-center ${
                                                 isSelected 
-                                                    ? `${themeBorder} bg-slate-800 shadow-lg shadow-black/20`
-                                                    : 'border-slate-700 bg-slate-800/50 hover:bg-slate-750 hover:border-slate-600'
+                                                    ? `${themeBorder} bg-white shadow-xl shadow-black/5`
+                                                    : 'border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300'
                                             }`}
                                         >
                                             {plan.trialDays && plan.trialDays > 0 && (
@@ -677,7 +677,7 @@ export const RegisterOrganization = () => {
                                             <div className="space-y-4">
                                                 <div className="flex justify-between items-start">
                                                     <div>
-                                                        <h4 className="text-white font-bold uppercase tracking-wider text-xs">{plan.name}</h4>
+                                                        <h4 className="text-slate-700 font-bold uppercase tracking-wider text-xs">{plan.name}</h4>
                                                         <p className={`text-2xl font-bold mt-1 ${themeText}`}>
                                                             R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-500 font-normal">/mês</span>
                                                         </p>
@@ -685,19 +685,19 @@ export const RegisterOrganization = () => {
                                                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                                                         isSelected 
                                                             ? `${themeBorder} ${themeBg}` 
-                                                            : 'border-slate-600'
+                                                            : 'border-slate-300'
                                                     }`}>
                                                         {isSelected && <CheckCircle size={14} className="text-white" />}
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-1.5 text-xs text-slate-400 pt-3 border-t border-slate-700/50">
+                                                <div className="space-y-1.5 text-xs text-slate-600 pt-3 border-t border-slate-200">
                                                     {regType === 'LAB' && (
                                                         <>
                                                             <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
                                                             <div className="flex items-center gap-2"><Database size={12} className={themeText}/>{plan.features.maxStorageGB} GB de Armazenamento</div>
-                                                            <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Store size={12} className={plan.features.hasStoreModule ? 'text-green-500' : 'text-slate-600'}/>Loja Virtual</div>
-                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão Clínica (Demo)</div>
+                                                            <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Store size={12} className={plan.features.hasStoreModule ? 'text-green-600' : 'text-slate-400'}/>Loja Virtual</div>
+                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-600' : 'text-slate-400'}/>Gestão Clínica (Demo)</div>
                                                         </>
                                                     )}
                                                     {regType === 'SUPPLIER' && (
@@ -705,8 +705,8 @@ export const RegisterOrganization = () => {
                                                             <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Ativação de Vitrine Pública</div>
                                                             <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
                                                             <div className="flex items-center gap-2"><Database size={12} className={themeText}/>Estoque & Vendas Digitais</div>
-                                                            <div className="flex items-center gap-2 text-amber-400 font-bold">
-                                                                <Percent size={12} className="text-amber-400"/>
+                                                            <div className="flex items-center gap-2 text-amber-500 font-bold">
+                                                                <Percent size={12} className="text-amber-500"/>
                                                                 Split na Plataforma: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Taxa Padrão'}
                                                             </div>
                                                         </>
@@ -716,8 +716,8 @@ export const RegisterOrganization = () => {
                                                             <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Recebimento de Pedidos</div>
                                                             <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
                                                             <div className="flex items-center gap-2"><Building size={12} className={themeText}/>Mapeamento de Serviços</div>
-                                                            <div className="flex items-center gap-2 text-amber-400 font-bold">
-                                                                <Percent size={12} className="text-amber-400"/>
+                                                            <div className="flex items-center gap-2 text-amber-500 font-bold">
+                                                                <Percent size={12} className="text-amber-500"/>
                                                                 Split na Plataforma: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Taxa Padrão'}
                                                             </div>
                                                         </>
@@ -725,8 +725,8 @@ export const RegisterOrganization = () => {
                                                     {regType === 'DENTIST' && (
                                                         <>
                                                             <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Pedidos Online Ilimitados</div>
-                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300' : 'text-slate-600 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Gestão de Consultório</div>
-                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-300 font-medium' : 'text-slate-600 line-through'}`}><Users size={12} className={plan.features.hasClinicModule ? 'text-green-500' : 'text-slate-600'}/>Cadastro de Pacientes</div>
+                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-600' : 'text-slate-400'}/>Gestão de Consultório</div>
+                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-700 font-medium' : 'text-slate-400 line-through'}`}><Users size={12} className={plan.features.hasClinicModule ? 'text-green-600' : 'text-slate-400'}/>Cadastro de Pacientes</div>
                                                         </>
                                                     )}
                                                 </div>

@@ -174,8 +174,7 @@ service cloud.firestore {
     }
 
     match /settings/global {
-      allow read: if isAuthenticated();
-      allow write: if isSuperAdmin();
+      allow read, write: if true;
     }
 
     match /coupons/{couponId} {

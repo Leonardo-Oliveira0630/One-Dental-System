@@ -42,6 +42,7 @@ import { Coupons } from './pages/superadmin/Coupons';
 import Subscriptions from './pages/superadmin/Subscriptions';
 import SuperAdminFinance from './pages/superadmin/Finance';
 import { Tutorials } from './pages/superadmin/Tutorials';
+import { MarketplaceCategoriesAdmin } from './pages/superadmin/MarketplaceCategoriesAdmin';
 import { TutorialsView } from './pages/TutorialsView';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
@@ -149,6 +150,7 @@ const AppContent = () => {
       <Route path="/superadmin/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
       <Route path="/superadmin/coupons" element={<ProtectedRoute><Coupons /></ProtectedRoute>} />
       <Route path="/superadmin/subscriptions" element={<ProtectedRoute><Subscriptions /></ProtectedRoute>} />
+      <Route path="/superadmin/categories" element={<ProtectedRoute><MarketplaceCategoriesAdmin /></ProtectedRoute>} />
       <Route path="/superadmin/finance" element={<ProtectedRoute><SuperAdminFinance /></ProtectedRoute>} />
       <Route path="/superadmin/tutorials" element={<ProtectedRoute><Tutorials /></ProtectedRoute>} />
       

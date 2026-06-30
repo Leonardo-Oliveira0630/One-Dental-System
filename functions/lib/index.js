@@ -56,10 +56,10 @@ const getAsaasConfig = async () => {
     const settingsSnap = await db.collection("settings").doc("global").get();
     const settings = settingsSnap.data();
     // Prioridade: Database (settings/global) -> Env Var (Google Cloud Secret Manager ou .env)
-    const apiKey = (settings === null || settings === void 0 ? void 0 : settings.asaasApiKey) || process.env.ASAAS_API_KEY;
+    const apiKey = (settings === null || settings === void 0 ? void 0 : settings.asaasApiKey) || process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY;
     if (!apiKey || apiKey === "SUA_CHAVE_AQUI") {
         logger.error("ERRO: ASAAS_API_KEY não configurada.");
-        throw new Error("Chave de API do Asaas não configurada no servidor. Configure a chave no menu Admin > Configurações.");
+        throw new Error("Chave de API do Asaas não configurada no servidor. Configure a chave no menu Admin > Configurações ou garanta que a variável ASAAS_API_KEY exista.");
     }
     // Identifica ambiente
     const isProduction = true; // Forcing production as requested
@@ -319,7 +319,7 @@ exports.generateBatchBoleto = (0, https_1.onCall)(async (request) => {
         const payload = {
             customer: customerId,
             billingType: "BOLETO",
-            value: total,
+            value: Number(Number(total).toFixed(2)),
             dueDate: cleanDueDate,
             externalReference: `${orgId}___${batchId}`,
             description: `Fatura ProTrack: ${patients.slice(0, 3).join(", ")}...`,

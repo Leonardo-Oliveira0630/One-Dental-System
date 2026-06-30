@@ -24,10 +24,17 @@ export interface MarketplaceBannerConfig {
   };
 }
 
+export interface MarketplaceCategory {
+  id: string;
+  name: string;
+  subcategories?: MarketplaceCategory[];
+}
+
 export interface GlobalSettings {
   platformCommission: number;
   marketplaceBanners?: MarketplaceBannerConfig[];
   officialStoresIds?: string[];
+  marketplaceCategories?: MarketplaceCategory[];
   updatedAt: Date;
   updatedBy: string;
 }
@@ -228,6 +235,7 @@ export interface InventoryCategory {
 export interface InventoryItem {
   id: string;
   categoryId?: string;
+  marketplaceCategoryIds?: string[]; // Path of category ids from root to leaf
   name: string;
   code?: string;
   description?: string;

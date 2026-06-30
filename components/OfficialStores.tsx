@@ -4,6 +4,7 @@ interface Supplier {
   id: string;
   name: string;
   logoUrl?: string;
+  storeSettings?: { profilePhotoUrl?: string };
 }
 
 interface OfficialStoresProps {
@@ -28,8 +29,8 @@ export const OfficialStores = ({ suppliers, onStoreClick }: OfficialStoresProps)
             className="flex flex-col items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
           >
             <div className="w-20 h-20 sm:w-24 sm:h-24 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200 overflow-hidden">
-               {supplier.logoUrl ? (
-                 <img src={supplier.logoUrl} alt={supplier.name} className="w-full h-full object-cover" />
+               {(supplier.storeSettings?.profilePhotoUrl || supplier.logoUrl) ? (
+                 <img src={supplier.storeSettings?.profilePhotoUrl || supplier.logoUrl} alt={supplier.name} className="w-full h-full object-cover" />
                ) : (
                  <span className="text-slate-600 font-black text-xl">{supplier.name.slice(0, 2).toUpperCase()}</span>
                )}

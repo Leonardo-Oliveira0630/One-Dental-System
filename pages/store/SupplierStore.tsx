@@ -38,6 +38,8 @@ export const SupplierStore = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('ALL');
+  const [selectedMarketplaceCategoryId, setSelectedMarketplaceCategoryId] = useState<string | null>(null);
+  const [isCategoriesDropdownOpen, setIsCategoriesDropdownOpen] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>('RELEVANCE');
   
   // Local Supplier Cart
@@ -288,6 +290,13 @@ export const SupplierStore = () => {
     let currentFiltered = scoredList;
     if (selectedSupplierId !== 'ALL') {
       currentFiltered = scoredList.filter(item => item.product.organizationId === selectedSupplierId);
+    }
+    
+    // Apply category filter
+    if (selectedMarketplaceCategoryId) {
+      currentFiltered = currentFiltered.filter(item => 
+        item.product.marketplaceCategoryIds?.includes(selectedMarketplaceCategoryId)
+      );
     }
 
     // 3. Apply sorting options
@@ -612,8 +621,62 @@ export const SupplierStore = () => {
                 Home
               </button>
               <div className="hidden md:flex gap-2 md:gap-6">
-                <button className="px-4 py-2 rounded-xl text-slate-600 font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors">Categorias</button>
-                <button className="px-4 py-2 rounded-xl text-slate-600 font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors">Mais Vendidos</button>
+                <div 
+                  className="relative"
+                  onMouseEnter={() => setIsCategoriesDropdownOpen(true)}
+                  onMouseLeave={() => setIsCategoriesDropdownOpen(false)}
+                >
+                  <button className="px-4 py-2 rounded-xl text-slate-600 font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors flex items-center gap-1">
+                    Categorias <CornerDownRight size={16} />
+                  </button>
+                  {isCategoriesDropdownOpen && globalSettings?.marketplaceCategories && (
+                    <div className="absolute top-full left-0 mt-0 pt-2 w-72 z-50">
+                      <div className="bg-white border border-slate-200 shadow-xl rounded-xl p-2 max-h-[70vh] overflow-y-auto">
+                        <div 
+                          className={`p-2 rounded-lg cursor-pointer hover:bg-slate-100 ${!selectedMarketplaceCategoryId ? 'bg-slate-100 font-bold text-[#15263f]' : 'text-slate-600'}`}
+                          onClick={() => { setSelectedMarketplaceCategoryId(null); setIsCategoriesDropdownOpen(false); }}
+                        >
+                          Todas as Categorias
+                        </div>
+                        {globalSettings.marketplaceCategories.map(cat => (
+                          <div key={cat.id} className="space-y-1 mt-1">
+                            <div 
+                              className={`p-2 rounded-lg cursor-pointer font-bold hover:bg-slate-100 text-slate-800 ${selectedMarketplaceCategoryId === cat.id ? 'text-orange-600 bg-orange-50' : ''}`}
+                              onClick={() => { setSelectedMarketplaceCategoryId(cat.id); setIsCategoriesDropdownOpen(false); }}
+                            >
+                              {cat.name}
+                            </div>
+                            {cat.subcategories?.map(sub => (
+                              <div key={sub.id} className="space-y-1 pl-4 border-l-2 border-slate-100 ml-2">
+                                <div 
+                                  className={`p-1.5 rounded-lg cursor-pointer text-sm hover:bg-slate-50 text-slate-600 ${selectedMarketplaceCategoryId === sub.id ? 'text-orange-600 font-bold bg-orange-50/50' : ''}`}
+                                  onClick={() => { setSelectedMarketplaceCategoryId(sub.id); setIsCategoriesDropdownOpen(false); }}
+                                >
+                                  {sub.name}
+                                </div>
+                                {sub.subcategories?.map(subsub => (
+                                  <div 
+                                    key={subsub.id} 
+                                    className={`p-1 pl-4 rounded-lg cursor-pointer text-xs hover:bg-slate-50 text-slate-500 ${selectedMarketplaceCategoryId === subsub.id ? 'text-orange-600 font-bold' : ''}`}
+                                    onClick={() => { setSelectedMarketplaceCategoryId(subsub.id); setIsCategoriesDropdownOpen(false); }}
+                                  >
+                                    {subsub.name}
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button 
+                  onClick={() => setSortOption('SALES')}
+                  className="px-4 py-2 rounded-xl text-slate-600 font-bold text-base hover:bg-[#15263f] hover:text-white transition-colors"
+                >
+                  Mais Vendidos
+                </button>
               </div>
             </div>
             
