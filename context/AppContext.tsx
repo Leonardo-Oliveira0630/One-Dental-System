@@ -113,6 +113,7 @@ interface AppContextType {
   bankAccounts: BankAccount[];
   inventoryCategories: import('../types').InventoryCategory[];
   inventoryItems: import('../types').InventoryItem[];
+  productCatalogItems: import('../types').ProductCatalogItem[];
   activeAlert: JobAlert | null;
   onlineRequisitions: OnlineRequisition[];
   activeManualDentistId: string | null;
@@ -123,6 +124,10 @@ interface AppContextType {
   addInventoryCategory: (category: Omit<import('../types').InventoryCategory, 'id' | 'organizationId'>) => Promise<void>;
   updateInventoryCategory: (id: string, updates: Partial<import('../types').InventoryCategory>) => Promise<void>;
   deleteInventoryCategory: (id: string) => Promise<void>;
+
+  addProductCatalogItem: (item: Omit<import('../types').ProductCatalogItem, 'id' | 'organizationId'>) => Promise<void>;
+  updateProductCatalogItem: (id: string, updates: Partial<import('../types').ProductCatalogItem>) => Promise<void>;
+  deleteProductCatalogItem: (id: string) => Promise<void>;
 
   addInventoryItem: (item: Omit<import('../types').InventoryItem, 'id' | 'organizationId'>) => Promise<void>;
   updateInventoryItem: (id: string, updates: Partial<import('../types').InventoryItem>) => Promise<void>;
@@ -296,6 +301,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [inventoryCategories, setInventoryCategories] = useState<import('../types').InventoryCategory[]>([]);
   const [inventoryItems, setInventoryItems] = useState<import('../types').InventoryItem[]>([]);
+  const [productCatalogItems, setProductCatalogItems] = useState<import('../types').ProductCatalogItem[]>([]);
   const [allSuppliers, setAllSuppliers] = useState<Organization[]>([]);
   const [allSupplierProducts, setAllSupplierProducts] = useState<import('../types').InventoryItem[]>([]);
   const [supplierOrders, setSupplierOrders] = useState<import('../types').SupplierOrder[]>([]);
@@ -513,6 +519,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeBankAccounts(myOrgId, setBankAccounts));
             unsubs.push(api.subscribeInventoryCategories(myOrgId, setInventoryCategories));
             unsubs.push(api.subscribeInventoryItems(myOrgId, setInventoryItems));
+            unsubs.push(api.subscribeProductCatalogItems(myOrgId, setProductCatalogItems));
             unsubs.push(api.subscribeLabOnlineRequisitions(myOrgId, setOnlineRequisitions));
         } else if (activeDataId) {
             unsubs.push(api.subscribeDentistOnlineRequisitions(activeDataId, currentUser.id, setOnlineRequisitions));
@@ -666,6 +673,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if(!orgId) return;
     await api.apiDeleteInventoryCategory(orgId, id);
   };
+
+  const addProductCatalogItem = async (item: Omit<import('../types').ProductCatalogItem, 'id' | 'organizationId'>) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiAddProductCatalogItem(orgId, { ...item, id: `cat_item_${Date.now()}`, organizationId: orgId });
+  };
+  const updateProductCatalogItem = async (id: string, updates: Partial<import('../types').ProductCatalogItem>) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiUpdateProductCatalogItem(orgId, id, updates);
+  };
+  const deleteProductCatalogItem = async (id: string) => {
+    const orgId = activeDataId;
+    if(!orgId) return;
+    await api.apiDeleteProductCatalogItem(orgId, id);
+  };
+
   const addInventoryItem = async (item: Omit<import('../types').InventoryItem, 'id' | 'organizationId'>) => {
     const orgId = activeDataId;
     if(!orgId) return;
@@ -1205,12 +1229,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
     allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, 
     patientPayments, patientBillingBatches,
-    cardMachines, bankAccounts, inventoryCategories, inventoryItems,
+    cardMachines, bankAccounts, inventoryCategories, inventoryItems, productCatalogItems,
     activeAlert,
     allPayments,
     login, logout, updateUser, addUser, deleteUser,
     addJob, updateJob, addCommissionRecord, updateCommissionStatus, updateCommissionRecord, deleteCommissionRecord,
     addInventoryCategory, updateInventoryCategory, deleteInventoryCategory, addInventoryItem, updateInventoryItem, deleteInventoryItem,
+    addProductCatalogItem, updateProductCatalogItem, deleteProductCatalogItem,
     addJobType, updateJobType, deleteJobType,
     addClinicService, updateClinicService, deleteClinicService,
     addClinicRoom, updateClinicRoom, deleteClinicRoom,

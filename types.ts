@@ -232,6 +232,18 @@ export interface InventoryCategory {
   organizationId: string;
 }
 
+export interface ProductCatalogItem {
+  id: string;
+  name: string;
+  code?: string;
+  description?: string;
+  type: InventoryItemType;
+  categoryId?: string;
+  costPrice: number;
+  sellPrice: number;
+  organizationId: string;
+}
+
 export interface InventoryItem {
   id: string;
   categoryId?: string;

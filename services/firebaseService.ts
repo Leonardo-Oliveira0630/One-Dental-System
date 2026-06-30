@@ -448,6 +448,16 @@ export const apiAddInventoryCategory = (orgId: string, category: any) => setDoc(
 export const apiUpdateInventoryCategory = (orgId: string, id: string, updates: any) => updateDoc(doc(db, `organizations/${orgId}/inventoryCategories`, id), updates);
 export const apiDeleteInventoryCategory = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/inventoryCategories`, id));
 
+export const subscribeProductCatalogItems = (orgId: string, cb: (items: any[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/productCatalog`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any })));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeProductCatalogItems: ${error.code}`));
+};
+export const apiAddProductCatalogItem = (orgId: string, item: any) => setDoc(doc(db, `organizations/${orgId}/productCatalog`, item.id), item);
+export const apiUpdateProductCatalogItem = (orgId: string, id: string, updates: any) => updateDoc(doc(db, `organizations/${orgId}/productCatalog`, id), updates);
+export const apiDeleteProductCatalogItem = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/productCatalog`, id));
+
 export const subscribeInventoryItems = (orgId: string, cb: (items: any[]) => void) => {
     if (!orgId) return () => {};
     return onSnapshot(collection(db, `organizations/${orgId}/inventoryItems`), (snap: any) => {

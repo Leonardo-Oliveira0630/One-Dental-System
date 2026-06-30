@@ -5,13 +5,14 @@ import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, C
 
 export const Inventory = () => {
     const { 
-        inventoryCategories, inventoryItems, 
+        inventoryCategories, inventoryItems, productCatalogItems,
         addInventoryCategory, updateInventoryCategory, deleteInventoryCategory,
         addInventoryItem, updateInventoryItem, deleteInventoryItem,
+        addProductCatalogItem, updateProductCatalogItem, deleteProductCatalogItem,
         manualDentists, allUsers, currentUser 
     } = useApp();
 
-    const [activeTab, setActiveTab] = useState<'ITEMS' | 'CATEGORIES'>('ITEMS');
+    const [activeTab, setActiveTab] = useState<'ITEMS' | 'CATEGORIES' | 'CATALOG'>('ITEMS');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeOwnerGroup, setActiveOwnerGroup] = useState<string | null>(null);
     const [dentistSearch, setDentistSearch] = useState('');
@@ -34,6 +35,7 @@ export const Inventory = () => {
     const [itemForm, setItemForm] = useState<Partial<InventoryItem>>({
         name: '', description: '', type: 'MATERIAL', categoryId: '', currentStock: 0, minStock: 0, costPrice: 0, sellPrice: 0, dentistOwnerId: ''
     });
+    const [showCatalogSuggestions, setShowCatalogSuggestions] = useState(false);
 
     const clients = React.useMemo(() => {
         return [
@@ -79,6 +81,43 @@ export const Inventory = () => {
             itemCount: itemGroups[key].length
         };
     }).filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    // Catalog Item Modal
+    const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
+    const [editingCatalogId, setEditingCatalogId] = useState<string | null>(null);
+    const [catalogForm, setCatalogForm] = useState<Partial<import('../../types').ProductCatalogItem>>({
+        name: '', description: '', code: '', type: 'MATERIAL', categoryId: '', costPrice: 0, sellPrice: 0
+    });
+
+    const filteredCatalogItems = productCatalogItems?.filter(i => 
+        i.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (i.code && i.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (i.description && i.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    ) || [];
+
+    const openCatalogModal = (item?: import('../../types').ProductCatalogItem) => {
+        if (item) {
+            setEditingCatalogId(item.id);
+            setCatalogForm(item);
+        } else {
+            setEditingCatalogId(null);
+            setCatalogForm({
+                name: '', description: '', code: '', type: 'MATERIAL', categoryId: '', costPrice: 0, sellPrice: 0
+            });
+        }
+        setIsCatalogModalOpen(true);
+    };
+
+    const saveCatalogItem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!catalogForm.name || !catalogForm.type) return;
+        if (editingCatalogId) {
+            await updateProductCatalogItem(editingCatalogId, catalogForm);
+        } else {
+            await addProductCatalogItem(catalogForm as any);
+        }
+        setIsCatalogModalOpen(false);
+    };
 
     const openCatModal = (cat?: InventoryCategory) => {
         if (cat) {
@@ -168,6 +207,12 @@ export const Inventory = () => {
                 >
                   CATEGORIAS
                 </button>
+                <button 
+                  onClick={() => setActiveTab('CATALOG')}
+                  className={`px-6 py-3 font-bold text-sm tracking-wide transition-all border-b-2 ${activeTab === 'CATALOG' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                >
+                  BANCO DE PRODUTOS
+                </button>
             </div>
 
             <div className="flex items-center gap-4 mb-6">
@@ -183,7 +228,7 @@ export const Inventory = () => {
                 </div>
                 {activeTab === 'ITEMS' && canCreate && (
                     <button onClick={() => openItemModal()} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2 whitespace-nowrap">
-                        <Plus size={20} /> Novo Produto
+                        <Plus size={20} /> Novo Produto no Estoque
                     </button>
                 )}
                 {activeTab === 'CATEGORIES' && canCreate && (
@@ -191,7 +236,63 @@ export const Inventory = () => {
                         <Plus size={20} /> Nova Categoria
                     </button>
                 )}
+                {activeTab === 'CATALOG' && canCreate && (
+                    <button onClick={() => openCatalogModal()} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2 whitespace-nowrap">
+                        <Plus size={20} /> Novo Produto Base
+                    </button>
+                )}
             </div>
+
+            {activeTab === 'CATALOG' && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-slate-100 bg-slate-50/50">
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Produto Base</th>
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Categoria</th>
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Custo / Venda</th>
+                                <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest w-24">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {filteredCatalogItems.map(item => {
+                                const cat = inventoryCategories.find(c => c.id === item.categoryId);
+                                return (
+                                    <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="p-4">
+                                            <div className="font-bold text-slate-800">{item.name}</div>
+                                            {item.code && <div className="text-xs text-slate-500 font-mono mt-0.5">SKU: {item.code}</div>}
+                                            <div className="text-xs text-slate-500 mt-0.5">{item.type}</div>
+                                        </td>
+                                        <td className="p-4 text-sm text-slate-600">
+                                            {cat?.name || '-'}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="text-sm font-bold text-slate-700">
+                                                C: {(item.costPrice || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                            </div>
+                                            <div className="text-sm font-bold text-emerald-600">
+                                                V: {(item.sellPrice || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex gap-2">
+                                                {canEdit && <button onClick={() => openCatalogModal(item)} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Edit2 size={16}/></button>}
+                                                {canDelete && <button onClick={() => deleteProductCatalogItem(item.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16}/></button>}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {filteredCatalogItems.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="p-12 text-center text-slate-500">Nenhum produto base encontrado.</td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
             {activeTab === 'CATEGORIES' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -321,6 +422,70 @@ export const Inventory = () => {
                 </>
             )}
 
+            {/* Catalog Modal */}
+            {isCatalogModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+                    <form onSubmit={saveCatalogItem} className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative my-auto">
+                        <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
+                            <X size={20}/>
+                        </button>
+                        <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatalogId ? 'Editar Produto Base' : 'Novo Produto Base'}</h2>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome do Produto</label>
+                                <input required type="text" value={catalogForm.name || ''} onChange={e => setCatalogForm({...catalogForm, name: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">SKU / Código</label>
+                                <input type="text" value={catalogForm.code || ''} onChange={e => setCatalogForm({...catalogForm, code: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Categoria</label>
+                                <select required value={catalogForm.categoryId || ''} onChange={e => setCatalogForm({...catalogForm, categoryId: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    <option value="" disabled>Selecione...</option>
+                                    {inventoryCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Tipo</label>
+                                <select required value={catalogForm.type || 'MATERIAL'} onChange={e => setCatalogForm({...catalogForm, type: e.target.value as any})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    <option value="MATERIAL">Insumo/Material</option>
+                                    <option value="EQUIPMENT">Equipamento/Ferramenta</option>
+                                    <option value="IMPLANT">Implante</option>
+                                    <option value="SERVICE">Serviço Terceirizado</option>
+                                </select>
+                            </div>
+                            
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Descrição (Opcional)</label>
+                                <textarea value={catalogForm.description || ''} onChange={e => setCatalogForm({...catalogForm, description: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none h-24 resize-none" />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Custo Unitário (R$)</label>
+                                <input required type="number" step="0.01" min="0" value={catalogForm.costPrice || ''} onChange={e => setCatalogForm({...catalogForm, costPrice: parseFloat(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Preço de Venda (R$)</label>
+                                <input required type="number" step="0.01" min="0" value={catalogForm.sellPrice || ''} onChange={e => setCatalogForm({...catalogForm, sellPrice: parseFloat(e.target.value)})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" />
+                            </div>
+                        </div>
+
+                        <div className="mt-8 flex justify-end gap-3">
+                            <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
+                            <button type="submit" className="px-8 py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md flex items-center gap-2">
+                                <Save size={20}/> Salvar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
             {/* Category Modal */}
             {isCatModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -368,9 +533,54 @@ export const Inventory = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="md:col-span-2 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="md:col-span-2">
+                                    <div className="md:col-span-2 relative">
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome do Produto</label>
-                                        <input required type="text" value={itemForm.name || ''} onChange={e => setItemForm({...itemForm, name: e.target.value})} className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ex: Componente Titânio Hexágono Externo" />
+                                        <input 
+                                            required type="text" 
+                                            value={itemForm.name || ''} 
+                                            onChange={e => {
+                                                setItemForm({...itemForm, name: e.target.value});
+                                                setShowCatalogSuggestions(true);
+                                            }}
+                                            onFocus={() => setShowCatalogSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowCatalogSuggestions(false), 200)}
+                                            className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                            placeholder="Ex: Componente Titânio Hexágono Externo" 
+                                        />
+                                        
+                                        {/* Catalog Autocomplete Dropdown */}
+                                        {showCatalogSuggestions && !editingItemId && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
+                                                {productCatalogItems.filter(p => p.name.toLowerCase().includes((itemForm.name || '').toLowerCase())).slice(0, 10).map(catItem => (
+                                                    <div 
+                                                        key={catItem.id}
+                                                        onClick={() => {
+                                                            setItemForm({
+                                                                ...itemForm,
+                                                                name: catItem.name,
+                                                                code: catItem.code || itemForm.code,
+                                                                description: catItem.description || itemForm.description,
+                                                                categoryId: catItem.categoryId || itemForm.categoryId,
+                                                                type: catItem.type || itemForm.type,
+                                                                costPrice: catItem.costPrice || itemForm.costPrice,
+                                                                sellPrice: catItem.sellPrice || itemForm.sellPrice
+                                                            });
+                                                            setShowCatalogSuggestions(false);
+                                                        }}
+                                                        className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
+                                                    >
+                                                        <div className="font-bold text-slate-800">{catItem.name}</div>
+                                                        <div className="text-xs text-slate-500 flex gap-2">
+                                                            {catItem.code && <span>SKU: {catItem.code}</span>}
+                                                            <span>• {(catItem.sellPrice || 0).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {productCatalogItems.filter(p => p.name.toLowerCase().includes((itemForm.name || '').toLowerCase())).length === 0 && (
+                                                    <div className="p-3 text-xs text-slate-500 text-center">Nenhum produto base encontrado.</div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Código do Item (SKU)</label>
