@@ -4,7 +4,16 @@ import { Job, JobStatus, UrgencyLevel } from "../types";
 
 export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
   /* Following @google/genai guidelines: Always use the direct initialization format with process.env.API_KEY. Assume the key is pre-configured and accessible. */
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
+  let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey || apiKey === '""' || apiKey.trim() === '') {
+    apiKey = window.prompt("A chave da API Gemini não foi encontrada no ambiente. Por favor, insira sua chave da API (GEMINI_API_KEY) para gerar insights:") || "";
+  }
+  
+  if (!apiKey) {
+    return "Falha: Chave de API ausente.";
+  }
+  
+  const ai = new GoogleGenAI({ apiKey: apiKey });
 
   // Prepare data summary for the AI
   const totalJobs = jobs.length;
@@ -52,8 +61,17 @@ export const parseBulkInventory = async (
   text?: string,
   file?: { mimeType: string; b64Data: string }
 ) => {
+  let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey || apiKey === '""' || apiKey.trim() === '') {
+    apiKey = window.prompt("A chave da API Gemini não foi encontrada no ambiente. Por favor, insira sua chave da API (GEMINI_API_KEY) para usar a IA:") || "";
+  }
+  
+  if (!apiKey) {
+    throw new Error("API key is missing.");
+  }
+
   const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY,
+    apiKey: apiKey,
     httpOptions: {
       headers: {
         'User-Agent': 'aistudio-build',
@@ -66,27 +84,29 @@ export const parseBulkInventory = async (
     A primeira linha da tabela (ou os cabeçalhos) conterá o nome dos respectivos campos.
     A partir da segunda linha, cada linha representa um produto e cada coluna representa o valor do campo.
 
-    Tente encontrar os seguintes campos (ou seus equivalentes nos cabeçalhos fornecidos):
-    - Código (SKU)
-    - Produto (Nome do item, obrigatório)
-    - Categoria
-    - Descrição
-    - Estoque Atual (número)
-    - Estoque Mínimo (número)
-    - Custo Médio ou Unitário (número, ex: 10.50)
-    - Preço de Venda (número, ex: 25.90)
+    Faça o mapeamento correto das colunas considerando:
+    - "Código" -> code (string)
+    - "Produto" -> name (string, obrigatório)
+    - "Categoria" -> category (string)
+    - "Estoque atual" -> currentStock (número)
+    - "Estoque mínimo" -> minStock (número)
+    - "Custo médio" ou "Custo" -> costPrice (número, ignorar o "R$")
+    - "Preço de venda" ou "Valor de venda" -> sellPrice (número, ignorar o "R$")
+    - "Descrição" -> description (string)
 
-    Retorne APENAS um JSON array válido de objetos em Português. Exemplo do formato esperado:
+    Atenção: Os valores numéricos monetários na tabela podem conter "R$" e vírgulas para decimais (ex: R$17,33). Converta-os para número float (ex: 17.33).
+
+    Retorne APENAS um JSON array válido de objetos. Exemplo do formato esperado:
     [
       {
-        "code": "123",
-        "name": "Produto A",
-        "category": "Resinas",
-        "description": "Descrição do Produto A",
-        "currentStock": 10,
-        "minStock": 2,
-        "costPrice": 10.50,
-        "sellPrice": 25.90
+        "code": "301.03",
+        "name": "EFF - A1.1/C1.1 - ANÁLOGO DO IMPLANTE",
+        "category": "ANÁLOGO",
+        "description": "ANÁLOGO DO IMPLANTE",
+        "currentStock": 36,
+        "minStock": 5,
+        "costPrice": 17.33,
+        "sellPrice": 29.76
       }
     ]
   `;
@@ -112,7 +132,7 @@ export const parseBulkInventory = async (
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       contents,
       config: {
         responseMimeType: 'application/json'
@@ -122,7 +142,15 @@ export const parseBulkInventory = async (
     if (!response.text) return [];
     
     try {
-      const parsed = JSON.parse(response.text);
+      let rawText = response.text.trim();
+      // Remove markdown code blocks if present
+      if (rawText.startsWith('```json')) {
+        rawText = rawText.replace(/^```json\n/, '').replace(/\n```$/, '');
+      } else if (rawText.startsWith('```')) {
+        rawText = rawText.replace(/^```\n/, '').replace(/\n```$/, '');
+      }
+      
+      const parsed = JSON.parse(rawText);
       return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error("Failed to parse JSON", e);
