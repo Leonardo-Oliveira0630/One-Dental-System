@@ -897,21 +897,24 @@ export const getSaaSInvoices = onCall(async (request: any) => {
 
 export const asaasWebhook = onRequest(
   async (req: any, res: any) => {
-    // Validar Asaas-Access-Token do Webhook
-    const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
-    if (webhookToken) {
-      const authHeader = req.headers["asaas-access-token"] ||
-                         req.headers["Asaas-Access-Token"];
-      if (authHeader !== webhookToken) {
-        logger.warn("Webhook token inválido", {received: authHeader});
-        res.status(401).send("Unauthorized");
-        return;
-      }
-    }
-
-    const event = req.body;
     const db = admin.firestore();
     try {
+      const settingsSnap = await db.collection("settings").doc("global").get();
+      const settings = settingsSnap.data();
+
+      // Validar Asaas-Access-Token do Webhook
+      const webhookToken = settings?.asaasWebhookToken || process.env.ASAAS_WEBHOOK_TOKEN;
+      if (webhookToken) {
+        const authHeader = req.headers["asaas-access-token"] ||
+                           req.headers["Asaas-Access-Token"];
+        if (authHeader !== webhookToken) {
+          logger.warn("Webhook token inválido", {received: authHeader});
+          res.status(401).send("Unauthorized");
+          return;
+        }
+      }
+
+      const event = req.body;
       const isPaid = event.event === "PAYMENT_RECEIVED" ||
                      event.event === "PAYMENT_CONFIRMED";
       const isOverdue = event.event === "PAYMENT_OVERDUE";

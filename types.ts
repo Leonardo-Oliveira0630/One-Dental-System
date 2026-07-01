@@ -36,6 +36,8 @@ export interface GlobalSettings {
   officialStoresIds?: string[];
   marketplaceCategories?: MarketplaceCategory[];
   geminiApiKey?: string;
+  asaasApiKey?: string;
+  asaasWebhookToken?: string;
   updatedAt: Date;
   updatedBy: string;
 }
