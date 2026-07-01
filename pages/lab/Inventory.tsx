@@ -72,33 +72,18 @@ export const Inventory = () => {
                 }
             };
             reader.readAsArrayBuffer(file);
-        } else if (extension === 'csv' || extension === 'xml' || extension === 'tsv') {
+        } else if (extension === 'csv' || extension === 'tsv') {
             setIsParsingBulk(true);
             const reader = new FileReader();
             reader.onload = (event) => {
                 setBulkText(event.target?.result as string);
-                setUploadedFile(null); // CSV/XML/TSV converted directly to text
+                setUploadedFile(null); // CSV/TSV converted directly to text
                 alert(`Arquivo "${name}" carregado com sucesso como texto!`);
                 setIsParsingBulk(false);
             };
             reader.readAsText(file);
-        } else if (extension === 'pdf') {
-            setIsParsingBulk(true);
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const b64 = (event.target?.result as string).split(',')[1];
-                setUploadedFile({
-                    mimeType: 'application/pdf',
-                    b64Data: b64,
-                    name: file.name
-                });
-                setBulkText(''); // Clear text field so we process the file directly
-                alert(`Arquivo PDF "${name}" carregado! O agente de IA lerá o PDF diretamente para extrair os dados.`);
-                setIsParsingBulk(false);
-            };
-            reader.readAsDataURL(file);
         } else {
-            alert("Tipo de arquivo não suportado. Escolha um arquivo .xlsx, .xls, .csv, .xml ou .pdf");
+            alert("Tipo de arquivo não suportado. Escolha um arquivo .xlsx, .xls, .csv ou .tsv.");
         }
     };
 
@@ -118,16 +103,75 @@ export const Inventory = () => {
         }
         setIsParsingBulk(true);
         try {
-            const apiKey = globalSettings?.geminiApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-            const parsedItems = await import('../../services/geminiService').then(m => 
-                m.parseBulkInventory(
-                    bulkText || undefined,
-                    uploadedFile ? { mimeType: uploadedFile.mimeType, b64Data: uploadedFile.b64Data } : undefined,
-                    apiKey
-                )
+            const XLSX = await import('xlsx');
+            let workbook;
+            
+            if (uploadedFile && uploadedFile.mimeType === 'application/pdf') {
+                alert("A extração de PDF requer IA. Para usar a importação tradicional, envie uma planilha Excel (.xlsx) ou CSV.");
+                setIsParsingBulk(false);
+                return;
+            }
+
+            // Lê do texto (que pode ter sido colado, ou vindo do CSV extraído do Excel)
+            workbook = XLSX.read(bulkText, { type: 'string' });
+            
+            const firstSheet = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheet];
+            const rawData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+            
+            if (!rawData || rawData.length === 0) {
+                alert("Nenhum dado encontrado.");
+                setIsParsingBulk(false);
+                return;
+            }
+
+            // Filtra linhas vazias
+            const dataRows = rawData.filter(row => row && row.length > 0 && row.some(cell => cell !== undefined && cell !== null && cell !== ''));
+            
+            if (dataRows.length === 0) {
+                alert("A tabela está vazia.");
+                setIsParsingBulk(false);
+                return;
+            }
+
+            // Verifica se a primeira linha é cabeçalho
+            const firstRow = dataRows[0];
+            const hasHeader = firstRow.some(cell => 
+                typeof cell === 'string' && 
+                (cell.toLowerCase().includes('código') || cell.toLowerCase().includes('produto'))
             );
 
-            if (parsedItems && parsedItems.length > 0) {
+            const startIdx = hasHeader ? 1 : 0;
+            const parsedItems = [];
+
+            // A ordem das colunas esperada baseada no layout padrão (conforme demonstrativo):
+            // 0: Código, 1: Produto, 2: Categoria, 3: Estoque Atual, 4: Custo Médio, 
+            // 5: Valor total de vendas (ignorado), 6: Preço de Venda, 7: Estoque Mínimo, 8: Descrição
+
+            for (let i = startIdx; i < dataRows.length; i++) {
+                const row = dataRows[i];
+                if (!row[1]) continue; // Produto/Nome é obrigatório (índice 1)
+
+                const parseNumber = (val: any) => {
+                    if (typeof val === 'number') return val;
+                    if (!val) return 0;
+                    const str = String(val).replace(/R\$/g, '').replace(/\./g, '').replace(/,/g, '.').trim();
+                    return Number(str) || 0;
+                };
+
+                parsedItems.push({
+                    code: String(row[0] || '').trim(),
+                    name: String(row[1] || '').trim(),
+                    category: String(row[2] || '').trim(),
+                    currentStock: parseNumber(row[3]),
+                    costPrice: parseNumber(row[4]),
+                    sellPrice: parseNumber(row[6]),
+                    minStock: parseNumber(row[7]),
+                    description: String(row[8] || '').trim(),
+                });
+            }
+
+            if (parsedItems.length > 0) {
                 // Keep a local mapping of newly created categories to avoid double creation during the loop
                 const tempCategoryMap: Record<string, string> = {};
 
@@ -187,7 +231,7 @@ export const Inventory = () => {
                 setBulkText('');
                 setUploadedFile(null);
             } else {
-                alert("Nenhum item válido encontrado. Verifique se o conteúdo do arquivo ou texto contém as informações necessárias.");
+                alert("Nenhum item válido encontrado na tabela.");
             }
         } catch (error) {
             console.error("Erro no import bulk:", error);
@@ -862,12 +906,31 @@ export const Inventory = () => {
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-1 flex items-center gap-2">
-                            <Sparkles className="text-emerald-500" />
-                            Agente de Importação Inteligente (IA)
+                            <Upload className="text-emerald-500" />
+                            Importação em Massa
                         </h2>
                         <p className="text-slate-500 mb-6 text-sm">
-                            Importe e registre produtos em massa a partir de planilhas de estoque ou tabelas. A IA irá ler o arquivo ou texto e extrair automaticamente campos como Código, Nome do Produto, Categoria, Descrição, Estoque Atual/Mínimo, Custo e Venda.
+                            Importe e registre produtos em massa a partir de planilhas de estoque (.xlsx, .csv). O sistema fará a leitura linha por linha.
                         </p>
+
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+                            <span className="text-xs font-black text-amber-700 uppercase tracking-wider block mb-2">Ordem Obrigatória das Colunas</span>
+                            <div className="text-xs text-amber-800 space-y-1">
+                                <p>Para que a importação funcione corretamente, sua planilha <strong>DEVE</strong> seguir exatamente a ordem de colunas abaixo (da esquerda para direita):</p>
+                                <ol className="list-decimal pl-4 mt-2 font-mono font-bold">
+                                    <li>Código (SKU)</li>
+                                    <li>Produto (Nome do Item) - Obrigatório</li>
+                                    <li>Categoria</li>
+                                    <li>Estoque Atual</li>
+                                    <li>Custo Médio (Custo de compra)</li>
+                                    <li>Valor Total de Vendas (Coluna ignorada, mas deve existir)</li>
+                                    <li>Preço de Venda</li>
+                                    <li>Estoque Mínimo</li>
+                                    <li>Descrição</li>
+                                </ol>
+                                <p className="mt-2 text-[10px]">* Obs: A primeira linha pode conter os cabeçalhos. Os valores em dinheiro (ex: R$15,00) serão convertidos automaticamente.</p>
+                            </div>
+                        </div>
 
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6">
                             <span className="text-xs font-black text-slate-400 uppercase tracking-wider block mb-2">Destino da Importação</span>
@@ -889,7 +952,7 @@ export const Inventory = () => {
                             <input 
                                 id="bulk-file-input"
                                 type="file"
-                                accept=".xlsx,.xls,.csv,.xml,.tsv,.pdf"
+                                accept=".xlsx,.xls,.csv,.tsv"
                                 onChange={handleFileChange}
                                 className="hidden"
                             />
@@ -899,7 +962,7 @@ export const Inventory = () => {
                                 </div>
                                 <div>
                                     <p className="font-black text-slate-800 text-base">Arraste seu arquivo ou clique para selecionar</p>
-                                    <p className="text-xs text-slate-500 mt-1">Suporta planilhas Excel (.xlsx, .xls), arquivos formatados (.csv, .tsv, .xml) ou documentos .pdf</p>
+                                    <p className="text-xs text-slate-500 mt-1">Suporta planilhas Excel (.xlsx, .xls) ou arquivos formatados (.csv, .tsv)</p>
                                 </div>
                             </div>
                         </div>
@@ -913,7 +976,7 @@ export const Inventory = () => {
                                     </div>
                                     <div>
                                         <div className="font-bold text-slate-800 text-sm">{uploadedFile.name}</div>
-                                        <div className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">Pronto para leitura direta da IA</div>
+                                        <div className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">Pronto para importação de dados</div>
                                     </div>
                                 </div>
                                 <button 
