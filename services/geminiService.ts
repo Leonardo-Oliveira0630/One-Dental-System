@@ -48,21 +48,32 @@ export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
   }
 };
 
-export const parseBulkInventory = async (text: string) => {
+export const parseBulkInventory = async (
+  text?: string,
+  file?: { mimeType: string; b64Data: string }
+) => {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.API_KEY,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
+
   const prompt = `
-    Analise o texto a seguir (pode ser CSV, TSV, tabela colada ou texto livre) e extraia os itens de estoque.
-    
-    Tente encontrar os seguintes campos:
+    Analise a tabela de produtos fornecida (pode ser texto, CSV, XML, PDF ou Excel) e extraia os itens de estoque.
+    Tente encontrar os seguintes campos correspondentes no documento:
     - Código (SKU)
-    - Produto (Nome)
+    - Produto (Nome do item)
     - Categoria
     - Descrição
     - Estoque Atual (número)
     - Estoque Mínimo (número)
-    - Custo Médio / Unitário (número, ex: 10.50)
+    - Custo Médio ou Unitário (número, ex: 10.50)
     - Preço de Venda (número, ex: 25.90)
 
-    Retorne APENAS um JSON array válido de objetos. Exemplo:
+    Retorne APENAS um JSON array válido de objetos em Português. Exemplo do formato esperado:
     [
       {
         "code": "123",
@@ -75,15 +86,31 @@ export const parseBulkInventory = async (text: string) => {
         "sellPrice": 25.90
       }
     ]
-
-    O texto de entrada é:
-    ${text}
   `;
 
   try {
+    let contents: any;
+    if (file) {
+      contents = {
+        parts: [
+          {
+            inlineData: {
+              mimeType: file.mimeType,
+              data: file.b64Data
+            }
+          },
+          {
+            text: prompt
+          }
+        ]
+      };
+    } else {
+      contents = prompt + `\n\nO texto de entrada é:\n${text}`;
+    }
+
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
+      model: 'gemini-3.5-flash',
+      contents,
       config: {
         responseMimeType: 'application/json'
       }

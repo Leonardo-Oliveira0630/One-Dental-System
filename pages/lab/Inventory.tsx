@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { InventoryCategory, InventoryItem, InventoryItemType } from '../../types';
-import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, Save, ArrowLeft, ChevronDown, User as UserIcon, Sparkles } from 'lucide-react';
+import { Package, Plus, Trash2, Edit2, Search, X, Layers, Box, Tag, Key, Info, Check, Save, ArrowLeft, ChevronDown, User as UserIcon, Sparkles, Upload, FileText } from 'lucide-react';
 
 export const Inventory = () => {
     const { 
@@ -41,22 +41,127 @@ export const Inventory = () => {
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
     const [bulkText, setBulkText] = useState('');
     const [isParsingBulk, setIsParsingBulk] = useState(false);
+    const [uploadedFile, setUploadedFile] = useState<{ mimeType: string; b64Data: string; name: string } | null>(null);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const name = file.name;
+        const extension = name.split('.').pop()?.toLowerCase();
+
+        if (extension === 'xlsx' || extension === 'xls') {
+            setIsParsingBulk(true);
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const XLSX = await import('xlsx');
+                    const data = new Uint8Array(event.target?.result as ArrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const csv = XLSX.utils.sheet_to_csv(worksheet);
+                    setBulkText(csv);
+                    setUploadedFile(null); // Excel converted directly into editable CSV text
+                    alert(`Arquivo Excel "${name}" lido e convertido em texto com sucesso!`);
+                } catch (error) {
+                    console.error("Erro ao ler Excel:", error);
+                    alert("Erro ao ler arquivo Excel.");
+                } finally {
+                    setIsParsingBulk(false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } else if (extension === 'csv' || extension === 'xml' || extension === 'tsv') {
+            setIsParsingBulk(true);
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                setBulkText(event.target?.result as string);
+                setUploadedFile(null); // CSV/XML/TSV converted directly to text
+                alert(`Arquivo "${name}" carregado com sucesso como texto!`);
+                setIsParsingBulk(false);
+            };
+            reader.readAsText(file);
+        } else if (extension === 'pdf') {
+            setIsParsingBulk(true);
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const b64 = (event.target?.result as string).split(',')[1];
+                setUploadedFile({
+                    mimeType: 'application/pdf',
+                    b64Data: b64,
+                    name: file.name
+                });
+                setBulkText(''); // Clear text field so we process the file directly
+                alert(`Arquivo PDF "${name}" carregado! O agente de IA lerá o PDF diretamente para extrair os dados.`);
+                setIsParsingBulk(false);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert("Tipo de arquivo não suportado. Escolha um arquivo .xlsx, .xls, .csv, .xml ou .pdf");
+        }
+    };
+
+    const handleFileDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files?.[0];
+        if (file) {
+            const fakeEvent = { target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>;
+            handleFileChange(fakeEvent);
+        }
+    };
 
     const handleBulkImport = async () => {
-        if (!bulkText.trim()) return;
+        if (!bulkText.trim() && !uploadedFile) {
+            alert("Por favor, cole um texto ou envie um arquivo para importar.");
+            return;
+        }
         setIsParsingBulk(true);
         try {
-            const parsedItems = await import('../../services/geminiService').then(m => m.parseBulkInventory(bulkText));
+            const parsedItems = await import('../../services/geminiService').then(m => 
+                m.parseBulkInventory(
+                    bulkText || undefined,
+                    uploadedFile ? { mimeType: uploadedFile.mimeType, b64Data: uploadedFile.b64Data } : undefined
+                )
+            );
+
             if (parsedItems && parsedItems.length > 0) {
-                // Determine destination
+                // Keep a local mapping of newly created categories to avoid double creation during the loop
+                const tempCategoryMap: Record<string, string> = {};
+
                 for (const item of parsedItems) {
+                    let finalCategoryId = '';
+                    const rawCategory = (item as any).category;
+
+                    if (rawCategory && typeof rawCategory === 'string' && rawCategory.trim()) {
+                        const normalizedCat = rawCategory.trim();
+                        const lowerCat = normalizedCat.toLowerCase();
+
+                        if (tempCategoryMap[lowerCat]) {
+                            finalCategoryId = tempCategoryMap[lowerCat];
+                        } else {
+                            const existing = inventoryCategories.find(c => c.name.toLowerCase().trim() === lowerCat);
+                            if (existing) {
+                                finalCategoryId = existing.id;
+                                tempCategoryMap[lowerCat] = finalCategoryId;
+                            } else {
+                                // Create new category dynamically and get ID
+                                const newCatId = await addInventoryCategory({ name: normalizedCat, type: 'MATERIAL' });
+                                if (newCatId) {
+                                    finalCategoryId = newCatId;
+                                    tempCategoryMap[lowerCat] = finalCategoryId;
+                                }
+                            }
+                        }
+                    }
+
                     if (activeTab === 'CATALOG') {
                         await addProductCatalogItem({
                             name: item.name || 'Sem Nome',
                             code: item.code || '',
                             description: item.description || '',
                             type: 'MATERIAL',
-                            categoryId: item.categoryId || '',
+                            categoryId: finalCategoryId,
                             costPrice: Number(item.costPrice) || 0,
                             sellPrice: Number(item.sellPrice) || 0,
                         } as any);
@@ -66,7 +171,7 @@ export const Inventory = () => {
                             code: item.code || '',
                             description: item.description || '',
                             type: 'MATERIAL',
-                            categoryId: item.categoryId || '',
+                            categoryId: finalCategoryId,
                             currentStock: Number(item.currentStock) || 0,
                             minStock: Number(item.minStock) || 0,
                             costPrice: Number(item.costPrice) || 0,
@@ -75,15 +180,16 @@ export const Inventory = () => {
                         } as any);
                     }
                 }
-                alert(`Sucesso! ${parsedItems.length} itens importados.`);
+                alert(`Sucesso! ${parsedItems.length} itens importados e cadastrados em massa.`);
                 setIsBulkModalOpen(false);
                 setBulkText('');
+                setUploadedFile(null);
             } else {
-                alert("Nenhum item válido encontrado no texto.");
+                alert("Nenhum item válido encontrado. Verifique se o conteúdo do arquivo ou texto contém as informações necessárias.");
             }
         } catch (error) {
             console.error("Erro no import bulk:", error);
-            alert("Erro ao importar itens.");
+            alert("Erro ao realizar importação em massa.");
         } finally {
             setIsParsingBulk(false);
         }
@@ -753,37 +859,122 @@ export const Inventory = () => {
                         <button type="button" onClick={() => setIsBulkModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
                             <X size={20}/>
                         </button>
-                        <h2 className="text-2xl font-black text-slate-900 mb-2 flex items-center gap-2">
+                        <h2 className="text-2xl font-black text-slate-900 mb-1 flex items-center gap-2">
                             <Sparkles className="text-emerald-500" />
-                            Importação Inteligente com IA
+                            Agente de Importação Inteligente (IA)
                         </h2>
-                        <p className="text-slate-500 mb-6 text-sm">Cole sua tabela (Excel, CSV) ou lista de produtos. A IA vai ler os campos (Código, Produto, Categoria, Descrição, Estoque Atual, Estoque Mínimo, Custo Médio, Preço de Venda) e extraí-los automaticamente. Você está importando para: <span className="font-bold text-slate-700">{activeTab === 'CATALOG' ? 'Banco de Produtos Base' : 'Estoque / Insumos'}</span></p>
+                        <p className="text-slate-500 mb-6 text-sm">
+                            Importe e registre produtos em massa a partir de planilhas de estoque ou tabelas. A IA irá ler o arquivo ou texto e extrair automaticamente campos como Código, Nome do Produto, Categoria, Descrição, Estoque Atual/Mínimo, Custo e Venda.
+                        </p>
 
-                        <div className="mb-6">
-                            <textarea
-                                value={bulkText}
-                                onChange={e => setBulkText(e.target.value)}
-                                placeholder="Cole aqui sua planilha, CSV ou lista de texto..."
-                                className="w-full h-64 p-4 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-xs whitespace-pre-wrap resize-none"
-                            />
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6">
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-wider block mb-2">Destino da Importação</span>
+                            <div className="flex items-center gap-2">
+                                <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span className="font-bold text-slate-800 text-sm">
+                                    {activeTab === 'CATALOG' ? 'Banco de Produtos Base (Catálogo)' : 'Estoque / Insumos do Laboratório'}
+                                </span>
+                            </div>
                         </div>
 
-                        <div className="flex justify-end gap-3">
-                            <button type="button" onClick={() => setIsBulkModalOpen(false)} className="px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancelar</button>
+                        {/* File Upload / Drag & Drop Zone */}
+                        <div 
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={handleFileDrop}
+                            className="border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-slate-50/50 hover:bg-emerald-50/10 rounded-2xl p-8 text-center cursor-pointer transition-all mb-6 relative group"
+                            onClick={() => document.getElementById('bulk-file-input')?.click()}
+                        >
+                            <input 
+                                id="bulk-file-input"
+                                type="file"
+                                accept=".xlsx,.xls,.csv,.xml,.tsv,.pdf"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl group-hover:scale-110 transition-transform">
+                                    <Upload size={28} />
+                                </div>
+                                <div>
+                                    <p className="font-black text-slate-800 text-base">Arraste seu arquivo ou clique para selecionar</p>
+                                    <p className="text-xs text-slate-500 mt-1">Suporta planilhas Excel (.xlsx, .xls), arquivos formatados (.csv, .tsv, .xml) ou documentos .pdf</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Active File Badge */}
+                        {uploadedFile && (
+                            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-6 flex items-center justify-between animate-fade-in">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
+                                        <FileText size={20} />
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-slate-800 text-sm">{uploadedFile.name}</div>
+                                        <div className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wider">Pronto para leitura direta da IA</div>
+                                    </div>
+                                </div>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setUploadedFile(null)} 
+                                    className="p-1.5 hover:bg-emerald-200/50 text-emerald-700 rounded-full transition-colors"
+                                    title="Remover arquivo"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Text / CSV Manual Area */}
+                        {!uploadedFile && (
+                            <div className="mb-6">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-wider">Texto Extraído ou Copiado</label>
+                                    {bulkText && (
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setBulkText('')} 
+                                            className="text-xs text-rose-500 font-bold hover:underline"
+                                        >
+                                            Limpar Texto
+                                        </button>
+                                    )}
+                                </div>
+                                <textarea
+                                    value={bulkText}
+                                    onChange={e => setBulkText(e.target.value)}
+                                    placeholder="Caso prefira, você também pode colar dados copiados de uma planilha ou digitar uma lista livre aqui..."
+                                    className="w-full h-44 p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-xs whitespace-pre-wrap resize-none transition-all"
+                                />
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 border-t border-slate-100 pt-6">
+                            <button 
+                                type="button" 
+                                onClick={() => {
+                                    setIsBulkModalOpen(false);
+                                    setUploadedFile(null);
+                                    setBulkText('');
+                                }} 
+                                className="px-6 py-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
                             <button 
                                 type="button" 
                                 onClick={handleBulkImport}
-                                disabled={isParsingBulk || !bulkText.trim()}
+                                disabled={isParsingBulk || (!bulkText.trim() && !uploadedFile)}
                                 className="px-8 py-4 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                             >
                                 {isParsingBulk ? (
                                     <>
                                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                        Analisando...
+                                        Analisando e Cadastrando...
                                     </>
                                 ) : (
                                     <>
-                                        <Sparkles size={20}/> Extrair e Cadastrar em Massa
+                                        <Sparkles size={20}/> Iniciar Importação
                                     </>
                                 )}
                             </button>

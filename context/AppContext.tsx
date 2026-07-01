@@ -121,7 +121,7 @@ interface AppContextType {
   addOnlineRequisition: (labId: string, req: Omit<OnlineRequisition, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   updateOnlineRequisition: (labId: string, id: string, updates: Partial<OnlineRequisition>) => Promise<void>;
 
-  addInventoryCategory: (category: Omit<import('../types').InventoryCategory, 'id' | 'organizationId'>) => Promise<void>;
+  addInventoryCategory: (category: any) => Promise<string>;
   updateInventoryCategory: (id: string, updates: Partial<import('../types').InventoryCategory>) => Promise<void>;
   deleteInventoryCategory: (id: string) => Promise<void>;
 
@@ -658,10 +658,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
   };
 
-  const addInventoryCategory = async (category: Omit<import('../types').InventoryCategory, 'id' | 'organizationId'>) => {
+  const addInventoryCategory = async (category: any) => {
     const orgId = activeDataId;
-    if(!orgId) return;
-    await api.apiAddInventoryCategory(orgId, { ...category, id: `inv_cat_${Date.now()}`, organizationId: orgId });
+    if(!orgId) return '';
+    const id = category.id || `inv_cat_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    await api.apiAddInventoryCategory(orgId, { ...category, id, organizationId: orgId });
+    return id;
   };
   const updateInventoryCategory = async (id: string, updates: Partial<import('../types').InventoryCategory>) => {
     const orgId = activeDataId;
