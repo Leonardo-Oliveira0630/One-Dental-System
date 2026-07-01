@@ -4,7 +4,7 @@ import { Job, JobStatus, UrgencyLevel } from "../types";
 
 export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
   /* Following @google/genai guidelines: Always use the direct initialization format with process.env.API_KEY. Assume the key is pre-configured and accessible. */
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY });
 
   // Prepare data summary for the AI
   const totalJobs = jobs.length;
@@ -53,7 +53,7 @@ export const parseBulkInventory = async (
   file?: { mimeType: string; b64Data: string }
 ) => {
   const ai = new GoogleGenAI({
-    apiKey: process.env.API_KEY,
+    apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY,
     httpOptions: {
       headers: {
         'User-Agent': 'aistudio-build',
