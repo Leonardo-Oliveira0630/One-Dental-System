@@ -35,6 +35,7 @@ export interface GlobalSettings {
   marketplaceBanners?: MarketplaceBannerConfig[];
   officialStoresIds?: string[];
   marketplaceCategories?: MarketplaceCategory[];
+  geminiApiKey?: string;
   updatedAt: Date;
   updatedBy: string;
 }

@@ -11,10 +11,14 @@ export const SuperAdminDashboard = () => {
 
     // Settings Form State
     const [platformComm, setPlatformComm] = useState(globalSettings?.platformCommission || 5);
+    const [geminiApiKey, setGeminiApiKey] = useState(globalSettings?.geminiApiKey || '');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        if (globalSettings) setPlatformComm(globalSettings.platformCommission);
+        if (globalSettings) {
+            setPlatformComm(globalSettings.platformCommission);
+            setGeminiApiKey(globalSettings.geminiApiKey || '');
+        }
     }, [globalSettings]);
 
     // Stats
@@ -24,7 +28,10 @@ export const SuperAdminDashboard = () => {
     const handleSaveSettings = async () => {
         setIsSaving(true);
         try {
-            await updateGlobalSettings({ platformCommission: platformComm });
+            await updateGlobalSettings({ 
+                platformCommission: platformComm,
+                geminiApiKey: geminiApiKey.trim()
+            });
             alert("Configurações salvas!");
         } catch (err) {
             alert("Erro ao salvar.");
@@ -122,18 +129,39 @@ export const SuperAdminDashboard = () => {
                                         />
                                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xl font-bold text-slate-400">%</span>
                                     </div>
-                                    <button 
-                                        onClick={handleSaveSettings}
-                                        disabled={isSaving}
-                                        className="px-8 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50"
-                                    >
-                                        {isSaving ? <Loader2 className="animate-spin"/> : <Save />}
-                                        SALVAR
-                                    </button>
                                 </div>
                             </label>
-                            <p className="text-xs text-slate-400 leading-relaxed italic">
-                                * Esta taxa será deduzida automaticamente de cada venda realizada na Loja Virtual de qualquer laboratório cadastrado que utilize a Conta Digital LABPROX.
+                            
+                            <label className="block">
+                                <span className="text-sm font-black text-slate-700 uppercase flex items-center gap-2 mb-2">
+                                    <Activity size={16} className="text-blue-500"/> Chave da API Gemini (IA)
+                                </span>
+                                <div className="flex gap-4">
+                                    <div className="relative flex-1">
+                                        <input 
+                                            type="password" 
+                                            value={geminiApiKey}
+                                            onChange={e => setGeminiApiKey(e.target.value)}
+                                            placeholder="Cole a chave da API do Google Gemini aqui..."
+                                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            </label>
+
+                            <div className="pt-4 flex justify-end">
+                                <button 
+                                    onClick={handleSaveSettings}
+                                    disabled={isSaving}
+                                    className="px-8 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-200 hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {isSaving ? <Loader2 className="animate-spin"/> : <Save />}
+                                    SALVAR CONFIGURAÇÕES
+                                </button>
+                            </div>
+                            <p className="text-xs text-slate-400 leading-relaxed italic mt-4">
+                                * A taxa de comissão será deduzida automaticamente de cada venda realizada na Loja Virtual. <br/>
+                                * A chave da API Gemini é usada para funcionalidades de Inteligência Artificial em toda a plataforma.
                             </p>
                         </div>
 

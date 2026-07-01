@@ -59,11 +59,12 @@ export const getProductionInsights = async (jobs: Job[]): Promise<string> => {
 
 export const parseBulkInventory = async (
   text?: string,
-  file?: { mimeType: string; b64Data: string }
+  file?: { mimeType: string; b64Data: string },
+  providedApiKey?: string
 ) => {
-  let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  let apiKey = providedApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey || apiKey === '""' || apiKey.trim() === '') {
-    apiKey = window.prompt("A chave da API Gemini não foi encontrada no ambiente. Por favor, insira sua chave da API (GEMINI_API_KEY) para usar a IA:") || "";
+    apiKey = window.prompt("A chave da API Gemini não foi encontrada. Por favor, insira sua chave da API (GEMINI_API_KEY) para usar a IA:") || "";
   }
   
   if (!apiKey) {

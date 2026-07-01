@@ -9,7 +9,7 @@ export const Inventory = () => {
         addInventoryCategory, updateInventoryCategory, deleteInventoryCategory,
         addInventoryItem, updateInventoryItem, deleteInventoryItem,
         addProductCatalogItem, updateProductCatalogItem, deleteProductCatalogItem,
-        manualDentists, allUsers, currentUser 
+        manualDentists, allUsers, currentUser, globalSettings 
     } = useApp();
 
     const [activeTab, setActiveTab] = useState<'ITEMS' | 'CATEGORIES' | 'CATALOG'>('ITEMS');
@@ -118,10 +118,12 @@ export const Inventory = () => {
         }
         setIsParsingBulk(true);
         try {
+            const apiKey = globalSettings?.geminiApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
             const parsedItems = await import('../../services/geminiService').then(m => 
                 m.parseBulkInventory(
                     bulkText || undefined,
-                    uploadedFile ? { mimeType: uploadedFile.mimeType, b64Data: uploadedFile.b64Data } : undefined
+                    uploadedFile ? { mimeType: uploadedFile.mimeType, b64Data: uploadedFile.b64Data } : undefined,
+                    apiKey
                 )
             );
 
