@@ -138,36 +138,88 @@ export const Inventory = () => {
             const firstRow = dataRows[0];
             const hasHeader = firstRow.some(cell => 
                 typeof cell === 'string' && 
-                (cell.toLowerCase().includes('código') || cell.toLowerCase().includes('produto'))
+                (cell.toLowerCase().includes('código') || cell.toLowerCase().includes('produto') || cell.toLowerCase().includes('sku'))
             );
 
             const startIdx = hasHeader ? 1 : 0;
             const parsedItems = [];
 
-            // A ordem das colunas esperada baseada no layout padrão (conforme demonstrativo):
-            // 0: Código, 1: Produto, 2: Categoria, 3: Estoque Atual, 4: Custo Médio, 
-            // 5: Valor total de vendas (ignorado), 6: Preço de Venda, 7: Estoque Mínimo, 8: Descrição
+            // Identificação dinâmica de colunas baseada no cabeçalho
+            let idxCode = 0, idxName = 1, idxCat = 2, idxStock = 3, idxCost = 4, idxSell = 6, idxMinStock = 7, idxDesc = 8;
+
+            if (hasHeader) {
+                const h = firstRow.map(c => String(c || '').toLowerCase().trim());
+                const findIdx = (keywords: string[]) => h.findIndex(col => keywords.some(k => col.includes(k)));
+                
+                const cIdx = findIdx(['código', 'codigo', 'sku']);
+                if (cIdx !== -1) idxCode = cIdx;
+                
+                const nIdx = findIdx(['produto', 'nome do item', 'nome', 'item']);
+                if (nIdx !== -1) idxName = nIdx;
+                
+                const catIdx = findIdx(['categoria', 'grupo']);
+                if (catIdx !== -1) idxCat = catIdx;
+                
+                const stockIdx = findIdx(['estoque atual', 'estoque']);
+                if (stockIdx !== -1 && !h[stockIdx].includes('mín')) idxStock = stockIdx;
+                
+                const costIdx = findIdx(['custo', 'custo médio']);
+                if (costIdx !== -1) idxCost = costIdx;
+                
+                // Evitar "valor total de vendas", buscar "preço de venda" ou "valor de venda"
+                const sellIdx = h.findIndex(col => (col.includes('venda') || col.includes('preço')) && !col.includes('total'));
+                if (sellIdx !== -1) idxSell = sellIdx;
+                
+                const minIdx = findIdx(['estoque mín', 'estoque min', 'mínimo']);
+                if (minIdx !== -1) idxMinStock = minIdx;
+
+                const descIdx = findIdx(['descrição', 'detalhe']);
+                if (descIdx !== -1) idxDesc = descIdx;
+            } else if (activeTab === 'CATALOG') {
+                // Se não tiver cabeçalho e for CATALOG, assumimos que não tem coluna de estoque.
+                // Ajuste padrão esperado caso pule a coluna de estoque:
+                // 0: Código, 1: Produto, 2: Categoria, 3: Custo, 4: Vendas Total, 5: Preço Venda, 6: Descrição
+                idxStock = -1;
+                idxMinStock = -1;
+                idxCost = 3;
+                idxSell = 5;
+                idxDesc = 6;
+            }
 
             for (let i = startIdx; i < dataRows.length; i++) {
                 const row = dataRows[i];
-                if (!row[1]) continue; // Produto/Nome é obrigatório (índice 1)
+                if (idxName !== -1 && !row[idxName]) continue; // Produto/Nome é obrigatório
 
-                const parseNumber = (val: any) => {
+                const parsePrice = (val: any) => {
                     if (typeof val === 'number') return val;
                     if (!val) return 0;
-                    const str = String(val).replace(/R\$/g, '').replace(/\./g, '').replace(/,/g, '.').trim();
+                    let str = String(val).replace(/R\$/g, '').trim();
+                    if (str.includes(',')) {
+                        str = str.replace(/\./g, '').replace(',', '.');
+                    }
                     return Number(str) || 0;
                 };
 
+                const parseStock = (val: any) => {
+                    if (typeof val === 'number') return Math.floor(val);
+                    if (!val) return 0;
+                    let str = String(val).trim();
+                    if (str.includes(',')) {
+                        str = str.split(',')[0]; // Ignora tudo após a vírgula para estoque
+                    }
+                    str = str.replace(/\./g, ''); // Remove separador de milhar
+                    return parseInt(str, 10) || 0;
+                };
+
                 parsedItems.push({
-                    code: String(row[0] || '').trim(),
-                    name: String(row[1] || '').trim(),
-                    category: String(row[2] || '').trim(),
-                    currentStock: parseNumber(row[3]),
-                    costPrice: parseNumber(row[4]),
-                    sellPrice: parseNumber(row[6]),
-                    minStock: parseNumber(row[7]),
-                    description: String(row[8] || '').trim(),
+                    code: idxCode !== -1 ? String(row[idxCode] || '').trim() : '',
+                    name: idxName !== -1 ? String(row[idxName] || '').trim() : '',
+                    category: idxCat !== -1 ? String(row[idxCat] || '').trim() : '',
+                    currentStock: idxStock !== -1 ? parseStock(row[idxStock]) : 0,
+                    costPrice: idxCost !== -1 ? parsePrice(row[idxCost]) : 0,
+                    sellPrice: idxSell !== -1 ? parsePrice(row[idxSell]) : 0,
+                    minStock: idxMinStock !== -1 ? parseStock(row[idxMinStock]) : 0,
+                    description: idxDesc !== -1 ? String(row[idxDesc] || '').trim() : '',
                 });
             }
 
