@@ -325,14 +325,25 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsubPlans = api.subscribeSubscriptionPlans(setAllPlans);
     const unsubLabs = api.subscribeAllLaboratories(setAllLaboratories);
     const unsubSuppliers = api.subscribeAllSuppliers(setAllSuppliers);
-    const unsubSupplierProducts = api.subscribeAllSupplierProducts(setAllSupplierProducts);
     return () => { 
       unsubPlans(); 
       unsubLabs(); 
       unsubSuppliers(); 
-      unsubSupplierProducts(); 
     };
   }, []);
+
+  // Subscrição de Produtos de Fornecedores (depende dos fornecedores carregados)
+  useEffect(() => {
+    if (!db || allSuppliers.length === 0) {
+      setAllSupplierProducts([]);
+      return;
+    }
+    const supplierIds = allSuppliers.map(s => s.id);
+    const unsubSupplierProducts = api.subscribeAllSupplierProducts(supplierIds, setAllSupplierProducts);
+    return () => {
+      unsubSupplierProducts();
+    };
+  }, [allSuppliers]);
 
   // Monitoramento de Auth e Perfil
   useEffect(() => {
