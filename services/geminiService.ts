@@ -63,9 +63,12 @@ export const parseBulkInventory = async (
 
   const prompt = `
     Analise a tabela de produtos fornecida (pode ser texto, CSV, XML, PDF ou Excel) e extraia os itens de estoque.
-    Tente encontrar os seguintes campos correspondentes no documento:
+    A primeira linha da tabela (ou os cabeçalhos) conterá o nome dos respectivos campos.
+    A partir da segunda linha, cada linha representa um produto e cada coluna representa o valor do campo.
+
+    Tente encontrar os seguintes campos (ou seus equivalentes nos cabeçalhos fornecidos):
     - Código (SKU)
-    - Produto (Nome do item)
+    - Produto (Nome do item, obrigatório)
     - Categoria
     - Descrição
     - Estoque Atual (número)
