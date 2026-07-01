@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
     define: {
       // Polyfill process.env.API_KEY for the browser build
       // This replaces 'process.env.API_KEY' in the code with the string value from env vars
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || '')
+      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.API_KEY || '')
     },
     server: {
       port: 3000,
