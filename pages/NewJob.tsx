@@ -129,6 +129,7 @@ export const NewJob = () => {
 
   const calculatedBasePrice = useMemo(() => {
     if (!activeJobType) return 0;
+    if (itemNature === 'REPETITION' || itemNature === 'ADJUSTMENT') return 0;
     
     let basePrice = activeJobType.basePrice;
     let dentistDiscountRate = 0;
@@ -252,6 +253,14 @@ export const NewJob = () => {
   useEffect(() => {
     if (addedItems.length > 0) {
       const updated = addedItems.map(item => {
+        if (item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') {
+          return {
+            ...item,
+            price: 0,
+            basePriceBeforeDiscount: 0
+          };
+        }
+        
         const jobType = jobTypes.find(t => t.id === item.jobTypeId);
         const correctPrice = calculateItemPriceWithDentist(
           jobType,
@@ -320,22 +329,28 @@ export const NewJob = () => {
   const generateNextNewOs = () => {
     let maxId = 0;
     jobs.forEach(j => {
-      const basePart = j.osNumber?.split('-')[0];
-      const num = parseInt(basePart || '0');
+      const basePart = j.osNumber?.split('-')[0].replace(/\D/g, '');
+      const num = parseInt(basePart || '0', 10);
       if (!isNaN(num) && num > maxId) maxId = num;
     });
     return (maxId + 1).toString().padStart(4, '0');
   };
 
+  const initialMountRef = useRef(true);
+
   useEffect(() => {
+    if (initialMountRef.current) {
+      initialMountRef.current = false;
+      const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
+      if (entryType === 'NEW' && !location.state?.osNumber) {
+        setOsNumber(generateNextNewOs());
+      }
+      return;
+    }
+
     if (entryType === 'NEW') {
         setOsNumber(generateNextNewOs());
-        if (!location.state?.patientName) {
-            setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
-        } else {
-            setPatientName((location.state.patientName || '').toUpperCase());
-            setNotes(location.state.notes || '');
-        }
+        setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
         setLastJobFound(null);
         loadedJobIdRef.current = null;
     } else {
@@ -350,13 +365,17 @@ export const NewJob = () => {
         setLastJobFound(null);
         loadedJobIdRef.current = null;
     }
-    const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
-  }, [entryType]); // Removed 'jobs' from dependency array to prevent form clearing
+  }, [entryType]); 
+// Removed 'jobs' from dependency array to prevent form clearing
 
   // Update OS number when jobs load initially
   useEffect(() => {
-    if (jobs.length > 0 && osNumber === '0001' && entryType === 'NEW') {
-        setOsNumber(generateNextNewOs());
+    if (jobs.length > 0 && entryType === 'NEW') {
+        const nextOs = generateNextNewOs();
+        const exists = jobs.find(j => j.osNumber === osNumber);
+        if (osNumber === '0001' || (exists && !osNumber.includes('-'))) {
+            setOsNumber(nextOs);
+        }
     }
   }, [jobs]);
 

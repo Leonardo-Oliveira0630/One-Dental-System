@@ -160,6 +160,8 @@ export const JobDetails = () => {
             if (!isNaN(seq) && seq >= nextSeq) {
                 nextSeq = seq + 1;
             }
+        } else {
+            if (nextSeq === 1) nextSeq = 2;
         }
     });
     const nextOsNumber = `${baseOs}-${nextSeq}`;
@@ -171,7 +173,8 @@ export const JobDetails = () => {
                 patientName: job.patientName,
                 dentistId: job.dentistId,
                 dentistName: job.dentistName,
-                osNumber: nextOsNumber
+                osNumber: nextOsNumber,
+                notes: job.notes
             }
         });
     } else {
@@ -189,7 +192,8 @@ export const JobDetails = () => {
                 dentistId: job.dentistId,
                 dentistName: job.dentistName,
                 osNumber: nextOsNumber,
-                items: newItems
+                items: newItems,
+                notes: job.notes
             }
         });
     }
