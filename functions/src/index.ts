@@ -1065,29 +1065,11 @@ export const createSupplierPayment = onCall(async (request: any) => {
 
     const payload: any = {
       customer: customerId,
-      billingType: paymentData.method,
+      billingType: "UNDEFINED",
       value: orderData.totalValue,
       dueDate: new Date().toISOString().split("T")[0],
       description: `Pedido Loja Fornecedor - ${orderData.buyerOrgId}`,
     };
-
-    if (paymentData.method === "CREDIT_CARD" && paymentData.creditCard) {
-      payload.creditCard = {
-        holderName: paymentData.creditCard.holderName,
-        number: paymentData.creditCard.number,
-        expiryMonth: paymentData.creditCard.expiry.split("/")[0],
-        expiryYear: "20" + paymentData.creditCard.expiry.split("/")[1],
-        ccv: paymentData.creditCard.cvv
-      };
-      payload.creditCardHolderInfo = {
-        name: paymentData.creditCard.holderName,
-        email: "email@cliente.com",
-        cpfCnpj: paymentData.cpfCnpj,
-        postalCode: "01001-000",
-        addressNumber: "123",
-        phone: "11999999999"
-      };
-    }
 
     if (walletId && walletId.length > 10) {
       payload.split = [{walletId, percentualValue: 100 - finalSplitPercent}];
@@ -1097,25 +1079,10 @@ export const createSupplierPayment = onCall(async (request: any) => {
       headers: {access_token: key},
     });
 
-    let pixQrCode = null;
-    let pixCopyPaste = null;
-    if (paymentData.method === "PIX") {
-      try {
-        const pixRes = await axios.get(`${url}/payments/${payRes.data.id}/pixQrCode`, {
-          headers: {access_token: key},
-        });
-        pixQrCode = pixRes.data.encodedImage;
-        pixCopyPaste = pixRes.data.payload;
-      } catch (err: any) {
-        console.error("Erro ao buscar QR Code do PIX:", err.message);
-      }
-    }
-
     const newOrderData = {
       ...orderData,
       asaasPaymentId: payRes.data.id,
       asaasInvoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl,
-      asaasPixCopyPaste: pixCopyPaste,
       paymentStatus: payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED' ? 'PAID' : 'PENDING'
     };
 
@@ -1124,9 +1091,7 @@ export const createSupplierPayment = onCall(async (request: any) => {
     return { 
       success: true, 
       paymentId: payRes.data.id, 
-      invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, 
-      pixQrCode, 
-      pixCopyPaste 
+      invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl
     };
   } catch (error: any) {
     const msg = error.response?.data?.errors?.[0]?.description || error.message;

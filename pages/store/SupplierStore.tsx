@@ -34,7 +34,7 @@ type SortOption = 'RELEVANCE' | 'LATEST' | 'SALES' | 'PRICE_ASC' | 'PRICE_DESC';
 
 export const SupplierStore = () => {
   const { 
-    allSuppliers, allSupplierProducts, addSupplierOrder, currentUser, currentOrg, globalSettings 
+    allSuppliers, allSupplierProducts, addSupplierOrder, supplierOrders, updateSupplierOrder, currentUser, currentOrg, globalSettings 
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -73,6 +73,9 @@ export const SupplierStore = () => {
 
   // Detailed Product Modal (Shopee style switcher)
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<InventoryItem | null>(null);
+  const [activeTab, setActiveTab] = useState<'STORE' | 'MY_ORDERS'>('STORE');
+  const [shippingMethod, setShippingMethod] = useState<'COMBINE' | 'PAC' | 'SEDEX'>('COMBINE');
+
   const [detailSelectedVar, setDetailSelectedVar] = useState<any>(null);
   const [detailSelectedOptions, setDetailSelectedOptions] = useState<{groupId: string, groupName: string, optionId: string, optionName: string, priceModifier: number}[]>([]);
   const [detailActiveImg, setDetailActiveImg] = useState<string>('');
@@ -516,45 +519,31 @@ export const SupplierStore = () => {
           status: 'PENDING',
           createdAt: new Date(),
           notes: notes || undefined,
-          paymentMethod: paymentMethod,
-          
+          shippingMethod,
+          paymentMethod: 'BOLETO', // Asaas allows user to choose
           buyerAddress: address
         };
 
         
-        const paymentData = {
-          method: paymentMethod,
-          cpfCnpj: cpfCnpj.replace(/\D/g, ''),
-          creditCard: paymentMethod === 'CREDIT_CARD' ? {
-              number: cardNumber.replace(/\s/g, ''),
-              holderName: cardHolder,
-              expiry: cardExpiry,
-              cvv: cardCvv
-          } : undefined
-        };
+        
+        const result: any = await api.apiCreateSupplierPayment(newOrder, { cpfCnpj: cpfCnpj.replace(/\D/g, '') });
 
-        const result: any = await api.apiCreateSupplierPayment(newOrder, paymentData);
-
-        if (result && result.success) {
-          lastOrder = {
-            ...newOrder,
-            asaasPaymentId: result.paymentId,
-            asaasInvoiceUrl: result.invoiceUrl,
-            asaasPixCopyPaste: result.pixCopyPaste,
-            pixQrCode: result.pixQrCode // temporary hold for UI
-          };
-          // addSupplierOrder was already called via functions? 
-          // Wait, the function sets the doc, but we might want to also add it to our local context or run addSupplierOrder.
-          // Since the function does db.collection("supplierOrders").doc(orderData.id).set(newOrderData),
-          // we just need to update the UI.
+        if (result && result.success && result.invoiceUrl) {
+          lastOrder = { ...newOrder, asaasInvoiceUrl: result.invoiceUrl } as SupplierOrder;
         } else {
-           throw new Error("Falha no pagamento");
+           throw new Error("Falha ao gerar link de pagamento");
         }
-
       }
 
-      // Sync and succeed
-      setOrderSuccess(lastOrder);
+      saveCartToStorage([]); // clear
+      setNotes('');
+      setIsCheckoutOpen(false);
+      
+      if (lastOrder && lastOrder.asaasInvoiceUrl) {
+         window.location.href = lastOrder.asaasInvoiceUrl;
+      } else {
+         setOrderSuccess(lastOrder);
+      }
       saveCartToStorage([]); // clear
       setNotes('');
       setIsCheckoutOpen(false);
@@ -575,10 +564,16 @@ export const SupplierStore = () => {
         
         <div className="flex items-center justify-center flex-1 gap-2 md:gap-6">
           <button 
-            onClick={() => setSelectedSupplierId('ALL')}
-            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${selectedSupplierId === 'ALL' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+            onClick={() => { setSelectedSupplierId('ALL'); setActiveTab('STORE'); }}
+            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'STORE' && selectedSupplierId === 'ALL' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
           >
             Home
+          </button>
+          <button 
+            onClick={() => setActiveTab('MY_ORDERS')}
+            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'MY_ORDERS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+          >
+            Meus Pedidos
           </button>
           <div className="hidden md:flex gap-2 md:gap-6">
             <div 
@@ -651,6 +646,8 @@ export const SupplierStore = () => {
         </div>
       </div>
 
+      {activeTab === 'STORE' && (
+      <>
       {/* Dynamic Header/Banner depending on Selected Supplier to support custom Store settings */}
       {selectedSupplierId !== 'ALL' && activeSupplierOrg ? (
         <div className="w-full">
@@ -1500,50 +1497,49 @@ export const SupplierStore = () => {
             </div>
 
             <form onSubmit={handleCheckout} className="p-6 overflow-y-auto space-y-5">
-              {/* Payment Method */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Forma de Pagamento</label>
-                <div className="grid grid-cols-2 gap-3">
+              {/* Shipping Method */}
+              <div className="space-y-3 mb-4">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Opções de Frete (Melhor Envio)</label>
+                <div className="grid grid-cols-1 gap-2">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('PIX')}
-                    className={`p-3 rounded-xl border font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-                      paymentMethod === 'PIX' 
+                    onClick={() => setShippingMethod('COMBINE')}
+                    className={`p-3 rounded-xl border text-left font-bold text-sm transition-all ${
+                      shippingMethod === 'COMBINE' 
                         ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
                         : 'border-slate-800 bg-slate-950 text-slate-450 hover:bg-slate-850'
                     }`}
                   >
-                    <Sparkles size={14} /> Pagar com PIX
+                    Combinar com o vendedor
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('CREDIT_CARD')}
-                    className={`p-3 rounded-xl border font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-                      paymentMethod === 'CREDIT_CARD' 
+                    onClick={() => setShippingMethod('PAC')}
+                    className={`p-3 rounded-xl border text-left font-bold text-sm transition-all ${
+                      shippingMethod === 'PAC' 
                         ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
                         : 'border-slate-800 bg-slate-950 text-slate-450 hover:bg-slate-850'
                     }`}
                   >
-                    <CreditCard size={14} /> Cartão de Crédito
+                    PAC - Correios (Simulado)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShippingMethod('SEDEX')}
+                    className={`p-3 rounded-xl border text-left font-bold text-sm transition-all ${
+                      shippingMethod === 'SEDEX' 
+                        ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
+                        : 'border-slate-800 bg-slate-950 text-slate-450 hover:bg-slate-850'
+                    }`}
+                  >
+                    SEDEX - Correios (Simulado)
                   </button>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                  <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CPF/CNPJ do Pagador</label><input required value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} className="w-full px-4 py-3 border border-slate-700 bg-slate-900 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-white" placeholder="000.000.000-00" /></div>
-                  {paymentMethod === 'CREDIT_CARD' && (
-                      <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                          <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Número do Cartão</label><input required value={cardNumber} onChange={e => setCardNumber(e.target.value)} className="w-full px-4 py-3 border border-slate-700 bg-slate-900 rounded-xl text-white" placeholder="0000 0000 0000 0000" /></div>
-                          <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Nome no Cartão</label><input required value={cardHolder} onChange={e => setCardHolder(e.target.value)} className="w-full px-4 py-3 border border-slate-700 bg-slate-900 rounded-xl text-white" placeholder="NOME IMPRESSO" /></div>
-                          <div className="grid grid-cols-2 gap-4">
-                              <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Validade</label><input required value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} className="w-full px-4 py-3 border border-slate-700 bg-slate-900 rounded-xl text-white" placeholder="MM/AA" /></div>
-                              <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CVV</label><input required value={cardCvv} onChange={e => setCardCvv(e.target.value)} className="w-full px-4 py-3 border border-slate-700 bg-slate-900 rounded-xl text-white" placeholder="123" /></div>
-                          </div>
-                      </div>
-                  )}
-              </div>
+              
 
-
+              {/* Payment handled by Asaas Checkout */}
               {/* Delivery Address */}
               <div className="space-y-3.5">
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Endereço para Entrega</label>
@@ -1662,7 +1658,9 @@ export const SupplierStore = () => {
         </div>
       )}
 
-      {/* Success Modal */}
+      </>
+      )}
+            {/* Success Modal */}
       {orderSuccess && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl text-slate-100 p-6 space-y-6 text-center">

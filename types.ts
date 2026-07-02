@@ -941,7 +941,7 @@ export interface SupplierOrder {
   status: 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   createdAt: Date;
   notes?: string;
-  paymentMethod: 'CREDIT_CARD' | 'PIX';
+  paymentMethod: 'CREDIT_CARD' | 'PIX' | 'BOLETO';
   asaasPaymentId?: string;
   asaasPixQrCode?: string;
   asaasPixCopyPaste?: string;
@@ -955,6 +955,15 @@ export interface SupplierOrder {
     state?: string;
     zipCode?: string;
   };
+  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX';
+  shippingCost?: number;
+  trackingCode?: string;
+  chat?: {
+    senderId: string;
+    senderName: string;
+    text: string;
+    timestamp: Date;
+  }[];
 }
 
 
