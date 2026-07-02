@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -493,6 +493,20 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
         const payRes = await axios_1.default.post(`${url}/payments`, payload, {
             headers: { access_token: key },
         });
+        let pixQrCode = null;
+        let pixCopyPaste = null;
+        if (paymentData.method === "PIX") {
+            try {
+                const pixRes = await axios_1.default.get(`${url}/payments/${payRes.data.id}/pixQrCode`, {
+                    headers: { access_token: key },
+                });
+                pixQrCode = pixRes.data.encodedImage;
+                pixCopyPaste = pixRes.data.payload;
+            }
+            catch (err) {
+                console.error("Erro ao buscar QR Code do PIX:", err.message);
+            }
+        }
         const newJobId = `web_${Date.now()}`;
         const newJobData = Object.assign(Object.assign({}, jobData), { id: newJobId, asaasPaymentId: payRes.data.id, paymentStatus: payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED' ? 'PAID' : 'PENDING' });
         await db.collection("organizations")
@@ -500,7 +514,7 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
             .collection("jobs")
             .doc(newJobId)
             .set(newJobData);
-        return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, pixQrCode: payRes.data.pixQrCode || null };
+        return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, pixQrCode, pixCopyPaste };
     }
     catch (error) {
         const msg = ((_q = (_p = (_o = (_m = error.response) === null || _m === void 0 ? void 0 : _m.data) === null || _o === void 0 ? void 0 : _o.errors) === null || _p === void 0 ? void 0 : _p[0]) === null || _q === void 0 ? void 0 : _q.description) || error.message;
@@ -905,6 +919,106 @@ exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
     catch (error) {
         logger.error("Erro no asaasWebhook:", error);
         res.status(500).send("Erro");
+    }
+});
+/**
+ * CRIA PAGAMENTO PARA PEDIDO NA LOJA DE FORNECEDORES (CARTÃO/PIX)
+ */
+exports.createSupplierPayment = (0, https_1.onCall)(async (request) => {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    const { orderData, paymentData } = request.data;
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Não logado.");
+    }
+    const db = admin.firestore();
+    try {
+        const { key, url, splitPercent } = await getAsaasConfig();
+        const supplierSnap = await db.collection("organizations").doc(orderData.supplierId).get();
+        const walletId = (_b = (_a = supplierSnap.data()) === null || _a === void 0 ? void 0 : _a.financialSettings) === null || _b === void 0 ? void 0 : _b.asaasWalletId;
+        let finalSplitPercent = splitPercent; // comissão da plataforma
+        const customSplit = (_d = (_c = supplierSnap.data()) === null || _c === void 0 ? void 0 : _c.financialSettings) === null || _d === void 0 ? void 0 : _d.customSplitPercent;
+        if (customSplit !== undefined && customSplit !== null) {
+            finalSplitPercent = Number(customSplit);
+        }
+        // Criar/buscar cliente
+        let customerId = "";
+        try {
+            const docNum = paymentData.cpfCnpj;
+            const searchRes = await axios_1.default.get(`${url}/customers?cpfCnpj=${docNum}`, {
+                headers: { access_token: key },
+            });
+            if (searchRes.data.data && searchRes.data.data.length > 0) {
+                customerId = searchRes.data.data[0].id;
+            }
+            else {
+                const customerRes = await axios_1.default.post(`${url}/customers`, {
+                    name: orderData.buyerOrgName || "Cliente",
+                    cpfCnpj: docNum,
+                    notificationDisabled: true,
+                }, { headers: { access_token: key } });
+                customerId = customerRes.data.id;
+            }
+        }
+        catch (err) {
+            throw new Error("Erro cliente Asaas: " + (((_h = (_g = (_f = (_e = err.response) === null || _e === void 0 ? void 0 : _e.data) === null || _f === void 0 ? void 0 : _f.errors) === null || _g === void 0 ? void 0 : _g[0]) === null || _h === void 0 ? void 0 : _h.description) || err.message));
+        }
+        const payload = {
+            customer: customerId,
+            billingType: paymentData.method,
+            value: orderData.totalValue,
+            dueDate: new Date().toISOString().split("T")[0],
+            description: `Pedido Loja Fornecedor - ${orderData.buyerOrgId}`,
+        };
+        if (paymentData.method === "CREDIT_CARD" && paymentData.creditCard) {
+            payload.creditCard = {
+                holderName: paymentData.creditCard.holderName,
+                number: paymentData.creditCard.number,
+                expiryMonth: paymentData.creditCard.expiry.split("/")[0],
+                expiryYear: "20" + paymentData.creditCard.expiry.split("/")[1],
+                ccv: paymentData.creditCard.cvv
+            };
+            payload.creditCardHolderInfo = {
+                name: paymentData.creditCard.holderName,
+                email: "email@cliente.com",
+                cpfCnpj: paymentData.cpfCnpj,
+                postalCode: "01001-000",
+                addressNumber: "123",
+                phone: "11999999999"
+            };
+        }
+        if (walletId && walletId.length > 10) {
+            payload.split = [{ walletId, percentualValue: 100 - finalSplitPercent }];
+        }
+        const payRes = await axios_1.default.post(`${url}/payments`, payload, {
+            headers: { access_token: key },
+        });
+        let pixQrCode = null;
+        let pixCopyPaste = null;
+        if (paymentData.method === "PIX") {
+            try {
+                const pixRes = await axios_1.default.get(`${url}/payments/${payRes.data.id}/pixQrCode`, {
+                    headers: { access_token: key },
+                });
+                pixQrCode = pixRes.data.encodedImage;
+                pixCopyPaste = pixRes.data.payload;
+            }
+            catch (err) {
+                console.error("Erro ao buscar QR Code do PIX:", err.message);
+            }
+        }
+        const newOrderData = Object.assign(Object.assign({}, orderData), { asaasPaymentId: payRes.data.id, asaasInvoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, asaasPixCopyPaste: pixCopyPaste, paymentStatus: payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED' ? 'PAID' : 'PENDING' });
+        await db.collection("supplierOrders").doc(orderData.id).set(newOrderData);
+        return {
+            success: true,
+            paymentId: payRes.data.id,
+            invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl,
+            pixQrCode,
+            pixCopyPaste
+        };
+    }
+    catch (error) {
+        const msg = ((_m = (_l = (_k = (_j = error.response) === null || _j === void 0 ? void 0 : _j.data) === null || _k === void 0 ? void 0 : _k.errors) === null || _l === void 0 ? void 0 : _l[0]) === null || _m === void 0 ? void 0 : _m.description) || error.message;
+        throw new https_1.HttpsError("internal", msg);
     }
 });
 //# sourceMappingURL=index.js.map

@@ -1213,3 +1213,8 @@ export const subscribeBuyerSupplierOrders = (buyerOrgId: string, cb: (orders: Su
 };
 
 
+
+export const apiCreateSupplierPayment = async (orderData: any, paymentData: any) => {
+    const fn = httpsCallable(functions, 'createSupplierPayment');
+    return (await fn({ orderData, paymentData })).data;
+};

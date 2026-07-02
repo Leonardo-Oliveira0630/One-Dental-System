@@ -271,6 +271,11 @@ export const Cart = () => {
                       </div>
                   </div>
               )}
+              {successData.invoiceUrl && (
+                  <a href={successData.invoiceUrl} target="_blank" rel="noopener noreferrer" className="px-8 py-3 bg-white text-indigo-600 font-bold rounded-xl border-2 border-indigo-100 hover:border-indigo-200 shadow-sm mb-4 block w-fit mx-auto">
+                      Abrir Fatura no Asaas
+                  </a>
+              )}
               <button onClick={() => navigate('/jobs')} className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">Ir para Meus Pedidos</button>
           </div>
       );
