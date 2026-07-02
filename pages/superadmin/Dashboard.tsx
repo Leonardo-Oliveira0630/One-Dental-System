@@ -12,16 +12,12 @@ export const SuperAdminDashboard = () => {
     // Settings Form State
     const [platformComm, setPlatformComm] = useState(globalSettings?.platformCommission || 5);
     const [geminiApiKey, setGeminiApiKey] = useState(globalSettings?.geminiApiKey || '');
-    const [asaasApiKey, setAsaasApiKey] = useState(globalSettings?.asaasApiKey || '');
-    const [asaasWebhookToken, setAsaasWebhookToken] = useState(globalSettings?.asaasWebhookToken || '');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (globalSettings) {
             setPlatformComm(globalSettings.platformCommission);
             setGeminiApiKey(globalSettings.geminiApiKey || '');
-            setAsaasApiKey(globalSettings.asaasApiKey || '');
-            setAsaasWebhookToken(globalSettings.asaasWebhookToken || '');
         }
     }, [globalSettings]);
 
@@ -34,9 +30,7 @@ export const SuperAdminDashboard = () => {
         try {
             await updateGlobalSettings({ 
                 platformCommission: platformComm,
-                geminiApiKey: geminiApiKey.trim(),
-                asaasApiKey: asaasApiKey.trim(),
-                asaasWebhookToken: asaasWebhookToken.trim()
+                geminiApiKey: geminiApiKey.trim()
             });
             alert("Configurações salvas!");
         } catch (err) {
@@ -149,40 +143,6 @@ export const SuperAdminDashboard = () => {
                                             value={geminiApiKey}
                                             onChange={e => setGeminiApiKey(e.target.value)}
                                             placeholder="Cole a chave da API do Google Gemini aqui..."
-                                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label className="block">
-                                <span className="text-sm font-black text-slate-700 uppercase flex items-center gap-2 mb-2">
-                                    <Activity size={16} className="text-blue-500"/> Chave da API Asaas (Financeiro)
-                                </span>
-                                <div className="flex gap-4">
-                                    <div className="relative flex-1">
-                                        <input 
-                                            type="password" 
-                                            value={asaasApiKey}
-                                            onChange={e => setAsaasApiKey(e.target.value)}
-                                            placeholder="Cole a chave da API do Asaas aqui..."
-                                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label className="block">
-                                <span className="text-sm font-black text-slate-700 uppercase flex items-center gap-2 mb-2">
-                                    <Activity size={16} className="text-blue-500"/> Webhook Access Token (Asaas)
-                                </span>
-                                <div className="flex gap-4">
-                                    <div className="relative flex-1">
-                                        <input 
-                                            type="password" 
-                                            value={asaasWebhookToken}
-                                            onChange={e => setAsaasWebhookToken(e.target.value)}
-                                            placeholder="Cole o Access Token do Webhook do Asaas aqui..."
                                             className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>

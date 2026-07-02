@@ -19,8 +19,8 @@ const getAsaasConfig = async () => {
   const settingsSnap = await db.collection("settings").doc("global").get();
   const settings = settingsSnap.data();
 
-  // Prioridade: Database (settings/global) -> Env Var (Google Cloud Secret Manager ou .env)
-  const apiKey = settings?.asaasApiKey || process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY;
+  // Prioridade: Env Var (Google Cloud Secret Manager ou .env)
+  const apiKey = process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY;
 
   if (!apiKey || apiKey === "SUA_CHAVE_AQUI") {
     logger.error("ERRO: ASAAS_API_KEY não configurada.");
@@ -903,7 +903,7 @@ export const asaasWebhook = onRequest(
       const settings = settingsSnap.data();
 
       // Validar Asaas-Access-Token do Webhook
-      const webhookToken = settings?.asaasWebhookToken || process.env.ASAAS_WEBHOOK_TOKEN;
+      const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
       if (webhookToken) {
         const authHeader = req.headers["asaas-access-token"] ||
                            req.headers["Asaas-Access-Token"];

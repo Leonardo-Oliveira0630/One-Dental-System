@@ -32,7 +32,7 @@ export const NewJob = () => {
   const [boxNumber, setBoxNumber] = useState('');
   const [selectedColorId, setSelectedColorId] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(location.state?.notes || '');
   const [lastJobFound, setLastJobFound] = useState<Job | null>(null);
   const loadedJobIdRef = useRef<string | null>(null);
   const [addedItems, setAddedItems] = useState<JobItem[]>(location.state?.items || []);
