@@ -2,8 +2,15 @@
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
+import { defineSecret } from "firebase-functions/params";
 
-setGlobalOptions({ maxInstances: 10 });
+const asaasApiKeySecret = defineSecret("ASAAS_API_KEY");
+const asaasWebhookTokenSecret = defineSecret("ASAAS_WEBHOOK_TOKEN");
+
+setGlobalOptions({ 
+  maxInstances: 10,
+  secrets: [asaasApiKeySecret, asaasWebhookTokenSecret]
+});
 import * as admin from "firebase-admin";
 import axios from "axios";
 // Triggers sync 2
@@ -19,8 +26,17 @@ const getAsaasConfig = async () => {
   const settingsSnap = await db.collection("settings").doc("global").get();
   const settings = settingsSnap.data();
 
-  // Prioridade: Env Var (Google Cloud Secret Manager ou .env)
-  const apiKey = process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY;
+  // Prioridade: Secret Manager -> Env Var
+  let apiKey = "";
+  try {
+    apiKey = asaasApiKeySecret.value();
+  } catch (e) {
+    logger.warn("Secret ASAAS_API_KEY não disponível via Secret Manager.");
+  }
+  
+  if (!apiKey) {
+    apiKey = process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY || "";
+  }
 
   if (!apiKey || apiKey === "SUA_CHAVE_AQUI") {
     logger.error("ERRO: ASAAS_API_KEY não configurada.");
@@ -899,11 +915,18 @@ export const asaasWebhook = onRequest(
   async (req: any, res: any) => {
     const db = admin.firestore();
     try {
-      const settingsSnap = await db.collection("settings").doc("global").get();
-      const settings = settingsSnap.data();
-
       // Validar Asaas-Access-Token do Webhook
-      const webhookToken = process.env.ASAAS_WEBHOOK_TOKEN;
+      let webhookToken = "";
+      try {
+        webhookToken = asaasWebhookTokenSecret.value();
+      } catch (e) {
+        logger.warn("Secret ASAAS_WEBHOOK_TOKEN não disponível via Secret Manager.");
+      }
+
+      if (!webhookToken) {
+        webhookToken = process.env.ASAAS_WEBHOOK_TOKEN || "";
+      }
+
       if (webhookToken) {
         const authHeader = req.headers["asaas-access-token"] ||
                            req.headers["Asaas-Access-Token"];

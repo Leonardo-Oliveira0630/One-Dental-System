@@ -41,7 +41,13 @@ exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription 
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
 const v2_1 = require("firebase-functions/v2");
-(0, v2_1.setGlobalOptions)({ maxInstances: 10 });
+const params_1 = require("firebase-functions/params");
+const asaasApiKeySecret = (0, params_1.defineSecret)("ASAAS_API_KEY");
+const asaasWebhookTokenSecret = (0, params_1.defineSecret)("ASAAS_WEBHOOK_TOKEN");
+(0, v2_1.setGlobalOptions)({
+    maxInstances: 10,
+    secrets: [asaasApiKeySecret, asaasWebhookTokenSecret]
+});
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
 // Triggers sync 2
@@ -55,8 +61,17 @@ const getAsaasConfig = async () => {
     const db = admin.firestore();
     const settingsSnap = await db.collection("settings").doc("global").get();
     const settings = settingsSnap.data();
-    // Prioridade: Database (settings/global) -> Env Var (Google Cloud Secret Manager ou .env)
-    const apiKey = (settings === null || settings === void 0 ? void 0 : settings.asaasApiKey) || process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY;
+    // Prioridade: Secret Manager -> Env Var
+    let apiKey = "";
+    try {
+        apiKey = asaasApiKeySecret.value();
+    }
+    catch (e) {
+        logger.warn("Secret ASAAS_API_KEY não disponível via Secret Manager.");
+    }
+    if (!apiKey) {
+        apiKey = process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY || "";
+    }
     if (!apiKey || apiKey === "SUA_CHAVE_AQUI") {
         logger.error("ERRO: ASAAS_API_KEY não configurada.");
         throw new Error("Chave de API do Asaas não configurada no servidor. Configure a chave no menu Admin > Configurações ou garanta que a variável ASAAS_API_KEY exista.");
@@ -806,10 +821,17 @@ exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
     var _a, _b, _c, _d, _e, _f;
     const db = admin.firestore();
     try {
-        const settingsSnap = await db.collection("settings").doc("global").get();
-        const settings = settingsSnap.data();
         // Validar Asaas-Access-Token do Webhook
-        const webhookToken = (settings === null || settings === void 0 ? void 0 : settings.asaasWebhookToken) || process.env.ASAAS_WEBHOOK_TOKEN;
+        let webhookToken = "";
+        try {
+            webhookToken = asaasWebhookTokenSecret.value();
+        }
+        catch (e) {
+            logger.warn("Secret ASAAS_WEBHOOK_TOKEN não disponível via Secret Manager.");
+        }
+        if (!webhookToken) {
+            webhookToken = process.env.ASAAS_WEBHOOK_TOKEN || "";
+        }
         if (webhookToken) {
             const authHeader = req.headers["asaas-access-token"] ||
                 req.headers["Asaas-Access-Token"];
