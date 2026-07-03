@@ -968,3 +968,16 @@ export interface SupplierOrder {
 
 
 
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  orderId: string;
+  supplierId: string;
+  buyerOrgId: string;
+  buyerName: string;
+  rating: number; // 1 to 5
+  feedbackText: string;
+  imageUrls?: string[];
+  createdAt: Date;
+}

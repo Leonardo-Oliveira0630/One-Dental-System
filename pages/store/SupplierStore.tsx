@@ -1,3 +1,5 @@
+import { ProductReviews } from "./ProductReviews";
+import { MyOrdersTab } from "./MyOrdersTab";
 import * as api from '../../services/firebaseService';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
@@ -119,13 +121,13 @@ export const SupplierStore = () => {
 
   const handleShareStore = () => {
     if (!activeSupplierOrg) return;
-    const shareUrl = `http://labprox.com.br/#/store-suppliers?supplierId=${activeSupplierOrg.id}`;
+    const shareUrl = `http://labprox.com.br/#/store?supplierId=${activeSupplierOrg.id}`;
     navigator.clipboard.writeText(shareUrl);
     alert('Link da loja copiado para a área de transferência!');
   };
 
   const handleShareProduct = (product: InventoryItem) => {
-    const shareUrl = `http://labprox.com.br/#/store-suppliers?supplierId=${product.organizationId}&productId=${product.id}`;
+    const shareUrl = `http://labprox.com.br/#/store?supplierId=${product.organizationId}&productId=${product.id}`;
     navigator.clipboard.writeText(shareUrl);
     alert('Link do produto copiado para a área de transferência!');
   };
@@ -1471,6 +1473,9 @@ export const SupplierStore = () => {
                       </button>
                     )}
                   </div>
+                  
+                  {/* Reviews Section */}
+                  <ProductReviews productId={selectedItemForDetail.id} />
                 </div>
 
               </div>
@@ -1660,6 +1665,9 @@ export const SupplierStore = () => {
 
       </>
       )}
+
+      {activeTab === 'MY_ORDERS' && <MyOrdersTab />}
+      
             {/* Success Modal */}
       {orderSuccess && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">

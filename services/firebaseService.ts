@@ -1218,3 +1218,30 @@ export const apiCreateSupplierPayment = async (orderData: any, paymentData: any)
     const fn = httpsCallable(functions, 'createSupplierPayment');
     return (await fn({ orderData, paymentData })).data;
 };
+
+export const apiAddProductReview = async (review: import('../types').ProductReview) => {
+    return setDoc(doc(db, 'productReviews', review.id), review);
+};
+
+export const subscribeProductReviews = (productId: string, cb: (reviews: import('../types').ProductReview[]) => void) => {
+    const q = query(collection(db, 'productReviews'), where('productId', '==', productId));
+    return onSnapshot(q, (snap: any) => {
+        const list = snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            createdAt: toDate(d.data().createdAt)
+        } as import('../types').ProductReview));
+        list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        cb(list);
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeProductReviews: ${error.code}`));
+};
+
+export const subscribeOrderReviews = (orderId: string, cb: (reviews: import('../types').ProductReview[]) => void) => {
+    const q = query(collection(db, 'productReviews'), where('orderId', '==', orderId));
+    return onSnapshot(q, (snap: any) => {
+        const list = snap.docs.map((d: any) => ({
+            id: d.id, ...d.data() as any,
+            createdAt: toDate(d.data().createdAt)
+        } as import('../types').ProductReview));
+        cb(list);
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeOrderReviews: ${error.code}`));
+};

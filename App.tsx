@@ -8,6 +8,7 @@ import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { JobsList } from './pages/JobsList';
 import { Catalog } from './pages/store/Catalog';
+import { UnifiedStore } from './pages/store/UnifiedStore';
 import { Cart } from './pages/store/Cart';
 import { IncomingOrders } from './pages/IncomingOrders';
 import { NewJob } from './pages/NewJob';
@@ -122,8 +123,7 @@ const AppContent = () => {
       <Route path="/lab/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
       <Route path="/lab/price-tables" element={<ProtectedRoute><PriceTables /></ProtectedRoute>} />
 
-      <Route path="/store" element={<ProtectedRoute><Catalog /></ProtectedRoute>} />
-      <Route path="/store-suppliers" element={<ProtectedRoute><SupplierStore /></ProtectedRoute>} />
+      <Route path="/store" element={<ProtectedRoute><UnifiedStore /></ProtectedRoute>} />
       <Route path="/store/:slug" element={<Catalog />} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
       <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
