@@ -4,13 +4,18 @@ import { useApp } from '../../context/AppContext';
 import { 
     Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
-    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin
+    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin, ShoppingCart
 } from 'lucide-react';
 import { JobType, VariationGroup, CartItem, LabRating, BannerConfig } from '../../types';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { FeatureLocked } from '../../components/FeatureLocked';
+import { StoreTopMenu } from '../../components/StoreTopMenu';
 import { motion, AnimatePresence } from 'motion/react';
 import * as api from '../../services/firebaseService';
+
+import { Cart } from './Cart';
+import { JobsList } from '../JobsList';
+import { Partnerships } from '../dentist/Partnerships';
 
 // --- Components ---
 
@@ -589,9 +594,11 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
 
 export const Catalog = () => {
     const { slug } = useParams<{ slug: string }>();
-    const { allLaboratories, allSuppliers, currentUser, currentOrg, activeOrganization, currentPlan, userConnections, addConnectionByCode } = useApp();
+    const { allLaboratories, allSuppliers, currentUser, currentOrg, activeOrganization, currentPlan, userConnections, addConnectionByCode, cart } = useApp();
     const navigate = useNavigate();
+    const location = useLocation();
     const [term, setTerm] = useState('');
+    const [mainTab, setMainTab] = useState<'STORE' | 'PARTNERSHIPS' | 'MY_ORDERS' | 'CART'>('STORE');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
     const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
@@ -799,8 +806,61 @@ export const Catalog = () => {
     const isLinked = userConnections.some(c => c.organizationId === selectedLab.id);
 
     return (
-        <div className="space-y-8 pb-20 animate-in fade-in duration-500">
-            {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} onClose={() => setConfiguringProduct(null)} />}
+        <div className="flex flex-col h-full bg-slate-50">
+            <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide">
+                <div className="hidden md:block w-auto md:w-32 flex-shrink-0"></div>
+                <div className="flex items-center justify-start md:justify-center flex-1 gap-2 md:gap-6 whitespace-nowrap min-w-max">
+                    <button
+                        onClick={() => setMainTab('STORE')}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'STORE' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                    >
+                        Loja Online
+                    </button>
+                    <button
+                        onClick={() => setMainTab('PARTNERSHIPS')}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'PARTNERSHIPS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                    >
+                        Parcerias Lab
+                    </button>
+                    <button
+                        onClick={() => setMainTab('MY_ORDERS')}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'MY_ORDERS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                    >
+                        Meus Pedidos
+                    </button>
+                </div>
+                <div className="flex items-center justify-end gap-4 w-auto flex-shrink-0">
+                    <button
+                        onClick={() => setMainTab('CART')}
+                        className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
+                    >
+                        <ShoppingCart className="w-5 h-5" />
+                        <span className="text-sm">Carrinho ({cart?.length || 0})</span>
+                    </button>
+                </div>
+            </div>
+
+            {mainTab === 'PARTNERSHIPS' && (
+                <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
+                    <Partnerships />
+                </div>
+            )}
+
+            {mainTab === 'MY_ORDERS' && (
+                <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
+                    <JobsList />
+                </div>
+            )}
+
+            {mainTab === 'CART' && (
+                <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50 animate-in fade-in">
+                    <Cart />
+                </div>
+            )}
+
+            {mainTab === 'STORE' && (
+            <div className="flex-1 p-4 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto">
+                {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} onClose={() => setConfiguringProduct(null)} />}
             
             {showAuthModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
@@ -1189,6 +1249,8 @@ export const Catalog = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+            </div>
+            )}
         </div>
     );
 };

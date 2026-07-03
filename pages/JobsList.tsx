@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
 
+import { StoreTopMenu } from '../components/StoreTopMenu';
+
 // Helper function to extract and style the origin of a job
 export const getJobOriginInfo = (job: any) => {
   const isWebStore = (job.history || []).some((h: any) => h?.action?.toLowerCase().includes('loja virtual') || h?.action?.toLowerCase().includes('pedido online'));
@@ -448,7 +450,9 @@ export const JobsList = () => {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6 pb-20">
+    <div className={`flex flex-col h-full ${isClient ? '-mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50' : ''}`}>
+       {isClient && <StoreTopMenu />}
+       <div className={`space-y-4 md:space-y-6 pb-20 ${isClient ? 'p-4 md:p-8 flex-1 overflow-y-auto' : ''}`}>
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{isClient ? 'Meus Pedidos' : 'Lista de Trabalhos'}</h1>
@@ -661,6 +665,7 @@ export const JobsList = () => {
               </div>
           </div>
       )}
+    </div>
     </div>
   );
 };

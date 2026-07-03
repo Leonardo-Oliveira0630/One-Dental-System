@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Attachment, JobStatus, UrgencyLevel } from '../../types';
 import * as api from '../../services/firebaseService';
 import { smartCompress } from '../../services/compressionService';
+import { StoreTopMenu } from '../../components/StoreTopMenu';
 
 export const Cart = () => {
   const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, clearCart, validateLabCoupon, updateLabCoupon, patients } = useApp();
@@ -253,8 +254,10 @@ export const Cart = () => {
 
   if (successData) {
       return (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-4 animate-in zoom-in duration-300">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6"><CheckCircle size={40} className="text-green-600" /></div>
+          <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
+              <StoreTopMenu />
+              <div className="flex-1 p-4 md:p-8 flex flex-col items-center justify-center min-h-[60vh] text-center animate-in zoom-in duration-300">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6"><CheckCircle size={40} className="text-green-600" /></div>
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Pedido Enviado com Sucesso!</h2>
               <p className="text-slate-500 mb-8 max-w-md">Seu pedido foi registrado. Aguarde a aprovação do laboratório para iniciar a produção.</p>
               {paymentMethod === 'PIX' && successData.pixCopyPaste && (
@@ -278,20 +281,27 @@ export const Cart = () => {
               )}
               <button onClick={() => navigate('/jobs')} className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">Ir para Meus Pedidos</button>
           </div>
+          </div>
       );
   }
 
   if (cart.length === 0) {
     return (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-            <div className="p-6 bg-indigo-50 rounded-full mb-4 text-indigo-300"><ArrowRight size={48} /></div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Seu carrinho está vazio</h2>
-            <button onClick={() => navigate('/store')} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">Ir para o Catálogo</button>
+        <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
+            <StoreTopMenu />
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 md:p-8">
+                <div className="p-6 bg-indigo-50 rounded-full mb-4 text-indigo-300"><ArrowRight size={48} /></div>
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">Seu carrinho está vazio</h2>
+                <button onClick={() => navigate('/store')} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">Ir para o Catálogo</button>
+            </div>
         </div>
     );
   }
 
   return (
+    <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
+      <StoreTopMenu />
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto">
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-12">
       <div className="lg:col-span-2 space-y-6">
         <div>
@@ -470,6 +480,8 @@ export const Cart = () => {
             </div>
         </form>
       </div>
+    </div>
+    </div>
     </div>
   );
 };

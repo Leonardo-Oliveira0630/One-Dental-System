@@ -46,11 +46,9 @@ export function UnifiedStore() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
-              className="absolute inset-0 overflow-y-auto overflow-x-hidden bg-slate-50"
+              className="absolute inset-0 bg-slate-50"
             >
-              <div className="p-4 md:p-8">
-                <Catalog />
-              </div>
+              <Catalog />
             </motion.div>
           )}
           {activeStore === 'FORNECEDOR' && (
@@ -61,7 +59,7 @@ export function UnifiedStore() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
-              className="absolute inset-0 overflow-y-auto overflow-x-hidden bg-white"
+              className="absolute inset-0 bg-white"
             >
               <SupplierStore />
             </motion.div>

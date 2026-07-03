@@ -226,7 +226,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                            </button>
                         ))}
                       </div>
-                      <Link to="/dentist/partnerships" onClick={() => setIsLabSelectorOpen(false)} className="block w-full p-3 text-center text-xs font-bold bg-white/5 hover:bg-white/10 border-t border-slate-700 text-indigo-400">+ Nova Parceria</Link>
                    </div>
                 )}
              </div>
@@ -293,8 +292,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {isBuyer && (
                   <>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Online" active={location.pathname === '/store'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Meus Pedidos" active={location.pathname === '/jobs'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/cart" icon={<ShoppingCart size={20} />} label="Carrinho" active={location.pathname === '/cart'} badge={cart.length} />
                     
                     {currentOrg?.orgType === 'CLINIC' && (
                       <>
@@ -322,7 +319,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     )}
                     
                     <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/partnerships" icon={<Handshake size={20} />} label="Parcerias Lab" active={location.pathname === '/dentist/partnerships'} />
                     {isBuyer && (
                       <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/requisitions'} />
                     )}
@@ -372,9 +368,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                  {isMobileSearchOpen ? <X size={22} /> : <Search size={22} />}
                </button>
              )}
-             {isBuyer && cart.length > 0 && (
-                 <Link to="/cart" className="p-2 text-blue-600 relative"><ShoppingCart size={22} /><span className="absolute top-0 right-0 bg-red-500 text-white text-[8px] w-4 h-4 rounded-full flex items-center justify-center font-black border-2 border-white">{cart.length}</span></Link>
-             )}
              <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">{currentUser?.name.charAt(0)}</Link>
          </div>
       </header>
@@ -395,12 +388,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           ) : currentOrg?.orgType === 'LAB_OUTSOURCED' ? (
             <>
               <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label="Loja" active={location.pathname === '/store'} />
-              <div className="relative -top-5">
-                 <Link to="/cart" className="w-14 h-14 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-purple-300 border-4 border-white active:scale-90 transition-transform">
-                    <ShoppingCart size={28}/>
-                 </Link>
-              </div>
-              <MobileNavItem to="/jobs" icon={<List size={22}/>} label="Pedidos" active={location.pathname === '/jobs'} />
             </>
           ) : (
             <>
@@ -422,7 +409,6 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                         <Contact size={28}/>
                      </Link>
                   </div>
-                  <MobileNavItem to="/jobs" icon={<List size={22}/>} label="Pedidos" active={location.pathname === '/jobs'} />
                 </>
               )}
             </>

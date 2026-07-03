@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 import { LabRating, Organization } from '../../types';
+import { StoreTopMenu } from '../../components/StoreTopMenu';
 
 export const Partnerships = () => {
     const { userConnections, addConnectionByCode, allLaboratories, activeOrganization } = useApp();
@@ -65,7 +66,9 @@ export const Partnerships = () => {
     }, [allLaboratories, searchTerm, activeOrganization]);
     
     return (
-        <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500" id="partnerships-main-container">
+        <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
+            <StoreTopMenu />
+        <div className="flex-1 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500 w-full p-4 md:p-8" id="partnerships-main-container">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Rede de Parcerias</h1>
@@ -341,6 +344,7 @@ export const Partnerships = () => {
                     </div>
                 </div>
             )}
+        </div>
         </div>
     );
 };
