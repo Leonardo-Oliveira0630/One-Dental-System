@@ -126,6 +126,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const bgClass = 'bg-[#0F172A]';
   
   const handleLogout = () => { logout(); navigate('/login'); };
+  const isStoreRoute = location.pathname.startsWith("/store") || location.pathname.startsWith("/cart");
 
   const isViewingLabContext = isBuyer && (location.pathname.startsWith('/store') || location.pathname.startsWith('/jobs') || location.pathname.startsWith('/cart'));
   
@@ -160,7 +161,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-[60] md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
 
       <aside className={`fixed inset-y-0 left-0 z-[70] w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
-        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full ' + (isStoreRoute ? '' : 'md:translate-x-0')
       }`}>
         <div className="p-6 h-full flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-8 shrink-0">
@@ -343,7 +344,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
-      <header className="fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden print:hidden">
+      <header className={`fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] ${isStoreRoute ? "" : "md:hidden"} print:hidden`}>
          <div className="flex items-center gap-3 overflow-hidden">
              <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
              {!isMobileSearchOpen && (
@@ -417,8 +418,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
       </nav>
 
-      <main className="flex-1 w-full md:ml-64 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative">
-        <header className="hidden md:flex bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0">
+      <main className={`flex-1 w-full ${isStoreRoute ? "" : "md:ml-64"} transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative`}>
+        <header className={`${isStoreRoute ? "hidden" : "hidden md:flex"} bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0`}>
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <Logo size="sm" variant="colored" />
           </div>
@@ -438,7 +439,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className="p-4 pt-20 md:pt-8 md:p-8 w-full max-w-[1400px] mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative">
+        <div className={`pt-20 ${isStoreRoute ? "md:pt-20 px-0 max-w-full" : "p-4 md:pt-8 md:p-8 max-w-[1400px]"} w-full  mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
           {isClinicPendingApproval() ? (
             <div className="flex-1 flex items-center justify-center py-12 px-4">
               <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">

@@ -1010,7 +1010,7 @@ export const Catalog = () => {
                                     />
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    {categories.slice(0, 8).map(cat => (
+                                    {categories.map(cat => (
                                         <button 
                                             key={cat} 
                                             onClick={() => setSelectedCategory(selectedCategory === cat ? 'ALL' : cat)} 

@@ -32,7 +32,7 @@ export const MarketplaceBanner = () => {
   };
 
   return (
-    <div className="w-full h-[600px] relative overflow-hidden group bg-slate-100">
+    <div className="w-full h-[300px] md:h-[400px] relative overflow-hidden group bg-slate-100">
       <div 
         className="w-full h-full bg-cover bg-center transition-all duration-700 ease-in-out absolute inset-0"
         style={{ backgroundImage: `url(${currentBanner.imageUrl})` }}

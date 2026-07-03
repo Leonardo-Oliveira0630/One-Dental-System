@@ -558,7 +558,7 @@ export const SupplierStore = () => {
   };
 
   return (
-    <main id="supplier-store-container" className="h-full w-full overflow-y-auto bg-white text-[#15263f]">
+    <main id="supplier-store-container" className="h-full w-full flex flex-col overflow-y-auto bg-white text-[#15263f] relative">
       
       {/* ALWAYS SHOW MARKETPLACE TOP MENU */}
       <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
@@ -727,11 +727,11 @@ export const SupplierStore = () => {
             {/* Most Popular */}
             <section>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Mais Populares</h2>
+                <h2 className="text-2xl font-bold">Todos os Produtos</h2>
                 <button className="px-4 py-2 border border-slate-300 rounded-full text-sm font-bold">Ver Tudo</button>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).slice(0, 8).map(p => (
+                {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).map(p => (
                   <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
                     <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
                       {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}

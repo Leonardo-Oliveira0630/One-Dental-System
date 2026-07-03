@@ -15,7 +15,7 @@ export function UnifiedStore() {
     <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative">
       <div className="flex justify-center items-center py-4 bg-white border-b border-slate-200 z-50 shrink-0">
         <div 
-          className="relative flex items-center bg-slate-100 p-1.5 rounded-full w-[380px] h-14 cursor-pointer shadow-inner"
+          className="relative flex items-center bg-slate-100 p-1.5 rounded-full w-full max-w-[380px] mx-4 h-14 cursor-pointer shadow-inner"
           onClick={() => setActiveStore(prev => prev === 'PROTESE' ? 'FORNECEDOR' : 'PROTESE')}
         >
            <motion.div 
