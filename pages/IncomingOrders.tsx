@@ -49,8 +49,10 @@ export const IncomingOrders = () => {
 
   const handleOpenApprove = (job: Job) => {
     let maxId = 0;
-    jobs.forEach(j => {
-      const num = parseInt(j.osNumber?.split('-')[0] || '0');
+    const recentJobs = jobs.slice(0, 100);
+    recentJobs.forEach(j => {
+      const basePart = String(j.osNumber || '').split('-')[0].replace(/\D/g, '');
+      const num = parseInt(basePart || '0', 10);
       if (!isNaN(num) && num > maxId) maxId = num;
     });
     const nextId = (maxId + 1).toString().padStart(4, '0');

@@ -151,10 +151,10 @@ export const JobDetails = () => {
     
     // Auto-generate next sequence for OS
     const baseOs = (job.osNumber || 'RET').split('-')[0];
-    const baseJobs = jobs.filter(j => (j.osNumber || '').startsWith(baseOs));
+    const baseJobs = jobs.filter(j => String(j.osNumber || '').startsWith(baseOs));
     let nextSeq = 1;
     baseJobs.forEach(j => {
-        const jOs = j.osNumber || '';
+        const jOs = String(j.osNumber || '');
         if (jOs.includes('-')) {
             const seq = parseInt(jOs.split('-')[1]);
             if (!isNaN(seq) && seq >= nextSeq) {

@@ -328,8 +328,11 @@ export const NewJob = () => {
 
   const generateNextNewOs = () => {
     let maxId = 0;
-    jobs.forEach(j => {
-      const basePart = j.osNumber?.split('-')[0].replace(/\D/g, '');
+    // Pega apenas os 100 trabalhos mais recentes para evitar travar em um outlier antigo (ex: código de barras)
+    const recentJobs = jobs.slice(0, 100);
+    recentJobs.forEach(j => {
+      const osStr = String(j.osNumber || '');
+      const basePart = osStr.split('-')[0].replace(/\D/g, '');
       const num = parseInt(basePart || '0', 10);
       if (!isNaN(num) && num > maxId) maxId = num;
     });
@@ -385,10 +388,10 @@ export const NewJob = () => {
           const exists = jobs.find(j => j.osNumber === osNumber);
           if (exists) {
               const baseOs = osNumber.split('-')[0];
-              const baseJobs = jobs.filter(j => (j.osNumber || '').startsWith(baseOs));
+              const baseJobs = jobs.filter(j => String(j.osNumber || '').startsWith(baseOs));
               let nextSeq = 1;
               baseJobs.forEach(j => {
-                  const jOs = j.osNumber || '';
+                  const jOs = String(j.osNumber || '');
                   if (jOs.includes('-')) {
                       const seq = parseInt(jOs.split('-')[1]);
                       if (!isNaN(seq) && seq >= nextSeq) {
@@ -405,10 +408,10 @@ export const NewJob = () => {
           if (exists) {
               if (entryType === 'CONTINUATION') {
                   const baseOs = osNumber;
-                  const baseJobs = jobs.filter(j => (j.osNumber || '').startsWith(baseOs));
+                  const baseJobs = jobs.filter(j => String(j.osNumber || '').startsWith(baseOs));
                   let nextSeq = 1;
                   baseJobs.forEach(j => {
-                      const jOs = j.osNumber || '';
+                      const jOs = String(j.osNumber || '');
                       if (jOs.includes('-')) {
                           const seq = parseInt(jOs.split('-')[1]);
                           if (!isNaN(seq) && seq >= nextSeq) {
@@ -501,7 +504,7 @@ export const NewJob = () => {
         const foundByOs = [...jobs]
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .find(j => {
-            const jBaseOs = j.osNumber?.split('-')[0].trim();
+            const jBaseOs = String(j.osNumber || '').split('-')[0].trim();
             return jBaseOs === baseOs || j.osNumber === osNumber;
           });
 
@@ -646,10 +649,10 @@ export const NewJob = () => {
         const exists = jobs.find(j => j.osNumber === osNumber);
         if (exists) {
             const baseOs = osNumber.split('-')[0];
-            const baseJobs = jobs.filter(j => (j.osNumber || '').startsWith(baseOs));
+            const baseJobs = jobs.filter(j => String(j.osNumber || '').startsWith(baseOs));
             let nextSeq = 1;
             baseJobs.forEach(j => {
-                const jOs = j.osNumber || '';
+                const jOs = String(j.osNumber || '');
                 if (jOs.includes('-')) {
                     const seq = parseInt(jOs.split('-')[1]);
                     if (!isNaN(seq) && seq >= nextSeq) {
