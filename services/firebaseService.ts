@@ -1230,7 +1230,7 @@ export const subscribeProductReviews = (productId: string, cb: (reviews: import(
             id: d.id, ...d.data() as any,
             createdAt: toDate(d.data().createdAt)
         } as import('../types').ProductReview));
-        list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        list.sort((a: import('../types').ProductReview, b: import('../types').ProductReview) => b.createdAt.getTime() - a.createdAt.getTime());
         cb(list);
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeProductReviews: ${error.code}`));
 };
