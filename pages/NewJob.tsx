@@ -327,16 +327,15 @@ export const NewJob = () => {
   }, [disabledOptions, selectedVariations, variationTextValues]);
 
   const generateNextNewOs = () => {
-    let maxId = 0;
-    // Pega apenas os 100 trabalhos mais recentes para evitar travar em um outlier antigo (ex: código de barras)
-    const recentJobs = jobs.slice(0, 100);
-    recentJobs.forEach(j => {
-      const osStr = String(j.osNumber || '');
+    for (let i = 0; i < jobs.length; i++) {
+      const osStr = String(jobs[i].osNumber || '');
       const basePart = osStr.split('-')[0].replace(/\D/g, '');
-      const num = parseInt(basePart || '0', 10);
-      if (!isNaN(num) && num > maxId) maxId = num;
-    });
-    return (maxId + 1).toString().padStart(4, '0');
+      const num = parseInt(basePart, 10);
+      if (!isNaN(num) && num > 0) {
+        return (num + 1).toString().padStart(4, '0');
+      }
+    }
+    return '0001';
   };
 
   const initialMountRef = useRef(true);

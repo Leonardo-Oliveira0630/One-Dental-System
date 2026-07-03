@@ -48,14 +48,16 @@ export const IncomingOrders = () => {
   const [zippingJobId, setZippingJobId] = useState<string | null>(null);
 
   const handleOpenApprove = (job: Job) => {
-    let maxId = 0;
-    const recentJobs = jobs.slice(0, 100);
-    recentJobs.forEach(j => {
-      const basePart = String(j.osNumber || '').split('-')[0].replace(/\D/g, '');
-      const num = parseInt(basePart || '0', 10);
-      if (!isNaN(num) && num > maxId) maxId = num;
-    });
-    const nextId = (maxId + 1).toString().padStart(4, '0');
+    let nextId = '0001';
+    for (let i = 0; i < jobs.length; i++) {
+      const osStr = String(jobs[i].osNumber || '');
+      const basePart = osStr.split('-')[0].replace(/\D/g, '');
+      const num = parseInt(basePart, 10);
+      if (!isNaN(num) && num > 0) {
+        nextId = (num + 1).toString().padStart(4, '0');
+        break;
+      }
+    }
 
     setOsInput(nextId);
     setSelectedJob(job);
