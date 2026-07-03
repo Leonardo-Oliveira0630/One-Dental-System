@@ -13,25 +13,25 @@ export function UnifiedStore() {
   
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative">
-      <div className="flex justify-center items-center py-4 bg-white border-b border-slate-200 z-50 shrink-0">
+      <div className="flex justify-center items-center py-1.5 bg-white border-b border-slate-200 z-50 shrink-0">
         <div 
-          className="relative flex items-center bg-slate-100 p-1.5 rounded-full w-[380px] h-14 cursor-pointer shadow-inner"
+          className="relative flex items-center bg-slate-100 p-1 rounded-full w-[340px] h-10 cursor-pointer shadow-inner"
           onClick={() => setActiveStore(prev => prev === 'PROTESE' ? 'FORNECEDOR' : 'PROTESE')}
         >
            <motion.div 
-             className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-full shadow-sm border border-slate-200/50"
+             className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-sm border border-slate-200/50"
              initial={false}
              animate={{ 
-               left: activeStore === 'PROTESE' ? 6 : 'calc(50% + 6px)',
-               x: activeStore === 'PROTESE' ? 0 : -6
+               left: activeStore === 'PROTESE' ? 4 : 'calc(50% + 4px)',
+               x: activeStore === 'PROTESE' ? 0 : -4
              }}
              transition={{ type: "spring", stiffness: 400, damping: 30 }}
            />
-           <div className={`flex-1 flex justify-center items-center z-10 text-sm font-black transition-colors duration-300 select-none ${activeStore === 'PROTESE' ? 'text-slate-900' : 'text-slate-500'}`}>
-             Loja de Prótese
+           <div className={`flex-1 flex justify-center items-center z-10 text-xs font-black uppercase tracking-wider transition-colors duration-300 select-none ${activeStore === 'PROTESE' ? 'text-indigo-900' : 'text-slate-500'}`}>
+             Prótese
            </div>
-           <div className={`flex-1 flex justify-center items-center z-10 text-sm font-black transition-colors duration-300 select-none ${activeStore === 'FORNECEDOR' ? 'text-slate-900' : 'text-slate-500'}`}>
-             Loja Fornecedores
+           <div className={`flex-1 flex justify-center items-center z-10 text-xs font-black uppercase tracking-wider transition-colors duration-300 select-none ${activeStore === 'FORNECEDOR' ? 'text-indigo-900' : 'text-slate-500'}`}>
+             Fornecedores
            </div>
         </div>
       </div>
