@@ -558,10 +558,10 @@ export const SupplierStore = () => {
   };
 
   return (
-    <main id="supplier-store-container" className="flex-1 flex flex-col overflow-y-auto bg-white text-[#15263f] h-full">
+    <main id="supplier-store-container" className="flex-1 flex flex-col overflow-y-auto bg-white text-[#15263f] h-full pb-20">
       
       {/* ALWAYS SHOW MARKETPLACE TOP MENU */}
-      <div className="flex items-center justify-between py-2 px-4 bg-white border-b border-gray-200 sticky top-0 z-30">
+      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="w-auto md:w-32 flex-shrink-0"></div>
         
         <div className="flex items-center justify-center flex-1 gap-2 md:gap-6">
