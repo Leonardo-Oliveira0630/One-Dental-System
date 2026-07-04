@@ -10,6 +10,7 @@ export const AdminLayout = () => {
   const [copied, setCopied] = React.useState(false);
 
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
   const hasPerm = (key: string) => isAdmin || currentUser?.permissions?.includes(key as any);
 
   const copyOrgId = () => {
@@ -22,11 +23,11 @@ export const AdminLayout = () => {
 
   const navItems = [
     { to: '/admin/organizacao', icon: <Building2 size={16} />, label: 'Marca', show: isAdmin },
-    { to: '/admin/setores', icon: <Briefcase size={16} />, label: 'Setores', show: hasPerm('sectors:view') },
-    { to: '/admin/caixas', icon: <Box size={16} />, label: 'Caixas', show: hasPerm('boxes:view') },
-    { to: '/admin/equipe', icon: <Users size={16} />, label: 'Equipe', show: hasPerm('users:view') },
-    { to: '/admin/clientes', icon: <Stethoscope size={16} />, label: 'Clientes', show: hasPerm('clients:view') },
-    { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: 'Ganhos', show: hasPerm('commissions:view') },
+    { to: '/admin/setores', icon: <Briefcase size={16} />, label: 'Setores', show: !isFreeLab && hasPerm('sectors:view') },
+    { to: '/admin/caixas', icon: <Box size={16} />, label: 'Caixas', show: !isFreeLab && hasPerm('boxes:view') },
+    { to: '/admin/equipe', icon: <Users size={16} />, label: 'Equipe', show: !isFreeLab && hasPerm('users:view') },
+    { to: '/admin/clientes', icon: <Stethoscope size={16} />, label: 'Clientes', show: !isFreeLab && hasPerm('clients:view') },
+    { to: '/admin/comissoes', icon: <DollarSign size={16} />, label: 'Ganhos', show: !isFreeLab && hasPerm('commissions:view') },
     { to: '/admin/pagamentos', icon: <Wallet size={16} />, label: 'Banco', show: hasPerm('finance:view') },
     { to: '/admin/assinatura', icon: <Crown size={16} />, label: 'Plano', show: isAdmin },
     { to: '/admin/cupons', icon: <Ticket size={16} />, label: 'Cupons', show: isAdmin },

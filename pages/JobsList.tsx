@@ -210,7 +210,7 @@ const JobCard = memo(({
 });
 
 export const JobsList = () => {
-  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId } = useApp();
+  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
   const navigate = useNavigate();
   
   const [filterText, setFilterText] = useState('');
@@ -228,11 +228,32 @@ export const JobsList = () => {
 
   const [routeModalJob, setRouteModalJob] = useState<Job | null>(null);
   
+  // Free Lab OS Edit States
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [editNotesText, setEditNotesText] = useState('');
+
   // Route Form State
   const [routeDriver, setRouteDriver] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSaveNotes = async (jobId: string, notes: string) => {
+    try {
+      await updateJob(jobId, { notes });
+      setEditingJob(null);
+    } catch (e) {
+      alert("Erro ao salvar observação.");
+    }
+  };
+
+  const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
+    try {
+      await updateJob(jobId, { status });
+    } catch (e) {
+      alert("Erro ao atualizar status.");
+    }
+  };
 
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isLabStaff = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.COLLABORATOR;
@@ -446,6 +467,145 @@ export const JobsList = () => {
                 <button onClick={() => navigate('/dentist/partnerships')} className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors w-full">Gerenciar Parcerias</button>
             </div>
         </div>
+    );
+  }
+
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
+
+  if (isFreeLab) {
+    const freeLabJobs = jobs.filter(j => 
+      (j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION') && 
+      j.status !== JobStatus.WAITING_APPROVAL
+    );
+
+    return (
+      <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Trabalhos (Loja Online)</h1>
+          <p className="text-sm text-slate-500">Gerencie e atualize o andamento dos pedidos aceitos na sua loja.</p>
+        </div>
+
+        {/* JOBS LIST */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase border-b border-slate-100">
+                  <th className="px-6 py-4">O.S. / Pedido</th>
+                  <th className="px-6 py-4">Dentista</th>
+                  <th className="px-6 py-4">Paciente</th>
+                  <th className="px-6 py-4">Serviços</th>
+                  <th className="px-6 py-4">Observações</th>
+                  <th className="px-6 py-4">Entrega</th>
+                  <th className="px-6 py-4 text-center">Ações / Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                {freeLabJobs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-12 text-slate-400">
+                      Nenhum pedido aceito encontrado. Aceite pedidos na aba "Pedidos Web".
+                    </td>
+                  </tr>
+                ) : (
+                  freeLabJobs.map((job) => {
+                    const isEditingThis = editingJob?.id === job.id;
+                    return (
+                      <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 font-mono font-bold text-blue-600">
+                          #{job.osNumber || job.id.substring(0, 6)}
+                        </td>
+                        <td className="px-6 py-4">{job.dentistName}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900">{job.patientName}</td>
+                        <td className="px-6 py-4 text-slate-500">
+                          {job.items?.map(i => `${i.name} (x${i.quantity || 1})`).join(', ') || 
+                           job.products?.map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || '---'}
+                        </td>
+                        <td className="px-6 py-4 max-w-[200px]">
+                          {isEditingThis ? (
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="text"
+                                value={editNotesText}
+                                onChange={(e) => setEditNotesText(e.target.value)}
+                                className="px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                              />
+                              <button 
+                                onClick={() => handleSaveNotes(job.id, editNotesText)}
+                                className="px-2 py-1 bg-green-600 text-white font-bold rounded text-xs"
+                              >
+                                Salvar
+                              </button>
+                              <button 
+                                onClick={() => setEditingJob(null)}
+                                className="px-2 py-1 bg-slate-200 text-slate-700 font-bold rounded text-xs"
+                              >
+                                X
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 group">
+                              <span className="truncate block max-w-[150px]" title={job.notes || 'Sem observações'}>
+                                {job.notes || <span className="text-slate-300 italic">Sem obs</span>}
+                              </span>
+                              <button 
+                                onClick={() => {
+                                  setEditingJob(job);
+                                  setEditNotesText(job.notes || '');
+                                }}
+                                className="text-blue-500 hover:text-blue-700 text-xs underline cursor-pointer"
+                              >
+                                Editar
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-slate-500">
+                          {new Date(job.dueDate).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                              job.status === JobStatus.COMPLETED 
+                                ? 'bg-green-50 border-green-200 text-green-700' 
+                                : job.status === JobStatus.DELIVERED 
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
+                                : 'bg-blue-50 border-blue-200 text-blue-700'
+                            }`}>
+                              {job.status === JobStatus.COMPLETED ? 'Finalizado' : job.status === JobStatus.DELIVERED ? 'Logística' : 'Pendente'}
+                            </span>
+                            
+                            <div className="flex gap-1">
+                              {job.status !== JobStatus.COMPLETED && (
+                                <button 
+                                  onClick={() => handleUpdateStatus(job.id, JobStatus.COMPLETED)}
+                                  className="px-2 py-1 bg-green-600 text-white text-[10px] font-bold rounded hover:bg-green-700 transition-colors"
+                                  title="Marcar como Finalizado"
+                                >
+                                  Finalizar
+                                </button>
+                              )}
+                              {job.status !== JobStatus.DELIVERED && (
+                                <button 
+                                  onClick={() => handleUpdateStatus(job.id, JobStatus.DELIVERED)}
+                                  className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded hover:bg-indigo-700 transition-colors"
+                                  title="Enviar para Logística"
+                                >
+                                  Logística
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     );
   }
 

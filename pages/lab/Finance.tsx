@@ -23,11 +23,14 @@ export const Finance = () => {
     jobs, allUsers, manualDentists, currentOrg, dentistPayments, billingBatches, 
     addDentistPayment, updateDentistPayment, uploadFile, updateBillingBatchStatus, generateBatchBoleto,
     cardMachines, bankAccounts, addCardMachine, updateCardMachine, deleteCardMachine,
-    addBankAccount, updateBankAccount, deleteBankAccount
+    addBankAccount, updateBankAccount, deleteBankAccount,
+    currentPlan, currentUser
   } = useApp();
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'RECEIVABLES' | 'EXPENSES' | 'BATCHES' | 'SETTINGS'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
+
   // States
   const [expenses, setExpenses] = useState<Expense[]>([]);
   // const [billingBatches, setBillingBatches] = useState<BillingBatch[]>([]); // Using from context now for sync
@@ -51,6 +54,75 @@ export const Finance = () => {
       return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  const generateFreeLabReportPDF = () => {
+    if (!currentOrg) return;
+    const doc = new jsPDF();
+    const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date(0);
+    const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date();
+
+    const periodStr = `${sDate.toLocaleDateString('pt-BR')} - ${eDate.toLocaleDateString('pt-BR')}`;
+    
+    // Header
+    doc.setFillColor(15, 23, 42); // slate-900 color
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(currentOrg.name, 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(200, 220, 255);
+    doc.text("Relatório de Vendas - Loja Online", 14, 28);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Período: ${periodStr}`, 195, 28, { align: 'right' });
+    
+    // Body / Metrics
+    const periodJobs = jobs.filter(j => {
+      if (j.origin !== 'ONLINE_ORDER' && j.origin !== 'ONLINE_REQUISITION') return false;
+      const d = new Date(j.createdAt);
+      return d >= sDate && d <= eDate;
+    });
+    
+    const paidSum = periodJobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, c) => acc + c.totalValue, 0);
+    const pendingSum = periodJobs.filter(j => j.paymentStatus !== 'PAID').reduce((acc, c) => acc + c.totalValue, 0);
+    
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumo Financeiro", 14, 52);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Vendas Pagas: R$ ${paidSum.toFixed(2)}`, 14, 60);
+    doc.text(`Total Vendas Pendentes: R$ ${pendingSum.toFixed(2)}`, 14, 66);
+    doc.text(`Quantidade de Pedidos: ${periodJobs.length}`, 14, 72);
+    
+    // Table of sales
+    const tableData = periodJobs.map(j => [
+      j.osNumber || j.id.substring(0, 6),
+      j.dentistName || '---',
+      j.patientName || '---',
+      new Date(j.createdAt).toLocaleDateString('pt-BR'),
+      `R$ ${(j.totalValue || 0).toFixed(2)}`,
+      j.paymentStatus === 'PAID' ? 'Pago' : 'Pendente'
+    ]);
+    
+    autoTable(doc, {
+      startY: 80,
+      head: [['Cód / OS', 'Dentista', 'Paciente', 'Data', 'Valor', 'Pagamento']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42] },
+      styles: { fontSize: 9 }
+    });
+    
+    doc.save(`Relatorio_Vendas_Loja_${currentOrg.name.replace(/\s+/g, '_')}.pdf`);
+  };
 
   // Manual Payment Form
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -639,6 +711,138 @@ export const Finance = () => {
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
   };
+
+  if (isFreeLab) {
+    const sDate = filterStartDate ? new Date(`${filterStartDate}T00:00:00`) : new Date(0);
+    const eDate = filterEndDate ? new Date(`${filterEndDate}T23:59:59`) : new Date();
+
+    const periodJobs = jobs.filter(j => {
+      if (j.origin !== 'ONLINE_ORDER' && j.origin !== 'ONLINE_REQUISITION') return false;
+      const d = new Date(j.createdAt);
+      return d >= sDate && d <= eDate;
+    });
+
+    const paidSum = periodJobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, c) => acc + c.totalValue, 0);
+    const pendingSum = periodJobs.filter(j => j.paymentStatus !== 'PAID').reduce((acc, c) => acc + c.totalValue, 0);
+
+    return (
+      <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
+              <Wallet className="text-blue-600" /> Extrato de Vendas - Loja Online
+            </h1>
+            <p className="text-slate-500 font-medium">Histórico e faturamento dos trabalhos vendidos na sua loja online.</p>
+          </div>
+          <button 
+            onClick={generateFreeLabReportPDF}
+            className="px-5 py-2.5 bg-blue-600 text-white font-black text-sm rounded-xl shadow-md hover:bg-blue-500 transition-all flex items-center gap-2"
+          >
+            <Download size={16} /> GERAR RELATÓRIO PDF
+          </button>
+        </div>
+
+        {/* STATS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
+            <h3 className="text-2xl font-black text-green-600">R$ {paidSum.toFixed(2)}</h3>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Pendente</p>
+            <h3 className="text-2xl font-black text-orange-600">R$ {pendingSum.toFixed(2)}</h3>
+          </div>
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+            <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total de Pedidos no Período</p>
+            <h3 className="text-2xl font-black text-blue-600">{periodJobs.length}</h3>
+          </div>
+        </div>
+
+        {/* FILTERS */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Filter size={16} className="text-slate-500" /> Filtrar por Período
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data Início</label>
+              <input 
+                type="date" 
+                value={filterStartDate} 
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data Fim</label>
+              <input 
+                type="date" 
+                value={filterEndDate} 
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* TABLE */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase border-b border-slate-100">
+                  <th className="px-6 py-4">OS / Pedido</th>
+                  <th className="px-6 py-4">Dentista</th>
+                  <th className="px-6 py-4">Paciente</th>
+                  <th className="px-6 py-4">Data Venda</th>
+                  <th className="px-6 py-4">Valor</th>
+                  <th className="px-6 py-4">Status OS</th>
+                  <th className="px-6 py-4">Pagamento</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                {periodJobs.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-slate-400">
+                      Nenhum trabalho vendido no período selecionado.
+                    </td>
+                  </tr>
+                ) : (
+                  periodJobs.map((job) => (
+                    <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-slate-900">#{job.osNumber || job.id.substring(0, 6)}</td>
+                      <td className="px-6 py-4">{job.dentistName}</td>
+                      <td className="px-6 py-4">{job.patientName}</td>
+                      <td className="px-6 py-4 text-slate-500">{new Date(job.createdAt).toLocaleDateString('pt-BR')}</td>
+                      <td className="px-6 py-4 text-slate-900">R$ {(job.totalValue || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                          job.status === 'COMPLETED' || job.status === 'DELIVERED' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {job.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                          job.paymentStatus === 'PAID' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {job.paymentStatus === 'PAID' ? 'Pago' : 'Pendente'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">

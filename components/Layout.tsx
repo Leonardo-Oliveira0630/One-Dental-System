@@ -8,7 +8,7 @@ import {
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList
-} from 'lucide-react';
+, ChevronLeft} from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
@@ -100,6 +100,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const isClient = currentUser?.role === UserRole.CLIENT;
   const isBuyer = (isClient || currentOrg?.orgType === 'LAB_OUTSOURCED') && !isSupplier;
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
   
   const isClinicPendingApproval = () => {
     if (isSuperAdmin) return false;
@@ -190,7 +191,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <span className="text-[9px] text-slate-400 font-bold tracking-widest mt-1 uppercase truncate">{displayBrand.sub}</span>
               </div>
             </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:text-white p-1"><X size={24} /></button>
+            <div className="flex items-center">{isStoreRoute && (<button onClick={() => setIsMobileMenuOpen(false)} className="hidden md:flex text-white/70 hover:bg-white/10 rounded-lg p-1 items-center justify-center shrink-0 transition-colors"><ChevronLeft size={24} /></button>)}<button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-white/70 hover:bg-white/10 rounded-lg p-1 shrink-0 transition-colors"><X size={24} /></button></div>
           </div>
 
           {isBuyer && (
@@ -266,27 +267,40 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
                 {!isSupplier && !isBuyer && !isSuperAdmin && (
                   <>
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === '/dashboard'} />
-                    {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
-                    {hasPerm('receipts:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/receipts" icon={<FileText size={20} />} label="Recibos" active={location.pathname === '/lab/receipts'} />}
-                    {hasPerm('commissions:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<Wallet size={20} />} label="Comissões" active={location.pathname === '/commissions'} />}
-                    {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
-                    {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/incoming-requisitions'} badge={pendingRequisitionsCount} />}
-                    {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
-                    {hasPerm('catalog:prices_view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/price-tables" icon={<Table size={20} />} label="Tabelas de Preços" active={location.pathname === '/lab/price-tables'} />}
-                    {hasPerm('inventory:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/inventory" icon={<Package size={20} />} label="Inventário" active={location.pathname === '/lab/inventory'} />}
-                    {hasPerm('store_suppliers:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Online" active={location.pathname === '/store'} />}
-                    {hasPerm('logistics:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
-                    
-                    <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate">Produção</p>
-                    {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
-                    {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
-                    {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
-                    {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
-                    {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
-                    {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label="Relatórios" active={location.pathname === '/reports'} />}
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
+                    {!isFreeLab ? (
+                      <>
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === '/dashboard'} />
+                        {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
+                        {hasPerm('receipts:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/receipts" icon={<FileText size={20} />} label="Recibos" active={location.pathname === '/lab/receipts'} />}
+                        {hasPerm('commissions:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<Wallet size={20} />} label="Comissões" active={location.pathname === '/commissions'} />}
+                        {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
+                        {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/incoming-requisitions'} badge={pendingRequisitionsCount} />}
+                        {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
+                        {hasPerm('catalog:prices_view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/price-tables" icon={<Table size={20} />} label="Tabelas de Preços" active={location.pathname === '/lab/price-tables'} />}
+                        {hasPerm('inventory:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/inventory" icon={<Package size={20} />} label="Inventário" active={location.pathname === '/lab/inventory'} />}
+                        {hasPerm('store_suppliers:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Online" active={location.pathname === '/store'} />}
+                        {hasPerm('logistics:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
+                        
+                        <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>
+                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate">Produção</p>
+                        {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
+                        {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
+                        {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
+                        {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
+                        {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
+                        {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label="Relatórios" active={location.pathname === '/reports'} />}
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
+                      </>
+                    ) : (
+                      <>
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Online" active={location.pathname === '/store'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
+                      </>
+                    )}
                   </>
                 )}
 
@@ -330,7 +344,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <div className="pt-8 mt-8 border-t border-white/10 shrink-0">
                   <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
                   {currentOrg?.orgType === 'CLINIC' && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic-settings" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/clinic-settings'} />}
-                  {currentOrg?.orgType !== 'LAB_OUTSOURCED' && currentOrg?.orgType !== 'CLINIC' && !isSupplier && (isAdmin || hasPerm('users:view') || hasPerm('clients:view') || hasPerm('sectors:view') || hasPerm('boxes:view') || hasPerm('finance:view') || hasPerm('commissions:view')) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurar Lab" active={location.pathname.startsWith('/admin')} />}
+                  {((currentOrg?.orgType !== 'LAB_OUTSOURCED' && currentOrg?.orgType !== 'CLINIC' && !isSupplier && (isAdmin || hasPerm('users:view') || hasPerm('clients:view') || hasPerm('sectors:view') || hasPerm('boxes:view') || hasPerm('finance:view') || hasPerm('commissions:view'))) || isFreeLab) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurar Lab" active={location.pathname.startsWith('/admin')} />}
                 </div>
               </>
             )}
@@ -344,9 +358,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
-      <header className={`fixed top-0 left-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] ${isStoreRoute ? "" : "md:hidden"} print:hidden`}>
+      <header className={`fixed top-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] ${isStoreRoute ? (isMobileMenuOpen ? "left-0 md:left-64" : "left-0") : "left-0 md:hidden"} print:hidden transition-all duration-300`}>
          <div className="flex items-center gap-3 overflow-hidden">
-             <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
+             {!isMobileMenuOpen && (
+               <button onClick={() => setIsMobileMenuOpen(true)} className={`text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0 ${isStoreRoute && isMobileMenuOpen ? "hidden" : ""}`}><Menu size={24} /></button>
+             )}
              {!isMobileSearchOpen && (
                <div className="flex items-center gap-2 overflow-hidden">
                   <Logo size="sm" variant="colored" />
@@ -418,7 +434,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
       </nav>
 
-      <main className={`flex-1 w-full ${isStoreRoute ? "" : "md:ml-64"} transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative`}>
+      <main className={`flex-1 ${isStoreRoute ? (isMobileMenuOpen ? "md:ml-64" : "") : "md:ml-64"} transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative`}>
         <header className={`${isStoreRoute ? "hidden" : "hidden md:flex"} bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0`}>
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <Logo size="sm" variant="colored" />

@@ -558,7 +558,7 @@ export const SupplierStore = () => {
   };
 
   return (
-    <main id="supplier-store-container" className="h-full w-full flex flex-col overflow-y-auto bg-white text-[#15263f] relative">
+    <main id="supplier-store-container" className="h-full w-full overflow-y-auto bg-white text-[#15263f] relative block">
       
       {/* ALWAYS SHOW MARKETPLACE TOP MENU */}
       <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30">

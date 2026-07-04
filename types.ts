@@ -646,6 +646,7 @@ export interface SubscriptionPlan {
     hasStoreModule: boolean;
     hasClinicModule: boolean;
     splitPercent?: number;
+    isLabFreeStoreOnly?: boolean;
   };
 }
 
