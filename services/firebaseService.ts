@@ -718,7 +718,7 @@ export const apiRegisterOrganization = async (email: string, pass: string, owner
     const userCred = await createUserWithEmailAndPassword(auth, email, pass);
     const orgId = `org_${Date.now()}`;
     const org: Organization = {
-        id: orgId, name: orgName, planId, subscriptionStatus: trialEndsAt ? 'TRIAL' : 'PENDING', trialEndsAt, createdAt: new Date(), orgType: 'LAB',
+        id: orgId, name: orgName, planId, subscriptionStatus: planId === 'free_lab' ? 'ACTIVE' : (trialEndsAt ? 'TRIAL' : 'PENDING'), trialEndsAt, createdAt: new Date(), orgType: 'LAB',
         ...(address || {})
     };
     await setDoc(doc(db, 'organizations', orgId), org);

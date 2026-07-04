@@ -12,8 +12,10 @@ const generateFirestoreId = (prefix: string) => {
 };
 
 export const JobTypes = () => {
-  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser } = useApp();
+  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser, currentOrg, currentPlan } = useApp();
   
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
+
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('BASIC');
@@ -46,7 +48,7 @@ export const JobTypes = () => {
     setVariationGroups([]);
     setIsVisibleInStore(true);
     setIsVisibleInOutsourcing(true);
-    setIsVisibleInternally(true);
+    setIsVisibleInternally(!isFreeLab);
     setImageUrl('');
     setImageFile(null);
     setPreviewUrl('');
@@ -66,7 +68,7 @@ export const JobTypes = () => {
     setVariationGroups(type.variationGroups || []);
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
     setIsVisibleInOutsourcing(type.isVisibleInOutsourcing !== false); // Default true if undefined
-    setIsVisibleInternally(type.isVisibleInternally !== false); // Default true if undefined
+    setIsVisibleInternally(isFreeLab ? false : (type.isVisibleInternally !== false));
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
     setAllowedSectors(type.allowedSectors || []);
@@ -358,18 +360,22 @@ export const JobTypes = () => {
                                             <span className="text-[10px] text-slate-400">Exibir no catálogo para laboratórios parceiros contratantes</span>
                                         </div>
 
-                                        <div className="flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-bold text-slate-800">Trabalhos Internos</span>
-                                                <button 
-                                                    type="button" 
-                                                    onClick={() => setIsVisibleInternally(!isVisibleInternally)}
-                                                    className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternally ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                                                >
-                                                    <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternally ? 'translate-x-5' : 'translate-x-0'}`} />
-                                                </button>
-                                            </div>
-                                            <span className="text-[10px] text-slate-400">Ativar visibilidade para trabalhos manuais ou ordens internas criadas no laboratório</span>
+                                        <div className={`flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200 ${isFreeLab ? 'hidden' : 'flex'}`}>
+                                            {!isFreeLab && (
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-slate-800">Trabalhos Internos</span>
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => setIsVisibleInternally(!isVisibleInternally)}
+                                                        className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternally ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                    >
+                                                        <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternally ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {!isFreeLab && (
+                                                <span className="text-[10px] text-slate-400">Ativar visibilidade para trabalhos manuais ou ordens internas criadas no laboratório</span>
+                                            )}
                                         </div>
                                     </div>
 

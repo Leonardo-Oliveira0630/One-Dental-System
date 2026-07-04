@@ -9,7 +9,7 @@ export const RegisterOrganization = () => {
   const { registerOrganization, registerOutsourcedLab, registerDentist, registerSupplier, validateCro, allPlans, validateCoupon, createSubscription } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialType = (searchParams.get('type') === 'DENTIST' || searchParams.get('type') === 'CLINIC') ? 'DENTIST' : searchParams.get('type') === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : 'LAB';
+  const initialType = (searchParams.get('type') === 'DENTIST' || searchParams.get('type') === 'CLINIC') ? 'DENTIST' : searchParams.get('type') === 'SUPPLIER' ? 'SUPPLIER' : 'LAB';
   const initialPlanId = searchParams.get('plan') || '';
 
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -164,8 +164,28 @@ export const RegisterOrganization = () => {
   // Filter plans based on Registration Type (LAB vs CLINIC vs LAB_OUTSOURCED vs SUPPLIER)
   const publicPlans = allPlans.filter(p => p.isPublic && p.active && (p.targetAudience === (regType === 'LAB' ? 'LAB' : regType === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : regType === 'SUPPLIER' ? 'SUPPLIER' : 'CLINIC')));
   
+  const freeLabPlan: SubscriptionPlan = {
+    id: 'free_lab',
+    name: 'Plano Grátis - Loja Online',
+    price: 0,
+    isPublic: true,
+    active: true,
+    targetAudience: 'LAB',
+    features: {
+      maxUsers: 1,
+      maxStorageGB: 5,
+      maxDentists: -1,
+      maxJobsPerMonth: -1,
+      hasStoreModule: true,
+      hasClinicModule: false,
+      isLabFreeStoreOnly: true
+    }
+  };
+
   // Use displayPlans for rendering
-  const displayPlans = publicPlans; 
+  const displayPlans = regType === 'LAB' 
+    ? [freeLabPlan, ...publicPlans.filter(p => p.id !== 'free_lab')] 
+    : publicPlans; 
 
   const handleApplyCoupon = async () => {
     if (!couponCode) return;
@@ -232,7 +252,7 @@ export const RegisterOrganization = () => {
           });
           
           // Automatically register subscription and issue the first payment/boleto via Asaas
-          if (regUser && regUser.organizationId) {
+          if (regUser && regUser.organizationId && selectedPlanId !== 'free_lab') {
               try {
                   await createSubscription(
                       regUser.organizationId,
@@ -377,19 +397,18 @@ export const RegisterOrganization = () => {
                 <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#15263f] transition-colors mb-6">
                     <ArrowLeft size={14} /> Voltar para o Site
                 </Link>
-                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/5 ${regType === 'LAB' ? 'bg-blue-600' : regType === 'LAB_OUTSOURCED' ? 'bg-purple-600' : regType === 'SUPPLIER' ? 'bg-indigo-600' : 'bg-teal-600'}`}>
-                    {regType === 'LAB' ? <ShieldCheck size={32} className="text-white" /> : regType === 'LAB_OUTSOURCED' ? <Building size={32} className="text-white" /> : regType === 'SUPPLIER' ? <Database size={32} className="text-white" /> : <Stethoscope size={32} className="text-white" />}
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/5 ${regType === 'LAB' ? 'bg-blue-600' : regType === 'SUPPLIER' ? 'bg-indigo-600' : 'bg-teal-600'}`}>
+                    {regType === 'LAB' ? <ShieldCheck size={32} className="text-white" /> : regType === 'SUPPLIER' ? <Database size={32} className="text-white" /> : <Stethoscope size={32} className="text-white" />}
                 </div>
                 <h1 className="text-3xl font-bold text-[#15263f] mb-2">Crie sua Conta</h1>
                 <p className="text-slate-500">
-                    {regType === 'LAB' ? 'Gestão completa para seu Laboratório.' : regType === 'LAB_OUTSOURCED' ? 'Contrate outros laboratórios através da nossa plataforma.' : regType === 'SUPPLIER' ? 'Venda seus produtos e controle estoque para dentistas e laboratórios.' : 'Gestão clínica e pedidos para Dentistas.'}
+                    {regType === 'LAB' ? 'Gestão completa ou Loja Online Grátis para seu Laboratório.' : regType === 'SUPPLIER' ? 'Venda seus produtos e controle estoque para dentistas e laboratórios.' : 'Gestão clínica e pedidos para Dentistas.'}
                 </p>
             </div>
 
             <div className="flex bg-slate-900 p-1 rounded-xl mb-6 border border-slate-700 flex-wrap md:flex-nowrap gap-1">
                 <button type="button" onClick={() => { setRegType('LAB'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Building size={18} /> Sou Laboratório</button>
                 <button type="button" onClick={() => { setRegType('DENTIST'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'DENTIST' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Stethoscope size={18} /> Sou Dentista</button>
-                <button type="button" onClick={() => { setRegType('LAB_OUTSOURCED'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'LAB_OUTSOURCED' ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Store size={18} /> Terceirização Lab</button>
                 <button type="button" onClick={() => { setRegType('SUPPLIER'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'SUPPLIER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Database size={18} /> Sou Fornecedor</button>
             </div>
 
@@ -679,7 +698,7 @@ export const RegisterOrganization = () => {
                                                     <div>
                                                         <h4 className="text-slate-700 font-bold uppercase tracking-wider text-xs">{plan.name}</h4>
                                                         <p className={`text-2xl font-bold mt-1 ${themeText}`}>
-                                                            R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-500 font-normal">/mês</span>
+                                                            {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}<span className="text-xs text-slate-500 font-normal">{plan.price === 0 ? '' : '/mês'}</span>
                                                         </p>
                                                     </div>
                                                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
@@ -693,12 +712,37 @@ export const RegisterOrganization = () => {
 
                                                 <div className="space-y-1.5 text-xs text-slate-600 pt-3 border-t border-slate-200">
                                                     {regType === 'LAB' && (
-                                                        <>
-                                                            <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
-                                                            <div className="flex items-center gap-2"><Database size={12} className={themeText}/>{plan.features.maxStorageGB} GB de Armazenamento</div>
-                                                            <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Store size={12} className={plan.features.hasStoreModule ? 'text-green-600' : 'text-slate-400'}/>Loja Virtual</div>
-                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-600' : 'text-slate-400'}/>Gestão Clínica (Demo)</div>
-                                                        </>
+                                                        plan.features.isLabFreeStoreOnly ? (
+                                                            <>
+                                                                <div className="flex items-start gap-1.5 font-semibold text-blue-700">
+                                                                    <CheckCircle size={12} className="text-blue-600 mt-0.5 shrink-0" />
+                                                                    <span>Loja Online integrada e ativa</span>
+                                                                </div>
+                                                                <div className="flex items-start gap-1.5 text-slate-600">
+                                                                    <CheckCircle size={12} className="text-emerald-600 mt-0.5 shrink-0" />
+                                                                    <span>Produtos e serviços ilimitados</span>
+                                                                </div>
+                                                                <div className="flex items-start gap-1.5 text-slate-600">
+                                                                    <CheckCircle size={12} className="text-emerald-600 mt-0.5 shrink-0" />
+                                                                    <span>Histórico de Pedidos Web</span>
+                                                                </div>
+                                                                <div className="flex items-start gap-1.5 text-slate-600">
+                                                                    <CheckCircle size={12} className="text-emerald-600 mt-0.5 shrink-0" />
+                                                                    <span>Financeiro simplificado</span>
+                                                                </div>
+                                                                <div className="flex items-start gap-1.5 text-slate-400 line-through">
+                                                                    <CheckCircle size={12} className="text-slate-300 mt-0.5 shrink-0" />
+                                                                    <span>Sem fluxo interno/estoque</span>
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
+                                                                <div className="flex items-center gap-2"><Database size={12} className={themeText}/>{plan.features.maxStorageGB} GB de Armazenamento</div>
+                                                                <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Store size={12} className={plan.features.hasStoreModule ? 'text-green-600' : 'text-slate-400'}/>Loja Virtual</div>
+                                                                <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-600' : 'text-slate-400'}/>Gestão Clínica (Demo)</div>
+                                                            </>
+                                                        )
                                                     )}
                                                     {regType === 'SUPPLIER' && (
                                                         <>
