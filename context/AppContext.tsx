@@ -370,6 +370,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                             getDoc(planRef).then((pSnap: any) => {
                                 if (pSnap.exists()) {
                                     setCurrentPlan({ id: pSnap.id, ...pSnap.data() as any } as SubscriptionPlan);
+                                } else if (oData.planId === 'free_lab') {
+                                    setCurrentPlan({
+                                        id: 'free_lab',
+                                        name: 'Plano Grátis - Loja Online',
+                                        price: 0,
+                                        active: true,
+                                        isPublic: true,
+                                        features: {
+                                            maxUsers: 1,
+                                            maxStorageGB: 5,
+                                            maxDentists: -1,
+                                            maxJobsPerMonth: -1,
+                                            hasStoreModule: true,
+                                            hasClinicModule: false,
+                                            isLabFreeStoreOnly: true
+                                        }
+                                    });
                                 } else if (oData.planId === 'basic') {
                                     setCurrentPlan({
                                         id: 'basic',

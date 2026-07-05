@@ -10,7 +10,7 @@ export const AdminLayout = () => {
   const [copied, setCopied] = React.useState(false);
 
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
-  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
   const hasPerm = (key: string) => isAdmin || currentUser?.permissions?.includes(key as any);
 
   const copyOrgId = () => {

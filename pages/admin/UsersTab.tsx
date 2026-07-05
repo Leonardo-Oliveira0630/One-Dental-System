@@ -58,7 +58,7 @@ const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: stri
 ];
 
 export const UsersTab = () => {
-  const { allUsers, deleteUser, updateUser, sectors, currentOrg } = useApp();
+  const { allUsers, deleteUser, updateUser, sectors, currentOrg, currentPlan } = useApp();
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -73,6 +73,10 @@ export const UsersTab = () => {
   const [userSector, setUserSector] = useState('');
   const [tempPerms, setTempPerms] = useState<PermissionKey[]>([]);
 
+  const maxUsersLimit = currentPlan?.features?.maxUsers ?? -1;
+  const activeTeamUsers = allUsers.filter(u => u.role !== UserRole.CLIENT);
+  const isAtMaxUsers = maxUsersLimit !== -1 && activeTeamUsers.length >= maxUsersLimit;
+
   const resetForm = () => {
     setUserName('');
     setUserEmail('');
@@ -85,6 +89,10 @@ export const UsersTab = () => {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userName || !userEmail || !userPass || !currentOrg) return;
+    if (isAtMaxUsers) {
+      alert(`Erro: Cota máxima de colaboradores atingida! Seu plano permite no máximo ${maxUsersLimit} colaboradores. Faça um upgrade de plano na aba "Plano" para liberar mais cadastros.`);
+      return;
+    }
     setIsSubmitting(true);
     try {
         await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, userSector);
@@ -146,9 +154,41 @@ export const UsersTab = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+      {isAtMaxUsers && (
+        <div className="p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-start gap-3">
+          <AlertCircle className="text-orange-600 shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="font-bold text-orange-800 text-sm">Cota Máxima de Usuários Atingida</p>
+            <p className="text-xs text-orange-700 mt-1">
+              Seu plano atual ({currentPlan?.name || 'Plano Atual'}) permite cadastrar no máximo <span className="font-bold">{maxUsersLimit}</span> colaboradores (incluindo o Administrador). 
+              Para adicionar mais membros à equipe (técnicos, gestores ou administradores), por favor faça um upgrade de plano.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
-        <h3 className="font-bold text-slate-800 text-lg">Equipe do Laboratório</h3>
-        <button onClick={() => { resetForm(); setIsAddingUser(true); }} className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg">
+        <div>
+          <h3 className="font-bold text-slate-800 text-lg">Equipe do Laboratório</h3>
+          {maxUsersLimit !== -1 && (
+            <p className="text-xs text-slate-500 font-medium">
+              Limite do plano: {activeTeamUsers.length} de {maxUsersLimit} cadastrados
+            </p>
+          )}
+        </div>
+        <button 
+          onClick={() => { 
+            if (isAtMaxUsers) {
+              alert(`Limite de usuários atingido! Seu plano permite cadastrar no máximo ${maxUsersLimit} colaboradores. Faça um upgrade de plano na aba "Plano" para poder adicionar mais membros.`);
+              return;
+            }
+            resetForm(); 
+            setIsAddingUser(true); 
+          }} 
+          className={`px-4 py-2 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg transition-all ${
+            isAtMaxUsers ? 'bg-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
           <UserPlus size={20}/> Novo Usuário
         </button>
       </div>
