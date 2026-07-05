@@ -390,7 +390,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       </header>
 
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
-          <MobileNavItem to="/dashboard" icon={<Home size={22}/>} label="Home" active={location.pathname === '/dashboard'} />
+          <MobileNavItem to={isFreeLab ? "/lab/finance" : "/dashboard"} icon={<Home size={22}/>} label="Home" active={isFreeLab ? location.pathname === '/lab/finance' : location.pathname === '/dashboard'} />
           
           {!isBuyer ? (
             <>

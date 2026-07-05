@@ -16,6 +16,7 @@ export const IncomingOrders = () => {
   const navigate = useNavigate();
 
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
 
   // --- PLAN CHECK (With SuperAdmin Bypass via FeatureLocked children) ---
   if (currentPlan && !currentPlan.features.hasStoreModule && !isSuperAdmin) {
@@ -70,26 +71,28 @@ export const IncomingOrders = () => {
     try {
         await api.apiManageOrderDecision(currentOrg.id, selectedJob.id, 'APPROVE');
         
-        const initialSector = currentUser.sector || 'Recepção';
+        const initialSector = isFreeLab ? 'Trabalhos Simplificados' : (currentUser?.sector || 'Recepção');
 
         await updateJob(selectedJob.id, {
             osNumber: osInput,
-            boxNumber: boxNum,
-            boxColor: BOX_COLORS.find(c => c.id === boxColorId),
+            boxNumber: isFreeLab ? '' : boxNum,
+            boxColor: isFreeLab ? undefined : BOX_COLORS.find(c => c.id === boxColorId),
             currentSector: initialSector,
             sectorMovements: [...(selectedJob.sectorMovements || []).filter(Boolean), {
                 id: Math.random().toString(),
                 sector: initialSector,
                 entryTime: new Date(),
-                entryUserId: currentUser.id,
-                entryUserName: currentUser.name
+                entryUserId: currentUser?.id || 'sys',
+                entryUserName: currentUser?.name || 'Sistema'
             }],
             history: [...(selectedJob.history || []).filter(Boolean), {
                 id: Math.random().toString(),
                 timestamp: new Date(),
-                action: `OS ${osInput} Atribuída e Caixa ${boxNum} definida`,
-                userId: currentUser.id,
-                userName: currentUser.name,
+                action: isFreeLab 
+                  ? `Pedido aceito e enviado para Trabalhos com OS #${osInput}`
+                  : `OS ${osInput} Atribuída e Caixa ${boxNum} definida`,
+                userId: currentUser?.id || 'sys',
+                userName: currentUser?.name || 'Sistema',
                 sector: initialSector
             }]
         });
@@ -324,32 +327,34 @@ export const IncomingOrders = () => {
                         />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Caixa de Bancada</label>
-                            <input 
-                                value={boxNum}
-                                onChange={e => setBoxNum(e.target.value)}
-                                className="w-full px-4 py-4 bg-slate-50 border border-slate-300 rounded-2xl text-center font-black text-xl outline-none"
-                                placeholder="--"
-                            />
-                        </div>
-                         <div>
-                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Cor do Lote</label>
-                            <div className="flex flex-wrap gap-2 items-center justify-center">
-                                {BOX_COLORS.slice(0, 5).map(color => (
-                                    <button
-                                        key={color.id}
-                                        onClick={() => setBoxColorId(color.id)}
-                                        className={`w-8 h-8 rounded-full border-4 transition-all ${
-                                            boxColorId === color.id ? 'border-slate-800 scale-125 shadow-lg' : 'border-transparent opacity-40 hover:opacity-100'
-                                        }`}
-                                        style={{ backgroundColor: color.hex }}
-                                    />
-                                ))}
+                    {!isFreeLab && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Caixa de Bancada</label>
+                                <input 
+                                    value={boxNum}
+                                    onChange={e => setBoxNum(e.target.value)}
+                                    className="w-full px-4 py-4 bg-slate-50 border border-slate-300 rounded-2xl text-center font-black text-xl outline-none"
+                                    placeholder="--"
+                                />
+                            </div>
+                             <div>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Cor do Lote</label>
+                                <div className="flex flex-wrap gap-2 items-center justify-center">
+                                    {BOX_COLORS.slice(0, 5).map(color => (
+                                        <button
+                                            key={color.id}
+                                            onClick={() => setBoxColorId(color.id)}
+                                            className={`w-8 h-8 rounded-full border-4 transition-all ${
+                                                boxColorId === color.id ? 'border-slate-800 scale-125 shadow-lg' : 'border-transparent opacity-40 hover:opacity-100'
+                                            }`}
+                                            style={{ backgroundColor: color.hex }}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className="flex gap-3 mt-10 pt-6 border-t border-slate-100">

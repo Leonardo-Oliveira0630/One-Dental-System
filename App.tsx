@@ -85,7 +85,9 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
       '/promised',
       '/reports',
       '/admin/comissoes',
-      '/admin/clientes'
+      '/admin/clientes',
+      '/calendar',
+      '/lab/price-tables'
     ];
     if (forbiddenPaths.includes(location.pathname)) {
       return <Navigate to="/lab/finance" replace />;
