@@ -49,7 +49,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -219,6 +219,16 @@ export const JobDetails = () => {
           setRouteInfo(null);
       }
   }, [job?.routeId, currentOrg]);
+
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
+  const [freeLabEditingNotes, setFreeLabEditingNotes] = useState(false);
+  const [freeLabNotesText, setFreeLabNotesText] = useState('');
+
+  useEffect(() => {
+    if (job) {
+      setFreeLabNotesText(job.notes || '');
+    }
+  }, [job]);
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const isManager = currentUser?.role === UserRole.MANAGER;
@@ -1083,6 +1093,218 @@ export const JobDetails = () => {
   };
 
   const showChatTab = true;
+
+  if (isFreeLab) {
+    return (
+      <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 space-y-6 animate-in fade-in duration-500">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/jobs')} 
+            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors animate-in cursor-pointer"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">Resumo do Caso</h1>
+            <p className="text-xs text-slate-500 font-bold">Ordem de Serviço Simplificada</p>
+          </div>
+        </div>
+
+        {/* OS Details Card */}
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden p-6 md:p-8 space-y-6">
+          
+          {/* Header OS details */}
+          <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+            <div>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Código OS</span>
+              <h2 className="font-mono text-xl font-black text-blue-600">#{job.osNumber || job.id.substring(0, 6)}</h2>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Status Atual</span>
+              <div>
+                <span className={`inline-block mt-1 px-3 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status)}`}>
+                  {getTranslatedStatus(job.status)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Core Info Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Dentista Solicitante</span>
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                <User size={16} className="text-blue-500 font-bold" />
+                <span>Dr(a). {job.dentistName}</span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Nome do Paciente</span>
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                <User size={16} className="text-slate-400 font-bold" />
+                <span>{job.patientName}</span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Data de Finalização</span>
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                <Calendar size={16} className="text-green-500 font-bold" />
+                <span>{new Date(job.dueDate).toLocaleDateString('pt-BR')}</span>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Tipo de Serviço</span>
+              <div className="text-slate-700 font-bold bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-xs">
+                {job.items?.map((i: any) => `${i.name} (x${i.quantity || 1})`).join(', ') || 
+                 job.products?.map((p: any) => `${p.name} (x${p.quantity || 1})`).join(', ') || 'Sem serviços informados'}
+              </div>
+            </div>
+          </div>
+
+          {/* Observations and Editing */}
+          <div className="border-t border-slate-100 pt-6 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Observações do Pedido</span>
+              {!freeLabEditingNotes && (
+                <button 
+                  onClick={() => {
+                    setFreeLabEditingNotes(true);
+                    setFreeLabNotesText(job.notes || '');
+                  }}
+                  className="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Edit3 size={14} /> Editar Obs.
+                </button>
+              )}
+            </div>
+
+            {freeLabEditingNotes ? (
+              <div className="space-y-3">
+                <textarea
+                  value={freeLabNotesText}
+                  onChange={(e) => setFreeLabNotesText(e.target.value)}
+                  placeholder="Acrescente observações ou notas adicionais aqui..."
+                  rows={4}
+                  className="w-full p-3 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-semibold"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setFreeLabEditingNotes(false)}
+                    className="px-4 py-2 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={async () => {
+                      setIsUpdatingStatus(true);
+                      try {
+                        await updateJob(job.id, { 
+                          notes: freeLabNotesText,
+                          history: [...(job.history || []).filter(Boolean), {
+                            id: `hist_freelab_notes_${Date.now()}`,
+                            timestamp: new Date(),
+                            action: `Observação do caso editada`,
+                            userId: currentUser?.id || 'sys',
+                            userName: currentUser?.name || 'Sistema'
+                          }]
+                        });
+                        setFreeLabEditingNotes(false);
+                      } catch (err) {
+                        alert("Erro ao salvar observações.");
+                      } finally {
+                        setIsUpdatingStatus(false);
+                      }
+                    }}
+                    disabled={isUpdatingStatus}
+                    className="px-4 py-2 bg-blue-600 text-white font-bold rounded-xl text-xs hover:bg-blue-700 transition-colors flex items-center gap-1"
+                  >
+                    {isUpdatingStatus && <Loader2 size={12} className="animate-spin" />}
+                    Salvar Observação
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 min-h-[80px]">
+                {job.notes ? (
+                  <p className="text-slate-700 text-xs font-semibold whitespace-pre-wrap">{job.notes}</p>
+                ) : (
+                  <p className="text-slate-400 text-xs italic">Nenhuma observação ou instrução adicional informada.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Action / Status Buttons Section */}
+          <div className="border-t border-slate-100 pt-6">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-4">Ações de Controle de Status</span>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Botão de Status */}
+              <div className="relative group/dropdown">
+                <button
+                  type="button"
+                  className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all border border-slate-200 cursor-pointer"
+                >
+                  <RefreshCw size={14} className="text-slate-500" />
+                  Mudar Status
+                  <ChevronDown size={14} className="text-slate-400" />
+                </button>
+                
+                {/* Dropdown item options */}
+                <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl hidden group-hover/dropdown:block z-50 overflow-hidden">
+                  {[JobStatus.PENDING, JobStatus.IN_PROGRESS, JobStatus.WAITING_APPROVAL].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => handleQuickStatusUpdate(st)}
+                      className="w-full px-4 py-3 hover:bg-slate-50 text-left text-xs font-extrabold text-slate-700 uppercase tracking-tight flex items-center gap-2 transition-colors border-b last:border-0 border-slate-100 cursor-pointer"
+                    >
+                      <span className={`w-2.5 h-2.5 rounded-full ${st === JobStatus.PENDING ? 'bg-amber-400' : st === JobStatus.IN_PROGRESS ? 'bg-blue-400' : 'bg-purple-400'}`} />
+                      {getTranslatedStatus(st)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Botão Finalizar */}
+              <button
+                type="button"
+                onClick={() => handleQuickStatusUpdate(JobStatus.COMPLETED)}
+                disabled={job.status === JobStatus.COMPLETED}
+                className={`w-full py-3 font-extrabold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  job.status === JobStatus.COMPLETED 
+                    ? 'bg-green-100 text-green-700 border border-green-200 cursor-default' 
+                    : 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg active:scale-95'
+                }`}
+              >
+                <CheckCircle2 size={16} />
+                {job.status === JobStatus.COMPLETED ? 'Finalizado' : 'Finalizar Caso'}
+              </button>
+
+              {/* Botão Logística */}
+              <button
+                type="button"
+                onClick={() => handleQuickStatusUpdate(JobStatus.DELIVERED)}
+                disabled={job.status === JobStatus.DELIVERED}
+                className={`w-full py-3 font-extrabold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                  job.status === JobStatus.DELIVERED 
+                    ? 'bg-indigo-100 text-indigo-700 border border-indigo-200 cursor-default' 
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-lg active:scale-95'
+                }`}
+              >
+                <Truck size={16} />
+                {job.status === JobStatus.DELIVERED ? 'Na Logística' : 'Enviar p/ Logística'}
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full space-y-4 md:space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-x-hidden">

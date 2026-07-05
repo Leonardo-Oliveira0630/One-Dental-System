@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight, Percent } from 'lucide-react';
-import { Coupon } from '../types';
+import { Coupon, SubscriptionPlan } from '../types';
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
 
 export const RegisterOrganization = () => {

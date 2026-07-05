@@ -513,10 +513,29 @@ export const JobsList = () => {
                     return (
                       <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 font-mono font-bold text-blue-600">
-                          #{job.osNumber || job.id.substring(0, 6)}
+                          <button 
+                            onClick={() => navigate(`/jobs/${job.id}`)} 
+                            className="text-blue-600 hover:text-blue-800 hover:underline font-bold focus:outline-none cursor-pointer"
+                          >
+                            #{job.osNumber || job.id.substring(0, 6)}
+                          </button>
                         </td>
-                        <td className="px-6 py-4">{job.dentistName}</td>
-                        <td className="px-6 py-4 font-bold text-slate-900">{job.patientName}</td>
+                        <td className="px-6 py-4">
+                          <button 
+                            onClick={() => navigate(`/jobs/${job.id}`)} 
+                            className="hover:text-blue-600 hover:underline text-left font-medium focus:outline-none cursor-pointer"
+                          >
+                            {job.dentistName}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-slate-900">
+                          <button 
+                            onClick={() => navigate(`/jobs/${job.id}`)} 
+                            className="hover:text-blue-600 hover:underline text-left font-bold focus:outline-none text-slate-900 cursor-pointer"
+                          >
+                            {job.patientName}
+                          </button>
+                        </td>
                         <td className="px-6 py-4 text-slate-500">
                           {job.items?.map(i => `${i.name} (x${i.quantity || 1})`).join(', ') || 
                            job.products?.map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || '---'}
