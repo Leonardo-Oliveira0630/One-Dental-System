@@ -14,7 +14,7 @@ const generateFirestoreId = (prefix: string) => {
 export const JobTypes = () => {
   const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser, currentOrg, currentPlan } = useApp();
   
-  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
+  const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

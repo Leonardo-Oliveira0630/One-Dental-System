@@ -296,6 +296,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Online" active={location.pathname === '/store'} />
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
