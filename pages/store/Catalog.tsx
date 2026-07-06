@@ -594,7 +594,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
 
 export const Catalog = () => {
     const { slug } = useParams<{ slug: string }>();
-    const { allLaboratories, allSuppliers, currentUser, currentOrg, activeOrganization, currentPlan, userConnections, addConnectionByCode, cart } = useApp();
+    const { allLaboratories, allSuppliers, currentUser, currentOrg, activeOrganization, currentPlan, userConnections, addConnectionByCode, cart, switchActiveOrganization } = useApp();
     const navigate = useNavigate();
     const location = useLocation();
     const [term, setTerm] = useState('');
@@ -822,7 +822,10 @@ export const Catalog = () => {
 
             {mainTab === 'PARTNERSHIPS' && (
                 <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
-                    <Partnerships />
+                    <Partnerships onSelectLab={(labId) => {
+                        switchActiveOrganization(labId);
+                        setMainTab('STORE');
+                    }} />
                 </div>
             )}
 

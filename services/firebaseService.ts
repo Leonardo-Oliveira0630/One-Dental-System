@@ -1152,25 +1152,19 @@ export const subscribeAllSupplierProducts = (supplierIds: string[], cb: (items: 
     }
 
     const unsubs: any[] = [];
-    const itemsMap = new Map<number, any[]>();
+    const itemsMap = new Map<string, any[]>();
     
-    // Chunk supplierIds into arrays of max 30 to respect Firestore 'in' query limits
-    const chunks = [];
-    for(let i = 0; i < supplierIds.length; i += 30) {
-        chunks.push(supplierIds.slice(i, i + 30));
-    }
-
-    chunks.forEach((chunk, index) => {
-        const q = query(collectionGroup(db, 'inventoryItems'), where('organizationId', 'in', chunk));
+    supplierIds.forEach((supplierId) => {
+        const q = collection(db, `organizations/${supplierId}/inventoryItems`);
         const unsub = onSnapshot(q, (snap: any) => {
             const list = snap.docs.map((d: any) => ({
                 id: d.id, ...d.data() as any
             }));
-            itemsMap.set(index, list);
+            itemsMap.set(supplierId, list);
             
             const aggregated = Array.from(itemsMap.values()).flat();
             cb(aggregated);
-        }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllSupplierProducts chunk ${index}:`, error));
+        }, (error: any) => console.warn(`[Firestore] Erro em subscribeAllSupplierProducts para ${supplierId}:`, error));
         unsubs.push(unsub);
     });
 

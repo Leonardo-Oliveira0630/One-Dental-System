@@ -11,8 +11,8 @@ import * as api from '../../services/firebaseService';
 import { LabRating, Organization } from '../../types';
 import { StoreTopMenu } from '../../components/StoreTopMenu';
 
-export const Partnerships = () => {
-    const { userConnections, addConnectionByCode, allLaboratories, activeOrganization } = useApp();
+export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) => void }) => {
+    const { userConnections, addConnectionByCode, allLaboratories, activeOrganization, switchActiveOrganization } = useApp();
     const [activeTab, setActiveTab] = useState<'MY_PARTNERS' | 'EXPLORE'>('MY_PARTNERS');
     const [orgCode, setOrgCode] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
@@ -140,7 +140,14 @@ export const Partnerships = () => {
                                         return (
                                             <div 
                                                 key={conn.id} 
-                                                onClick={() => navigate(`/store/${labInfo?.storeSlug || conn.organizationId}`)}
+                                                onClick={() => {
+                                                    if (onSelectLab) {
+                                                        onSelectLab(conn.organizationId);
+                                                    } else {
+                                                        switchActiveOrganization(conn.organizationId);
+                                                        navigate('/store');
+                                                    }
+                                                }}
                                                 className="flex justify-between items-center p-5 bg-white rounded-3xl border border-slate-100 hover:border-blue-500 hover:shadow-md cursor-pointer transition-all group relative overflow-hidden"
                                                 id={`partner-card-${conn.id}`}
                                                 title="Clique para acessar a loja do parceiro"
@@ -205,7 +212,14 @@ export const Partnerships = () => {
                             return (
                                 <div 
                                     key={lab.id} 
-                                    onClick={() => navigate(`/store/${lab.storeSlug || lab.id}`)}
+                                    onClick={() => {
+                                        if (onSelectLab) {
+                                            onSelectLab(lab.id);
+                                        } else {
+                                            switchActiveOrganization(lab.id);
+                                            navigate('/store');
+                                        }
+                                    }}
                                     className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col cursor-pointer"
                                     id={`explore-card-${lab.id}`}
                                 >
@@ -266,7 +280,12 @@ export const Partnerships = () => {
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                navigate(`/store/${lab.storeSlug || lab.id}`);
+                                                if (onSelectLab) {
+                                                    onSelectLab(lab.id);
+                                                } else {
+                                                    switchActiveOrganization(lab.id);
+                                                    navigate('/store');
+                                                }
                                             }}
                                             className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 shadow-lg shadow-slate-100 transition-all flex items-center justify-center gap-2 active:scale-95 text-xs font-black uppercase tracking-wider"
                                         >
