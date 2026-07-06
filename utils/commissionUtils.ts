@@ -1,4 +1,4 @@
-import { JobItem, JobType, User } from '../types';
+import { JobItem, JobType } from '../types';
 
 export const calculateItemCommission = (
     item: JobItem,
@@ -8,29 +8,41 @@ export const calculateItemCommission = (
 ): number => {
     if (!jobType) return 0;
 
-    let variationComm = 0;
-    if (item.selectedVariationIds && jobType.variationGroups) {
-        jobType.variationGroups.forEach(group => {
-            group.options.forEach(opt => {
-                if (item.selectedVariationIds.includes(opt.id) && opt.commissionValue) {
-                    variationComm += opt.commissionValue;
+    const setting = user?.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
+    
+    // Check if any selected variation has a user-specific setting
+    let variationOverrideValue = 0;
+    let hasVariationOverride = false;
+
+    if (setting?.variationSettings && item.selectedVariationIds) {
+        item.selectedVariationIds.forEach(vid => {
+            const vSetting = setting.variationSettings[vid];
+            if (vSetting) {
+                hasVariationOverride = true;
+                if (vSetting.type === 'FIXED') {
+                    variationOverrideValue += vSetting.value;
+                } else {
+                    variationOverrideValue += (item.price * (vSetting.value / 100));
                 }
-            });
+            }
         });
     }
 
-    const setting = user?.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
-    
-    if (setting) {
-        if (setting.type === 'FIXED') {
-            return (setting.value + variationComm) * secQty;
-        } else {
-            // Se for porcentagem, já incide sobre o item.price que contém o acréscimo das variações.
-            // Para mantermos consistência, a comissão extra da variação também é adicionada como bônus fixo.
-            return ((item.price * (setting.value / 100)) + variationComm) * secQty;
-        }
-    } else {
-        const base = jobType.baseCommission || 0;
-        return (base + variationComm) * secQty;
+    // If the user has specific commission settings for the variations, they OVERRIDE the root commission
+    if (hasVariationOverride) {
+        return variationOverrideValue * secQty;
     }
+
+    // Fallback to root user setting
+    if (setting && setting.value !== undefined) {
+        if (setting.type === 'FIXED') {
+            return setting.value * secQty;
+        } else {
+            return (item.price * (setting.value / 100)) * secQty;
+        }
+    } 
+    
+    // Fallback to JobType global baseCommission
+    const base = jobType.baseCommission || 0;
+    return base * secQty;
 };

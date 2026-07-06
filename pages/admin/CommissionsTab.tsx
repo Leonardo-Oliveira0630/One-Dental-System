@@ -11,16 +11,54 @@ export const CommissionsTab = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCommChange = (jobTypeId: string, value: string, type: 'FIXED' | 'PERCENTAGE') => {
-    if (value === '') {
-        setTempCommissions(prev => prev.filter(p => p.jobTypeId !== jobTypeId));
-        return;
-    }
-    const val = parseFloat(value) || 0;
     setTempCommissions(prev => {
-        const exists = prev.find(p => p.jobTypeId === jobTypeId);
-        if (exists) return prev.map(p => p.jobTypeId === jobTypeId ? { ...p, value: val, type } : p);
+        let jobSetting = prev.find(p => p.jobTypeId === jobTypeId);
+        
+        if (value === '') {
+            if (jobSetting && jobSetting.variationSettings && Object.keys(jobSetting.variationSettings).length > 0) {
+                // Keep the setting but remove root value
+                const { value: _, ...rest } = jobSetting;
+                return prev.map(p => p.jobTypeId === jobTypeId ? { ...rest, type } : p);
+            } else {
+                return prev.filter(p => p.jobTypeId !== jobTypeId);
+            }
+        }
+
+        const val = parseFloat(value) || 0;
+        if (jobSetting) return prev.map(p => p.jobTypeId === jobTypeId ? { ...p, value: val, type } : p);
         return [...prev, { jobTypeId, value: val, type }];
     });
+  };
+
+  const handleVariationCommChange = (jobTypeId: string, variationId: string, value: string, type: 'FIXED' | 'PERCENTAGE') => {
+      setTempCommissions(prev => {
+          let jobSetting = prev.find(p => p.jobTypeId === jobTypeId);
+          
+          if (!jobSetting) {
+              jobSetting = { jobTypeId, type: 'FIXED', variationSettings: {} };
+          } else {
+              jobSetting = { ...jobSetting, variationSettings: { ...(jobSetting.variationSettings || {}) } };
+          }
+          
+          if (value === '') {
+              if (jobSetting.variationSettings) {
+                  delete jobSetting.variationSettings[variationId];
+              }
+              // If no root value and no variation settings, remove entirely
+              if (jobSetting.value === undefined && (!jobSetting.variationSettings || Object.keys(jobSetting.variationSettings).length === 0)) {
+                  return prev.filter(p => p.jobTypeId !== jobTypeId);
+              }
+          } else {
+              const val = parseFloat(value) || 0;
+              if (!jobSetting.variationSettings) jobSetting.variationSettings = {};
+              jobSetting.variationSettings[variationId] = { value: val, type };
+          }
+          
+          if (!prev.find(p => p.jobTypeId === jobTypeId)) {
+              return [...prev, jobSetting];
+          }
+          return prev.map(p => p.jobTypeId === jobTypeId ? jobSetting : p);
+      });
   };
 
   const saveCommissions = async () => {
@@ -74,23 +112,50 @@ export const CommissionsTab = () => {
                       {jobTypes.map(type => {
                           const setting = tempCommissions.find(s => s.jobTypeId === type.id);
                           return (
-                              <div key={type.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                  <div className="flex-1">
-                                      <p className="font-bold text-slate-800">{type.name}</p>
-                                      <div className="flex gap-2">
-                                        <p className="text-xs text-slate-400">Base: R$ {type.basePrice.toFixed(2)}</p>
-                                        {type.baseCommission !== undefined && (
-                                            <p className="text-xs text-indigo-500 font-bold text-right mt-1 w-full flex justify-end gap-1"><span className="text-slate-400 font-normal mt-0.5">Comissão Base:</span> R$ {type.baseCommission.toFixed(2)}</p>
-                                        )}
+                              <div key={type.id} className="flex flex-col p-4 bg-slate-50 rounded-2xl border border-slate-100 gap-3">
+                                  <div className="flex items-center justify-between">
+                                      <div className="flex-1">
+                                          <p className="font-bold text-slate-800">{type.name}</p>
+                                          <div className="flex gap-2">
+                                            <p className="text-xs text-slate-400">Base: R$ {type.basePrice.toFixed(2)}</p>
+                                            {type.baseCommission !== undefined && (
+                                                <p className="text-xs text-indigo-500 font-bold text-right mt-1 w-full flex justify-end gap-1"><span className="text-slate-400 font-normal mt-0.5">Comissão Base:</span> R$ {type.baseCommission.toFixed(2)}</p>
+                                            )}
+                                          </div>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                          <input type="number" step="0.01" value={setting?.value === undefined ? '' : setting.value} onChange={e => handleCommChange(type.id, e.target.value, setting?.type || 'FIXED')} placeholder={type.baseCommission ? `${type.baseCommission.toFixed(2)}` : "0"} className="w-24 px-2 py-1.5 border rounded-lg font-bold text-center" />
+                                          <select value={setting?.type || 'FIXED'} onChange={e => handleCommChange(type.id, setting?.value?.toString() || '', e.target.value as any)} className="bg-white border rounded-lg px-2 py-1.5 text-xs font-bold">
+                                              <option value="PERCENTAGE">%</option>
+                                              <option value="FIXED">R$</option>
+                                          </select>
                                       </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                      <input type="number" step="0.01" value={setting?.value === undefined ? '' : setting.value} onChange={e => handleCommChange(type.id, e.target.value, setting?.type || 'FIXED')} placeholder={type.baseCommission ? `${type.baseCommission.toFixed(2)}` : "0"} className="w-24 px-2 py-1.5 border rounded-lg font-bold text-center" />
-                                      <select value={setting?.type || 'FIXED'} onChange={e => handleCommChange(type.id, setting?.value?.toString() || '', e.target.value as any)} className="bg-white border rounded-lg px-2 py-1.5 text-xs font-bold">
-                                          <option value="PERCENTAGE">%</option>
-                                          <option value="FIXED">R$</option>
-                                      </select>
-                                  </div>
+                                  {type.variationGroups && type.variationGroups.length > 0 && (
+                                      <div className="pl-4 border-l-2 border-slate-200 space-y-2 mt-2">
+                                          <p className="text-xs font-bold text-slate-500 uppercase">Comissão Específica por Variação (Substitui raiz)</p>
+                                          {type.variationGroups.map(group => (
+                                              <div key={group.id} className="space-y-1">
+                                                  <p className="text-xs font-bold text-slate-400">{group.name}</p>
+                                                  {group.options.map(opt => {
+                                                      const vSetting = setting?.variationSettings?.[opt.id];
+                                                      return (
+                                                          <div key={opt.id} className="flex items-center justify-between py-1">
+                                                              <p className="text-sm text-slate-600">{opt.name}</p>
+                                                              <div className="flex items-center gap-2">
+                                                                  <input type="number" step="0.01" value={vSetting?.value === undefined ? '' : vSetting.value} onChange={e => handleVariationCommChange(type.id, opt.id, e.target.value, vSetting?.type || 'FIXED')} placeholder="0" className="w-20 px-2 py-1 border rounded font-bold text-center text-xs" />
+                                                                  <select value={vSetting?.type || 'FIXED'} onChange={e => handleVariationCommChange(type.id, opt.id, vSetting?.value?.toString() || '', e.target.value as any)} className="bg-white border rounded px-1 py-1 text-[10px] font-bold">
+                                                                      <option value="PERCENTAGE">%</option>
+                                                                      <option value="FIXED">R$</option>
+                                                                  </select>
+                                                              </div>
+                                                          </div>
+                                                      );
+                                                  })}
+                                              </div>
+                                          ))}
+                                      </div>
+                                  )}
                               </div>
                           );
                       })}

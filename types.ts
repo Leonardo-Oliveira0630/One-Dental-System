@@ -439,7 +439,6 @@ export interface VariationOption {
   id: string;
   name: string;
   priceModifier: number;
-  commissionValue?: number;
   disablesOptions?: string[];
   isDiscountExempt?: boolean; 
   imageUrl?: string;
@@ -478,8 +477,9 @@ export interface ClinicService {
 
 export interface UserCommissionSetting {
   jobTypeId: string;
-  value: number;
+  value?: number;
   type: 'FIXED' | 'PERCENTAGE';
+  variationSettings?: Record<string, { value: number; type: 'FIXED' | 'PERCENTAGE' }>;
 }
 
 export interface PriceTable {
