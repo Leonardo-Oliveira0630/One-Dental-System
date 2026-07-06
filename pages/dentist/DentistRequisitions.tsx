@@ -33,7 +33,9 @@ export const DentistRequisitions = () => {
     jobs,
     activeManualDentistId,
     activeOrganization,
-    switchActiveOrganization
+    switchActiveOrganization,
+    userConnections,
+    allLaboratories
   } = useApp();
 
   const [chatJob, setChatJob] = useState<Job | null>(null);
@@ -151,29 +153,49 @@ export const DentistRequisitions = () => {
         setLoading(true);
         const fetchedLabs: LaboratoryOption[] = [];
 
+        // Helper to check if lab has a valid plan for receiving requisitions
+        const isValidLabPlan = (planId: string | undefined) => {
+            return planId !== 'free_lab' && planId !== 'free';
+        };
+
         // 1. Check direct connection via connectedLabId
         if (userAny?.connectedLabId) {
           const directLabDoc = await getDoc(doc(db, 'organizations', userAny.connectedLabId));
           if (directLabDoc.exists()) {
-            fetchedLabs.push({
-              id: userAny.connectedLabId,
-              name: directLabDoc.data().name || 'Laboratório Conveniado'
-            });
+            const data = directLabDoc.data();
+            if (isValidLabPlan(data.planId)) {
+                fetchedLabs.push({
+                  id: userAny.connectedLabId,
+                  name: data.name || 'Laboratório Conveniado'
+                });
+            }
           }
         }
 
-        // 2. Check connections in standard subcollection /organizations/{myOrgId}/connections
-        if (userAny?.organizationId) {
-          const connSnap = await getDocs(collection(db, 'organizations', userAny.organizationId, 'connections'));
-          connSnap.forEach((docRef: any) => {
-            const data = docRef.data();
-            if (data.status === 'ACTIVE' && data.organizationId !== userAny.connectedLabId) {
-              fetchedLabs.push({
-                id: data.organizationId,
-                name: data.organizationName || 'Laboratório'
-              });
+        // 2. Use userConnections from AppContext
+        for (const conn of userConnections) {
+            if (conn.status === 'ACTIVE' && conn.organizationId !== userAny?.connectedLabId) {
+               const labData = allLaboratories.find(l => l.id === conn.organizationId);
+               if (labData) {
+                   if (isValidLabPlan(labData.planId)) {
+                       fetchedLabs.push({
+                           id: conn.organizationId,
+                           name: labData.name || conn.organizationName || 'Laboratório'
+                       });
+                   }
+               } else {
+                   const labDoc = await getDoc(doc(db, 'organizations', conn.organizationId));
+                   if (labDoc.exists()) {
+                       const docData = labDoc.data();
+                       if (isValidLabPlan(docData.planId)) {
+                           fetchedLabs.push({
+                               id: conn.organizationId,
+                               name: docData.name || conn.organizationName || 'Laboratório'
+                           });
+                       }
+                   }
+               }
             }
-          });
         }
 
         setLabs(fetchedLabs);
@@ -190,7 +212,7 @@ export const DentistRequisitions = () => {
     };
 
     fetchConnectedLabs();
-  }, [currentUser]);
+  }, [currentUser, userConnections, allLaboratories]);
 
   // Fetch services/jobTypes of the selected laboratory dynamically when selection changes
   useEffect(() => {

@@ -550,7 +550,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeProductCatalogItems(myOrgId, setProductCatalogItems));
             unsubs.push(api.subscribeLabOnlineRequisitions(myOrgId, setOnlineRequisitions));
         } else if (activeDataId) {
-            unsubs.push(api.subscribeDentistOnlineRequisitions(activeDataId, currentUser.id, setOnlineRequisitions));
+            unsubs.push(api.subscribeDentistOnlineRequisitions([activeDataId], currentUser.id, setOnlineRequisitions));
         }
 
         if (currentOrg?.orgType === 'SUPPLIER') {
@@ -565,6 +565,57 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     
     return () => unsubs.forEach(u => u());
   }, [currentUser, activeDataId, activeManualDentistId]);
+
+  // Special subscriptions for Dentists (CLINIC users) to track jobs and requisitions from all their connected labs
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'CLIENT') return;
+    if (currentOrg?.orgType !== 'CLINIC') return;
+
+    const unsubs: any[] = [];
+    
+    // Extract lab IDs from userConnections
+    const connectedLabIds = userConnections
+        .filter(c => c.status === 'ACTIVE')
+        .map(c => c.organizationId);
+
+    // Also include connectedLabId if present directly on user
+    if ((currentUser as any).connectedLabId && !connectedLabIds.includes((currentUser as any).connectedLabId)) {
+        connectedLabIds.push((currentUser as any).connectedLabId);
+    }
+
+    if (connectedLabIds.length === 0) {
+        setJobs([]);
+        setOnlineRequisitions([]);
+        return;
+    }
+    
+    const manualDentistId = activeManualDentistId || (currentUser as any).manualDentistId;
+
+    unsubs.push(api.subscribeDentistConnectedJobs(
+        connectedLabIds, 
+        currentUser.id, 
+        manualDentistId, 
+        (labJobs) => {
+            setJobs(prev => {
+                const myOrgId = currentUser.organizationId;
+                const localJobs = prev.filter(j => j.organizationId === myOrgId);
+                const merged = [...localJobs, ...labJobs];
+                return Array.from(new Map(merged.map(j => [j.id, j])).values());
+            });
+        }
+    ));
+
+    unsubs.push(api.subscribeDentistOnlineRequisitions(
+        connectedLabIds,
+        currentUser.id,
+        (reqs) => {
+            setOnlineRequisitions(reqs);
+        }
+    ));
+
+    return () => unsubs.forEach(u => u());
+  }, [currentUser, currentOrg, userConnections, activeManualDentistId]);
+
 
   // Optimized Automatic Blocking Logic
   useEffect(() => {

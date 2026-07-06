@@ -13,7 +13,7 @@ export function UnifiedStore() {
     return searchParams.has('supplierId') ? 'FORNECEDOR' : 'PROTESE';
   });
   
-  const isLab = currentOrg?.orgType === 'LAB';
+  const isLab = currentOrg?.orgType === 'LAB' || currentOrg?.orgType === 'LAB_OUTSOURCED';
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative">

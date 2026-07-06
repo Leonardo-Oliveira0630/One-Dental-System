@@ -898,15 +898,7 @@ export const Catalog = () => {
                 </div>
             )}
 
-            {/* Back to Partnerships Link */}
-            <div className="flex items-center justify-between" id="catalog-header-nav-row">
-                <button 
-                    onClick={() => navigate('/dentist/partnerships')}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:text-slate-900 font-bold text-xs rounded-xl shadow-sm border border-slate-100 transition-all hover:shadow hover:-translate-x-0.5"
-                >
-                    <ChevronLeft size={16} /> VOLTAR PARA PARCERIAS
-                </button>
-            </div>
+            {/* Back to Partnerships Link removed as requested */}
 
             {/* Marketplace Laboratory Showcase Header */}
             <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6" id="marketplace-profile-header">
