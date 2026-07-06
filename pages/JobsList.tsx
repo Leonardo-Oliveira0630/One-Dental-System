@@ -209,7 +209,7 @@ const JobCard = memo(({
     );
 });
 
-export const JobsList = () => {
+export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) => {
   const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
   const navigate = useNavigate();
   
@@ -255,7 +255,7 @@ export const JobsList = () => {
     }
   };
 
-  const isClient = currentUser?.role === UserRole.CLIENT;
+  const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
   const isLabStaff = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.COLLABORATOR;
   const revealJobStatus = !isClient || (activeOrganization?.revealJobStatusToDentist ?? false);
 

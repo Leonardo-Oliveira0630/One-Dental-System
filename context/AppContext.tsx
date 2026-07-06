@@ -414,7 +414,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                     }
                 });
 
-                if (profile.role === UserRole.CLIENT || (profileOrgId && (profileOrgId.includes('outorg') || profileOrgId.includes('clinic')))) {
+                if (profile.role === UserRole.CLIENT || profileOrgId) {
                     api.subscribeUserConnections(profileOrgId, (conns) => {
                         setUserConnections(conns);
                         
@@ -515,7 +515,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     unsubs.push(api.subscribeGlobalSettings(setGlobalSettings));
 
     if (activeDataId) {
-        const isClient = currentUser.role === UserRole.CLIENT;
+        const isClient = currentUser.role === UserRole.CLIENT || activeDataId !== currentUser.organizationId;
         unsubs.push(api.subscribeJobs(activeDataId, currentUser.id, isClient, setJobs, activeManualDentistId || (currentUser as any).manualDentistId));
         unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
         

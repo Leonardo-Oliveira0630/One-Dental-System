@@ -731,27 +731,7 @@ export const Catalog = () => {
         );
     }
 
-    if (!selectedLab) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-                <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
-                        <Building size={40} />
-                    </div>
-                    <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tighter">Ops! Laboratório ausente.</h2>
-                    <p className="text-slate-500 mb-8 font-medium">
-                        Parece que você ainda não selecionou qual laboratório deseja visitar hoje.
-                    </p>
-                    <button onClick={() => navigate('/dentist/partnerships')}
-                        className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full">
-                        EXPLORAR LABORATÓRIOS
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    if (currentPlan && !currentPlan.features.hasStoreModule && !slug) {
+    if (selectedLab && currentPlan && !currentPlan.features.hasStoreModule && !slug) {
         return (
             <FeatureLocked 
                 title="Módulo de Loja Bloqueado" 
@@ -760,7 +740,7 @@ export const Catalog = () => {
         );
     }
 
-    const storeSettings = selectedLab.storeSettings || {
+    const storeSettings = selectedLab?.storeSettings || {
         banners: [],
         layoutType: 'CARDS',
         portfolio: [],
@@ -803,7 +783,7 @@ export const Catalog = () => {
         }
     };
 
-    const isLinked = userConnections.some(c => c.organizationId === selectedLab.id);
+    const isLinked = selectedLab ? userConnections.some(c => c.organizationId === selectedLab.id) : false;
 
     return (
         <div className="flex flex-col h-full bg-slate-50 relative">
@@ -848,7 +828,7 @@ export const Catalog = () => {
 
             {mainTab === 'MY_ORDERS' && (
                 <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
-                    <JobsList />
+                    <JobsList isStoreContext={true} />
                 </div>
             )}
 
@@ -859,7 +839,24 @@ export const Catalog = () => {
             )}
 
             {mainTab === 'STORE' && (
-            <div className="flex-1 p-4 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto">
+                !selectedLab ? (
+                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-8 bg-slate-50 animate-in fade-in duration-500">
+                        <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
+                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
+                                <Building size={40} />
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tighter">Ops! Laboratório ausente.</h2>
+                            <p className="text-slate-500 mb-8 font-medium">
+                                Parece que você ainda não selecionou qual laboratório deseja visitar hoje.
+                            </p>
+                            <button onClick={() => setMainTab('PARTNERSHIPS')}
+                                className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full">
+                                EXPLORAR LABORATÓRIOS
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex-1 p-4 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto">
                 {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} onClose={() => setConfiguringProduct(null)} />}
             
             {showAuthModal && (
@@ -1250,6 +1247,7 @@ export const Catalog = () => {
                 )}
             </AnimatePresence>
             </div>
+                )
             )}
         </div>
     );
