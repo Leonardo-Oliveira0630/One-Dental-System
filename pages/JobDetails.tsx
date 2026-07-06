@@ -14,6 +14,7 @@ import {
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
 import { AttachmentPreviewModal, handleDownloadFile } from '../components/AttachmentPreviewModal';
+import { calculateItemCommission } from '../utils/commissionUtils';
 import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
 import * as firestorePkg from 'firebase/firestore';
@@ -865,14 +866,8 @@ export const JobDetails = () => {
           job.items.forEach((item: any) => {
               if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
                   const secQty = (item.sectorQuantities && item.sectorQuantities[editingExecution.sector]) ? item.sectorQuantities[editingExecution.sector] : item.quantity;
-                  const setting = selectedUser?.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
-                  if (setting) {
-                      if (setting.type === 'FIXED') totalUserComm += setting.value * secQty;
-                      else totalUserComm += (item.price * secQty * (setting.value / 100));
-                  } else {
-                      const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                      if (jt?.baseCommission) totalUserComm += jt.baseCommission * secQty;
-                  }
+                  const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                  totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty);
               }
           });
 
@@ -942,14 +937,8 @@ export const JobDetails = () => {
               job.items.forEach((i: any) => {
                   if (userItemsInSector.includes(i.id) && !i.commissionDisabled) {
                       const secQty = (i.sectorQuantities && i.sectorQuantities[sector]) ? i.sectorQuantities[sector] : i.quantity;
-                      const setting = selectedUser?.commissionSettings?.find((s: any) => s.jobTypeId === i.jobTypeId);
-                      if (setting) {
-                          if (setting.type === 'FIXED') totalUserComm += setting.value * secQty;
-                          else totalUserComm += (i.price * secQty * (setting.value / 100));
-                      } else {
-                          const jt = jobTypes.find(t => t.id === i.jobTypeId);
-                          if (jt?.baseCommission) totalUserComm += jt.baseCommission * secQty;
-                      }
+                      const jt = jobTypes.find(t => t.id === i.jobTypeId);
+                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty);
                   }
               });
 

@@ -4,6 +4,7 @@ import { Search, ArrowRight, CheckCircle2, Loader2, X, Eye, FileText, ChevronDow
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole } from '../types';
+import { calculateItemCommission } from '../utils/commissionUtils';
 
 export const JobSearch = () => {
   const { jobs, jobTypes, currentUser, updateJob, addCommissionRecord, commissions } = useApp();
@@ -63,19 +64,8 @@ export const JobSearch = () => {
                 ? item.sectorQuantities[sector]
                 : item.quantity;
                 
-            const setting = currentUser.commissionSettings?.find(s => s.jobTypeId === item.jobTypeId);
-            if (setting) {
-              if (setting.type === 'FIXED') {
-                  totalComm += setting.value * secQty;
-              } else {
-                  totalComm += (item.price * secQty * (setting.value / 100));
-              }
-            } else {
-              const jobType = jobTypes.find(t => t.id === item.jobTypeId);
-              if (jobType?.baseCommission) {
-                  totalComm += jobType.baseCommission * secQty;
-              }
-            }
+            const jobType = jobTypes.find(t => t.id === item.jobTypeId);
+            totalComm += calculateItemCommission(item, jobType, currentUser, secQty);
           });
 
           if (totalComm > 0) {

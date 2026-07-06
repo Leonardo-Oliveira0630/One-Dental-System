@@ -246,6 +246,8 @@ export interface ProductCatalogItem {
   categoryId?: string;
   costPrice: number;
   sellPrice: number;
+  isPromotion?: boolean;
+  promotionalPrice?: number;
   organizationId: string;
 }
 
@@ -261,6 +263,8 @@ export interface InventoryItem {
   minStock: number;
   costPrice: number;
   sellPrice: number;
+  isPromotion?: boolean;
+  promotionalPrice?: number;
   dentistOwnerId?: string | null;
   organizationId: string;
   isVisibleInStore?: boolean;
@@ -435,6 +439,7 @@ export interface VariationOption {
   id: string;
   name: string;
   priceModifier: number;
+  commissionValue?: number;
   disablesOptions?: string[];
   isDiscountExempt?: boolean; 
   imageUrl?: string;
@@ -943,6 +948,8 @@ export interface SupplierOrder {
     price: number;
   }[];
   totalValue: number;
+  discountValue?: number;
+  couponCode?: string;
   status: 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   createdAt: Date;
   notes?: string;
@@ -985,4 +992,17 @@ export interface ProductReview {
   feedbackText: string;
   imageUrls?: string[];
   createdAt: Date;
+}
+
+export interface SupplierCoupon {
+  id: string;
+  organizationId: string;
+  code: string;
+  discountType: 'PERCENTAGE' | 'FIXED';
+  discountValue: number;
+  validUntil?: Date;
+  maxUses?: number;
+  usedCount: number;
+  active: boolean;
+  applicableProductIds?: string[];
 }

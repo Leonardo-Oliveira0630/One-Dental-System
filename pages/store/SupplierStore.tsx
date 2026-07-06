@@ -2,6 +2,8 @@ import { ProductReviews } from "./ProductReviews";
 import { MyOrdersTab } from "./MyOrdersTab";
 import * as api from '../../services/firebaseService';
 import React, { useState, useMemo, useEffect } from 'react';
+import { collection, query, where, getDocs, doc, updateDoc, increment } from 'firebase/firestore';
+import { db } from '../../services/firebaseConfig';
 import { useApp } from '../../context/AppContext';
 import { InventoryItem, Organization, SupplierOrder, StoreLayoutBlock } from '../../types';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -71,7 +73,14 @@ export const SupplierStore = () => {
   const [cardCvv, setCardCvv] = useState('');
 
   const [isProcessing, setIsProcessing] = useState(false);
+
   const [orderSuccess, setOrderSuccess] = useState<SupplierOrder | null>(null);
+  
+  // Coupon State
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
 
   // Detailed Product Modal (Shopee style switcher)
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<InventoryItem | null>(null);
@@ -358,6 +367,54 @@ export const SupplierStore = () => {
   }, [allSupplierProducts, searchQuery, selectedSupplierId, sortOption, allSuppliers, selectedMarketplaceCategoryId, userLocation, searchRadius]);
 
   // Helpers
+  const handleApplyCoupon = async () => {
+    if (!couponCodeInput.trim()) return;
+    setCheckingCoupon(true);
+    setCouponError('');
+    try {
+      const q = query(collection(db, 'supplierCoupons'), where('code', '==', couponCodeInput.toUpperCase()));
+      const snap = await getDocs(q);
+      
+      if (snap.empty) {
+        setCouponError('Cupom inválido ou não encontrado.');
+        setAppliedCoupon(null);
+        return;
+      }
+      
+      const c = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+      
+      if (!c.active) {
+        setCouponError('Este cupom não está mais ativo.');
+        setAppliedCoupon(null);
+        return;
+      }
+      
+      if (c.maxUses && c.usedCount >= c.maxUses) {
+        setCouponError('Este cupom já atingiu o limite de usos.');
+        setAppliedCoupon(null);
+        return;
+      }
+      
+      // If it has applicableProductIds, verify if ANY item in cart matches
+      if (c.applicableProductIds && c.applicableProductIds.length > 0) {
+        const cartProductIds = cart.map(item => item.product.id);
+        const hasApplicableProduct = cartProductIds.some(id => c.applicableProductIds.includes(id));
+        if (!hasApplicableProduct) {
+          setCouponError('Este cupom não é válido para os produtos no carrinho.');
+          setAppliedCoupon(null);
+          return;
+        }
+      }
+      
+      setAppliedCoupon(c);
+    } catch (e) {
+      console.error(e);
+      setCouponError('Erro ao validar cupom.');
+    } finally {
+      setCheckingCoupon(false);
+    }
+  };
+
   const getSupplierName = (orgId: string) => {
     return allSuppliers.find(s => s.id === orgId)?.name || 'Fornecedor Parceiro';
   };
@@ -392,9 +449,8 @@ export const SupplierStore = () => {
       cartItemId += `_opts_${optsHash}`;
     }
 
-    const finalPrice = product.sellPrice 
-      + (customVar?.priceModifier || 0)
-      + (selectedOptions?.reduce((sum, o) => sum + o.priceModifier, 0) || 0);
+    const basePrice = (product.isPromotion && product.promotionalPrice) ? product.promotionalPrice : product.sellPrice;
+    const finalPrice = basePrice + (customVar?.priceModifier || 0) + (selectedOptions?.reduce((sum, o) => sum + o.priceModifier, 0) || 0);
 
     const existing = cart.find(item => item.id === cartItemId);
     const availableStock = customVar ? (customVar.currentStock ?? product.currentStock) : product.currentStock;
@@ -452,14 +508,39 @@ export const SupplierStore = () => {
     saveCartToStorage(updated);
   };
 
-  const cartTotal = useMemo(() => {
-    return cart.reduce((total, item) => {
-      const price = item.product.sellPrice 
+    const cartTotals = useMemo(() => {
+    const baseTotal = cart.reduce((total, item) => {
+      const basePrice = (item.product.isPromotion && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
+      const price = basePrice 
         + (item.variation?.priceModifier || 0)
         + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
       return total + (price * item.quantity);
     }, 0);
-  }, [cart]);
+
+    let discount = 0;
+    if (appliedCoupon) {
+      if (appliedCoupon.applicableProductIds && appliedCoupon.applicableProductIds.length > 0) {
+        // Calculate discount only on applicable items
+        const applicableTotal = cart.reduce((total, item) => {
+          if (appliedCoupon.applicableProductIds.includes(item.product.id)) {
+            const basePrice = (item.product.isPromotion && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
+            const price = basePrice + (item.variation?.priceModifier || 0) + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
+            return total + (price * item.quantity);
+          }
+          return total;
+        }, 0);
+        discount = appliedCoupon.discountType === 'PERCENTAGE' 
+          ? (applicableTotal * (appliedCoupon.discountValue / 100))
+          : Math.min(appliedCoupon.discountValue, applicableTotal);
+      } else {
+        discount = appliedCoupon.discountType === 'PERCENTAGE'
+          ? (baseTotal * (appliedCoupon.discountValue / 100))
+          : Math.min(appliedCoupon.discountValue, baseTotal);
+      }
+    }
+    
+    return { baseTotal, discount, finalTotal: Math.max(0, baseTotal - discount) };
+  }, [cart, appliedCoupon]);
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -482,12 +563,32 @@ export const SupplierStore = () => {
 
       for (const [supId, items] of Object.entries(itemsBySupplier)) {
         const orderId = `order_sup_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-        const totalVal = items.reduce((sum, i) => {
-          const unitPrice = i.product.sellPrice 
+        let supBaseTotal = items.reduce((sum, i) => {
+          const unitPrice = ((i.product.isPromotion && i.product.promotionalPrice) ? i.product.promotionalPrice : i.product.sellPrice) 
             + (i.variation?.priceModifier || 0)
             + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
           return sum + (unitPrice * i.quantity);
         }, 0);
+        
+        let supDiscount = 0;
+        if (appliedCoupon && appliedCoupon.organizationId === supId) {
+          if (appliedCoupon.applicableProductIds && appliedCoupon.applicableProductIds.length > 0) {
+             const applicableSupTotal = items.reduce((sum, i) => {
+                if (appliedCoupon.applicableProductIds.includes(i.product.id)) {
+                  const unitPrice = ((i.product.isPromotion && i.product.promotionalPrice) ? i.product.promotionalPrice : i.product.sellPrice) 
+                    + (i.variation?.priceModifier || 0)
+                    + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
+                  return sum + (unitPrice * i.quantity);
+                }
+                return sum;
+             }, 0);
+             supDiscount = appliedCoupon.discountType === 'PERCENTAGE' ? (applicableSupTotal * (appliedCoupon.discountValue / 100)) : Math.min(appliedCoupon.discountValue, applicableSupTotal);
+          } else {
+             supDiscount = appliedCoupon.discountType === 'PERCENTAGE' ? (supBaseTotal * (appliedCoupon.discountValue / 100)) : Math.min(appliedCoupon.discountValue, supBaseTotal);
+          }
+        }
+        
+        const totalVal = Math.max(0, supBaseTotal - supDiscount);
         
         const newOrder: SupplierOrder = {
           id: orderId,
@@ -498,7 +599,7 @@ export const SupplierStore = () => {
           buyerName: currentUser.name,
           buyerEmail: currentUser.email,
           items: items.map(i => {
-            const unitPrice = i.product.sellPrice 
+            const unitPrice = ((i.product.isPromotion && i.product.promotionalPrice) ? i.product.promotionalPrice : i.product.sellPrice) 
               + (i.variation?.priceModifier || 0)
               + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
             
@@ -518,6 +619,8 @@ export const SupplierStore = () => {
             };
           }),
           totalValue: totalVal,
+          discountValue: supDiscount > 0 ? supDiscount : undefined,
+          couponCode: supDiscount > 0 ? appliedCoupon.code : undefined,
           status: 'PENDING',
           createdAt: new Date(),
           notes: notes || undefined,
@@ -708,7 +811,7 @@ export const SupplierStore = () => {
                       {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}
                     </div>
                     <h3 className="font-bold text-sm">{p.name}</h3>
-                    <p className="font-mono font-bold text-emerald-600 mt-1">R$ {p.sellPrice.toFixed(2)}</p>
+                    <p className="font-mono font-bold text-emerald-600 mt-1">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-400 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                   </div>
                 ))}
               </div>
@@ -737,7 +840,7 @@ export const SupplierStore = () => {
                       {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}
                     </div>
                     <h3 className="font-bold text-sm">{p.name}</h3>
-                    <p className="font-mono font-bold text-emerald-600 mt-1">R$ {p.sellPrice.toFixed(2)}</p>
+                    <p className="font-mono font-bold text-emerald-600 mt-1">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-400 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                   </div>
                 ))}
               </div>
@@ -944,7 +1047,7 @@ export const SupplierStore = () => {
                         <div>
                           <p className="font-bold text-xs truncate text-slate-250 leading-tight">{p.name}</p>
                           <div className="flex justify-between items-center pt-2">
-                            <span className="text-[#EE4D2D] font-bold font-mono text-sm">R$ {p.sellPrice.toFixed(2)}</span>
+                            <span className="text-[#EE4D2D] font-bold font-mono text-sm">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-400 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
                             <span className="text-[9px] text-[#EE4D2D] bg-[#EE4D2D]/10 px-1 rounded">Ver</span>
                           </div>
                         </div>
@@ -979,7 +1082,7 @@ export const SupplierStore = () => {
                             <p className="text-slate-400 text-xs line-clamp-2 h-8 mt-1">{p.description || 'Nenhuma descrição...'}</p>
                           </div>
                           <div className="pt-2 border-t border-slate-850 flex items-center justify-between font-mono">
-                            <span className="text-[#EE4D2D] font-bold text-sm">R$ {p.sellPrice.toFixed(2)}</span>
+                            <span className="text-[#EE4D2D] font-bold text-sm">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-400 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
                             <span className="text-[10px] text-slate-500">Estoque: {p.currentStock || 0}</span>
                           </div>
                         </div>
@@ -1000,7 +1103,7 @@ export const SupplierStore = () => {
                           <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"/>
                         </div>
                         <p className="font-bold text-xs truncate mt-2">{p.name}</p>
-                        <p className="text-[#EE4D2D] font-bold text-xs mt-1 font-mono">R$ {p.sellPrice.toFixed(2)}</p>
+                        <p className="text-[#EE4D2D] font-bold text-xs mt-1 font-mono">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-400 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                       </div>
                     ))}
                   </div>
@@ -1022,7 +1125,7 @@ export const SupplierStore = () => {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-[#EE4D2D] font-bold font-mono text-sm">R$ {p.sellPrice.toFixed(2)}</p>
+                          <p className="text-[#EE4D2D] font-bold font-mono text-sm">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-400 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                           <span className="text-[9px] text-[#EE4D2D] bg-[#EE4D2D]/10 px-1.5 py-0.5 rounded font-bold uppercase">Ver Opções</span>
                         </div>
                       </div>
@@ -1110,7 +1213,7 @@ export const SupplierStore = () => {
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                       <div>
                         <p className="text-[9px] font-mono text-slate-400">VALOR UNITÁRIO</p>
-                        <p className="text-base font-bold font-mono text-emerald-600">R$ {p.sellPrice.toFixed(2)}</p>
+                        <p className="text-base font-bold font-mono text-emerald-600">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-400 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                       </div>
                       <div>
                         {p.currentStock && p.currentStock <= p.minStock ? (
@@ -1168,7 +1271,7 @@ export const SupplierStore = () => {
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => {
-                    const unitPrice = item.product.sellPrice 
+                    const unitPrice = ((item.product.isPromotion && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice) 
                       + (item.variation?.priceModifier || 0)
                       + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
                     return (
@@ -1234,7 +1337,7 @@ export const SupplierStore = () => {
               <div className="p-6 border-t border-slate-850 bg-slate-950/40 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="font-bold text-slate-400 text-sm">VALOR TOTAL DO PEDIDO:</span>
-                  <span className="font-mono text-xl font-bold text-teal-400">R$ {cartTotal.toFixed(2)}</span>
+                  <span className="font-mono text-xl font-bold text-teal-400">R$ {cartTotals.finalTotal.toFixed(2)}</span>
                 </div>
 
                 <button
@@ -1435,7 +1538,7 @@ export const SupplierStore = () => {
                       <p className="text-[9px] text-slate-500 font-mono">PREÇO CONFIGURADO</p>
                       <p className="text-2xl font-bold font-mono text-emerald-400">
                         R$ {(
-                          selectedItemForDetail.sellPrice 
+                          ((selectedItemForDetail.isPromotion && selectedItemForDetail.promotionalPrice) ? selectedItemForDetail.promotionalPrice : selectedItemForDetail.sellPrice) 
                           + (detailSelectedVar?.priceModifier || 0)
                           + detailSelectedOptions.reduce((sum, opt) => sum + opt.priceModifier, 0)
                         ).toFixed(2)}
@@ -1634,19 +1737,66 @@ export const SupplierStore = () => {
                 />
               </div>
 
+              
+              {/* Cupom de Desconto */}
+              <div className="p-4 bg-slate-950 border border-slate-850 rounded-xl space-y-3">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Cupom de Desconto</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCodeInput}
+                    onChange={e => setCouponCodeInput(e.target.value.toUpperCase())}
+                    disabled={appliedCoupon !== null}
+                    placeholder="Insira o código do cupom"
+                    className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white uppercase disabled:opacity-50"
+                  />
+                  {!appliedCoupon ? (
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={checkingCoupon || !couponCodeInput}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {checkingCoupon ? '...' : 'Aplicar'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { setAppliedCoupon(null); setCouponCodeInput(''); }}
+                      className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-bold rounded-lg transition-colors"
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+                {couponError && <p className="text-red-400 text-xs">{couponError}</p>}
+                {appliedCoupon && (
+                  <p className="text-emerald-400 text-xs flex items-center gap-1">
+                    <Check size={12} /> Cupom {appliedCoupon.code} aplicado com sucesso!
+                  </p>
+                )}
+              </div>
+
+
               {/* Order summary breakdown */}
               <div className="p-4 bg-slate-950 border border-slate-850 rounded-xl space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-400">
-                  <span>Itens Selecionados</span>
-                  <span>R$ {cartTotal.toFixed(2)}</span>
+                  <span>Subtotal</span>
+                  <span>R$ {cartTotals.baseTotal.toFixed(2)}</span>
                 </div>
+                {cartTotals.discount > 0 && (
+                  <div className="flex justify-between text-emerald-400">
+                    <span>Desconto ({appliedCoupon?.code})</span>
+                    <span>- R$ {cartTotals.discount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-slate-400">
                   <span>Frete / Despacho</span>
                   <span className="text-emerald-400 font-semibold uppercase">Grátis</span>
                 </div>
                 <div className="border-t border-slate-800 pt-2 flex justify-between font-bold text-sm text-slate-100">
                   <span>Total a Pagar</span>
-                  <span className="font-mono text-teal-400">R$ {cartTotal.toFixed(2)}</span>
+                  <span className="font-mono text-teal-400">R$ {cartTotals.finalTotal.toFixed(2)}</span>
                 </div>
               </div>
 

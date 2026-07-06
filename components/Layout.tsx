@@ -261,6 +261,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   <>
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/dashboard" icon={<LayoutDashboard size={20} />} label="Painel de Pedidos" active={location.pathname === '/supplier/dashboard'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/products" icon={<Package size={20} />} label="Meus Produtos" active={location.pathname === '/supplier/products'} />
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/supplier/coupons'} />
                     <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/settings" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/supplier/settings'} />
                   </>
                 )}

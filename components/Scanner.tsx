@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus, JobItem, JobType } from '../types';
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2, MessageCircle, Loader2, ImagePlus } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
+import { calculateItemCommission } from '../utils/commissionUtils';
 
 // Importação segura do Capacitor
 const playNativeHaptic = async (isSuccess: boolean) => {
@@ -102,13 +103,7 @@ export const GlobalScanner: React.FC = () => {
 
           if (!item.commissionDisabled) {
               const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
-              const setting = user.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
-              if (setting) {
-                  if (setting.type === 'FIXED') totalComm += setting.value * secQty;
-                  else totalComm += (item.price * secQty * (setting.value / 100));
-              } else if (jt?.baseCommission) {
-                  totalComm += jt.baseCommission * secQty;
-              }
+              totalComm += calculateItemCommission(item, jt, user, secQty);
           }
       });
       return { eligible: availableItems, commission: totalComm };
@@ -124,14 +119,8 @@ export const GlobalScanner: React.FC = () => {
           if (item.commissionDisabled) return;
           
           const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
-          const setting = user.commissionSettings?.find((s: any) => s.jobTypeId === item.jobTypeId);
-          if (setting) {
-              if (setting.type === 'FIXED') totalComm += setting.value * secQty;
-              else totalComm += (item.price * secQty * (setting.value / 100));
-          } else {
-              const jt = jobTypes.find(t => t.id === item.jobTypeId);
-              if (jt?.baseCommission) totalComm += jt.baseCommission * secQty;
-          }
+          const jt = jobTypes.find(t => t.id === item.jobTypeId);
+          totalComm += calculateItemCommission(item, jt, user, secQty);
       });
       return totalComm;
   };
@@ -894,16 +883,6 @@ export const GlobalScanner: React.FC = () => {
                             </div>
                         </label>
                     ))}
-                </div>
-            </div>
-        )}
-
-        {!isEntry && commissionEarned > 0 && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl flex items-center gap-4 animate-bounce">
-                <div className="bg-green-600 p-3 rounded-xl text-white shadow-lg shadow-green-200"><CheckCircle size={24} /></div>
-                <div>
-                    <p className="text-xs font-black text-green-700 uppercase tracking-tighter">Bônus de Produção!</p>
-                    <p className="text-2xl font-black text-green-800">+ R$ {commissionEarned.toFixed(2)}</p>
                 </div>
             </div>
         )}
