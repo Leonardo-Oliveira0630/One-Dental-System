@@ -48,19 +48,37 @@ export const IncomingRequisitions = () => {
   };
 
   const handleOpenAccept = (req: OnlineRequisition) => {
-    // Fetch original service base price if available
-    const service = jobTypes.find(t => t.id === req.serviceId);
-    const basePrice = service ? service.basePrice : 0;
-
-    const items: JobItem[] = [{
-      id: `item_${Date.now()}`,
-      jobTypeId: req.serviceId,
-      name: req.serviceName,
-      quantity: req.quantity && req.quantity > 0 ? req.quantity : 1,
-      price: basePrice,
-      nature: 'NORMAL',
-      selectedVariationIds: req.selectedVariationIds || []
-    }];
+    
+    let items: JobItem[] = [];
+    
+    if (req.items && req.items.length > 0) {
+        items = req.items.map((reqItem, idx) => {
+            const service = jobTypes.find(t => t.id === reqItem.serviceId);
+            const basePrice = service ? service.basePrice : 0;
+            return {
+              id: `item_${Date.now()}_${idx}`,
+              jobTypeId: reqItem.serviceId,
+              name: reqItem.serviceName,
+              quantity: reqItem.quantity && reqItem.quantity > 0 ? reqItem.quantity : 1,
+              price: basePrice,
+              nature: 'NORMAL',
+              selectedVariationIds: reqItem.selectedVariationIds || []
+            };
+        });
+    } else {
+        const service = jobTypes.find(t => t.id === req.serviceId);
+        const basePrice = service ? service.basePrice : 0;
+        
+        items = [{
+          id: `item_${Date.now()}`,
+          jobTypeId: req.serviceId,
+          name: req.serviceName,
+          quantity: req.quantity && req.quantity > 0 ? req.quantity : 1,
+          price: basePrice,
+          nature: 'NORMAL',
+          selectedVariationIds: req.selectedVariationIds || []
+        }];
+    }
 
     // Navigate to /new-job with populated state
     navigate('/new-job', {
@@ -166,39 +184,77 @@ export const IncomingRequisitions = () => {
                     </td>
                     <td className="p-4">
                       <div className="flex flex-col gap-1.5 align-start">
-                        <span className="bg-blue-50 text-blue-700 font-bold px-2 py-1 rounded-lg text-xs w-fit">
-                          {req.serviceName}
-                        </span>
-                        {req.quantity && req.quantity > 0 && (
-                          <div className="text-[11px] font-bold text-slate-500">
-                            Qtd: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
-                          </div>
-                        )}
-                        {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {(() => {
-                              const service = jobTypes.find(t => t.id === req.serviceId);
-                              if (!service) return null;
-                              return req.selectedVariationIds.map(varId => {
-                                let foundOptionName = '';
-                                if (service.variationGroups) {
-                                  for (const g of service.variationGroups) {
-                                    const opt = g.options?.find(o => o.id === varId);
-                                    if (opt) {
-                                      foundOptionName = `${g.name}: ${opt.name}`;
-                                      break;
-                                    }
-                                  }
-                                }
-                                if (!foundOptionName) return null;
-                                return (
-                                  <span key={varId} className="bg-slate-100 text-slate-700 border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight">
-                                    {foundOptionName}
-                                  </span>
-                                );
-                              });
-                            })()}
-                          </div>
+                        {req.items && req.items.length > 0 ? (
+                            req.items.map(item => (
+                              <div key={item.id} className="mb-2">
+                                <span className="bg-blue-50 text-blue-700 font-bold px-2 py-1 rounded-lg text-xs w-fit inline-block">
+                                  {item.quantity || 1}x {item.serviceName}
+                                </span>
+                                {item.selectedVariationIds && item.selectedVariationIds.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {(() => {
+                                      const service = jobTypes.find(t => t.id === item.serviceId);
+                                      if (!service) return null;
+                                      return item.selectedVariationIds.map(varId => {
+                                        let foundOptionName = '';
+                                        if (service.variationGroups) {
+                                          for (const g of service.variationGroups) {
+                                            const opt = g.options?.find(o => o.id === varId);
+                                            if (opt) {
+                                              foundOptionName = `${g.name}: ${opt.name}`;
+                                              break;
+                                            }
+                                          }
+                                        }
+                                        if (!foundOptionName) return null;
+                                        return (
+                                          <span key={varId} className="bg-slate-100 text-slate-700 border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight">
+                                            {foundOptionName}
+                                          </span>
+                                        );
+                                      });
+                                    })()}
+                                  </div>
+                                )}
+                              </div>
+                            ))
+                        ) : (
+                            <>
+                                <span className="bg-blue-50 text-blue-700 font-bold px-2 py-1 rounded-lg text-xs w-fit">
+                                  {req.serviceName}
+                                </span>
+                                {req.quantity && req.quantity > 0 && (
+                                  <div className="text-[11px] font-bold text-slate-500">
+                                    Qtd: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
+                                  </div>
+                                )}
+                                {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {(() => {
+                                      const service = jobTypes.find(t => t.id === req.serviceId);
+                                      if (!service) return null;
+                                      return req.selectedVariationIds.map(varId => {
+                                        let foundOptionName = '';
+                                        if (service.variationGroups) {
+                                          for (const g of service.variationGroups) {
+                                            const opt = g.options?.find(o => o.id === varId);
+                                            if (opt) {
+                                              foundOptionName = `${g.name}: ${opt.name}`;
+                                              break;
+                                            }
+                                          }
+                                        }
+                                        if (!foundOptionName) return null;
+                                        return (
+                                          <span key={varId} className="bg-slate-100 text-slate-700 border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight">
+                                            {foundOptionName}
+                                          </span>
+                                        );
+                                      });
+                                    })()}
+                                  </div>
+                                )}
+                            </>
                         )}
                       </div>
                     </td>

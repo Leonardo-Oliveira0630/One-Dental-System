@@ -581,6 +581,14 @@ export interface ClinicPatient {
   createdAt: Date;
 }
 
+export interface OnlineRequisitionItem {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  selectedVariationIds?: string[];
+  quantity?: number;
+}
+
 export interface OnlineRequisition {
   id: string;
   dentistId: string;
@@ -590,15 +598,16 @@ export interface OnlineRequisition {
   labId: string;
   labName?: string;
   patientName: string;
-  serviceId: string;
-  serviceName: string;
+  serviceId: string; // Keep for backward compatibility
+  serviceName: string; // Keep for backward compatibility
   notes?: string;
   attachments?: Attachment[];
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   createdAt: Date;
   acceptedAsJobId?: string;
-  selectedVariationIds?: string[];
-  quantity?: number;
+  selectedVariationIds?: string[]; // Keep for backward compatibility
+  quantity?: number; // Keep for backward compatibility
+  items?: OnlineRequisitionItem[]; // Support for multiple items
 }
 
 // NOVO: Prontuário do Paciente

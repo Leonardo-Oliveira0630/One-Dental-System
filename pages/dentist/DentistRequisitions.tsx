@@ -109,6 +109,7 @@ export const DentistRequisitions = () => {
   // Dynamic service variations and quantity
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
   const [quantity, setQuantity] = useState<number>(1);
+  const [requisitionItems, setRequisitionItems] = useState<any[]>([]);
 
   useEffect(() => {
     setSelectedVariations({});
@@ -334,6 +335,29 @@ export const DentistRequisitions = () => {
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleAddService = () => {
+    if (!selectedServiceId) return;
+    const activeService = services.find(s => s.id === selectedServiceId);
+    if (!activeService) return;
+    
+    const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
+    
+    setRequisitionItems(prev => [
+        ...prev, 
+        {
+            id: `item_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,
+            serviceId: selectedServiceId,
+            serviceName: activeService.name,
+            selectedVariationIds: allSelectedOptionIds,
+            quantity: quantity
+        }
+    ]);
+    
+    setSelectedServiceId('');
+    setSelectedVariations({});
+    setQuantity(1);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -349,8 +373,9 @@ export const DentistRequisitions = () => {
       return;
     }
 
-    if (!selectedServiceId) {
-      setError('Por favor, selecione o serviço desejado.');
+    const hasCurrentItem = !!selectedServiceId;
+    if (requisitionItems.length === 0 && !hasCurrentItem) {
+      setError('Por favor, adicione pelo menos um serviço.');
       return;
     }
 
@@ -370,14 +395,33 @@ export const DentistRequisitions = () => {
       const activeLab = labs.find(l => l.id === selectedLabId);
       const activeService = services.find(s => s.id === selectedServiceId);
 
+      const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
+
+      const currentItem = selectedServiceId && activeService ? {
+        id: `item_cur_${Date.now()}`,
+        serviceId: selectedServiceId,
+        serviceName: activeService.name,
+        selectedVariationIds: allSelectedOptionIds,
+        quantity: quantity
+      } : null;
+
+      const finalItems = [...requisitionItems];
+      if (currentItem) {
+          finalItems.push(currentItem);
+      }
+
+      if (finalItems.length === 0) {
+          setError('Nenhum serviço válido para enviar.');
+          setSubmitting(false);
+          return;
+      }
+
       const mappedAttachments: Attachment[] = attachedFiles.map((f, idx) => ({
         id: `att_${idx}_${Date.now()}`,
         name: f.name,
         url: f.url,
         uploadedAt: new Date()
       }));
-
-      const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
 
       // Auto-assign patient ID on exact name match if ID not already set
       let finalPatientId = selectedPatientId;
@@ -399,13 +443,14 @@ export const DentistRequisitions = () => {
         dentistName: currentUser?.name || 'Dentista Parceiro',
         dentistClinicName: currentOrg?.name || currentUser?.clinicName || 'Consultório Parceiro',
         patientName: patientName.toUpperCase().trim(),
-        serviceId: selectedServiceId,
-        serviceName: activeService?.name || 'Serviço de Prótese',
+        serviceId: finalItems[0].serviceId,
+        serviceName: finalItems[0].serviceName,
         notes: notes.trim(),
         status: 'PENDING',
         attachments: mappedAttachments,
-        selectedVariationIds: allSelectedOptionIds,
-        quantity: quantity
+        selectedVariationIds: finalItems[0].selectedVariationIds,
+        quantity: finalItems[0].quantity,
+        items: finalItems
       };
 
       await addOnlineRequisition(selectedLabId, reqPayload);
@@ -413,7 +458,7 @@ export const DentistRequisitions = () => {
       // Save prosthesis history in selected patient clinical history records
       if (finalPatientId && currentUser) {
         try {
-          const specsCompiled = `${quantity}x ${activeService?.name || 'Serviço de Prótese'}`;
+          const specsCompiled = finalItems.map(item => `${item.quantity || 1}x ${item.serviceName}`).join(', ');
           const labName = activeLab?.name || 'Laboratório';
           const descriptionText = `Enviada requisição online ao Laboratório: ${labName}. Requisito: ${specsCompiled}.`;
 
@@ -448,6 +493,7 @@ export const DentistRequisitions = () => {
       setAttachedFiles([]);
       setSelectedVariations({});
       setQuantity(1);
+      setRequisitionItems([]);
     } catch (err: any) {
       console.error('Error submitting online requisition:', err);
       setError(err.message || 'Falha ao transmitir requisição para o laboratório.');
@@ -653,10 +699,36 @@ export const DentistRequisitions = () => {
                               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-center font-black text-slate-700 focus:ring-2 focus:ring-indigo-500"
                             />
                           </div>
+                          
+                          <div className="flex justify-end mt-2">
+                              <button type="button" onClick={handleAddService} className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-2 rounded-xl transition flex items-center gap-1"><Plus size={14}/> Adicionar Serviço</button>
+                          </div>
                         </div>
                       );
                     })()}
                   </div>
+                )}
+                
+                {/* Added Services List */}
+                {requisitionItems.length > 0 && (
+                    <div className="space-y-2 mt-6 animate-in fade-in">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">
+                            Serviços Adicionados ({requisitionItems.length})
+                        </label>
+                        {requisitionItems.map((item) => (
+                            <div key={item.id} className="flex items-center justify-between bg-white border border-slate-200 p-3.5 rounded-2xl shadow-sm">
+                                <div>
+                                    <p className="font-extrabold text-xs text-slate-800">{item.quantity}x {item.serviceName}</p>
+                                    {item.selectedVariationIds && item.selectedVariationIds.length > 0 && (
+                                        <p className="text-[10px] text-slate-500 mt-1 font-bold">Variações selecionadas: {item.selectedVariationIds.length}</p>
+                                    )}
+                                </div>
+                                <button type="button" onClick={() => setRequisitionItems(prev => prev.filter(i => i.id !== item.id))} className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors shrink-0">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                 )}
               </div>
 
@@ -828,36 +900,48 @@ export const DentistRequisitions = () => {
                         <div className="flex justify-between items-start gap-1">
                           <div>
                             <div className="font-bold text-slate-800 text-xs uppercase">{req.patientName}</div>
-                            <div className="text-[10px] font-bold text-slate-700">{req.serviceName}</div>
-                            {req.quantity && req.quantity > 0 && (
-                              <div className="text-[9px] font-bold text-slate-500 mt-0.5">
-                                Quantidade: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
-                              </div>
-                            )}
-                            {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {req.selectedVariationIds.map(varId => {
-                                  let foundName = '';
-                                  for (const s of services) {
-                                    if (s.variationGroups) {
-                                      for (const g of s.variationGroups) {
-                                        const opt = g.options?.find((o: any) => o.id === varId);
-                                        if (opt) {
-                                          foundName = `${g.name}: ${opt.name}`;
-                                          break;
-                                        }
-                                      }
-                                    }
-                                    if (foundName) break;
-                                  }
-                                  if (!foundName) return null;
-                                  return (
-                                    <span key={varId} className="bg-slate-100 text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
-                                      {foundName}
-                                    </span>
-                                  );
-                                })}
-                              </div>
+                            {req.items && req.items.length > 0 ? (
+                                <div className="space-y-1 mt-1">
+                                    {req.items.map(item => (
+                                        <div key={item.id} className="text-[10px] font-bold text-slate-700">
+                                            {item.quantity || 1}x {item.serviceName}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="text-[10px] font-bold text-slate-700">{req.serviceName}</div>
+                                    {req.quantity && req.quantity > 0 && (
+                                      <div className="text-[9px] font-bold text-slate-500 mt-0.5">
+                                        Quantidade: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
+                                      </div>
+                                    )}
+                                    {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {req.selectedVariationIds.map(varId => {
+                                          let foundName = '';
+                                          for (const s of services) {
+                                            if (s.variationGroups) {
+                                              for (const g of s.variationGroups) {
+                                                const opt = g.options?.find((o: any) => o.id === varId);
+                                                if (opt) {
+                                                  foundName = `${g.name}: ${opt.name}`;
+                                                  break;
+                                                }
+                                              }
+                                            }
+                                            if (foundName) break;
+                                          }
+                                          if (!foundName) return null;
+                                          return (
+                                            <span key={varId} className="bg-slate-100 text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
+                                              {foundName}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                </>
                             )}
                           </div>
                           
