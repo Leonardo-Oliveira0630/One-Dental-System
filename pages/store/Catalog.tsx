@@ -747,9 +747,9 @@ export const Catalog = () => {
         menuOptions: ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']
     };
 
-    const isOutsourcedUser = currentOrg?.orgType === 'LAB_OUTSOURCED';
+    const isOutsourcingStore = currentOrg?.orgType === 'LAB' || currentOrg?.orgType === 'LAB_OUTSOURCED';
     const visibleProducts = localJobTypes.filter(t => {
-        if (isOutsourcedUser) {
+        if (isOutsourcingStore) {
             return t.isVisibleInOutsourcing !== false;
         } else {
             return t.isVisibleInStore !== false;
