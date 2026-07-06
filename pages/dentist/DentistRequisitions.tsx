@@ -618,7 +618,7 @@ export const DentistRequisitions = () => {
               {/* Select Service */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
-                  Serviço Solicitado *
+                  Serviço Solicitado {requisitionItems.length === 0 ? '*' : ''}
                 </label>
                 {services.length === 0 ? (
                   <p className="text-xs text-amber-600 bg-amber-50 rounded-xl p-3">
@@ -627,7 +627,7 @@ export const DentistRequisitions = () => {
                 ) : (
                   <div className="space-y-4">
                     <select
-                      required
+                      required={requisitionItems.length === 0}
                       value={selectedServiceId}
                       onChange={(e) => setSelectedServiceId(e.target.value)}
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-slate-700 text-sm"
