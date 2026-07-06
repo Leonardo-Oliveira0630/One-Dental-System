@@ -121,6 +121,10 @@ export interface Organization {
   croValid?: boolean;
   isApproved?: boolean;
   revealJobStatusToDentist?: boolean;
+  receiptSettings?: {
+    referentePresets?: string[];
+    mensagemPresets?: string[];
+  };
 }
 
 export interface ClinicRoom {

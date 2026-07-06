@@ -6,7 +6,7 @@ import {
   Plus, Search, FileText, Download, Printer, Trash2, Edit2, 
   ChevronLeft, ChevronRight, X, Save, AlertTriangle, User as UserIcon,
   Briefcase, DollarSign, MessageCircle, CreditCard, Landmark, Ticket,
-  Stethoscope, Check
+  Stethoscope, Check, Settings, Sliders
 } from 'lucide-react';
 import { db } from '../../services/firebaseConfig';
 import { 
@@ -21,7 +21,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export const Receipts: React.FC = () => {
-    const { currentUser, currentOrg, allUsers, manualDentists } = useApp();
+    const { currentUser, currentOrg, allUsers, manualDentists, updateOrganization } = useApp();
 
     enum OperationType {
         CREATE = 'create',
@@ -71,6 +71,119 @@ export const Receipts: React.FC = () => {
     };
 
     const [receipts, setReceipts] = useState<Receipt[]>([]);
+    
+    const defaultReferentePresets = useMemo(() => [
+        'Tratamento Ortodôntico',
+        'Confecção de Prótese Dentária',
+        'Alinhadores Estéticos',
+        'Serviços de Laboratório de Prótese',
+        'Tratamentos de Reabilitação Oral',
+        'Coroas e Facetas em Dissilicato de Lítio (Emax)',
+        'Protocolo de Brånemark sobre Implantes'
+    ], []);
+
+    const defaultMensagemPresets = useMemo(() => [
+        'Agradecemos a parceria de sempre. Qualquer dúvida estamos à disposição.',
+        'Recibo emitido referente aos trabalhos protéticos concluídos no período.',
+        'Trabalhos confeccionados sob rígidos padrões de qualidade biocompatível.',
+        'Garantia de 1 ano para falhas estruturais de laboratório.'
+    ], []);
+
+    const referentePresets = useMemo(() => {
+        return currentOrg?.receiptSettings?.referentePresets && currentOrg.receiptSettings.referentePresets.length > 0
+            ? currentOrg.receiptSettings.referentePresets
+            : defaultReferentePresets;
+    }, [currentOrg?.receiptSettings?.referentePresets, defaultReferentePresets]);
+
+    const mensagemPresets = useMemo(() => {
+        return currentOrg?.receiptSettings?.mensagemPresets && currentOrg.receiptSettings.mensagemPresets.length > 0
+            ? currentOrg.receiptSettings.mensagemPresets
+            : defaultMensagemPresets;
+    }, [currentOrg?.receiptSettings?.mensagemPresets, defaultMensagemPresets]);
+
+    const [showSettings, setShowSettings] = useState(false);
+    const [newReferentePreset, setNewReferentePreset] = useState('');
+    const [newMensagemPreset, setNewMensagemPreset] = useState('');
+    const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+    const handleAddReferentePreset = async () => {
+        if (!newReferentePreset.trim() || !currentOrg) return;
+        setIsSavingSettings(true);
+        try {
+            const currentList = currentOrg.receiptSettings?.referentePresets || defaultReferentePresets;
+            const updated = [...currentList, newReferentePreset.trim()];
+            await updateOrganization(currentOrg.id, {
+                receiptSettings: {
+                    ...currentOrg.receiptSettings,
+                    referentePresets: updated
+                }
+            });
+            setNewReferentePreset('');
+        } catch (error) {
+            console.error('Error adding referente preset:', error);
+        } finally {
+            setIsSavingSettings(false);
+        }
+    };
+
+    const handleRemoveReferentePreset = async (index: number) => {
+        if (!currentOrg) return;
+        setIsSavingSettings(true);
+        try {
+            const currentList = currentOrg.receiptSettings?.referentePresets || defaultReferentePresets;
+            const updated = currentList.filter((_, i) => i !== index);
+            await updateOrganization(currentOrg.id, {
+                receiptSettings: {
+                    ...currentOrg.receiptSettings,
+                    referentePresets: updated
+                }
+            });
+        } catch (error) {
+            console.error('Error removing referente preset:', error);
+        } finally {
+            setIsSavingSettings(false);
+        }
+    };
+
+    const handleAddMensagemPreset = async () => {
+        if (!newMensagemPreset.trim() || !currentOrg) return;
+        setIsSavingSettings(true);
+        try {
+            const currentList = currentOrg.receiptSettings?.mensagemPresets || defaultMensagemPresets;
+            const updated = [...currentList, newMensagemPreset.trim()];
+            await updateOrganization(currentOrg.id, {
+                receiptSettings: {
+                    ...currentOrg.receiptSettings,
+                    mensagemPresets: updated
+                }
+            });
+            setNewMensagemPreset('');
+        } catch (error) {
+            console.error('Error adding mensagem preset:', error);
+        } finally {
+            setIsSavingSettings(false);
+        }
+    };
+
+    const handleRemoveMensagemPreset = async (index: number) => {
+        if (!currentOrg) return;
+        setIsSavingSettings(true);
+        try {
+            const currentList = currentOrg.receiptSettings?.mensagemPresets || defaultMensagemPresets;
+            const updated = currentList.filter((_, i) => i !== index);
+            await updateOrganization(currentOrg.id, {
+                receiptSettings: {
+                    ...currentOrg.receiptSettings,
+                    mensagemPresets: updated
+                }
+            });
+        } catch (error) {
+            console.error('Error removing mensagem preset:', error);
+        } finally {
+            setIsSavingSettings(false);
+        }
+    };
+
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [showForm, setShowForm] = useState(false);
@@ -166,10 +279,10 @@ export const Receipts: React.FC = () => {
             
             // Auto-generate next number if empty and recording new
             if (!formData.numero && list.length > 0 && !showForm) {
-                const lastNum = parseInt(list[0].numero) || 0;
-                setFormData(prev => ({ ...prev, numero: (lastNum + 1).toString().padStart(6, '0') }));
+                const lastNum = Math.max(...list.map(r => parseInt(r.numero) || 0));
+                setFormData(prev => ({ ...prev, numero: (lastNum + 1).toString().padStart(5, '0') }));
             } else if (!formData.numero && !showForm) {
-                setFormData(prev => ({ ...prev, numero: '000001' }));
+                setFormData(prev => ({ ...prev, numero: '00001' }));
             }
         }, (error) => {
             handleFirestoreError(error, OperationType.GET, path);
@@ -242,9 +355,11 @@ export const Receipts: React.FC = () => {
 
     const resetForm = () => {
         setDentistSearch('');
+        const lastNum = receipts.length > 0 ? Math.max(...receipts.map(r => parseInt(r.numero) || 0)) : 0;
+        const nextNum = (lastNum + 1).toString().padStart(5, '0');
         setFormData({
             dtEmissao: new Date(),
-            numero: '',
+            numero: nextNum,
             clienteId: '',
             clienteName: '',
             cpfCnpj: '',
@@ -461,14 +576,112 @@ export const Receipts: React.FC = () => {
                     <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Gerenciamento e Emissão de Comprovantes</p>
                 </div>
                 {canManage && (
-                    <button 
-                        onClick={() => { resetForm(); setEditingReceipt(null); setShowForm(true); }}
-                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all"
-                    >
-                        <Plus size={18} /> Novo Recibo
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => { setShowSettings(!showSettings); setShowForm(false); }}
+                            className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-2xl font-black uppercase text-xs transition-all cursor-pointer"
+                        >
+                            <Sliders size={16} className="text-slate-500" /> Configurar Pré-setados
+                        </button>
+                        <button 
+                            onClick={() => { resetForm(); setEditingReceipt(null); setShowForm(true); setShowSettings(false); }}
+                            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all cursor-pointer"
+                        >
+                            <Plus size={18} /> Novo Recibo
+                        </button>
+                    </div>
                 )}
             </div>
+
+            {showSettings && (
+                <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in slide-in-from-top-4 p-6 space-y-6">
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                        <div>
+                            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                <Settings size={18} className="text-blue-600" /> Configuração de Mensagens Pré-setadas
+                            </h2>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">Cadastre frases frequentes para agilizar o preenchimento</p>
+                        </div>
+                        <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"><X size={24}/></button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Referente a Presets */}
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                            <h3 className="text-xs font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
+                                <FileText size={14} /> Campo "Referente a"
+                            </h3>
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text"
+                                    value={newReferentePreset}
+                                    onChange={e => setNewReferentePreset(e.target.value)}
+                                    placeholder="Ex: Confecção de Plótese Total Superior"
+                                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button 
+                                    onClick={handleAddReferentePreset}
+                                    disabled={isSavingSettings || !newReferentePreset.trim()}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                >
+                                    Salvar
+                                </button>
+                            </div>
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                {referentePresets.map((preset, idx) => (
+                                    <div key={idx} className="flex justify-between items-center p-2 bg-white border border-slate-100 rounded-xl hover:bg-slate-100/50 transition-colors group">
+                                        <span className="text-xs text-slate-700 font-medium truncate max-w-[85%]">{preset}</span>
+                                        <button 
+                                            onClick={() => handleRemoveReferentePreset(idx)}
+                                            disabled={isSavingSettings}
+                                            className="p-1 text-slate-300 hover:text-red-500 disabled:opacity-50 transition-colors cursor-pointer"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Mensagem Presets */}
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                            <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider flex items-center gap-2">
+                                <MessageCircle size={14} /> Campo "Mensagem / Observações"
+                            </h3>
+                            <div className="flex gap-2">
+                                <input 
+                                    type="text"
+                                    value={newMensagemPreset}
+                                    onChange={e => setNewMensagemPreset(e.target.value)}
+                                    placeholder="Ex: Agradecemos a preferência e parceria!"
+                                    className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button 
+                                    onClick={handleAddMensagemPreset}
+                                    disabled={isSavingSettings || !newMensagemPreset.trim()}
+                                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
+                                >
+                                    Salvar
+                                </button>
+                            </div>
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                                {mensagemPresets.map((preset, idx) => (
+                                    <div key={idx} className="flex justify-between items-center p-2 bg-white border border-slate-100 rounded-xl hover:bg-slate-100/50 transition-colors group">
+                                        <span className="text-xs text-slate-700 font-medium truncate max-w-[85%]">{preset}</span>
+                                        <button 
+                                            onClick={() => handleRemoveMensagemPreset(idx)}
+                                            disabled={isSavingSettings}
+                                            className="p-1 text-slate-300 hover:text-red-500 disabled:opacity-50 transition-colors cursor-pointer"
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {showForm ? (
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in slide-in-from-bottom-4">
@@ -620,7 +833,25 @@ export const Receipts: React.FC = () => {
                                 <Briefcase size={12}/> Informações do Serviço
                             </h3>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Referente a</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1 flex justify-between items-center">
+                                    <span>Referente a</span>
+                                    {referentePresets.length > 0 && (
+                                        <select
+                                            onChange={e => {
+                                                if (e.target.value) {
+                                                    setFormData(prev => ({ ...prev, referente: e.target.value }));
+                                                    e.target.value = ''; // Reset select
+                                                }
+                                            }}
+                                            className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 outline-none max-w-[200px]"
+                                        >
+                                            <option value="">Usar Pré-setado...</option>
+                                            {referentePresets.map((preset, idx) => (
+                                                <option key={idx} value={preset}>{preset}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </label>
                                 <input 
                                     type="text" 
                                     value={formData.referente}
@@ -640,7 +871,25 @@ export const Receipts: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Mensagem / Observações</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1 flex justify-between items-center">
+                                    <span>Mensagem / Observações</span>
+                                    {mensagemPresets.length > 0 && (
+                                        <select
+                                            onChange={e => {
+                                                if (e.target.value) {
+                                                    setFormData(prev => ({ ...prev, mensagem: e.target.value }));
+                                                    e.target.value = ''; // Reset select
+                                                }
+                                            }}
+                                            className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 outline-none max-w-[200px]"
+                                        >
+                                            <option value="">Usar Pré-setado...</option>
+                                            {mensagemPresets.map((preset, idx) => (
+                                                <option key={idx} value={preset}>{preset}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </label>
                                 <input 
                                     type="text" 
                                     value={formData.mensagem}

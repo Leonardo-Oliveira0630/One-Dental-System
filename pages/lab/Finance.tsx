@@ -26,7 +26,7 @@ export const Finance = () => {
     addBankAccount, updateBankAccount, deleteBankAccount,
     currentPlan, currentUser
   } = useApp();
-  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'RECEIVABLES' | 'EXPENSES' | 'BATCHES' | 'SETTINGS'>('DASHBOARD');
+  const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'RECEIVABLES' | 'EXPENSES' | 'BATCHES' | 'SETTINGS' | 'REPORTS'>('DASHBOARD');
   const [searchTerm, setSearchTerm] = useState('');
   
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
@@ -54,6 +54,236 @@ export const Finance = () => {
       return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Reports Tab States
+  const [reportStartDate, setReportStartDate] = useState(() => {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [reportEndDate, setReportEndDate] = useState(() => {
+      const d = new Date();
+      return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
+  const [reportType, setReportType] = useState<'ALL' | 'DESPESA' | 'RECEBIMENTO'>('ALL');
+  const [reportSource, setReportSource] = useState<'ALL' | 'MANUAL_OR_ASAAS' | 'ONLINE_STORE' | 'EXPENSE'>('ALL');
+  const [reportStatus, setReportStatus] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL');
+  const [reportSearchTerm, setReportSearchTerm] = useState('');
+
+  const reportMovements = useMemo(() => {
+    // 1. Expenses
+    const movementsFromExpenses = expenses.map(e => ({
+      id: e.id,
+      date: new Date(e.date + 'T12:00:00'),
+      description: e.description,
+      type: 'DESPESA' as const,
+      category: `Despesa (${e.category})`,
+      amount: e.amount,
+      paymentMethod: '---',
+      status: e.status === 'PAID' ? 'PAID' : 'PENDING',
+      source: 'EXPENSE' as const,
+      refId: e.id,
+      dentistName: '---'
+    }));
+
+    // 2. Manual and Asaas Dentist Payments
+    const movementsFromPayments = dentistPayments.map(p => ({
+      id: p.id,
+      date: new Date(p.paymentDate),
+      description: p.notes || `Recebimento - ${p.dentistName}`,
+      type: p.type === 'DISCOUNT' ? 'DESPESA' as const : 'RECEBIMENTO' as const,
+      category: p.type === 'DISCOUNT' ? 'Desconto Concedido' : (p.batchId ? 'Recebimento Asaas' : 'Recebimento Manual'),
+      amount: p.amount,
+      paymentMethod: p.paymentMethod,
+      status: 'PAID', // Payments recorded here are already paid
+      source: 'MANUAL_OR_ASAAS' as const,
+      refId: p.id,
+      dentistName: p.dentistName
+    }));
+
+    // 3. Online Store Jobs
+    const movementsFromOnlineStore = jobs
+      .filter(j => j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION')
+      .map(j => ({
+        id: j.id,
+        date: new Date(j.createdAt),
+        description: `Pedido Loja Online OS #${j.osNumber || j.id.substring(0, 6)} - Paciente: ${j.patientName || '---'}`,
+        type: 'RECEBIMENTO' as const,
+        category: 'Loja Online',
+        amount: j.totalValue,
+        paymentMethod: 'Cartão/Pix (Asaas)',
+        status: j.paymentStatus === 'PAID' ? 'PAID' : 'PENDING',
+        source: 'ONLINE_STORE' as const,
+        refId: j.id,
+        dentistName: j.dentistName || '---'
+      }));
+
+    // Combine all
+    let allMovements = [
+      ...movementsFromExpenses,
+      ...movementsFromPayments,
+      ...movementsFromOnlineStore
+    ];
+
+    // Filter by start date and end date
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
+
+    allMovements = allMovements.filter(m => m.date >= sDate && m.date <= eDate);
+
+    // Filter by type
+    if (reportType !== 'ALL') {
+      allMovements = allMovements.filter(m => m.type === reportType);
+    }
+
+    // Filter by source
+    if (reportSource !== 'ALL') {
+      allMovements = allMovements.filter(m => m.source === reportSource);
+    }
+
+    // Filter by status
+    if (reportStatus !== 'ALL') {
+      allMovements = allMovements.filter(m => m.status === reportStatus);
+    }
+
+    // Filter by search term
+    if (reportSearchTerm.trim()) {
+      const s = reportSearchTerm.toLowerCase();
+      allMovements = allMovements.filter(m => 
+        m.description.toLowerCase().includes(s) || 
+        m.dentistName.toLowerCase().includes(s) ||
+        m.category.toLowerCase().includes(s)
+      );
+    }
+
+    // Sort by date descending
+    return allMovements.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [expenses, dentistPayments, jobs, reportStartDate, reportEndDate, reportType, reportSource, reportStatus, reportSearchTerm]);
+
+  const reportStats = useMemo(() => {
+    let totalInflows = 0;
+    let totalOutflows = 0;
+    let pendingInflows = 0;
+    let pendingOutflows = 0;
+
+    reportMovements.forEach(m => {
+      if (m.type === 'RECEBIMENTO') {
+        if (m.status === 'PAID') {
+          totalInflows += m.amount;
+        } else {
+          pendingInflows += m.amount;
+        }
+      } else if (m.type === 'DESPESA') {
+        if (m.status === 'PAID') {
+          totalOutflows += m.amount;
+        } else {
+          pendingOutflows += m.amount;
+        }
+      }
+    });
+
+    return {
+      totalInflows,
+      totalOutflows,
+      pendingInflows,
+      pendingOutflows,
+      netBalance: totalInflows - totalOutflows
+    };
+  }, [reportMovements]);
+
+  const exportReportCSV = () => {
+    if (!currentOrg) return;
+    const headers = ['Data', 'Descricao', 'Tipo', 'Origem/Categoria', 'Cliente (Dentista)', 'Metodo Pagamento', 'Valor (R$)', 'Status'];
+    const rows = reportMovements.map(m => [
+      m.date.toLocaleDateString('pt-BR'),
+      m.description.replace(/;/g, ','),
+      m.type,
+      m.category,
+      m.dentistName,
+      m.paymentMethod || '---',
+      m.amount.toFixed(2),
+      m.status === 'PAID' ? 'Pago' : 'Pendente'
+    ]);
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.join(';'))
+    ].join('\n');
+
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Relatorio_Financeiro_${currentOrg.name.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportReportPDF = () => {
+    if (!currentOrg) return;
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFillColor(15, 23, 42); // slate-900 color
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(currentOrg.name, 14, 18);
+    
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(200, 220, 255);
+    doc.text("Relatório de Movimentações Financeiras", 14, 28);
+    
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : 'Início';
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`).toLocaleDateString('pt-BR') : 'Fim';
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Período: ${sDate} - ${eDate}`, 195, 28, { align: 'right' });
+    
+    // Summary metrics section
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Resumo Financeiro do Período", 14, 52);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Recebimentos (Realizados): R$ ${reportStats.totalInflows.toFixed(2)}`, 14, 60);
+    doc.text(`Total Despesas (Realizadas): R$ ${reportStats.totalOutflows.toFixed(2)}`, 14, 66);
+    doc.text(`Saldo Líquido: R$ ${reportStats.netBalance.toFixed(2)}`, 14, 72);
+    
+    doc.text(`Recebimentos Pendentes: R$ ${reportStats.pendingInflows.toFixed(2)}`, 110, 60);
+    doc.text(`Despesas Pendentes: R$ ${reportStats.pendingOutflows.toFixed(2)}`, 110, 66);
+    doc.text(`Qtd. de Movimentações: ${reportMovements.length}`, 110, 72);
+    
+    // Table of movements
+    const tableData = reportMovements.map(m => [
+      m.date.toLocaleDateString('pt-BR'),
+      m.description,
+      m.type === 'RECEBIMENTO' ? 'Recebimento' : 'Despesa',
+      m.category,
+      m.dentistName || '---',
+      `R$ ${m.amount.toFixed(2)}`,
+      m.status === 'PAID' ? 'Pago' : 'Pendente'
+    ]);
+    
+    autoTable(doc, {
+      startY: 80,
+      head: [['Data', 'Descrição', 'Tipo', 'Categoria/Origem', 'Cliente', 'Valor', 'Status']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42] },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        5: { fontStyle: 'bold' }
+      }
+    });
+    
+    doc.save(`Relatorio_Financeiro_${currentOrg.name.replace(/\s+/g, '_')}.pdf`);
+  };
 
   const generateFreeLabReportPDF = () => {
     if (!currentOrg) return;
@@ -882,11 +1112,12 @@ export const Finance = () => {
           </div>
       )}
 
-      <div className="flex bg-slate-200 p-1 rounded-2xl w-fit overflow-x-auto no-scrollbar">
+       <div className="flex bg-slate-200 p-1 rounded-2xl w-fit overflow-x-auto no-scrollbar">
           <button onClick={() => setActiveTab('DASHBOARD')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Métricas</button>
           <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Extrato p/ Faturamento</button>
           <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturas & Boletos</button>
           <button onClick={() => setActiveTab('EXPENSES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Despesas</button>
+          <button onClick={() => setActiveTab('REPORTS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'REPORTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Relatórios</button>
           <button onClick={() => setActiveTab('SETTINGS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Configurações</button>
       </div>
 
@@ -1069,6 +1300,188 @@ export const Finance = () => {
                           ))}
                       </tbody>
                   </table>
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'REPORTS' && (
+          <div className="space-y-6 animate-in slide-in-from-right-2">
+              {/* Filters Panel */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div>
+                          <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                              <FileText className="text-blue-600" /> Relatório de Movimentações
+                          </h3>
+                          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Filtre, analise e exporte o fluxo financeiro</p>
+                      </div>
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                          <button 
+                              onClick={exportReportPDF}
+                              className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                          >
+                              <FileText size={16} /> Exportar PDF
+                          </button>
+                          <button 
+                              onClick={exportReportCSV}
+                              className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                          >
+                              <Download size={16} /> Exportar CSV
+                          </button>
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+                      <div className="lg:col-span-2">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Buscar por Descrição/Dentista</label>
+                          <input 
+                              type="text"
+                              value={reportSearchTerm}
+                              onChange={e => setReportSearchTerm(e.target.value)}
+                              placeholder="Pesquisar..."
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Início</label>
+                          <input 
+                              type="date"
+                              value={reportStartDate}
+                              onChange={e => setReportStartDate(e.target.value)}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Data Fim</label>
+                          <input 
+                              type="date"
+                              value={reportEndDate}
+                              onChange={e => setReportEndDate(e.target.value)}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Tipo de Entrada</label>
+                          <select 
+                              value={reportType}
+                              onChange={e => setReportType(e.target.value as any)}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                          >
+                              <option value="ALL">Todos os Tipos</option>
+                              <option value="RECEBIMENTO">Recebimentos</option>
+                              <option value="DESPESA">Despesas</option>
+                          </select>
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Origem/Canal</label>
+                          <select 
+                              value={reportSource}
+                              onChange={e => setReportSource(e.target.value as any)}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                          >
+                              <option value="ALL">Todos</option>
+                              <option value="MANUAL_OR_ASAAS">Faturas (Manual/Asaas)</option>
+                              <option value="ONLINE_STORE">Loja Online (Pedidos)</option>
+                              <option value="EXPENSE">Despesas</option>
+                          </select>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Statistics Row */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Realizados</p>
+                      <h4 className="text-xl font-black text-green-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pagas</p>
+                      <h4 className="text-xl font-black text-red-500">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Saldo Líquido Período</p>
+                      <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                          R$ {reportStats.netBalance.toFixed(2)}
+                      </h4>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Pendentes</p>
+                      <h4 className="text-xl font-black text-orange-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
+                  </div>
+                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pendentes</p>
+                      <h4 className="text-xl font-black text-amber-600">R$ {reportStats.pendingOutflows.toFixed(2)}</h4>
+                  </div>
+              </div>
+
+              {/* Movements Table */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                          Mostrando {reportMovements.length} registro(s)
+                      </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                          <thead>
+                              <tr className="bg-slate-50 border-b border-slate-100">
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Data</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Descrição</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Tipo</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Canal / Origem</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Cliente</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Valor</th>
+                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Status</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {reportMovements.length === 0 ? (
+                                  <tr>
+                                      <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
+                                          Nenhuma movimentação encontrada para os filtros selecionados.
+                                      </td>
+                                  </tr>
+                              ) : (
+                                  reportMovements.map(m => (
+                                      <tr key={`${m.source}-${m.id}`} className="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+                                          <td className="p-4 text-xs font-bold text-slate-500">
+                                              {m.date.toLocaleDateString('pt-BR')}
+                                          </td>
+                                          <td className="p-4 text-xs font-bold text-slate-800 max-w-xs truncate">
+                                              {m.description}
+                                          </td>
+                                          <td className="p-4">
+                                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                                                  m.type === 'RECEBIMENTO' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                                              }`}>
+                                                  {m.type === 'RECEBIMENTO' ? 'RECEBIMENTO' : 'DESPESA'}
+                                              </span>
+                                          </td>
+                                          <td className="p-4 text-xs font-bold text-slate-600">
+                                              {m.category}
+                                          </td>
+                                          <td className="p-4 text-xs font-bold text-slate-500">
+                                              {m.dentistName}
+                                          </td>
+                                          <td className={`p-4 text-xs font-black text-right ${
+                                              m.type === 'RECEBIMENTO' ? 'text-green-600' : 'text-red-600'
+                                          }`}>
+                                              {m.type === 'RECEBIMENTO' ? '+' : '-'} R$ {m.amount.toFixed(2)}
+                                          </td>
+                                          <td className="p-4 text-center">
+                                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                                                  m.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                              }`}>
+                                                  {m.status === 'PAID' ? 'PAGO' : 'PENDENTE'}
+                                              </span>
+                                          </td>
+                                      </tr>
+                                  ))
+                              )}
+                          </tbody>
+                      </table>
+                  </div>
               </div>
           </div>
       )}
