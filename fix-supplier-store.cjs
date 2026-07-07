@@ -1,60 +1,42 @@
 const fs = require('fs');
 
-let service = fs.readFileSync('services/firebaseService.ts', 'utf8');
-if (!service.includes('apiCreateSupplierPayment')) {
-  service += `\nexport const apiCreateSupplierPayment = async (orderData: any, paymentData: any) => {
-    const fn = httpsCallable(functions, 'createSupplierPayment');
-    return (await fn({ orderData, paymentData })).data;
-};\n`;
-  fs.writeFileSync('services/firebaseService.ts', service);
+const file = 'pages/store/SupplierStore.tsx';
+if (fs.existsSync(file)) {
+  let content = fs.readFileSync(file, 'utf8');
+  
+  // For the checkout modal:
+  // It starts around 1634: {isCheckoutOpen && (
+  // We can just find the block and replace inside it, or just replace everywhere if the rest of the file is light theme.
+  
+  // Wait, the rest of SupplierStore is ALREADY mostly light theme!
+  // Let's replace the lingering dark theme classes safely globally within SupplierStore.tsx.
+  
+  const replacements = [
+    { regex: /bg-slate-950/g, replacement: 'bg-slate-50' },
+    { regex: /bg-slate-900/g, replacement: 'bg-white' },
+    { regex: /bg-slate-850/g, replacement: 'bg-slate-100' },
+    { regex: /border-slate-850/g, replacement: 'border-slate-200' },
+    { regex: /border-slate-800/g, replacement: 'border-slate-200' },
+    { regex: /border-slate-700/g, replacement: 'border-slate-300' },
+    { regex: /text-slate-100/g, replacement: 'text-slate-900' },
+    { regex: /text-slate-200/g, replacement: 'text-slate-800' },
+    { regex: /text-slate-300/g, replacement: 'text-slate-700' },
+    { regex: /text-slate-400/g, replacement: 'text-slate-500' },
+    { regex: /text-slate-450/g, replacement: 'text-slate-600' },
+    { regex: /hover:bg-slate-850/g, replacement: 'hover:bg-slate-100' },
+  ];
+
+  replacements.forEach(r => {
+    content = content.replace(r.regex, r.replacement);
+  });
+  
+  content = content.replace(/text-white/g, 'text-slate-900');
+  content = content.replace(/bg-indigo-600([^>]*?)text-slate-900/g, 'bg-indigo-600$1text-white');
+  content = content.replace(/bg-indigo-500([^>]*?)text-slate-900/g, 'bg-indigo-500$1text-white');
+  content = content.replace(/bg-[#EE4D2D]([^>]*?)text-slate-900/g, 'bg-[#EE4D2D]$1text-white');
+
+  // Fix button close in checkout
+  content = content.replace(/className="text-slate-500 hover:text-slate-900"\s*>\s*✕/g, 'className="text-slate-500 hover:text-slate-900">\n                ✕');
+  
+  fs.writeFileSync(file, content);
 }
-
-let store = fs.readFileSync('pages/store/SupplierStore.tsx', 'utf8');
-
-const regexToReplace = /asaasPaymentId: \`pay_\$\{Math\.random\(\)\.toString\(36\)\.substring\(2, 10\)\}\`,\s*asaasPixCopyPaste: paymentMethod === 'PIX' \? \`00020126580014br\.gov\.bcb\.pix0136\$\{Math\.random\(\)\.toString\(36\)\.substring\(2, 10\)\}\` : undefined,\s*asaasInvoiceUrl: \`https:\/\/sandbox\.asaas\.com\/i\/\$\{Math\.random\(\)\.toString\(36\)\.substring\(2, 10\)\}\`,/g;
-
-if (store.match(regexToReplace)) {
-  store = store.replace(regexToReplace, '');
-}
-
-const addSupplierOrderRegex = /await addSupplierOrder\(newOrder\);\s*lastOrder = newOrder;/g;
-const replacementAddOrder = `
-        const paymentData = {
-          method: paymentMethod,
-          cpfCnpj: cpfCnpj.replace(/\\D/g, ''),
-          creditCard: paymentMethod === 'CREDIT_CARD' ? {
-              number: cardNumber.replace(/\\s/g, ''),
-              holderName: cardHolder,
-              expiry: cardExpiry,
-              cvv: cardCvv
-          } : undefined
-        };
-
-        const result: any = await api.apiCreateSupplierPayment(newOrder, paymentData);
-
-        if (result && result.success) {
-          lastOrder = {
-            ...newOrder,
-            asaasPaymentId: result.paymentId,
-            asaasInvoiceUrl: result.invoiceUrl,
-            asaasPixCopyPaste: result.pixCopyPaste,
-            pixQrCode: result.pixQrCode // temporary hold for UI
-          };
-          // addSupplierOrder was already called via functions? 
-          // Wait, the function sets the doc, but we might want to also add it to our local context or run addSupplierOrder.
-          // Since the function does db.collection("supplierOrders").doc(orderData.id).set(newOrderData),
-          // we just need to update the UI.
-        } else {
-           throw new Error("Falha no pagamento");
-        }
-`;
-if (store.includes('await addSupplierOrder(newOrder);')) {
-  store = store.replace(addSupplierOrderRegex, replacementAddOrder);
-}
-
-// Ensure api is imported
-if (!store.includes('import * as api')) {
-  store = store.replace(/import \{.*?\} from 'react';/, `$& \nimport * as api from '../../services/firebaseService';`);
-}
-
-fs.writeFileSync('pages/store/SupplierStore.tsx', store);

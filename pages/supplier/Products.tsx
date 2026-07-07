@@ -471,18 +471,18 @@ export const SupplierProducts = () => {
   };
 
   return (
-    <main id="supplier-products" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-950 text-slate-100 min-h-screen">
+    <main id="supplier-products" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Cadastro de Produtos</h1>
-          <p className="text-slate-400 text-sm mt-0.5">Efetue o controle e exponha fotos adicionais, variações inteligentes ou crie combos.</p>
+          <p className="text-slate-500 text-sm mt-0.5">Efetue o controle e exponha fotos adicionais, variações inteligentes ou crie combos.</p>
         </div>
 
         <div className="flex flex-wrap gap-2.5">
           <button
             onClick={handleShareStore}
-            className="bg-slate-800 hover:bg-slate-700 text-white font-bold p-3 px-5 rounded-xl transition-all shadow-lg flex items-center gap-2 self-start"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-900 font-bold p-3 px-5 rounded-xl transition-all shadow-lg flex items-center gap-2 self-start"
           >
             <ClipboardCheck size={18} /> Copiar Link da Loja
           </button>
@@ -504,7 +504,7 @@ export const SupplierProducts = () => {
       </div>
 
       {/* Control Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3.5 top-3.5 text-slate-500" size={18} />
           <input
@@ -512,19 +512,19 @@ export const SupplierProducts = () => {
             placeholder="Pesquisar por nome, código ou descrição..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-11 pr-4 py-3 text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm placeholder-slate-650"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 text-sm placeholder-slate-650"
           />
         </div>
 
         {/* Filter Type Options */}
-        <div className="flex bg-slate-955 bg-slate-950 border border-slate-800 rounded-xl p-1 gap-1 w-full md:w-auto">
+        <div className="flex bg-slate-100 bg-slate-50 border border-slate-200 rounded-xl p-1 gap-1 w-full md:w-auto">
           <button
             type="button"
             onClick={() => setFilterType('ALL')}
             className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               filterType === 'ALL' 
-                ? 'bg-slate-800 text-white' 
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-slate-100 text-slate-900' 
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             Todos os Itens
@@ -534,8 +534,8 @@ export const SupplierProducts = () => {
             onClick={() => setFilterType('PRODUCTS')}
             className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               filterType === 'PRODUCTS' 
-                ? 'bg-slate-800 text-white' 
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-slate-100 text-slate-900' 
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             Apenas Produtos
@@ -545,8 +545,8 @@ export const SupplierProducts = () => {
             onClick={() => setFilterType('COMBOS')}
             className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               filterType === 'COMBOS' 
-                ? 'bg-slate-800 text-white' 
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-slate-100 text-slate-900' 
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             Apenas Combos
@@ -557,13 +557,13 @@ export const SupplierProducts = () => {
       {/* Product List Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredItems.length === 0 ? (
-          <div className="col-span-full bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center text-slate-500 space-y-2">
+          <div className="col-span-full bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-500 space-y-2">
             <Package className="w-12 h-12 mx-auto stroke-1" />
             <p className="text-sm">Nenhum produto cadastrado até o momento.</p>
           </div>
         ) : (
           filteredItems.map(item => (
-            <div key={item.id} className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col justify-between group hover:border-indigo-500/50 transition-all">
+            <div key={item.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col justify-between group hover:border-indigo-500/50 transition-all">
               {/* Product Preview Header */}
               <div className="p-5 space-y-4">
                 <div className="flex justify-between items-start">
@@ -572,32 +572,32 @@ export const SupplierProducts = () => {
                       <img 
                         src={item.imageUrl} 
                         alt={item.name} 
-                        className="w-12 h-12 rounded-xl object-cover bg-slate-950 border border-slate-850"
+                        className="w-12 h-12 rounded-xl object-cover bg-slate-50 border border-slate-200"
                         referrerPolicy="no-referrer"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-slate-950 border border-slate-850 flex items-center justify-center text-slate-600">
+                      <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-600">
                         <Package size={20} />
                       </div>
                     )}
                     <div>
-                      <h3 className="font-bold text-slate-200 line-clamp-1 group-hover:text-indigo-400 transition-colors">
+                      <h3 className="font-bold text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors">
                         {item.name}
                       </h3>
                       <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                         <span className="text-slate-500 text-[10px] font-mono">{item.code || 'S/ CÓDIGO'}</span>
                         {item.isCombo && (
-                          <span className="bg-purple-500/15 text-purple-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
+                          <span className="bg-purple-50 text-purple-600 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
                             <Layers size={8} /> Combo
                           </span>
                         )}
                         {item.variations && item.variations.length > 0 && (
-                          <span className="bg-orange-500/15 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
+                          <span className="bg-orange-50 text-orange-600 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
                             <Sparkles size={8} /> {item.variations.length} Opções
                           </span>
                         )}
                         {item.variationGroups && item.variationGroups.length > 0 && (
-                          <span className="bg-orange-500/15 text-orange-400 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
+                          <span className="bg-orange-50 text-orange-600 text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider flex items-center gap-0.5">
                             <Plus size={8} /> {item.variationGroups.length} Atributos
                           </span>
                         )}
@@ -607,27 +607,27 @@ export const SupplierProducts = () => {
 
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
                     item.isVisibleInStore 
-                      ? 'bg-emerald-500/10 text-emerald-400' 
-                      : 'bg-slate-800 text-slate-500'
+                      ? 'bg-emerald-500/10 text-emerald-600' 
+                      : 'bg-slate-100 text-slate-500'
                   }`}>
                     {item.isVisibleInStore ? <Eye size={10} /> : <EyeOff size={10} />}
                     {item.isVisibleInStore ? 'Exposto' : 'Oculto'}
                   </span>
                 </div>
 
-                <p className="text-slate-400 text-xs line-clamp-2 h-8">
+                <p className="text-slate-500 text-xs line-clamp-2 h-8">
                   {item.description || 'Nenhuma descrição informada para este produto.'}
                 </p>
 
                 {/* Sub components inside combo */}
                 {item.isCombo && item.comboItems && item.comboItems.length > 0 && (
-                  <div className="bg-slate-950/70 border border-slate-850 p-2.5 rounded-xl space-y-1.5">
-                    <p className="text-[9px] text-purple-400 font-bold uppercase tracking-wider">Produtos inclusos no Combo:</p>
+                  <div className="bg-slate-50/70 border border-slate-200 p-2.5 rounded-xl space-y-1.5">
+                    <p className="text-[9px] text-purple-600 font-bold uppercase tracking-wider">Produtos inclusos no Combo:</p>
                     <div className="space-y-1 max-h-24 overflow-y-auto pr-1">
                       {item.comboItems.map((c, i) => (
-                        <div key={i} className="flex justify-between items-center text-[10px] text-slate-300 font-mono">
+                        <div key={i} className="flex justify-between items-center text-[10px] text-slate-700 font-mono">
                           <span className="truncate max-w-[80%]">• {c.name}</span>
-                          <span className="text-indigo-400 font-bold">x {c.quantity}</span>
+                          <span className="text-indigo-600 font-bold">x {c.quantity}</span>
                         </div>
                       ))}
                     </div>
@@ -635,8 +635,8 @@ export const SupplierProducts = () => {
                 )}
 
                 {/* Stock tracker */}
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-850">
-                  <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-850 text-center">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
                     <p className="text-[10px] text-slate-500 font-mono uppercase">EM ESTOQUE</p>
                     <p className={`text-md font-bold font-mono mt-1 ${
                       item.currentStock <= item.minStock ? 'text-red-400' : 'text-slate-250'
@@ -644,9 +644,9 @@ export const SupplierProducts = () => {
                       {item.currentStock} un
                     </p>
                   </div>
-                  <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-850 text-center">
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-center">
                     <p className="text-[10px] text-slate-500 font-mono uppercase">PREÇO VENDA</p>
-                    <p className="text-md font-bold font-mono mt-1 text-teal-400">
+                    <p className="text-md font-bold font-mono mt-1 text-teal-600">
                       R$ {item.sellPrice.toFixed(2)}
                     </p>
                   </div>
@@ -654,17 +654,17 @@ export const SupplierProducts = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="p-3 bg-slate-950/45 border-t border-slate-850 flex items-center justify-end gap-2">
+              <div className="p-3 bg-slate-50/45 border-t border-slate-200 flex items-center justify-end gap-2">
                 <button
                   onClick={() => openModal(item)}
-                  className="p-2 hover:bg-slate-800 text-slate-400 hover:text-indigo-400 rounded-lg transition-all"
+                  className="p-2 hover:bg-slate-100 text-slate-500 hover:text-indigo-600 rounded-lg transition-all"
                   title="Editar Produto"
                 >
                   <Edit2 size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(item.id)}
-                  className="p-2 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-all"
+                  className="p-2 hover:bg-red-500/10 text-slate-500 hover:text-red-400 rounded-lg transition-all"
                   title="remover Produto"
                 >
                   <Trash2 size={16} />
@@ -678,10 +678,10 @@ export const SupplierProducts = () => {
       {/* Editor Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl text-slate-100 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-850 flex justify-between items-center bg-slate-950/40">
+          <div className="bg-white border border-slate-200 w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl text-slate-900 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/40">
               <h3 className="font-bold text-lg flex items-center gap-2">
-                <Package className="text-indigo-400" />
+                <Package className="text-indigo-600" />
                 {editingItemId ? 'Editar Produto / Combo' : 'Cadastrar Novo Produto / Combo'}
               </h3>
               <div className="flex items-center gap-3">
@@ -689,14 +689,14 @@ export const SupplierProducts = () => {
                   <button
                     type="button"
                     onClick={() => handleShareProduct(editingItemId)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors"
                   >
                     <ClipboardCheck size={14} /> Copiar Link
                   </button>
                 )}
                 <button 
                   onClick={() => setIsModalOpen(false)} 
-                  className="text-slate-400 hover:text-white"
+                  className="text-slate-500 hover:text-slate-900"
                 >
                   ✕
                 </button>
@@ -709,35 +709,35 @@ export const SupplierProducts = () => {
                 
                 {/* SECTION A: BASE PRODUCT REGISTRATION */}
                 <div className="space-y-4">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-indigo-400 pb-1 border-b border-slate-800">1. Informações Básicas</h4>
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-indigo-600 pb-1 border-b border-slate-200">1. Informações Básicas</h4>
                   
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome do Produto ou Combo</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Produto ou Combo</label>
                     <input
                       type="text"
                       required
                       value={form.name}
                       onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
                       placeholder="Ex: Resina Restauradora Z350 ou Combo Insumos Ortodônticos"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Código / SKU</label>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Código / SKU</label>
                       <input
                         type="text"
                         value={form.code}
                         onChange={e => setForm(prev => ({ ...prev, code: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                         placeholder="Ex: RES-001"
                       />
                     </div>
 
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <label className="block text-xs font-bold text-slate-400 uppercase">Foto Principal URL</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase">Foto Principal URL</label>
                         <div className="flex items-center gap-1">
                           <input
                             type="file"
@@ -748,9 +748,9 @@ export const SupplierProducts = () => {
                           />
                           <label
                             htmlFor="prod-main-image-upload"
-                            className="cursor-pointer text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded-md font-bold transition-all flex items-center gap-0.5"
+                            className="cursor-pointer text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 px-2 py-0.5 rounded-md font-bold transition-all flex items-center gap-0.5"
                           >
-                            <Sparkles size={10} className="text-orange-400" /> Upload
+                            <Sparkles size={10} className="text-orange-600" /> Upload
                           </label>
                         </div>
                       </div>
@@ -758,18 +758,18 @@ export const SupplierProducts = () => {
                         type="url"
                         value={form.imageUrl}
                         onChange={e => setForm(prev => ({ ...prev, imageUrl: e.target.value }))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-300 outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500"
                         placeholder="Ex: https://link.com/imagem.jpg"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Público Alvo</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Público Alvo</label>
                     <select
                       value={form.targetAudience || 'BOTH'}
                       onChange={e => setForm(prev => ({ ...prev, targetAudience: e.target.value as 'DENTIST' | 'LAB' | 'BOTH' }))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
                     >
                       <option value="DENTIST">Dentistas</option>
                       <option value="LAB">Laboratório de Prótese</option>
@@ -778,22 +778,22 @@ export const SupplierProducts = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição Comercial</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descrição Comercial</label>
                     <textarea
                       value={form.description}
                       onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-355 text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 h-16 resize-none"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-355 text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 h-16 resize-none"
                       placeholder="Mais detalhes sobre o produto..."
                     />
                   </div>
 
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="block text-xs font-bold text-slate-400 uppercase">Categoria Interna (Estoque)</label>
+                      <label className="block text-xs font-bold text-slate-500 uppercase">Categoria Interna (Estoque)</label>
                       <button
                         type="button"
                         onClick={handleAddNewCategoryInline}
-                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold"
+                        className="text-[10px] text-indigo-600 hover:text-indigo-500 font-bold"
                       >
                         + Nova Categoria
                       </button>
@@ -801,7 +801,7 @@ export const SupplierProducts = () => {
                     <select
                       value={form.categoryId || ''}
                       onChange={e => setForm(prev => ({ ...prev, categoryId: e.target.value }))}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
                     >
                       <option value="">Selecione uma categoria interna...</option>
                       {inventoryCategories && inventoryCategories.map(cat => (
@@ -811,14 +811,14 @@ export const SupplierProducts = () => {
                   </div>
 
                   {globalSettings?.marketplaceCategories && globalSettings.marketplaceCategories.length > 0 && (
-                    <div className="space-y-2 mt-4 mb-4 bg-slate-900/50 p-3 rounded-xl border border-slate-800">
-                      <label className="block text-xs font-bold text-indigo-400 uppercase">Classificação no Marketplace</label>
+                    <div className="space-y-2 mt-4 mb-4 bg-white/50 p-3 rounded-xl border border-slate-200">
+                      <label className="block text-xs font-bold text-indigo-600 uppercase">Classificação no Marketplace</label>
                       <div className="flex flex-col gap-2">
                         {/* Level 0 */}
                         <select
                           value={form.marketplaceCategoryIds?.[0] || ''}
                           onChange={e => setForm(prev => ({ ...prev, marketplaceCategoryIds: e.target.value ? [e.target.value] : [] }))}
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
                         >
                           <option value="">Categoria Principal...</option>
                           {globalSettings.marketplaceCategories.map(cat => (
@@ -835,7 +835,7 @@ export const SupplierProducts = () => {
                                 <select
                                   value={form.marketplaceCategoryIds?.[1] || ''}
                                   onChange={e => setForm(prev => ({ ...prev, marketplaceCategoryIds: e.target.value ? [form.marketplaceCategoryIds![0], e.target.value] : [form.marketplaceCategoryIds![0]] }))}
-                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="">Subcategoria...</option>
                                   {l0.subcategories.map(cat => (
@@ -858,7 +858,7 @@ export const SupplierProducts = () => {
                                 <select
                                   value={form.marketplaceCategoryIds?.[2] || ''}
                                   onChange={e => setForm(prev => ({ ...prev, marketplaceCategoryIds: e.target.value ? [form.marketplaceCategoryIds![0], form.marketplaceCategoryIds![1], e.target.value] : [form.marketplaceCategoryIds![0], form.marketplaceCategoryIds![1]] }))}
-                                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
                                 >
                                   <option value="">Sub-subcategoria...</option>
                                   {l1.subcategories.map(cat => (
@@ -876,64 +876,64 @@ export const SupplierProducts = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Estoque Total</label>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Estoque Total</label>
                       <input
                         type="number"
                         min={0}
                         value={form.currentStock}
                         onChange={e => setForm(prev => ({ ...prev, currentStock: Number(e.target.value) }))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Alerta Mínimo</label>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Alerta Mínimo</label>
                       <input
                         type="number"
                         min={0}
                         value={form.minStock}
                         onChange={e => setForm(prev => ({ ...prev, minStock: Number(e.target.value) }))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Preço Custo (R$)</label>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Preço Custo (R$)</label>
                       <input
                         type="number"
                         step="0.01"
                         min={0}
                         value={form.costPrice}
                         onChange={e => setForm(prev => ({ ...prev, costPrice: Number(e.target.value) }))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Preço Venda (R$)</label>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Preço Venda (R$)</label>
                       <input
                         type="number"
                         step="0.01"
                         min={0}
                         value={form.sellPrice}
                         onChange={e => setForm(prev => ({ ...prev, sellPrice: Number(e.target.value) }))}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-2 border border-slate-850 p-3 bg-slate-950/40 rounded-xl">
+                  <div className="space-y-2 border border-slate-200 p-3 bg-slate-50/40 rounded-xl">
                     <div className="flex items-center gap-2">
                       <input
                         id="isVisibleInStore"
                         type="checkbox"
                         checked={form.isVisibleInStore !== false}
                         onChange={e => setForm(prev => ({ ...prev, isVisibleInStore: e.target.checked }))}
-                        className="w-4 h-4 rounded border-slate-800 text-indigo-600 bg-slate-950 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-200 text-indigo-600 bg-slate-50 focus:ring-indigo-500 cursor-pointer"
                       />
-                      <label htmlFor="isVisibleInStore" className="text-xs font-bold text-slate-300 cursor-pointer leading-tight">
+                      <label htmlFor="isVisibleInStore" className="text-xs font-bold text-slate-700 cursor-pointer leading-tight">
                         Expor este item na vitrine online
                       </label>
                     </div>
@@ -944,9 +944,9 @@ export const SupplierProducts = () => {
                         type="checkbox"
                         checked={form.isCombo === true}
                         onChange={e => setForm(prev => ({ ...prev, isCombo: e.target.checked }))}
-                        className="w-4 h-4 rounded border-slate-800 text-indigo-600 bg-slate-950 focus:ring-indigo-500 cursor-pointer"
+                        className="w-4 h-4 rounded border-slate-200 text-indigo-600 bg-slate-50 focus:ring-indigo-500 cursor-pointer"
                       />
-                      <label htmlFor="isCombo" className="text-xs font-bold text-purple-400 cursor-pointer leading-tight">
+                      <label htmlFor="isCombo" className="text-xs font-bold text-purple-600 cursor-pointer leading-tight">
                         Este produto é um Combo de múltiplos produtos
                       </label>
                     </div>
@@ -959,7 +959,7 @@ export const SupplierProducts = () => {
                   
                   {/* MULTIPLE PHOTOS LIST */}
                   <div className="space-y-3.5">
-                    <h4 className="font-bold text-xs uppercase tracking-wider text-indigo-400 pb-1 border-b border-slate-800">2. Galeria de Fotos Adicionais</h4>
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-indigo-600 pb-1 border-b border-slate-200">2. Galeria de Fotos Adicionais</h4>
                     
                     <div className="flex gap-2">
                       <input
@@ -967,7 +967,7 @@ export const SupplierProducts = () => {
                         placeholder="Ex: https://dominio.com/foto2.jpg"
                         value={tempImageUrl}
                         onChange={e => setTempImageUrl(e.target.value)}
-                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-250 outline-none focus:ring-1 focus:ring-indigo-500"
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-250 outline-none focus:ring-1 focus:ring-indigo-500"
                       />
                       <input
                         type="file"
@@ -979,14 +979,14 @@ export const SupplierProducts = () => {
                       />
                       <label
                         htmlFor="prod-gallery-image-upload"
-                        className="cursor-pointer px-3 bg-slate-800 hover:bg-slate-750 border border-slate-800 text-slate-300 hover:text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                        className="cursor-pointer px-3 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 hover:text-slate-900 font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
                       >
-                        <Sparkles size={11} className="text-orange-400" /> Upload
+                        <Sparkles size={11} className="text-orange-600" /> Upload
                       </label>
                       <button
                         type="button"
                         onClick={handleAddImageUrl}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-555 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs"
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs"
                       >
                         Inserir URL
                       </button>
@@ -994,7 +994,7 @@ export const SupplierProducts = () => {
 
                     <div className="flex flex-wrap gap-2 pt-1">
                       {form.imageUrls && form.imageUrls.map((url, idx) => (
-                        <div key={idx} className="relative w-14 h-14 bg-slate-950 rounded-lg overflow-hidden border border-slate-850 group">
+                        <div key={idx} className="relative w-14 h-14 bg-slate-50 rounded-lg overflow-hidden border border-slate-200 group">
                           <img src={url} alt={`Imagem ${idx}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                           <button
                             type="button"
@@ -1014,13 +1014,13 @@ export const SupplierProducts = () => {
                   {/* COMBO SYSTEM REGISTRATION */}
                   {form.isCombo && (
                     <div className="bg-purple-950/20 border-2 border-purple-900/30 p-4 rounded-2xl space-y-3.5 animate-in slide-in-from-right duration-350">
-                      <h4 className="font-bold text-xs uppercase tracking-wider text-purple-400">3. Composição de Itens do Combo</h4>
+                      <h4 className="font-bold text-xs uppercase tracking-wider text-purple-600">3. Composição de Itens do Combo</h4>
                       
                       <div className="flex gap-2 items-center">
                         <select
                           value={comboProdId}
                           onChange={e => setComboProdId(e.target.value)}
-                          className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
                         >
                           <option value="">Selecione um Produto...</option>
                           {inventoryItems.filter(i => i.id !== editingItemId && !i.isCombo).map(item => (
@@ -1032,7 +1032,7 @@ export const SupplierProducts = () => {
                           min={1}
                           value={comboQty}
                           onChange={e => setComboQty(Number(e.target.value))}
-                          className="w-16 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 text-center"
+                          className="w-16 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 text-center"
                         />
                         <button
                           type="button"
@@ -1046,9 +1046,9 @@ export const SupplierProducts = () => {
                       <div className="divide-y divide-slate-850">
                         {form.comboItems && form.comboItems.map((c, idx) => (
                           <div key={idx} className="py-2.5 flex justify-between items-center text-xs font-mono">
-                            <span className="truncate max-w-[70%] text-slate-300">{c.name}</span>
+                            <span className="truncate max-w-[70%] text-slate-700">{c.name}</span>
                             <div className="flex items-center gap-2">
-                              <span className="text-purple-400 font-bold">x {c.quantity}</span>
+                              <span className="text-purple-600 font-bold">x {c.quantity}</span>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveComboItem(c.productId)}
@@ -1068,10 +1068,10 @@ export const SupplierProducts = () => {
 
                   {/* DYNAMIC VARIATION GROUPS (Matched with Prosthesis/Lab System) */}
                   {!form.isCombo && (
-                    <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4">
+                    <div className="bg-white border border-slate-200 p-5 rounded-2xl space-y-4">
                       <div className="flex justify-between items-center">
                         <div>
-                          <h4 className="font-bold text-xs uppercase tracking-wider text-orange-400">3. Grupos de Atributos e Variações</h4>
+                          <h4 className="font-bold text-xs uppercase tracking-wider text-orange-600">3. Grupos de Atributos e Variações</h4>
                           <p className="text-[10px] text-slate-500 mt-1">Crie grupos (ex: "Tamanho", "Cor") com opções e regras de desabilitação inteligente.</p>
                         </div>
                         <button
@@ -1084,21 +1084,21 @@ export const SupplierProducts = () => {
                       </div>
 
                       {(!form.variationGroups || form.variationGroups.length === 0) ? (
-                        <div className="text-center py-6 text-slate-500 border border-dashed border-slate-800 rounded-xl text-xs">
+                        <div className="text-center py-6 text-slate-500 border border-dashed border-slate-200 rounded-xl text-xs">
                           Nenhum grupo de variação cadastrado. Clique em "Novo Grupo" para começar.
                         </div>
                       ) : (
                         <div className="space-y-4">
                           {(form.variationGroups || []).map(group => (
-                            <div key={group.id} className="bg-slate-950/40 p-4 rounded-xl border border-slate-850 space-y-4">
+                            <div key={group.id} className="bg-slate-50/40 p-4 rounded-xl border border-slate-200 space-y-4">
                               {/* Group Header */}
-                              <div className="flex justify-between items-center pb-3 border-b border-slate-850">
+                              <div className="flex justify-between items-center pb-3 border-b border-slate-200">
                                 <div className="flex items-center gap-2 flex-1 max-w-[65%]">
-                                  <Folder size={16} className="text-orange-400" />
+                                  <Folder size={16} className="text-orange-600" />
                                   <input
                                     value={group.name}
                                     onChange={e => updateGroup(group.id, { name: e.target.value })}
-                                    className="font-bold text-xs text-slate-200 bg-transparent hover:bg-slate-900 focus:bg-slate-950 border-0 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 outline-none w-full"
+                                    className="font-bold text-xs text-slate-800 bg-transparent hover:bg-white focus:bg-slate-50 border-0 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 outline-none w-full"
                                     placeholder="Ex: Cor ou Tamanho"
                                   />
                                 </div>
@@ -1106,7 +1106,7 @@ export const SupplierProducts = () => {
                                   <button
                                     type="button"
                                     onClick={() => updateGroup(group.id, { selectionType: cycleSelectionType(group.selectionType) })}
-                                    className="flex items-center gap-1 text-[10px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-2 py-1 rounded hover:bg-slate-800"
+                                    className="flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 px-2 py-1 rounded hover:bg-slate-100"
                                     title="Mudar tipo de seleção"
                                   >
                                     {group.selectionType === 'SINGLE' && <ToggleLeft size={13} />}
@@ -1127,7 +1127,7 @@ export const SupplierProducts = () => {
                               {/* Options Box */}
                               <div className="space-y-3">
                                 {(group.options || []).map(option => (
-                                  <div key={option.id} className="bg-slate-950 p-3 rounded-lg border border-slate-900 space-y-3">
+                                  <div key={option.id} className="bg-slate-50 p-3 rounded-lg border border-slate-900 space-y-3">
                                     <div className="grid grid-cols-12 gap-2.5 items-end">
                                       <div className="col-span-12 sm:col-span-5">
                                         <label className="text-[9px] text-slate-500 font-bold block mb-1">
@@ -1136,7 +1136,7 @@ export const SupplierProducts = () => {
                                         <input
                                           value={option.name}
                                           onChange={e => updateOption(group.id, option.id, { name: e.target.value })}
-                                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500"
+                                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
                                           placeholder={group.selectionType === 'TEXT' ? "Ex: Especifique a cor" : "Ex: A2 ou C15"}
                                         />
                                       </div>
@@ -1149,7 +1149,7 @@ export const SupplierProducts = () => {
                                             step="0.01"
                                             value={option.priceModifier}
                                             onChange={e => updateOption(group.id, option.id, { priceModifier: parseFloat(e.target.value) || 0 })}
-                                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 text-right pr-2.5 pl-7"
+                                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 text-right pr-2.5 pl-7"
                                           />
                                         </div>
                                       </div>
@@ -1160,8 +1160,8 @@ export const SupplierProducts = () => {
                                           onClick={() => updateOption(group.id, option.id, { isDiscountExempt: !option.isDiscountExempt })}
                                           className={`px-3 py-1.5 text-xs rounded-lg border transition-all flex items-center justify-center gap-1 w-full ${
                                             option.isDiscountExempt 
-                                              ? 'bg-orange-950/50 border-orange-850 text-orange-400' 
-                                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800'
+                                              ? 'bg-orange-950/50 border-orange-850 text-orange-600' 
+                                              : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-100'
                                           }`}
                                           title={option.isDiscountExempt ? 'Valor fixo (não aceita descontos)' : 'Valor descontável'}
                                         >
@@ -1190,7 +1190,7 @@ export const SupplierProducts = () => {
                                             placeholder="URL da Imagem para esta variação"
                                             value={option.imageUrl || ''}
                                             onChange={e => updateOption(group.id, option.id, { imageUrl: e.target.value })}
-                                            className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-650"
+                                            className="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-650"
                                           />
                                           <input
                                             type="file"
@@ -1204,14 +1204,14 @@ export const SupplierProducts = () => {
                                           />
                                           <label
                                             htmlFor={`file-upload-${group.id}-${option.id}`}
-                                            className="cursor-pointer bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:text-white px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5 whitespace-nowrap"
+                                            className="cursor-pointer bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 hover:text-slate-900 px-2 py-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center gap-0.5 whitespace-nowrap"
                                           >
-                                            <Sparkles size={11} className="text-orange-400" /> Upload
+                                            <Sparkles size={11} className="text-orange-600" /> Upload
                                           </label>
                                         </div>
                                       </div>
                                       {option.imageUrl && (
-                                        <div className="relative shrink-0 w-11 h-11 bg-slate-900 rounded-lg border border-slate-800 overflow-hidden group hover:border-slate-700">
+                                        <div className="relative shrink-0 w-11 h-11 bg-white rounded-lg border border-slate-200 overflow-hidden group hover:border-slate-300">
                                           <img
                                             src={option.imageUrl}
                                             alt=""
@@ -1232,21 +1232,21 @@ export const SupplierProducts = () => {
                                     {/* CONDITIONAL DISABLING CONSTRAINTS */}
                                     <div className="pt-2 pl-1">
                                       <label className="text-[9px] text-slate-500 font-bold block mb-1 flex items-center gap-1">
-                                        <AlertCircle size={10} className="text-orange-400" />
+                                        <AlertCircle size={10} className="text-orange-600" />
                                         Se esta opção for escolhida, DESABILITAR as seguintes opções:
                                       </label>
-                                      <div className="w-full border border-slate-900 rounded bg-slate-950 max-h-24 overflow-y-auto p-2 scrollbar-thin">
+                                      <div className="w-full border border-slate-900 rounded bg-slate-50 max-h-24 overflow-y-auto p-2 scrollbar-thin">
                                         {form.variationGroups && form.variationGroups.filter((g: any) => g.id !== group.id).length === 0 && (
                                           <p className="text-[9px] text-slate-600 italic p-1">Adicione outros grupos de atributos para configurar dependências de desabilitação.</p>
                                         )}
                                         {form.variationGroups && form.variationGroups.filter((g: any) => g.id !== group.id).map((otherGroup: any) => (
                                           <div key={otherGroup.id} className="mb-2">
-                                            <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">{otherGroup.name}</p>
+                                            <p className="text-[9px] font-bold text-slate-500 uppercase mb-1">{otherGroup.name}</p>
                                             <div className="flex flex-wrap gap-1.5 pl-1">
                                               {(otherGroup.options || []).map((otherOption: any) => {
                                                 const isChecked = (option.disablesOptions || []).includes(otherOption.id);
                                                 return (
-                                                  <label key={otherOption.id} className="flex items-center gap-1.5 cursor-pointer bg-slate-900 hover:bg-slate-850 rounded px-2 py-1 text-[10px] text-slate-300">
+                                                  <label key={otherOption.id} className="flex items-center gap-1.5 cursor-pointer bg-white hover:bg-slate-850 rounded px-2 py-1 text-[10px] text-slate-700">
                                                     <input
                                                       type="checkbox"
                                                       checked={isChecked}
@@ -1257,7 +1257,7 @@ export const SupplierProducts = () => {
                                                           : [...current, otherOption.id];
                                                         updateOption(group.id, option.id, { disablesOptions: newList });
                                                       }}
-                                                      className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 w-3 h-3 bg-slate-950"
+                                                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3 h-3 bg-slate-50"
                                                     />
                                                     <span>{otherOption.name}</span>
                                                   </label>
@@ -1274,7 +1274,7 @@ export const SupplierProducts = () => {
                                 <button
                                   type="button"
                                   onClick={() => addOption(group.id)}
-                                  className="w-full text-[11px] text-center py-2 bg-slate-900 text-slate-300 hover:bg-slate-850 hover:text-white rounded-lg border border-slate-800 font-bold transition-all"
+                                  className="w-full text-[11px] text-center py-2 bg-white text-slate-700 hover:bg-slate-850 hover:text-slate-900 rounded-lg border border-slate-200 font-bold transition-all"
                                 >
                                   + Adicionar Opção
                                 </button>
@@ -1291,11 +1291,11 @@ export const SupplierProducts = () => {
               </div>
 
               {/* SAVE & ACTION CLUMP */}
-              <div className="pt-4 border-t border-slate-850 flex justify-end gap-3 bg-slate-950/20 px-6 py-4 -mx-6 -mb-6">
+              <div className="pt-4 border-t border-slate-200 flex justify-end gap-3 bg-slate-50/20 px-6 py-4 -mx-6 -mb-6">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-all text-xs font-semibold"
+                  className="px-5 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all text-xs font-semibold"
                 >
                   Cancelar
                 </button>

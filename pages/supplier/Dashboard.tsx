@@ -50,17 +50,17 @@ export const SupplierDashboard = () => {
   };
 
   return (
-    <main id="supplier-dashboard" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-950 text-slate-100 min-h-screen">
+    <main id="supplier-dashboard" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
       {/* Welcome Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-slate-900 border border-slate-800 rounded-2xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white border border-slate-200 rounded-2xl">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Painel do Fornecedor</h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-500 text-sm mt-1">
             Gerencie novos pedidos, atualize o status de entrega e monitore o estoque dos seus produtos da loja.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 font-medium text-sm flex items-center gap-2">
+          <div className="px-4 py-2 bg-indigo-50 border border-indigo-500/20 rounded-xl text-indigo-600 font-medium text-sm flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
             {currentOrg?.name || 'Fornecedor Parceiro'}
           </div>
@@ -69,7 +69,7 @@ export const SupplierDashboard = () => {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-4">
+        <div className="p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
             <DollarSign className="w-6 h-6" />
           </div>
@@ -81,8 +81,8 @@ export const SupplierDashboard = () => {
           </div>
         </div>
 
-        <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400">
+        <div className="p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-yellow-100 border border-yellow-500/20 flex items-center justify-center text-yellow-600">
             <Clock className="w-6 h-6 animate-pulse" />
           </div>
           <div>
@@ -91,45 +91,45 @@ export const SupplierDashboard = () => {
           </div>
         </div>
 
-        <div className="p-6 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+        <div className="p-6 bg-white border border-slate-200 rounded-xl flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-500/20 flex items-center justify-center text-indigo-600">
             <Truck className="w-6 h-6" />
           </div>
           <div>
             <p className="text-xs text-slate-500 font-mono">EM TRÂNSITO</p>
-            <h3 className="text-xl font-bold mt-1 text-indigo-400 font-mono">{shippedOrders}</h3>
+            <h3 className="text-xl font-bold mt-1 text-indigo-600 font-mono">{shippedOrders}</h3>
           </div>
         </div>
 
-        <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+        <div className="p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-500/20 flex items-center justify-center text-blue-600">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
             <p className="text-xs text-slate-500 font-mono">ENTREGUES</p>
-            <h3 className="text-xl font-bold mt-1 text-blue-400 font-mono">{deliveredOrders}</h3>
+            <h3 className="text-xl font-bold mt-1 text-blue-600 font-mono">{deliveredOrders}</h3>
           </div>
         </div>
       </div>
 
       {/* Main Section */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         {/* Section Header */}
-        <div className="p-6 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold">Pedidos Recebidos</h2>
-            <p className="text-slate-400 text-xs mt-0.5">Visualize e despache os pedidos efetuados pelos clientes.</p>
+            <p className="text-slate-500 text-xs mt-0.5">Visualize e despache os pedidos efetuados pelos clientes.</p>
           </div>
 
-          <div className="flex bg-slate-950 p-1 border border-slate-800 rounded-xl gap-1">
+          <div className="flex bg-slate-50 p-1 border border-slate-200 rounded-xl gap-1">
             {(['ALL', 'PENDING', 'SHIPPED', 'DELIVERED'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setStatusFilter(f)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   statusFilter === f 
-                    ? 'bg-indigo-650 text-white bg-indigo-600 shadow' 
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-indigo-600 text-white bg-indigo-600 shadow' 
+                    : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
                 {f === 'ALL' ? 'Todos' : f === 'PENDING' ? 'Pendentes' : f === 'SHIPPED' ? 'Em trânsito' : 'Entregues'}
@@ -148,7 +148,7 @@ export const SupplierDashboard = () => {
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-500 text-xs font-mono">
+                <tr className="border-b border-slate-200 text-slate-500 text-xs font-mono">
                   <th className="p-4">PEDIDO</th>
                   <th className="p-4">COMPRADOR</th>
                   <th className="p-4">ITENS</th>
@@ -162,30 +162,30 @@ export const SupplierDashboard = () => {
                 {filteredOrders.map(o => {
                   const date = o.createdAt instanceof Date ? o.createdAt : new Date(o.createdAt);
                   return (
-                    <tr key={o.id} className="hover:bg-slate-850/35 transition-colors">
-                      <td className="p-4 font-mono text-xs font-semibold text-slate-300">
+                    <tr key={o.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-4 font-mono text-xs font-semibold text-slate-700">
                         #{o.id.substring(o.id.length - 6).toUpperCase()}
                       </td>
                       <td className="p-4">
-                        <div className="font-semibold text-slate-200">{o.buyerOrgName}</div>
-                        <div className="text-slate-400 text-xs">{o.buyerName}</div>
+                        <div className="font-semibold text-slate-800">{o.buyerOrgName}</div>
+                        <div className="text-slate-500 text-xs">{o.buyerName}</div>
                       </td>
                       <td className="p-4 text-sm max-w-[200px] truncate message-span text-wrap">
                         {o.items.map((i: any) => `${i.quantity}x ${i.name}`).join(', ')}
                       </td>
-                      <td className="p-4 text-right font-mono text-xs font-semibold text-teal-400">
+                      <td className="p-4 text-right font-mono text-xs font-semibold text-teal-600">
                         R$ {o.totalValue.toFixed(2)}
                       </td>
-                      <td className="p-4 text-xs text-slate-400 font-mono">
+                      <td className="p-4 text-xs text-slate-500 font-mono">
                         {date.toLocaleDateString('pt-BR')}
                       </td>
                       <td className="p-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold font-mono ${
                           o.status === 'PENDING' 
-                            ? 'bg-yellow-505/10 bg-yellow-500/10 text-yellow-405 text-yellow-400' 
+                            ? 'bg-yellow-50 bg-yellow-100 text-yellow-700 text-yellow-600' 
                             : o.status === 'SHIPPED' 
-                            ? 'bg-indigo-500/10 text-indigo-400' 
-                            : 'bg-blue-500/10 text-blue-400'
+                            ? 'bg-indigo-50 text-indigo-600' 
+                            : 'bg-blue-50 text-blue-600'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${
                             o.status === 'PENDING' ? 'bg-yellow-400' : o.status === 'SHIPPED' ? 'bg-indigo-400' : 'bg-blue-400'
@@ -197,7 +197,7 @@ export const SupplierDashboard = () => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => setSelectedOrder(o)}
-                            className="p-1 px-2.5 bg-slate-800 hover:bg-slate-700 hover:text-white rounded-lg text-xs font-semibold text-slate-350 transition-all border border-slate-700"
+                            className="p-1 px-2.5 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 rounded-lg text-xs font-semibold text-slate-600 transition-all border border-slate-300"
                           >
                             Detalhes
                           </button>
@@ -215,18 +215,18 @@ export const SupplierDashboard = () => {
       {/* Details Side-Drawer/Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-end animate-fade-in">
-          <div className="bg-slate-900 border-l border-slate-800 w-full max-w-xl h-full flex flex-col text-slate-100 shadow-2xl relative">
+          <div className="bg-white border-l border-slate-200 w-full max-w-xl h-full flex flex-col text-slate-900 shadow-2xl relative">
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
               <div>
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">DETALHES DO PEDIDO</span>
-                <h3 className="text-lg font-bold font-mono text-indigo-400">
+                <h3 className="text-lg font-bold font-mono text-indigo-600">
                   #{selectedOrder.id.substring(selectedOrder.id.length - 8).toUpperCase()}
                 </h3>
               </div>
               <button 
                 onClick={() => setSelectedOrder(null)} 
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all"
+                className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
               >
                 ✕
               </button>
@@ -235,16 +235,16 @@ export const SupplierDashboard = () => {
             {/* Modal Content */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Status Action Header */}
-              <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-3">
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs font-mono text-slate-400 uppercase">STATUS ATUAL:</span>
+                  <span className="text-xs font-mono text-slate-500 uppercase">STATUS ATUAL:</span>
                   <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-semibold ${
-                    selectedOrder.status === 'PENDING' ? 'bg-yellow-405/10 text-yellow-450 bg-yellow-500/10 text-yellow-400' : selectedOrder.status === 'SHIPPED' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-blue-500/10 text-blue-400'
+                    selectedOrder.status === 'PENDING' ? 'bg-yellow-405/10 text-yellow-700 bg-yellow-100 text-yellow-600' : selectedOrder.status === 'SHIPPED' ? 'bg-indigo-50 text-indigo-600' : 'bg-blue-50 text-blue-600'
                   }`}>
                     {selectedOrder.status === 'PENDING' ? 'Pendente' : selectedOrder.status === 'SHIPPED' ? 'Enviado' : 'Entregue'}
                   </span>
                 </div>
-                <div className="flex gap-2 pt-2 border-t border-slate-850">
+                <div className="flex gap-2 pt-2 border-t border-slate-200">
                   {selectedOrder.status === 'PENDING' && (
                     <button
                       onClick={() => handleUpdateStatus(selectedOrder.id, 'SHIPPED')}
@@ -264,7 +264,7 @@ export const SupplierDashboard = () => {
                   {selectedOrder.status !== 'DELIVERED' && selectedOrder.status !== 'CANCELLED' && (
                     <button
                       onClick={() => handleUpdateStatus(selectedOrder.id, 'CANCELLED')}
-                      className="py-2 px-3 text-xs font-bold bg-slate-800 hover:bg-red-500/20 hover:text-red-400 border border-slate-700 hover:border-red-550 rounded-lg transition-all"
+                      className="py-2 px-3 text-xs font-bold bg-slate-100 hover:bg-red-500/20 hover:text-red-400 border border-slate-300 hover:border-red-550 rounded-lg transition-all"
                     >
                       Cancelar Pedido
                     </button>
@@ -273,41 +273,41 @@ export const SupplierDashboard = () => {
               </div>
 
               {/* Items Card */}
-              <div className="p-5 bg-slate-950 border border-slate-800 rounded-xl space-y-4">
-                <h4 className="text-xs font-mono text-slate-400 uppercase tracking-wider">Produtos do Pedido</h4>
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                <h4 className="text-xs font-mono text-slate-500 uppercase tracking-wider">Produtos do Pedido</h4>
                 <div className="divide-y divide-slate-850">
                   {selectedOrder.items.map((i: any, idx: number) => (
                     <div key={idx} className="py-3 first:pt-0 last:pb-0 flex justify-between items-center text-sm">
                       <div>
-                        <p className="font-semibold text-slate-200">{i.name}</p>
+                        <p className="font-semibold text-slate-800">{i.name}</p>
                         <p className="text-slate-500 text-xs mt-0.5">Quantidade: {i.quantity}</p>
                       </div>
-                      <span className="font-mono text-slate-300">
+                      <span className="font-mono text-slate-700">
                         R$ {(i.price * i.quantity).toFixed(2)}
                       </span>
                     </div>
                   ))}
                 </div>
-                <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
-                  <span className="font-bold text-slate-350">Valor Total:</span>
-                  <span className="font-mono font-bold text-teal-400 text-base">
+                <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                  <span className="font-bold text-slate-600">Valor Total:</span>
+                  <span className="font-mono font-bold text-teal-600 text-base">
                     R$ {selectedOrder.totalValue.toFixed(2)}
                   </span>
                 </div>
               </div>
 
               {/* Buyer Information */}
-              <div className="p-5 bg-slate-950 border border-slate-850 rounded-xl space-y-3.5 text-sm">
-                <h4 className="text-xs font-mono text-slate-400 uppercase tracking-wider">Dados do Comprador</h4>
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5 text-sm">
+                <h4 className="text-xs font-mono text-slate-500 uppercase tracking-wider">Dados do Comprador</h4>
                 <div className="space-y-2.5">
-                  <div className="flex items-center gap-2 text-slate-300">
+                  <div className="flex items-center gap-2 text-slate-700">
                     <User className="w-4 h-4 text-slate-500" />
                     <div>
                       <p className="text-xs text-slate-500">Organização</p>
                       <p className="font-medium">{selectedOrder.buyerOrgName}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-300">
+                  <div className="flex items-center gap-2 text-slate-700">
                     <Mail className="w-4 h-4 text-slate-500" />
                     <div>
                       <p className="text-xs text-slate-500">Contato Responsável</p>
@@ -319,20 +319,20 @@ export const SupplierDashboard = () => {
 
               {/* Delivery Address */}
               {selectedOrder.buyerAddress && (
-                <div className="p-5 bg-slate-950 border border-slate-850 rounded-xl space-y-3.5 text-sm">
-                  <h4 className="text-xs font-mono text-slate-400 uppercase tracking-widerSpecial flex items-center gap-1.5 uppercase">
-                    <MapPin className="w-4 h-4 text-indigo-400" /> Endereço de Entrega
+                <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5 text-sm">
+                  <h4 className="text-xs font-mono text-slate-500 uppercase tracking-widerSpecial flex items-center gap-1.5 uppercase">
+                    <MapPin className="w-4 h-4 text-indigo-600" /> Endereço de Entrega
                   </h4>
-                  <div className="space-y-1 text-slate-300">
+                  <div className="space-y-1 text-slate-700">
                     <p className="font-medium">
                       {selectedOrder.buyerAddress.street}, {selectedOrder.buyerAddress.number}
                     </p>
                     {selectedOrder.buyerAddress.complement && (
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-slate-500">
                         Comp: {selectedOrder.buyerAddress.complement}
                       </p>
                     )}
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-500">
                       Bairro: {selectedOrder.buyerAddress.neighborhood}
                     </p>
                     <p className="text-xs">
@@ -343,20 +343,20 @@ export const SupplierDashboard = () => {
                     </p>
                   </div>
                   
-                  <div className="pt-3 border-t border-slate-800 space-y-2 mt-3">
+                  <div className="pt-3 border-t border-slate-200 space-y-2 mt-3">
                     <p className="text-xs">
-                      <span className="font-bold text-slate-400">Método de Envio: </span>
+                      <span className="font-bold text-slate-500">Método de Envio: </span>
                       {selectedOrder.shippingMethod === 'FRENET' ? 'Frenet' : selectedOrder.shippingMethod}
                     </p>
                     {selectedOrder.shippingCost && (
                       <p className="text-xs">
-                        <span className="font-bold text-slate-400">Custo do Frete: </span>
+                        <span className="font-bold text-slate-500">Custo do Frete: </span>
                         R$ {selectedOrder.shippingCost.toFixed(2)}
                       </p>
                     )}
                     {selectedOrder.trackingInfo && (
                       <p className="text-xs">
-                        <span className="font-bold text-slate-400">Serviço Frenet: </span>
+                        <span className="font-bold text-slate-500">Serviço Frenet: </span>
                         {selectedOrder.trackingInfo}
                       </p>
                     )}
@@ -371,11 +371,11 @@ export const SupplierDashboard = () => {
                           onChange={(e) => {
                             setSelectedOrder({...selectedOrder, trackingCode: e.target.value});
                           }}
-                          className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                          className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
                         />
                         <button
                           onClick={() => handleUpdateTracking(selectedOrder.id, selectedOrder.trackingCode || '')}
-                          className="px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold transition-all"
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold transition-all"
                         >
                           Salvar
                         </button>
@@ -387,11 +387,11 @@ export const SupplierDashboard = () => {
 
               {/* Notes */}
               {selectedOrder.notes && (
-                <div className="p-5 bg-slate-950 border border-slate-850 rounded-xl space-y-2 text-sm text-slate-300">
-                  <h4 className="text-xs font-mono text-slate-400 uppercase tracking-wider flex items-center gap-1.5 uppercase">
+                <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-sm text-slate-700">
+                  <h4 className="text-xs font-mono text-slate-500 uppercase tracking-wider flex items-center gap-1.5 uppercase">
                     <Info className="w-4 h-4 text-amber-500" /> Observações do Cliente
                   </h4>
-                  <p className="text-xs bg-slate-900 border border-slate-800 p-2.5 rounded-lg italic">
+                  <p className="text-xs bg-white border border-slate-200 p-2.5 rounded-lg italic">
                     "{selectedOrder.notes}"
                   </p>
                 </div>
