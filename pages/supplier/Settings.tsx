@@ -35,6 +35,13 @@ export const SupplierSettings = () => {
   // Asaas & Frenet Integrations State
   const [asaasWalletId, setAsaasWalletId] = useState('');
   const [frenetToken, setFrenetToken] = useState('');
+  const [cep, setCep] = useState('');
+  const [address, setAddress] = useState('');
+  const [number, setNumber] = useState('');
+  const [complement, setComplement] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
   const [pixKey, setPixKey] = useState('');
   const [bankInfo, setBankInfo] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -61,6 +68,13 @@ export const SupplierSettings = () => {
       const fin = currentOrg.financialSettings || {};
       setAsaasWalletId(fin.asaasWalletId || '');
       setFrenetToken(currentOrg.frenetToken || '');
+      setCep(currentOrg.cep || '');
+      setAddress(currentOrg.address || '');
+      setNumber(currentOrg.number || '');
+      setComplement(currentOrg.complement || '');
+      setNeighborhood(currentOrg.neighborhood || '');
+      setCity(currentOrg.city || '');
+      setState(currentOrg.state || '');
       setPixKey(fin.pixKey || '');
       setBankInfo(fin.bankInfo || '');
       setInstructions(fin.instructions || '');
@@ -220,7 +234,14 @@ export const SupplierSettings = () => {
       };
       await updateOrganization(currentOrg.id, {
         financialSettings: updatedFin,
-        frenetToken
+        frenetToken,
+        cep,
+        address,
+        number,
+        complement,
+        neighborhood,
+        city,
+        state
       });
       alert('Configurações Financeiras e Asaas salvas com sucesso!');
     } catch (err) {
@@ -849,6 +870,84 @@ export const SupplierSettings = () => {
                 <p className="text-[10px] text-slate-500 mt-1">ID da conta fornecido pelo Administrador ou localizado em sua conta comercial Asaas.</p>
               </div>
 
+
+              {/* Address section */}
+              <div className="sm:col-span-2 mt-4 pt-4 border-t border-slate-200">
+                <h4 className="font-bold text-sm text-slate-900 mb-4">Endereço de Origem (Para cálculo de frete)</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">CEP</label>
+                    <input
+                      type="text"
+                      placeholder="00000-000"
+                      value={cep}
+                      onChange={e => setCep(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Rua / Logradouro</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Rua das Flores"
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Número</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 123"
+                      value={number}
+                      onChange={e => setNumber(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Complemento</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Sala 2"
+                      value={complement}
+                      onChange={e => setComplement(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Bairro</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Centro"
+                      value={neighborhood}
+                      onChange={e => setNeighborhood(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: São Paulo"
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Estado (UF)</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: SP"
+                      value={state}
+                      onChange={e => setState(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 uppercase text-center"
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Token Frenet (Cotação de Frete)</label>
                 <input

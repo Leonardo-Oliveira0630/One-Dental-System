@@ -87,6 +87,7 @@ export const SupplierStore = () => {
   const [activeTab, setActiveTab] = useState<'STORE' | 'MY_ORDERS'>('STORE');
   const [shippingMethod, setShippingMethod] = useState<'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET'>('COMBINE');
   const [shippingQuotes, setShippingQuotes] = useState<any[]>([]);
+  const [shippingError, setShippingError] = useState<string | null>(null);
   const [isQuotingShipping, setIsQuotingShipping] = useState(false);
   const [selectedShippingService, setSelectedShippingService] = useState<any>(null);
 
@@ -557,6 +558,7 @@ export const SupplierStore = () => {
   const handleQuoteShipping = async (cep: string, token: string, originCep: string) => {
     setIsQuotingShipping(true);
     setShippingQuotes([]);
+    setShippingError(null);
     setSelectedShippingService(null);
     try {
       const items = cart.map(item => ({
@@ -575,10 +577,18 @@ export const SupplierStore = () => {
         frenetToken: token
       });
       if (res && res.services) {
-        setShippingQuotes(res.services.filter((s: any) => !s.Error));
+        const validServices = res.services.filter((s: any) => !s.Error);
+        if (validServices.length > 0) {
+          setShippingQuotes(validServices);
+        } else {
+          // If there are services but all have errors, grab the first error
+          const errorService = res.services.find((s: any) => s.Error && s.MsgErro);
+          setShippingError(errorService ? errorService.MsgErro : "Nenhuma opção de frete disponível para este CEP.");
+        }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setShippingError(e.message || "Erro ao calcular frete");
     } finally {
       setIsQuotingShipping(false);
     }
@@ -1658,6 +1668,10 @@ export const SupplierStore = () => {
                     {isQuotingShipping ? (
                       <div className="p-4 text-center text-slate-500 text-sm animate-pulse border border-slate-200 rounded-xl bg-slate-50">
                         Calculando frete com Frenet...
+                      </div>
+                    ) : shippingError ? (
+                      <div className="p-4 text-center text-red-500 text-sm border border-red-200 rounded-xl bg-red-50">
+                        {shippingError}
                       </div>
                     ) : shippingQuotes.length > 0 ? (
                       <div className="grid grid-cols-1 gap-2">
