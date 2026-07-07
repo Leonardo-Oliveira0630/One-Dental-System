@@ -725,13 +725,13 @@ export const SupplierStore = () => {
         <div className="flex items-center justify-center flex-1 gap-2 md:gap-6">
           <button 
             onClick={() => { setSelectedSupplierId('ALL'); setActiveTab('STORE'); }}
-            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'STORE' && selectedSupplierId === 'ALL' ? 'bg-[#15263f] text-slate-900' : 'text-slate-600 hover:bg-[#15263f] hover:text-slate-900'}`}
+            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'STORE' && selectedSupplierId === 'ALL' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
           >
             Home
           </button>
           <button 
             onClick={() => setActiveTab('MY_ORDERS')}
-            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'MY_ORDERS' ? 'bg-[#15263f] text-slate-900' : 'text-slate-600 hover:bg-[#15263f] hover:text-slate-900'}`}
+            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'MY_ORDERS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
           >
             Meus Pedidos
           </button>
@@ -741,7 +741,7 @@ export const SupplierStore = () => {
               onMouseEnter={() => setIsCategoriesDropdownOpen(true)}
               onMouseLeave={() => setIsCategoriesDropdownOpen(false)}
             >
-              <button className={`px-4 py-2 rounded-xl font-bold text-base flex items-center gap-1 transition-colors ${selectedMarketplaceCategoryId ? 'bg-[#15263f] text-slate-900' : 'text-slate-600 hover:bg-[#15263f] hover:text-slate-900'}`}>
+              <button className={`px-4 py-2 rounded-xl font-bold text-base flex items-center gap-1 transition-colors ${selectedMarketplaceCategoryId ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}>
                 Categorias <CornerDownRight size={16} />
               </button>
               {isCategoriesDropdownOpen && globalSettings?.marketplaceCategories && (
@@ -788,7 +788,7 @@ export const SupplierStore = () => {
             </div>
             <button 
               onClick={() => setSortOption('SALES')}
-              className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${sortOption === 'SALES' ? 'bg-[#15263f] text-slate-900' : 'text-slate-600 hover:bg-[#15263f] hover:text-slate-900'}`}
+              className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${sortOption === 'SALES' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
             >
               Mais Vendidos
             </button>
@@ -828,12 +828,12 @@ export const SupplierStore = () => {
             )}
             
             {/* Banner Content overlay (If text/button configured) */}
-            <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-slate-900 p-6 text-center">
+            <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-white p-6 text-center">
               <h1 className="text-5xl font-extrabold tracking-tight">
                 {(activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.title) || activeSupplierOrg.storeSettings?.catchphrase || activeSupplierOrg.name}
               </h1>
               {activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.subtitle && (
-                <p className="text-xl mt-4 max-w-2xl text-slate-900 font-medium">
+                <p className="text-xl mt-4 max-w-2xl text-white font-medium">
                   {activeSupplierOrg.storeSettings.banners[bannerIndex].subtitle}
                 </p>
               )}
@@ -848,7 +848,7 @@ export const SupplierStore = () => {
                   {activeSupplierOrg.storeSettings.banners[bannerIndex].buttonText}
                 </button>
               ) : (
-                <button className="mt-6 px-8 py-3 bg-orange-600 hover:bg-orange-700 text-slate-900 font-bold rounded-full transition-all">
+                <button className="mt-6 px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full transition-all">
                   Ver Produtos
                 </button>
               )}
@@ -991,7 +991,7 @@ export const SupplierStore = () => {
               onClick={() => setSortOption('RELEVANCE')}
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
                 sortOption === 'RELEVANCE' 
-                  ? 'bg-[#EE4D2D] text-slate-900' 
+                  ? 'bg-[#EE4D2D] text-white' 
                   : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1002,7 +1002,7 @@ export const SupplierStore = () => {
               onClick={() => setSortOption('LATEST')}
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
                 sortOption === 'LATEST' 
-                  ? 'bg-[#EE4D2D] text-slate-900' 
+                  ? 'bg-[#EE4D2D] text-white' 
                   : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1013,7 +1013,7 @@ export const SupplierStore = () => {
               onClick={() => setSortOption('SALES')}
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
                 sortOption === 'SALES' 
-                  ? 'bg-[#EE4D2D] text-slate-900' 
+                  ? 'bg-[#EE4D2D] text-white' 
                   : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1024,7 +1024,7 @@ export const SupplierStore = () => {
               onClick={() => setSortOption('PRICE_ASC')}
               className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
                 sortOption === 'PRICE_ASC' 
-                  ? 'bg-[#EE4D2D] text-slate-900' 
+                  ? 'bg-[#EE4D2D] text-white' 
                   : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1035,7 +1035,7 @@ export const SupplierStore = () => {
               onClick={() => setSortOption('PRICE_DESC')}
               className={`px-4 py-1.5 rounded-lg font-bold transition-all relative ${
                 sortOption === 'PRICE_DESC' 
-                  ? 'bg-[#EE4D2D] text-slate-900' 
+                  ? 'bg-[#EE4D2D] text-white' 
                   : 'bg-white text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -1083,7 +1083,7 @@ export const SupplierStore = () => {
                       referrerPolicy="no-referrer"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-6">
-                      <p className="text-slate-900 font-bold text-lg md:text-2xl drop-shadow">{block.title}</p>
+                      <p className="text-white font-bold text-lg md:text-2xl drop-shadow">{block.title}</p>
                     </div>
                   </div>
                 )}
@@ -1127,7 +1127,7 @@ export const SupplierStore = () => {
                               <Package className="w-12 h-12 text-slate-700" />
                             )}
                             {p.isCombo && (
-                              <span className="absolute top-2 left-2 bg-purple-500 text-slate-900 font-bold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider">
+                              <span className="absolute top-2 left-2 bg-purple-500 text-white font-bold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider">
                                 Combo
                               </span>
                             )}
@@ -1235,7 +1235,7 @@ export const SupplierStore = () => {
                       </div>
 
                       {p.isCombo && (
-                        <span className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-slate-900 font-bold text-[8px] tracking-wider py-0.5 px-2 rounded-full uppercase shadow">
+                        <span className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-[8px] tracking-wider py-0.5 px-2 rounded-full uppercase shadow">
                           Combo Especial
                         </span>
                       )}
@@ -1287,7 +1287,7 @@ export const SupplierStore = () => {
                         e.stopPropagation();
                         openProductDetail(p);
                       }}
-                      className="w-full py-2 bg-white border border-slate-200 hover:bg-[#EE4D2D] hover:text-slate-900 text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      className="w-full py-2 bg-white border border-slate-200 hover:bg-[#EE4D2D] hover:text-white text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
                     >
                       <Plus size={13} /> Ver Opções & Comprar
                     </button>
@@ -1397,7 +1397,7 @@ export const SupplierStore = () => {
 
                 <button
                   onClick={() => setIsCheckoutOpen(true)}
-                  className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-slate-900 font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5"
+                  className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5"
                 >
                   Continuar para Pagamento <ArrowRight size={16} />
                 </button>
@@ -1614,7 +1614,7 @@ export const SupplierStore = () => {
                       addToCart(selectedItemForDetail, detailSelectedVar, detailSelectedOptions);
                       setSelectedItemForDetail(null);
                     }}
-                    className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-slate-900 font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
                   >
                     <ShoppingCart size={16} /> Adicionar Esta Especificação à Cesta
                   </button>
@@ -1884,7 +1884,7 @@ export const SupplierStore = () => {
               <button
                 type="submit"
                 disabled={isProcessing}
-                className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-650 disabled:opacity-55 text-slate-900 font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1"
+                className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-650 disabled:opacity-55 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1"
               >
                 {isProcessing ? 'Enviando...' : 'Confirmar e Enviar Pedido'}
               </button>
@@ -1942,7 +1942,7 @@ export const SupplierStore = () => {
                 setOrderSuccess(null);
                 setIsCartOpen(false);
               }}
-              className="w-full py-2.5 bg-[#EE4D2D] hover:bg-orange-650 text-slate-900 font-bold rounded-xl transition-all"
+              className="w-full py-2.5 bg-[#EE4D2D] hover:bg-orange-650 text-white font-bold rounded-xl transition-all"
             >
               Voltar para Loja
             </button>
