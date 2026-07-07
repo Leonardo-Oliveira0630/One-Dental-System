@@ -546,10 +546,10 @@ export const SupplierStore = () => {
   }, [cart, appliedCoupon, selectedShippingService]);
 
   useEffect(() => {
-    if (shippingAddress.zipCode && shippingAddress.zipCode.length >= 8 && currentOrg?.frenetToken) {
-      handleQuoteShipping(shippingAddress.zipCode);
+    if (address.zipCode && address.zipCode.length >= 8 && currentOrg?.frenetToken) {
+      handleQuoteShipping(address.zipCode);
     }
-  }, [shippingAddress.zipCode, cart]);
+  }, [address.zipCode, cart]);
 
   const handleQuoteShipping = async (cep: string) => {
     if (!currentOrg?.frenetToken) return;
