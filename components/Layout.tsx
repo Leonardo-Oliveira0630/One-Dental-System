@@ -399,8 +399,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                {!isMobileMenuOpen && (
                    <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
                )}
-               <div className="flex items-center gap-2 overflow-hidden">
-                  <Logo size="sm" variant="colored" />
+               <div className="flex items-center gap-2 overflow-visible">
+                  <Logo size={120} variant="colored" />
                </div>
            </div>
            
