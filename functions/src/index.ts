@@ -736,7 +736,28 @@ export const checkSubscriptionStatus = onCall(
       let status = "PENDING";
 
       if (asaasStatus === "ACTIVE") {
-        status = "ACTIVE";
+        try {
+          const paymentsRes = await axios.get(
+            `${url}/payments?subscription=${subId}&limit=10`,
+            {headers: {access_token: key}}
+          );
+          const payments = paymentsRes.data.data || [];
+          const hasOverdue = payments.some((p: any) => p.status === "OVERDUE");
+          const hasReceived = payments.some((p: any) => p.status === "RECEIVED" || p.status === "CONFIRMED");
+          const hasPending = payments.some((p: any) => p.status === "PENDING");
+
+          if (hasOverdue) {
+            status = "OVERDUE";
+          } else if (hasPending && !hasReceived) {
+            // Subscription created, but first payment still pending
+            status = "PENDING";
+          } else {
+            status = "ACTIVE";
+          }
+        } catch (err: any) {
+          logger.warn("Erro ao buscar faturas na verificação:", err.message);
+          status = "ACTIVE"; // fallback if api fails
+        }
       } else if (asaasStatus === "EXPIRED" || asaasStatus === "OVERDUE") {
         status = "OVERDUE";
       } else if (asaasStatus === "DELETED") {
@@ -832,8 +853,7 @@ export const createSaaSSubscription = onCall(async (req: any) => {
     }
 
     // Calcular data de vencimento da fatura com base no trial
-    const delay = 86400000 * 2;
-    let nextDue = new Date(Date.now() + delay).toISOString().split("T")[0];
+    let nextDue = new Date().toISOString().split("T")[0];
 
     if (orgSnap.exists) {
       const trialEndsAt = orgData.trialEndsAt;

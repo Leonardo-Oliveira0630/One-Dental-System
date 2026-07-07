@@ -211,7 +211,8 @@ export const Subscribe = () => {
 
                             <div className="bg-amber-50 p-5 rounded-2xl border border-amber-100 text-xs text-amber-800 text-left space-y-2 font-medium">
                                 <p className="font-black uppercase tracking-widest flex items-center gap-2"><AlertTriangle size={14} className="text-amber-600"/> Importante:</p>
-                                <p>O Asaas pode levar alguns minutos para processar o pagamento. Se já pagou e o sistema não liberou, use o botão de validação manual abaixo.</p>
+                                <p>Recomendamos o pagamento via <strong>PIX ou Cartão de Crédito</strong> para uma liberação imediata. Pagamentos via Boleto podem levar até 2 dias úteis para serem confirmados.</p>
+                                <p>O Asaas pode levar alguns minutos para processar. Após o pagamento via PIX ou Cartão, use o botão de validação manual abaixo.</p>
                             </div>
 
                             <button 
