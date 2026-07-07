@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLocation } from 'react-router-dom';
 import { Catalog } from './Catalog';
@@ -15,30 +16,39 @@ export function UnifiedStore() {
   
   const isLab = currentOrg?.orgType === 'LAB' || currentOrg?.orgType === 'LAB_OUTSOURCED';
 
+  const [headerPortalElement, setHeaderPortalElement] = useState<HTMLElement | null>(null);
+  
+  useEffect(() => {
+    const el = document.getElementById('store-header-portal');
+    if (el) setHeaderPortalElement(el);
+  }, []);
+
+
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative">
-      <div className="flex justify-center items-center py-4 bg-white border-b border-slate-200 z-50 shrink-0">
+            {headerPortalElement && createPortal(
         <div 
-          className="relative flex items-center bg-slate-100 p-1.5 rounded-full w-full max-w-[380px] mx-4 h-14 cursor-pointer shadow-inner"
+          className="relative flex items-center bg-slate-100 p-1 rounded-full w-full max-w-[380px] h-10 cursor-pointer shadow-inner mx-auto"
           onClick={() => setActiveStore(prev => prev === 'PROTESE' ? 'FORNECEDOR' : 'PROTESE')}
         >
            <motion.div 
-             className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-white rounded-full shadow-sm border border-slate-200/50"
+             className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-sm border border-slate-200/50"
              initial={false}
              animate={{ 
-               left: activeStore === 'PROTESE' ? 6 : 'calc(50% + 6px)',
-               x: activeStore === 'PROTESE' ? 0 : -6
+               left: activeStore === 'PROTESE' ? 4 : 'calc(50% + 4px)',
+               x: activeStore === 'PROTESE' ? 0 : -4
              }}
              transition={{ type: "spring", stiffness: 400, damping: 30 }}
            />
-           <div className={`flex-1 flex justify-center items-center z-10 text-sm font-black transition-colors duration-300 select-none ${activeStore === 'PROTESE' ? 'text-slate-900' : 'text-slate-500'}`}>
+           <div className={`flex-1 flex justify-center items-center z-10 text-[11px] md:text-sm font-black transition-colors duration-300 select-none ${activeStore === 'PROTESE' ? 'text-slate-900' : 'text-slate-500'}`}>
              {isLab ? 'Terceirização' : 'Loja de Prótese'}
            </div>
-           <div className={`flex-1 flex justify-center items-center z-10 text-sm font-black transition-colors duration-300 select-none ${activeStore === 'FORNECEDOR' ? 'text-slate-900' : 'text-slate-500'}`}>
-             Loja Fornecedores
+           <div className={`flex-1 flex justify-center items-center z-10 text-[11px] md:text-sm font-black transition-colors duration-300 select-none ${activeStore === 'FORNECEDOR' ? 'text-slate-900' : 'text-slate-500'}`}>
+             Fornecedores
            </div>
-        </div>
-      </div>
+        </div>,
+        headerPortalElement
+      )}
 
       <div className="flex-1 relative overflow-hidden bg-slate-50">
         <AnimatePresence initial={false} custom={activeStore}>

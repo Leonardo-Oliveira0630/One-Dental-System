@@ -360,36 +360,54 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </aside>
 
-      <header className={`fixed top-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] ${isStoreRoute ? (isMobileMenuOpen ? "left-0 md:left-64" : "left-0") : "left-0 md:hidden"} print:hidden transition-all duration-300`}>
-         <div className="flex items-center gap-3 overflow-hidden">
-             {!isMobileMenuOpen && (
-               <button onClick={() => setIsMobileMenuOpen(true)} className={`text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0 ${isStoreRoute && isMobileMenuOpen ? "hidden" : ""}`}><Menu size={24} /></button>
+      {/* Default Mobile Header */}
+      {!isStoreRoute && (
+          <header className={`fixed top-0 right-0 left-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden print:hidden transition-all duration-300`}>
+             <div className="flex items-center gap-3 overflow-hidden">
+                 {!isMobileMenuOpen && (
+                   <button onClick={() => setIsMobileMenuOpen(true)} className={`text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0`}><Menu size={24} /></button>
+                 )}
+                 {!isMobileSearchOpen && (
+                   <div className="flex items-center gap-2 overflow-hidden">
+                      <Logo size="sm" variant="colored" />
+                   </div>
+                 )}
+             </div>
+             {isMobileSearchOpen && (
+                <div className="flex-1 mx-2 animate-in fade-in slide-in-from-right-4">
+                   <JobSearch />
+                </div>
              )}
-             {!isMobileSearchOpen && (
-               <div className="flex items-center gap-2 overflow-hidden">
-                  <Logo size="sm" variant="colored" />
-               </div>
-             )}
-         </div>
+             <div className="flex items-center gap-1 shrink-0">
+                 {!isBuyer && (
+                   <button 
+                     onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                     className={`p-2 rounded-lg transition-colors ${isMobileSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
+                   >
+                     {isMobileSearchOpen ? <X size={22} /> : <Search size={22} />}
+                   </button>
+                 )}
+                 <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">{currentUser?.name.charAt(0)}</Link>
+             </div>
+          </header>
+      )}
 
-         {isMobileSearchOpen && (
-            <div className="flex-1 mx-2 animate-in fade-in slide-in-from-right-4">
-               <JobSearch />
-            </div>
-         )}
-
-         <div className="flex items-center gap-1 shrink-0">
-             {!isBuyer && (
-               <button 
-                 onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
-                 className={`p-2 rounded-lg transition-colors ${isMobileSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
-               >
-                 {isMobileSearchOpen ? <X size={22} /> : <Search size={22} />}
-               </button>
-             )}
-             <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">{currentUser?.name.charAt(0)}</Link>
-         </div>
-      </header>
+      {/* Store Header */}
+      {isStoreRoute && (
+         <header className={`fixed top-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] ${isMobileMenuOpen ? "left-0 md:left-64" : "left-0"} print:hidden transition-all duration-300`}>
+           <div className="flex items-center gap-2 shrink-0">
+               {!isMobileMenuOpen && (
+                   <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
+               )}
+           </div>
+           
+           <div id="store-header-portal" className="flex-1 flex justify-center mx-2 overflow-hidden items-center h-full"></div>
+           
+           <div className="flex items-center gap-1 shrink-0">
+               <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">{currentUser?.name.charAt(0)}</Link>
+           </div>
+         </header>
+      )}
 
       <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
           <MobileNavItem to={isFreeLab ? "/lab/finance" : "/dashboard"} icon={<Home size={22}/>} label="Home" active={isFreeLab ? location.pathname === '/lab/finance' : location.pathname === '/dashboard'} />
