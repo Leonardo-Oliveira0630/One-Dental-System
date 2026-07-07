@@ -60,6 +60,70 @@ const getAsaasConfig = async () => {
   };
 };
 
+async function getOrCreateAsaasCustomer(
+  url: string, 
+  key: string, 
+  name: string, 
+  cpfCnpj: string, 
+  externalReference: string,
+  email: string = ""
+): Promise<string> {
+  if (externalReference) {
+    const searchByRef = await axios.get(`${url}/customers?externalReference=${externalReference}`, {
+      headers: {access_token: key},
+    });
+    if (searchByRef.data.data && searchByRef.data.data.length > 0) {
+      return searchByRef.data.data[0].id;
+    }
+  }
+
+  const cleanCpfCnpj = (cpfCnpj || "").replace(/\D/g, "");
+  if (cleanCpfCnpj) {
+    const searchRes = await axios.get(`${url}/customers?cpfCnpj=${cleanCpfCnpj}`, {
+      headers: {access_token: key},
+    });
+    
+    if (searchRes.data.data && searchRes.data.data.length > 0) {
+      let foundCustomer = searchRes.data.data.find((c: any) => c.name.toLowerCase().trim() === name.toLowerCase().trim());
+      
+      if (foundCustomer) {
+        if (!foundCustomer.externalReference && externalReference) {
+           await axios.post(`${url}/customers/${foundCustomer.id}`, { externalReference }, {headers: {access_token: key}});
+        }
+        return foundCustomer.id;
+      } else {
+        try {
+          const customerRes = await axios.post(`${url}/customers`, {
+            name,
+            cpfCnpj: cleanCpfCnpj,
+            email,
+            externalReference,
+            notificationDisabled: true,
+          }, {headers: {access_token: key}});
+          return customerRes.data.id;
+        } catch (createErr: any) {
+          foundCustomer = searchRes.data.data[0];
+          await axios.post(`${url}/customers/${foundCustomer.id}`, {
+            name,
+            externalReference
+          }, {headers: {access_token: key}});
+          return foundCustomer.id;
+        }
+      }
+    }
+  }
+
+  const customerRes = await axios.post(`${url}/customers`, {
+    name,
+    cpfCnpj: cleanCpfCnpj,
+    email,
+    externalReference,
+    notificationDisabled: true,
+  }, {headers: {access_token: key}});
+  
+  return customerRes.data.id;
+}
+
 /**
  * REGISTRA UM NOVO USUÁRIO EM UMA ORGANIZAÇÃO
  */
@@ -310,24 +374,10 @@ export const generateBatchBoleto = onCall(async (request: any) => {
     }
 
     // 3. Garantir Cliente no Asaas (Tenta buscar por CPF/CNPJ antes de criar)
-    let customerId = "";
     const docNum = (dentist.cpfCnpj || dentist.cpf || "").replace(/\D/g, "");
-
+    let customerId = "";
     try {
-      const searchRes = await axios.get(`${url}/customers?cpfCnpj=${docNum}`, {
-        headers: {access_token: key},
-      });
-      if (searchRes.data.data && searchRes.data.data.length > 0) {
-        customerId = searchRes.data.data[0].id;
-      } else {
-        const customerRes = await axios.post(`${url}/customers`, {
-          name: dentist.name,
-          cpfCnpj: docNum,
-          email: dentist.email || "",
-          notificationDisabled: true,
-        }, {headers: {access_token: key}});
-        customerId = customerRes.data.id;
-      }
+      customerId = await getOrCreateAsaasCustomer(url, key, dentist.name, docNum, dentistId, dentist.email || "");
     } catch (err: any) {
       const apiErr = err.response?.data?.errors?.[0]?.description;
       const finalMsg = apiErr || err.message;
@@ -463,19 +513,7 @@ export const createOrderPayment = onCall(async (request: any) => {
     let customerId = "";
     try {
       const docNum = paymentData.cpfCnpj;
-      const searchRes = await axios.get(`${url}/customers?cpfCnpj=${docNum}`, {
-        headers: {access_token: key},
-      });
-      if (searchRes.data.data && searchRes.data.data.length > 0) {
-        customerId = searchRes.data.data[0].id;
-      } else {
-        const customerRes = await axios.post(`${url}/customers`, {
-          name: jobData.dentistName || "Cliente Loja",
-          cpfCnpj: docNum,
-          notificationDisabled: true,
-        }, {headers: {access_token: key}});
-        customerId = customerRes.data.id;
-      }
+      customerId = await getOrCreateAsaasCustomer(url, key, jobData.dentistName || "Cliente Loja", docNum, jobData.organizationId, "");
     } catch (err: any) {
       throw new Error("Erro cliente Asaas: " + (err.response?.data?.errors?.[0]?.description || err.message));
     }
@@ -588,19 +626,7 @@ export const createPatientPayment = onCall(async (request: any) => {
     let customerId = "";
     try {
       const docNum = (patientData.document || "00000000000").replace(/\D/g, "");
-      const searchRes = await axios.get(`${url}/customers?cpfCnpj=${docNum}`, {
-        headers: {access_token: key},
-      });
-      if (searchRes.data.data && searchRes.data.data.length > 0) {
-        customerId = searchRes.data.data[0].id;
-      } else {
-        const customerRes = await axios.post(`${url}/customers`, {
-          name: patientData.name,
-          cpfCnpj: docNum,
-          notificationDisabled: true,
-        }, {headers: {access_token: key}});
-        customerId = customerRes.data.id;
-      }
+      customerId = await getOrCreateAsaasCustomer(url, key, patientData.name, docNum, patientId, "");
     } catch (err: any) {
       throw new Error("Erro cliente Asaas (Paciente): " + (err.response?.data?.errors?.[0]?.description || err.message));
     }
@@ -811,33 +837,11 @@ export const createSaaSSubscription = onCall(async (req: any) => {
     // Buscar ou Criar Customer
     let customerId = "";
     try {
-      const existing = await axios.get(
-        `${url}/customers?cpfCnpj=${cleanCpfCnpj}`,
-        {headers: {access_token: key}}
-      );
-      if (existing.data.data.length > 0) {
-        customerId = existing.data.data[0].id;
-        // Opcional: Atualizar dados para faturamento correto
-      } else {
-        const custRes = await axios.post(
-          `${url}/customers`,
-          {
-            name,
-            email,
-            cpfCnpj: cleanCpfCnpj,
-            phone: phone,
-            mobilePhone: phone,
-            postalCode: cep,
-            address: address,
-            addressNumber: number,
-            complement: complement,
-            province: neighborhood,
-            externalReference: orgId,
-          },
-          {headers: {access_token: key}}
-        );
-        customerId = custRes.data.id;
-      }
+      customerId = await getOrCreateAsaasCustomer(url, key, name, cleanCpfCnpj, orgId, email);
+      // Optional: Update with address/phone
+      await axios.post(`${url}/customers/${customerId}`, {
+         phone, mobilePhone: phone, postalCode: cep, address, addressNumber: number, complement, province: neighborhood
+      }, {headers: {access_token: key}});
     } catch (e: any) {
       throw new Error("Erro cliente Asaas: " + e.message);
     }
@@ -1066,19 +1070,7 @@ export const createSupplierPayment = onCall(async (request: any) => {
     let customerId = "";
     try {
       const docNum = paymentData.cpfCnpj;
-      const searchRes = await axios.get(`${url}/customers?cpfCnpj=${docNum}`, {
-        headers: {access_token: key},
-      });
-      if (searchRes.data.data && searchRes.data.data.length > 0) {
-        customerId = searchRes.data.data[0].id;
-      } else {
-        const customerRes = await axios.post(`${url}/customers`, {
-          name: orderData.buyerOrgName || "Cliente",
-          cpfCnpj: docNum,
-          notificationDisabled: true,
-        }, {headers: {access_token: key}});
-        customerId = customerRes.data.id;
-      }
+      customerId = await getOrCreateAsaasCustomer(url, key, orderData.buyerOrgName || "Cliente", docNum, orderData.buyerOrgId, "");
     } catch (err: any) {
       throw new Error("Erro cliente Asaas: " + (err.response?.data?.errors?.[0]?.description || err.message));
     }
@@ -1119,11 +1111,11 @@ export const createSupplierPayment = onCall(async (request: any) => {
   }
 });
 
-export const calculateFrenetShipping = onCall(async (req: any) => {
+export const calculateFrenetShipping = onCall({ cors: true }, async (req: any) => {
   const { originCep, destinationCep, items, frenetToken } = req.data;
   
   if (!originCep || !destinationCep || !frenetToken) {
-    throw new HttpsError('invalid-argument', 'Missing CEP or Frenet Token.');
+    return { error: 'Missing CEP or Frenet Token.' };
   }
 
   // Calculate total weight and dimensions (approximate)

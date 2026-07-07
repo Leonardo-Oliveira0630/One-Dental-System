@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -89,6 +89,59 @@ const getAsaasConfig = async () => {
         splitPercent: (settings === null || settings === void 0 ? void 0 : settings.platformCommission) || 5,
     };
 };
+async function getOrCreateAsaasCustomer(url, key, name, cpfCnpj, externalReference, email = "") {
+    if (externalReference) {
+        const searchByRef = await axios_1.default.get(`${url}/customers?externalReference=${externalReference}`, {
+            headers: { access_token: key },
+        });
+        if (searchByRef.data.data && searchByRef.data.data.length > 0) {
+            return searchByRef.data.data[0].id;
+        }
+    }
+    const cleanCpfCnpj = (cpfCnpj || "").replace(/\D/g, "");
+    if (cleanCpfCnpj) {
+        const searchRes = await axios_1.default.get(`${url}/customers?cpfCnpj=${cleanCpfCnpj}`, {
+            headers: { access_token: key },
+        });
+        if (searchRes.data.data && searchRes.data.data.length > 0) {
+            let foundCustomer = searchRes.data.data.find((c) => c.name.toLowerCase().trim() === name.toLowerCase().trim());
+            if (foundCustomer) {
+                if (!foundCustomer.externalReference && externalReference) {
+                    await axios_1.default.post(`${url}/customers/${foundCustomer.id}`, { externalReference }, { headers: { access_token: key } });
+                }
+                return foundCustomer.id;
+            }
+            else {
+                try {
+                    const customerRes = await axios_1.default.post(`${url}/customers`, {
+                        name,
+                        cpfCnpj: cleanCpfCnpj,
+                        email,
+                        externalReference,
+                        notificationDisabled: true,
+                    }, { headers: { access_token: key } });
+                    return customerRes.data.id;
+                }
+                catch (createErr) {
+                    foundCustomer = searchRes.data.data[0];
+                    await axios_1.default.post(`${url}/customers/${foundCustomer.id}`, {
+                        name,
+                        externalReference
+                    }, { headers: { access_token: key } });
+                    return foundCustomer.id;
+                }
+            }
+        }
+    }
+    const customerRes = await axios_1.default.post(`${url}/customers`, {
+        name,
+        cpfCnpj: cleanCpfCnpj,
+        email,
+        externalReference,
+        notificationDisabled: true,
+    }, { headers: { access_token: key } });
+    return customerRes.data.id;
+}
 /**
  * REGISTRA UM NOVO USUÁRIO EM UMA ORGANIZAÇÃO
  */
@@ -301,24 +354,10 @@ exports.generateBatchBoleto = (0, https_1.onCall)(async (request) => {
             throw new Error("O valor da cobrança deve ser maior que 0 e válido.");
         }
         // 3. Garantir Cliente no Asaas (Tenta buscar por CPF/CNPJ antes de criar)
-        let customerId = "";
         const docNum = (dentist.cpfCnpj || dentist.cpf || "").replace(/\D/g, "");
+        let customerId = "";
         try {
-            const searchRes = await axios_1.default.get(`${url}/customers?cpfCnpj=${docNum}`, {
-                headers: { access_token: key },
-            });
-            if (searchRes.data.data && searchRes.data.data.length > 0) {
-                customerId = searchRes.data.data[0].id;
-            }
-            else {
-                const customerRes = await axios_1.default.post(`${url}/customers`, {
-                    name: dentist.name,
-                    cpfCnpj: docNum,
-                    email: dentist.email || "",
-                    notificationDisabled: true,
-                }, { headers: { access_token: key } });
-                customerId = customerRes.data.id;
-            }
+            customerId = await getOrCreateAsaasCustomer(url, key, dentist.name, docNum, dentistId, dentist.email || "");
         }
         catch (err) {
             const apiErr = (_o = (_m = (_l = (_k = err.response) === null || _k === void 0 ? void 0 : _k.data) === null || _l === void 0 ? void 0 : _l.errors) === null || _m === void 0 ? void 0 : _m[0]) === null || _o === void 0 ? void 0 : _o.description;
@@ -445,20 +484,7 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
         let customerId = "";
         try {
             const docNum = paymentData.cpfCnpj;
-            const searchRes = await axios_1.default.get(`${url}/customers?cpfCnpj=${docNum}`, {
-                headers: { access_token: key },
-            });
-            if (searchRes.data.data && searchRes.data.data.length > 0) {
-                customerId = searchRes.data.data[0].id;
-            }
-            else {
-                const customerRes = await axios_1.default.post(`${url}/customers`, {
-                    name: jobData.dentistName || "Cliente Loja",
-                    cpfCnpj: docNum,
-                    notificationDisabled: true,
-                }, { headers: { access_token: key } });
-                customerId = customerRes.data.id;
-            }
+            customerId = await getOrCreateAsaasCustomer(url, key, jobData.dentistName || "Cliente Loja", docNum, jobData.organizationId, "");
         }
         catch (err) {
             throw new Error("Erro cliente Asaas: " + (((_l = (_k = (_j = (_h = err.response) === null || _h === void 0 ? void 0 : _h.data) === null || _j === void 0 ? void 0 : _j.errors) === null || _k === void 0 ? void 0 : _k[0]) === null || _l === void 0 ? void 0 : _l.description) || err.message));
@@ -557,20 +583,7 @@ exports.createPatientPayment = (0, https_1.onCall)(async (request) => {
         let customerId = "";
         try {
             const docNum = (patientData.document || "00000000000").replace(/\D/g, "");
-            const searchRes = await axios_1.default.get(`${url}/customers?cpfCnpj=${docNum}`, {
-                headers: { access_token: key },
-            });
-            if (searchRes.data.data && searchRes.data.data.length > 0) {
-                customerId = searchRes.data.data[0].id;
-            }
-            else {
-                const customerRes = await axios_1.default.post(`${url}/customers`, {
-                    name: patientData.name,
-                    cpfCnpj: docNum,
-                    notificationDisabled: true,
-                }, { headers: { access_token: key } });
-                customerId = customerRes.data.id;
-            }
+            customerId = await getOrCreateAsaasCustomer(url, key, patientData.name, docNum, patientId, "");
         }
         catch (err) {
             throw new Error("Erro cliente Asaas (Paciente): " + (((_l = (_k = (_j = (_h = err.response) === null || _h === void 0 ? void 0 : _h.data) === null || _j === void 0 ? void 0 : _j.errors) === null || _k === void 0 ? void 0 : _k[0]) === null || _l === void 0 ? void 0 : _l.description) || err.message));
@@ -671,7 +684,27 @@ exports.checkSubscriptionStatus = (0, https_1.onCall)(async (request) => {
         const asaasStatus = res.data.status;
         let status = "PENDING";
         if (asaasStatus === "ACTIVE") {
-            status = "ACTIVE";
+            try {
+                const paymentsRes = await axios_1.default.get(`${url}/payments?subscription=${subId}&limit=10`, { headers: { access_token: key } });
+                const payments = paymentsRes.data.data || [];
+                const hasOverdue = payments.some((p) => p.status === "OVERDUE");
+                const hasReceived = payments.some((p) => p.status === "RECEIVED" || p.status === "CONFIRMED");
+                const hasPending = payments.some((p) => p.status === "PENDING");
+                if (hasOverdue) {
+                    status = "OVERDUE";
+                }
+                else if (hasPending && !hasReceived) {
+                    // Subscription created, but first payment still pending
+                    status = "PENDING";
+                }
+                else {
+                    status = "ACTIVE";
+                }
+            }
+            catch (err) {
+                logger.warn("Erro ao buscar faturas na verificação:", err.message);
+                status = "ACTIVE"; // fallback if api fails
+            }
         }
         else if (asaasStatus === "EXPIRED" || asaasStatus === "OVERDUE") {
             status = "OVERDUE";
@@ -720,27 +753,11 @@ exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
         // Buscar ou Criar Customer
         let customerId = "";
         try {
-            const existing = await axios_1.default.get(`${url}/customers?cpfCnpj=${cleanCpfCnpj}`, { headers: { access_token: key } });
-            if (existing.data.data.length > 0) {
-                customerId = existing.data.data[0].id;
-                // Opcional: Atualizar dados para faturamento correto
-            }
-            else {
-                const custRes = await axios_1.default.post(`${url}/customers`, {
-                    name,
-                    email,
-                    cpfCnpj: cleanCpfCnpj,
-                    phone: phone,
-                    mobilePhone: phone,
-                    postalCode: cep,
-                    address: address,
-                    addressNumber: number,
-                    complement: complement,
-                    province: neighborhood,
-                    externalReference: orgId,
-                }, { headers: { access_token: key } });
-                customerId = custRes.data.id;
-            }
+            customerId = await getOrCreateAsaasCustomer(url, key, name, cleanCpfCnpj, orgId, email);
+            // Optional: Update with address/phone
+            await axios_1.default.post(`${url}/customers/${customerId}`, {
+                phone, mobilePhone: phone, postalCode: cep, address, addressNumber: number, complement, province: neighborhood
+            }, { headers: { access_token: key } });
         }
         catch (e) {
             throw new Error("Erro cliente Asaas: " + e.message);
@@ -755,8 +772,7 @@ exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
             value = (_b = planSnap.data()) === null || _b === void 0 ? void 0 : _b.price;
         }
         // Calcular data de vencimento da fatura com base no trial
-        const delay = 86400000 * 2;
-        let nextDue = new Date(Date.now() + delay).toISOString().split("T")[0];
+        let nextDue = new Date().toISOString().split("T")[0];
         if (orgSnap.exists) {
             const trialEndsAt = orgData.trialEndsAt;
             if (trialEndsAt) {
@@ -944,81 +960,82 @@ exports.createSupplierPayment = (0, https_1.onCall)(async (request) => {
         let customerId = "";
         try {
             const docNum = paymentData.cpfCnpj;
-            const searchRes = await axios_1.default.get(`${url}/customers?cpfCnpj=${docNum}`, {
-                headers: { access_token: key },
-            });
-            if (searchRes.data.data && searchRes.data.data.length > 0) {
-                customerId = searchRes.data.data[0].id;
-            }
-            else {
-                const customerRes = await axios_1.default.post(`${url}/customers`, {
-                    name: orderData.buyerOrgName || "Cliente",
-                    cpfCnpj: docNum,
-                    notificationDisabled: true,
-                }, { headers: { access_token: key } });
-                customerId = customerRes.data.id;
-            }
+            customerId = await getOrCreateAsaasCustomer(url, key, orderData.buyerOrgName || "Cliente", docNum, orderData.buyerOrgId, "");
         }
         catch (err) {
             throw new Error("Erro cliente Asaas: " + (((_h = (_g = (_f = (_e = err.response) === null || _e === void 0 ? void 0 : _e.data) === null || _f === void 0 ? void 0 : _f.errors) === null || _g === void 0 ? void 0 : _g[0]) === null || _h === void 0 ? void 0 : _h.description) || err.message));
         }
         const payload = {
             customer: customerId,
-            billingType: paymentData.method,
+            billingType: "UNDEFINED",
             value: orderData.totalValue,
             dueDate: new Date().toISOString().split("T")[0],
             description: `Pedido Loja Fornecedor - ${orderData.buyerOrgId}`,
         };
-        if (paymentData.method === "CREDIT_CARD" && paymentData.creditCard) {
-            payload.creditCard = {
-                holderName: paymentData.creditCard.holderName,
-                number: paymentData.creditCard.number,
-                expiryMonth: paymentData.creditCard.expiry.split("/")[0],
-                expiryYear: "20" + paymentData.creditCard.expiry.split("/")[1],
-                ccv: paymentData.creditCard.cvv
-            };
-            payload.creditCardHolderInfo = {
-                name: paymentData.creditCard.holderName,
-                email: "email@cliente.com",
-                cpfCnpj: paymentData.cpfCnpj,
-                postalCode: "01001-000",
-                addressNumber: "123",
-                phone: "11999999999"
-            };
-        }
         if (walletId && walletId.length > 10) {
             payload.split = [{ walletId, percentualValue: 100 - finalSplitPercent }];
         }
         const payRes = await axios_1.default.post(`${url}/payments`, payload, {
             headers: { access_token: key },
         });
-        let pixQrCode = null;
-        let pixCopyPaste = null;
-        if (paymentData.method === "PIX") {
-            try {
-                const pixRes = await axios_1.default.get(`${url}/payments/${payRes.data.id}/pixQrCode`, {
-                    headers: { access_token: key },
-                });
-                pixQrCode = pixRes.data.encodedImage;
-                pixCopyPaste = pixRes.data.payload;
-            }
-            catch (err) {
-                console.error("Erro ao buscar QR Code do PIX:", err.message);
-            }
-        }
-        const newOrderData = Object.assign(Object.assign({}, orderData), { asaasPaymentId: payRes.data.id, asaasInvoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, asaasPixCopyPaste: pixCopyPaste, paymentStatus: payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED' ? 'PAID' : 'PENDING' });
+        const newOrderData = Object.assign(Object.assign({}, orderData), { asaasPaymentId: payRes.data.id, asaasInvoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, paymentStatus: payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED' ? 'PAID' : 'PENDING' });
         await db.collection("supplierOrders").doc(orderData.id).set(newOrderData);
         return {
             success: true,
             paymentId: payRes.data.id,
-            invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl,
-            pixQrCode,
-            pixCopyPaste
+            invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl
         };
     }
     catch (error) {
         const msg = ((_m = (_l = (_k = (_j = error.response) === null || _j === void 0 ? void 0 : _j.data) === null || _k === void 0 ? void 0 : _k.errors) === null || _l === void 0 ? void 0 : _l[0]) === null || _m === void 0 ? void 0 : _m.description) || error.message;
         throw new https_1.HttpsError("internal", msg);
+    }
+});
+exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true }, async (req) => {
+    var _a;
+    const { originCep, destinationCep, items, frenetToken } = req.data;
+    if (!originCep || !destinationCep || !frenetToken) {
+        return { error: 'Missing CEP or Frenet Token.' };
+    }
+    // Calculate total weight and dimensions (approximate)
+    let totalWeight = 0;
+    let totalValue = 0;
+    items.forEach((item) => {
+        totalWeight += (item.weight || 0.5) * item.quantity;
+        totalValue += (item.price * item.quantity);
+    });
+    const payload = {
+        SellerCEP: originCep.replace(/\D/g, ''),
+        RecipientCEP: destinationCep.replace(/\D/g, ''),
+        ShipmentInvoiceValue: totalValue,
+        ShippingItemArray: items.map((item) => ({
+            Height: item.height || 10,
+            Length: item.length || 20,
+            Quantity: item.quantity,
+            Weight: item.weight || 0.5,
+            Width: item.width || 15,
+            SKU: item.id,
+            Category: "Produtos Odontológicos"
+        })),
+        RecipientCountry: "BR"
+    };
+    try {
+        const response = await axios_1.default.post('https://api.frenet.com.br/shipping/quote', payload, {
+            headers: {
+                'token': frenetToken,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (response.data && response.data.ShippingSevicesArray) {
+            return { services: response.data.ShippingSevicesArray };
+        }
+        else {
+            return { services: [] };
+        }
+    }
+    catch (error) {
+        logger.error("Erro Frenet:", ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        throw new https_1.HttpsError('internal', 'Erro ao calcular frete na Frenet.');
     }
 });
 //# sourceMappingURL=index.js.map

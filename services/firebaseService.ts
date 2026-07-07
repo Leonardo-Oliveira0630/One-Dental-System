@@ -700,7 +700,9 @@ export const apiCreateSaaSSubscription = async (orgId: string, planId: string, e
 };
 export const apiCreateLabSubAccount = async (payload: any) => {
     const fn = httpsCallable(functions, 'createLabSubAccount');
-    return (await fn(payload)).data;
+    const result = (await fn(payload)).data as any;
+  if (result?.error) throw new Error(result.error);
+  return result;
 };
 export const apiGetSaaSInvoices = async (orgId: string) => {
     const fn = httpsCallable(functions, 'getSaaSInvoices');
@@ -1326,5 +1328,7 @@ export const apiCalculateFrenetShipping = async (payload: {
   frenetToken: string;
 }) => {
   const fn = httpsCallable(functions, 'calculateFrenetShipping');
-  return (await fn(payload)).data;
+  const result = (await fn(payload)).data as any;
+  if (result?.error) throw new Error(result.error);
+  return result;
 };

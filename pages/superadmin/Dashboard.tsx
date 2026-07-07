@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Building, Crown, Users, Ticket, ArrowRight, Activity, Calendar, Settings, Percent, Save, Loader2, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MarketplaceBannersAdmin } from './MarketplaceBannersAdmin';
+import { MarketplaceCategoriesAdmin } from './MarketplaceCategoriesAdmin';
 
 export const SuperAdminDashboard = () => {
     const { allOrganizations, allPlans, allUsers, coupons, globalSettings, updateGlobalSettings } = useApp();
@@ -185,6 +186,9 @@ export const SuperAdminDashboard = () => {
 
             {/* Marketplace Banners Configuration */}
             <MarketplaceBannersAdmin />
+
+            {/* Marketplace Categories Configuration */}
+            <MarketplaceCategoriesAdmin />
 
             {/* Subscribers Table */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
