@@ -546,13 +546,15 @@ export const SupplierStore = () => {
   }, [cart, appliedCoupon, selectedShippingService]);
 
   useEffect(() => {
-    if (address.zipCode && address.zipCode.length >= 8 && currentOrg?.frenetToken) {
-      handleQuoteShipping(address.zipCode);
+    const firstSupplierId = cart.length > 0 ? cart[0].product.organizationId : null;
+    const supplier = firstSupplierId ? allSuppliers.find(s => s.id === firstSupplierId) : null;
+    
+    if (address.zipCode && address.zipCode.length >= 8 && supplier?.frenetToken) {
+      handleQuoteShipping(address.zipCode, supplier.frenetToken, supplier.cep || '01001000');
     }
-  }, [address.zipCode, cart]);
+  }, [address.zipCode, cart, allSuppliers]);
 
-  const handleQuoteShipping = async (cep: string) => {
-    if (!currentOrg?.frenetToken) return;
+  const handleQuoteShipping = async (cep: string, token: string, originCep: string) => {
     setIsQuotingShipping(true);
     setShippingQuotes([]);
     setSelectedShippingService(null);
@@ -567,10 +569,10 @@ export const SupplierStore = () => {
         length: 20
       }));
       const res = await api.apiCalculateFrenetShipping({
-        originCep: '01001000', // Should be supplier CEP but hardcoding for now, or use currentOrg.cep if exists
+        originCep,
         destinationCep: cep,
         items,
-        frenetToken: currentOrg.frenetToken
+        frenetToken: token
       });
       if (res && res.services) {
         setShippingQuotes(res.services.filter((s: any) => !s.Error));
@@ -1651,7 +1653,7 @@ export const SupplierStore = () => {
               <div className="space-y-3 mb-4">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Opções de Frete</label>
                 
-                {currentOrg?.frenetToken ? (
+                {(cart.length > 0 && allSuppliers.find(s => s.id === cart[0].product.organizationId)?.frenetToken) ? (
                   <div className="space-y-2">
                     {isQuotingShipping ? (
                       <div className="p-4 text-center text-slate-500 text-sm animate-pulse border border-slate-200 rounded-xl bg-slate-50">
