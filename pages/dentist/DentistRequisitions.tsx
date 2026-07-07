@@ -863,7 +863,7 @@ export const DentistRequisitions = () => {
                 }`}
               >
                 <Package size={14} />
-                Solicitações ({onlineRequisitions ? onlineRequisitions.filter(r => r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId).length : 0})
+                Solicitações ({onlineRequisitions ? onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status !== 'ACCEPTED').length : 0})
               </button>
               <button
                 type="button"
@@ -882,13 +882,13 @@ export const DentistRequisitions = () => {
 
           <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
             {rightTab === 'REQS' ? (
-              (!onlineRequisitions || onlineRequisitions.filter(r => r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId).length === 0) ? (
+              (!onlineRequisitions || onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status !== 'ACCEPTED').length === 0) ? (
                 <div className="p-12 text-center text-slate-400 italic text-xs">
                   Nenhuma requisição enviada recentemente por você.
                 </div>
               ) : (
                 onlineRequisitions
-                  .filter(r => r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId)
+                  .filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status !== 'ACCEPTED')
                   .map(req => {
                     const linkedJob = (jobs || []).find(j => j.id === req.acceptedAsJobId || j.osNumber === 'REQ-' + req.id.substring(0, 5).toUpperCase());
                     
