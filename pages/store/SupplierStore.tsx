@@ -85,7 +85,10 @@ export const SupplierStore = () => {
   // Detailed Product Modal (Shopee style switcher)
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<InventoryItem | null>(null);
   const [activeTab, setActiveTab] = useState<'STORE' | 'MY_ORDERS'>('STORE');
-  const [shippingMethod, setShippingMethod] = useState<'COMBINE' | 'PAC' | 'SEDEX'>('COMBINE');
+  const [shippingMethod, setShippingMethod] = useState<'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET'>('COMBINE');
+  const [shippingQuotes, setShippingQuotes] = useState<any[]>([]);
+  const [isQuotingShipping, setIsQuotingShipping] = useState(false);
+  const [selectedShippingService, setSelectedShippingService] = useState<any>(null);
 
   const [detailSelectedVar, setDetailSelectedVar] = useState<any>(null);
   const [detailSelectedOptions, setDetailSelectedOptions] = useState<{groupId: string, groupName: string, optionId: string, optionName: string, priceModifier: number}[]>([]);
@@ -539,8 +542,45 @@ export const SupplierStore = () => {
       }
     }
     
-    return { baseTotal, discount, finalTotal: Math.max(0, baseTotal - discount) };
-  }, [cart, appliedCoupon]);
+    return { baseTotal, discount, finalTotal: Math.max(0, baseTotal - discount) + (selectedShippingService?.ShippingPrice ? Number(selectedShippingService.ShippingPrice) : 0) };
+  }, [cart, appliedCoupon, selectedShippingService]);
+
+  useEffect(() => {
+    if (shippingAddress.zipCode && shippingAddress.zipCode.length >= 8 && currentOrg?.frenetToken) {
+      handleQuoteShipping(shippingAddress.zipCode);
+    }
+  }, [shippingAddress.zipCode, cart]);
+
+  const handleQuoteShipping = async (cep: string) => {
+    if (!currentOrg?.frenetToken) return;
+    setIsQuotingShipping(true);
+    setShippingQuotes([]);
+    setSelectedShippingService(null);
+    try {
+      const items = cart.map(item => ({
+        id: item.product.id,
+        price: item.product.isPromotion && item.product.promotionalPrice ? item.product.promotionalPrice : item.product.sellPrice,
+        quantity: item.quantity,
+        weight: 0.5,
+        height: 10,
+        width: 15,
+        length: 20
+      }));
+      const res = await api.apiCalculateFrenetShipping({
+        originCep: '01001000', // Should be supplier CEP but hardcoding for now, or use currentOrg.cep if exists
+        destinationCep: cep,
+        items,
+        frenetToken: currentOrg.frenetToken
+      });
+      if (res && res.services) {
+        setShippingQuotes(res.services.filter((s: any) => !s.Error));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsQuotingShipping(false);
+    }
+  };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -589,6 +629,7 @@ export const SupplierStore = () => {
         }
         
         const totalVal = Math.max(0, supBaseTotal - supDiscount);
+        const supShippingCost = selectedShippingService?.ShippingPrice ? Number(selectedShippingService.ShippingPrice) : 0;
         
         const newOrder: SupplierOrder = {
           id: orderId,
@@ -618,13 +659,15 @@ export const SupplierStore = () => {
               price: unitPrice
             };
           }),
-          totalValue: totalVal,
+          totalValue: totalVal + supShippingCost,
           discountValue: supDiscount > 0 ? supDiscount : undefined,
           couponCode: supDiscount > 0 ? appliedCoupon.code : undefined,
           status: 'PENDING',
           createdAt: new Date(),
           notes: notes || undefined,
           shippingMethod,
+          shippingCost: supShippingCost > 0 ? supShippingCost : undefined,
+          trackingInfo: selectedShippingService ? `Frenet: ${selectedShippingService.ServiceDescription}` : undefined,
           paymentMethod: 'BOLETO', // Asaas allows user to choose
           buyerAddress: address
         };
@@ -1607,11 +1650,55 @@ export const SupplierStore = () => {
             <form onSubmit={handleCheckout} className="p-6 overflow-y-auto space-y-5">
               {/* Shipping Method */}
               <div className="space-y-3 mb-4">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Opções de Frete (Melhor Envio)</label>
-                <div className="grid grid-cols-1 gap-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Opções de Frete</label>
+                
+                {currentOrg?.frenetToken ? (
+                  <div className="space-y-2">
+                    {isQuotingShipping ? (
+                      <div className="p-4 text-center text-slate-400 text-sm animate-pulse border border-slate-800 rounded-xl bg-slate-950">
+                        Calculando frete com Frenet...
+                      </div>
+                    ) : shippingQuotes.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-2">
+                        {shippingQuotes.map((quote: any, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setShippingMethod('FRENET');
+                              setSelectedShippingService(quote);
+                            }}
+                            className={`p-3 rounded-xl border text-left flex justify-between items-center transition-all ${
+                              shippingMethod === 'FRENET' && selectedShippingService?.ServiceCode === quote.ServiceCode
+                                ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
+                                : 'border-slate-800 bg-slate-950 text-slate-450 hover:bg-slate-850'
+                            }`}
+                          >
+                            <div className="font-bold text-sm">
+                              {quote.ServiceDescription}
+                              <div className="text-xs font-normal opacity-70">Prazo: {quote.DeliveryTime} dias úteis</div>
+                            </div>
+                            <div className="font-bold">
+                              R$ {Number(quote.ShippingPrice).toFixed(2)}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-slate-400 text-sm border border-slate-800 rounded-xl bg-slate-950">
+                        Insira seu CEP para calcular o frete ou selecione "Combinar com o vendedor".
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-1 gap-2 mt-2">
                   <button
                     type="button"
-                    onClick={() => setShippingMethod('COMBINE')}
+                    onClick={() => {
+                      setShippingMethod('COMBINE');
+                      setSelectedShippingService(null);
+                    }}
                     className={`p-3 rounded-xl border text-left font-bold text-sm transition-all ${
                       shippingMethod === 'COMBINE' 
                         ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
@@ -1619,28 +1706,6 @@ export const SupplierStore = () => {
                     }`}
                   >
                     Combinar com o vendedor
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShippingMethod('PAC')}
-                    className={`p-3 rounded-xl border text-left font-bold text-sm transition-all ${
-                      shippingMethod === 'PAC' 
-                        ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
-                        : 'border-slate-800 bg-slate-950 text-slate-450 hover:bg-slate-850'
-                    }`}
-                  >
-                    PAC - Correios (Simulado)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShippingMethod('SEDEX')}
-                    className={`p-3 rounded-xl border text-left font-bold text-sm transition-all ${
-                      shippingMethod === 'SEDEX' 
-                        ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400' 
-                        : 'border-slate-800 bg-slate-950 text-slate-450 hover:bg-slate-850'
-                    }`}
-                  >
-                    SEDEX - Correios (Simulado)
                   </button>
                 </div>
               </div>

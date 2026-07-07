@@ -32,8 +32,9 @@ export const SupplierSettings = () => {
   const [blockCategoryId, setBlockCategoryId] = useState('');
   const [blockProductIds, setBlockProductIds] = useState<string[]>([]);
 
-  // Asaas Integrations & Financials State
+  // Asaas & Frenet Integrations State
   const [asaasWalletId, setAsaasWalletId] = useState('');
+  const [frenetToken, setFrenetToken] = useState('');
   const [pixKey, setPixKey] = useState('');
   const [bankInfo, setBankInfo] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -59,6 +60,7 @@ export const SupplierSettings = () => {
 
       const fin = currentOrg.financialSettings || {};
       setAsaasWalletId(fin.asaasWalletId || '');
+      setFrenetToken(currentOrg.frenetToken || '');
       setPixKey(fin.pixKey || '');
       setBankInfo(fin.bankInfo || '');
       setInstructions(fin.instructions || '');
@@ -217,7 +219,8 @@ export const SupplierSettings = () => {
         instructions
       };
       await updateOrganization(currentOrg.id, {
-        financialSettings: updatedFin
+        financialSettings: updatedFin,
+        frenetToken
       });
       alert('Configurações Financeiras e Asaas salvas com sucesso!');
     } catch (err) {
@@ -844,6 +847,18 @@ export const SupplierSettings = () => {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 font-mono placeholder-slate-700"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">ID da conta fornecido pelo Administrador ou localizado em sua conta comercial Asaas.</p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Token Frenet (Cotação de Frete)</label>
+                <input
+                  type="text"
+                  placeholder="Token da API da Frenet"
+                  value={frenetToken}
+                  onChange={e => setFrenetToken(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 font-mono placeholder-slate-700"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">Crie sua conta na Frenet, gere o token e cole aqui para habilitar as opções de frete no checkout.</p>
               </div>
 
               <div>

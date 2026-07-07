@@ -39,6 +39,16 @@ export const SupplierDashboard = () => {
     }
   };
 
+  const handleUpdateTracking = async (orderId: string, code: string) => {
+    try {
+      await updateSupplierOrder(orderId, { trackingCode: code });
+      alert(`Código de rastreio atualizado com sucesso!`);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao atualizar rastreio.');
+    }
+  };
+
   return (
     <main id="supplier-dashboard" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-950 text-slate-100 min-h-screen">
       {/* Welcome Banner */}
@@ -331,6 +341,46 @@ export const SupplierDashboard = () => {
                     <p className="text-xs font-mono text-slate-500">
                       CEP: {selectedOrder.buyerAddress.zipCode}
                     </p>
+                  </div>
+                  
+                  <div className="pt-3 border-t border-slate-800 space-y-2 mt-3">
+                    <p className="text-xs">
+                      <span className="font-bold text-slate-400">Método de Envio: </span>
+                      {selectedOrder.shippingMethod === 'FRENET' ? 'Frenet' : selectedOrder.shippingMethod}
+                    </p>
+                    {selectedOrder.shippingCost && (
+                      <p className="text-xs">
+                        <span className="font-bold text-slate-400">Custo do Frete: </span>
+                        R$ {selectedOrder.shippingCost.toFixed(2)}
+                      </p>
+                    )}
+                    {selectedOrder.trackingInfo && (
+                      <p className="text-xs">
+                        <span className="font-bold text-slate-400">Serviço Frenet: </span>
+                        {selectedOrder.trackingInfo}
+                      </p>
+                    )}
+                    
+                    <div className="pt-2">
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Código de Rastreio</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="EX: QA123456789BR"
+                          value={selectedOrder.trackingCode || ''}
+                          onChange={(e) => {
+                            setSelectedOrder({...selectedOrder, trackingCode: e.target.value});
+                          }}
+                          className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                        />
+                        <button
+                          onClick={() => handleUpdateTracking(selectedOrder.id, selectedOrder.trackingCode || '')}
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 text-white rounded-lg text-xs font-bold transition-all"
+                        >
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

@@ -1118,3 +1118,53 @@ export const createSupplierPayment = onCall(async (request: any) => {
     throw new HttpsError("internal", msg);
   }
 });
+
+export const calculateFrenetShipping = onCall(async (req: any) => {
+  const { originCep, destinationCep, items, frenetToken } = req.data;
+  
+  if (!originCep || !destinationCep || !frenetToken) {
+    throw new HttpsError('invalid-argument', 'Missing CEP or Frenet Token.');
+  }
+
+  // Calculate total weight and dimensions (approximate)
+  let totalWeight = 0;
+  let totalValue = 0;
+  items.forEach((item: any) => {
+    totalWeight += (item.weight || 0.5) * item.quantity;
+    totalValue += (item.price * item.quantity);
+  });
+
+  const payload = {
+    SellerCEP: originCep.replace(/\D/g, ''),
+    RecipientCEP: destinationCep.replace(/\D/g, ''),
+    ShipmentInvoiceValue: totalValue,
+    ShippingItemArray: items.map((item: any) => ({
+      Height: item.height || 10,
+      Length: item.length || 20,
+      Quantity: item.quantity,
+      Weight: item.weight || 0.5,
+      Width: item.width || 15,
+      SKU: item.id,
+      Category: "Produtos Odontológicos"
+    })),
+    RecipientCountry: "BR"
+  };
+
+  try {
+    const response = await axios.post('https://api.frenet.com.br/shipping/quote', payload, {
+      headers: {
+        'token': frenetToken,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.data && response.data.ShippingSevicesArray) {
+      return { services: response.data.ShippingSevicesArray };
+    } else {
+      return { services: [] };
+    }
+  } catch (error: any) {
+    logger.error("Erro Frenet:", error.response?.data || error.message);
+    throw new HttpsError('internal', 'Erro ao calcular frete na Frenet.');
+  }
+});

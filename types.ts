@@ -85,6 +85,7 @@ export interface Organization {
   createdAt: Date;
   orgType?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
   asaasApiKey?: string;
+  frenetToken?: string;
   ratingAverage?: number;
   ratingCount?: number;
   storeSettings?: StoreSettings;
@@ -976,9 +977,10 @@ export interface SupplierOrder {
     state?: string;
     zipCode?: string;
   };
-  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX';
+  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET';
   shippingCost?: number;
   trackingCode?: string;
+  trackingInfo?: string;
   chat?: {
     senderId: string;
     senderName: string;

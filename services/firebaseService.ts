@@ -1318,3 +1318,13 @@ export const subscribeOrderReviews = (orderId: string, cb: (reviews: import('../
         cb(list);
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeOrderReviews: ${error.code}`));
 };
+
+export const apiCalculateFrenetShipping = async (payload: {
+  originCep: string;
+  destinationCep: string;
+  items: any[];
+  frenetToken: string;
+}) => {
+  const fn = httpsCallable(functions, 'calculateFrenetShipping');
+  return (await fn(payload)).data;
+};
