@@ -468,6 +468,7 @@ export interface JobType {
   promotionQuantity?: number;
   promotionCallText?: string;
   originalJobTypeId?: string;
+  isVoucherCombo?: boolean;
 }
 
 export interface ClinicService {
@@ -1020,4 +1021,20 @@ export interface SupplierCoupon {
   usedCount: number;
   active: boolean;
   applicableProductIds?: string[];
+}
+export interface Voucher {
+  id: string;
+  code: string;
+  organizationId: string; // The lab that sold it
+  clientId: string; // The dentist/clinic user ID or org ID
+  clientName: string;
+  jobTypeId: string; // The original service ID
+  jobTypeName: string; // The original service name
+  promotionName: string; // The combo name
+  initialQuantity: number;
+  remainingQuantity: number;
+  status: 'PENDING_PAYMENT' | 'ACTIVE' | 'EXHAUSTED';
+  orderId: string; // The job ID that created this
+  createdAt: Date;
+  updatedAt?: Date;
 }

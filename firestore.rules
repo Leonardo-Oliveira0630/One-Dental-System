@@ -76,6 +76,9 @@ service cloud.firestore {
       allow update: if isSuperAdmin() || (belongsToOrg(orgId) && (isAdmin() || getUserData().get('role', 'USER') == 'CLIENT'));
       allow delete: if isSuperAdmin();
       
+      match /vouchers/{voucherId} {
+        allow read, write: if isAuthenticated();
+      }
       match /jobs/{jobId} {
         allow read: if isAuthenticated() && (
           isSuperAdmin() || 

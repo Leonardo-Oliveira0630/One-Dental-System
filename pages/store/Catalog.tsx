@@ -1151,6 +1151,9 @@ export const Catalog = () => {
                                         <div className="absolute bottom-4 left-4 right-4 text-white">
                                             <h3 className="font-bold text-lg leading-tight mb-1">{promo.name}</h3>
                                             <span className="text-xs bg-white/20 backdrop-blur-md px-2 py-1 rounded-full font-medium">{promo.category}</span>
+                                            {promo.isVoucherCombo && (
+                                                <span className="text-xs bg-indigo-500/80 backdrop-blur-md px-2 py-1 rounded-full font-medium ml-2 border border-indigo-400">Pacote de Vouchers</span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="p-5 flex flex-col flex-1">

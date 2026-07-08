@@ -32,9 +32,52 @@ export const Cart = () => {
   const [copied, setCopied] = useState(false);
 
   const [couponCode, setCouponCode] = useState('');
+  const [voucherCode, setVoucherCode] = useState('');
+  const [appliedVouchers, setAppliedVouchers] = useState<any[]>([]);
+  const [myVouchers, setMyVouchers] = useState<any[]>([]);
+  const [voucherStatus, setVoucherStatus] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' });
+  const [validatingVoucher, setValidatingVoucher] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [couponStatus, setCouponStatus] = useState<{ text: string; type: 'success' | 'error' | '' }>({ text: '', type: '' });
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim() || !activeOrganization) return;
+    setValidatingVoucher(true);
+    setVoucherStatus({ text: '', type: '' });
+    try {
+      const v = await api.apiGetVoucherByCode(activeOrganization.id, voucherCode.trim().toUpperCase());
+      if (v) {
+        if (v.remainingQuantity <= 0) {
+            setVoucherStatus({ text: 'Voucher sem saldo.', type: 'error' });
+            return;
+        }
+        if (appliedVouchers.find(av => av.id === v.id)) {
+            setVoucherStatus({ text: 'Voucher já aplicado.', type: 'error' });
+            return;
+        }
+        // Verify if voucher jobTypeId matches any cart item
+        const matchingItem = cart.find(c => c.jobType.id === v.jobTypeId || c.jobType.originalJobTypeId === v.jobTypeId);
+        if (!matchingItem) {
+            setVoucherStatus({ text: 'O voucher não se aplica aos serviços do carrinho.', type: 'error' });
+            return;
+        }
+        setAppliedVouchers(prev => [...prev, v]);
+        setVoucherCode('');
+        setVoucherStatus({ text: `Voucher aplicado com sucesso! Saldo: ${v.remainingQuantity}`, type: 'success' });
+      } else {
+        setVoucherStatus({ text: 'Voucher não encontrado ou inativo.', type: 'error' });
+      }
+    } catch (err) {
+      setVoucherStatus({ text: 'Erro ao validar voucher.', type: 'error' });
+    } finally {
+      setValidatingVoucher(false);
+    }
+  };
+
+  const removeVoucher = (vid: string) => {
+    setAppliedVouchers(prev => prev.filter(v => v.id !== vid));
+  };
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim() || !activeOrganization) return;
@@ -130,10 +173,12 @@ export const Cart = () => {
         setCompressionStatus("Finalizando pagamento...");
         const jobData = {
             organizationId: activeOrganization.id, 
-            patientName, 
+            patientName: patientName || 'Compra de Pacote/Voucher', 
             dentistId: currentUser.id, 
             dentistName: currentUser.name, 
             urgency: UrgencyLevel.NORMAL,
+            status: JobStatus.WAITING_APPROVAL,
+            origin: 'ONLINE_ORDER',
             items: cart.map(c => ({ 
                 id: `item_${c.cartItemId}`, 
                 jobTypeId: c.jobType.id, 
@@ -141,17 +186,20 @@ export const Cart = () => {
                 quantity: c.quantity, 
                 price: c.unitPrice, 
                 selectedVariationIds: c.selectedVariationIds, 
-                variationValues: c.variationValues 
+                variationValues: c.variationValues,
+                originalJobTypeId: c.jobType.originalJobTypeId
             })),
-            history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual (Otimizado)', userId: currentUser.id, userName: currentUser.name }],
+            history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual', userId: currentUser.id, userName: currentUser.name }],
             attachments: uploadedAttachments, 
             createdAt: new Date(), 
             sectorEntryTime: new Date(),
-            dueDate: new Date(date), 
+            dueDate: date ? new Date(date) : new Date(), 
             totalValue: finalTotal, 
             notes,
             couponCode: appliedCoupon ? appliedCoupon.code : undefined,
-            discountValue: discountAmount > 0 ? discountAmount : undefined
+            discountValue: discountAmount > 0 ? discountAmount : undefined,
+            isComboPurchase: onlyVouchers,
+            vouchersUsed: appliedVouchers.map(v => v.id)
         };
 
         const paymentData = {
@@ -350,7 +398,9 @@ export const Cart = () => {
         <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">Detalhes do Envio</h2>
         <form onSubmit={handleCheckout} className="space-y-4">
             <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700">Paciente</label>
+                {!cart.every(item => item.jobType.isVoucherCombo) && (
+                    <>
+                    <label className="block text-sm font-medium text-slate-700">Paciente</label>
                 {patients && patients.length > 0 ? (
                     <div className="space-y-2">
                         <select 
@@ -400,7 +450,11 @@ export const Cart = () => {
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm uppercase" 
                     />
                 )}
+                </>
+                )}
             </div>
+            {!cart.every(item => item.jobType.isVoucherCombo) && (
+            <>
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Data Desejada</label><input required type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg" /></div>
             
             <div>
@@ -420,7 +474,64 @@ export const Cart = () => {
                     </div>
                 )}
             </div>
+            </>
+            )}
 
+            {/* Vouchers Section */}
+            {!cart.every(item => item.jobType.isVoucherCombo) && (
+            <div className="pt-4 border-t border-slate-100 mt-4 space-y-3">
+                <label className="block text-xs font-black uppercase text-indigo-600 tracking-wider flex items-center gap-1.5">
+                    <Sparkles size={14} className="text-indigo-500" /> Voucher de Serviços
+                </label>
+                <div className="flex gap-2">
+                    <input 
+                        type="text"
+                        disabled={validatingVoucher}
+                        placeholder="Código do Voucher (Pacote)"
+                        value={voucherCode}
+                        onChange={e => setVoucherCode(e.target.value.toUpperCase())}
+                        className="flex-1 px-4 py-2 border border-slate-200 rounded-xl uppercase font-bold tracking-widest text-xs focus:ring-2 focus:ring-indigo-500 outline-none bg-slate-50/50"
+                    />
+                    <button 
+                        type="button" 
+                        onClick={handleApplyVoucher}
+                        disabled={!voucherCode.trim() || validatingVoucher}
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black disabled:opacity-50 tracking-wider transition-all"
+                    >
+                        {validatingVoucher ? 'Validando...' : 'Adicionar'}
+                    </button>
+                </div>
+                {voucherStatus.text && (
+                    <p className={`text-xs font-bold ${voucherStatus.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>{voucherStatus.text}</p>
+                )}
+                {myVouchers.length > 0 && (
+                    <div className="mt-2 text-xs flex flex-wrap gap-2">
+                        {myVouchers.filter(mv => !appliedVouchers.find(av => av.id === mv.id)).map(v => (
+                            <button 
+                                key={v.id} 
+                                type="button"
+                                onClick={() => { setVoucherCode(v.code); setVoucherStatus({text:'', type:''}) }}
+                                className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg font-bold hover:bg-indigo-100 transition-colors"
+                            >
+                                {v.promotionName} (Restam: {v.remainingQuantity})
+                            </button>
+                        ))}
+                    </div>
+                )}
+                
+                {appliedVouchers.length > 0 && (
+                    <div className="space-y-2 mt-2">
+                        {appliedVouchers.map(v => (
+                            <div key={v.id} className="flex justify-between items-center bg-green-50 text-green-800 p-2 rounded-lg text-xs font-bold border border-green-200">
+                                <span>Voucher {v.code} ({v.jobTypeName})</span>
+                                <button type="button" onClick={() => removeVoucher(v.id)} className="text-green-600 hover:text-red-500"><X size={14} /></button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+            )}
+            
             {/* Coupon Section */}
             <div className="pt-4 border-t border-slate-100 mt-4 space-y-3">
                 <label className="block text-xs font-black uppercase text-indigo-600 tracking-wider flex items-center gap-1.5">

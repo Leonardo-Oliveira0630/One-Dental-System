@@ -453,7 +453,7 @@ exports.createLabSubAccount = (0, https_1.onCall)(async (request) => {
  * CRIA PAGAMENTO PARA PEDIDO DA LOJA VIRTUAL (CARTÃO/PIX)
  */
 exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
     const { jobData, paymentData } = request.data;
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Não logado.");
@@ -488,6 +488,56 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
         }
         catch (err) {
             throw new Error("Erro cliente Asaas: " + (((_l = (_k = (_j = (_h = err.response) === null || _h === void 0 ? void 0 : _h.data) === null || _j === void 0 ? void 0 : _j.errors) === null || _k === void 0 ? void 0 : _k[0]) === null || _l === void 0 ? void 0 : _l.description) || err.message));
+        }
+        // Process Vouchers (if any)
+        if (jobData.vouchersUsed && jobData.vouchersUsed.length > 0) {
+            // Simplistic deduction: we just mark the voucher as used.
+            // A full implementation would calculate how much of the voucher was consumed.
+            // We will deduct the consumed amount based on the cart quantities.
+            const vQties = {};
+            const vRefs = {};
+            for (const vId of jobData.vouchersUsed) {
+                const vRef = db.collection("organizations").doc(jobData.organizationId).collection("vouchers").doc(vId);
+                const snap = await vRef.get();
+                if (snap.exists) {
+                    vQties[vId] = ((_m = snap.data()) === null || _m === void 0 ? void 0 : _m.remainingQuantity) || 0;
+                    vRefs[vId] = vRef;
+                }
+            }
+            const writeBatch = db.batch();
+            for (const item of jobData.items) {
+                const itemTypeIds = [item.jobTypeId, item.originalJobTypeId];
+                let qtyToCover = item.quantity;
+                for (const vId of jobData.vouchersUsed) {
+                    const snap = await vRefs[vId].get();
+                    if (snap.exists && itemTypeIds.includes(snap.data().jobTypeId) && vQties[vId] > 0 && qtyToCover > 0) {
+                        const coveredQty = Math.min(vQties[vId], qtyToCover);
+                        vQties[vId] -= coveredQty;
+                        qtyToCover -= coveredQty;
+                    }
+                }
+            }
+            for (const vId of jobData.vouchersUsed) {
+                if (vRefs[vId]) {
+                    writeBatch.update(vRefs[vId], {
+                        remainingQuantity: vQties[vId],
+                        status: vQties[vId] <= 0 ? 'EXHAUSTED' : 'ACTIVE',
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+            }
+            await writeBatch.commit();
+        }
+        // If totalValue is 0 (e.g. fully paid by vouchers or 100% discount)
+        if (jobData.totalValue === 0) {
+            const newJobId = `web_${Date.now()}`;
+            const newJobData = Object.assign(Object.assign({}, jobData), { id: newJobId, paymentStatus: 'PAID' });
+            await db.collection("organizations")
+                .doc(jobData.organizationId)
+                .collection("jobs")
+                .doc(newJobId)
+                .set(newJobData);
+            return { success: true, paymentId: 'voucher_paid', invoiceUrl: '', pixQrCode: null, pixCopyPaste: null };
         }
         const payload = {
             customer: customerId,
@@ -543,7 +593,7 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
         return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, pixQrCode, pixCopyPaste };
     }
     catch (error) {
-        const msg = ((_q = (_p = (_o = (_m = error.response) === null || _m === void 0 ? void 0 : _m.data) === null || _o === void 0 ? void 0 : _o.errors) === null || _p === void 0 ? void 0 : _p[0]) === null || _q === void 0 ? void 0 : _q.description) || error.message;
+        const msg = ((_r = (_q = (_p = (_o = error.response) === null || _o === void 0 ? void 0 : _o.data) === null || _p === void 0 ? void 0 : _p.errors) === null || _q === void 0 ? void 0 : _q[0]) === null || _r === void 0 ? void 0 : _r.description) || error.message;
         throw new https_1.HttpsError("internal", msg);
     }
 });
@@ -848,7 +898,7 @@ exports.getSaaSInvoices = (0, https_1.onCall)(async (request) => {
     }
 });
 exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g;
     const db = admin.firestore();
     try {
         // Validar Asaas-Access-Token do Webhook
@@ -907,9 +957,50 @@ exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
                     await orgDoc.ref.update({ subscriptionStatus: "ACTIVE" });
                 }
             }
+            // CHECK IF IT IS A STORE JOB (ONLINE ORDER)
+            if ((_e = event.payment) === null || _e === void 0 ? void 0 : _e.id) {
+                const jobsSnap = await db.collectionGroup("jobs").where("asaasPaymentId", "==", event.payment.id).get();
+                if (!jobsSnap.empty) {
+                    const jobDoc = jobsSnap.docs[0];
+                    const jobData = jobDoc.data();
+                    if (jobData.paymentStatus !== "PAID") {
+                        await jobDoc.ref.update({ paymentStatus: "PAID" });
+                    }
+                    // GENERATE VOUCHERS IF COMBO
+                    if (jobData.isComboPurchase && !jobData.vouchersGenerated) {
+                        const writeBatch = db.batch();
+                        jobData.items.forEach((item, idx) => {
+                            // If it's a voucher combo, generate a voucher for this item
+                            const voucherId = `voucher_${Date.now()}_${idx}`;
+                            const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+                            const voucherRef = db.collection("organizations")
+                                .doc(jobData.organizationId)
+                                .collection("vouchers")
+                                .doc(voucherId);
+                            writeBatch.set(voucherRef, {
+                                id: voucherId,
+                                code,
+                                organizationId: jobData.organizationId,
+                                clientId: jobData.dentistUserId || jobData.dentistId,
+                                clientName: jobData.dentistName,
+                                jobTypeId: item.originalJobTypeId || item.jobTypeId,
+                                jobTypeName: item.name, // We'll keep the combo name here, or fetch original
+                                promotionName: item.name,
+                                initialQuantity: item.quantity,
+                                remainingQuantity: item.quantity,
+                                status: 'ACTIVE',
+                                orderId: jobDoc.id,
+                                createdAt: admin.firestore.FieldValue.serverTimestamp()
+                            });
+                        });
+                        writeBatch.update(jobDoc.ref, { vouchersGenerated: true });
+                        await writeBatch.commit();
+                    }
+                }
+            }
         }
         else if (isOverdue) {
-            if (customerId && ((_e = event.payment) === null || _e === void 0 ? void 0 : _e.subscription)) {
+            if (customerId && ((_f = event.payment) === null || _f === void 0 ? void 0 : _f.subscription)) {
                 // SaaS Subscription overdue
                 const orgsSnapshot = await db.collection("organizations")
                     .where("asaasCustomerId", "==", customerId).get();
@@ -920,7 +1011,7 @@ exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
             }
         }
         else if (isCancelled) {
-            if (customerId && ((_f = event.payment) === null || _f === void 0 ? void 0 : _f.subscription)) {
+            if (customerId && ((_g = event.payment) === null || _g === void 0 ? void 0 : _g.subscription)) {
                 // SaaS Subscription cancelled
                 const orgsSnapshot = await db.collection("organizations")
                     .where("asaasCustomerId", "==", customerId).get();

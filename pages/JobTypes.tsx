@@ -42,6 +42,7 @@ export const JobTypes = () => {
   const [mainTab, setMainTab] = useState<'SERVICES' | 'PROMOTIONS'>('SERVICES');
   const [isPromotion, setIsPromotion] = useState(false);
   const [promotionQuantity, setPromotionQuantity] = useState<number | ''>('');
+  const [isVoucherCombo, setIsVoucherCombo] = useState(true);
   const [promotionCallText, setPromotionCallText] = useState('');
   const [originalJobTypeId, setOriginalJobTypeId] = useState('');
 
@@ -61,6 +62,7 @@ export const JobTypes = () => {
     setIsPromotion(mainTab === 'PROMOTIONS');
     setPromotionQuantity('');
     setPromotionCallText('');
+    setIsVoucherCombo(true);
     setOriginalJobTypeId('');
     setIsEditing(false);
     setEditingId(null);
@@ -113,13 +115,13 @@ export const JobTypes = () => {
           await updateJobType(editingId, { 
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups, 
               isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
-              isPromotion, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId
+              isPromotion, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo
           });
       } else {
           const newType: Omit<JobType, 'id'> = {
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups,
               isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
-              isPromotion, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId
+              isPromotion, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo
           };
           await addJobType(newType);
       }
@@ -334,6 +336,25 @@ export const JobTypes = () => {
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
                                     {mainTab === 'PROMOTIONS' && (
+                                        <>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Promoção</label>
+                                            <div className="flex gap-4">
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input type="radio" checked={isVoucherCombo} onChange={() => setIsVoucherCombo(true)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                                                    <span className="text-sm text-slate-700">Pacote/Combo (Gera Voucher)</span>
+                                                </label>
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input type="radio" checked={!isVoucherCombo} onChange={() => setIsVoucherCombo(false)} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+                                                    <span className="text-sm text-slate-700">Unitário (Desconto Direto)</span>
+                                                </label>
+                                            </div>
+                                            {isVoucherCombo && (
+                                                <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-2 rounded border border-slate-200">
+                                                    O cliente comprará o pacote e receberá um voucher com a quantidade definida para resgatar em pedidos futuros sem precisar enviar paciente ou STL agora.
+                                                </p>
+                                            )}
+                                        </div>
                                         <div>
                                             <label className="block text-sm font-bold text-slate-700 mb-1">Serviço Original</label>
                                             <select value={originalJobTypeId} onChange={e => setOriginalJobTypeId(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
@@ -343,6 +364,7 @@ export const JobTypes = () => {
                                                 ))}
                                             </select>
                                         </div>
+                                        </>
                                     )}
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-1">{mainTab === 'PROMOTIONS' ? 'Nome do Pacote' : 'Nome do Serviço'}</label>
@@ -354,10 +376,12 @@ export const JobTypes = () => {
                                     </div>
                                     {mainTab === 'PROMOTIONS' && (
                                         <>
-                                            <div>
-                                                <label className="block text-sm font-bold text-slate-700 mb-1">Quantidade do Pacote</label>
-                                                <input type="number" min="1" value={promotionQuantity} onChange={e => setPromotionQuantity(e.target.value === '' ? '' : parseInt(e.target.value))} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: 10"/>
-                                            </div>
+                                            {isVoucherCombo && (
+                                                <div>
+                                                    <label className="block text-sm font-bold text-slate-700 mb-1">Quantidade do Pacote</label>
+                                                    <input type="number" min="1" value={promotionQuantity} onChange={e => setPromotionQuantity(e.target.value === '' ? '' : parseInt(e.target.value))} required={isVoucherCombo} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: 10"/>
+                                                </div>
+                                            )}
                                             <div>
                                                 <label className="block text-sm font-bold text-slate-700 mb-1">Texto de Chamada</label>
                                                 <input value={promotionCallText} onChange={e => setPromotionCallText(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Aproveite o combo promocional!"/>

@@ -1332,3 +1332,17 @@ export const apiCalculateFrenetShipping = async (payload: {
   if (result?.error) throw new Error(result.error);
   return result;
 };
+
+export const apiGetVoucherByCode = async (orgId: string, code: string) => {
+    const q = query(collection(db, 'organizations', orgId, 'vouchers'), where('code', '==', code), where('status', '==', 'ACTIVE'));
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+    const doc = snap.docs[0];
+    return { id: doc.id, ...doc.data() } as any;
+};
+
+export const apiGetMyVouchers = async (orgId: string, clientId: string) => {
+    const q = query(collection(db, 'organizations', orgId, 'vouchers'), where('clientId', '==', clientId), where('status', '==', 'ACTIVE'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+};

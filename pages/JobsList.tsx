@@ -314,6 +314,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
 
   const filteredJobs = useMemo(() => {
     return combinedJobs.filter(job => {
+        if (job.isComboPurchase) return false;
         if (isClient && 
             job.dentistId !== currentUser?.id && 
             job.dentistId !== currentUser?.manualDentistId && 

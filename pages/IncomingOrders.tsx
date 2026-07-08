@@ -33,7 +33,7 @@ export const IncomingOrders = () => {
       return <div className="p-8 text-center text-slate-500 font-bold uppercase tracking-widest">Acesso Negado</div>;
   }
 
-  const incoming = jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL);
+  const incoming = jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL && !j.isComboPurchase);
 
   // Approval Modal State
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
