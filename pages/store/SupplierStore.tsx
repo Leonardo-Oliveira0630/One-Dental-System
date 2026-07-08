@@ -269,6 +269,7 @@ export const SupplierStore = () => {
 
   // Shopee Search / Algorithm scoring logic
   // Matches terms, scores them, favors richer items (combos, items with variations, rating)
+const isPromo = (jt: any) => jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
   const rankedProducts = useMemo(() => {
     const raw = (allSupplierProducts || []).filter(p => p.isVisibleInStore !== false);
     
@@ -514,7 +515,7 @@ export const SupplierStore = () => {
 
     const cartTotals = useMemo(() => {
     const baseTotal = cart.reduce((total, item) => {
-      const basePrice = (item.product.isPromotion && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
+      const basePrice = (isPromo(item.product) && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
       const price = basePrice 
         + (item.variation?.priceModifier || 0)
         + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
@@ -527,7 +528,7 @@ export const SupplierStore = () => {
         // Calculate discount only on applicable items
         const applicableTotal = cart.reduce((total, item) => {
           if (appliedCoupon.applicableProductIds.includes(item.product.id)) {
-            const basePrice = (item.product.isPromotion && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
+            const basePrice = (isPromo(item.product) && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
             const price = basePrice + (item.variation?.priceModifier || 0) + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
             return total + (price * item.quantity);
           }
@@ -563,7 +564,7 @@ export const SupplierStore = () => {
     try {
       const items = cart.map(item => ({
         id: item.product.id,
-        price: item.product.isPromotion && item.product.promotionalPrice ? item.product.promotionalPrice : item.product.sellPrice,
+        price: isPromo(item.product) && item.product.promotionalPrice ? item.product.promotionalPrice : item.product.sellPrice,
         quantity: item.quantity,
         weight: 0.5,
         height: 10,
@@ -867,7 +868,7 @@ export const SupplierStore = () => {
                       {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}
                     </div>
                     <h3 className="font-bold text-sm">{p.name}</h3>
-                    <p className="font-mono font-bold text-emerald-600 mt-1">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
+                    <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                   </div>
                 ))}
               </div>
@@ -896,7 +897,7 @@ export const SupplierStore = () => {
                       {p.imageUrl && <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />}
                     </div>
                     <h3 className="font-bold text-sm">{p.name}</h3>
-                    <p className="font-mono font-bold text-emerald-600 mt-1">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
+                    <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                   </div>
                 ))}
               </div>
@@ -1103,7 +1104,7 @@ export const SupplierStore = () => {
                         <div>
                           <p className="font-bold text-xs truncate text-slate-250 leading-tight">{p.name}</p>
                           <div className="flex justify-between items-center pt-2">
-                            <span className="text-[#EE4D2D] font-bold font-mono text-sm">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
+                            <span className="text-[#EE4D2D] font-bold font-mono text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
                             <span className="text-[9px] text-[#EE4D2D] bg-[#EE4D2D]/10 px-1 rounded">Ver</span>
                           </div>
                         </div>
@@ -1138,7 +1139,7 @@ export const SupplierStore = () => {
                             <p className="text-slate-500 text-xs line-clamp-2 h-8 mt-1">{p.description || 'Nenhuma descrição...'}</p>
                           </div>
                           <div className="pt-2 border-t border-slate-200 flex items-center justify-between font-mono">
-                            <span className="text-[#EE4D2D] font-bold text-sm">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
+                            <span className="text-[#EE4D2D] font-bold text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
                             <span className="text-[10px] text-slate-500">Estoque: {p.currentStock || 0}</span>
                           </div>
                         </div>
@@ -1159,7 +1160,7 @@ export const SupplierStore = () => {
                           <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"/>
                         </div>
                         <p className="font-bold text-xs truncate mt-2">{p.name}</p>
-                        <p className="text-[#EE4D2D] font-bold text-xs mt-1 font-mono">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
+                        <p className="text-[#EE4D2D] font-bold text-xs mt-1 font-mono">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                       </div>
                     ))}
                   </div>
@@ -1181,7 +1182,7 @@ export const SupplierStore = () => {
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-[#EE4D2D] font-bold font-mono text-sm">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
+                          <p className="text-[#EE4D2D] font-bold font-mono text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                           <span className="text-[9px] text-[#EE4D2D] bg-[#EE4D2D]/10 px-1.5 py-0.5 rounded font-bold uppercase">Ver Opções</span>
                         </div>
                       </div>
@@ -1269,7 +1270,7 @@ export const SupplierStore = () => {
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                       <div>
                         <p className="text-[9px] font-mono text-slate-500">VALOR UNITÁRIO</p>
-                        <p className="text-base font-bold font-mono text-emerald-600">{p.isPromotion ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
+                        <p className="text-base font-bold font-mono text-emerald-600">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                       </div>
                       <div>
                         {p.currentStock && p.currentStock <= p.minStock ? (
@@ -1327,7 +1328,7 @@ export const SupplierStore = () => {
               ) : (
                 <div className="space-y-4">
                   {cart.map(item => {
-                    const unitPrice = ((item.product.isPromotion && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice) 
+                    const unitPrice = ((isPromo(item.product) && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice) 
                       + (item.variation?.priceModifier || 0)
                       + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
                     return (
@@ -1594,7 +1595,7 @@ export const SupplierStore = () => {
                       <p className="text-[9px] text-slate-500 font-mono">PREÇO CONFIGURADO</p>
                       <p className="text-2xl font-bold font-mono text-emerald-600">
                         R$ {(
-                          ((selectedItemForDetail.isPromotion && selectedItemForDetail.promotionalPrice) ? selectedItemForDetail.promotionalPrice : selectedItemForDetail.sellPrice) 
+                          ((isPromo(selectedItemForDetail) && selectedItemForDetail.promotionalPrice) ? selectedItemForDetail.promotionalPrice : selectedItemForDetail.sellPrice) 
                           + (detailSelectedVar?.priceModifier || 0)
                           + detailSelectedOptions.reduce((sum, opt) => sum + opt.priceModifier, 0)
                         ).toFixed(2)}

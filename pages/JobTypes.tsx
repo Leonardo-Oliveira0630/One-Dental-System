@@ -241,7 +241,7 @@ export const JobTypes = () => {
         <div className="space-y-4 lg:col-span-1 order-2 lg:order-1">
             <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">{mainTab === 'PROMOTIONS' ? 'Promoções' : 'Serviços'} Cadastrados</h3>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-                {jobTypes.filter(type => mainTab === 'PROMOTIONS' ? type.isPromotion : !type.isPromotion).map(type => (
+                {jobTypes.filter(type => mainTab === 'PROMOTIONS' ? isPromo(type) : !isPromo(type)).map(type => (
                     <div 
                         key={type.id} 
                         onClick={() => handleEdit(type)}
