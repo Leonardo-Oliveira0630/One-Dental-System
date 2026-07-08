@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building, ShieldCheck, QrCode, CheckCircle, Copy, Check, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { smartCompress } from '../../services/compressionService';
 import { StoreTopMenu } from '../../components/StoreTopMenu';
 
 export const Cart = () => {
-  const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, clearCart, validateLabCoupon, updateLabCoupon, patients } = useApp();
+  const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, currentOrg, clearCart, validateLabCoupon, updateLabCoupon, patients } = useApp();
   const navigate = useNavigate();
   
   const [patientName, setPatientName] = useState('');
@@ -23,6 +23,16 @@ export const Cart = () => {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
   const [cpfCnpj, setCpfCnpj] = useState('');
+
+  useEffect(() => {
+    if (currentOrg?.cpfCnpj) {
+      setCpfCnpj(currentOrg.cpfCnpj);
+    } else if (currentOrg?.financialSettings?.techResponsibleCpf) {
+      setCpfCnpj(currentOrg.financialSettings.techResponsibleCpf);
+    } else if (currentUser?.cpfCnpj) {
+      setCpfCnpj(currentUser.cpfCnpj);
+    }
+  }, [currentOrg, currentUser]);
   
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);

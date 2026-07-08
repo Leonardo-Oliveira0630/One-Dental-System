@@ -84,6 +84,7 @@ export interface Organization {
   trialEndsAt?: Date;
   createdAt: Date;
   orgType?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
+  cpfCnpj?: string;
   asaasApiKey?: string;
   frenetToken?: string;
   ratingAverage?: number;

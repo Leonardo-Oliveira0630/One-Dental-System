@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
+import { searchCEP } from '../../services/addressService';
 
 export const ClinicSettings = () => {
   const { currentOrg, currentPlan, allPlans, updateOrganization, validateCoupon, currentUser, getSaaSInvoices } = useApp();
@@ -14,6 +15,34 @@ export const ClinicSettings = () => {
 
   const [activeTab, setActiveTab] = useState<'INFO' | 'SUBSCRIPTION'>('SUBSCRIPTION');
   const [clinicName, setClinicName] = useState(currentOrg?.name || '');
+  
+  // Custom states for clinic faturamento and address
+  const [adminName, setAdminName] = useState(currentOrg?.financialSettings?.techResponsibleName || currentUser?.name || '');
+  const [cpfCnpj, setCpfCnpj] = useState(currentOrg?.cpfCnpj || currentOrg?.financialSettings?.techResponsibleCpf || '');
+  const [cep, setCep] = useState(currentOrg?.cep || '');
+  const [address, setAddress] = useState(currentOrg?.address || '');
+  const [number, setNumber] = useState(currentOrg?.number || '');
+  const [complement, setComplement] = useState(currentOrg?.complement || '');
+  const [neighborhood, setNeighborhood] = useState(currentOrg?.neighborhood || '');
+  const [city, setCity] = useState(currentOrg?.city || '');
+  const [state, setState] = useState(currentOrg?.state || '');
+  const [loadingCep, setLoadingCep] = useState(false);
+
+  // Sync with currentOrg updates
+  useEffect(() => {
+    if (currentOrg) {
+      setClinicName(currentOrg.name || '');
+      setAdminName(currentOrg.financialSettings?.techResponsibleName || currentUser?.name || '');
+      setCpfCnpj(currentOrg.cpfCnpj || currentOrg.financialSettings?.techResponsibleCpf || '');
+      setCep(currentOrg.cep || '');
+      setAddress(currentOrg.address || '');
+      setNumber(currentOrg.number || '');
+      setComplement(currentOrg.complement || '');
+      setNeighborhood(currentOrg.neighborhood || '');
+      setCity(currentOrg.city || '');
+      setState(currentOrg.state || '');
+    }
+  }, [currentOrg, currentUser]);
   
   // Subscription State
   const [upgradeCoupon, setUpgradeCoupon] = useState('');
@@ -52,11 +81,54 @@ export const ClinicSettings = () => {
      }
   }, [currentOrg?.id, isFreePlan]);
 
+  const handleCepChange = async (val: string) => {
+    setCep(val);
+    const cleanCep = val.replace(/\D/g, '');
+    if (cleanCep.length === 8) {
+      setLoadingCep(true);
+      try {
+        const res = await searchCEP(cleanCep);
+        if (res) {
+          setAddress(res.address || '');
+          setNeighborhood(res.neighborhood || '');
+          setCity(res.city || '');
+          setState(res.state || '');
+        }
+      } catch (err) {
+        console.error("Erro ao buscar CEP:", err);
+      } finally {
+        setLoadingCep(false);
+      }
+    }
+  };
+
   const handleSaveInfo = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!currentOrg) return;
-      await updateOrganization(currentOrg.id, { name: clinicName });
-      alert("Dados atualizados com sucesso!");
+
+      const updates = {
+          name: clinicName,
+          cpfCnpj: cpfCnpj.replace(/\D/g, ''),
+          cep: cep.replace(/\D/g, ''),
+          address,
+          number,
+          complement,
+          neighborhood,
+          city,
+          state,
+          financialSettings: {
+              ...(currentOrg.financialSettings || {}),
+              techResponsibleName: adminName,
+              techResponsibleCpf: cpfCnpj.replace(/\D/g, '')
+          }
+      };
+
+      try {
+          await updateOrganization(currentOrg.id, updates);
+          alert("Dados da clínica atualizados com sucesso!");
+      } catch (err) {
+          alert("Erro ao salvar dados.");
+      }
   };
 
   const handleValidateUpgradeCoupon = async () => {
@@ -106,22 +178,77 @@ export const ClinicSettings = () => {
 
       {/* INFO CONTENT */}
       {activeTab === 'INFO' && (
-        <div className="animate-in fade-in slide-in-from-left-4 duration-300">
+        <div className="animate-in fade-in slide-in-from-left-4 duration-300 space-y-6">
              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                     <Building size={20} className="text-teal-500" /> Dados Gerais
-                 </h3>
                  <form onSubmit={handleSaveInfo} className="space-y-6">
+                     {/* Seção 1: Dados Gerais */}
                      <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Nome da Clínica</label>
-                         <input value={clinicName} onChange={e => setClinicName(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none" />
+                         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                             <Building size={20} className="text-teal-500" /> Dados Gerais e Faturamento
+                         </h3>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nome da Clínica</label>
+                                 <input required value={clinicName} onChange={e => setClinicName(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="Nome da Clínica" />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nome do Administrador</label>
+                                 <input required value={adminName} onChange={e => setAdminName(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="Nome do Admin / Responsável" />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CPF ou CNPJ para Faturamento</label>
+                                 <input required value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800 font-mono" placeholder="000.000.000-00 ou 00.000.000/0000-00" />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">ID do Usuário Admin</label>
+                                 <input value={currentUser?.id} disabled className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl text-slate-400 font-mono text-sm" />
+                             </div>
+                         </div>
                      </div>
-                     <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">ID do Usuário Admin</label>
-                         <input value={currentUser?.id} disabled className="w-full px-4 py-3 border border-slate-200 bg-slate-50 rounded-xl text-slate-500 font-mono text-sm" />
+
+                     {/* Seção 2: Endereço de Entrega */}
+                     <div className="pt-6 border-t border-slate-100">
+                         <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                             <CheckCircle size={20} className="text-teal-500" /> Endereço para Entrega
+                         </h3>
+                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                     CEP {loadingCep && <RefreshCw size={12} className="animate-spin text-teal-600" />}
+                                 </label>
+                                 <input required value={cep} onChange={e => handleCepChange(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800 font-mono" placeholder="00000-000" />
+                             </div>
+                             <div className="md:col-span-2">
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Logradouro / Endereço</label>
+                                 <input required value={address} onChange={e => setAddress(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="Rua, Av, Praça..." />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Número</label>
+                                 <input required value={number} onChange={e => setNumber(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="123" />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Complemento</label>
+                                 <input value={complement} onChange={e => setComplement(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="Apto, Sala, Bloco..." />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Bairro</label>
+                                 <input required value={neighborhood} onChange={e => setNeighborhood(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="Bairro" />
+                             </div>
+                             <div className="md:col-span-2">
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cidade</label>
+                                 <input required value={city} onChange={e => setCity(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="Cidade" />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Estado (UF)</label>
+                                 <input required maxLength={2} value={state} onChange={e => setState(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800 uppercase" placeholder="SP" />
+                             </div>
+                         </div>
                      </div>
-                     <div className="pt-4 border-t border-slate-100 flex justify-end">
-                         <button type="submit" className="px-8 py-3 bg-teal-600 text-white font-bold rounded-xl hover:bg-teal-700 shadow-lg">Salvar Alterações</button>
+
+                     <div className="pt-6 border-t border-slate-100 flex justify-end">
+                         <button type="submit" className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2">
+                             <Save size={18} /> Salvar Alterações
+                         </button>
                      </div>
                  </form>
              </div>

@@ -513,7 +513,7 @@ export const createOrderPayment = onCall(async (request: any) => {
     let customerId = "";
     try {
       const docNum = paymentData.cpfCnpj;
-      customerId = await getOrCreateAsaasCustomer(url, key, jobData.dentistName || "Cliente Loja", docNum, jobData.organizationId, "");
+      customerId = await getOrCreateAsaasCustomer(url, key, jobData.dentistName || "Cliente Loja", docNum, jobData.dentistId || "", "");
     } catch (err: any) {
       throw new Error("Erro cliente Asaas: " + (err.response?.data?.errors?.[0]?.description || err.message));
     }
