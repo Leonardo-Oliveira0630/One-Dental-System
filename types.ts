@@ -464,6 +464,10 @@ export interface JobType {
   isVisibleInternally?: boolean;
   imageUrl?: string;
   allowedSectors?: string[];
+  isPromotion?: boolean;
+  promotionQuantity?: number;
+  promotionCallText?: string;
+  originalJobTypeId?: string;
 }
 
 export interface ClinicService {

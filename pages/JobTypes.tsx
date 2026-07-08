@@ -39,6 +39,11 @@ export const JobTypes = () => {
   const [previewUrl, setPreviewUrl] = useState('');
   const [allowedSectors, setAllowedSectors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [mainTab, setMainTab] = useState<'SERVICES' | 'PROMOTIONS'>('SERVICES');
+  const [isPromotion, setIsPromotion] = useState(false);
+  const [promotionQuantity, setPromotionQuantity] = useState<number | ''>('');
+  const [promotionCallText, setPromotionCallText] = useState('');
+  const [originalJobTypeId, setOriginalJobTypeId] = useState('');
 
   const resetForm = () => {
     setName('');
@@ -53,6 +58,10 @@ export const JobTypes = () => {
     setImageFile(null);
     setPreviewUrl('');
     setAllowedSectors([]);
+    setIsPromotion(mainTab === 'PROMOTIONS');
+    setPromotionQuantity('');
+    setPromotionCallText('');
+    setOriginalJobTypeId('');
     setIsEditing(false);
     setEditingId(null);
     setActiveTab('BASIC');
@@ -300,29 +309,89 @@ export const JobTypes = () => {
                         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                              <div className="flex justify-between items-center">
                                 <h2 className="text-xl font-bold text-slate-800">
-                                    {isEditing ? `Editando: ${name}` : 'Novo Tipo de Trabalho'}
+                                    {isEditing ? `Editando: ${name}` : (mainTab === 'PROMOTIONS' ? 'Nova Promoção' : 'Novo Serviço')}
                                 </h2>
                              </div>
                              
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
+                                    {mainTab === 'PROMOTIONS' && (
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 mb-1">Serviço Original</label>
+                                            <select value={originalJobTypeId} onChange={e => setOriginalJobTypeId(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                                                <option value="">Selecione um Serviço...</option>
+                                                {jobTypes.filter(jt => !jt.isPromotion).map(jt => (
+                                                    <option key={jt.id} value={jt.id}>{jt.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Nome do Serviço</label>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">{mainTab === 'PROMOTIONS' ? 'Nome do Pacote' : 'Nome do Serviço'}</label>
                                         <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-1">Categoria</label>
                                         <input value={category} onChange={e => setCategory(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Prótese Fixa"/>
                                     </div>
+                                    {mainTab === 'PROMOTIONS' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm font-bold text-slate-700 mb-1">Quantidade do Pacote</label>
+                                                <input type="number" min="1" value={promotionQuantity} onChange={e => setPromotionQuantity(e.target.value === '' ? '' : parseInt(e.target.value))} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: 10"/>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-bold text-slate-700 mb-1">Texto de Chamada</label>
+                                                <input value={promotionCallText} onChange={e => setPromotionCallText(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ex: Aproveite o combo promocional!"/>
+                                            </div>
+                                        </>
+                                    )}
                                     <div>
-                                        <label className="block text-sm font-bold text-slate-700 mb-1">Preço Base (R$)</label>
-                                        <input type="number" step="0.01" value={basePrice} onChange={e => setBasePrice(parseFloat(e.target.value))} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
+                                        <label className="block text-sm font-bold text-slate-700 mb-1">{mainTab === 'PROMOTIONS' ? 'Preço Promocional (R$)' : 'Preço Base (R$)'}</label>
+                                        <div className="flex flex-col gap-2">
+                                            {mainTab === 'PROMOTIONS' && originalJobTypeId && promotionQuantity && (
+                                                <div className="flex items-center gap-2">
+                                                    <input 
+                                                        type="number" 
+                                                        placeholder="% de desconto" 
+                                                        className="w-1/3 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                                                        onChange={(e) => {
+                                                            const val = parseFloat(e.target.value);
+                                                            if (!isNaN(val)) {
+                                                                const original = jobTypes.find(jt => jt.id === originalJobTypeId);
+                                                                if (original) {
+                                                                    const total = original.basePrice * Number(promotionQuantity);
+                                                                    setBasePrice(total - (total * (val / 100)));
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <span className="text-xs text-slate-500 flex-1">
+                                                        (Opcional) Digite a % para calcular o R$ abaixo
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="relative">
+                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">R$</div>
+                                                <input type="number" step="0.01" value={basePrice} onChange={e => setBasePrice(parseFloat(e.target.value))} required className="w-full pl-8 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+                                            </div>
+                                        </div>
+                                        {mainTab === 'PROMOTIONS' && originalJobTypeId && promotionQuantity && (
+                                            <div className="mt-2 text-xs font-medium text-slate-500 bg-slate-50 p-2 rounded-lg border border-slate-200 flex justify-between">
+                                                <span>Valor original total: R$ {((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity) || 0).toFixed(2)}</span>
+                                                {jobTypes.find(jt => jt.id === originalJobTypeId) && basePrice < ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity)) && (
+                                                    <span className="text-green-600 font-bold">-{Math.round(((((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 0) * Number(promotionQuantity)) - basePrice) / ((jobTypes.find(jt => jt.id === originalJobTypeId)?.basePrice || 1) * Number(promotionQuantity))) * 100)}% off</span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
+                                    {mainTab === 'SERVICES' && (
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-1">Valor Base de Comissão (R$)</label>
                                         <input type="number" step="0.01" value={baseCommission} onChange={e => setBaseCommission(e.target.value === '' ? '' : parseFloat(e.target.value))} placeholder="Ex: 5.00" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
                                         <p className="text-xs text-slate-500 mt-1">Usado caso o colaborador não tenha valor fixo na aba Ganhos.</p>
                                     </div>
+                                    )}
                                 </div>
 
                                 {/* Store Configuration */}

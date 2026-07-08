@@ -598,7 +598,7 @@ export const Catalog = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [term, setTerm] = useState('');
-    const [mainTab, setMainTab] = useState<'STORE' | 'PARTNERSHIPS' | 'MY_ORDERS' | 'CART'>('STORE');
+    const [mainTab, setMainTab] = useState<'STORE' | 'PROMOTIONS' | 'PARTNERSHIPS' | 'MY_ORDERS' | 'CART'>('STORE');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
     const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
@@ -797,6 +797,12 @@ export const Catalog = () => {
                         Loja Online
                     </button>
                     <button
+                        onClick={() => setMainTab('PROMOTIONS')}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'PROMOTIONS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                    >
+                        Promoções
+                    </button>
+                    <button
                         onClick={() => setMainTab('PARTNERSHIPS')}
                         className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'PARTNERSHIPS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
                     >
@@ -836,6 +842,113 @@ export const Catalog = () => {
                 </div>
             )}
 
+
+            {mainTab === 'PROMOTIONS' && (
+                !selectedLab ? (
+                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-8 bg-slate-50 animate-in fade-in duration-500">
+                        <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
+                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
+                                <Building size={40} />
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tighter">Ops! Laboratório ausente.</h2>
+                            <p className="text-slate-500 mb-8 font-medium">
+                                Parece que você ainda não selecionou qual laboratório deseja visitar hoje.
+                            </p>
+                            <button onClick={() => setMainTab('PARTNERSHIPS')}
+                                className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full">
+                                EXPLORAR LABORATÓRIOS
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex-1 p-4 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto bg-slate-50">
+                        {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} onClose={() => setConfiguringProduct(null)} />}
+                        
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Promoções Especiais</h2>
+                        </div>
+
+                        {promotions.length === 0 ? (
+                            <div className="text-center py-20">
+                                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+                                    <Tag size={40} />
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-800 mb-2">Nenhuma Promoção Ativa</h3>
+                                <p className="text-slate-500">Este laboratório ainda não cadastrou pacotes promocionais.</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                                {promotions.map(promo => {
+                                    const { price, isCustom } = getPrice(promo);
+                                    const original = allProducts.find(t => t.id === promo.originalJobTypeId);
+                                    const originalTotal = original ? original.basePrice * (promo.promotionQuantity || 1) : 0;
+                                    const savings = originalTotal > price ? originalTotal - price : 0;
+                                    const discountPercent = originalTotal > 0 ? Math.round((savings / originalTotal) * 100) : 0;
+
+                                    return (
+                                        <div key={promo.id} className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group flex flex-col relative">
+                                            {discountPercent > 0 && (
+                                                <div className="absolute top-4 right-4 bg-red-500 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg z-20 flex items-center gap-1">
+                                                    <BadgePercent size={14} /> -{discountPercent}%
+                                                </div>
+                                            )}
+                                            <div className="h-48 bg-slate-50 flex items-center justify-center relative overflow-hidden">
+                                                {promo.imageUrl ? (
+                                                    <img src={promo.imageUrl} alt={promo.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                ) : (
+                                                    <Tag size={80} className="relative z-10 text-slate-200 group-hover:text-indigo-400 transition-colors duration-300" />
+                                                )}
+                                                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-slate-600 uppercase tracking-widest z-20 border border-white/50">{promo.category}</div>
+                                            </div>
+                                            
+                                            <div className="p-8 flex flex-col flex-1">
+                                                <div className="mb-4">
+                                                    <h3 className="font-black text-slate-900 text-xl tracking-tight leading-tight group-hover:text-indigo-600 transition-colors">{promo.name}</h3>
+                                                    {promo.promotionCallText && (
+                                                        <p className="text-sm text-slate-500 mt-2 font-medium bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
+                                                            {promo.promotionCallText}
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {promo.promotionQuantity && (
+                                                    <div className="mb-6 flex items-center gap-2 text-sm font-bold text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                                        <Package size={18} className="text-indigo-500" />
+                                                        <span>Pacote com {promo.promotionQuantity} unidades</span>
+                                                    </div>
+                                                )}
+
+                                                <div className="pt-6 border-t border-slate-100 mt-auto">
+                                                    <div className="flex justify-between items-end">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Valor Promocional</span>
+                                                            <div className="flex items-baseline gap-2">
+                                                                {isPriceVisible ? (
+                                                                    <>
+                                                                        <span className="font-black text-3xl tracking-tighter text-slate-900">R$ {price.toFixed(2)}</span>
+                                                                        {originalTotal > 0 && <span className="text-xs text-slate-300 line-through">R$ {originalTotal.toFixed(2)}</span>}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-1.5 text-xs font-black text-amber-600 bg-amber-50 px-3 py-1.5 border border-amber-100/50 rounded-xl leading-tight">
+                                                                        <Lock size={14} /> Registrar para ver preço
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleConfigureProduct(promo)} className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-700 transition-all active:scale-90 shadow-xl shadow-indigo-200">
+                                                            <ShoppingCart size={20} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )
+            )}
             {mainTab === 'CART' && (
                 <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50 animate-in fade-in">
                     <Cart />
