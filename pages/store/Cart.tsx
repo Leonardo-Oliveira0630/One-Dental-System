@@ -33,6 +33,17 @@ export const Cart = () => {
       setCpfCnpj(currentUser.cpfCnpj);
     }
   }, [currentOrg, currentUser]);
+
+  useEffect(() => {
+    if (activeOrganization?.id && currentUser?.id) {
+      api.apiGetMyVouchers(activeOrganization.id, currentUser.id)
+        .then(res => {
+          setMyVouchers(res || []);
+        })
+        .catch(err => console.error("Erro ao carregar vouchers:", err));
+    }
+  }, [activeOrganization, currentUser]);
+
   
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -108,18 +119,93 @@ export const Cart = () => {
     }
   };
 
+  // Calculate voucher coverage and discount
+  const voucherDiscountAmount = useMemo(() => {
+    if (appliedVouchers.length === 0) return 0;
+    
+    // Copy applied vouchers to track remaining quantities
+    const balanceMap: Record<string, number> = {};
+    appliedVouchers.forEach(v => {
+      balanceMap[v.id] = v.remainingQuantity;
+    });
+
+    let discountTotal = 0;
+
+    cart.forEach(item => {
+      const itemTypeIds = [item.jobType.id, item.jobType.originalJobTypeId].filter(Boolean);
+      let remainingQtyToCover = item.quantity;
+      let coveredQty = 0;
+
+      for (const v of appliedVouchers) {
+        if (itemTypeIds.includes(v.jobTypeId)) {
+          const available = balanceMap[v.id] || 0;
+          if (available > 0 && remainingQtyToCover > 0) {
+            const cover = Math.min(available, remainingQtyToCover);
+            balanceMap[v.id] -= cover;
+            remainingQtyToCover -= cover;
+            coveredQty += cover;
+          }
+        }
+      }
+
+      discountTotal += coveredQty * item.unitPrice;
+    });
+
+    return discountTotal;
+  }, [appliedVouchers, cart]);
+
   const originalTotal = cart.reduce((acc, item) => acc + item.finalPrice, 0);
+
+  const subtotalAfterVouchers = Math.max(0, originalTotal - voucherDiscountAmount);
 
   const discountAmount = useMemo(() => {
     if (!appliedCoupon) return 0;
     if (appliedCoupon.discountType === 'PERCENTAGE') {
-      return originalTotal * (appliedCoupon.discountValue / 100);
+      return subtotalAfterVouchers * (appliedCoupon.discountValue / 100);
     } else {
-      return appliedCoupon.discountValue;
+      return Math.min(subtotalAfterVouchers, appliedCoupon.discountValue);
     }
-  }, [appliedCoupon, originalTotal]);
+  }, [appliedCoupon, subtotalAfterVouchers]);
 
-  const finalTotal = Math.max(0, originalTotal - discountAmount);
+  const finalTotal = Math.max(0, subtotalAfterVouchers - discountAmount);
+
+  const getItemVoucherDiscount = (item: any) => {
+    if (appliedVouchers.length === 0) return { coveredQty: 0, discount: 0 };
+    
+    const balanceMap: Record<string, number> = {};
+    appliedVouchers.forEach(v => {
+      balanceMap[v.id] = v.remainingQuantity;
+    });
+
+    let discount = 0;
+    let totalCovered = 0;
+
+    for (const cartItem of cart) {
+      const itemTypeIds = [cartItem.jobType.id, cartItem.jobType.originalJobTypeId].filter(Boolean);
+      let remainingQtyToCover = cartItem.quantity;
+      let coveredQty = 0;
+
+      for (const v of appliedVouchers) {
+        if (itemTypeIds.includes(v.jobTypeId)) {
+          const available = balanceMap[v.id] || 0;
+          if (available > 0 && remainingQtyToCover > 0) {
+            const cover = Math.min(available, remainingQtyToCover);
+            balanceMap[v.id] -= cover;
+            remainingQtyToCover -= cover;
+            coveredQty += cover;
+          }
+        }
+      }
+
+      if (cartItem.cartItemId === item.cartItemId) {
+        discount = coveredQty * cartItem.unitPrice;
+        totalCovered = coveredQty;
+        break;
+      }
+    }
+
+    return { coveredQty: totalCovered, discount };
+  };
 
   if (!activeOrganization) {
     return (
@@ -149,6 +235,22 @@ export const Cart = () => {
 
   const isPromo = (jt: any) => jt.isPromotion === true || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
   const onlyVouchers = cart.length > 0 && cart.every(item => isPromo(item.jobType));
+
+  useEffect(() => {
+    if (successData) {
+      if (onlyVouchers) {
+        const timer = setTimeout(() => {
+          navigate('/store?tab=vouchers');
+        }, 4000);
+        return () => clearTimeout(timer);
+      } else if (successData.paymentId === 'voucher_paid') {
+        const timer = setTimeout(() => {
+          navigate('/store?tab=my_orders');
+        }, 4000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [successData, onlyVouchers, navigate]);
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,13 +423,33 @@ export const Cart = () => {
   };
 
   if (successData) {
+      const isVoucherPaidOrder = successData.paymentId === 'voucher_paid';
       return (
           <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
               <StoreTopMenu />
               <div className="flex-1 p-4 md:p-8 flex flex-col items-center justify-center min-h-[60vh] text-center animate-in zoom-in duration-300">
                   <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6"><CheckCircle size={40} className="text-green-600" /></div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Pedido Enviado com Sucesso!</h2>
-              <p className="text-slate-500 mb-8 max-w-md">Seu pedido foi registrado. Aguarde a aprovação do laboratório para iniciar a produção.</p>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                  {isVoucherPaidOrder ? "Pedido Realizado com Sucesso!" : "Pedido Enviado com Sucesso!"}
+              </h2>
+              <p className="text-slate-500 mb-8 max-w-md">
+                  {isVoucherPaidOrder 
+                    ? "Seu pedido foi totalmente pago com saldo de voucher e enviado ao laboratório." 
+                    : "Seu pedido foi registrado. Aguarde a aprovação do laboratório para iniciar a produção."}
+              </p>
+              
+              {/* Redirect indicator */}
+              {onlyVouchers && (
+                  <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl max-w-sm mx-auto animate-pulse">
+                      <p className="text-xs font-bold text-indigo-700">Redirecionando você para a aba de Vouchers em instantes...</p>
+                  </div>
+              )}
+              {isVoucherPaidOrder && !onlyVouchers && (
+                  <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-2xl max-w-sm mx-auto animate-pulse">
+                      <p className="text-xs font-bold text-green-700">Redirecionando você para a aba de Pedidos em instantes...</p>
+                  </div>
+              )}
+
               {paymentMethod === 'PIX' && successData.pixCopyPaste && (
                   <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 max-w-sm w-full mb-8">
                       <h3 className="font-bold text-slate-800 mb-4">Pagamento via PIX</h3>
@@ -347,7 +469,14 @@ export const Cart = () => {
                       Abrir Fatura no Asaas
                   </a>
               )}
-              <button onClick={() => navigate('/jobs')} className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg">Ir para Meus Pedidos</button>
+              <div className="flex gap-4 justify-center">
+                  <button 
+                      onClick={() => navigate(onlyVouchers ? '/store?tab=vouchers' : '/store?tab=my_orders')} 
+                      className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-lg"
+                  >
+                      {onlyVouchers ? 'Ver Meus Vouchers' : 'Ver Meus Pedidos'}
+                  </button>
+              </div>
           </div>
           </div>
       );
@@ -375,28 +504,56 @@ export const Cart = () => {
         <div>
             <h2 className="text-xl font-bold text-slate-800 mb-4">Itens do Pedido ({cart.length})</h2>
             <div className="space-y-4">
-                {cart.map(item => (
-                    <div key={item.cartItemId} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-slate-100 rounded-lg" />
-                            <div>
-                                <h4 className="font-bold text-slate-800">{item.jobType.name}</h4>
-                                <p className="text-sm text-slate-500 line-clamp-1">{getVariationDetails(item)}</p>
+                {cart.map(item => {
+                    const { coveredQty, discount } = getItemVoucherDiscount(item);
+                    const itemFinalPaidPrice = Math.max(0, item.finalPrice - discount);
+                    return (
+                        <div key={item.cartItemId} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 bg-slate-100 rounded-lg" />
+                                <div>
+                                    <h4 className="font-bold text-slate-800">{item.jobType.name}</h4>
+                                    <p className="text-sm text-slate-500 line-clamp-1">{getVariationDetails(item)}</p>
+                                    {coveredQty > 0 && (
+                                        <div className="mt-1 flex items-center gap-1.5 text-xs text-green-600 font-extrabold bg-green-50 px-2 py-0.5 rounded-lg border border-green-100 w-fit">
+                                            <Sparkles size={12} /> Voucher aplicado: {coveredQty} {coveredQty === 1 ? 'unidade' : 'unidades'} coberta(s)
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    {discount > 0 ? (
+                                        <div className="flex flex-col">
+                                            <span className="text-xs text-slate-400 line-through">R$ {item.finalPrice.toFixed(2)}</span>
+                                            <span className="font-bold text-green-600">R$ {itemFinalPaidPrice.toFixed(2)}</span>
+                                        </div>
+                                    ) : (
+                                        <span className="font-bold text-slate-700">R$ {item.finalPrice.toFixed(2)}</span>
+                                    )}
+                                </div>
+                                <button onClick={() => removeFromCart(item.cartItemId)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={18} /></button>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="font-bold text-slate-700">R$ {item.finalPrice.toFixed(2)}</span>
-                            <button onClick={() => removeFromCart(item.cartItemId)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={18} /></button>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 animate-in fade-in duration-300">
-            <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><CreditCard className="text-indigo-600"/> Forma de Pagamento</h3>
+            <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+                {finalTotal === 0 ? (
+                    <><ShieldCheck className="text-green-600"/> Pedido Coberto por Voucher</>
+                ) : (
+                    <><CreditCard className="text-indigo-600"/> Forma de Pagamento</>
+                )}
+            </h3>
             <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                Você será redirecionado para o ambiente seguro do <strong>Asaas</strong> para concluir seu pagamento por Cartão de Crédito, PIX ou Boleto Bancário.
+                {finalTotal === 0 ? (
+                    <span>Este pedido possui valor final de <strong>R$ 0,00</strong> devido à cobertura integral dos seus vouchers ativos. Nenhuma transação financeira será realizada.</span>
+                ) : (
+                    <span>Você será redirecionado para o ambiente seguro do <strong>Asaas</strong> para concluir seu pagamento por Cartão de Crédito, PIX ou Boleto Bancário.</span>
+                )}
             </p>
             <div className="space-y-4">
                 <div>
@@ -587,6 +744,12 @@ export const Cart = () => {
                     <span>Subtotal</span>
                     <span>R$ {originalTotal.toFixed(2)}</span>
                 </div>
+                {voucherDiscountAmount > 0 && (
+                    <div className="flex justify-between items-center text-green-600 text-sm font-bold bg-green-50 px-2.5 py-1.5 rounded-xl border border-green-100/40">
+                        <span>Desconto Voucher</span>
+                        <span>- R$ {voucherDiscountAmount.toFixed(2)}</span>
+                    </div>
+                )}
                 {discountAmount > 0 && (
                     <div className="flex justify-between items-center text-green-600 text-sm font-bold bg-green-50 px-2.5 py-1.5 rounded-xl border border-green-100/40">
                         <span>Desconto Cupom</span>
@@ -605,8 +768,12 @@ export const Cart = () => {
                     </div>
                 )}
 
-                <button type="submit" disabled={isProcessing} className={`w-full py-4 bg-green-600 text-white font-black rounded-xl hover:bg-green-700 shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2 ${isProcessing ? 'opacity-70 cursor-wait' : ''}`}>
-                    {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirmar e Pagar'}
+                <button type="submit" disabled={isProcessing} className={`w-full py-4 text-white font-black rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                    finalTotal === 0 
+                    ? 'bg-green-600 hover:bg-green-700 shadow-green-250' 
+                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                } ${isProcessing ? 'opacity-70 cursor-wait' : ''}`}>
+                    {isProcessing ? <Loader2 className="animate-spin" /> : finalTotal === 0 ? 'Enviar para o Laboratório' : 'Confirmar e Pagar'}
                 </button>
             </div>
         </form>

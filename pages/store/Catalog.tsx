@@ -16,6 +16,7 @@ import * as api from '../../services/firebaseService';
 import { Cart } from './Cart';
 import { JobsList } from '../JobsList';
 import { Partnerships } from '../dentist/Partnerships';
+import { MyVouchersTab } from './MyVouchersTab';
 
 // --- Components ---
 
@@ -598,7 +599,23 @@ export const Catalog = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [term, setTerm] = useState('');
-    const [mainTab, setMainTab] = useState<'STORE' | 'PARTNERSHIPS' | 'MY_ORDERS' | 'CART'>('STORE');
+    const [mainTab, setMainTab] = useState<'STORE' | 'PARTNERSHIPS' | 'MY_ORDERS' | 'CART' | 'VOUCHERS'>(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const tab = searchParams.get('tab');
+        if (tab === 'vouchers') return 'VOUCHERS';
+        if (tab === 'my_orders') return 'MY_ORDERS';
+        return 'STORE';
+    });
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const tab = searchParams.get('tab');
+        if (tab === 'vouchers') {
+            setMainTab('VOUCHERS');
+        } else if (tab === 'my_orders') {
+            setMainTab('MY_ORDERS');
+        }
+    }, [location.search]);
     const [selectedCategory, setSelectedCategory] = useState('ALL');
     const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PROMOTIONS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
@@ -820,6 +837,12 @@ export const Catalog = () => {
                     >
                         Meus Pedidos
                     </button>
+                    <button
+                        onClick={() => setMainTab('VOUCHERS')}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'VOUCHERS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                    >
+                        Vouchers
+                    </button>
                 </div>
                 <div className="flex items-center justify-end gap-4 w-auto flex-shrink-0">
                     <button
@@ -845,6 +868,12 @@ export const Catalog = () => {
             {mainTab === 'MY_ORDERS' && (
                 <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
                     <JobsList isStoreContext={true} />
+                </div>
+            )}
+
+            {mainTab === 'VOUCHERS' && (
+                <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
+                    <MyVouchersTab />
                 </div>
             )}
 

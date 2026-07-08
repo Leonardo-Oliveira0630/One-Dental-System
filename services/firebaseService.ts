@@ -1346,3 +1346,9 @@ export const apiGetMyVouchers = async (orgId: string, clientId: string) => {
     const snap = await getDocs(q);
     return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as any));
 };
+
+export const apiGetAllMyVouchers = async (clientId: string) => {
+    const q = query(collectionGroup(db, 'vouchers'), where('clientId', '==', clientId));
+    const snap = await getDocs(q);
+    return snap.docs.map((d: any) => ({ id: d.id, ...d.data() } as any));
+};
