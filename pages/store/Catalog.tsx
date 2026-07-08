@@ -758,9 +758,18 @@ export const Catalog = () => {
     const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
 
     const isPromo = (jt: any) => jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+    
+    const visiblePromos = localJobTypes.filter(jt => {
+        if (!isPromo(jt)) return false;
+        if (isOutsourcingStore) {
+            return jt.isVisibleInOutsourcing !== false;
+        } else {
+            return jt.isVisibleInStore !== false;
+        }
+    });
+
     const products = visibleProducts.filter(t => {
         if (isPromo(t)) return false;
-        if (t.isPromotion) return false;
         const termLower = term.toLowerCase();
         const matchesTerm = t.name.toLowerCase().includes(termLower) || t.category.toLowerCase().includes(termLower);
         const matchesCat = selectedCategory === 'ALL' || t.category === selectedCategory;
@@ -1135,7 +1144,7 @@ export const Catalog = () => {
                 {activeTab === 'PROMOTIONS' && (
                     <motion.div key="promotions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {localJobTypes.filter(jt => isPromo(jt) && jt.isVisibleInStore !== false).map(promo => {
+                            {visiblePromos.map(promo => {
                                 const originalProduct = localJobTypes.find(jt => jt.id === promo.originalJobTypeId);
                                 return (
                                 <div key={promo.id} className="bg-white rounded-2xl border border-yellow-200 overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col relative">
@@ -1198,7 +1207,7 @@ export const Catalog = () => {
                                     </div>
                                 </div>
                             )})}
-                            {localJobTypes.filter(jt => isPromo(jt) && jt.isVisibleInStore !== false).length === 0 && (
+                            {visiblePromos.length === 0 && (
                                 <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed">
                                     <Tag size={48} className="mb-4 text-slate-300" />
                                     <p className="font-medium text-lg text-slate-500">Nenhuma promoção ativa no momento.</p>
