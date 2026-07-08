@@ -67,11 +67,7 @@ export const SupplierStore = () => {
   // Checkout Processing
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [cpfCnpj, setCpfCnpj] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-
+        
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [orderSuccess, setOrderSuccess] = useState<SupplierOrder | null>(null);
@@ -1730,6 +1726,19 @@ const isPromo = (jt: any) => jt.isPromotion || !!jt.originalJobTypeId || !!jt.pr
               
 
               {/* Payment handled by Asaas Checkout */}
+              {/* Buyer Data */}
+              <div className="space-y-3.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Dados do Comprador</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="CPF ou CNPJ"
+                  value={cpfCnpj}
+                  onChange={e => setCpfCnpj(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
               {/* Delivery Address */}
               <div className="space-y-3.5">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Endereço para Entrega</label>

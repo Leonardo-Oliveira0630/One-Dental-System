@@ -143,6 +143,11 @@ export const Cart = () => {
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!cpfCnpj || cpfCnpj.replace(/\D/g, '').length < 11) {
+        alert("Por favor, preencha o CPF ou CNPJ do comprador para faturamento.");
+        return;
+    }
+
     if (!onlyVouchers) {
         if (!date || !patientName) return;
         if (selectedFiles.length === 0) {
@@ -192,7 +197,7 @@ export const Cart = () => {
                 name: c.jobType.name, 
                 quantity: c.quantity, 
                 price: c.unitPrice, 
-                selectedVariationIds: c.selectedVariationIds, 
+                selectedVariationIds: c.selectedVariationIds || [], 
                 variationValues: c.variationValues,
                 originalJobTypeId: c.jobType.originalJobTypeId
             })),
@@ -210,14 +215,8 @@ export const Cart = () => {
         };
 
         const paymentData = {
-            method: paymentMethod,
-            cpfCnpj: cpfCnpj.replace(/\D/g, ''),
-            creditCard: paymentMethod === 'CREDIT_CARD' ? {
-                number: cardNumber.replace(/\s/g, ''),
-                holderName: cardHolder,
-                expiry: cardExpiry,
-                cvv: cardCvv
-            } : undefined
+            method: 'UNDEFINED',
+            cpfCnpj: cpfCnpj.replace(/\D/g, '')
         };
 
         const result = await api.apiCreateOrderPayment(jobData, paymentData);
@@ -274,7 +273,11 @@ export const Cart = () => {
             }
 
             clearCart();
-            setSuccessData(result);
+            if (result.invoiceUrl) {
+                window.location.href = result.invoiceUrl;
+            } else {
+                setSuccessData(result);
+            }
         } else {
             alert("Falha no pagamento: " + result.message);
         }
@@ -295,7 +298,7 @@ export const Cart = () => {
   };
 
   const getVariationDetails = (item: import('../../types').CartItem) => {
-    if (item.selectedVariationIds.length === 0) return 'Configuração padrão';
+    if (!item.selectedVariationIds || item.selectedVariationIds.length === 0) return 'Configuração padrão';
     const details = item.selectedVariationIds.map(id => {
       let optionName = '';
       for (const group of item.jobType.variationGroups) {
@@ -380,23 +383,23 @@ export const Cart = () => {
             </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><CreditCard className="text-indigo-600"/> Forma de Pagamento</h3>
-            <div className="flex gap-4 mb-6">
-                <button type="button" onClick={() => setPaymentMethod('CREDIT_CARD')} className={`flex-1 py-3 rounded-xl border-2 font-bold flex items-center justify-center gap-2 transition-all ${paymentMethod === 'CREDIT_CARD' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}><CreditCard size={20}/> Cartão</button>
-                <button type="button" onClick={() => setPaymentMethod('PIX')} className={`flex-1 py-3 rounded-xl border-2 font-bold flex items-center justify-center gap-2 transition-all ${paymentMethod === 'PIX' ? 'border-green-600 bg-green-50 text-green-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}><QrCode size={20}/> PIX</button>
-            </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 animate-in fade-in duration-300">
+            <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><CreditCard className="text-indigo-600"/> Forma de Pagamento</h3>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                Você será redirecionado para o ambiente seguro do <strong>Asaas</strong> para concluir seu pagamento por Cartão de Crédito, PIX ou Boleto Bancário.
+            </p>
             <div className="space-y-4">
-                <div><label className="block text-sm font-bold text-slate-700 mb-1">CPF do Titular</label><input value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="000.000.000-00" /></div>
-                {paymentMethod === 'CREDIT_CARD' && (
-                    <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                        <div><label className="block text-sm font-bold text-slate-700 mb-1">Número do Cartão</label><input value={cardNumber} onChange={e => setCardNumber(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="0000 0000 0000 0000" /></div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="block text-sm font-bold text-slate-700 mb-1">Validade</label><input value={cardExpiry} onChange={e => setCardExpiry(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="MM/AA" /></div>
-                            <div><label className="block text-sm font-bold text-slate-700 mb-1">CVV</label><input value={cardCvv} onChange={e => setCardCvv(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="123" /></div>
-                        </div>
-                    </div>
-                )}
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">CPF ou CNPJ para Faturamento</label>
+                    <input 
+                        type="text"
+                        required 
+                        value={cpfCnpj} 
+                        onChange={e => setCpfCnpj(e.target.value)} 
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-800 font-mono font-bold" 
+                        placeholder="000.000.000-00 ou 00.000.000/0000-00" 
+                    />
+                </div>
             </div>
         </div>
       </div>
