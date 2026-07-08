@@ -59,7 +59,6 @@ export const JobTypes = () => {
     setImageFile(null);
     setPreviewUrl('');
     setAllowedSectors([]);
-    setIsPromotion(mainTab === 'PROMOTIONS');
     setPromotionQuantity('');
     setPromotionCallText('');
     setIsVoucherCombo(true);
@@ -83,6 +82,11 @@ export const JobTypes = () => {
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
     setAllowedSectors(type.allowedSectors || []);
+    setIsPromotion(type.isPromotion || false);
+    setPromotionQuantity(type.promotionQuantity || '');
+    setPromotionCallText(type.promotionCallText || '');
+    setOriginalJobTypeId(type.originalJobTypeId || '');
+    setIsVoucherCombo(type.isVoucherCombo ?? true);
     setImageFile(null);
     setActiveTab('BASIC');
   };
@@ -111,17 +115,18 @@ export const JobTypes = () => {
           finalImageUrl = await uploadFile(imageFile);
       }
 
+      const isPromoToSave = mainTab === 'PROMOTIONS';
       if (isEditing && editingId) {
           await updateJobType(editingId, { 
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups, 
               isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
-              isPromotion, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo
+              isPromotion: isPromoToSave, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo
           });
       } else {
           const newType: Omit<JobType, 'id'> = {
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups,
               isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
-              isPromotion, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo
+              isPromotion: isPromoToSave, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo
           };
           await addJobType(newType);
       }
