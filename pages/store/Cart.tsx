@@ -137,13 +137,20 @@ export const Cart = () => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const isPromo = (jt: any) => jt.isPromotion === true || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+  const onlyVouchers = cart.length > 0 && cart.every(item => isPromo(item.jobType));
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !patientName) return;
-    if (selectedFiles.length === 0) {
-        alert("É OBRIGATÓRIO enviar os arquivos digitais (STL/Imagens) para prosseguir.");
-        return;
+
+    if (!onlyVouchers) {
+        if (!date || !patientName) return;
+        if (selectedFiles.length === 0) {
+            alert("É OBRIGATÓRIO enviar os arquivos digitais (STL/Imagens) para prosseguir.");
+            return;
+        }
     }
+
     if (!currentUser) return;
 
     setIsProcessing(true);
@@ -398,7 +405,7 @@ export const Cart = () => {
         <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">Detalhes do Envio</h2>
         <form onSubmit={handleCheckout} className="space-y-4">
             <div className="space-y-2">
-                {!cart.every(item => item.jobType.isVoucherCombo) && (
+                {!cart.every(item => isPromo(item.jobType)) && (
                     <>
                     <label className="block text-sm font-medium text-slate-700">Paciente</label>
                 {patients && patients.length > 0 ? (
@@ -453,7 +460,7 @@ export const Cart = () => {
                 </>
                 )}
             </div>
-            {!cart.every(item => item.jobType.isVoucherCombo) && (
+            {!cart.every(item => isPromo(item.jobType)) && (
             <>
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Data Desejada</label><input required type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg" /></div>
             
@@ -478,7 +485,7 @@ export const Cart = () => {
             )}
 
             {/* Vouchers Section */}
-            {!cart.every(item => item.jobType.isVoucherCombo) && (
+            {!cart.every(item => isPromo(item.jobType)) && (
             <div className="pt-4 border-t border-slate-100 mt-4 space-y-3">
                 <label className="block text-xs font-black uppercase text-indigo-600 tracking-wider flex items-center gap-1.5">
                     <Sparkles size={14} className="text-indigo-500" /> Voucher de Serviços

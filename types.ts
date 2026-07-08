@@ -416,6 +416,8 @@ export interface Job {
   sectorEntryTime?: Date;
   totalValue: number;
   notes?: string;
+  isComboPurchase?: boolean;
+  vouchersUsed?: string[];
   managerNotes?: string;
   attachments?: Attachment[];
   paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED';

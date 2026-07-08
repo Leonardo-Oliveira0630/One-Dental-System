@@ -20,6 +20,9 @@ export const JobTypes = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('BASIC');
 
+  
+  const isPromo = (jt: any) => jt.isPromotion === true || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+
   const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
   const canCreate = isAdmin || currentUser?.permissions?.includes('catalog:create');
   const canEdit = isAdmin || currentUser?.permissions?.includes('catalog:edit');
