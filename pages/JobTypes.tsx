@@ -112,12 +112,14 @@ export const JobTypes = () => {
       if (isEditing && editingId) {
           await updateJobType(editingId, { 
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups, 
-              isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors
+              isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
+              isPromotion, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId
           });
       } else {
           const newType: Omit<JobType, 'id'> = {
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups,
-              isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors
+              isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
+              isPromotion, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId
           };
           await addJobType(newType);
       }
@@ -198,25 +200,41 @@ export const JobTypes = () => {
     <div className="space-y-6 pb-12">
        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <h1 className="text-2xl font-bold text-slate-900">Catálogo de Serviços</h1>
-            <p className="text-slate-500">Gerencie tipos de próteses, preços e suas variações.</p>
+            <h1 className="text-2xl font-bold text-slate-900">Catálogo de Serviços e Promoções</h1>
+            <p className="text-slate-500">Gerencie tipos de próteses, preços, pacotes promocionais e variações.</p>
         </div>
-        {isEditing && canCreate && (
-            <button 
-                onClick={resetForm}
-                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 flex items-center gap-2"
-            >
-                <Plus size={18} /> Novo Serviço
-            </button>
-        )}
+        <div className="flex items-center gap-4">
+            <div className="bg-slate-100 p-1 rounded-xl flex items-center shrink-0">
+                <button
+                    onClick={() => { setMainTab('SERVICES'); setIsPromotion(false); resetForm(); }}
+                    className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${mainTab === 'SERVICES' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    Serviços
+                </button>
+                <button
+                    onClick={() => { setMainTab('PROMOTIONS'); setIsPromotion(true); resetForm(); }}
+                    className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${mainTab === 'PROMOTIONS' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                    Promoções
+                </button>
+            </div>
+            {isEditing && canCreate && (
+                <button 
+                    onClick={resetForm}
+                    className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 flex items-center gap-2 whitespace-nowrap"
+                >
+                    <Plus size={18} /> {mainTab === 'PROMOTIONS' ? 'Nova Promoção' : 'Novo Serviço'}
+                </button>
+            )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: List */}
         <div className="space-y-4 lg:col-span-1 order-2 lg:order-1">
-            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">Serviços Cadastrados</h3>
+            <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">{mainTab === 'PROMOTIONS' ? 'Promoções' : 'Serviços'} Cadastrados</h3>
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-                {jobTypes.map(type => (
+                {jobTypes.filter(type => mainTab === 'PROMOTIONS' ? type.isPromotion : !type.isPromotion).map(type => (
                     <div 
                         key={type.id} 
                         onClick={() => handleEdit(type)}

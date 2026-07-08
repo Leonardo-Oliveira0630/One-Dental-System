@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
-    Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, 
+    Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, Store, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
     LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin, ShoppingCart
 } from 'lucide-react';
@@ -598,10 +598,10 @@ export const Catalog = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [term, setTerm] = useState('');
-    const [mainTab, setMainTab] = useState<'STORE' | 'PROMOTIONS' | 'PARTNERSHIPS' | 'MY_ORDERS' | 'CART'>('STORE');
+    const [mainTab, setMainTab] = useState<'STORE' | 'PARTNERSHIPS' | 'MY_ORDERS' | 'CART'>('STORE');
     const [selectedCategory, setSelectedCategory] = useState('ALL');
     const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
-    const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
+    const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PROMOTIONS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
     const [localJobTypes, setLocalJobTypes] = useState<JobType[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -797,12 +797,6 @@ export const Catalog = () => {
                         Loja Online
                     </button>
                     <button
-                        onClick={() => setMainTab('PROMOTIONS')}
-                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'PROMOTIONS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
-                    >
-                        Promoções
-                    </button>
-                    <button
                         onClick={() => setMainTab('PARTNERSHIPS')}
                         className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'PARTNERSHIPS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
                     >
@@ -842,113 +836,6 @@ export const Catalog = () => {
                 </div>
             )}
 
-
-            {mainTab === 'PROMOTIONS' && (
-                !selectedLab ? (
-                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-8 bg-slate-50 animate-in fade-in duration-500">
-                        <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
-                                <Building size={40} />
-                            </div>
-                            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tighter">Ops! Laboratório ausente.</h2>
-                            <p className="text-slate-500 mb-8 font-medium">
-                                Parece que você ainda não selecionou qual laboratório deseja visitar hoje.
-                            </p>
-                            <button onClick={() => setMainTab('PARTNERSHIPS')}
-                                className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all w-full">
-                                EXPLORAR LABORATÓRIOS
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex-1 p-4 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto bg-slate-50">
-                        {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} onClose={() => setConfiguringProduct(null)} />}
-                        
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Promoções Especiais</h2>
-                        </div>
-
-                        {promotions.length === 0 ? (
-                            <div className="text-center py-20">
-                                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
-                                    <Tag size={40} />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-800 mb-2">Nenhuma Promoção Ativa</h3>
-                                <p className="text-slate-500">Este laboratório ainda não cadastrou pacotes promocionais.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                                {promotions.map(promo => {
-                                    const { price, isCustom } = getPrice(promo);
-                                    const original = allProducts.find(t => t.id === promo.originalJobTypeId);
-                                    const originalTotal = original ? original.basePrice * (promo.promotionQuantity || 1) : 0;
-                                    const savings = originalTotal > price ? originalTotal - price : 0;
-                                    const discountPercent = originalTotal > 0 ? Math.round((savings / originalTotal) * 100) : 0;
-
-                                    return (
-                                        <div key={promo.id} className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group flex flex-col relative">
-                                            {discountPercent > 0 && (
-                                                <div className="absolute top-4 right-4 bg-red-500 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg z-20 flex items-center gap-1">
-                                                    <BadgePercent size={14} /> -{discountPercent}%
-                                                </div>
-                                            )}
-                                            <div className="h-48 bg-slate-50 flex items-center justify-center relative overflow-hidden">
-                                                {promo.imageUrl ? (
-                                                    <img src={promo.imageUrl} alt={promo.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                                ) : (
-                                                    <Tag size={80} className="relative z-10 text-slate-200 group-hover:text-indigo-400 transition-colors duration-300" />
-                                                )}
-                                                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-slate-600 uppercase tracking-widest z-20 border border-white/50">{promo.category}</div>
-                                            </div>
-                                            
-                                            <div className="p-8 flex flex-col flex-1">
-                                                <div className="mb-4">
-                                                    <h3 className="font-black text-slate-900 text-xl tracking-tight leading-tight group-hover:text-indigo-600 transition-colors">{promo.name}</h3>
-                                                    {promo.promotionCallText && (
-                                                        <p className="text-sm text-slate-500 mt-2 font-medium bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
-                                                            {promo.promotionCallText}
-                                                        </p>
-                                                    )}
-                                                </div>
-
-                                                {promo.promotionQuantity && (
-                                                    <div className="mb-6 flex items-center gap-2 text-sm font-bold text-slate-600 bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                                                        <Package size={18} className="text-indigo-500" />
-                                                        <span>Pacote com {promo.promotionQuantity} unidades</span>
-                                                    </div>
-                                                )}
-
-                                                <div className="pt-6 border-t border-slate-100 mt-auto">
-                                                    <div className="flex justify-between items-end">
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Valor Promocional</span>
-                                                            <div className="flex items-baseline gap-2">
-                                                                {isPriceVisible ? (
-                                                                    <>
-                                                                        <span className="font-black text-3xl tracking-tighter text-slate-900">R$ {price.toFixed(2)}</span>
-                                                                        {originalTotal > 0 && <span className="text-xs text-slate-300 line-through">R$ {originalTotal.toFixed(2)}</span>}
-                                                                    </>
-                                                                ) : (
-                                                                    <span className="flex items-center gap-1.5 text-xs font-black text-amber-600 bg-amber-50 px-3 py-1.5 border border-amber-100/50 rounded-xl leading-tight">
-                                                                        <Lock size={14} /> Registrar para ver preço
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <button onClick={() => handleConfigureProduct(promo)} className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-700 transition-all active:scale-90 shadow-xl shadow-indigo-200">
-                                                            <ShoppingCart size={20} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                )
-            )}
             {mainTab === 'CART' && (
                 <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50 animate-in fade-in">
                     <Cart />
@@ -1079,13 +966,19 @@ export const Catalog = () => {
 
             {/* 2. Store Menu */}
             <div className="flex border-b border-slate-200 overflow-x-auto scrollbar-none">
-                {[...(storeSettings.menuOptions || ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']), 'ABOUT'].map(opt => (
+                {[...(storeSettings.menuOptions || ['PRODUCTS', 'PORTFOLIO', 'REVIEWS']).reduce((acc, curr) => {
+                    acc.push(curr);
+                    if (curr === 'PRODUCTS') {
+                        acc.push('PROMOTIONS');
+                    }
+                    return acc;
+                }, [] as string[]), 'ABOUT'].map(opt => (
                     <button 
                         key={opt}
                         onClick={() => setActiveTab(opt as any)}
                         className={`px-8 py-5 text-sm font-black uppercase tracking-widest transition-all relative shrink-0 ${activeTab === opt ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                        {opt === 'PRODUCTS' ? 'Catálogo' : opt === 'PORTFOLIO' ? 'Portfólio' : opt === 'REVIEWS' ? 'Avaliações' : 'Sobre'}
+                        {opt === 'PRODUCTS' ? 'Catálogo' : opt === 'PROMOTIONS' ? 'Promoções' : opt === 'PORTFOLIO' ? 'Portfólio' : opt === 'REVIEWS' ? 'Avaliações' : 'Sobre'}
                         {activeTab === opt && (
                             <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-600 rounded-full" />
                         )}
@@ -1236,6 +1129,78 @@ export const Catalog = () => {
                     </motion.div>
                 )}
 
+                {activeTab === 'PROMOTIONS' && (
+                    <motion.div key="promotions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {localJobTypes.filter(jt => jt.isPromotion && jt.isVisibleInStore !== false).map(promo => {
+                                const originalProduct = localJobTypes.find(jt => jt.id === promo.originalJobTypeId);
+                                return (
+                                <div key={promo.id} className="bg-white rounded-2xl border border-yellow-200 overflow-hidden shadow-sm hover:shadow-xl transition-all group flex flex-col relative">
+                                    <div className="absolute top-4 left-4 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider z-10 shadow-sm flex items-center gap-1">
+                                        <Tag size={12} /> PROMOÇÃO
+                                    </div>
+                                    <div className="h-48 bg-slate-100 relative overflow-hidden">
+                                        {promo.imageUrl ? (
+                                            <img src={promo.imageUrl} alt={promo.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        ) : (
+                                            <div className="absolute inset-0 flex items-center justify-center text-slate-300">
+                                                <Store size={64} />
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                        <div className="absolute bottom-4 left-4 right-4 text-white">
+                                            <h3 className="font-bold text-lg leading-tight mb-1">{promo.name}</h3>
+                                            <span className="text-xs bg-white/20 backdrop-blur-md px-2 py-1 rounded-full font-medium">{promo.category}</span>
+                                        </div>
+                                    </div>
+                                    <div className="p-5 flex flex-col flex-1">
+                                        {promo.promotionCallText && (
+                                            <p className="text-sm font-medium text-slate-700 italic mb-4">"{promo.promotionCallText}"</p>
+                                        )}
+                                        {originalProduct && promo.promotionQuantity && (
+                                            <div className="text-xs text-slate-500 mb-4 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span>Produto:</span>
+                                                    <span className="font-bold text-slate-700">{originalProduct.name}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span>Quantidade do pacote:</span>
+                                                    <span className="font-bold text-slate-700">{promo.promotionQuantity} un.</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-red-400 line-through">
+                                                    <span>Preço original total:</span>
+                                                    <span>{(originalProduct.basePrice * promo.promotionQuantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        
+                                        <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Por apenas</p>
+                                                <p className="text-xl font-black text-blue-600">{promo.basePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                            </div>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setConfiguringProduct(promo);
+                                                }}
+                                                className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm"
+                                            >
+                                                <ShoppingCart size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )})}
+                            {localJobTypes.filter(jt => jt.isPromotion && jt.isVisibleInStore !== false).length === 0 && (
+                                <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed">
+                                    <Tag size={48} className="mb-4 text-slate-300" />
+                                    <p className="font-medium text-lg text-slate-500">Nenhuma promoção ativa no momento.</p>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
                 {activeTab === 'PORTFOLIO' && (
                     <motion.div key="portfolio" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
                         <PortfolioSection portfolio={storeSettings.portfolio || []} />
