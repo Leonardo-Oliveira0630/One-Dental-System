@@ -85,9 +85,12 @@ export const Cart = () => {
         }
 
         const matchingItem = baseMatches.find(c => {
-            if (v.applyToAllVariations === false && v.promoVariationOptionId) {
-                const hasVariation = c.selectedVariationIds && c.selectedVariationIds.includes(v.promoVariationOptionId);
-                return hasVariation;
+            if (v.applyToAllVariations === false) {
+                if (v.promoVariationOptionIds && v.promoVariationOptionIds.length > 0) {
+                    return !!(c.selectedVariationIds && c.selectedVariationIds.some(id => v.promoVariationOptionIds.includes(id)));
+                } else if (v.promoVariationOptionId) {
+                    return !!(c.selectedVariationIds && c.selectedVariationIds.includes(v.promoVariationOptionId));
+                }
             }
             return true;
         });
@@ -152,8 +155,12 @@ export const Cart = () => {
 
       for (const v of appliedVouchers) {
         let variationMatches = true;
-        if (v.applyToAllVariations === false && v.promoVariationOptionId) {
-          variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(v.promoVariationOptionId));
+        if (v.applyToAllVariations === false) {
+          if (v.promoVariationOptionIds && v.promoVariationOptionIds.length > 0) {
+            variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.some(id => v.promoVariationOptionIds.includes(id)));
+          } else if (v.promoVariationOptionId) {
+            variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(v.promoVariationOptionId));
+          }
         }
 
         if (itemTypeIds.includes(v.jobTypeId) && variationMatches) {
@@ -206,8 +213,12 @@ export const Cart = () => {
 
       for (const v of appliedVouchers) {
         let variationMatches = true;
-        if (v.applyToAllVariations === false && v.promoVariationOptionId) {
-          variationMatches = !!(cartItem.selectedVariationIds && cartItem.selectedVariationIds.includes(v.promoVariationOptionId));
+        if (v.applyToAllVariations === false) {
+          if (v.promoVariationOptionIds && v.promoVariationOptionIds.length > 0) {
+            variationMatches = !!(cartItem.selectedVariationIds && cartItem.selectedVariationIds.some(id => v.promoVariationOptionIds.includes(id)));
+          } else if (v.promoVariationOptionId) {
+            variationMatches = !!(cartItem.selectedVariationIds && cartItem.selectedVariationIds.includes(v.promoVariationOptionId));
+          }
         }
 
         if (itemTypeIds.includes(v.jobTypeId) && variationMatches) {

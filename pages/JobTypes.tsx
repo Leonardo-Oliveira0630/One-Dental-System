@@ -50,6 +50,7 @@ export const JobTypes = () => {
   const [originalJobTypeId, setOriginalJobTypeId] = useState('');
   const [applyToAllVariations, setApplyToAllVariations] = useState(true);
   const [promoVariationOptionId, setPromoVariationOptionId] = useState('');
+  const [promoVariationOptionIds, setPromoVariationOptionIds] = useState<string[]>([]);
 
   const resetForm = () => {
     setName('');
@@ -70,6 +71,7 @@ export const JobTypes = () => {
     setOriginalJobTypeId('');
     setApplyToAllVariations(true);
     setPromoVariationOptionId('');
+    setPromoVariationOptionIds([]);
     setIsEditing(false);
     setEditingId(null);
     setActiveTab('BASIC');
@@ -96,6 +98,7 @@ export const JobTypes = () => {
     setIsVoucherCombo(type.isVoucherCombo ?? true);
     setApplyToAllVariations(type.applyToAllVariations !== false);
     setPromoVariationOptionId(type.promoVariationOptionId || '');
+    setPromoVariationOptionIds(type.promoVariationOptionIds || (type.promoVariationOptionId ? [type.promoVariationOptionId] : []));
     setImageFile(null);
     setActiveTab('BASIC');
   };
@@ -148,11 +151,13 @@ export const JobTypes = () => {
       
       let promoVariationOptionName = '';
       let promoVariationGroupName = '';
-      if (isPromoToSave && !applyToAllVariations && promoVariationOptionId) {
-        const found = getOriginalJobTypeVariations().find(o => o.id === promoVariationOptionId);
-        if (found) {
-          promoVariationOptionName = found.name;
-          promoVariationGroupName = found.groupName;
+      let fallbackOptionId = promoVariationOptionId;
+      if (isPromoToSave && !applyToAllVariations && promoVariationOptionIds.length > 0) {
+        const foundOptions = getOriginalJobTypeVariations().filter(o => promoVariationOptionIds.includes(o.id));
+        if (foundOptions.length > 0) {
+          promoVariationOptionName = foundOptions.map(o => o.name).join(', ');
+          promoVariationGroupName = Array.from(new Set(foundOptions.map(o => o.groupName))).join(', ');
+          fallbackOptionId = promoVariationOptionIds[0];
         }
       }
 
@@ -161,14 +166,14 @@ export const JobTypes = () => {
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups, 
               isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
               isPromotion: isPromoToSave, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo,
-              applyToAllVariations, promoVariationOptionId, promoVariationOptionName, promoVariationGroupName
+              applyToAllVariations, promoVariationOptionId: fallbackOptionId, promoVariationOptionIds, promoVariationOptionName, promoVariationGroupName
           });
       } else {
           const newType: Omit<JobType, 'id'> = {
               name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups,
               isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
               isPromotion: isPromoToSave, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo,
-              applyToAllVariations, promoVariationOptionId, promoVariationOptionName, promoVariationGroupName
+              applyToAllVariations, promoVariationOptionId: fallbackOptionId, promoVariationOptionIds, promoVariationOptionName, promoVariationGroupName
           };
           await addJobType(newType);
       }
@@ -421,7 +426,8 @@ export const JobTypes = () => {
                                                     <label className="flex items-center gap-2 cursor-pointer">
                                                         <input type="radio" checked={applyToAllVariations} onChange={() => {
                                                             setApplyToAllVariations(true);
-                                                            setPromoVariationOptionId('');
+                                                            setPromoVariationOptionId("");
+                                                            setPromoVariationOptionIds([]);
                                                         }} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
                                                         <span className="text-xs font-medium text-slate-700">Qualquer variação (Todo o Serviço)</span>
                                                     </label>
@@ -432,23 +438,50 @@ export const JobTypes = () => {
                                                 </div>
                                                 
                                                 {!applyToAllVariations && (
-                                                    <div className="space-y-2 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                                                        <label className="block text-xs font-bold text-slate-600">Selecione a Variação Obrigatória:</label>
-                                                        <select value={promoVariationOptionId} onChange={e => setPromoVariationOptionId(e.target.value)} required={!applyToAllVariations} className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                                                            <option value="">Selecione a variação...</option>
-                                                            {getOriginalJobTypeVariations().map(opt => (
-                                                                <option key={opt.id} value={opt.id}>{opt.groupName}: {opt.name}</option>
-                                                            ))}
-                                                        </select>
+                                                    <div className="space-y-4 mt-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                                                        <label className="block text-xs font-bold text-slate-700">Selecione as Variações Vigentes:</label>
+                                                        {(() => {
+                                                            const originalType = jobTypes.find(jt => jt.id === originalJobTypeId);
+                                                            if (!originalType || !originalType.variationGroups || originalType.variationGroups.length === 0) {
+                                                                return <p className="text-xs text-slate-500 italic">O serviço selecionado não possui variações cadastradas.</p>;
+                                                            }
+                                                            return originalType.variationGroups.map(group => (
+                                                                <div key={group.id} className="border-t border-slate-200 pt-2 first:border-0 first:pt-0">
+                                                                    <p className="text-xs font-bold text-indigo-600 mb-1">{group.name}</p>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                        {(group.options || []).map(opt => {
+                                                                            const isChecked = promoVariationOptionIds.includes(opt.id);
+                                                                            return (
+                                                                                <label key={opt.id} className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-slate-100 rounded text-xs">
+                                                                                    <input 
+                                                                                        type="checkbox" 
+                                                                                        checked={isChecked} 
+                                                                                        onChange={() => {
+                                                                                            if (isChecked) {
+                                                                                                setPromoVariationOptionIds(promoVariationOptionIds.filter(id => id !== opt.id));
+                                                                                            } else {
+                                                                                                setPromoVariationOptionIds([...promoVariationOptionIds, opt.id]);
+                                                                                            }
+                                                                                        }} 
+                                                                                        className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500" 
+                                                                                    />
+                                                                                    <span className="text-slate-700 font-medium">{opt.name}</span>
+                                                                                </label>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        })()}
                                                         <p className="text-[10px] text-slate-500 leading-tight">
-                                                            O voucher gerado será restrito e só poderá ser utilizado no carrinho quando esta variação específica for selecionada.
+                                                            A promoção será restrita e só poderá ser aplicada quando as variações selecionadas acima forem selecionadas pelo cliente no carrinho.
                                                         </p>
                                                     </div>
                                                 )}
                                             </div>
                                         )}
-                                        </>
-                                    )}
+                                    </>
+                                )}
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-1">{mainTab === 'PROMOTIONS' ? 'Nome do Pacote' : 'Nome do Serviço'}</label>
                                         <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>

@@ -548,8 +548,12 @@ export const createOrderPayment = onCall(async (request: any) => {
               if (snap.exists) {
                   const vData = snap.data();
                   let variationMatches = true;
-                  if (vData.applyToAllVariations === false && vData.promoVariationOptionId) {
-                      variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(vData.promoVariationOptionId));
+                  if (vData.applyToAllVariations === false) {
+                      if (vData.promoVariationOptionIds && vData.promoVariationOptionIds.length > 0) {
+                          variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.some((id: string) => vData.promoVariationOptionIds.includes(id)));
+                      } else if (vData.promoVariationOptionId) {
+                          variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(vData.promoVariationOptionId));
+                      }
                   }
                   
                   if (itemTypeIds.includes(vData.jobTypeId) && variationMatches && vQties[vId] > 0 && qtyToCover > 0) {
@@ -1127,6 +1131,7 @@ export const asaasWebhook = onRequest(
                   let promoQuantity = 1;
                   let applyToAllVariations = true;
                   let promoVariationOptionId = '';
+                  let promoVariationOptionIds = [];
                   let promoVariationOptionName = '';
                   let promoVariationGroupName = '';
 
@@ -1134,6 +1139,7 @@ export const asaasWebhook = onRequest(
                     promoQuantity = Number(item.promotionQuantity);
                     applyToAllVariations = item.applyToAllVariations !== false;
                     promoVariationOptionId = item.promoVariationOptionId || '';
+                    promoVariationOptionIds = item.promoVariationOptionIds || [];
                     promoVariationOptionName = item.promoVariationOptionName || '';
                     promoVariationGroupName = item.promoVariationGroupName || '';
                   } else {
@@ -1149,6 +1155,7 @@ export const asaasWebhook = onRequest(
                         promoQuantity = Number(jtData?.promotionQuantity || 1);
                         applyToAllVariations = jtData?.applyToAllVariations !== false;
                         promoVariationOptionId = jtData?.promoVariationOptionId || '';
+                        promoVariationOptionIds = jtData?.promoVariationOptionIds || [];
                         promoVariationOptionName = jtData?.promoVariationOptionName || '';
                         promoVariationGroupName = jtData?.promoVariationGroupName || '';
                       }
@@ -1174,6 +1181,7 @@ export const asaasWebhook = onRequest(
                     orderId: jobDoc.id,
                     applyToAllVariations,
                     promoVariationOptionId,
+                    promoVariationOptionIds,
                     promoVariationOptionName,
                     promoVariationGroupName,
                     createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -1488,6 +1496,7 @@ export const syncStoreOrders = onCall(async (request: any) => {
               let promoQuantity = 1;
               let applyToAllVariations = true;
               let promoVariationOptionId = '';
+              let promoVariationOptionIds = [];
               let promoVariationOptionName = '';
               let promoVariationGroupName = '';
 
@@ -1495,6 +1504,7 @@ export const syncStoreOrders = onCall(async (request: any) => {
                 promoQuantity = Number(item.promotionQuantity);
                 applyToAllVariations = item.applyToAllVariations !== false;
                 promoVariationOptionId = item.promoVariationOptionId || '';
+                promoVariationOptionIds = item.promoVariationOptionIds || [];
                 promoVariationOptionName = item.promoVariationOptionName || '';
                 promoVariationGroupName = item.promoVariationGroupName || '';
               } else {
@@ -1510,6 +1520,7 @@ export const syncStoreOrders = onCall(async (request: any) => {
                     promoQuantity = Number(jtData?.promotionQuantity || 1);
                     applyToAllVariations = jtData?.applyToAllVariations !== false;
                     promoVariationOptionId = jtData?.promoVariationOptionId || '';
+                    promoVariationOptionIds = jtData?.promoVariationOptionIds || [];
                     promoVariationOptionName = jtData?.promoVariationOptionName || '';
                     promoVariationGroupName = jtData?.promoVariationGroupName || '';
                   }
@@ -1535,6 +1546,7 @@ export const syncStoreOrders = onCall(async (request: any) => {
                 orderId: jobDoc.id,
                 applyToAllVariations,
                 promoVariationOptionId,
+                promoVariationOptionIds,
                 promoVariationOptionName,
                 promoVariationGroupName,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()

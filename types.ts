@@ -474,6 +474,7 @@ export interface JobType {
   isVoucherCombo?: boolean;
   applyToAllVariations?: boolean;
   promoVariationOptionId?: string;
+  promoVariationOptionIds?: string[];
   promoVariationOptionName?: string;
   promoVariationGroupName?: string;
 }
