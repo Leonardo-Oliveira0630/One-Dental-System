@@ -362,7 +362,12 @@ export const Cart = () => {
                 originalJobTypeId: c.jobType.originalJobTypeId,
                 promotionQuantity: c.jobType.promotionQuantity,
                 isPromo: isPromo(c.jobType),
-                isVoucherCombo: c.jobType.isVoucherCombo === true
+                isVoucherCombo: c.jobType.isVoucherCombo === true,
+                applyToAllVariations: c.jobType.applyToAllVariations !== false,
+                promoVariationOptionId: c.jobType.promoVariationOptionId || '',
+                promoVariationOptionIds: c.jobType.promoVariationOptionIds || [],
+                promoVariationOptionName: c.jobType.promoVariationOptionName || '',
+                promoVariationGroupName: c.jobType.promoVariationGroupName || ''
             })),
             history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual', userId: currentUser.id, userName: currentUser.name }],
             attachments: uploadedAttachments, 

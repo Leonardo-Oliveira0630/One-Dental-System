@@ -509,7 +509,7 @@ async function generateVouchersForJob(db: admin.firestore.Firestore, jobData: an
       let promoVariationOptionName = '';
       let promoVariationGroupName = '';
 
-      if (item.promotionQuantity !== undefined && item.promotionQuantity !== null) {
+      if (item.promotionQuantity !== undefined && item.promotionQuantity !== null && item.applyToAllVariations !== undefined) {
         promoQuantity = Number(item.promotionQuantity);
         applyToAllVariations = item.applyToAllVariations !== false;
         promoVariationOptionId = item.promoVariationOptionId || '';
