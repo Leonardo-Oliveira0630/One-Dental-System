@@ -1332,13 +1332,24 @@ export const syncStoreOrders = onCall(async (request: any) => {
   }
   
   const db = admin.firestore();
-  let jobsToSync: admin.firestore.QueryDocumentSnapshot[] = [];
+  let jobsToSync: any[] = [];
   
   try {
-    if (jobId) {
-      const jobSnap = await db.collectionGroup("jobs").where("id", "==", jobId).get();
-      if (!jobSnap.empty) {
-        jobsToSync = jobSnap.docs;
+    if (jobId && organizationId) {
+      const docRef = db.collection("organizations").doc(organizationId).collection("jobs").doc(jobId);
+      const docSnap = await docRef.get();
+      if (docSnap.exists) {
+        jobsToSync = [docSnap];
+      }
+    } else if (jobId) {
+      const orgsSnap = await db.collection("organizations").get();
+      for (const orgDoc of orgsSnap.docs) {
+        const docRef = db.collection("organizations").doc(orgDoc.id).collection("jobs").doc(jobId);
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          jobsToSync = [docSnap];
+          break;
+        }
       }
     } else if (organizationId) {
       const jobsSnap = await db.collection("organizations")
@@ -1348,10 +1359,18 @@ export const syncStoreOrders = onCall(async (request: any) => {
         .get();
       jobsToSync = jobsSnap.docs;
     } else if (clientId) {
-      const jobsSnap = await db.collectionGroup("jobs")
-        .where("dentistUserId", "==", clientId)
-        .get();
-      jobsToSync = jobsSnap.docs.filter((doc: any) => {
+      const orgsSnap = await db.collection("organizations").get();
+      const jobsPromises = orgsSnap.docs.map(async (orgDoc) => {
+        const snap = await db.collection("organizations")
+          .doc(orgDoc.id)
+          .collection("jobs")
+          .where("dentistUserId", "==", clientId)
+          .get();
+        return snap.docs;
+      });
+      const jobsSnaps = await Promise.all(jobsPromises);
+      const flatDocs = jobsSnaps.flat();
+      jobsToSync = flatDocs.filter((doc: any) => {
         const d = doc.data();
         return d.origin === "ONLINE_ORDER" || d.origin === "ONLINE_REQUISITION";
       });
@@ -1370,13 +1389,11 @@ export const syncStoreOrders = onCall(async (request: any) => {
     for (const jobDoc of jobsToSync) {
       const jobData = jobDoc.data();
       let paymentStatus = jobData.paymentStatus || "PENDING";
-      let updatedJob = false;
 
       // Force mark as paid if requested (e.g. by laboratory manager)
       if (forceMarkPaid && jobId && paymentStatus !== "PAID") {
         paymentStatus = "PAID";
         await jobDoc.ref.update({ paymentStatus: "PAID" });
-        updatedJob = true;
         updatedCount++;
       }
 
@@ -1390,7 +1407,6 @@ export const syncStoreOrders = onCall(async (request: any) => {
           if (asaasStatus === "CONFIRMED" || asaasStatus === "RECEIVED" || asaasStatus === "RECEIVED_IN_CASH") {
             paymentStatus = "PAID";
             await jobDoc.ref.update({ paymentStatus: "PAID" });
-            updatedJob = true;
             updatedCount++;
           }
         } catch (err: any) {

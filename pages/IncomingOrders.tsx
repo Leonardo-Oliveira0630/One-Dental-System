@@ -56,7 +56,7 @@ export const IncomingOrders = () => {
     }
     setSyncingJobId(jobId);
     try {
-      const res = await api.apiSyncStoreOrders({ jobId, forceMarkPaid: force });
+      const res = await api.apiSyncStoreOrders({ organizationId: currentOrg?.id, jobId, forceMarkPaid: force });
       alert(`Sincronização concluída! Status de pagamento: ${res.paymentsUpdated ? 'Atualizado para Pago' : 'Inalterado/Já Pago'}. Vouchers de combos gerados: ${res.vouchersGenerated || 0}.`);
     } catch (err: any) {
       console.error("Erro ao sincronizar pedido:", err);

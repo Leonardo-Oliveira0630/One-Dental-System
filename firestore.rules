@@ -241,5 +241,17 @@ service cloud.firestore {
         )
       );
     }
+
+    match /{path=**}/vouchers/{voucherId} {
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (resource != null && resource.data.clientId == request.auth.uid) ||
+        (userExists() && getUserData().get('organizationId', '') == resource.data.organizationId)
+      );
+      allow write: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (userExists() && getUserData().get('organizationId', '') == resource.data.organizationId)
+      );
+    }
   }
 }
