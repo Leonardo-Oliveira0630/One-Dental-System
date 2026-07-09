@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import * as api from '../../services/firebaseService';
-import { Sparkles, Ticket, Copy, Check, Search, RefreshCw, AlertCircle, Calendar, ShieldCheck, HelpCircle } from 'lucide-react';
+import { Sparkles, Ticket, Copy, Check, Search, RefreshCw, AlertCircle, Calendar, ShieldCheck, HelpCircle, Tag } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export function MyVouchersTab() {
@@ -232,6 +232,18 @@ export function MyVouchersTab() {
                                                 <span className="font-bold text-slate-700">{getLabName(v.organizationId)}</span>
                                             </div>
                                         </div>
+
+                                        {v.applyToAllVariations === false && v.promoVariationOptionName && (
+                                            <div className="flex items-start gap-2">
+                                                <div className="w-5 h-5 rounded-lg bg-pink-50 flex items-center justify-center text-pink-600 shrink-0 mt-0.5">
+                                                    <Tag size={12} />
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-pink-500 block font-black uppercase tracking-wider">Variação Exclusiva</span>
+                                                    <span className="font-bold text-slate-700">{v.promoVariationOptionName}</span>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

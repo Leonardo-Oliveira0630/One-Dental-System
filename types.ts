@@ -472,6 +472,10 @@ export interface JobType {
   promotionCallText?: string;
   originalJobTypeId?: string;
   isVoucherCombo?: boolean;
+  applyToAllVariations?: boolean;
+  promoVariationOptionId?: string;
+  promoVariationOptionName?: string;
+  promoVariationGroupName?: string;
 }
 
 export interface ClinicService {

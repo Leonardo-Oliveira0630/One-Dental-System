@@ -545,10 +545,18 @@ export const createOrderPayment = onCall(async (request: any) => {
           
           for (const vId of jobData.vouchersUsed) {
               const snap = await vRefs[vId].get();
-              if (snap.exists && itemTypeIds.includes(snap.data().jobTypeId) && vQties[vId] > 0 && qtyToCover > 0) {
-                  const coveredQty = Math.min(vQties[vId], qtyToCover);
-                  vQties[vId] -= coveredQty;
-                  qtyToCover -= coveredQty;
+              if (snap.exists) {
+                  const vData = snap.data();
+                  let variationMatches = true;
+                  if (vData.applyToAllVariations === false && vData.promoVariationOptionId) {
+                      variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(vData.promoVariationOptionId));
+                  }
+                  
+                  if (itemTypeIds.includes(vData.jobTypeId) && variationMatches && vQties[vId] > 0 && qtyToCover > 0) {
+                      const coveredQty = Math.min(vQties[vId], qtyToCover);
+                      vQties[vId] -= coveredQty;
+                      qtyToCover -= coveredQty;
+                  }
               }
           }
       }
@@ -1101,8 +1109,9 @@ export const asaasWebhook = onRequest(
             if ((jobData.isComboPurchase || hasPromoItems) && !jobData.vouchersGenerated) {
               const writeBatch = db.batch();
               let generatedAny = false;
+              let idx = 0;
               
-              jobData.items.forEach((item: any, idx: number) => {
+              for (const item of jobData.items || []) {
                 const shouldGenerate = !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId || !!jobData.isComboPurchase;
                 if (shouldGenerate) {
                   generatedAny = true;
@@ -1114,6 +1123,42 @@ export const asaasWebhook = onRequest(
                     .collection("vouchers")
                     .doc(voucherId);
                     
+                  let isVoucherCombo = item.isVoucherCombo === true;
+                  let promoQuantity = 1;
+                  let applyToAllVariations = true;
+                  let promoVariationOptionId = '';
+                  let promoVariationOptionName = '';
+                  let promoVariationGroupName = '';
+
+                  if (item.promotionQuantity !== undefined && item.promotionQuantity !== null) {
+                    promoQuantity = Number(item.promotionQuantity);
+                    applyToAllVariations = item.applyToAllVariations !== false;
+                    promoVariationOptionId = item.promoVariationOptionId || '';
+                    promoVariationOptionName = item.promoVariationOptionName || '';
+                    promoVariationGroupName = item.promoVariationGroupName || '';
+                  } else {
+                    try {
+                      const jtDoc = await db.collection("organizations")
+                        .doc(jobData.organizationId)
+                        .collection("jobTypes")
+                        .doc(item.jobTypeId)
+                        .get();
+                      if (jtDoc.exists) {
+                        const jtData = jtDoc.data();
+                        isVoucherCombo = jtData?.isVoucherCombo === true;
+                        promoQuantity = Number(jtData?.promotionQuantity || 1);
+                        applyToAllVariations = jtData?.applyToAllVariations !== false;
+                        promoVariationOptionId = jtData?.promoVariationOptionId || '';
+                        promoVariationOptionName = jtData?.promoVariationOptionName || '';
+                        promoVariationGroupName = jtData?.promoVariationGroupName || '';
+                      }
+                    } catch (err: any) {
+                      logger.error(`Error fetching jobType ${item.jobTypeId} during webhook voucher generation:`, err.message);
+                    }
+                  }
+
+                  const finalQty = isVoucherCombo ? (item.quantity * promoQuantity) : item.quantity;
+                    
                   writeBatch.set(voucherRef, {
                     id: voucherId,
                     code,
@@ -1121,16 +1166,21 @@ export const asaasWebhook = onRequest(
                     clientId: jobData.dentistUserId || jobData.dentistId || "",
                     clientName: jobData.dentistName || "Dentista",
                     jobTypeId: item.originalJobTypeId || item.jobTypeId,
-                    jobTypeName: item.name, // We'll keep the combo name here, or fetch original
+                    jobTypeName: item.name, 
                     promotionName: item.name,
-                    initialQuantity: item.quantity,
-                    remainingQuantity: item.quantity,
+                    initialQuantity: finalQty,
+                    remainingQuantity: finalQty,
                     status: 'ACTIVE',
                     orderId: jobDoc.id,
+                    applyToAllVariations,
+                    promoVariationOptionId,
+                    promoVariationOptionName,
+                    promoVariationGroupName,
                     createdAt: admin.firestore.FieldValue.serverTimestamp()
                   });
                 }
-              });
+                idx++;
+              }
               
               if (generatedAny) {
                 writeBatch.update(jobDoc.ref, { vouchersGenerated: true });
@@ -1420,8 +1470,9 @@ export const syncStoreOrders = onCall(async (request: any) => {
         if (jobData.isComboPurchase || hasPromoItems) {
           const writeBatch = db.batch();
           let generatedAny = false;
+          let idx = 0;
           
-          jobData.items.forEach((item: any, idx: number) => {
+          for (const item of jobData.items || []) {
             const shouldGenerate = !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId || !!jobData.isComboPurchase;
             if (shouldGenerate) {
               generatedAny = true;
@@ -1433,6 +1484,42 @@ export const syncStoreOrders = onCall(async (request: any) => {
                 .collection("vouchers")
                 .doc(voucherId);
                 
+              let isVoucherCombo = item.isVoucherCombo === true;
+              let promoQuantity = 1;
+              let applyToAllVariations = true;
+              let promoVariationOptionId = '';
+              let promoVariationOptionName = '';
+              let promoVariationGroupName = '';
+
+              if (item.promotionQuantity !== undefined && item.promotionQuantity !== null) {
+                promoQuantity = Number(item.promotionQuantity);
+                applyToAllVariations = item.applyToAllVariations !== false;
+                promoVariationOptionId = item.promoVariationOptionId || '';
+                promoVariationOptionName = item.promoVariationOptionName || '';
+                promoVariationGroupName = item.promoVariationGroupName || '';
+              } else {
+                try {
+                  const jtDoc = await db.collection("organizations")
+                    .doc(jobData.organizationId)
+                    .collection("jobTypes")
+                    .doc(item.jobTypeId)
+                    .get();
+                  if (jtDoc.exists) {
+                    const jtData = jtDoc.data();
+                    isVoucherCombo = jtData?.isVoucherCombo === true;
+                    promoQuantity = Number(jtData?.promotionQuantity || 1);
+                    applyToAllVariations = jtData?.applyToAllVariations !== false;
+                    promoVariationOptionId = jtData?.promoVariationOptionId || '';
+                    promoVariationOptionName = jtData?.promoVariationOptionName || '';
+                    promoVariationGroupName = jtData?.promoVariationGroupName || '';
+                  }
+                } catch (err: any) {
+                  logger.error(`Error fetching jobType ${item.jobTypeId} during sync voucher generation:`, err.message);
+                }
+              }
+
+              const finalQty = isVoucherCombo ? (item.quantity * promoQuantity) : item.quantity;
+                
               writeBatch.set(voucherRef, {
                 id: voucherId,
                 code,
@@ -1442,14 +1529,19 @@ export const syncStoreOrders = onCall(async (request: any) => {
                 jobTypeId: item.originalJobTypeId || item.jobTypeId,
                 jobTypeName: item.name,
                 promotionName: item.name,
-                initialQuantity: item.quantity,
-                remainingQuantity: item.quantity,
+                initialQuantity: finalQty,
+                remainingQuantity: finalQty,
                 status: 'ACTIVE',
                 orderId: jobDoc.id,
+                applyToAllVariations,
+                promoVariationOptionId,
+                promoVariationOptionName,
+                promoVariationGroupName,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
               });
             }
-          });
+            idx++;
+          }
           
           if (generatedAny) {
             writeBatch.update(jobDoc.ref, { vouchersGenerated: true });

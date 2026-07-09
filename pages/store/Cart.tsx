@@ -78,9 +78,23 @@ export const Cart = () => {
             return;
         }
         // Verify if voucher jobTypeId matches any cart item
-        const matchingItem = cart.find(c => c.jobType.id === v.jobTypeId || c.jobType.originalJobTypeId === v.jobTypeId);
-        if (!matchingItem) {
+        const baseMatches = cart.filter(c => c.jobType.id === v.jobTypeId || c.jobType.originalJobTypeId === v.jobTypeId);
+        if (baseMatches.length === 0) {
             setVoucherStatus({ text: 'O voucher não se aplica aos serviços do carrinho.', type: 'error' });
+            return;
+        }
+
+        const matchingItem = baseMatches.find(c => {
+            if (v.applyToAllVariations === false && v.promoVariationOptionId) {
+                const hasVariation = c.selectedVariationIds && c.selectedVariationIds.includes(v.promoVariationOptionId);
+                return hasVariation;
+            }
+            return true;
+        });
+
+        if (!matchingItem) {
+            const varName = v.promoVariationOptionName || "uma variação específica";
+            setVoucherStatus({ text: `Este voucher é exclusivo para a variação "${varName}". Adicione-a ao serviço para aplicar.`, type: 'error' });
             return;
         }
         setAppliedVouchers(prev => [...prev, v]);
@@ -137,7 +151,12 @@ export const Cart = () => {
       let coveredQty = 0;
 
       for (const v of appliedVouchers) {
-        if (itemTypeIds.includes(v.jobTypeId)) {
+        let variationMatches = true;
+        if (v.applyToAllVariations === false && v.promoVariationOptionId) {
+          variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(v.promoVariationOptionId));
+        }
+
+        if (itemTypeIds.includes(v.jobTypeId) && variationMatches) {
           const available = balanceMap[v.id] || 0;
           if (available > 0 && remainingQtyToCover > 0) {
             const cover = Math.min(available, remainingQtyToCover);
@@ -186,7 +205,12 @@ export const Cart = () => {
       let coveredQty = 0;
 
       for (const v of appliedVouchers) {
-        if (itemTypeIds.includes(v.jobTypeId)) {
+        let variationMatches = true;
+        if (v.applyToAllVariations === false && v.promoVariationOptionId) {
+          variationMatches = !!(cartItem.selectedVariationIds && cartItem.selectedVariationIds.includes(v.promoVariationOptionId));
+        }
+
+        if (itemTypeIds.includes(v.jobTypeId) && variationMatches) {
           const available = balanceMap[v.id] || 0;
           if (available > 0 && remainingQtyToCover > 0) {
             const cover = Math.min(available, remainingQtyToCover);
@@ -312,6 +336,7 @@ export const Cart = () => {
                 selectedVariationIds: c.selectedVariationIds || [], 
                 variationValues: c.variationValues,
                 originalJobTypeId: c.jobType.originalJobTypeId,
+                promotionQuantity: c.jobType.promotionQuantity,
                 isPromo: isPromo(c.jobType),
                 isVoucherCombo: c.jobType.isVoucherCombo === true
             })),
