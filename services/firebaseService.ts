@@ -258,8 +258,12 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
             const mergedMap = new Map([...otherCache.entries(), ...cache.entries()]);
             let sortedJobs = Array.from(mergedMap.values());
             
-            // Filter in memory for 3 months
-            sortedJobs = sortedJobs.filter((job: Job) => job.createdAt && job.createdAt.getTime() >= threeMonthsAgo.getTime());
+            // Filter in memory for 3 months, but KEEP all online store orders/vouchers
+            sortedJobs = sortedJobs.filter((job: Job) => {
+                const isOnlineOrder = job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION';
+                if (isOnlineOrder) return true;
+                return job.createdAt && job.createdAt.getTime() >= threeMonthsAgo.getTime();
+            });
             
             sortedJobs.sort((a: Job, b: Job) => {
                 const aTime = a.createdAt ? a.createdAt.getTime() : 0;
@@ -294,55 +298,80 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
         limit(1000)
     );
 
+    let qStore = query(
+        collection(db, `organizations/${orgId}/jobs`),
+        where('origin', 'in', ['ONLINE_ORDER', 'ONLINE_REQUISITION']),
+        limit(1000)
+    );
+
     // Cache local para exigir mapeamento integral apenas em updates deltas
     let jobsCache: Map<string, Job> = new Map();
 
-    return onSnapshot(q, (snap: any) => {
-        try {
-            let hasChanges = false;
+    const processSnap = (snap: any) => {
+        let hasChanges = false;
+        
+        snap.docChanges().forEach((change: any) => {
+            const docId = change.doc.id;
             
-            snap.docChanges().forEach((change: any) => {
-                const docId = change.doc.id;
-                
-                if (change.type === 'removed') {
-                    jobsCache.delete(docId);
-                    hasChanges = true;
-                } else {
-                    const data = change.doc.data();
-                    const job = { 
-                        id: docId, 
-                        ...data,
-                        createdAt: toDate(data.createdAt), 
-                        dueDate: toDate(data.dueDate),
-                        sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
-                        history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) })),
-                        sectorMovements: (data.sectorMovements || []).map((m: any) => ({
-                            ...m,
-                            entryTime: toDate(m.entryTime),
-                            exitTime: m.exitTime ? toDate(m.exitTime) : undefined
-                        })),
-                        itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
-                    } as Job;
-                    jobsCache.set(docId, job);
-                    hasChanges = true;
-                }
-            });
-
-            if (hasChanges || jobsCache.size === 0) {
-              let sortedJobs = Array.from(jobsCache.values());
-              sortedJobs.sort((a: Job, b: Job) => {
-                const aTime = a.createdAt ? a.createdAt.getTime() : 0;
-                const bTime = b.createdAt ? b.createdAt.getTime() : 0;
-                return bTime - aTime;
-              });
-              cb(sortedJobs);
+            if (change.type === 'removed') {
+                jobsCache.delete(docId);
+                hasChanges = true;
+            } else {
+                const data = change.doc.data();
+                const job = { 
+                    id: docId, 
+                    ...data,
+                    createdAt: toDate(data.createdAt), 
+                    dueDate: toDate(data.dueDate),
+                    sectorEntryTime: data.sectorEntryTime ? toDate(data.sectorEntryTime) : undefined,
+                    history: (data.history || []).map((h: any) => ({ ...h, timestamp: toDate(h.timestamp) })),
+                    sectorMovements: (data.sectorMovements || []).map((m: any) => ({
+                        ...m,
+                        entryTime: toDate(m.entryTime),
+                        exitTime: m.exitTime ? toDate(m.exitTime) : undefined
+                    })),
+                    itemExecutions: (data.itemExecutions || []).map((e: any) => ({ ...e, timestamp: toDate(e.timestamp) }))
+                } as Job;
+                jobsCache.set(docId, job);
+                hasChanges = true;
             }
+        });
+
+        if (hasChanges || jobsCache.size === 0) {
+          let sortedJobs = Array.from(jobsCache.values());
+          sortedJobs.sort((a: Job, b: Job) => {
+            const aTime = a.createdAt ? a.createdAt.getTime() : 0;
+            const bTime = b.createdAt ? b.createdAt.getTime() : 0;
+            return bTime - aTime;
+          });
+          cb(sortedJobs);
+        }
+    };
+
+    const unsubRecent = onSnapshot(q, (snap: any) => {
+        try {
+            processSnap(snap);
         } catch (err) {
-            console.error("[ProTrack] Erro ao processar lista de trabalhos:", err);
+            console.error("[ProTrack] Erro ao processar lista de trabalhos recentes:", err);
         }
     }, (error: any) => {
         console.warn(`[Firestore] Erro em subscribeJobs para ${orgId}: ${error.code}`);
     });
+
+    const unsubStore = onSnapshot(qStore, (snap: any) => {
+        try {
+            processSnap(snap);
+        } catch (err) {
+            console.error("[ProTrack] Erro ao processar lista de trabalhos da loja:", err);
+        }
+    }, (error: any) => {
+        console.warn(`[Firestore] Erro em subscribeJobsStore para ${orgId}: ${error.code}`);
+    });
+
+    return () => {
+        unsubRecent();
+        unsubStore();
+    };
 };
 
 export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, `organizations/${orgId}/jobs`, job.id), job);
