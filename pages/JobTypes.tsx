@@ -21,7 +21,11 @@ export const JobTypes = () => {
   const [activeTab, setActiveTab] = useState<Tab>('BASIC');
 
   
-  const isPromo = (jt: any) => jt.isPromotion === true || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+  const isPromo = (jt: any) => {
+    if (jt.isPromotion === true) return true;
+    if (jt.isPromotion === false) return false;
+    return jt.isPromotion === true || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+  };
 
   const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
   const canCreate = isAdmin || currentUser?.permissions?.includes('catalog:create');
@@ -161,20 +165,51 @@ export const JobTypes = () => {
         }
       }
 
+      const commonFields = {
+          name, 
+          category, 
+          basePrice, 
+          baseCommission: baseCommission === '' ? undefined : Number(baseCommission), 
+          variationGroups, 
+          isVisibleInStore, 
+          isVisibleInOutsourcing, 
+          isVisibleInternally, 
+          imageUrl: finalImageUrl, 
+          allowedSectors,
+          isPromotion: isPromoToSave,
+      };
+
+      const promoFields = isPromoToSave ? {
+          promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity),
+          promotionCallText,
+          originalJobTypeId,
+          isVoucherCombo,
+          applyToAllVariations,
+          promoVariationOptionId: fallbackOptionId,
+          promoVariationOptionIds,
+          promoVariationOptionName,
+          promoVariationGroupName
+      } : {
+          promotionQuantity: undefined,
+          promotionCallText: '',
+          originalJobTypeId: '',
+          isVoucherCombo: false,
+          applyToAllVariations: true,
+          promoVariationOptionId: '',
+          promoVariationOptionIds: [],
+          promoVariationOptionName: '',
+          promoVariationGroupName: ''
+      };
+
+      const savePayload = {
+          ...commonFields,
+          ...promoFields
+      };
+
       if (isEditing && editingId) {
-          await updateJobType(editingId, { 
-              name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups, 
-              isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
-              isPromotion: isPromoToSave, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo,
-              applyToAllVariations, promoVariationOptionId: fallbackOptionId, promoVariationOptionIds, promoVariationOptionName, promoVariationGroupName
-          });
+          await updateJobType(editingId, savePayload);
       } else {
-          const newType: Omit<JobType, 'id'> = {
-              name, category, basePrice, baseCommission: baseCommission === '' ? undefined : Number(baseCommission), variationGroups,
-              isVisibleInStore, isVisibleInOutsourcing, isVisibleInternally, imageUrl: finalImageUrl, allowedSectors,
-              isPromotion: isPromoToSave, promotionQuantity: promotionQuantity === '' ? undefined : Number(promotionQuantity), promotionCallText, originalJobTypeId, isVoucherCombo,
-              applyToAllVariations, promoVariationOptionId: fallbackOptionId, promoVariationOptionIds, promoVariationOptionName, promoVariationGroupName
-          };
+          const newType: Omit<JobType, 'id'> = savePayload as any;
           await addJobType(newType);
       }
       resetForm();

@@ -268,7 +268,11 @@ export const Cart = () => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const isPromo = (jt: any) => !!jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+  const isPromo = (jt: any) => {
+    if (jt.isPromotion === true) return true;
+    if (jt.isPromotion === false) return false;
+    return !!jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+  };
   const onlyVouchers = cart.length > 0 && cart.every(item => isPromo(item.jobType));
 
   useEffect(() => {

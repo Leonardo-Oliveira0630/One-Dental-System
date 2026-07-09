@@ -279,7 +279,11 @@ export const SupplierStore = () => {
 
   // Shopee Search / Algorithm scoring logic
   // Matches terms, scores them, favors richer items (combos, items with variations, rating)
-const isPromo = (jt: any) => jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+const isPromo = (jt: any) => {
+  if (jt.isPromotion === true) return true;
+  if (jt.isPromotion === false) return false;
+  return jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+};
   const rankedProducts = useMemo(() => {
     const raw = (allSupplierProducts || []).filter(p => p.isVisibleInStore !== false);
     

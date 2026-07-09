@@ -774,7 +774,11 @@ export const Catalog = () => {
     });
     const categories = Array.from(new Set(visibleProducts.map(t => t.category)));
 
-    const isPromo = (jt: any) => jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+    const isPromo = (jt: any) => {
+        if (jt.isPromotion === true) return true;
+        if (jt.isPromotion === false) return false;
+        return jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+    };
     
     const visiblePromos = localJobTypes.filter(jt => {
         if (!isPromo(jt)) return false;
