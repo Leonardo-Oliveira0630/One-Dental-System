@@ -590,6 +590,13 @@ export const createOrderPayment = onCall(async (request: any) => {
       description: `Pedido Loja - ${jobData.organizationId}`,
     };
 
+    if (paymentData.successUrl) {
+      payload.callback = {
+        successUrl: paymentData.successUrl,
+        autoRedirect: true
+      };
+    }
+
     if (paymentData.method === "CREDIT_CARD" && paymentData.creditCard) {
       payload.creditCard = {
         holderName: paymentData.creditCard.holderName,
@@ -1089,39 +1096,46 @@ export const asaasWebhook = onRequest(
               await jobDoc.ref.update({ paymentStatus: "PAID" });
             }
             
-            // GENERATE VOUCHERS IF COMBO
-            if (jobData.isComboPurchase && !jobData.vouchersGenerated) {
+            // GENERATE VOUCHERS IF COMBO OR PROMO ITEMS
+            const hasPromoItems = jobData.items?.some((item: any) => !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId);
+            if ((jobData.isComboPurchase || hasPromoItems) && !jobData.vouchersGenerated) {
               const writeBatch = db.batch();
+              let generatedAny = false;
               
               jobData.items.forEach((item: any, idx: number) => {
-                // If it's a voucher combo, generate a voucher for this item
-                const voucherId = `voucher_${Date.now()}_${idx}`;
-                const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-                
-                const voucherRef = db.collection("organizations")
-                  .doc(jobData.organizationId)
-                  .collection("vouchers")
-                  .doc(voucherId);
+                const shouldGenerate = !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId || !!jobData.isComboPurchase;
+                if (shouldGenerate) {
+                  generatedAny = true;
+                  const voucherId = `voucher_${Date.now()}_${idx}`;
+                  const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
                   
-                writeBatch.set(voucherRef, {
-                  id: voucherId,
-                  code,
-                  organizationId: jobData.organizationId,
-                  clientId: jobData.dentistUserId || jobData.dentistId,
-                  clientName: jobData.dentistName,
-                  jobTypeId: item.originalJobTypeId || item.jobTypeId,
-                  jobTypeName: item.name, // We'll keep the combo name here, or fetch original
-                  promotionName: item.name,
-                  initialQuantity: item.quantity,
-                  remainingQuantity: item.quantity,
-                  status: 'ACTIVE',
-                  orderId: jobDoc.id,
-                  createdAt: admin.firestore.FieldValue.serverTimestamp()
-                });
+                  const voucherRef = db.collection("organizations")
+                    .doc(jobData.organizationId)
+                    .collection("vouchers")
+                    .doc(voucherId);
+                    
+                  writeBatch.set(voucherRef, {
+                    id: voucherId,
+                    code,
+                    organizationId: jobData.organizationId,
+                    clientId: jobData.dentistUserId || jobData.dentistId || "",
+                    clientName: jobData.dentistName || "Dentista",
+                    jobTypeId: item.originalJobTypeId || item.jobTypeId,
+                    jobTypeName: item.name, // We'll keep the combo name here, or fetch original
+                    promotionName: item.name,
+                    initialQuantity: item.quantity,
+                    remainingQuantity: item.quantity,
+                    status: 'ACTIVE',
+                    orderId: jobDoc.id,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                  });
+                }
               });
               
-              writeBatch.update(jobDoc.ref, { vouchersGenerated: true });
-              await writeBatch.commit();
+              if (generatedAny) {
+                writeBatch.update(jobDoc.ref, { vouchersGenerated: true });
+                await writeBatch.commit();
+              }
             }
           }
         }
@@ -1270,5 +1284,174 @@ export const calculateFrenetShipping = onCall({ cors: true }, async (req: any) =
   } catch (error: any) {
     logger.error("Erro Frenet:", error.response?.data || error.message);
     throw new HttpsError('internal', 'Erro ao calcular frete na Frenet.');
+  }
+});
+
+/**
+ * GERENCIA DECISÃO DE PEDIDO WEB (APROVAR OU REJEITAR)
+ */
+export const manageOrderDecision = onCall(async (request: any) => {
+  const { orgId, jobId, decision, reason } = request.data;
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Não logado.");
+  }
+  
+  const db = admin.firestore();
+  try {
+    const jobRef = db.collection("organizations").doc(orgId).collection("jobs").doc(jobId);
+    const jobSnap = await jobRef.get();
+    if (!jobSnap.exists) {
+      throw new HttpsError("not-found", "Pedido não encontrado.");
+    }
+
+    if (decision === 'APPROVE') {
+      await jobRef.update({
+        status: "APPROVED",
+        approvedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } else if (decision === 'REJECT') {
+      await jobRef.update({
+        status: "REJECTED",
+        rejectionReason: reason || "",
+        rejectedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    return { success: true };
+  } catch (error: any) {
+    throw new HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * REPROCESSA E SINCRONIZA PEDIDOS DA LOJA VIRTUAL (VOUCHERS E FINANCEIRO)
+ */
+export const syncStoreOrders = onCall(async (request: any) => {
+  const { organizationId, clientId, jobId, forceMarkPaid } = request.data;
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Não logado.");
+  }
+  
+  const db = admin.firestore();
+  let jobsToSync: admin.firestore.QueryDocumentSnapshot[] = [];
+  
+  try {
+    if (jobId) {
+      const jobSnap = await db.collectionGroup("jobs").where("id", "==", jobId).get();
+      if (!jobSnap.empty) {
+        jobsToSync = jobSnap.docs;
+      }
+    } else if (organizationId) {
+      const jobsSnap = await db.collection("organizations")
+        .doc(organizationId)
+        .collection("jobs")
+        .where("origin", "in", ["ONLINE_ORDER", "ONLINE_REQUISITION"])
+        .get();
+      jobsToSync = jobsSnap.docs;
+    } else if (clientId) {
+      const jobsSnap = await db.collectionGroup("jobs")
+        .where("dentistUserId", "==", clientId)
+        .get();
+      jobsToSync = jobsSnap.docs.filter((doc: any) => {
+        const d = doc.data();
+        return d.origin === "ONLINE_ORDER" || d.origin === "ONLINE_REQUISITION";
+      });
+    }
+
+    let updatedCount = 0;
+    let vouchersGeneratedCount = 0;
+    
+    let asaasConfig: any = null;
+    try {
+      asaasConfig = await getAsaasConfig();
+    } catch (e) {
+      logger.warn("Asaas config error during sync (using key settings if any):", e);
+    }
+
+    for (const jobDoc of jobsToSync) {
+      const jobData = jobDoc.data();
+      let paymentStatus = jobData.paymentStatus || "PENDING";
+      let updatedJob = false;
+
+      // Force mark as paid if requested (e.g. by laboratory manager)
+      if (forceMarkPaid && jobId && paymentStatus !== "PAID") {
+        paymentStatus = "PAID";
+        await jobDoc.ref.update({ paymentStatus: "PAID" });
+        updatedJob = true;
+        updatedCount++;
+      }
+
+      // Check with Asaas if pending and has Asaas payment ID
+      if (paymentStatus !== "PAID" && jobData.asaasPaymentId && asaasConfig) {
+        try {
+          const checkRes = await axios.get(`${asaasConfig.url}/payments/${jobData.asaasPaymentId}`, {
+            headers: { access_token: asaasConfig.key }
+          });
+          const asaasStatus = checkRes.data.status;
+          if (asaasStatus === "CONFIRMED" || asaasStatus === "RECEIVED" || asaasStatus === "RECEIVED_IN_CASH") {
+            paymentStatus = "PAID";
+            await jobDoc.ref.update({ paymentStatus: "PAID" });
+            updatedJob = true;
+            updatedCount++;
+          }
+        } catch (err: any) {
+          logger.error(`Error checking Asaas payment ${jobData.asaasPaymentId}:`, err.message);
+        }
+      }
+
+      // Generate vouchers if paymentStatus is PAID and vouchers have not been generated
+      if (paymentStatus === "PAID" && !jobData.vouchersGenerated) {
+        const hasPromoItems = jobData.items?.some((item: any) => !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId);
+        if (jobData.isComboPurchase || hasPromoItems) {
+          const writeBatch = db.batch();
+          let generatedAny = false;
+          
+          jobData.items.forEach((item: any, idx: number) => {
+            const shouldGenerate = !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId || !!jobData.isComboPurchase;
+            if (shouldGenerate) {
+              generatedAny = true;
+              const voucherId = `voucher_${Date.now()}_${idx}`;
+              const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+              
+              const voucherRef = db.collection("organizations")
+                .doc(jobData.organizationId)
+                .collection("vouchers")
+                .doc(voucherId);
+                
+              writeBatch.set(voucherRef, {
+                id: voucherId,
+                code,
+                organizationId: jobData.organizationId,
+                clientId: jobData.dentistUserId || jobData.dentistId || "",
+                clientName: jobData.dentistName || "Dentista",
+                jobTypeId: item.originalJobTypeId || item.jobTypeId,
+                jobTypeName: item.name,
+                promotionName: item.name,
+                initialQuantity: item.quantity,
+                remainingQuantity: item.quantity,
+                status: 'ACTIVE',
+                orderId: jobDoc.id,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+            }
+          });
+          
+          if (generatedAny) {
+            writeBatch.update(jobDoc.ref, { vouchersGenerated: true });
+            await writeBatch.commit();
+            vouchersGeneratedCount++;
+          }
+        }
+      }
+    }
+
+    return { 
+      success: true, 
+      jobsChecked: jobsToSync.length, 
+      paymentsUpdated: updatedCount, 
+      vouchersGenerated: vouchersGeneratedCount 
+    };
+  } catch (error: any) {
+    logger.error("Error in syncStoreOrders:", error);
+    throw new HttpsError("internal", error.message);
   }
 });

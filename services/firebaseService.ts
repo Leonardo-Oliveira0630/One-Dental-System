@@ -815,6 +815,10 @@ export const apiManageOrderDecision = async (orgId: string, jobId: string, decis
     const fn = httpsCallable(functions, 'manageOrderDecision');
     return (await fn({ orgId, jobId, decision, reason })).data;
 };
+export const apiSyncStoreOrders = async (params: { organizationId?: string; clientId?: string; jobId?: string; forceMarkPaid?: boolean }) => {
+    const fn = httpsCallable(functions, 'syncStoreOrders');
+    return (await fn(params)).data as any;
+};
 export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string, sector?: string) => {
     const fn = httpsCallable(functions, 'registerUserInOrg');
     return (await fn({ email, pass, name, role, organizationId, sector })).data;

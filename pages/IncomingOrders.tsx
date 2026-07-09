@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, Attachment } from '../types';
 import { BOX_COLORS } from '../services/mockData';
-import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box, Archive, Loader2, CreditCard } from 'lucide-react';
+import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box, Archive, Loader2, CreditCard, RefreshCw, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { STLViewer } from '../components/STLViewer';
 import { FeatureLocked } from '../components/FeatureLocked';
@@ -47,6 +47,24 @@ export const IncomingOrders = () => {
   
   // Downloading State
   const [zippingJobId, setZippingJobId] = useState<string | null>(null);
+  const [syncingJobId, setSyncingJobId] = useState<string | null>(null);
+
+  const handleSyncSingleJob = async (jobId: string, force: boolean = false) => {
+    if (force) {
+      const confirmForce = window.confirm("Deseja forçar a marcação deste pedido como PAGO e gerar os respectivos vouchers? Use isso se o cliente pagou por fora.");
+      if (!confirmForce) return;
+    }
+    setSyncingJobId(jobId);
+    try {
+      const res = await api.apiSyncStoreOrders({ jobId, forceMarkPaid: force });
+      alert(`Sincronização concluída! Status de pagamento: ${res.paymentsUpdated ? 'Atualizado para Pago' : 'Inalterado/Já Pago'}. Vouchers de combos gerados: ${res.vouchersGenerated || 0}.`);
+    } catch (err: any) {
+      console.error("Erro ao sincronizar pedido:", err);
+      alert("Erro ao sincronizar pedido: " + (err.message || err));
+    } finally {
+      setSyncingJobId(null);
+    }
+  };
 
   const handleOpenApprove = (job: Job) => {
     let nextId = '0001';
@@ -291,6 +309,27 @@ export const IncomingOrders = () => {
                             >
                                 <X size={20} /> REJEITAR / ESTORNAR
                             </button>
+
+                            {job.paymentStatus !== 'PAID' && (
+                                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 mt-2">
+                                    <button
+                                        onClick={() => handleSyncSingleJob(job.id, false)}
+                                        disabled={syncingJobId === job.id}
+                                        className="flex items-center justify-center gap-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 cursor-pointer"
+                                    >
+                                        <RefreshCw size={12} className={syncingJobId === job.id ? "animate-spin" : ""} />
+                                        Sincronizar Asaas
+                                    </button>
+                                    <button
+                                        onClick={() => handleSyncSingleJob(job.id, true)}
+                                        disabled={syncingJobId === job.id}
+                                        className="flex items-center justify-center gap-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 cursor-pointer animate-pulse"
+                                    >
+                                        <Zap size={12} />
+                                        Forçar como Pago
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

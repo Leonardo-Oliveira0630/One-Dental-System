@@ -233,7 +233,7 @@ export const Cart = () => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const isPromo = (jt: any) => jt.isPromotion === true || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
+  const isPromo = (jt: any) => !!jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
   const onlyVouchers = cart.length > 0 && cart.every(item => isPromo(item.jobType));
 
   useEffect(() => {
@@ -311,7 +311,9 @@ export const Cart = () => {
                 price: c.unitPrice, 
                 selectedVariationIds: c.selectedVariationIds || [], 
                 variationValues: c.variationValues,
-                originalJobTypeId: c.jobType.originalJobTypeId
+                originalJobTypeId: c.jobType.originalJobTypeId,
+                isPromo: isPromo(c.jobType),
+                isVoucherCombo: c.jobType.isVoucherCombo === true
             })),
             history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual', userId: currentUser.id, userName: currentUser.name }],
             attachments: uploadedAttachments, 
@@ -326,9 +328,13 @@ export const Cart = () => {
             vouchersUsed: appliedVouchers.map(v => v.id)
         };
 
+        const tab = onlyVouchers ? 'vouchers' : 'my_orders';
+        const successUrl = `${window.location.origin}/store?tab=${tab}`;
+
         const paymentData = {
             method: 'UNDEFINED',
-            cpfCnpj: cpfCnpj.replace(/\D/g, '')
+            cpfCnpj: cpfCnpj.replace(/\D/g, ''),
+            successUrl
         };
 
         const result = await api.apiCreateOrderPayment(jobData, paymentData);

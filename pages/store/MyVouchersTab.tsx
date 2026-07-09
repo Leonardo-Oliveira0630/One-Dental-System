@@ -8,9 +8,25 @@ export function MyVouchersTab() {
     const { currentUser, allLaboratories } = useApp();
     const [vouchers, setVouchers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'EXHAUSTED'>('ACTIVE');
+
+    const handleSyncOldPurchases = async () => {
+        if (!currentUser?.id) return;
+        setSyncing(true);
+        try {
+            const res = await api.apiSyncStoreOrders({ clientId: currentUser.id });
+            alert(`Sincronização concluída com sucesso! Vouchers gerados: ${res.vouchersGenerated || 0}. Seus combos e promoções antigos foram restaurados e estão disponíveis.`);
+            await fetchVouchers();
+        } catch (err: any) {
+            console.error("Erro ao sincronizar pedidos:", err);
+            alert("Erro ao sincronizar compras: " + (err.message || err));
+        } finally {
+            setSyncing(false);
+        }
+    };
 
     const fetchVouchers = async () => {
         if (!currentUser?.id) return;
@@ -71,13 +87,22 @@ export function MyVouchersTab() {
                         Gerencie e acompanhe o saldo dos seus pacotes de serviços pré-pagos e combos promocionais.
                     </p>
                 </div>
-                <button 
-                    onClick={fetchVouchers}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition-all disabled:opacity-50"
-                >
-                    <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Atualizar
-                </button>
+                <div className="flex gap-2">
+                    <button 
+                        onClick={handleSyncOldPurchases}
+                        disabled={loading || syncing}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-150 rounded-xl transition-all disabled:opacity-50"
+                    >
+                        <RefreshCw size={16} className={syncing ? "animate-spin" : ""} /> Sincronizar Compras Antigas
+                    </button>
+                    <button 
+                        onClick={fetchVouchers}
+                        disabled={loading || syncing}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition-all disabled:opacity-50"
+                    >
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Atualizar
+                    </button>
+                </div>
             </div>
 
             {/* Filters bar */}

@@ -37,6 +37,21 @@ export const Finance = () => {
 
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [syncingStore, setSyncingStore] = useState(false);
+
+  const handleSyncStoreSales = async () => {
+    if (!currentOrg?.id) return;
+    setSyncingStore(true);
+    try {
+      const res = await api.apiSyncStoreOrders({ organizationId: currentOrg.id });
+      alert(`Sincronização concluída com sucesso! Pedidos da loja verificados: ${res.jobsChecked || 0}. Status de pagamentos atualizados: ${res.paymentsUpdated || 0}. Vouchers de combos gerados: ${res.vouchersGenerated || 0}. Seu financeiro foi atualizado e consolidado.`);
+    } catch (err: any) {
+      console.error("Erro ao sincronizar vendas online:", err);
+      alert("Erro ao sincronizar vendas online: " + (err.message || err));
+    } finally {
+      setSyncingStore(false);
+    }
+  };
 
   // Advanced Financial View State
   const [showStatement, setShowStatement] = useState(false);
@@ -1112,13 +1127,24 @@ export const Finance = () => {
           </div>
       )}
 
-       <div className="flex bg-slate-200 p-1 rounded-2xl w-fit overflow-x-auto no-scrollbar">
-          <button onClick={() => setActiveTab('DASHBOARD')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Métricas</button>
-          <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Extrato p/ Faturamento</button>
-          <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturas & Boletos</button>
-          <button onClick={() => setActiveTab('EXPENSES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Despesas</button>
-          <button onClick={() => setActiveTab('REPORTS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'REPORTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Relatórios</button>
-          <button onClick={() => setActiveTab('SETTINGS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Configurações</button>
+       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+           <div className="flex bg-slate-200 p-1 rounded-2xl w-fit overflow-x-auto no-scrollbar">
+              <button onClick={() => setActiveTab('DASHBOARD')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Métricas</button>
+              <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Extrato p/ Faturamento</button>
+              <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturas & Boletos</button>
+              <button onClick={() => setActiveTab('EXPENSES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Despesas</button>
+              <button onClick={() => setActiveTab('REPORTS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'REPORTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Relatórios</button>
+              <button onClick={() => setActiveTab('SETTINGS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Configurações</button>
+          </div>
+          
+          <button
+              onClick={handleSyncStoreSales}
+              disabled={syncingStore}
+              className="flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-indigo-100 transition-all cursor-pointer disabled:opacity-50"
+          >
+              <Zap size={14} className={syncingStore ? "animate-spin" : ""} />
+              {syncingStore ? "Sincronizando..." : "Sincronizar Vendas Loja"}
+          </button>
       </div>
 
       {activeTab === 'DASHBOARD' && (
