@@ -652,6 +652,8 @@ export const createOrderPayment = onCall(async (request: any) => {
                           variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.some((id: string) => vData.promoVariationOptionIds.includes(id)));
                       } else if (vData.promoVariationOptionId) {
                           variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(vData.promoVariationOptionId));
+                      } else {
+                          variationMatches = false;
                       }
                   }
                   

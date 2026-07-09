@@ -91,6 +91,7 @@ export const Cart = () => {
                 } else if (v.promoVariationOptionId) {
                     return !!(c.selectedVariationIds && c.selectedVariationIds.includes(v.promoVariationOptionId));
                 }
+                return false;
             }
             return true;
         });
@@ -160,6 +161,8 @@ export const Cart = () => {
             variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.some(id => v.promoVariationOptionIds.includes(id)));
           } else if (v.promoVariationOptionId) {
             variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(v.promoVariationOptionId));
+          } else {
+            variationMatches = false;
           }
         }
 
@@ -218,6 +221,8 @@ export const Cart = () => {
             variationMatches = !!(cartItem.selectedVariationIds && cartItem.selectedVariationIds.some(id => v.promoVariationOptionIds.includes(id)));
           } else if (v.promoVariationOptionId) {
             variationMatches = !!(cartItem.selectedVariationIds && cartItem.selectedVariationIds.includes(v.promoVariationOptionId));
+          } else {
+            variationMatches = false;
           }
         }
 
