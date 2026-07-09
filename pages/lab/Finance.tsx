@@ -1137,14 +1137,7 @@ export const Finance = () => {
               <button onClick={() => setActiveTab('SETTINGS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Configurações</button>
           </div>
           
-          <button
-              onClick={handleSyncStoreSales}
-              disabled={syncingStore}
-              className="flex items-center justify-center gap-2 px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-indigo-100 transition-all cursor-pointer disabled:opacity-50"
-          >
-              <Zap size={14} className={syncingStore ? "animate-spin" : ""} />
-              {syncingStore ? "Sincronizando..." : "Sincronizar Vendas Loja"}
-          </button>
+
       </div>
 
       {activeTab === 'DASHBOARD' && (

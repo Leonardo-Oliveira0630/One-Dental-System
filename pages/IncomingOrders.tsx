@@ -310,26 +310,7 @@ export const IncomingOrders = () => {
                                 <X size={20} /> REJEITAR / ESTORNAR
                             </button>
 
-                            {job.paymentStatus !== 'PAID' && (
-                                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 mt-2">
-                                    <button
-                                        onClick={() => handleSyncSingleJob(job.id, false)}
-                                        disabled={syncingJobId === job.id}
-                                        className="flex items-center justify-center gap-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 cursor-pointer"
-                                    >
-                                        <RefreshCw size={12} className={syncingJobId === job.id ? "animate-spin" : ""} />
-                                        Sincronizar Asaas
-                                    </button>
-                                    <button
-                                        onClick={() => handleSyncSingleJob(job.id, true)}
-                                        disabled={syncingJobId === job.id}
-                                        className="flex items-center justify-center gap-1 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase rounded-xl transition-all disabled:opacity-50 cursor-pointer animate-pulse"
-                                    >
-                                        <Zap size={12} />
-                                        Forçar como Pago
-                                    </button>
-                                </div>
-                            )}
+
                         </div>
                     </div>
                 </div>

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building, ShieldCheck, QrCode, CheckCircle, Copy, Check, Sparkles } from 'lucide-react';
+import { Trash2, ArrowRight, CreditCard, Calendar, UploadCloud, File, X, Loader2, Building, ShieldCheck, QrCode, CheckCircle, Copy, Check, Sparkles, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Attachment, JobStatus, UrgencyLevel } from '../../types';
 import * as api from '../../services/firebaseService';
@@ -275,6 +275,10 @@ export const Cart = () => {
   };
   const onlyVouchers = cart.length > 0 && cart.every(item => isPromo(item.jobType));
 
+  const hasPromoCombos = useMemo(() => cart.some(item => item.jobType.isVoucherCombo === true), [cart]);
+  const hasCommonOrUnitPromos = useMemo(() => cart.some(item => item.jobType.isVoucherCombo !== true), [cart]);
+  const hasMixedItems = hasPromoCombos && hasCommonOrUnitPromos;
+
   useEffect(() => {
     if (successData) {
       if (onlyVouchers) {
@@ -293,6 +297,11 @@ export const Cart = () => {
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (hasMixedItems) {
+        alert("Não é possível prosseguir com o pagamento de um carrinho misto. Remova os Combos Promocionais ou os Serviços Comuns para continuar.");
+        return;
+    }
 
     if (!cpfCnpj || cpfCnpj.replace(/\D/g, '').length < 11) {
         alert("Por favor, preencha o CPF ou CNPJ do comprador para faturamento.");
@@ -807,6 +816,18 @@ export const Cart = () => {
                     <span className="text-2xl font-black text-slate-900">R$ {finalTotal.toFixed(2)}</span>
                 </div>
                 
+                {hasMixedItems && (
+                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-amber-800">
+                        <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+                        <div className="text-xs">
+                            <p className="font-bold">Carrinho Misto Não Permitido</p>
+                            <p className="mt-1">
+                                Não é possível comprar <strong>Combos Promocionais</strong> junto com <strong>Serviços Comuns ou Promoções Unitárias</strong>. Por favor, faça os pedidos separadamente.
+                            </p>
+                        </div>
+                    </div>
+                )}
+                
                 {compressionStatus && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-blue-700 animate-pulse">
                         <Sparkles size={18} className="shrink-0" />
@@ -814,12 +835,18 @@ export const Cart = () => {
                     </div>
                 )}
 
-                <button type="submit" disabled={isProcessing} className={`w-full py-4 text-white font-black rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                    finalTotal === 0 
-                    ? 'bg-green-600 hover:bg-green-700 shadow-green-250' 
-                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
-                } ${isProcessing ? 'opacity-70 cursor-wait' : ''}`}>
-                    {isProcessing ? <Loader2 className="animate-spin" /> : finalTotal === 0 ? 'Enviar para o Laboratório' : 'Confirmar e Pagar'}
+                <button 
+                    type="submit" 
+                    disabled={isProcessing || hasMixedItems} 
+                    className={`w-full py-4 text-white font-black rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                        hasMixedItems
+                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none border border-slate-200'
+                        : finalTotal === 0 
+                            ? 'bg-green-600 hover:bg-green-700 shadow-green-250' 
+                            : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+                    } ${isProcessing ? 'opacity-70 cursor-wait' : ''}`}
+                >
+                    {isProcessing ? <Loader2 className="animate-spin" /> : hasMixedItems ? 'Carrinho Misto Bloqueado' : finalTotal === 0 ? 'Enviar para o Laboratório' : 'Confirmar e Pagar'}
                 </button>
             </div>
         </form>

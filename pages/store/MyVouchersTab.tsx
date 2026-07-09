@@ -89,13 +89,6 @@ export function MyVouchersTab() {
                 </div>
                 <div className="flex gap-2">
                     <button 
-                        onClick={handleSyncOldPurchases}
-                        disabled={loading || syncing}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-150 rounded-xl transition-all disabled:opacity-50"
-                    >
-                        <RefreshCw size={16} className={syncing ? "animate-spin" : ""} /> Sincronizar Compras Antigas
-                    </button>
-                    <button 
                         onClick={fetchVouchers}
                         disabled={loading || syncing}
                         className="flex items-center gap-2 px-4 py-2 text-sm font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition-all disabled:opacity-50"

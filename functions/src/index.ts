@@ -477,6 +477,105 @@ export const createLabSubAccount = onCall(async (request: any) => {
 });
 
 /**
+ * GERA VOUCHERS PARA UM PEDIDO CONFIRMADO (SOMENTE SE FOR COMBO PROMOCIONAL)
+ */
+async function generateVouchersForJob(db: admin.firestore.Firestore, jobData: any, jobId: string) {
+  if (jobData.vouchersGenerated) return;
+
+  const hasComboItems = jobData.items?.some((item: any) => item.isVoucherCombo === true);
+  if (!hasComboItems) return;
+
+  const writeBatch = db.batch();
+  let generatedAny = false;
+  let idx = 0;
+
+  for (const item of jobData.items || []) {
+    const shouldGenerate = item.isVoucherCombo === true;
+    if (shouldGenerate) {
+      generatedAny = true;
+      const voucherId = `voucher_${Date.now()}_${idx}`;
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+      const voucherRef = db.collection("organizations")
+        .doc(jobData.organizationId)
+        .collection("vouchers")
+        .doc(voucherId);
+
+      let isVoucherCombo = true;
+      let promoQuantity = 1;
+      let applyToAllVariations = true;
+      let promoVariationOptionId = '';
+      let promoVariationOptionIds = [];
+      let promoVariationOptionName = '';
+      let promoVariationGroupName = '';
+
+      if (item.promotionQuantity !== undefined && item.promotionQuantity !== null) {
+        promoQuantity = Number(item.promotionQuantity);
+        applyToAllVariations = item.applyToAllVariations !== false;
+        promoVariationOptionId = item.promoVariationOptionId || '';
+        promoVariationOptionIds = item.promoVariationOptionIds || [];
+        promoVariationOptionName = item.promoVariationOptionName || '';
+        promoVariationGroupName = item.promoVariationGroupName || '';
+      } else {
+        try {
+          const jtDoc = await db.collection("organizations")
+            .doc(jobData.organizationId)
+            .collection("jobTypes")
+            .doc(item.jobTypeId)
+            .get();
+          if (jtDoc.exists) {
+            const jtData = jtDoc.data();
+            isVoucherCombo = jtData?.isVoucherCombo === true;
+            promoQuantity = Number(jtData?.promotionQuantity || 1);
+            applyToAllVariations = jtData?.applyToAllVariations !== false;
+            promoVariationOptionId = jtData?.promoVariationOptionId || '';
+            promoVariationOptionIds = jtData?.promoVariationOptionIds || [];
+            promoVariationOptionName = jtData?.promoVariationOptionName || '';
+            promoVariationGroupName = jtData?.promoVariationGroupName || '';
+          }
+        } catch (err: any) {
+          logger.error(`Error fetching jobType ${item.jobTypeId} during voucher helper generation:`, err.message);
+        }
+      }
+
+      const finalQty = isVoucherCombo ? (item.quantity * promoQuantity) : item.quantity;
+
+      writeBatch.set(voucherRef, {
+        id: voucherId,
+        code,
+        organizationId: jobData.organizationId,
+        clientId: jobData.dentistUserId || jobData.dentistId || "",
+        clientName: jobData.dentistName || "Dentista",
+        jobTypeId: item.originalJobTypeId || item.jobTypeId,
+        jobTypeName: item.name,
+        promotionName: item.name,
+        initialQuantity: finalQty,
+        remainingQuantity: finalQty,
+        status: 'ACTIVE',
+        orderId: jobId,
+        applyToAllVariations,
+        promoVariationOptionId,
+        promoVariationOptionIds,
+        promoVariationOptionName,
+        promoVariationGroupName,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    idx++;
+  }
+
+  if (generatedAny) {
+    const jobRef = db.collection("organizations")
+      .doc(jobData.organizationId)
+      .collection("jobs")
+      .doc(jobId);
+    writeBatch.update(jobRef, { vouchersGenerated: true });
+    await writeBatch.commit();
+    jobData.vouchersGenerated = true;
+  }
+}
+
+/**
  * CRIA PAGAMENTO PARA PEDIDO DA LOJA VIRTUAL (CARTÃO/PIX)
  */
 export const createOrderPayment = onCall(async (request: any) => {
@@ -591,6 +690,8 @@ export const createOrderPayment = onCall(async (request: any) => {
         .doc(newJobId)
         .set(newJobData);
         
+      await generateVouchersForJob(db, newJobData, newJobId);
+        
       return { success: true, paymentId: 'voucher_paid', invoiceUrl: '', pixQrCode: null, pixCopyPaste: null };
     }
 
@@ -650,11 +751,12 @@ export const createOrderPayment = onCall(async (request: any) => {
     }
 
     const newJobId = `web_${Date.now()}`;
+    const isPaidImmediately = payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED';
     const newJobData = {
       ...jobData,
       id: newJobId,
       asaasPaymentId: payRes.data.id,
-      paymentStatus: payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED' ? 'PAID' : 'PENDING'
+      paymentStatus: isPaidImmediately ? 'PAID' : 'PENDING'
     };
 
     await db.collection("organizations")
@@ -662,6 +764,10 @@ export const createOrderPayment = onCall(async (request: any) => {
       .collection("jobs")
       .doc(newJobId)
       .set(newJobData);
+
+    if (isPaidImmediately) {
+      await generateVouchersForJob(db, newJobData, newJobId);
+    }
 
     return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, pixQrCode, pixCopyPaste };
   } catch (error: any) {
@@ -1109,92 +1215,7 @@ export const asaasWebhook = onRequest(
             }
             
             // GENERATE VOUCHERS IF COMBO OR PROMO ITEMS
-            const hasPromoItems = jobData.items?.some((item: any) => !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId);
-            if ((jobData.isComboPurchase || hasPromoItems) && !jobData.vouchersGenerated) {
-              const writeBatch = db.batch();
-              let generatedAny = false;
-              let idx = 0;
-              
-              for (const item of jobData.items || []) {
-                const shouldGenerate = !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId || !!jobData.isComboPurchase;
-                if (shouldGenerate) {
-                  generatedAny = true;
-                  const voucherId = `voucher_${Date.now()}_${idx}`;
-                  const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-                  
-                  const voucherRef = db.collection("organizations")
-                    .doc(jobData.organizationId)
-                    .collection("vouchers")
-                    .doc(voucherId);
-                    
-                  let isVoucherCombo = item.isVoucherCombo === true;
-                  let promoQuantity = 1;
-                  let applyToAllVariations = true;
-                  let promoVariationOptionId = '';
-                  let promoVariationOptionIds = [];
-                  let promoVariationOptionName = '';
-                  let promoVariationGroupName = '';
-
-                  if (item.promotionQuantity !== undefined && item.promotionQuantity !== null) {
-                    promoQuantity = Number(item.promotionQuantity);
-                    applyToAllVariations = item.applyToAllVariations !== false;
-                    promoVariationOptionId = item.promoVariationOptionId || '';
-                    promoVariationOptionIds = item.promoVariationOptionIds || [];
-                    promoVariationOptionName = item.promoVariationOptionName || '';
-                    promoVariationGroupName = item.promoVariationGroupName || '';
-                  } else {
-                    try {
-                      const jtDoc = await db.collection("organizations")
-                        .doc(jobData.organizationId)
-                        .collection("jobTypes")
-                        .doc(item.jobTypeId)
-                        .get();
-                      if (jtDoc.exists) {
-                        const jtData = jtDoc.data();
-                        isVoucherCombo = jtData?.isVoucherCombo === true;
-                        promoQuantity = Number(jtData?.promotionQuantity || 1);
-                        applyToAllVariations = jtData?.applyToAllVariations !== false;
-                        promoVariationOptionId = jtData?.promoVariationOptionId || '';
-                        promoVariationOptionIds = jtData?.promoVariationOptionIds || [];
-                        promoVariationOptionName = jtData?.promoVariationOptionName || '';
-                        promoVariationGroupName = jtData?.promoVariationGroupName || '';
-                      }
-                    } catch (err: any) {
-                      logger.error(`Error fetching jobType ${item.jobTypeId} during webhook voucher generation:`, err.message);
-                    }
-                  }
-
-                  const finalQty = isVoucherCombo ? (item.quantity * promoQuantity) : item.quantity;
-                    
-                  writeBatch.set(voucherRef, {
-                    id: voucherId,
-                    code,
-                    organizationId: jobData.organizationId,
-                    clientId: jobData.dentistUserId || jobData.dentistId || "",
-                    clientName: jobData.dentistName || "Dentista",
-                    jobTypeId: item.originalJobTypeId || item.jobTypeId,
-                    jobTypeName: item.name, 
-                    promotionName: item.name,
-                    initialQuantity: finalQty,
-                    remainingQuantity: finalQty,
-                    status: 'ACTIVE',
-                    orderId: jobDoc.id,
-                    applyToAllVariations,
-                    promoVariationOptionId,
-                    promoVariationOptionIds,
-                    promoVariationOptionName,
-                    promoVariationGroupName,
-                    createdAt: admin.firestore.FieldValue.serverTimestamp()
-                  });
-                }
-                idx++;
-              }
-              
-              if (generatedAny) {
-                writeBatch.update(jobDoc.ref, { vouchersGenerated: true });
-                await writeBatch.commit();
-              }
-            }
+            await generateVouchersForJob(db, { ...jobData, paymentStatus: "PAID" }, jobDoc.id);
           }
         }
       } else if (isOverdue) {
@@ -1474,92 +1495,10 @@ export const syncStoreOrders = onCall(async (request: any) => {
 
       // Generate vouchers if paymentStatus is PAID and vouchers have not been generated
       if (paymentStatus === "PAID" && !jobData.vouchersGenerated) {
-        const hasPromoItems = jobData.items?.some((item: any) => !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId);
-        if (jobData.isComboPurchase || hasPromoItems) {
-          const writeBatch = db.batch();
-          let generatedAny = false;
-          let idx = 0;
-          
-          for (const item of jobData.items || []) {
-            const shouldGenerate = !!item.isPromo || !!item.isVoucherCombo || !!item.originalJobTypeId || !!jobData.isComboPurchase;
-            if (shouldGenerate) {
-              generatedAny = true;
-              const voucherId = `voucher_${Date.now()}_${idx}`;
-              const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-              
-              const voucherRef = db.collection("organizations")
-                .doc(jobData.organizationId)
-                .collection("vouchers")
-                .doc(voucherId);
-                
-              let isVoucherCombo = item.isVoucherCombo === true;
-              let promoQuantity = 1;
-              let applyToAllVariations = true;
-              let promoVariationOptionId = '';
-              let promoVariationOptionIds = [];
-              let promoVariationOptionName = '';
-              let promoVariationGroupName = '';
-
-              if (item.promotionQuantity !== undefined && item.promotionQuantity !== null) {
-                promoQuantity = Number(item.promotionQuantity);
-                applyToAllVariations = item.applyToAllVariations !== false;
-                promoVariationOptionId = item.promoVariationOptionId || '';
-                promoVariationOptionIds = item.promoVariationOptionIds || [];
-                promoVariationOptionName = item.promoVariationOptionName || '';
-                promoVariationGroupName = item.promoVariationGroupName || '';
-              } else {
-                try {
-                  const jtDoc = await db.collection("organizations")
-                    .doc(jobData.organizationId)
-                    .collection("jobTypes")
-                    .doc(item.jobTypeId)
-                    .get();
-                  if (jtDoc.exists) {
-                    const jtData = jtDoc.data();
-                    isVoucherCombo = jtData?.isVoucherCombo === true;
-                    promoQuantity = Number(jtData?.promotionQuantity || 1);
-                    applyToAllVariations = jtData?.applyToAllVariations !== false;
-                    promoVariationOptionId = jtData?.promoVariationOptionId || '';
-                    promoVariationOptionIds = jtData?.promoVariationOptionIds || [];
-                    promoVariationOptionName = jtData?.promoVariationOptionName || '';
-                    promoVariationGroupName = jtData?.promoVariationGroupName || '';
-                  }
-                } catch (err: any) {
-                  logger.error(`Error fetching jobType ${item.jobTypeId} during sync voucher generation:`, err.message);
-                }
-              }
-
-              const finalQty = isVoucherCombo ? (item.quantity * promoQuantity) : item.quantity;
-                
-              writeBatch.set(voucherRef, {
-                id: voucherId,
-                code,
-                organizationId: jobData.organizationId,
-                clientId: jobData.dentistUserId || jobData.dentistId || "",
-                clientName: jobData.dentistName || "Dentista",
-                jobTypeId: item.originalJobTypeId || item.jobTypeId,
-                jobTypeName: item.name,
-                promotionName: item.name,
-                initialQuantity: finalQty,
-                remainingQuantity: finalQty,
-                status: 'ACTIVE',
-                orderId: jobDoc.id,
-                applyToAllVariations,
-                promoVariationOptionId,
-                promoVariationOptionIds,
-                promoVariationOptionName,
-                promoVariationGroupName,
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
-              });
-            }
-            idx++;
-          }
-          
-          if (generatedAny) {
-            writeBatch.update(jobDoc.ref, { vouchersGenerated: true });
-            await writeBatch.commit();
-            vouchersGeneratedCount++;
-          }
+        const hasVoucherCombos = jobData.items?.some((item: any) => item.isVoucherCombo === true);
+        await generateVouchersForJob(db, { ...jobData, paymentStatus: "PAID" }, jobDoc.id);
+        if (hasVoucherCombos) {
+          vouchersGeneratedCount++;
         }
       }
     }
