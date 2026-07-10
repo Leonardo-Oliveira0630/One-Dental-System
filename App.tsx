@@ -122,7 +122,11 @@ const StoreCatalogRoute = () => {
     );
   }
 
-  return <Catalog />;
+  return (
+    <Layout>
+      <Catalog />
+    </Layout>
+  );
 };
 
 import Reports from './pages/Reports';
