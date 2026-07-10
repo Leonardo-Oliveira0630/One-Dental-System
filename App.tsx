@@ -103,6 +103,28 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   );
 };
 
+const StoreCatalogRoute = () => {
+  const { currentUser, isLoadingAuth } = useApp();
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="h-12 w-12 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (currentUser) {
+    return (
+      <ProtectedRoute>
+        <UnifiedStore />
+      </ProtectedRoute>
+    );
+  }
+
+  return <Catalog />;
+};
+
 import Reports from './pages/Reports';
 
 const AppContent = () => {
@@ -148,7 +170,7 @@ const AppContent = () => {
       <Route path="/lab/price-tables" element={<ProtectedRoute><PriceTables /></ProtectedRoute>} />
 
       <Route path="/store" element={<ProtectedRoute><UnifiedStore /></ProtectedRoute>} />
-      <Route path="/store/:slug" element={<Catalog />} />
+      <Route path="/store/:slug" element={<StoreCatalogRoute />} />
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
       <Route path="/patients" element={<ProtectedRoute><Patients /></ProtectedRoute>} />
       <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
