@@ -1088,7 +1088,7 @@ export const DentistRequisitions = () => {
                         </div>
                       </div>
 
-                      {job.boxNumber && revealJobStatus && (
+                      {job.boxNumber && revealJobStatus && job.origin !== 'ONLINE_ORDER' && job.origin !== 'ONLINE_REQUISITION' && (
                         <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 mt-0.5">
                           <span className="w-2 h-2 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: job.boxColor?.hex || '#cbd5e1' }} />
                           Caixa #{job.boxNumber}
@@ -1294,7 +1294,7 @@ export const DentistRequisitions = () => {
                       )}
                     </div>
                     
-                    {popupJob.boxNumber && revealJobStatus && (
+                    {popupJob.boxNumber && revealJobStatus && popupJob.origin !== 'ONLINE_ORDER' && popupJob.origin !== 'ONLINE_REQUISITION' && (
                       <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
                         <span className="text-slate-500 font-bold">Número da Caixa:</span>
                         <span className="font-extrabold text-slate-800 flex items-center gap-1.5">

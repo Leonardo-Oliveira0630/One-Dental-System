@@ -1853,7 +1853,7 @@ export const JobDetails = () => {
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar shrink-0 sticky top-0 md:top-16 bg-slate-50 z-20 w-full">
          <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> Dados Básicos</button>
          
-         {!isClient && (
+         {!(isClient || job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION') && (
            <>
              {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
                 <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> Produção</button>
@@ -1889,8 +1889,8 @@ export const JobDetails = () => {
         {activeTab === 'SUMMARY' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full pb-8">
                 {/* KPI BOXES - Responsive Layout */}
-                <div className={`lg:col-span-3 grid grid-cols-1 ${isClient ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3 md:gap-4`}>
-                    {!isClient && (
+                <div className={`lg:col-span-3 grid grid-cols-1 ${(isClient || job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION') ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3 md:gap-4`}>
+                    {!(isClient || job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION') && (
                         <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100 flex items-center gap-4">
                             <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0"><Box size={24} /></div>
                             <div className="min-w-0">

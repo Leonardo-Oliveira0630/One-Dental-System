@@ -185,6 +185,7 @@ interface AppContextType {
   userConnections: OrganizationConnection[];
 
   updateOrganization: (id: string, updates: Partial<Organization>) => Promise<void>;
+  checkSlugAvailability: (slug: string, currentOrgId: string) => Promise<boolean>;
   updateGlobalSettings: (updates: Partial<GlobalSettings>) => Promise<void>;
   validateCoupon: (code: string, planId: string) => Promise<Coupon | null>;
   createSubscription: (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string) => Promise<any>;
@@ -911,6 +912,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const updateOrganization = async (id: string, u: Partial<Organization>) => await api.apiUpdateOrganization(id, u);
+  const checkSlugAvailability = async (slug: string, currentOrgId: string) => await api.checkSlugAvailability(slug, currentOrgId);
   const updateGlobalSettings = async (u: Partial<GlobalSettings>) => await api.apiUpdateGlobalSettings({ ...u, updatedAt: new Date(), updatedBy: currentUser?.name || 'unknown' });
   const validateCoupon = async (code: string, planId: string) => await api.apiValidateCoupon(code, planId);
   const createSubscription = async (orgId: string, planId: string, email: string, name: string, cpfCnpj: string, couponCode?: string) => await api.apiCreateSaaSSubscription(orgId, planId, email, name, cpfCnpj, couponCode);
@@ -1331,7 +1333,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     clearPrint: () => setPrintData(null),
     activeOrganization, switchActiveOrganization, userConnections,
     onlineRequisitions, addOnlineRequisition, updateOnlineRequisition, activeManualDentistId,
-    updateOrganization, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus, setSubscriptionStatus,
+    updateOrganization, checkSlugAvailability, updateGlobalSettings, validateCoupon, createSubscription, createLabWallet, getSaaSInvoices, checkSubscriptionStatus, setSubscriptionStatus,
     addAlert, dismissAlert, addPatient, updatePatient, deletePatient, addAppointment, updateAppointment, deleteAppointment,
     registerOrganization, registerOutsourcedLab, registerDentist, registerSupplier, validateCro, addSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan,
     allSuppliers, allSupplierProducts, supplierOrders, addSupplierOrder, updateSupplierOrder,

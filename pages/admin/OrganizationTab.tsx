@@ -1,17 +1,39 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield, MapPin, Phone, Mail } from 'lucide-react';
+import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield, MapPin, Phone, Mail, Share2, CheckCircle } from 'lucide-react';
 import { StoreSettings, BannerConfig } from '../../types';
 
 export const OrganizationTab = () => {
-  const { currentOrg, updateOrganization, uploadFile } = useApp();
+  const { currentOrg, updateOrganization, checkSlugAvailability, uploadFile } = useApp();
   const [name, setName] = useState(currentOrg?.name || '');
   const [techResponsibleName, setTechResponsibleName] = useState(currentOrg?.financialSettings?.techResponsibleName || '');
   const [techResponsibleCpf, setTechResponsibleCpf] = useState(currentOrg?.financialSettings?.techResponsibleCpf || '');
   const [logoPreview, setLogoPreview] = useState(currentOrg?.logoUrl || '');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [storeSlug, setStoreSlug] = useState(currentOrg?.storeSlug || currentOrg?.name?.toLowerCase().trim().replace(/[^a-z0-9]/g, '-') || '');
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+  const [slugStatus, setSlugStatus] = useState<'IDLE' | 'AVAILABLE' | 'UNAVAILABLE'>('IDLE');
+
+  const handleCheckSlugAvailability = async () => {
+    const formattedSlug = storeSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!formattedSlug) return;
+    setIsCheckingSlug(true);
+    try {
+      const isAvailable = await checkSlugAvailability(formattedSlug, currentOrg?.id || '');
+      setSlugStatus(isAvailable ? 'AVAILABLE' : 'UNAVAILABLE');
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao verificar disponibilidade.");
+    } finally {
+      setIsCheckingSlug(false);
+    }
+  };
+
+  const handleSlugChange = (val: string) => {
+    setStoreSlug(val.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+    setSlugStatus('IDLE');
+  };
   const [storeVisibility, setStoreVisibility] = useState<'PUBLIC' | 'PRIVATE'>(currentOrg?.storeVisibility || 'PUBLIC');
   const [copied, setCopied] = useState(false);
 
@@ -111,9 +133,24 @@ export const OrganizationTab = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentOrg) return;
+    
+    const formattedSlug = storeSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!formattedSlug) {
+      alert("A URL personalizada não pode ser vazia.");
+      return;
+    }
+
     setIsSaving(true);
     
     try {
+      const isAvailable = await checkSlugAvailability(formattedSlug, currentOrg.id);
+      if (!isAvailable) {
+        alert("Esta URL personalizada (slug) já está sendo utilizada por outro laboratório. Por favor, escolha outra.");
+        setSlugStatus('UNAVAILABLE');
+        setIsSaving(false);
+        return;
+      }
+
       let finalLogoUrl = currentOrg.logoUrl;
       if (logoFile) {
         finalLogoUrl = await uploadFile(logoFile);
@@ -363,12 +400,59 @@ export const OrganizationTab = () => {
               <input 
                 required
                 value={storeSlug}
-                onChange={e => setStoreSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                onChange={e => handleSlugChange(e.target.value)}
                 className="flex-1 bg-transparent border-0 outline-none px-3 py-2 font-bold text-slate-800 text-sm"
                 placeholder="nome-do-seu-lab"
               />
             </div>
             <p className="text-[10px] text-slate-400 mt-2 ml-1">Use apenas letras minúsculas, números e hífens.</p>
+            
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                type="button"
+                disabled={isCheckingSlug || !storeSlug}
+                onClick={handleCheckSlugAvailability}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#15263f] font-bold rounded-xl text-xs transition-all disabled:opacity-50 flex items-center gap-1"
+              >
+                {isCheckingSlug ? (
+                  <>
+                    <Loader2 className="animate-spin text-slate-500" size={14} />
+                    Verificando...
+                  </>
+                ) : (
+                  "Verificar Disponibilidade"
+                )}
+              </button>
+              {slugStatus === 'AVAILABLE' && (
+                <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-lg border border-green-100 flex items-center gap-1">
+                  <CheckCircle size={12} /> Disponível!
+                </span>
+              )}
+              {slugStatus === 'UNAVAILABLE' && (
+                <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-lg border border-red-100 flex items-center gap-1">
+                  Indisponível (Já em uso)
+                </span>
+              )}
+            </div>
+
+            {currentOrg?.storeSlug && (
+              <div className="mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] font-black uppercase text-indigo-500 tracking-widest">Link de compartilhamento da loja</span>
+                  <p className="text-xs font-mono font-bold text-slate-700 break-all">{`${window.location.origin}/store/${currentOrg.storeSlug}`}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}/store/${currentOrg.storeSlug}`);
+                    alert("Link da loja copiado com sucesso!");
+                  }}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shrink-0 shadow-lg shadow-indigo-100 transition-all active:scale-95"
+                >
+                  <Share2 size={12} /> Copiar Link
+                </button>
+              </div>
+            )}
           </div>
 
           <div>

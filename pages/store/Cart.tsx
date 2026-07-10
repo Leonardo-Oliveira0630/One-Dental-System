@@ -282,7 +282,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
     if (jt.isPromotion === false) return false;
     return !!jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
   };
-  const onlyVouchers = cart.length > 0 && cart.every(item => isPromo(item.jobType));
+  const onlyVouchers = cart.length > 0 && cart.every(item => item.jobType.isVoucherCombo === true);
 
   const hasPromoCombos = useMemo(() => cart.some(item => item.jobType.isVoucherCombo === true), [cart]);
   const hasCommonOrUnitPromos = useMemo(() => cart.some(item => item.jobType.isVoucherCombo !== true), [cart]);

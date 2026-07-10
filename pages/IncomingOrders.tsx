@@ -33,7 +33,11 @@ export const IncomingOrders = () => {
       return <div className="p-8 text-center text-slate-500 font-bold uppercase tracking-widest">Acesso Negado</div>;
   }
 
-  const incoming = jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL && !j.isComboPurchase);
+  const incoming = jobs.filter(j => 
+    j.status === JobStatus.WAITING_APPROVAL && 
+    !j.isComboPurchase && 
+    !(j.items && j.items.some((item: any) => item.isVoucherCombo === true))
+  );
 
   // Approval Modal State
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -216,8 +220,18 @@ export const IncomingOrders = () => {
                                         <Clock size={12} /> Aguardando
                                     </span>
                                     {job.paymentStatus && (
-                                        <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full flex items-center gap-1 border ${job.paymentStatus === 'AUTHORIZED' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-yellow-50 text-yellow-700 border-yellow-200'}`}>
-                                            <CreditCard size={12} /> {job.paymentStatus === 'AUTHORIZED' ? 'Pré-Autorizado' : 'Aguardando Pagamento'}
+                                        <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full flex items-center gap-1 border ${
+                                            job.paymentStatus === 'VOUCHER' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                            job.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                            job.paymentStatus === 'AUTHORIZED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                            'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                        }`}>
+                                            <CreditCard size={12} /> {
+                                                job.paymentStatus === 'VOUCHER' ? 'Voucher' :
+                                                job.paymentStatus === 'PAID' ? 'Pago' :
+                                                job.paymentStatus === 'AUTHORIZED' ? 'Pré-Autorizado' :
+                                                'Aguardando Pagamento'
+                                            }
                                         </span>
                                     )}
                                     <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Pedido em {new Date(job.createdAt).toLocaleDateString()}</span>

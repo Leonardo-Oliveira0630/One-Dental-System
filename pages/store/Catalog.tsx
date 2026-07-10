@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { 
     Plus, Search, ShoppingBag, BadgePercent, Package, X, Building, Tag, Store, 
     ChevronLeft, ChevronRight, Star, ImageIcon, MessageSquare, 
-    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin, ShoppingCart
+    LayoutGrid, List, Heart, ExternalLink, Info, Loader2, ChevronDown, Handshake, Shield, Lock, CheckCircle, MapPin, ShoppingCart, Share2, Copy
 } from 'lucide-react';
 import { JobType, VariationGroup, CartItem, LabRating, BannerConfig } from '../../types';
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
@@ -622,6 +622,21 @@ export const Catalog = () => {
     const [localJobTypes, setLocalJobTypes] = useState<JobType[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [copiedServiceId, setCopiedServiceId] = useState<string | null>(null);
+
+    const handleShareProduct = (productId: string) => {
+        const slugOrId = selectedLab?.storeSlug || selectedLab?.id;
+        if (!slugOrId) return;
+        const shareUrl = `${window.location.origin}/store/${slugOrId}?serviceId=${productId}`;
+        navigator.clipboard.writeText(shareUrl)
+            .then(() => {
+                setCopiedServiceId(productId);
+                setTimeout(() => setCopiedServiceId(null), 2000);
+            })
+            .catch((err) => {
+                console.error("Erro ao copiar link:", err);
+            });
+    };
 
     // Dynamic Connection states
     const [connecting, setConnecting] = useState(false);
@@ -701,6 +716,24 @@ export const Catalog = () => {
 
     const isGuest = !currentUser;
     const isPriceVisible = !isGuest || (selectedLab?.storeVisibility !== 'PRIVATE');
+
+    // Auto-trigger product configuration if serviceId query parameter is present
+    useEffect(() => {
+        if (localJobTypes.length > 0) {
+            const searchParams = new URLSearchParams(location.search);
+            const serviceId = searchParams.get('serviceId');
+            if (serviceId) {
+                const product = localJobTypes.find(jt => jt.id === serviceId);
+                if (product) {
+                    if (isGuest) {
+                        setShowAuthModal(true);
+                    } else {
+                        setConfiguringProduct(product);
+                    }
+                }
+            }
+        }
+    }, [localJobTypes, location.search, isGuest]);
 
     // Callback to link partnership directly in storefront
     const handleDirectLink = async () => {
@@ -1121,9 +1154,22 @@ export const Catalog = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <button onClick={() => handleConfigureProduct(product)} className="px-6 py-3 bg-indigo-600 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">
-                                                    CONFIGURAR
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={() => handleShareProduct(product.id)}
+                                                        className={`p-3 rounded-xl border transition-all ${copiedServiceId === product.id ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-400 hover:text-indigo-600 border-slate-100'}`}
+                                                        title="Compartilhar serviço"
+                                                    >
+                                                        {copiedServiceId === product.id ? (
+                                                            <span className="text-[10px] font-black uppercase tracking-wider px-1">Copiado!</span>
+                                                        ) : (
+                                                            <Share2 size={16} />
+                                                        )}
+                                                    </button>
+                                                    <button onClick={() => handleConfigureProduct(product)} className="px-6 py-3 bg-indigo-600 text-white font-black text-xs rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95 transition-all">
+                                                        CONFIGURAR
+                                                    </button>
+                                                </div>
                                             </div>
                                         );
                                     }
@@ -1160,9 +1206,22 @@ export const Catalog = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <button onClick={() => handleConfigureProduct(product)} className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-600 transition-all active:scale-90 shadow-xl shadow-slate-200 group-hover:shadow-indigo-200">
-                                                            <Plus size={24} />
-                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            <button 
+                                                                onClick={() => handleShareProduct(product.id)}
+                                                                className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all ${copiedServiceId === product.id ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-100 text-slate-400 hover:text-indigo-600 border-slate-200'}`}
+                                                                title="Compartilhar serviço"
+                                                            >
+                                                                {copiedServiceId === product.id ? (
+                                                                    <span className="text-[9px] font-black uppercase tracking-widest text-center leading-tight">Copiado!</span>
+                                                                ) : (
+                                                                    <Share2 size={18} />
+                                                                )}
+                                                            </button>
+                                                            <button onClick={() => handleConfigureProduct(product)} className="w-12 h-12 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-indigo-600 transition-all active:scale-90 shadow-xl shadow-slate-200 group-hover:shadow-indigo-200">
+                                                                <Plus size={24} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
