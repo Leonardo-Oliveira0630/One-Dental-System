@@ -50,7 +50,6 @@ const asaasWebhookTokenSecret = (0, params_1.defineSecret)("ASAAS_WEBHOOK_TOKEN"
 });
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
-const sharp_1 = __importDefault(require("sharp"));
 // Triggers sync 2
 if (admin.apps.length === 0) {
     admin.initializeApp();
@@ -1375,13 +1374,21 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
         }
         const bucket = admin.storage().bucket();
         const db = admin.firestore();
+        let sharp;
+        try {
+            sharp = require("sharp");
+        }
+        catch (err) {
+            logger.error("Erro ao carregar o modulo sharp. Certifique-se de que ele esta instalado no ambiente.", err);
+            throw new https_1.HttpsError("internal", "Biblioteca de processamento de imagem nao disponivel no servidor.");
+        }
         const buffer = Buffer.from(base64, "base64");
         // Retrieve metadata using sharp
-        const originalMetadata = await (0, sharp_1.default)(buffer).metadata();
+        const originalMetadata = await sharp(buffer).metadata();
         const widthOriginal = originalMetadata.width || 0;
         const heightOriginal = originalMetadata.height || 0;
         const sizeOriginal = buffer.length;
-        let sharpInstance = (0, sharp_1.default)(buffer);
+        let sharpInstance = sharp(buffer);
         // Auto-rotate based on EXIF
         sharpInstance = sharpInstance.rotate();
         // Resize only if wider or taller than 4096px

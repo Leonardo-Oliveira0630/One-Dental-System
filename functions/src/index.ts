@@ -13,7 +13,6 @@ setGlobalOptions({
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
-import sharp from "sharp";
 // Triggers sync 2
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -1527,6 +1526,14 @@ export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (reques
 
     const bucket = admin.storage().bucket();
     const db = admin.firestore();
+
+    let sharp: any;
+    try {
+      sharp = require("sharp");
+    } catch (err: any) {
+      logger.error("Erro ao carregar o modulo sharp. Certifique-se de que ele esta instalado no ambiente.", err);
+      throw new HttpsError("internal", "Biblioteca de processamento de imagem nao disponivel no servidor.");
+    }
 
     const buffer = Buffer.from(base64, "base64");
     

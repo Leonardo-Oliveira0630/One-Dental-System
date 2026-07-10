@@ -122,6 +122,20 @@ export const OrganizationTab = () => {
     }));
   };
 
+  const updateBannerField = (index: number, field: keyof BannerConfig, value: string) => {
+    setStoreSettings(prev => {
+      const newBanners = [...(prev.banners || [])];
+      newBanners[index] = {
+        ...newBanners[index],
+        [field]: value
+      };
+      return {
+        ...prev,
+        banners: newBanners
+      };
+    });
+  };
+
   const addPortfolioItem = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setIsUploadingPortfolio(true);
@@ -627,24 +641,71 @@ export const OrganizationTab = () => {
           <div className="flex flex-col mb-2">
             <label className="block text-xs font-black text-slate-800 uppercase tracking-widest pl-1 mb-1">Banners do Topo (Carrossel)</label>
             <p className="text-xs bg-indigo-50 text-indigo-700 py-1.5 px-3 rounded-lg font-bold border border-indigo-100 flex items-center gap-2">
-                <Info size={14}/> Resolução exigida: 1920 x 822 pixels (Formato Paisagem 21:9)
+                <Info size={14}/> Resolução recomendada: 1920 x 822 pixels (Formato Paisagem 21:9)
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {(storeSettings.banners || []).map((banner, i) => (
-              <div key={i} className="group relative aspect-[21/9] bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
-                 <img src={banner.imageUrl} className="w-full h-full object-cover" />
-                 <button 
-                    onClick={() => removeBanner(i)}
-                    className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                 >
-                    <X size={14} />
-                 </button>
+              <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4 relative group hover:border-indigo-300 transition-all shadow-sm flex flex-col">
+                 <div className="relative aspect-[21/9] bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shrink-0">
+                    <img src={banner.imageUrl} className="w-full h-full object-cover" />
+                    <button 
+                       onClick={() => removeBanner(i)}
+                       className="absolute top-2 right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all shadow-md z-10"
+                       title="Remover Banner"
+                    >
+                       <Trash2 size={14} />
+                    </button>
+                 </div>
+                 
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Título Central</label>
+                       <input 
+                         type="text" 
+                         value={banner.title || ''} 
+                         onChange={(e) => updateBannerField(i, 'title', e.target.value)}
+                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                         placeholder="Ex: Excelência em Próteses"
+                       />
+                    </div>
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Subtítulo (Opcional)</label>
+                       <input 
+                         type="text" 
+                         value={banner.subtitle || ''} 
+                         onChange={(e) => updateBannerField(i, 'subtitle', e.target.value)}
+                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                         placeholder="Ex: Qualidade para seus casos"
+                       />
+                    </div>
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Texto do Botão</label>
+                       <input 
+                         type="text" 
+                         value={banner.buttonText || ''} 
+                         onChange={(e) => updateBannerField(i, 'buttonText', e.target.value)}
+                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                         placeholder="Ex: Fazer Pedido"
+                       />
+                    </div>
+                    <div>
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Link do Botão (Opcional)</label>
+                       <input 
+                         type="text" 
+                         value={banner.buttonLink || ''} 
+                         onChange={(e) => updateBannerField(i, 'buttonLink', e.target.value)}
+                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
+                         placeholder="Ex: /loja/produtos ou link externo"
+                       />
+                    </div>
+                 </div>
               </div>
             ))}
-            <label className={`aspect-[21/9] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 hover:border-indigo-400 text-slate-300 hover:text-indigo-500 transition-all ${isUploadingBanner ? 'animate-pulse pointer-events-none' : ''}`}>
-               {isUploadingBanner ? <Loader2 className="animate-spin" /> : <Plus size={24} />}
-               <span className="text-[10px] font-bold mt-1 text-center px-2">Adicionar Banner</span>
+            
+            <label className={`aspect-[21/9] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-slate-50 hover:border-indigo-400 text-slate-300 hover:text-indigo-500 transition-all min-h-[160px] ${isUploadingBanner ? 'animate-pulse pointer-events-none' : ''}`}>
+               {isUploadingBanner ? <Loader2 className="animate-spin text-indigo-500" /> : <Plus size={32} />}
+               <span className="text-xs font-black mt-2 text-center px-4">Adicionar Banner</span>
                <input type="file" accept="image/*" onChange={handleAddBanner} className="hidden" />
             </label>
           </div>

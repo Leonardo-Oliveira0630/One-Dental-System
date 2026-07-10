@@ -720,6 +720,20 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
             <>
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Data Desejada</label><input required type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-4 py-2 border border-slate-200 rounded-lg" /></div>
             
+            <div className="space-y-1">
+                <label className="block text-sm font-medium text-slate-700" htmlFor="case-observations-input">
+                    Observações do Caso / Instruções
+                </label>
+                <textarea 
+                    id="case-observations-input"
+                    value={notes} 
+                    onChange={e => setNotes(e.target.value)} 
+                    placeholder="Instruções especiais de cor, modelo, preparo, etc." 
+                    rows={4} 
+                    className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none resize-none font-medium placeholder-slate-400" 
+                />
+            </div>
+
             <div>
                 <label className="block text-sm font-bold text-slate-800 mb-2">Arquivos (STL/Fotos) <span className="text-red-500">*</span></label>
                 <div className="border-2 border-dashed border-indigo-200 rounded-xl p-4 text-center hover:bg-indigo-50 transition-colors relative">

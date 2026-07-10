@@ -43,12 +43,14 @@ const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
         );
     }
 
+    const currentBanner = images[index];
+
     return (
         <div className="relative w-full aspect-[21/9] md:aspect-[25/7] rounded-card overflow-hidden shadow-premium group">
             <AnimatePresence mode="wait">
                 <motion.img
                     key={index}
-                    src={images[index].imageUrl}
+                    src={currentBanner.imageUrl}
                     initial={{ opacity: 0, scale: 1.1 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
@@ -56,26 +58,58 @@ const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
                     className="absolute inset-0 w-full h-full object-cover"
                 />
             </AnimatePresence>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
             
-            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-12 text-white">
-                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
-                   <span className="bg-[#00B8D9] text-[#1E293B] text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest mb-4 inline-block">Destaque</span>
-                   <h2 className="text-3xl md:text-5xl font-black tracking-tighter drop-shadow-lg">Excelência em Próteses</h2>
+            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-12 text-white z-10">
+                <motion.div 
+                    key={index}
+                    initial={{ y: 20, opacity: 0 }} 
+                    animate={{ y: 0, opacity: 1 }} 
+                    transition={{ delay: 0.2 }}
+                    className="max-w-2xl flex flex-col gap-2"
+                >
+                    <span className="bg-[#00B8D9] text-[#1E293B] text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest w-fit mb-1">
+                        Destaque
+                    </span>
+                    <h2 className="text-2xl md:text-5xl font-black tracking-tighter drop-shadow-lg leading-tight uppercase">
+                        {currentBanner.title || "Excelência em Próteses"}
+                    </h2>
+                    {currentBanner.subtitle && (
+                        <p className="text-sm md:text-lg text-slate-150 font-medium drop-shadow-md mt-1 line-clamp-2 max-w-xl">
+                            {currentBanner.subtitle}
+                        </p>
+                    )}
+                    {currentBanner.buttonText && (
+                        <button 
+                            onClick={() => {
+                                const link = currentBanner.buttonLink;
+                                if (link) {
+                                    if (link.startsWith('http://') || link.startsWith('https://')) {
+                                        window.open(link, '_blank');
+                                    } else {
+                                        window.location.href = link;
+                                    }
+                                }
+                            }}
+                            className="mt-4 px-6 py-2.5 bg-[#00B8D9] hover:bg-[#00B8D9]/90 text-[#1E293B] font-black rounded-full transition-all text-xs uppercase tracking-wider w-fit shadow-lg hover:scale-105 active:scale-95"
+                        >
+                            {currentBanner.buttonText}
+                        </button>
+                    )}
                 </motion.div>
             </div>
 
             {images.length > 1 && (
                 <>
                     <button onClick={() => setIndex((prev) => (prev - 1 + images.length) % images.length)} 
-                            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40">
+                            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40 z-20">
                         <ChevronLeft size={24} />
                     </button>
                     <button onClick={() => setIndex((prev) => (prev + 1) % images.length)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40">
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40 z-20">
                         <ChevronRight size={24} />
                     </button>
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
                         {images.map((_, i) => (
                             <button key={i} onClick={() => setIndex(i)} className={`w-2 h-2 rounded-full transition-all ${i === index ? 'bg-white w-6' : 'bg-white/40'}`} />
                         ))}
