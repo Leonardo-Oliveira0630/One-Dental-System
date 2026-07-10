@@ -13,7 +13,7 @@ interface CartProps {
 }
 
 export const Cart = ({ onBackToStore }: CartProps = {}) => {
-  const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, currentOrg, clearCart, validateLabCoupon, updateLabCoupon, patients } = useApp();
+  const { cart, removeFromCart, updateCartItemQty, uploadFile, activeOrganization, currentUser, currentOrg, clearCart, validateLabCoupon, updateLabCoupon, patients } = useApp();
   const navigate = useNavigate();
   
   const [patientName, setPatientName] = useState('');
@@ -360,24 +360,28 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
             urgency: UrgencyLevel.NORMAL,
             status: JobStatus.WAITING_APPROVAL,
             origin: 'ONLINE_ORDER',
-            items: cart.map(c => ({ 
-                id: `item_${c.cartItemId}`, 
-                jobTypeId: c.jobType.id, 
-                name: c.jobType.name, 
-                quantity: c.quantity, 
-                price: c.unitPrice, 
-                selectedVariationIds: c.selectedVariationIds || [], 
-                variationValues: c.variationValues,
-                originalJobTypeId: c.jobType.originalJobTypeId,
-                promotionQuantity: c.jobType.promotionQuantity,
-                isPromo: isPromo(c.jobType),
-                isVoucherCombo: c.jobType.isVoucherCombo === true,
-                applyToAllVariations: c.jobType.applyToAllVariations !== false,
-                promoVariationOptionId: c.jobType.promoVariationOptionId || '',
-                promoVariationOptionIds: c.jobType.promoVariationOptionIds || [],
-                promoVariationOptionName: c.jobType.promoVariationOptionName || '',
-                promoVariationGroupName: c.jobType.promoVariationGroupName || ''
-            })),
+            items: cart.map(c => {
+                const vars = getVariationDetails(c);
+                const hasVars = vars && vars !== 'Configuração padrão';
+                return { 
+                    id: `item_${c.cartItemId}`, 
+                    jobTypeId: c.jobType.id, 
+                    name: hasVars ? `${c.jobType.name} - ${vars}` : c.jobType.name, 
+                    quantity: c.quantity, 
+                    price: c.unitPrice, 
+                    selectedVariationIds: c.selectedVariationIds || [], 
+                    variationValues: c.variationValues,
+                    originalJobTypeId: c.jobType.originalJobTypeId,
+                    promotionQuantity: c.jobType.promotionQuantity,
+                    isPromo: isPromo(c.jobType),
+                    isVoucherCombo: c.jobType.isVoucherCombo === true,
+                    applyToAllVariations: c.jobType.applyToAllVariations !== false,
+                    promoVariationOptionId: c.jobType.promoVariationOptionId || '',
+                    promoVariationOptionIds: c.jobType.promoVariationOptionIds || [],
+                    promoVariationOptionName: c.jobType.promoVariationOptionName || '',
+                    promoVariationGroupName: c.jobType.promoVariationGroupName || ''
+                };
+            }),
             history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual', userId: currentUser.id, userName: currentUser.name }],
             attachments: uploadedAttachments, 
             createdAt: new Date(), 
@@ -594,12 +598,21 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                     const { coveredQty, discount } = getItemVoucherDiscount(item);
                     const itemFinalPaidPrice = Math.max(0, item.finalPrice - discount);
                     return (
-                        <div key={item.cartItemId} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-slate-100 rounded-lg" />
+                        <div key={item.cartItemId} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-4 flex-1">
+                                <div className="w-16 h-16 bg-slate-100 rounded-lg flex-shrink-0" />
                                 <div>
-                                    <h4 className="font-bold text-slate-800">{item.jobType.name}</h4>
-                                    <p className="text-sm text-slate-500 line-clamp-1">{getVariationDetails(item)}</p>
+                                    <h4 className="font-bold text-slate-800">
+                                        {item.jobType.name}
+                                        {getVariationDetails(item) !== 'Configuração padrão' && (
+                                            <span className="text-sm font-normal text-slate-500">
+                                                {` - ${getVariationDetails(item)}`}
+                                            </span>
+                                        )}
+                                    </h4>
+                                    <p className="text-xs text-slate-400 mt-0.5">
+                                        Preço unitário: R$ {item.unitPrice.toFixed(2)}
+                                    </p>
                                     {coveredQty > 0 && (
                                         <div className="mt-1 flex items-center gap-1.5 text-xs text-green-600 font-extrabold bg-green-50 px-2 py-0.5 rounded-lg border border-green-100 w-fit">
                                             <Sparkles size={12} /> Voucher aplicado: {coveredQty} {coveredQty === 1 ? 'unidade' : 'unidades'} coberta(s)
@@ -607,18 +620,58 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                                     )}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="text-right">
-                                    {discount > 0 ? (
-                                        <div className="flex flex-col">
-                                            <span className="text-xs text-slate-400 line-through">R$ {item.finalPrice.toFixed(2)}</span>
-                                            <span className="font-bold text-green-600">R$ {itemFinalPaidPrice.toFixed(2)}</span>
-                                        </div>
-                                    ) : (
-                                        <span className="font-bold text-slate-700">R$ {item.finalPrice.toFixed(2)}</span>
-                                    )}
+                            <div className="flex items-center justify-between sm:justify-end gap-6">
+                                {/* Controller de Quantidade */}
+                                <div className="flex items-center gap-1.5 border border-slate-200 rounded-lg p-1 bg-slate-50">
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            if (item.quantity > 1) {
+                                                updateCartItemQty(item.cartItemId, item.quantity - 1);
+                                            } else {
+                                                removeFromCart(item.cartItemId);
+                                            }
+                                        }}
+                                        className="w-7 h-7 flex items-center justify-center rounded-md bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 active:scale-95 transition-all font-bold text-sm"
+                                    >
+                                        -
+                                    </button>
+                                    <input 
+                                        type="number" 
+                                        min="1"
+                                        value={item.quantity} 
+                                        onChange={e => {
+                                            const val = parseInt(e.target.value);
+                                            if (!isNaN(val) && val >= 1) {
+                                                updateCartItemQty(item.cartItemId, val);
+                                            }
+                                        }}
+                                        className="w-10 text-center bg-transparent border-none text-sm font-bold text-slate-700 font-mono focus:ring-0 p-0"
+                                    />
+                                    <button 
+                                        type="button"
+                                        onClick={() => {
+                                            updateCartItemQty(item.cartItemId, item.quantity + 1);
+                                        }}
+                                        className="w-7 h-7 flex items-center justify-center rounded-md bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 active:scale-95 transition-all font-bold text-sm"
+                                    >
+                                        +
+                                    </button>
                                 </div>
-                                <button onClick={() => removeFromCart(item.cartItemId)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={18} /></button>
+
+                                <div className="flex items-center gap-4">
+                                    <div className="text-right min-w-[80px]">
+                                        {discount > 0 ? (
+                                            <div className="flex flex-col">
+                                                <span className="text-xs text-slate-400 line-through">R$ {item.finalPrice.toFixed(2)}</span>
+                                                <span className="font-bold text-green-600">R$ {itemFinalPaidPrice.toFixed(2)}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="font-bold text-slate-700">R$ {item.finalPrice.toFixed(2)}</span>
+                                        )}
+                                    </div>
+                                    <button onClick={() => removeFromCart(item.cartItemId)} className="text-red-400 hover:text-red-600 p-2" title="Remover item"><Trash2 size={18} /></button>
+                                </div>
                             </div>
                         </div>
                     );

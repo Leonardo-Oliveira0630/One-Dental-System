@@ -172,6 +172,7 @@ interface AppContextType {
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
   removeFromCart: (cartItemId: string) => void;
+  updateCartItemQty: (cartItemId: string, qty: number) => void;
   clearCart: () => void;
   uploadFile: (file: File) => Promise<string>;
   getOriginalUrl: (url: string) => Promise<string>;
@@ -1327,7 +1328,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addClinicRoom, updateClinicRoom, deleteClinicRoom,
     addClinicDentist, updateClinicDentist, deleteClinicDentist,
     addSector, deleteSector, addBoxColor, deleteBoxColor,
-    cart, addToCart: (i: CartItem) => setCart(p => [...p,i]), removeFromCart: (id: string) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
+    cart, addToCart: (i: CartItem) => setCart(p => [...p,i]), removeFromCart: (id: string) => setCart(p => p.filter(i => i.cartItemId !== id)), updateCartItemQty: (id: string, qty: number) => setCart(p => p.map(item => item.cartItemId === id ? { ...item, quantity: Math.max(1, qty), finalPrice: item.unitPrice * Math.max(1, qty) } : item)), clearCart: () => setCart([]),
     uploadFile: api.uploadJobFile,
     getOriginalUrl: api.getOriginalUrl,
     printData, triggerPrint: (j: Job,m: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL') => setPrintData({job:j, mode:m}), 
