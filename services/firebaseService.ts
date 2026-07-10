@@ -699,7 +699,7 @@ export const checkSlugAvailability = async (slug: string, currentOrgId: string):
     const q = query(collection(db, 'organizations'), where('storeSlug', '==', slug.toLowerCase().trim()));
     const snap = await getDocs(q);
     if (snap.empty) return true;
-    const matchingDocs = snap.docs.filter(d => d.id !== currentOrgId);
+    const matchingDocs = snap.docs.filter((d: any) => d.id !== currentOrgId);
     return matchingDocs.length === 0;
 };
 export const subscribeSubscriptionPlans = (cb: (p: SubscriptionPlan[]) => void) => {

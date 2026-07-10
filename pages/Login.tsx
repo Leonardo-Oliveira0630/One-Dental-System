@@ -210,7 +210,10 @@ export const Login = () => {
             <p className="text-slate-500 text-xs font-normal">
                 Não possui uma conta ainda?
                 <br />
-                <Link to="/register-lab" className="font-bold text-[#00B8D9] hover:text-[#15263f] inline-flex items-center gap-1 mt-2 uppercase tracking-wide text-[10px] transition-colors">
+                <Link 
+                    to={new URLSearchParams(location.search).get('redirect') ? `/register-lab?redirect=${encodeURIComponent(new URLSearchParams(location.search).get('redirect')!)}` : "/register-lab"} 
+                    className="font-bold text-[#00B8D9] hover:text-[#15263f] inline-flex items-center gap-1 mt-2 uppercase tracking-wide text-[10px] transition-colors"
+                >
                     Criar nova conta (Lab ou Clínica) →
                 </Link>
             </p>

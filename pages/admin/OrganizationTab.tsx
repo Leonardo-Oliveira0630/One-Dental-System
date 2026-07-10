@@ -61,6 +61,35 @@ export const OrganizationTab = () => {
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
   const [isUploadingPortfolio, setIsUploadingPortfolio] = useState(false);
 
+  const lastOrgIdRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (currentOrg && currentOrg.id !== lastOrgIdRef.current) {
+      lastOrgIdRef.current = currentOrg.id;
+      setName(currentOrg.name || '');
+      setTechResponsibleName(currentOrg.financialSettings?.techResponsibleName || '');
+      setTechResponsibleCpf(currentOrg.financialSettings?.techResponsibleCpf || '');
+      setLogoPreview(currentOrg.logoUrl || '');
+      setStoreSlug(currentOrg.storeSlug || currentOrg.name?.toLowerCase().trim().replace(/[^a-z0-9]/g, '-') || '');
+      setStoreVisibility(currentOrg.storeVisibility || 'PUBLIC');
+      setAddress(currentOrg.address || '');
+      setNumber(currentOrg.number || '');
+      setComplement(currentOrg.complement || '');
+      setNeighborhood(currentOrg.neighborhood || '');
+      setCity(currentOrg.city || '');
+      setStateName(currentOrg.state || '');
+      setCep(currentOrg.cep || '');
+      setPhone(currentOrg.phone || '');
+      setEmail(currentOrg.email || '');
+      setCroNumero(currentOrg.croNumero || '');
+      setCroUf(currentOrg.croUf || '');
+      setRevealJobStatusToDentist(currentOrg.revealJobStatusToDentist || false);
+      if (currentOrg.storeSettings) {
+        setStoreSettings(currentOrg.storeSettings);
+      }
+    }
+  }, [currentOrg]);
+
   const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];

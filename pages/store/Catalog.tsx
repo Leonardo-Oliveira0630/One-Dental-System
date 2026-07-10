@@ -955,13 +955,13 @@ export const Catalog = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3 pt-2">
                             <button 
-                                onClick={() => navigate('/login?mode=register')} 
+                                onClick={() => navigate(`/register-lab?redirect=${encodeURIComponent(location.pathname + location.search)}&type=DENTIST`)} 
                                 className="px-5 py-3.5 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all text-xs"
                             >
                                 Criar Conta
                             </button>
                             <button 
-                                onClick={() => navigate('/login')} 
+                                onClick={() => navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`)} 
                                 className="px-5 py-3.5 bg-slate-100 text-slate-800 font-bold rounded-2xl hover:bg-slate-200 transition-all text-xs"
                             >
                                 Fazer Login
@@ -1147,9 +1147,9 @@ export const Catalog = () => {
                                                                     {isCustom && <span className="bg-green-50 text-green-600 text-[8px] font-black px-2 py-0.5 rounded tracking-widest">EXCLUSIVO</span>}
                                                                  </>
                                                              ) : (
-                                                                 <span className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 border border-amber-100/50 rounded-lg">
+                                                                 <button onClick={(e) => { e.stopPropagation(); navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); }} className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 border border-amber-100/50 rounded-lg hover:bg-amber-100 transition-colors">
                                                                     <Lock size={12} /> Faça login para ver valores
-                                                                 </span>
+                                                                 </button>
                                                              )}
                                                         </div>
                                                     </div>
@@ -1200,9 +1200,9 @@ export const Catalog = () => {
                                                                         {isCustom && <span className="text-[10px] text-slate-300 line-through">R$ {product.basePrice.toFixed(2)}</span>}
                                                                     </>
                                                                 ) : (
-                                                                    <span className="flex items-center gap-1.5 text-xs font-black text-amber-600 bg-amber-50 px-3 py-1.5 border border-amber-100/50 rounded-xl leading-tight">
+                                                                    <button onClick={(e) => { e.stopPropagation(); navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); }} className="flex items-center gap-1.5 text-xs font-black text-amber-600 bg-amber-50 px-3 py-1.5 border border-amber-100/50 rounded-xl leading-tight hover:bg-amber-100 transition-colors">
                                                                         <Lock size={14} /> Registrar para ver preço
-                                                                    </span>
+                                                                    </button>
                                                                 )}
                                                             </div>
                                                         </div>
