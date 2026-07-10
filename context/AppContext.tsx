@@ -174,6 +174,7 @@ interface AppContextType {
   removeFromCart: (cartItemId: string) => void;
   clearCart: () => void;
   uploadFile: (file: File) => Promise<string>;
+  getOriginalUrl: (url: string) => Promise<string>;
 
   printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE' | 'ADDRESS_LABEL', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
   triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL') => void;
@@ -1328,6 +1329,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addSector, deleteSector, addBoxColor, deleteBoxColor,
     cart, addToCart: (i: CartItem) => setCart(p => [...p,i]), removeFromCart: (id: string) => setCart(p => p.filter(i => i.cartItemId !== id)), clearCart: () => setCart([]),
     uploadFile: api.uploadJobFile,
+    getOriginalUrl: api.getOriginalUrl,
     printData, triggerPrint: (j: Job,m: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL') => setPrintData({job:j, mode:m}), 
     triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
     clearPrint: () => setPrintData(null),

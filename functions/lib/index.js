@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -50,6 +50,7 @@ const asaasWebhookTokenSecret = (0, params_1.defineSecret)("ASAAS_WEBHOOK_TOKEN"
 });
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
+const sharp_1 = __importDefault(require("sharp"));
 // Triggers sync 2
 if (admin.apps.length === 0) {
     admin.initializeApp();
@@ -450,6 +451,100 @@ exports.createLabSubAccount = (0, https_1.onCall)(async (request) => {
     }
 });
 /**
+ * GERA VOUCHERS PARA UM PEDIDO CONFIRMADO (SOMENTE SE FOR COMBO PROMOCIONAL)
+ */
+async function generateVouchersForJob(db, jobData, jobId) {
+    var _a;
+    if (jobData.vouchersGenerated)
+        return;
+    const hasComboItems = (_a = jobData.items) === null || _a === void 0 ? void 0 : _a.some((item) => item.isVoucherCombo === true);
+    if (!hasComboItems)
+        return;
+    const writeBatch = db.batch();
+    let generatedAny = false;
+    let idx = 0;
+    for (const item of jobData.items || []) {
+        const shouldGenerate = item.isVoucherCombo === true;
+        if (shouldGenerate) {
+            generatedAny = true;
+            const voucherId = `voucher_${Date.now()}_${idx}`;
+            const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+            const voucherRef = db.collection("organizations")
+                .doc(jobData.organizationId)
+                .collection("vouchers")
+                .doc(voucherId);
+            let isVoucherCombo = true;
+            let promoQuantity = 1;
+            let applyToAllVariations = true;
+            let promoVariationOptionId = '';
+            let promoVariationOptionIds = [];
+            let promoVariationOptionName = '';
+            let promoVariationGroupName = '';
+            if (item.promotionQuantity !== undefined && item.promotionQuantity !== null && item.applyToAllVariations !== undefined) {
+                promoQuantity = Number(item.promotionQuantity);
+                applyToAllVariations = item.applyToAllVariations !== false;
+                promoVariationOptionId = item.promoVariationOptionId || '';
+                promoVariationOptionIds = item.promoVariationOptionIds || [];
+                promoVariationOptionName = item.promoVariationOptionName || '';
+                promoVariationGroupName = item.promoVariationGroupName || '';
+            }
+            else {
+                try {
+                    const jtDoc = await db.collection("organizations")
+                        .doc(jobData.organizationId)
+                        .collection("jobTypes")
+                        .doc(item.jobTypeId)
+                        .get();
+                    if (jtDoc.exists) {
+                        const jtData = jtDoc.data();
+                        isVoucherCombo = (jtData === null || jtData === void 0 ? void 0 : jtData.isVoucherCombo) === true;
+                        promoQuantity = Number((jtData === null || jtData === void 0 ? void 0 : jtData.promotionQuantity) || 1);
+                        applyToAllVariations = (jtData === null || jtData === void 0 ? void 0 : jtData.applyToAllVariations) !== false;
+                        promoVariationOptionId = (jtData === null || jtData === void 0 ? void 0 : jtData.promoVariationOptionId) || '';
+                        promoVariationOptionIds = (jtData === null || jtData === void 0 ? void 0 : jtData.promoVariationOptionIds) || [];
+                        promoVariationOptionName = (jtData === null || jtData === void 0 ? void 0 : jtData.promoVariationOptionName) || '';
+                        promoVariationGroupName = (jtData === null || jtData === void 0 ? void 0 : jtData.promoVariationGroupName) || '';
+                    }
+                }
+                catch (err) {
+                    logger.error(`Error fetching jobType ${item.jobTypeId} during voucher helper generation:`, err.message);
+                }
+            }
+            const finalQty = isVoucherCombo ? (item.quantity * promoQuantity) : item.quantity;
+            writeBatch.set(voucherRef, {
+                id: voucherId,
+                code,
+                organizationId: jobData.organizationId,
+                clientId: jobData.dentistUserId || jobData.dentistId || "",
+                clientName: jobData.dentistName || "Dentista",
+                jobTypeId: item.originalJobTypeId || item.jobTypeId,
+                jobTypeName: item.name,
+                promotionName: item.name,
+                initialQuantity: finalQty,
+                remainingQuantity: finalQty,
+                status: 'ACTIVE',
+                orderId: jobId,
+                applyToAllVariations,
+                promoVariationOptionId,
+                promoVariationOptionIds,
+                promoVariationOptionName,
+                promoVariationGroupName,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        idx++;
+    }
+    if (generatedAny) {
+        const jobRef = db.collection("organizations")
+            .doc(jobData.organizationId)
+            .collection("jobs")
+            .doc(jobId);
+        writeBatch.update(jobRef, { vouchersGenerated: true });
+        await writeBatch.commit();
+        jobData.vouchersGenerated = true;
+    }
+}
+/**
  * CRIA PAGAMENTO PARA PEDIDO DA LOJA VIRTUAL (CARTÃO/PIX)
  */
 exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
@@ -484,7 +579,7 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
         let customerId = "";
         try {
             const docNum = paymentData.cpfCnpj;
-            customerId = await getOrCreateAsaasCustomer(url, key, jobData.dentistName || "Cliente Loja", docNum, jobData.organizationId, "");
+            customerId = await getOrCreateAsaasCustomer(url, key, jobData.dentistName || "Cliente Loja", docNum, jobData.dentistId || "", "");
         }
         catch (err) {
             throw new Error("Erro cliente Asaas: " + (((_l = (_k = (_j = (_h = err.response) === null || _h === void 0 ? void 0 : _h.data) === null || _j === void 0 ? void 0 : _j.errors) === null || _k === void 0 ? void 0 : _k[0]) === null || _l === void 0 ? void 0 : _l.description) || err.message));
@@ -510,10 +605,25 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
                 let qtyToCover = item.quantity;
                 for (const vId of jobData.vouchersUsed) {
                     const snap = await vRefs[vId].get();
-                    if (snap.exists && itemTypeIds.includes(snap.data().jobTypeId) && vQties[vId] > 0 && qtyToCover > 0) {
-                        const coveredQty = Math.min(vQties[vId], qtyToCover);
-                        vQties[vId] -= coveredQty;
-                        qtyToCover -= coveredQty;
+                    if (snap.exists) {
+                        const vData = snap.data();
+                        let variationMatches = true;
+                        if (vData.applyToAllVariations === false) {
+                            if (vData.promoVariationOptionIds && vData.promoVariationOptionIds.length > 0) {
+                                variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.some((id) => vData.promoVariationOptionIds.includes(id)));
+                            }
+                            else if (vData.promoVariationOptionId) {
+                                variationMatches = !!(item.selectedVariationIds && item.selectedVariationIds.includes(vData.promoVariationOptionId));
+                            }
+                            else {
+                                variationMatches = false;
+                            }
+                        }
+                        if (itemTypeIds.includes(vData.jobTypeId) && variationMatches && vQties[vId] > 0 && qtyToCover > 0) {
+                            const coveredQty = Math.min(vQties[vId], qtyToCover);
+                            vQties[vId] -= coveredQty;
+                            qtyToCover -= coveredQty;
+                        }
                     }
                 }
             }
@@ -531,12 +641,13 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
         // If totalValue is 0 (e.g. fully paid by vouchers or 100% discount)
         if (jobData.totalValue === 0) {
             const newJobId = `web_${Date.now()}`;
-            const newJobData = Object.assign(Object.assign({}, jobData), { id: newJobId, paymentStatus: 'PAID' });
+            const newJobData = Object.assign(Object.assign({}, jobData), { id: newJobId, paymentStatus: (jobData.vouchersUsed && jobData.vouchersUsed.length > 0) ? 'VOUCHER' : 'PAID' });
             await db.collection("organizations")
                 .doc(jobData.organizationId)
                 .collection("jobs")
                 .doc(newJobId)
                 .set(newJobData);
+            await generateVouchersForJob(db, newJobData, newJobId);
             return { success: true, paymentId: 'voucher_paid', invoiceUrl: '', pixQrCode: null, pixCopyPaste: null };
         }
         const payload = {
@@ -546,6 +657,12 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
             dueDate: new Date().toISOString().split("T")[0],
             description: `Pedido Loja - ${jobData.organizationId}`,
         };
+        if (paymentData.successUrl) {
+            payload.callback = {
+                successUrl: paymentData.successUrl,
+                autoRedirect: true
+            };
+        }
         if (paymentData.method === "CREDIT_CARD" && paymentData.creditCard) {
             payload.creditCard = {
                 holderName: paymentData.creditCard.holderName,
@@ -584,12 +701,16 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
             }
         }
         const newJobId = `web_${Date.now()}`;
-        const newJobData = Object.assign(Object.assign({}, jobData), { id: newJobId, asaasPaymentId: payRes.data.id, paymentStatus: payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED' ? 'PAID' : 'PENDING' });
+        const isPaidImmediately = payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED';
+        const newJobData = Object.assign(Object.assign({}, jobData), { id: newJobId, asaasPaymentId: payRes.data.id, paymentStatus: isPaidImmediately ? 'PAID' : 'PENDING' });
         await db.collection("organizations")
             .doc(jobData.organizationId)
             .collection("jobs")
             .doc(newJobId)
             .set(newJobData);
+        if (isPaidImmediately) {
+            await generateVouchersForJob(db, newJobData, newJobId);
+        }
         return { success: true, paymentId: payRes.data.id, invoiceUrl: payRes.data.invoiceUrl || payRes.data.bankSlipUrl, pixQrCode, pixCopyPaste };
     }
     catch (error) {
@@ -966,36 +1087,8 @@ exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
                     if (jobData.paymentStatus !== "PAID") {
                         await jobDoc.ref.update({ paymentStatus: "PAID" });
                     }
-                    // GENERATE VOUCHERS IF COMBO
-                    if (jobData.isComboPurchase && !jobData.vouchersGenerated) {
-                        const writeBatch = db.batch();
-                        jobData.items.forEach((item, idx) => {
-                            // If it's a voucher combo, generate a voucher for this item
-                            const voucherId = `voucher_${Date.now()}_${idx}`;
-                            const code = Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-                            const voucherRef = db.collection("organizations")
-                                .doc(jobData.organizationId)
-                                .collection("vouchers")
-                                .doc(voucherId);
-                            writeBatch.set(voucherRef, {
-                                id: voucherId,
-                                code,
-                                organizationId: jobData.organizationId,
-                                clientId: jobData.dentistUserId || jobData.dentistId,
-                                clientName: jobData.dentistName,
-                                jobTypeId: item.originalJobTypeId || item.jobTypeId,
-                                jobTypeName: item.name, // We'll keep the combo name here, or fetch original
-                                promotionName: item.name,
-                                initialQuantity: item.quantity,
-                                remainingQuantity: item.quantity,
-                                status: 'ACTIVE',
-                                orderId: jobDoc.id,
-                                createdAt: admin.firestore.FieldValue.serverTimestamp()
-                            });
-                        });
-                        writeBatch.update(jobDoc.ref, { vouchersGenerated: true });
-                        await writeBatch.commit();
-                    }
+                    // GENERATE VOUCHERS IF COMBO OR PROMO ITEMS
+                    await generateVouchersForJob(db, Object.assign(Object.assign({}, jobData), { paymentStatus: "PAID" }), jobDoc.id);
                 }
             }
         }
@@ -1127,6 +1220,232 @@ exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true }, async (req
     catch (error) {
         logger.error("Erro Frenet:", ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
         throw new https_1.HttpsError('internal', 'Erro ao calcular frete na Frenet.');
+    }
+});
+/**
+ * GERENCIA DECISÃO DE PEDIDO WEB (APROVAR OU REJEITAR)
+ */
+exports.manageOrderDecision = (0, https_1.onCall)(async (request) => {
+    const { orgId, jobId, decision, reason } = request.data;
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Não logado.");
+    }
+    const db = admin.firestore();
+    try {
+        const jobRef = db.collection("organizations").doc(orgId).collection("jobs").doc(jobId);
+        const jobSnap = await jobRef.get();
+        if (!jobSnap.exists) {
+            throw new https_1.HttpsError("not-found", "Pedido não encontrado.");
+        }
+        if (decision === 'APPROVE') {
+            await jobRef.update({
+                status: "APPROVED",
+                approvedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        else if (decision === 'REJECT') {
+            await jobRef.update({
+                status: "REJECTED",
+                rejectionReason: reason || "",
+                rejectedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        return { success: true };
+    }
+    catch (error) {
+        throw new https_1.HttpsError("internal", error.message);
+    }
+});
+/**
+ * REPROCESSA E SINCRONIZA PEDIDOS DA LOJA VIRTUAL (VOUCHERS E FINANCEIRO)
+ */
+exports.syncStoreOrders = (0, https_1.onCall)(async (request) => {
+    var _a;
+    const { organizationId, clientId, jobId, forceMarkPaid } = request.data;
+    if (!request.auth) {
+        throw new https_1.HttpsError("unauthenticated", "Não logado.");
+    }
+    const db = admin.firestore();
+    let jobsToSync = [];
+    try {
+        if (jobId && organizationId) {
+            const docRef = db.collection("organizations").doc(organizationId).collection("jobs").doc(jobId);
+            const docSnap = await docRef.get();
+            if (docSnap.exists) {
+                jobsToSync = [docSnap];
+            }
+        }
+        else if (jobId) {
+            const orgsSnap = await db.collection("organizations").get();
+            for (const orgDoc of orgsSnap.docs) {
+                const docRef = db.collection("organizations").doc(orgDoc.id).collection("jobs").doc(jobId);
+                const docSnap = await docRef.get();
+                if (docSnap.exists) {
+                    jobsToSync = [docSnap];
+                    break;
+                }
+            }
+        }
+        else if (organizationId) {
+            const jobsSnap = await db.collection("organizations")
+                .doc(organizationId)
+                .collection("jobs")
+                .where("origin", "in", ["ONLINE_ORDER", "ONLINE_REQUISITION"])
+                .get();
+            jobsToSync = jobsSnap.docs;
+        }
+        else if (clientId) {
+            const orgsSnap = await db.collection("organizations").get();
+            const jobsPromises = orgsSnap.docs.map(async (orgDoc) => {
+                const snap = await db.collection("organizations")
+                    .doc(orgDoc.id)
+                    .collection("jobs")
+                    .where("dentistUserId", "==", clientId)
+                    .get();
+                return snap.docs;
+            });
+            const jobsSnaps = await Promise.all(jobsPromises);
+            const flatDocs = jobsSnaps.flat();
+            jobsToSync = flatDocs.filter((doc) => {
+                const d = doc.data();
+                return d.origin === "ONLINE_ORDER" || d.origin === "ONLINE_REQUISITION";
+            });
+        }
+        let updatedCount = 0;
+        let vouchersGeneratedCount = 0;
+        let asaasConfig = null;
+        try {
+            asaasConfig = await getAsaasConfig();
+        }
+        catch (e) {
+            logger.warn("Asaas config error during sync (using key settings if any):", e);
+        }
+        for (const jobDoc of jobsToSync) {
+            const jobData = jobDoc.data();
+            let paymentStatus = jobData.paymentStatus || "PENDING";
+            // Force mark as paid if requested (e.g. by laboratory manager)
+            if (forceMarkPaid && jobId && paymentStatus !== "PAID") {
+                paymentStatus = "PAID";
+                await jobDoc.ref.update({ paymentStatus: "PAID" });
+                updatedCount++;
+            }
+            // Check with Asaas if pending and has Asaas payment ID
+            if (paymentStatus !== "PAID" && jobData.asaasPaymentId && asaasConfig) {
+                try {
+                    const checkRes = await axios_1.default.get(`${asaasConfig.url}/payments/${jobData.asaasPaymentId}`, {
+                        headers: { access_token: asaasConfig.key }
+                    });
+                    const asaasStatus = checkRes.data.status;
+                    if (asaasStatus === "CONFIRMED" || asaasStatus === "RECEIVED" || asaasStatus === "RECEIVED_IN_CASH") {
+                        paymentStatus = "PAID";
+                        await jobDoc.ref.update({ paymentStatus: "PAID" });
+                        updatedCount++;
+                    }
+                }
+                catch (err) {
+                    logger.error(`Error checking Asaas payment ${jobData.asaasPaymentId}:`, err.message);
+                }
+            }
+            // Generate vouchers if paymentStatus is PAID and vouchers have not been generated
+            if (paymentStatus === "PAID" && !jobData.vouchersGenerated) {
+                const hasVoucherCombos = (_a = jobData.items) === null || _a === void 0 ? void 0 : _a.some((item) => item.isVoucherCombo === true);
+                await generateVouchersForJob(db, Object.assign(Object.assign({}, jobData), { paymentStatus: "PAID" }), jobDoc.id);
+                if (hasVoucherCombos) {
+                    vouchersGeneratedCount++;
+                }
+            }
+        }
+        return {
+            success: true,
+            jobsChecked: jobsToSync.length,
+            paymentsUpdated: updatedCount,
+            vouchersGenerated: vouchersGeneratedCount
+        };
+    }
+    catch (error) {
+        logger.error("Error in syncStoreOrders:", error);
+        throw new https_1.HttpsError("internal", error.message);
+    }
+});
+exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
+    try {
+        const { base64, fileName, mimeType } = request.data;
+        if (!base64 || !fileName || !mimeType) {
+            throw new https_1.HttpsError("invalid-argument", "Missing base64, fileName or mimeType.");
+        }
+        const bucket = admin.storage().bucket();
+        const db = admin.firestore();
+        const buffer = Buffer.from(base64, "base64");
+        // Retrieve metadata using sharp
+        const originalMetadata = await (0, sharp_1.default)(buffer).metadata();
+        const widthOriginal = originalMetadata.width || 0;
+        const heightOriginal = originalMetadata.height || 0;
+        const sizeOriginal = buffer.length;
+        let sharpInstance = (0, sharp_1.default)(buffer);
+        // Auto-rotate based on EXIF
+        sharpInstance = sharpInstance.rotate();
+        // Resize only if wider or taller than 4096px
+        if (widthOriginal > 4096 || heightOriginal > 4096) {
+            sharpInstance = sharpInstance.resize({
+                width: 4096,
+                height: 4096,
+                fit: "inside",
+                withoutEnlargement: true,
+            });
+        }
+        // Convert to WebP, effort 4 (balanced), high quality (92), keeping transparency
+        const webpBuffer = await sharpInstance
+            .webp({ quality: 92, effort: 4 })
+            .toBuffer();
+        const sizeWebp = webpBuffer.length;
+        const timestamp = Date.now();
+        const cleanFileName = fileName.replace(/\s+/g, "_");
+        const fileNameWithoutExt = cleanFileName.substring(0, cleanFileName.lastIndexOf('.')) || cleanFileName;
+        const originalPath = `original/${timestamp}_${cleanFileName}`;
+        const webpPath = `webp/${timestamp}_${fileNameWithoutExt}.webp`;
+        const originalFile = bucket.file(originalPath);
+        await originalFile.save(buffer, {
+            metadata: {
+                contentType: mimeType,
+                cacheControl: "public, max-age=31536000",
+            },
+        });
+        const webpFile = bucket.file(webpPath);
+        await webpFile.save(webpBuffer, {
+            metadata: {
+                contentType: "image/webp",
+                cacheControl: "public, max-age=31536000",
+            },
+        });
+        let originalUrl = "";
+        let webpUrl = "";
+        try {
+            const { getDownloadURL } = require("firebase-admin/storage");
+            originalUrl = await getDownloadURL(originalFile);
+            webpUrl = await getDownloadURL(webpFile);
+        }
+        catch (e) {
+            originalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(originalPath)}?alt=media`;
+            webpUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(webpPath)}?alt=media`;
+        }
+        const metadata = {
+            originalUrl,
+            webpUrl,
+            mimeTypeOriginal: mimeType,
+            mimeTypeWebp: "image/webp",
+            width: widthOriginal,
+            height: heightOriginal,
+            sizeOriginal,
+            sizeWebp,
+            createdAt: admin.firestore.Timestamp.now(),
+        };
+        const docId = `${timestamp}_${fileNameWithoutExt}`;
+        await db.collection("imageMetadata").doc(docId).set(metadata);
+        return metadata;
+    }
+    catch (error) {
+        logger.error("Error in optimizeAndUploadImage:", error);
+        throw new https_1.HttpsError("internal", error.message);
     }
 });
 //# sourceMappingURL=index.js.map

@@ -13,6 +13,7 @@ setGlobalOptions({
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
+import sharp from "sharp";
 // Triggers sync 2
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -1516,3 +1517,100 @@ export const syncStoreOrders = onCall(async (request: any) => {
     throw new HttpsError("internal", error.message);
   }
 });
+
+export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (request) => {
+  try {
+    const { base64, fileName, mimeType } = request.data as any;
+    if (!base64 || !fileName || !mimeType) {
+      throw new HttpsError("invalid-argument", "Missing base64, fileName or mimeType.");
+    }
+
+    const bucket = admin.storage().bucket();
+    const db = admin.firestore();
+
+    const buffer = Buffer.from(base64, "base64");
+    
+    // Retrieve metadata using sharp
+    const originalMetadata = await sharp(buffer).metadata();
+    const widthOriginal = originalMetadata.width || 0;
+    const heightOriginal = originalMetadata.height || 0;
+    const sizeOriginal = buffer.length;
+
+    let sharpInstance = sharp(buffer);
+    
+    // Auto-rotate based on EXIF
+    sharpInstance = sharpInstance.rotate();
+
+    // Resize only if wider or taller than 4096px
+    if (widthOriginal > 4096 || heightOriginal > 4096) {
+      sharpInstance = sharpInstance.resize({
+        width: 4096,
+        height: 4096,
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+    }
+
+    // Convert to WebP, effort 4 (balanced), high quality (92), keeping transparency
+    const webpBuffer = await sharpInstance
+      .webp({ quality: 92, effort: 4 })
+      .toBuffer();
+
+    const sizeWebp = webpBuffer.length;
+
+    const timestamp = Date.now();
+    const cleanFileName = fileName.replace(/\s+/g, "_");
+    const fileNameWithoutExt = cleanFileName.substring(0, cleanFileName.lastIndexOf('.')) || cleanFileName;
+
+    const originalPath = `original/${timestamp}_${cleanFileName}`;
+    const webpPath = `webp/${timestamp}_${fileNameWithoutExt}.webp`;
+
+    const originalFile = bucket.file(originalPath);
+    await originalFile.save(buffer, {
+      metadata: {
+        contentType: mimeType,
+        cacheControl: "public, max-age=31536000",
+      },
+    });
+
+    const webpFile = bucket.file(webpPath);
+    await webpFile.save(webpBuffer, {
+      metadata: {
+        contentType: "image/webp",
+        cacheControl: "public, max-age=31536000",
+      },
+    });
+
+    let originalUrl = "";
+    let webpUrl = "";
+    try {
+      const { getDownloadURL } = require("firebase-admin/storage");
+      originalUrl = await getDownloadURL(originalFile);
+      webpUrl = await getDownloadURL(webpFile);
+    } catch (e) {
+      originalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(originalPath)}?alt=media`;
+      webpUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(webpPath)}?alt=media`;
+    }
+
+    const metadata = {
+      originalUrl,
+      webpUrl,
+      mimeTypeOriginal: mimeType,
+      mimeTypeWebp: "image/webp",
+      width: widthOriginal,
+      height: heightOriginal,
+      sizeOriginal,
+      sizeWebp,
+      createdAt: admin.firestore.Timestamp.now(),
+    };
+
+    const docId = `${timestamp}_${fileNameWithoutExt}`;
+    await db.collection("imageMetadata").doc(docId).set(metadata);
+
+    return metadata;
+  } catch (error: any) {
+    logger.error("Error in optimizeAndUploadImage:", error);
+    throw new HttpsError("internal", error.message);
+  }
+});
+

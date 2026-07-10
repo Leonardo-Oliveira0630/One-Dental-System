@@ -158,7 +158,8 @@ export const IncomingOrders = () => {
 
           const downloadPromises = job.attachments.map(async (file) => {
               try {
-                  const response = await fetch(file.url);
+                  const downloadUrl = await api.getOriginalUrl(file.url);
+                  const response = await fetch(downloadUrl);
                   const blob = await response.blob();
                   folder?.file(file.name, blob);
               } catch (err) {

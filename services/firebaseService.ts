@@ -829,12 +829,87 @@ export const subscribeManualDentists = (orgId: string, cb: (d: ManualDentist[]) 
         cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any, createdAt: toDate(d.data().createdAt) } as ManualDentist)));
     }, (error: any) => console.warn(`[Firestore] Erro em subscribeManualDentists: ${error.code}`));
 };
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result as string;
+            const base64 = result.substring(result.indexOf(',') + 1);
+            resolve(base64);
+        };
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(file);
+    });
+};
+
+export const getOriginalUrl = async (url: string): Promise<string> => {
+    try {
+        if (!url || !url.includes('/webp/')) return url;
+        const q = query(
+            collection(db, 'imageMetadata'),
+            where('webpUrl', '==', url),
+            limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const data = snap.docs[0].data();
+            return data.originalUrl || url;
+        }
+    } catch (error) {
+        console.warn("[getOriginalUrl] Erro ao buscar URL original:", error);
+    }
+    return url;
+};
+
 export const uploadJobFile = async (file: File): Promise<string> => {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext || '');
+
+    if (isImage) {
+        try {
+            const base64 = await fileToBase64(file);
+            const fn = httpsCallable(functions, 'optimizeAndUploadImage');
+            const result = await fn({
+                base64,
+                fileName: file.name,
+                mimeType: file.type || `image/${ext}`
+            });
+            const data = result.data as any;
+            if (data && data.webpUrl) {
+                return data.webpUrl;
+            }
+        } catch (err) {
+            console.error("[uploadJobFile] Erro ao otimizar imagem no servidor, usando fallback normal:", err);
+        }
+    }
+
     const fileRef = ref(storage, `jobs/${Date.now()}_${file.name}`);
     await uploadBytes(fileRef, file);
     return getDownloadURL(fileRef);
 };
+
 export const uploadBannerImage = async (file: File): Promise<string> => {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext || '');
+
+    if (isImage) {
+        try {
+            const base64 = await fileToBase64(file);
+            const fn = httpsCallable(functions, 'optimizeAndUploadImage');
+            const result = await fn({
+                base64,
+                fileName: file.name,
+                mimeType: file.type || `image/${ext}`
+            });
+            const data = result.data as any;
+            if (data && data.webpUrl) {
+                return data.webpUrl;
+            }
+        } catch (err) {
+            console.error("[uploadBannerImage] Erro ao otimizar imagem no servidor, usando fallback normal:", err);
+        }
+    }
+
     const fileRef = ref(storage, `jobs/banners_${Date.now()}_${file.name}`);
     await uploadBytes(fileRef, file);
     return getDownloadURL(fileRef);

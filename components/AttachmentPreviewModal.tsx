@@ -6,6 +6,7 @@ import {
 import { STLViewer } from './STLViewer';
 import { Attachment } from '../types';
 import FileSaver from 'file-saver';
+import { getOriginalUrl } from '../services/firebaseService';
 
 interface AttachmentPreviewModalProps {
   file: Attachment;
@@ -15,8 +16,9 @@ interface AttachmentPreviewModalProps {
 
 export const handleDownloadFile = async (url: string, name: string) => {
   try {
-    if (url.startsWith('data:')) {
-      const arr = url.split(',');
+    const downloadUrl = await getOriginalUrl(url);
+    if (downloadUrl.startsWith('data:')) {
+      const arr = downloadUrl.split(',');
       const mimeMatch = arr[0].match(/:(.*?);/);
       const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
       const bstr = atob(arr[1]);
@@ -29,13 +31,14 @@ export const handleDownloadFile = async (url: string, name: string) => {
       FileSaver.saveAs(blob, name);
       return;
     }
-    const response = await fetch(url);
+    const response = await fetch(downloadUrl);
     const blob = await response.blob();
     FileSaver.saveAs(blob, name);
   } catch (error) {
     console.error("CORS ou erro de rede ao obter Blob. Baixando pelo link direto...", error);
+    const downloadUrl = await getOriginalUrl(url);
     const link = document.createElement('a');
-    link.href = url;
+    link.href = downloadUrl;
     link.setAttribute('download', name);
     link.target = '_blank';
     document.body.appendChild(link);
@@ -63,6 +66,20 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
 
   const activeFile = allAttachments && allAttachments.length > 0 ? allAttachments[currentIndex] : file;
   const fileType = getFileType(activeFile.name);
+
+  const [resolvedDownloadUrl, setResolvedDownloadUrl] = React.useState(activeFile.url);
+
+  React.useEffect(() => {
+    let active = true;
+    getOriginalUrl(activeFile.url).then((url) => {
+      if (active) {
+        setResolvedDownloadUrl(url);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [activeFile.url]);
 
   // Zoom & Pan for Images
   const [zoom, setZoom] = React.useState(1);
@@ -227,7 +244,7 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
         {/* Right: Direct Download and Actions */}
         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
           <a
-            href={activeFile.url}
+            href={resolvedDownloadUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-750 font-black text-xs text-slate-300 rounded-xl flex items-center gap-1.5 transition"
@@ -236,7 +253,7 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
           </a>
           <button
             type="button"
-            onClick={() => handleDownloadFile(activeFile.url, activeFile.name)}
+            onClick={() => handleDownloadFile(resolvedDownloadUrl, activeFile.name)}
             className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-lg shadow-indigo-950/40"
             title="Fazer download"
           >
