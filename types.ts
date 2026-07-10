@@ -421,7 +421,7 @@ export interface Job {
   vouchersUsed?: string[];
   managerNotes?: string;
   attachments?: Attachment[];
-  paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED';
+  paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED' | 'VOUCHER';
   paymentMethod?: 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'CASH' | 'TRANSFER';
   pixQrCode?: string;
   pixCopyPaste?: string;

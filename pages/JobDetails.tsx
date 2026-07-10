@@ -1853,20 +1853,24 @@ export const JobDetails = () => {
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar shrink-0 sticky top-0 md:top-16 bg-slate-50 z-20 w-full">
          <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> Dados Básicos</button>
          
-         {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
-            <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> Produção</button>
-         ) : (
-            <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Controle de produção indisponível para este trabalho">
-              <Lock size={14} className="text-slate-300" /> Produção <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
-            </button>
-         )}
+         {!isClient && (
+           <>
+             {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
+                <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> Produção</button>
+             ) : (
+                <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Controle de produção indisponível para este trabalho">
+                  <Lock size={14} className="text-slate-300" /> Produção <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
+                </button>
+             )}
 
-         {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
-            <button onClick={() => setActiveTab('HISTORY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'HISTORY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Clock size={16} /> Histórico</button>
-         ) : (
-            <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Histórico indisponível para este trabalho">
-              <Lock size={14} className="text-slate-300" /> Histórico <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
-            </button>
+             {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
+                <button onClick={() => setActiveTab('HISTORY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'HISTORY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Clock size={16} /> Histórico</button>
+             ) : (
+                <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Histórico indisponível para este trabalho">
+                  <Lock size={14} className="text-slate-300" /> Histórico <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
+                </button>
+             )}
+           </>
          )}
 
          {(!job.isPseudo && (isLabStaff || job.chatEnabled)) ? (
@@ -1885,17 +1889,19 @@ export const JobDetails = () => {
         {activeTab === 'SUMMARY' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full pb-8">
                 {/* KPI BOXES - Responsive Layout */}
-                <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-                    <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100 flex items-center gap-4">
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0"><Box size={24} /></div>
-                        <div className="min-w-0">
-                            <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">Caixa Física</p>
-                            <div className="flex items-center gap-2">
-                                <span className="font-black text-xl text-slate-800">{job.boxNumber || '--'}</span>
-                                {job.boxColor && <div className="w-3.5 h-3.5 rounded-full shadow-sm border border-black/10 shrink-0" style={{ backgroundColor: job.boxColor.hex }} />}
+                <div className={`lg:col-span-3 grid grid-cols-1 ${isClient ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3 md:gap-4`}>
+                    {!isClient && (
+                        <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100 flex items-center gap-4">
+                            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0"><Box size={24} /></div>
+                            <div className="min-w-0">
+                                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">Caixa Física</p>
+                                <div className="flex items-center gap-2">
+                                    <span className="font-black text-xl text-slate-800">{job.boxNumber || '--'}</span>
+                                    {job.boxColor && <div className="w-3.5 h-3.5 rounded-full shadow-sm border border-black/10 shrink-0" style={{ backgroundColor: job.boxColor.hex }} />}
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                     <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100 flex items-center gap-4">
                         <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl shrink-0"><MapPin size={24} /></div>
                         <div className="min-w-0">
@@ -1909,7 +1915,24 @@ export const JobDetails = () => {
                         <div className="p-3 bg-green-50 text-green-600 rounded-xl shrink-0"><DollarSign size={24} /></div>
                         <div className="min-w-0">
                             <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest truncate">Orçamento</p>
-                            <p className="font-black text-lg text-slate-800">R$ {job.totalValue.toFixed(2)}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-black text-lg text-slate-800">R$ {job.totalValue.toFixed(2)}</span>
+                                {job.paymentStatus && (
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                                        job.paymentStatus === 'VOUCHER' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                        job.paymentStatus === 'AUTHORIZED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                        job.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                        'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                    }`}>
+                                        {
+                                            job.paymentStatus === 'VOUCHER' ? 'Voucher' :
+                                            job.paymentStatus === 'AUTHORIZED' ? 'Pré-Autorizado' :
+                                            job.paymentStatus === 'PAID' ? 'Pago' :
+                                            'Aguardando Pagamento'
+                                        }
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

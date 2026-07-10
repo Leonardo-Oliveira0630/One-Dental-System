@@ -684,7 +684,7 @@ export const createOrderPayment = onCall(async (request: any) => {
       const newJobData = {
         ...jobData,
         id: newJobId,
-        paymentStatus: 'PAID'
+        paymentStatus: (jobData.vouchersUsed && jobData.vouchersUsed.length > 0) ? 'VOUCHER' : 'PAID'
       };
       await db.collection("organizations")
         .doc(jobData.organizationId)

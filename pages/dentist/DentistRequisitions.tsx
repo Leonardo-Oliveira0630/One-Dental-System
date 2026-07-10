@@ -1098,16 +1098,37 @@ export const DentistRequisitions = () => {
                       {/* Status and Chat Fields */}
                       <div className="mt-1 border-t border-dashed border-slate-100 pt-2 space-y-2">
                         {/* 1. Status do Trabalho Section */}
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-400 font-bold uppercase text-[8px]">Status do Trabalho:</span>
-                          {revealJobStatus ? (
-                            <span className="font-black text-slate-700 uppercase">
-                              {getTranslatedStatus(job.status)}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 font-black uppercase text-[8px] flex items-center gap-1">
-                              <Lock size={8} /> Desativado
-                            </span>
+                        <div className="flex flex-col gap-1 mt-1">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-slate-400 font-bold uppercase text-[8px]">Status do Trabalho:</span>
+                            {revealJobStatus ? (
+                              <span className="font-black text-slate-700 uppercase">
+                                {getTranslatedStatus(job.status)}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-black uppercase text-[8px] flex items-center gap-1">
+                                <Lock size={8} /> Desativado
+                              </span>
+                            )}
+                          </div>
+                          
+                          {job.paymentStatus && (
+                            <div className="flex items-center justify-between text-[10px] mt-1 border-t border-slate-100 pt-1">
+                              <span className="text-slate-400 font-bold uppercase text-[8px]">Status de Pagamento:</span>
+                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border ${
+                                job.paymentStatus === 'VOUCHER' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                job.paymentStatus === 'AUTHORIZED' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                job.paymentStatus === 'PAID' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                'bg-yellow-50 text-yellow-700 border-yellow-200'
+                              }`}>
+                                {
+                                  job.paymentStatus === 'VOUCHER' ? 'Voucher' :
+                                  job.paymentStatus === 'AUTHORIZED' ? 'Pré-Autorizado' :
+                                  job.paymentStatus === 'PAID' ? 'Pago' :
+                                  'Aguardando Pagamento'
+                                }
+                              </span>
+                            </div>
                           )}
                         </div>
 

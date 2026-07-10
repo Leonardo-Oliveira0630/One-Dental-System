@@ -116,7 +116,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   };
 
   const pendingOrdersCount = React.useMemo(() => 
-    jobs.filter(j => j.status === 'WAITING_APPROVAL' as any).length
+    jobs.filter(j => j.status === 'WAITING_APPROVAL' as any && !j.isComboPurchase).length
   , [jobs]);
 
   const { onlineRequisitions } = useApp();
