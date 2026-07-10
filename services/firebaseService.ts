@@ -24,7 +24,7 @@ import {
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
-  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder
+  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -149,6 +149,35 @@ export const apiUpdateChatMessage = async (orgId: string, jobId: string, msgId: 
 
 export const apiDeleteChatMessage = async (orgId: string, jobId: string, msgId: string) => {
     return await updateDoc(doc(db, `organizations/${orgId}/jobs/${jobId}/messages`, msgId), { deleted: true, text: 'Esta mensagem foi apagada.' });
+};
+
+// --- CASE APPROVAL FUNCTIONS ---
+export const subscribeCaseApprovals = (orgId: string, jobId: string, cb: (items: CaseApprovalItem[]) => void) => {
+    if (!orgId || !jobId) return () => {};
+    const q = query(collection(db, `organizations/${orgId}/jobs/${jobId}/caseApprovals`), orderBy('createdAt', 'asc'));
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => {
+            const data = d.data();
+            return {
+                id: d.id,
+                ...data,
+                createdAt: toDate(data.createdAt),
+                resolvedAt: data.resolvedAt ? toDate(data.resolvedAt) : undefined,
+                replies: data.replies ? data.replies.map((r: any) => ({
+                    ...r,
+                    createdAt: toDate(r.createdAt)
+                })) : []
+            } as CaseApprovalItem;
+        }));
+    }, (error: any) => console.warn(`[Firestore] Erro em subscribeCaseApprovals: ${error.code}`));
+};
+
+export const apiSendCaseApproval = async (orgId: string, jobId: string, item: Omit<CaseApprovalItem, 'id'>) => {
+    return await addDoc(collection(db, `organizations/${orgId}/jobs/${jobId}/caseApprovals`), item);
+};
+
+export const apiUpdateCaseApproval = async (orgId: string, jobId: string, itemId: string, updates: Partial<CaseApprovalItem>) => {
+    return await updateDoc(doc(db, `organizations/${orgId}/jobs/${jobId}/caseApprovals`, itemId), updates);
 };
 
 // --- NOTIFICATIONS ---

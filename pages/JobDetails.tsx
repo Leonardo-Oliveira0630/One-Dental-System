@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { CreateAlertModal } from '../components/AlertSystem';
 import { ChatSystem } from '../components/ChatSystem';
+import { CaseApprovalSystem } from '../components/CaseApprovalSystem';
 import { AttachmentPreviewModal, handleDownloadFile } from '../components/AttachmentPreviewModal';
 import { calculateItemCommission } from '../utils/commissionUtils';
 import { smartCompress } from '../services/compressionService';
@@ -527,6 +528,12 @@ export const JobDetails = () => {
       if (!isLabStaff) return;
       const newState = !job.chatEnabled;
       await updateJob(job.id, { chatEnabled: newState });
+  };
+
+  const handleToggleApproval = async () => {
+      if (!isLabStaff) return;
+      const newState = !job.approvalEnabled;
+      await updateJob(job.id, { approvalEnabled: newState });
   };
 
   const handleSaveChanges = async () => {
@@ -1794,6 +1801,15 @@ export const JobDetails = () => {
                             <MessageSquare size={10}/> {job.chatEnabled ? 'CHAT ATIVO' : 'CHAT OFF'}
                         </button>
                     )}
+
+                    {isLabStaff && (
+                         <button 
+                            onClick={handleToggleApproval}
+                            className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 transition-all shadow-sm ${job.approvalEnabled ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-100 text-slate-400 border-slate-200'}`}
+                        >
+                            <CheckSquare size={10}/> {job.approvalEnabled ? 'APROVAÇÃO ATIVA' : 'APROVAÇÃO OFF'}
+                        </button>
+                    )}
                 </div>
                 <h1 className="text-xl md:text-2xl font-black text-slate-800 leading-tight uppercase truncate">{job.patientName}</h1>
                 <div className="flex items-center gap-2 text-slate-500 mt-1 font-bold text-xs uppercase truncate"><User size={14} className="text-blue-500 shrink-0" /> Dr(a). {job.dentistName}</div>
@@ -2308,6 +2324,21 @@ export const JobDetails = () => {
                             {job.notes || "Sem instruções adicionais registradas."}
                         </div>
                     </div>
+
+                    {/* Case Approval System Section */}
+                    {(!job.isPseudo && (job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION' || job.approvalEnabled || isLabStaff)) && (
+                        <div className="mt-4 md:mt-6">
+                            {isClient && !job.approvalEnabled ? (
+                                <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-6 text-center text-slate-500">
+                                    <Lock size={32} className="text-slate-300 mx-auto mb-2" />
+                                    <p className="font-extrabold text-xs uppercase text-slate-700">Área de Aprovação de Caso</p>
+                                    <p className="text-[10px] mt-1 text-slate-400 font-bold">Aguardando ativação do laboratório para este caso.</p>
+                                </div>
+                            ) : (
+                                <CaseApprovalSystem job={job} orgId={job.organizationId} />
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0 pb-8">

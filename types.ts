@@ -373,6 +373,35 @@ export interface ChatMessage {
   deleted?: boolean;
 }
 
+export interface CaseApprovalReply {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  text: string;
+  createdAt: Date;
+}
+
+export interface CaseApprovalFile {
+  name: string;
+  url: string;
+  type: string; // 'photo' | 'video' | 'html' | 'stl' | 'other'
+}
+
+export interface CaseApprovalItem {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  message: string;
+  files: CaseApprovalFile[];
+  createdAt: Date;
+  replies?: CaseApprovalReply[];
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+  statusFeedback?: string;
+  resolvedAt?: Date;
+}
+
 export interface JobItemExecution {
   itemId: string;
   jobTypeId: string;
@@ -430,6 +459,8 @@ export interface Job {
   ratingId?: string; 
   routeId?: string;
   chatEnabled?: boolean;
+  approvalEnabled?: boolean;
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   origin?: 'MANUAL' | 'ONLINE_ORDER' | 'ONLINE_REQUISITION' | 'OUTSOURCING';
   dentistUserId?: string;
 }
