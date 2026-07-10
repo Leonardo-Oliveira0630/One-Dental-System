@@ -1462,12 +1462,24 @@ export const syncStoreOrders = onCall(async (request: any) => {
     } else if (clientId) {
       const orgsSnap = await db.collection("organizations").get();
       const jobsPromises = orgsSnap.docs.map(async (orgDoc) => {
-        const snap = await db.collection("organizations")
+        const snap1 = await db.collection("organizations")
+          .doc(orgDoc.id)
+          .collection("jobs")
+          .where("dentistId", "==", clientId)
+          .get();
+        const snap2 = await db.collection("organizations")
           .doc(orgDoc.id)
           .collection("jobs")
           .where("dentistUserId", "==", clientId)
           .get();
-        return snap.docs;
+        
+        const combined = [...snap1.docs];
+        snap2.docs.forEach((doc) => {
+          if (!combined.some((d) => d.id === doc.id)) {
+            combined.push(doc);
+          }
+        });
+        return combined;
       });
       const jobsSnaps = await Promise.all(jobsPromises);
       const flatDocs = jobsSnaps.flat();

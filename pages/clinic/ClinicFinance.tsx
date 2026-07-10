@@ -133,7 +133,7 @@ export const ClinicFinance = () => {
             date: job.createdAt,
             type: 'EXPENSE',
             category: 'OTHER' as TransactionCategory,
-            status: job.paymentStatus === 'PAID' ? 'PAID' : 'PENDING'
+            status: (job.paymentStatus === 'PAID' || job.paymentStatus === 'VOUCHER') ? 'PAID' : 'PENDING'
         }));
     }, [jobs]);
 

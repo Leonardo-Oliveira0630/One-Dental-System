@@ -126,7 +126,7 @@ export const Finance = () => {
         category: 'Loja Online',
         amount: j.totalValue,
         paymentMethod: 'Cartão/Pix (Asaas)',
-        status: j.paymentStatus === 'PAID' ? 'PAID' : 'PENDING',
+        status: (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER') ? 'PAID' : 'PENDING',
         source: 'ONLINE_STORE' as const,
         refId: j.id,
         dentistName: j.dentistName || '---'
@@ -333,8 +333,8 @@ export const Finance = () => {
       return d >= sDate && d <= eDate;
     });
     
-    const paidSum = periodJobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, c) => acc + c.totalValue, 0);
-    const pendingSum = periodJobs.filter(j => j.paymentStatus !== 'PAID').reduce((acc, c) => acc + c.totalValue, 0);
+    const paidSum = periodJobs.filter(j => j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER').reduce((acc, c) => acc + c.totalValue, 0);
+    const pendingSum = periodJobs.filter(j => j.paymentStatus !== 'PAID' && j.paymentStatus !== 'VOUCHER').reduce((acc, c) => acc + c.totalValue, 0);
     
     doc.setTextColor(50, 50, 50);
     doc.setFontSize(12);
@@ -354,7 +354,7 @@ export const Finance = () => {
       j.patientName || '---',
       new Date(j.createdAt).toLocaleDateString('pt-BR'),
       `R$ ${(j.totalValue || 0).toFixed(2)}`,
-      j.paymentStatus === 'PAID' ? 'Pago' : 'Pendente'
+      (j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER') ? 'Pago' : 'Pendente'
     ]);
     
     autoTable(doc, {
@@ -835,7 +835,7 @@ export const Finance = () => {
 
   // --- ANALYTICS CALCULATIONS ---
   const stats = useMemo(() => {
-    const paidFromJobs = jobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, curr) => acc + curr.totalValue, 0);
+    const paidFromJobs = jobs.filter(j => j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER').reduce((acc, curr) => acc + curr.totalValue, 0);
     const paidRevenue = paidFromJobs; 
 
     const pendingRevenue = jobs.filter(j => 
@@ -967,8 +967,8 @@ export const Finance = () => {
       return d >= sDate && d <= eDate;
     });
 
-    const paidSum = periodJobs.filter(j => j.paymentStatus === 'PAID').reduce((acc, c) => acc + c.totalValue, 0);
-    const pendingSum = periodJobs.filter(j => j.paymentStatus !== 'PAID').reduce((acc, c) => acc + c.totalValue, 0);
+    const paidSum = periodJobs.filter(j => j.paymentStatus === 'PAID' || j.paymentStatus === 'VOUCHER').reduce((acc, c) => acc + c.totalValue, 0);
+    const pendingSum = periodJobs.filter(j => j.paymentStatus !== 'PAID' && j.paymentStatus !== 'VOUCHER').reduce((acc, c) => acc + c.totalValue, 0);
 
     return (
       <div className="space-y-6 pb-20 animate-in fade-in duration-500">
@@ -1071,11 +1071,11 @@ export const Finance = () => {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase ${
-                          job.paymentStatus === 'PAID' 
+                          (job.paymentStatus === 'PAID' || job.paymentStatus === 'VOUCHER') 
                             ? 'bg-green-100 text-green-700' 
                             : 'bg-yellow-100 text-yellow-700'
                         }`}>
-                          {job.paymentStatus === 'PAID' ? 'Pago' : 'Pendente'}
+                          {(job.paymentStatus === 'PAID' || job.paymentStatus === 'VOUCHER') ? 'Pago' : 'Pendente'}
                         </span>
                       </td>
                     </tr>
