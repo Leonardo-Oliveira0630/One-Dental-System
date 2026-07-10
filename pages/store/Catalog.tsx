@@ -22,12 +22,14 @@ import { MyVouchersTab } from './MyVouchersTab';
 
 const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
     const [index, setIndex] = useState(0);
+    const [direction, setDirection] = useState(1); // 1 for next/right, -1 for prev/left
 
     useEffect(() => {
         if (images.length <= 1) return;
         const timer = setInterval(() => {
+            setDirection(1);
             setIndex((prev) => (prev + 1) % images.length);
-        }, 5000);
+        }, 8000); // 8000ms as requested (slower auto-slide)
         return () => clearInterval(timer);
     }, [images]);
 
@@ -44,74 +46,119 @@ const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
     }
 
     const currentBanner = images[index];
+    const hasAnyText = currentBanner.title || currentBanner.subtitle || currentBanner.buttonText;
+
+    // Transition variants for lateral slide
+    const slideVariants = {
+        enter: (dir: number) => ({
+            x: dir > 0 ? '100%' : '-100%',
+            opacity: 0
+        }),
+        center: {
+            x: 0,
+            opacity: 1
+        },
+        exit: (dir: number) => ({
+            x: dir < 0 ? '100%' : '-100%',
+            opacity: 0
+        })
+    };
+
+    const handlePrev = () => {
+        setDirection(-1);
+        setIndex((prev) => (prev - 1 + images.length) % images.length);
+    };
+
+    const handleNext = () => {
+        setDirection(1);
+        setIndex((prev) => (prev + 1) % images.length);
+    };
+
+    const handleDotClick = (i: number) => {
+        setDirection(i > index ? 1 : -1);
+        setIndex(i);
+    };
 
     return (
         <div className="relative w-full aspect-[21/9] md:aspect-[25/7] rounded-card overflow-hidden shadow-premium group">
-            <AnimatePresence mode="wait">
+            <AnimatePresence initial={false} custom={direction} mode="popLayout">
                 <motion.img
                     key={index}
                     src={currentBanner.imageUrl}
-                    initial={{ opacity: 0, scale: 1.1 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.8 }}
+                    custom={direction}
+                    variants={slideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{
+                        x: { type: "spring", stiffness: 180, damping: 25 },
+                        opacity: { duration: 0.5 }
+                    }}
                     className="absolute inset-0 w-full h-full object-cover"
                 />
             </AnimatePresence>
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
             
-            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-12 text-white z-10">
-                <motion.div 
-                    key={index}
-                    initial={{ y: 20, opacity: 0 }} 
-                    animate={{ y: 0, opacity: 1 }} 
-                    transition={{ delay: 0.2 }}
-                    className="max-w-2xl flex flex-col gap-2"
-                >
-                    <span className="bg-[#00B8D9] text-[#1E293B] text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest w-fit mb-1">
-                        Destaque
-                    </span>
-                    <h2 className="text-2xl md:text-5xl font-black tracking-tighter drop-shadow-lg leading-tight uppercase">
-                        {currentBanner.title || "Excelência em Próteses"}
-                    </h2>
-                    {currentBanner.subtitle && (
-                        <p className="text-sm md:text-lg text-slate-150 font-medium drop-shadow-md mt-1 line-clamp-2 max-w-xl">
-                            {currentBanner.subtitle}
-                        </p>
-                    )}
-                    {currentBanner.buttonText && (
-                        <button 
-                            onClick={() => {
-                                const link = currentBanner.buttonLink;
-                                if (link) {
-                                    if (link.startsWith('http://') || link.startsWith('https://')) {
-                                        window.open(link, '_blank');
-                                    } else {
-                                        window.location.href = link;
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 md:p-12 text-white z-10">
+                {hasAnyText && (
+                    <motion.div 
+                        key={index}
+                        custom={direction}
+                        variants={slideVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{ 
+                            x: { type: "spring", stiffness: 150, damping: 24 },
+                            opacity: { duration: 0.5 },
+                            delay: 0.1
+                        }}
+                        className="max-w-2xl flex flex-col items-center justify-center gap-2 text-center"
+                    >
+                        {currentBanner.title && (
+                            <h2 className="text-2xl md:text-5xl font-black tracking-tighter drop-shadow-lg leading-tight uppercase">
+                                {currentBanner.title}
+                            </h2>
+                        )}
+                        {currentBanner.subtitle && (
+                            <p className="text-sm md:text-lg text-slate-150 font-medium drop-shadow-md mt-1 line-clamp-2 max-w-xl">
+                                {currentBanner.subtitle}
+                            </p>
+                        )}
+                        {currentBanner.buttonText && (
+                            <button 
+                                onClick={() => {
+                                    const link = currentBanner.buttonLink;
+                                    if (link) {
+                                        if (link.startsWith('http://') || link.startsWith('https://')) {
+                                            window.open(link, '_blank');
+                                        } else {
+                                            window.location.href = link;
+                                        }
                                     }
-                                }
-                            }}
-                            className="mt-4 px-6 py-2.5 bg-[#00B8D9] hover:bg-[#00B8D9]/90 text-[#1E293B] font-black rounded-full transition-all text-xs uppercase tracking-wider w-fit shadow-lg hover:scale-105 active:scale-95"
-                        >
-                            {currentBanner.buttonText}
-                        </button>
-                    )}
-                </motion.div>
+                                }}
+                                className="mt-4 px-6 py-2.5 bg-[#00B8D9] hover:bg-[#00B8D9]/90 text-[#1E293B] font-black rounded-full transition-all text-xs uppercase tracking-wider w-fit shadow-lg hover:scale-105 active:scale-95"
+                            >
+                                {currentBanner.buttonText}
+                            </button>
+                        )}
+                    </motion.div>
+                )}
             </div>
 
             {images.length > 1 && (
                 <>
-                    <button onClick={() => setIndex((prev) => (prev - 1 + images.length) % images.length)} 
+                    <button onClick={handlePrev} 
                             className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40 z-20">
                         <ChevronLeft size={24} />
                     </button>
-                    <button onClick={() => setIndex((prev) => (prev + 1) % images.length)}
+                    <button onClick={handleNext}
                             className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/20 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/40 z-20">
                         <ChevronRight size={24} />
                     </button>
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
                         {images.map((_, i) => (
-                            <button key={i} onClick={() => setIndex(i)} className={`w-2 h-2 rounded-full transition-all ${i === index ? 'bg-white w-6' : 'bg-white/40'}`} />
+                            <button key={i} onClick={() => handleDotClick(i)} className={`w-2 h-2 rounded-full transition-all ${i === index ? 'bg-white w-6' : 'bg-white/40'}`} />
                         ))}
                     </div>
                 </>
