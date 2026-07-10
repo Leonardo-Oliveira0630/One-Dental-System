@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -19,6 +19,27 @@ export const JobTypes = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('BASIC');
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleShare = (type: JobType, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const slugOrId = currentOrg?.storeSlug || currentOrg?.id;
+    if (!slugOrId) {
+        alert("O laboratório ainda não possui identificador ou link de loja.");
+        return;
+    }
+    const shareUrl = `${window.location.origin}/#/store/${slugOrId}?serviceId=${type.id}`;
+    navigator.clipboard.writeText(shareUrl)
+        .then(() => {
+            setCopiedId(type.id);
+            setTimeout(() => setCopiedId(null), 2000);
+        })
+        .catch((err) => {
+            console.error("Erro ao copiar link:", err);
+            alert("Não foi possível copiar o link automaticamente.");
+        });
+  };
 
   
   const isPromo = (jt: any) => {
@@ -343,18 +364,32 @@ export const JobTypes = () => {
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start mb-1">
+                                <div className="flex justify-between items-start mb-1 gap-2">
                                     <h3 className={`font-bold truncate ${editingId === type.id ? 'text-blue-800' : 'text-slate-800'}`}>
                                         {type.name}
                                     </h3>
-                                    {editingId !== type.id && canDelete && (
+                                    <div className="flex items-center gap-1.5 shrink-0">
                                         <button 
-                                            onClick={(e) => { e.stopPropagation(); deleteJobType(type.id); }} 
-                                            className="text-slate-300 hover:text-red-500"
+                                            onClick={(e) => handleShare(type, e)}
+                                            className={`p-1.5 rounded-lg border transition-all ${
+                                                copiedId === type.id 
+                                                    ? 'bg-green-50 border-green-200 text-green-600' 
+                                                    : 'bg-slate-50 border-slate-100 hover:border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                                            }`}
+                                            title="Compartilhar Link"
                                         >
-                                            <Trash2 size={16} />
+                                            {copiedId === type.id ? <Check size={13} /> : <Share2 size={13} />}
                                         </button>
-                                    )}
+                                        {editingId !== type.id && canDelete && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); deleteJobType(type.id); }} 
+                                                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                title="Excluir"
+                                            >
+                                                <Trash2 size={13} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-semibold uppercase truncate max-w-[80px]">{type.category}</span>
