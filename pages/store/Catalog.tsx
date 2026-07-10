@@ -883,7 +883,7 @@ export const Catalog = () => {
 
             {mainTab === 'CART' && (
                 <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50 animate-in fade-in">
-                    <Cart />
+                    <Cart onBackToStore={() => setMainTab('STORE')} />
                 </div>
             )}
 

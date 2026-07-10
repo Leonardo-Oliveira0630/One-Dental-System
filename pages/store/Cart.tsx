@@ -8,7 +8,11 @@ import * as api from '../../services/firebaseService';
 import { smartCompress } from '../../services/compressionService';
 import { StoreTopMenu } from '../../components/StoreTopMenu';
 
-export const Cart = () => {
+interface CartProps {
+  onBackToStore?: () => void;
+}
+
+export const Cart = ({ onBackToStore }: CartProps = {}) => {
   const { cart, removeFromCart, uploadFile, activeOrganization, currentUser, currentOrg, clearCart, validateLabCoupon, updateLabCoupon, patients } = useApp();
   const navigate = useNavigate();
   
@@ -548,13 +552,30 @@ export const Cart = () => {
   }
 
   if (cart.length === 0) {
+    const handleReturnToCatalog = () => {
+      if (onBackToStore) {
+        onBackToStore();
+      }
+      const targetSlug = activeOrganization?.storeSlug || activeOrganization?.id;
+      if (targetSlug) {
+        navigate(`/store/${targetSlug}`);
+      } else {
+        navigate('/store');
+      }
+    };
+
     return (
         <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
             <StoreTopMenu />
             <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 md:p-8">
                 <div className="p-6 bg-indigo-50 rounded-full mb-4 text-indigo-300"><ArrowRight size={48} /></div>
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Seu carrinho está vazio</h2>
-                <button onClick={() => navigate('/store')} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700">Ir para o Catálogo</button>
+                <button 
+                    onClick={handleReturnToCatalog} 
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                >
+                    Retornar ao Catálogo
+                </button>
             </div>
         </div>
     );
