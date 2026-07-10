@@ -1286,15 +1286,31 @@ export const Catalog = () => {
                                                 <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-0.5">Por apenas</p>
                                                 <p className="text-xl font-black text-blue-600">{promo.basePrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                                             </div>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setConfiguringProduct(promo);
-                                                }}
-                                                className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm"
-                                            >
-                                                <ShoppingCart size={20} />
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleShareProduct(promo.id);
+                                                    }}
+                                                    className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${copiedServiceId === promo.id ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-400 hover:text-indigo-600 border-slate-200 hover:bg-indigo-50/50 hover:border-indigo-100'}`}
+                                                    title="Compartilhar promoção"
+                                                >
+                                                    {copiedServiceId === promo.id ? (
+                                                        <span className="text-[8px] font-black uppercase tracking-widest text-center leading-tight">Copiado!</span>
+                                                    ) : (
+                                                        <Share2 size={16} />
+                                                    )}
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setConfiguringProduct(promo);
+                                                    }}
+                                                    className="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm"
+                                                >
+                                                    <ShoppingCart size={20} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
