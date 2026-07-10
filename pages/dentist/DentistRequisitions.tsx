@@ -1277,6 +1277,29 @@ export const DentistRequisitions = () => {
                   </div>
                 </div>
 
+                {/* Anexos */}
+                {popupJob.attachments && popupJob.attachments.length > 0 && (
+                  <div>
+                    <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">Arquivos Digitais ({popupJob.attachments.length})</span>
+                    <div className="flex flex-wrap gap-2">
+                      {popupJob.attachments.map((file, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAttachment(file);
+                            setAllAttachmentsForPreview(popupJob.attachments || []);
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm focus:outline-none"
+                          title="Clique de visualização/download de arquivo"
+                        >
+                          <FileText size={14} className="shrink-0" /> <span className="max-w-[120px] truncate">{file.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Detalhes de Status */}
                 <div>
                   <span className="text-[9px] uppercase tracking-wider font-black text-slate-400 block mb-2">Campos de Status</span>

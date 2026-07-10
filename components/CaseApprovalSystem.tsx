@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { Job, UserRole, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile } from '../types';
+import { Job, UserRole, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Attachment } from '../types';
 import * as api from '../services/firebaseService';
+import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { 
   Check, X, ThumbsUp, ThumbsDown, MessageSquare, CornerDownRight, 
   Paperclip, File, Image as ImageIcon, Video, Box, Globe, 
@@ -33,6 +34,10 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
   const [rejectingItemId, setRejectingItemId] = useState<string | null>(null);
   const [adjustmentReason, setAdjustmentReason] = useState('');
 
+  // Attachment preview states
+  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  const [allAttachmentsForPreview, setAllAttachmentsForPreview] = useState<Attachment[]>([]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Subscribe to case approval subcollection
@@ -54,6 +59,23 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
     if (['html', 'htm'].includes(ext)) return 'html';
     if (['stl', 'obj', 'ply', '3ds'].includes(ext)) return 'stl';
     return 'other';
+  };
+
+  const handlePreviewFile = (clickedFile: CaseApprovalFile, allItemFiles: CaseApprovalFile[]) => {
+    const mappedActive: Attachment = {
+      id: clickedFile.url,
+      name: clickedFile.name,
+      url: clickedFile.url,
+      uploadedAt: new Date()
+    };
+    const mappedAll: Attachment[] = allItemFiles.map(f => ({
+      id: f.url,
+      name: f.name,
+      url: f.url,
+      uploadedAt: new Date()
+    }));
+    setSelectedAttachment(mappedActive);
+    setAllAttachmentsForPreview(mappedAll);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -297,24 +319,38 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
                         <div key={fileIdx} className="bg-white border border-slate-200/60 hover:border-slate-300 transition-colors rounded-xl p-3 flex flex-col justify-between gap-3 shadow-sm min-w-0">
                           
                           {/* File Preview */}
-                          {file.type === 'photo' ? (
-                            <div className="relative group rounded-lg overflow-hidden bg-slate-100 aspect-video flex items-center justify-center border border-slate-100 shrink-0">
-                              <img 
-                                src={file.url} 
-                                alt={file.name} 
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                referrerPolicy="no-referrer"
-                              />
-                            </div>
-                          ) : file.type === 'video' ? (
-                            <div className="relative rounded-lg overflow-hidden bg-slate-950 aspect-video flex items-center justify-center shrink-0">
-                              <video src={file.url} controls className="w-full h-full max-h-[160px]" />
-                            </div>
-                          ) : (
-                            <div className="aspect-video bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100 shrink-0">
-                              {getFileIcon(file.type)}
-                            </div>
-                          )}
+                          <div 
+                            onClick={() => handlePreviewFile(file, item.files)}
+                            className="cursor-pointer group relative shrink-0"
+                          >
+                            {file.type === 'photo' ? (
+                              <div className="relative rounded-lg overflow-hidden bg-slate-100 aspect-video flex items-center justify-center border border-slate-100">
+                                <img 
+                                  src={file.url} 
+                                  alt={file.name} 
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                  <Eye size={20} className="scale-90 group-hover:scale-100 transition-transform" />
+                                </div>
+                              </div>
+                            ) : file.type === 'video' ? (
+                              <div className="relative rounded-lg overflow-hidden bg-slate-950 aspect-video flex items-center justify-center">
+                                <video src={file.url} className="w-full h-full max-h-[160px] object-cover" />
+                                <div className="absolute inset-0 bg-slate-950/40 flex items-center justify-center text-white">
+                                  <Eye size={20} className="scale-90 group-hover:scale-100 transition-transform" />
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="aspect-video bg-slate-50 rounded-lg flex items-center justify-center border border-slate-100 relative overflow-hidden">
+                                {getFileIcon(file.type)}
+                                <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                  <Eye size={20} className="scale-90 group-hover:scale-100 transition-transform" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
 
                           {/* Info & Download button */}
                           <div className="flex justify-between items-center min-w-0 gap-2">
@@ -327,6 +363,14 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
                               </p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handlePreviewFile(file, item.files)}
+                                className="p-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg text-slate-500 transition-colors"
+                                title="Visualizar Arquivo"
+                              >
+                                <Eye size={14} />
+                              </button>
                               {file.type === 'html' ? (
                                 <a 
                                   href={file.url} 
@@ -572,6 +616,18 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
             </div>
           </div>
         </div>
+      )}
+
+      {/* High-quality Attachment Preview Modal */}
+      {selectedAttachment && (
+        <AttachmentPreviewModal 
+          file={selectedAttachment}
+          allAttachments={allAttachmentsForPreview}
+          onClose={() => {
+            setSelectedAttachment(null);
+            setAllAttachmentsForPreview([]);
+          }}
+        />
       )}
 
     </div>

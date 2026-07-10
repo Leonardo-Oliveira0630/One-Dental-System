@@ -2415,12 +2415,6 @@ export const JobDetails = () => {
                                 ))}
                                 {(!job.attachments || job.attachments.length === 0) && <p className="text-xs text-slate-300 text-center py-12 italic border border-dashed rounded-[24px]">Sem mídias associadas.</p>}
                             </div>
-                            
-                            {job.attachments && job.attachments.some((a: any) => a.name.toLowerCase().endsWith('.stl')) && (
-                                <button onClick={() => setShow3DViewer(true)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-slate-800 transition-all mt-2 text-[10px] uppercase tracking-widest shadow-xl shrink-0 active:scale-95">
-                                    <Box size={20} className="shrink-0" /> Abrir Visualizador 3D
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>

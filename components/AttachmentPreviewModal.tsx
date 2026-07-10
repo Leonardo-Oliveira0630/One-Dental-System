@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   X, Download, FileText, Image as ImageIcon, Video as VideoIcon, 
-  AlertTriangle, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw 
+  AlertTriangle, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, Globe
 } from 'lucide-react';
 import { STLViewer } from './STLViewer';
 import { Attachment } from '../types';
@@ -48,11 +48,12 @@ export const handleDownloadFile = async (url: string, name: string) => {
 };
 
 export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ file, allAttachments = [], onClose }) => {
-  const getFileType = (fileName: string): 'stl' | 'image' | 'video' | 'other' => {
+  const getFileType = (fileName: string): 'stl' | 'image' | 'video' | 'html' | 'other' => {
     const ext = fileName.split('.').pop()?.toLowerCase();
     if (ext === 'stl') return 'stl';
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(ext || '')) return 'image';
     if (['mp4', 'webm', 'ogg', 'mov'].includes(ext || '')) return 'video';
+    if (['html', 'htm'].includes(ext || '')) return 'html';
     return 'other';
   };
 
@@ -183,6 +184,7 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
             {fileType === 'stl' && <FileText size={20} className="text-blue-400" />}
             {fileType === 'image' && <ImageIcon size={20} className="text-violet-400" />}
             {fileType === 'video' && <VideoIcon size={20} className="text-indigo-400" />}
+            {fileType === 'html' && <Globe size={20} className="text-teal-400" />}
             {fileType === 'other' && <FileText size={20} className="text-slate-400" />}
           </div>
           <div className="min-w-0 flex-1 md:flex-none">
@@ -329,6 +331,17 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
                 controls
                 autoPlay
                 className="max-w-full max-h-[80vh] rounded-2xl shadow-2xl"
+              />
+            </div>
+          )}
+
+          {fileType === 'html' && (
+            <div className="w-[94%] h-[85%] relative flex items-center justify-center">
+              <iframe
+                src={resolvedDownloadUrl}
+                title={activeFile.name}
+                className="w-full h-full rounded-2xl bg-white border-0 shadow-2xl"
+                sandbox="allow-scripts allow-same-origin allow-popups"
               />
             </div>
           )}

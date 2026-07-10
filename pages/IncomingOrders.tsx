@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, Attachment } from '../types';
 import { BOX_COLORS } from '../services/mockData';
-import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box, Archive, Loader2, CreditCard, RefreshCw, Zap } from 'lucide-react';
+import { Check, X, AlertOctagon, User, Clock, ArrowRight, Download, File, Box, Archive, Loader2, CreditCard, RefreshCw, Zap, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { STLViewer } from '../components/STLViewer';
+import { AttachmentPreviewModal } from '../components/AttachmentPreviewModal';
 import { FeatureLocked } from '../components/FeatureLocked';
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
@@ -46,8 +47,9 @@ export const IncomingOrders = () => {
   const [boxColorId, setBoxColorId] = useState(BOX_COLORS[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // 3D Viewer State
-  const [viewing3DJob, setViewing3DJob] = useState<Job | null>(null);
+  // 3D Viewer & Attachment Preview State
+  const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
+  const [allAttachmentsForPreview, setAllAttachmentsForPreview] = useState<Attachment[]>([]);
   
   // Downloading State
   const [zippingJobId, setZippingJobId] = useState<string | null>(null);
@@ -182,10 +184,14 @@ export const IncomingOrders = () => {
 
   return (
     <div className="space-y-6">
-       {viewing3DJob && viewing3DJob.attachments && (
-           <STLViewer 
-                files={viewing3DJob.attachments} 
-                onClose={() => setViewing3DJob(null)} 
+       {selectedAttachment && (
+           <AttachmentPreviewModal 
+               file={selectedAttachment}
+               allAttachments={allAttachmentsForPreview}
+               onClose={() => {
+                   setSelectedAttachment(null);
+                   setAllAttachmentsForPreview([]);
+               }}
            />
        )}
 
@@ -268,14 +274,6 @@ export const IncomingOrders = () => {
                                     <div className="flex items-center justify-between mb-3">
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Arquivos Digitais ({job.attachments.length})</p>
                                         <div className="flex gap-2">
-                                            {hasStl(job) && (
-                                                <button 
-                                                    onClick={() => setViewing3DJob(job)}
-                                                    className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
-                                                >
-                                                    <Box size={14} /> Abrir 3D
-                                                </button>
-                                            )}
                                             <button 
                                                 onClick={() => handleDownloadAll(job)}
                                                 disabled={zippingJobId === job.id}
@@ -289,16 +287,18 @@ export const IncomingOrders = () => {
                                     
                                     <div className="flex gap-2 flex-wrap items-center">
                                         {job.attachments.map((file, idx) => (
-                                            <a 
+                                            <button 
                                                 key={idx} 
-                                                href={file.url} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setSelectedAttachment(file);
+                                                    setAllAttachmentsForPreview(job.attachments || []);
+                                                }}
                                                 className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm"
                                             >
                                                 <File size={14} /> 
                                                 <span className="max-w-[120px] truncate">{file.name}</span>
-                                            </a>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
