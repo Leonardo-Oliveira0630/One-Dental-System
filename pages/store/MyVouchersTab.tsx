@@ -87,7 +87,15 @@ export function MyVouchersTab() {
                         Gerencie e acompanhe o saldo dos seus pacotes de serviços pré-pagos e combos promocionais.
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                    <button 
+                        onClick={handleSyncOldPurchases}
+                        disabled={loading || syncing}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-black bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl transition-all disabled:opacity-50 shadow-sm"
+                        title="Sincronizar e resgatar compras confirmadas no Asaas"
+                    >
+                        <RefreshCw size={16} className={syncing ? "animate-spin" : ""} /> Sincronizar Compras
+                    </button>
                     <button 
                         onClick={fetchVouchers}
                         disabled={loading || syncing}

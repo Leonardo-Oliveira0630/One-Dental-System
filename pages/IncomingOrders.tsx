@@ -325,6 +325,25 @@ export const IncomingOrders = () => {
                                 <X size={20} /> REJEITAR / ESTORNAR
                             </button>
 
+                            {job.paymentStatus !== 'PAID' && job.paymentStatus !== 'VOUCHER' && (
+                                <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-slate-100">
+                                    <button 
+                                        onClick={() => handleSyncSingleJob(job.id, false)}
+                                        disabled={syncingJobId === job.id}
+                                        className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs disabled:opacity-50"
+                                    >
+                                        <RefreshCw size={14} className={syncingJobId === job.id ? "animate-spin" : ""} /> Sincronizar Asaas
+                                    </button>
+                                    <button 
+                                        onClick={() => handleSyncSingleJob(job.id, true)}
+                                        disabled={syncingJobId === job.id}
+                                        className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs disabled:opacity-50"
+                                    >
+                                        <Zap size={14} /> Forçar Como Pago
+                                    </button>
+                                </div>
+                            )}
+
 
                         </div>
                     </div>

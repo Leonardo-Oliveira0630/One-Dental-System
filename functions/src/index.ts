@@ -678,9 +678,11 @@ export const createOrderPayment = onCall(async (request: any) => {
       await writeBatch.commit();
     }
 
+    // Pre-generate the jobId to include in externalReference
+    const newJobId = `web_${Date.now()}`;
+
     // If totalValue is 0 (e.g. fully paid by vouchers or 100% discount)
     if (jobData.totalValue === 0) {
-      const newJobId = `web_${Date.now()}`;
       const newJobData = {
         ...jobData,
         id: newJobId,
@@ -703,6 +705,7 @@ export const createOrderPayment = onCall(async (request: any) => {
       value: jobData.totalValue,
       dueDate: new Date().toISOString().split("T")[0],
       description: `Pedido Loja - ${jobData.organizationId}`,
+      externalReference: `${jobData.organizationId}___order___${newJobId}`,
     };
 
     if (paymentData.successUrl) {
@@ -752,7 +755,6 @@ export const createOrderPayment = onCall(async (request: any) => {
       }
     }
 
-    const newJobId = `web_${Date.now()}`;
     const isPaidImmediately = payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED';
     const newJobData = {
       ...jobData,
@@ -1178,22 +1180,40 @@ export const asaasWebhook = onRequest(
       if (isPaid) {
         const ref = event.payment?.externalReference || "";
         if (ref.includes("___")) {
-          const [orgId, id] = ref.split("___");
-          if (id.startsWith("batch_")) {
-            await db.collection("organizations")
-              .doc(orgId).collection("billingBatches").doc(id)
-              .update({status: "PAID"});
+          const parts = ref.split("___");
+          if (parts.length === 3 && parts[1] === "order") {
+            const orgId = parts[0];
+            const jobId = parts[2];
+            const jobRef = db.collection("organizations")
+              .doc(orgId)
+              .collection("jobs")
+              .doc(jobId);
+            const jobSnap = await jobRef.get();
+            if (jobSnap.exists) {
+              const jobData = jobSnap.data() || {};
+              if (jobData.paymentStatus !== "PAID") {
+                await jobRef.update({ paymentStatus: "PAID" });
+              }
+              await generateVouchersForJob(db, { ...jobData, paymentStatus: "PAID" }, jobId);
+            }
+          } else {
+            const [orgId, id] = parts;
+            if (id.startsWith("batch_")) {
+              await db.collection("organizations")
+                .doc(orgId).collection("billingBatches").doc(id)
+                .update({status: "PAID"});
 
-            const batchSnap = await db.collection("organizations")
-              .doc(orgId).collection("billingBatches").doc(id).get();
-            const jobIds = batchSnap.data()?.jobIds || [];
-            const writeBatch = db.batch();
-            jobIds.forEach((jid: string) => {
-              const jRef = db.collection("organizations")
-                .doc(orgId).collection("jobs").doc(jid);
-              writeBatch.update(jRef, {paymentStatus: "PAID"});
-            });
-            await writeBatch.commit();
+              const batchSnap = await db.collection("organizations")
+                .doc(orgId).collection("billingBatches").doc(id).get();
+              const jobIds = batchSnap.data()?.jobIds || [];
+              const writeBatch = db.batch();
+              jobIds.forEach((jid: string) => {
+                const jRef = db.collection("organizations")
+                  .doc(orgId).collection("jobs").doc(jid);
+                writeBatch.update(jRef, {paymentStatus: "PAID"});
+              });
+              await writeBatch.commit();
+            }
           }
         } else if (customerId && event.payment?.subscription) {
           // SaaS Subscription payment
