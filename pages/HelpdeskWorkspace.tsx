@@ -493,7 +493,7 @@ export const HelpdeskWorkspace = () => {
                 </div>
 
                 {/* Chat Message Logs */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50 no-scrollbar min-h-0">
+                <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 bg-slate-50/50 no-scrollbar min-h-0">
                   {messages.map((msg) => {
                     const isBot = msg.senderRole === 'BOT';
                     const isClient = msg.senderRole === 'CLIENT';
@@ -502,7 +502,7 @@ export const HelpdeskWorkspace = () => {
                     return (
                       <div
                         key={msg.id}
-                        className={`flex items-start gap-2.5 ${isCurrentUserMsg ? 'justify-end' : ''}`}
+                        className={`flex items-start gap-2.5 shrink-0 ${isCurrentUserMsg ? 'justify-end' : ''}`}
                       >
                         {!isCurrentUserMsg && (
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${

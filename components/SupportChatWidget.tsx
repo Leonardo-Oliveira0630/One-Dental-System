@@ -428,7 +428,7 @@ export const SupportChatWidget = () => {
                     )}
 
                     {/* Messages Container */}
-                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar flex flex-col">
+                    <div className="flex-1 overflow-y-auto pr-1 no-scrollbar flex flex-col gap-5 py-2">
                       {messages.map((msg) => {
                         const isBot = msg.senderRole === 'BOT';
                         const isCurrentUser = msg.senderId === currentUser?.id;
@@ -436,7 +436,7 @@ export const SupportChatWidget = () => {
                         return (
                           <div
                             key={msg.id}
-                            className={`flex items-start gap-2 ${isCurrentUser ? 'justify-end' : ''}`}
+                            className={`flex items-start gap-2 shrink-0 ${isCurrentUser ? 'justify-end' : ''}`}
                           >
                             {!isCurrentUser && (
                               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
