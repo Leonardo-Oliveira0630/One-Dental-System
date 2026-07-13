@@ -1311,14 +1311,47 @@ export const JobDetails = () => {
             <XCircle className="text-red-500 shrink-0 mt-0.5 md:mt-0 animate-bounce" size={24} />
             <div>
               <h4 className="font-extrabold text-sm uppercase tracking-tight text-red-900">Requisição Recusada</h4>
-              <p className="text-xs font-semibold text-red-700 mt-1 max-w-2xl">
-                O laboratório {job.labName} optou por não dar andamento nesta requisição. Entre em contato diretamente com o laboratório para obter esclarecimentos.
-              </p>
+              {job.rejectionReason ? (
+                <div className="mt-2 text-xs font-semibold text-red-700 bg-red-100/50 p-3 rounded-2xl border border-red-200">
+                  <span className="font-bold block uppercase text-[10px] tracking-wide mb-1 text-red-800">Motivo fornecido pelo laboratório:</span>
+                  {job.rejectionReason}
+                </div>
+              ) : (
+                <p className="text-xs font-semibold text-red-700 mt-1 max-w-2xl">
+                  O laboratório {job.labName} optou por não dar andamento nesta requisição. Entre em contato diretamente com o laboratório para obter esclarecimentos.
+                </p>
+              )}
             </div>
           </div>
           <div className="flex shrink-0">
             <span className="bg-red-100 text-red-800 border border-red-200 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
               Recusada pelo Lab
+            </span>
+          </div>
+        </div>
+      )}
+
+      {!job.isPseudo && job.status === JobStatus.REJECTED && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+          <div className="flex gap-3">
+            <XCircle className="text-red-500 shrink-0 mt-0.5 md:mt-0 animate-bounce" size={24} />
+            <div>
+              <h4 className="font-extrabold text-sm uppercase tracking-tight text-red-900">Trabalho Rejeitado / Cancelado</h4>
+              {job.rejectionReason ? (
+                <div className="mt-2 text-xs font-semibold text-red-700 bg-red-100/50 p-3 rounded-2xl border border-red-200">
+                  <span className="font-bold block uppercase text-[10px] tracking-wide mb-1 text-red-800">Motivo da recusa / cancelamento:</span>
+                  {job.rejectionReason}
+                </div>
+              ) : (
+                <p className="text-xs font-semibold text-red-700 mt-1 max-w-2xl">
+                  Este trabalho foi recusado/cancelado. Entre em contato diretamente com o laboratório para obter mais esclarecimentos.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0">
+            <span className="bg-red-100 text-red-800 border border-red-200 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
+              Rejeitado / Estornado
             </span>
           </div>
         </div>

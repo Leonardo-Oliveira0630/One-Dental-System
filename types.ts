@@ -450,6 +450,7 @@ export interface Job {
   vouchersUsed?: string[];
   managerNotes?: string;
   attachments?: Attachment[];
+  rejectionReason?: string;
   paymentStatus?: 'PENDING' | 'AUTHORIZED' | 'PAID' | 'REFUNDED' | 'VOUCHER';
   paymentMethod?: 'PIX' | 'CREDIT_CARD' | 'BOLETO' | 'CASH' | 'TRANSFER';
   pixQrCode?: string;
@@ -650,6 +651,7 @@ export interface OnlineRequisition {
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
   createdAt: Date;
   acceptedAsJobId?: string;
+  rejectionReason?: string;
   selectedVariationIds?: string[]; // Keep for backward compatibility
   quantity?: number; // Keep for backward compatibility
   items?: OnlineRequisitionItem[]; // Support for multiple items

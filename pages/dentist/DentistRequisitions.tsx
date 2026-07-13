@@ -358,6 +358,44 @@ export const DentistRequisitions = () => {
     setQuantity(1);
   };
 
+  const handleReuseRequisition = (req: OnlineRequisition) => {
+    setSelectedLabId(req.labId);
+    setPatientName(req.patientName || '');
+    setNotes(req.notes || '');
+    
+    // Map items
+    if (req.items && req.items.length > 0) {
+      setRequisitionItems(req.items.map(item => ({
+        id: item.id || `item_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,
+        serviceId: item.serviceId,
+        serviceName: item.serviceName,
+        selectedVariationIds: item.selectedVariationIds || [],
+        quantity: item.quantity || 1
+      })));
+    } else {
+      setRequisitionItems([{
+        id: `item_${Date.now()}_${Math.random().toString(36).substring(2,9)}`,
+        serviceId: req.serviceId,
+        serviceName: req.serviceName,
+        selectedVariationIds: req.selectedVariationIds || [],
+        quantity: req.quantity || 1
+      }]);
+    }
+    
+    // Map attachments
+    setAttachedFiles(req.attachments ? req.attachments.map(att => ({
+      name: att.name,
+      url: att.url,
+      size: 'N/A'
+    })) : []);
+    
+    // Scroll to form
+    const formEl = document.getElementById('newRequisitionForm');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -555,7 +593,7 @@ export const DentistRequisitions = () => {
               </p>
             </div>
           ) : (
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form id="newRequisitionForm" className="space-y-5" onSubmit={handleSubmit}>
               {/* Select Lab */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
@@ -988,6 +1026,25 @@ export const DentistRequisitions = () => {
                                 <FileText size={8} className="shrink-0" /> {file.name}
                               </button>
                             ))}
+                          </div>
+                        )}
+
+                        {req.status === 'REJECTED' && req.rejectionReason && (
+                          <div className="mt-2 p-2.5 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700">
+                            <span className="font-bold uppercase text-[9px] tracking-wider block mb-0.5 text-rose-800">Motivo da Recusa:</span>
+                            {req.rejectionReason}
+                          </div>
+                        )}
+
+                        {req.status === 'REJECTED' && (
+                          <div className="flex justify-end mt-2">
+                            <button
+                              type="button"
+                              onClick={() => handleReuseRequisition(req)}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-tight transition flex items-center gap-1 focus:outline-none"
+                            >
+                              <RefreshCw size={10} /> Corrigir e Reenviar
+                            </button>
                           </div>
                         )}
                       </div>

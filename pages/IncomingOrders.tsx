@@ -46,6 +46,10 @@ export const IncomingOrders = () => {
   const [boxNum, setBoxNum] = useState('');
   const [boxColorId, setBoxColorId] = useState(BOX_COLORS[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // State for rejection justification modal
+  const [rejectingOrderJob, setRejectingOrderJob] = useState<Job | null>(null);
+  const [orderRejectionReason, setOrderRejectionReason] = useState('');
   
   // 3D Viewer & Attachment Preview State
   const [selectedAttachment, setSelectedAttachment] = useState<Attachment | null>(null);
@@ -131,18 +135,28 @@ export const IncomingOrders = () => {
     }
   };
 
-  const handleReject = async (job: Job) => {
-      const reason = window.prompt(`Motivo da rejeição para ${job.patientName}? (O valor será estornado ao dentista)`);
-      if (reason === null) return; 
+  const handleReject = (job: Job) => {
+      setRejectingOrderJob(job);
+      setOrderRejectionReason('');
+  };
 
-      if (!currentOrg) return;
-      
+  const confirmOrderRejection = async () => {
+      if (!rejectingOrderJob || !currentOrg) return;
+      if (!orderRejectionReason.trim()) {
+          alert("Por favor, preencha o motivo da recusa.");
+          return;
+      }
+      setIsProcessing(true);
       try {
-          await api.apiManageOrderDecision(currentOrg.id, job.id, 'REJECT', reason);
+          await api.apiManageOrderDecision(currentOrg.id, rejectingOrderJob.id, 'REJECT', orderRejectionReason.trim());
           alert("Pedido rejeitado e estorno realizado.");
+          setRejectingOrderJob(null);
+          setOrderRejectionReason('');
       } catch (error: any) {
           console.error("Erro ao rejeitar:", error);
           alert("Erro ao realizar estorno: " + error.message);
+      } finally {
+          setIsProcessing(false);
       }
   };
 
@@ -430,6 +444,60 @@ export const IncomingOrders = () => {
             </div>
          </div>
        )}
+
+      {/* Modal de Justificativa de Recusa para Pedidos */}
+      {rejectingOrderJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-up">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                <X className="text-red-500" size={20} /> Recusar Pedido
+              </h3>
+              <button 
+                onClick={() => setRejectingOrderJob(null)}
+                className="text-slate-400 hover:text-slate-600 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-500 mb-4 font-medium leading-relaxed">
+              Informe a justificativa de recusa para o pedido de <strong>{rejectingOrderJob.patientName}</strong> (Dentista: {rejectingOrderJob.dentistName}). O valor pago será estornado automaticamente ao dentista e ele poderá visualizar o motivo da recusa.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Justificativa / Motivo da Recusa *</label>
+                <textarea
+                  value={orderRejectionReason}
+                  onChange={(e) => setOrderRejectionReason(e.target.value)}
+                  placeholder="Ex: Escaneamento com distorção no dente 21, favor reenviar..."
+                  rows={4}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all resize-none"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6 pt-4 border-t border-slate-100">
+              <button
+                onClick={() => setRejectingOrderJob(null)}
+                className="flex-1 py-3 text-slate-500 hover:bg-slate-50 rounded-2xl text-xs font-black uppercase transition-all"
+                disabled={isProcessing}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmOrderRejection}
+                disabled={isProcessing}
+                className="flex-[2] py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-xs font-black uppercase shadow-lg shadow-red-100 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+              >
+                {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <><Check size={16} /> Confirmar Recusa</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
