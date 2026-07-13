@@ -7,10 +7,12 @@ import { getContrastColor } from '../services/mockData';
 // Added Crown to the lucide-react imports to fix line 404 error
 import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package } from 'lucide-react';
 
+import * as api from '../services/firebaseService';
+
 type EntryType = 'NEW' | 'CONTINUATION';
 
 export const NewJob = () => {
-  const { addJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
+  const { addJob, updateJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -36,7 +38,7 @@ export const NewJob = () => {
   const [lastJobFound, setLastJobFound] = useState<Job | null>(null);
   const loadedJobIdRef = useRef<string | null>(null);
   const [addedItems, setAddedItems] = useState<JobItem[]>(location.state?.items || []);
-  const [addedProducts, setAddedProducts] = useState<import('../types').JobProduct[]>([]);
+  const [addedProducts, setAddedProducts] = useState<import('../types').JobProduct[]>(location.state?.products || []);
   const [lastCreatedJob, setLastCreatedJob] = useState<Job | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOsConflictPopup, setShowOsConflictPopup] = useState(false);
@@ -696,10 +698,13 @@ export const NewJob = () => {
     
     const finalOrigin = location.state?.origin || 'MANUAL';
     const requisitionId = location.state?.onlineRequisitionId;
+    const onlineOrderId = location.state?.onlineOrderId;
 
     let historyAction = `Caso registrado manualmente via ${initialSector}`;
     if (finalOrigin === 'ONLINE_REQUISITION' && requisitionId) {
         historyAction = `Requisição online aceita e cadastrada como Ordem de Serviço por ${currentUser.name} via ${initialSector}`;
+    } else if (finalOrigin === 'ONLINE_ORDER' && onlineOrderId) {
+        historyAction = `Pedido web aprovado e oficializado na produção interna por ${currentUser.name} via ${initialSector}`;
     }
 
     const computedDentistUserId = (finalOrigin === 'ONLINE_REQUISITION' && location.state?.dentistId)
@@ -715,7 +720,7 @@ export const NewJob = () => {
         dentistId: selectedDentistId, 
         dentistName: dentistName.trim().toUpperCase(), 
         status: JobStatus.PENDING, 
-        paymentStatus: 'PENDING', 
+        paymentStatus: location.state?.paymentStatus || 'PENDING', 
         urgency, 
         origin: finalOrigin,
         dentistUserId: computedDentistUserId,
@@ -742,27 +747,89 @@ export const NewJob = () => {
 
     setIsSubmitting(true);
     try {
-        const jobId = await addJob(newJob); 
-        
-        // Deduct stock for each added product
-        for (const prod of addedProducts) {
-            const invItem = inventoryItems.find(i => i.id === prod.inventoryItemId);
-            if (invItem) {
-                await updateInventoryItem(prod.inventoryItemId, {
-                    currentStock: invItem.currentStock - prod.quantity
+        if (finalOrigin === 'ONLINE_ORDER' && onlineOrderId) {
+            // First approve order via the backend function to handle payment capture/status changes
+            await api.apiManageOrderDecision(currentUser.organizationId || '', onlineOrderId, 'APPROVE');
+
+            const existingJobRef = jobs.find(j => j.id === onlineOrderId);
+            const existingHistory = existingJobRef?.history || [];
+            const existingMovements = existingJobRef?.sectorMovements || [];
+
+            await updateJob(onlineOrderId, {
+                osNumber: finalOsNumber,
+                patientName: patientName.trim().toUpperCase(),
+                dentistId: selectedDentistId,
+                dentistName: dentistName.trim().toUpperCase(),
+                status: JobStatus.PENDING,
+                urgency,
+                items: addedItems,
+                products: addedProducts,
+                notes,
+                dueDate: new Date(dueDate),
+                boxNumber,
+                boxColor,
+                currentSector: initialSector,
+                sectorMovements: [...(existingMovements || []).filter(Boolean), {
+                    id: Math.random().toString(),
+                    sector: initialSector,
+                    entryTime: new Date(),
+                    entryUserId: currentUser.id,
+                    entryUserName: currentUser.name
+                }],
+                history: [...(existingHistory || []).filter(Boolean), {
+                    id: Math.random().toString(),
+                    timestamp: new Date(),
+                    action: historyAction,
+                    userId: currentUser.id,
+                    userName: currentUser.name,
+                    sector: initialSector
+                }]
+            });
+
+            // Deduct stock for each added product
+            for (const prod of addedProducts) {
+                const invItem = inventoryItems.find(i => i.id === prod.inventoryItemId);
+                if (invItem) {
+                    await updateInventoryItem(prod.inventoryItemId, {
+                        currentStock: invItem.currentStock - prod.quantity
+                    });
+                }
+            }
+
+            setLastCreatedJob({
+                ...existingJobRef,
+                osNumber: finalOsNumber,
+                patientName: patientName.trim().toUpperCase(),
+                dentistId: selectedDentistId,
+                dentistName: dentistName.trim().toUpperCase(),
+                status: JobStatus.PENDING,
+                id: onlineOrderId,
+                organizationId: currentUser.organizationId || ''
+            } as Job);
+
+        } else {
+            const jobId = await addJob(newJob); 
+            
+            // Deduct stock for each added product
+            for (const prod of addedProducts) {
+                const invItem = inventoryItems.find(i => i.id === prod.inventoryItemId);
+                if (invItem) {
+                    await updateInventoryItem(prod.inventoryItemId, {
+                        currentStock: invItem.currentStock - prod.quantity
+                    });
+                }
+            }
+
+            // If this came from an online requisition, mark it accepted
+            if (requisitionId && currentUser) {
+                await updateOnlineRequisition(currentUser.organizationId || '', requisitionId, {
+                    status: 'ACCEPTED',
+                    acceptedAsJobId: jobId
                 });
             }
-        }
 
-        // If this came from an online requisition, mark it accepted
-        if (requisitionId && currentUser) {
-            await updateOnlineRequisition(currentUser.organizationId || '', requisitionId, {
-                status: 'ACCEPTED',
-                acceptedAsJobId: jobId
-            });
+            setLastCreatedJob({ ...newJob, id: jobId || 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
         }
-
-        setLastCreatedJob({ ...newJob, id: jobId || 'temp-id', organizationId: currentUser.organizationId || '' } as Job);
     } catch (err) { 
         alert("Erro ao salvar o caso no sistema. Verifique sua conexão com a internet."); 
     } finally {

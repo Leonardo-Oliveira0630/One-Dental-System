@@ -41,10 +41,6 @@ export const IncomingOrders = () => {
   );
 
   // Approval Modal State
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [osInput, setOsInput] = useState('');
-  const [boxNum, setBoxNum] = useState('');
-  const [boxColorId, setBoxColorId] = useState(BOX_COLORS[0].id);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // State for rejection justification modal
@@ -77,62 +73,20 @@ export const IncomingOrders = () => {
   };
 
   const handleOpenApprove = (job: Job) => {
-    let nextId = '0001';
-    for (let i = 0; i < jobs.length; i++) {
-      const osStr = String(jobs[i].osNumber || '');
-      const basePart = osStr.split('-')[0].replace(/\D/g, '');
-      const num = parseInt(basePart, 10);
-      if (!isNaN(num) && num > 0) {
-        nextId = (num + 1).toString().padStart(4, '0');
-        break;
+    navigate('/new-job', {
+      state: {
+        patientName: job.patientName,
+        dentistId: job.dentistId,
+        dentistName: job.dentistName,
+        items: job.items,
+        products: job.products || [],
+        notes: job.notes || '',
+        origin: 'ONLINE_ORDER',
+        onlineOrderId: job.id,
+        attachments: job.attachments || [],
+        paymentStatus: job.paymentStatus || 'PENDING'
       }
-    }
-
-    setOsInput(nextId);
-    setSelectedJob(job);
-  };
-
-  const confirmApproval = async () => {
-    if (!selectedJob || !currentOrg) return;
-    setIsProcessing(true);
-    
-    try {
-        await api.apiManageOrderDecision(currentOrg.id, selectedJob.id, 'APPROVE');
-        
-        const initialSector = isFreeLab ? 'Trabalhos Simplificados' : (currentUser?.sector || 'Recepção');
-
-        await updateJob(selectedJob.id, {
-            osNumber: osInput,
-            boxNumber: isFreeLab ? '' : boxNum,
-            boxColor: isFreeLab ? undefined : BOX_COLORS.find(c => c.id === boxColorId),
-            currentSector: initialSector,
-            sectorMovements: [...(selectedJob.sectorMovements || []).filter(Boolean), {
-                id: Math.random().toString(),
-                sector: initialSector,
-                entryTime: new Date(),
-                entryUserId: currentUser?.id || 'sys',
-                entryUserName: currentUser?.name || 'Sistema'
-            }],
-            history: [...(selectedJob.history || []).filter(Boolean), {
-                id: Math.random().toString(),
-                timestamp: new Date(),
-                action: isFreeLab 
-                  ? `Pedido aceito e enviado para Trabalhos com OS #${osInput}`
-                  : `OS ${osInput} Atribuída e Caixa ${boxNum} definida`,
-                userId: currentUser?.id || 'sys',
-                userName: currentUser?.name || 'Sistema',
-                sector: initialSector
-            }]
-        });
-
-        alert("Pedido aprovado e pagamento capturado com sucesso!");
-        setSelectedJob(null);
-    } catch (error: any) {
-        console.error("Erro ao aprovar:", error);
-        alert("Erro ao aprovar pedido: " + (error.message || "Tente novamente"));
-    } finally {
-        setIsProcessing(false);
-    }
+    });
   };
 
   const handleReject = (job: Job) => {
@@ -364,86 +318,7 @@ export const IncomingOrders = () => {
                 </div>
             ))
           )}
-       </div>
-
-       {/* Approval Modal */}
-       {selectedJob && (
-         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white p-8 rounded-[40px] w-full max-w-lg shadow-2xl animate-in zoom-in duration-200 overflow-hidden">
-                <div className="flex justify-between items-start mb-8">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Entrada Digital</h2>
-                        <p className="text-slate-500 text-sm font-medium">Oficializar trabalho na produção interna.</p>
-                    </div>
-                    <div className="bg-purple-100 text-purple-700 px-3 py-1 rounded-xl text-[10px] font-black uppercase border border-purple-200">
-                        WEB-ORDER
-                    </div>
-                </div>
-                
-                <div className="space-y-6">
-                    <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Paciente</p>
-                        <p className="font-black text-xl text-slate-800 uppercase tracking-tight">{selectedJob.patientName}</p>
-                    </div>
-
-                    <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Gerar Número da OS</label>
-                        <input 
-                            value={osInput}
-                            onChange={e => setOsInput(e.target.value)}
-                            className="w-full px-4 py-4 bg-slate-50 border border-slate-300 rounded-2xl font-mono text-2xl font-black tracking-[0.2em] text-center focus:ring-4 focus:ring-blue-100 outline-none text-blue-600 transition-all"
-                        />
-                    </div>
-                    
-                    {!isFreeLab && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Caixa de Bancada</label>
-                                <input 
-                                    value={boxNum}
-                                    onChange={e => setBoxNum(e.target.value)}
-                                    className="w-full px-4 py-4 bg-slate-50 border border-slate-300 rounded-2xl text-center font-black text-xl outline-none"
-                                    placeholder="--"
-                                />
-                            </div>
-                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Cor do Lote</label>
-                                <div className="flex flex-wrap gap-2 items-center justify-center">
-                                    {BOX_COLORS.slice(0, 5).map(color => (
-                                        <button
-                                            key={color.id}
-                                            onClick={() => setBoxColorId(color.id)}
-                                            className={`w-8 h-8 rounded-full border-4 transition-all ${
-                                                boxColorId === color.id ? 'border-slate-800 scale-125 shadow-lg' : 'border-transparent opacity-40 hover:opacity-100'
-                                            }`}
-                                            style={{ backgroundColor: color.hex }}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex gap-3 mt-10 pt-6 border-t border-slate-100">
-                    <button 
-                        onClick={() => setSelectedJob(null)} 
-                        disabled={isProcessing}
-                        className="flex-1 py-4 text-slate-400 font-black uppercase text-xs hover:bg-slate-50 rounded-2xl transition-all"
-                    >
-                        Cancelar
-                    </button>
-                    <button 
-                        onClick={confirmApproval} 
-                        disabled={isProcessing}
-                        className="flex-[2] py-4 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 shadow-xl shadow-blue-100 flex items-center justify-center gap-2 disabled:opacity-70 transition-all active:scale-95"
-                    >
-                        {isProcessing ? <Loader2 className="animate-spin" /> : <><Check size={20} /> CONFIRMAR ENTRADA</>}
-                    </button>
-                </div>
-            </div>
-         </div>
-       )}
+  </div>
 
       {/* Modal de Justificativa de Recusa para Pedidos */}
       {rejectingOrderJob && (
