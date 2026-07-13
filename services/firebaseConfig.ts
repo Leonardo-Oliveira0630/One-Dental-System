@@ -7,7 +7,7 @@ import * as functionsPkg from 'firebase/functions';
 import * as messagingPkg from 'firebase/messaging';
 
 const { initializeApp } = firebaseApp as any;
-const { initializeFirestore, persistentLocalCache, persistentSingleTabManager } = firestorePkg as any;
+const { initializeFirestore, memoryLocalCache } = firestorePkg as any;
 const { getAuth } = authPkg as any;
 const { getStorage } = storagePkg as any;
 const { getFunctions } = functionsPkg as any;
@@ -34,12 +34,10 @@ try {
     if (firebaseConfig.apiKey && firebaseConfig.apiKey.length > 0) {
         app = initializeApp(firebaseConfig);
         
-        // Inicialização robusta para Mobile (Android/iOS) e Web em iframe/tabs
+        // Disable persistent cache to avoid multi-tab indexeddb lock issues
         db = initializeFirestore(app, {
             ignoreUndefinedProperties: true,
-            localCache: persistentLocalCache({
-                tabManager: persistentSingleTabManager()
-            })
+            localCache: memoryLocalCache()
         });
 
         auth = getAuth(app);

@@ -260,8 +260,7 @@ export const Receipts: React.FC = () => {
         const path = 'receipts';
         const q = query(
             collection(db, path),
-            where('organizationId', '==', currentOrg.id),
-            orderBy('createdAt', 'desc')
+            where('organizationId', '==', currentOrg.id)
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -274,6 +273,14 @@ export const Receipts: React.FC = () => {
                     createdAt: data.createdAt?.toDate()
                 } as Receipt;
             });
+            
+            // Sort locally by createdAt desc
+            list.sort((a, b) => {
+                const timeA = a.createdAt?.getTime() || 0;
+                const timeB = b.createdAt?.getTime() || 0;
+                return timeB - timeA;
+            });
+
             setReceipts(list);
             setIsLoading(false);
             

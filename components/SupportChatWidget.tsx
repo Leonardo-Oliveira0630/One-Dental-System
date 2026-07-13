@@ -228,14 +228,17 @@ export const SupportChatWidget = () => {
     // Load active (PENDING or ACTIVE or RESOLVED but unrated) tickets
     const q = query(
       collection(db, 'support_tickets'),
-      where('userId', '==', currentUser.id),
-      orderBy('createdAt', 'desc'),
-      limit(1)
+      where('userId', '==', currentUser.id)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
-        const docSnap = snapshot.docs[0];
+        const sortedDocs = snapshot.docs.sort((a, b) => {
+          const timeA = a.data().createdAt?.toMillis?.() || 0;
+          const timeB = b.data().createdAt?.toMillis?.() || 0;
+          return timeB - timeA;
+        });
+        const docSnap = sortedDocs[0];
         const data = docSnap.data();
         
         const isUnratedResolved = data.status === 'RESOLVED' && data.rating === undefined;
