@@ -211,7 +211,8 @@ export enum UserRole {
   MANAGER = 'MANAGER',
   COLLABORATOR = 'COLLABORATOR',
   CLIENT = 'CLIENT',
-  SUPER_ADMIN = 'SUPER_ADMIN'
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  HELPDESK = 'HELPDESK'
 }
 
 export type PermissionKey = 
@@ -1084,4 +1085,33 @@ export interface Voucher {
   orderId: string; // The job ID that created this
   createdAt: Date;
   updatedAt?: Date;
+}
+
+export interface SupportTicket {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPhone?: string;
+  userRole: string;
+  organizationId?: string;
+  organizationName?: string;
+  category: string;
+  description: string;
+  status: 'PENDING' | 'ACTIVE' | 'RESOLVED';
+  assignedAgentId?: string | null;
+  assignedAgentName?: string | null;
+  createdAt: any;
+  updatedAt: any;
+  closedAt?: any;
+  resolutionNote?: string;
+}
+
+export interface SupportMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'BOT' | 'CLIENT' | 'AGENT';
+  text: string;
+  createdAt: any;
 }

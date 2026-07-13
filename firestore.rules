@@ -253,5 +253,23 @@ service cloud.firestore {
         (userExists() && getUserData().get('organizationId', '') == resource.data.organizationId)
       );
     }
+
+    match /support_tickets/{ticketId} {
+      allow read, write: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (userExists() && getUserData().get('role', 'USER') == 'HELPDESK') ||
+        (resource == null) ||
+        (resource.data.userId == request.auth.uid) ||
+        (request.resource.data.userId == request.auth.uid)
+      );
+      
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated() && (
+          isSuperAdmin() ||
+          (userExists() && getUserData().get('role', 'USER') == 'HELPDESK') ||
+          get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId == request.auth.uid
+        );
+      }
+    }
   }
 }

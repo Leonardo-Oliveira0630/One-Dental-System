@@ -77,6 +77,45 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "organizationId", "name", "active"]
+    },
+    "SupportTicket": {
+      "title": "SupportTicket",
+      "description": "Technical support tickets and triage",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userPhone": { "type": "string" },
+        "userRole": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "organizationName": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "ACTIVE", "RESOLVED"] },
+        "assignedAgentId": { "type": "string" },
+        "assignedAgentName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "closedAt": { "type": "string", "format": "date-time" },
+        "resolutionNote": { "type": "string" }
+      },
+      "required": ["id", "userId", "userName", "userEmail", "category", "description", "status"]
+    },
+    "SupportMessage": {
+      "title": "SupportMessage",
+      "description": "Live chat message under a support ticket",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string", "enum": ["BOT", "CLIENT", "AGENT"] },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "senderRole", "text"]
     }
   },
   "firestore": {
@@ -115,6 +154,14 @@
     "/tutorials/{tutorialId}": {
       "schema": "Tutorial",
       "description": "Tutorial guides"
+    },
+    "/support_tickets/{ticketId}": {
+      "schema": "SupportTicket",
+      "description": "Technical support tickets"
+    },
+    "/support_tickets/{ticketId}/messages/{messageId}": {
+      "schema": "SupportMessage",
+      "description": "Support chat messages"
     }
   }
 }

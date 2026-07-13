@@ -18,6 +18,7 @@ import { JobSearch } from './JobSearch';
 import * as firestorePkg from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
 import { getOrganizationBySlug } from '../services/firebaseService';
+import { SupportChatWidget } from './SupportChatWidget';
 
 const { onSnapshotsInSync } = firestorePkg as any;
 
@@ -169,6 +170,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       : { name: currentOrg?.name || 'SMILEPROX', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Laboratório Terceirizado' : 'SMILEPROX SYSTEM' };
   }, [isViewingLabContext, activeOrganization, currentOrg, isClient, storeSlug, storeOrg]);
 
+  if (location.pathname === '/helpdesk') {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen print:min-h-0 flex print:block bg-slate-50 print:bg-white font-sans relative overflow-x-hidden print:overflow-visible w-full">
       {!isSuperAdmin && <GlobalScanner />}
@@ -277,6 +282,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     <SidebarItem to="/superadmin/categories" icon={<LayoutGrid size={20} />} label="Categorias (Store)" active={location.pathname === '/superadmin/categories'} />
                     <SidebarItem to="/superadmin/finance" icon={<DollarSign size={20} />} label="Financeiro SaaS" active={location.pathname === '/superadmin/finance'} />
                     <SidebarItem to="/superadmin/tutorials" icon={<BookOpen size={20} />} label="Gerenciar Tutoriais" active={location.pathname === '/superadmin/tutorials'} />
+                    <SidebarItem to="/superadmin/helpdesk" icon={<ShieldCheck size={20} />} label="Agentes de Atendimento" active={location.pathname === '/superadmin/helpdesk'} />
                   </>
                 )}
 
@@ -633,6 +639,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 </>
               )}
               {children}
+              <SupportChatWidget />
             </>
           )}
         </div>

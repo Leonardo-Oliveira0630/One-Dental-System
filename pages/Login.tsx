@@ -32,6 +32,8 @@ export const Login = () => {
         
         if (redirect) {
             navigate(redirect);
+        } else if (currentUser.role === UserRole.HELPDESK) {
+            navigate('/helpdesk');
         } else if (currentUser.role === UserRole.CLIENT) {
             navigate('/store');
         } else if (currentUser.role === UserRole.SUPER_ADMIN) {
