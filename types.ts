@@ -32,6 +32,10 @@ export interface MarketplaceCategory {
 
 export interface GlobalSettings {
   platformCommission: number;
+  whatsappModulePrice?: number;
+  twilioAccountSid?: string;
+  twilioAuthToken?: string;
+  twilioFromNumber?: string;
   marketplaceBanners?: MarketplaceBannerConfig[];
   officialStoresIds?: string[];
   marketplaceCategories?: MarketplaceCategory[];
@@ -123,6 +127,12 @@ export interface Organization {
   croValid?: boolean;
   isApproved?: boolean;
   revealJobStatusToDentist?: boolean;
+  hasWhatsappModule?: boolean;
+  twilioSettings?: {
+    accountSid?: string;
+    authToken?: string;
+    fromNumber?: string;
+  };
   receiptSettings?: {
     referentePresets?: string[];
     mensagemPresets?: string[];

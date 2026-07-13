@@ -49,6 +49,9 @@ export const OrganizationTab = () => {
   const [croNumero, setCroNumero] = useState(currentOrg?.croNumero || '');
   const [croUf, setCroUf] = useState(currentOrg?.croUf || '');
   const [revealJobStatusToDentist, setRevealJobStatusToDentist] = useState(currentOrg?.revealJobStatusToDentist || false);
+  const [twilioAccountSid, setTwilioAccountSid] = useState(currentOrg?.twilioSettings?.accountSid || '');
+  const [twilioAuthToken, setTwilioAuthToken] = useState(currentOrg?.twilioSettings?.authToken || '');
+  const [twilioFromNumber, setTwilioFromNumber] = useState(currentOrg?.twilioSettings?.fromNumber || '');
   
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(currentOrg?.storeSettings || {
     banners: [],
@@ -84,6 +87,9 @@ export const OrganizationTab = () => {
       setCroNumero(currentOrg.croNumero || '');
       setCroUf(currentOrg.croUf || '');
       setRevealJobStatusToDentist(currentOrg.revealJobStatusToDentist || false);
+      setTwilioAccountSid(currentOrg.twilioSettings?.accountSid || '');
+      setTwilioAuthToken(currentOrg.twilioSettings?.authToken || '');
+      setTwilioFromNumber(currentOrg.twilioSettings?.fromNumber || '');
       if (currentOrg.storeSettings) {
         setStoreSettings(currentOrg.storeSettings);
       }
@@ -218,6 +224,11 @@ export const OrganizationTab = () => {
         croNumero: croNumero.trim(),
         croUf: croUf.trim(),
         revealJobStatusToDentist: revealJobStatusToDentist,
+        twilioSettings: {
+          accountSid: twilioAccountSid.trim(),
+          authToken: twilioAuthToken.trim(),
+          fromNumber: twilioFromNumber.trim()
+        },
         financialSettings: {
           ...currentOrg.financialSettings,
           techResponsibleName: techResponsibleName.trim(),
@@ -599,6 +610,25 @@ export const OrganizationTab = () => {
           </div>
         </div>
       </div>
+
+      {/* WHATSAPP / TWILIO SETTINGS */}
+      {currentOrg?.hasWhatsappModule && (
+          <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-green-100 transition-all space-y-6">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <div className="p-3 bg-green-100 text-green-600 rounded-xl">
+                    <MessageSquare size={24} />
+                </div>
+                <div>
+                    <h3 className="text-lg md:text-xl font-black text-slate-800">Notificações por WhatsApp</h3>
+                    <p className="text-xs text-slate-500">Módulo Ativo</p>
+                </div>
+            </div>
+            <p className="text-sm text-slate-600">
+                O módulo de notificações por WhatsApp está ativo na sua assinatura. 
+                Sua clínica e pacientes receberão atualizações automáticas sobre os trabalhos.
+            </p>
+          </div>
+      )}
 
       {/* CONFIGURAÇÕES DA LOJA VIRTUAL */}
       <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-8">

@@ -27,6 +27,9 @@ export const ClinicSettings = () => {
   const [city, setCity] = useState(currentOrg?.city || '');
   const [state, setState] = useState(currentOrg?.state || '');
   const [loadingCep, setLoadingCep] = useState(false);
+  const [twilioAccountSid, setTwilioAccountSid] = useState(currentOrg?.twilioSettings?.accountSid || '');
+  const [twilioAuthToken, setTwilioAuthToken] = useState(currentOrg?.twilioSettings?.authToken || '');
+  const [twilioFromNumber, setTwilioFromNumber] = useState(currentOrg?.twilioSettings?.fromNumber || '');
 
   // Sync with currentOrg updates
   useEffect(() => {
@@ -41,6 +44,9 @@ export const ClinicSettings = () => {
       setNeighborhood(currentOrg.neighborhood || '');
       setCity(currentOrg.city || '');
       setState(currentOrg.state || '');
+      setTwilioAccountSid(currentOrg.twilioSettings?.accountSid || '');
+      setTwilioAuthToken(currentOrg.twilioSettings?.authToken || '');
+      setTwilioFromNumber(currentOrg.twilioSettings?.fromNumber || '');
     }
   }, [currentOrg, currentUser]);
   
@@ -49,6 +55,29 @@ export const ClinicSettings = () => {
   const [appliedUpgradeCoupon, setAppliedUpgradeCoupon] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
+
+  // WhatsApp Module logic
+  const { globalSettings } = useApp();
+  const whatsappModulePrice = globalSettings?.whatsappModulePrice || 90;
+  const hasWhatsappModule = currentOrg?.hasWhatsappModule || false;
+  const [isActivatingWhatsapp, setIsActivatingWhatsapp] = useState(false);
+
+  const handleActivateWhatsappModule = async () => {
+      if (!currentOrg) return;
+      if (window.confirm(`Confirma a ativação do Módulo WhatsApp? Será adicionado R$ ${whatsappModulePrice.toFixed(2)} à sua mensalidade.`)) {
+          setIsActivatingWhatsapp(true);
+          try {
+              // TODO: Idealmente precisaria atualizar o valor da assinatura no Asaas também.
+              await updateOrganization(currentOrg.id, { hasWhatsappModule: true });
+              alert('Módulo WhatsApp ativado com sucesso!');
+          } catch (error) {
+              console.error(error);
+              alert('Erro ao ativar módulo.');
+          } finally {
+              setIsActivatingWhatsapp(false);
+          }
+      }
+  };
 
   // Status Check Helper
   const isTrial = currentOrg?.subscriptionStatus === 'TRIAL' || (!currentOrg?.subscriptionStatus && !!currentOrg?.trialEndsAt);
@@ -116,6 +145,11 @@ export const ClinicSettings = () => {
           neighborhood,
           city,
           state,
+          twilioSettings: {
+            accountSid: twilioAccountSid.trim(),
+            authToken: twilioAuthToken.trim(),
+            fromNumber: twilioFromNumber.trim()
+          },
           financialSettings: {
               ...(currentOrg.financialSettings || {}),
               techResponsibleName: adminName,
@@ -245,6 +279,19 @@ export const ClinicSettings = () => {
                          </div>
                      </div>
 
+                     {/* Seção 3: Twilio / WhatsApp */}
+                     {currentOrg?.hasWhatsappModule && (
+                         <div className="pt-6 border-t border-slate-100">
+                             <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                 <Building size={20} className="text-teal-500" /> Notificações por WhatsApp
+                             </h3>
+                             <p className="text-sm text-slate-600">
+                                 O módulo de notificações por WhatsApp está ativo na sua assinatura. 
+                                 Seus pacientes receberão atualizações automáticas sobre suas consultas e orçamentos.
+                             </p>
+                         </div>
+                     )}
+
                      <div className="pt-6 border-t border-slate-100 flex justify-end">
                          <button type="submit" className="px-8 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center gap-2">
                              <Save size={18} /> Salvar Alterações
@@ -322,6 +369,37 @@ export const ClinicSettings = () => {
                           </div>
                       )}
                   </div>
+              </div>
+
+              {/* Módulos Extras */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                 <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Crown className="text-teal-600" /> Módulos Extras</h3>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className={`p-6 rounded-2xl border-2 transition-all flex flex-col ${hasWhatsappModule ? 'border-green-500 bg-green-50/20' : 'border-slate-100 hover:border-slate-200'}`}>
+                        <div className="flex items-start justify-between mb-2">
+                            <div className="p-3 rounded-xl bg-green-100 text-green-600">
+                                <Building size={24} />
+                            </div>
+                            {hasWhatsappModule && <span className="bg-green-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full">Ativo</span>}
+                        </div>
+                        <h4 className="font-bold text-slate-800 uppercase tracking-tight mt-2">Notificações por WhatsApp</h4>
+                        <p className="text-2xl font-black text-slate-900 mb-2">R$ {whatsappModulePrice.toFixed(2)}<span className="text-xs text-slate-400 font-normal">/mês</span></p>
+                        <p className="text-sm text-slate-500 mb-6 flex-1">
+                            Envie mensagens automáticas para seus pacientes (ex: lembretes de consultas) e laboratórios. A cobrança virá na próxima fatura.
+                        </p>
+                        {hasWhatsappModule ? (
+                            <button disabled className="w-full py-2.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all opacity-50 cursor-not-allowed">Módulo Ativo</button>
+                        ) : (
+                            <button 
+                                onClick={handleActivateWhatsappModule} 
+                                disabled={isActivatingWhatsapp}
+                                className="w-full py-2.5 rounded-xl font-bold bg-green-600 text-white hover:bg-green-700 transition-all disabled:opacity-50"
+                            >
+                                {isActivatingWhatsapp ? 'Ativando...' : 'Adicionar à Assinatura'}
+                            </button>
+                        )}
+                     </div>
+                 </div>
               </div>
 
               {/* Upgrade list */}

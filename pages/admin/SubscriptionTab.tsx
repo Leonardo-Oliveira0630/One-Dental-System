@@ -1,18 +1,40 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag, Receipt, ExternalLink, Calendar, CreditCard, Landmark, Banknote } from 'lucide-react';
+import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag, Receipt, ExternalLink, Calendar, CreditCard, Landmark, Banknote, MessageCircle, Puzzle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 
 export const SubscriptionTab = () => {
-  const { currentPlan, currentOrg, allPlans, updateOrganization, getSaaSInvoices } = useApp();
+  const { currentPlan, currentOrg, allPlans, updateOrganization, getSaaSInvoices, globalSettings } = useApp();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponMessage, setCouponMessage] = useState({ text: '', type: '' });
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
+
+  // WhatsApp Module logic
+  const whatsappModulePrice = globalSettings?.whatsappModulePrice || 90;
+  const hasWhatsappModule = currentOrg?.hasWhatsappModule || false;
+  const [isActivatingWhatsapp, setIsActivatingWhatsapp] = useState(false);
+
+  const handleActivateWhatsappModule = async () => {
+      if (!currentOrg) return;
+      if (window.confirm(`Confirma a ativação do Módulo WhatsApp? Será adicionado R$ ${whatsappModulePrice.toFixed(2)} à sua mensalidade.`)) {
+          setIsActivatingWhatsapp(true);
+          try {
+              // TODO: Idealmente precisaria atualizar o valor da assinatura no Asaas também.
+              await updateOrganization(currentOrg.id, { hasWhatsappModule: true });
+              alert('Módulo WhatsApp ativado com sucesso!');
+          } catch (error) {
+              console.error(error);
+              alert('Erro ao ativar módulo.');
+          } finally {
+              setIsActivatingWhatsapp(false);
+          }
+      }
+  };
 
   const isTrialActive = currentOrg?.trialEndsAt && (() => {
     let trialDate: Date;
@@ -139,6 +161,36 @@ export const SubscriptionTab = () => {
              {couponMessage.text}
            </p>
          )}
+      </div>
+      
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Puzzle className="text-blue-600" /> Módulos Extras</h3>
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className={`p-6 rounded-2xl border-2 transition-all flex flex-col ${hasWhatsappModule ? 'border-green-500 bg-green-50/20' : 'border-slate-100 hover:border-slate-200'}`}>
+                <div className="flex items-start justify-between mb-2">
+                    <div className="p-3 rounded-xl bg-green-100 text-green-600">
+                        <MessageCircle size={24} />
+                    </div>
+                    {hasWhatsappModule && <span className="bg-green-500 text-white text-[10px] font-black uppercase px-2 py-1 rounded-full">Ativo</span>}
+                </div>
+                <h4 className="font-bold text-slate-800 uppercase tracking-tight mt-2">Notificações por WhatsApp</h4>
+                <p className="text-2xl font-black text-slate-900 mb-2">R$ {whatsappModulePrice.toFixed(2)}<span className="text-xs text-slate-400 font-normal">/mês</span></p>
+                <p className="text-sm text-slate-500 mb-6 flex-1">
+                    Envie mensagens automáticas para seus pacientes e parceiros confirmando consultas, entregas de trabalhos e mais. A cobrança virá na próxima fatura.
+                </p>
+                {hasWhatsappModule ? (
+                    <button disabled className="w-full py-2.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all opacity-50 cursor-not-allowed">Módulo Ativo</button>
+                ) : (
+                    <button 
+                        onClick={handleActivateWhatsappModule} 
+                        disabled={isActivatingWhatsapp}
+                        className="w-full py-2.5 rounded-xl font-bold bg-green-600 text-white hover:bg-green-700 transition-all disabled:opacity-50"
+                    >
+                        {isActivatingWhatsapp ? 'Ativando...' : 'Adicionar à Assinatura'}
+                    </button>
+                )}
+             </div>
+         </div>
       </div>
       
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">

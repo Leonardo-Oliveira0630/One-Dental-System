@@ -13,12 +13,22 @@ export const SuperAdminDashboard = () => {
     // Settings Form State
     const [platformComm, setPlatformComm] = useState(globalSettings?.platformCommission || 5);
     const [geminiApiKey, setGeminiApiKey] = useState(globalSettings?.geminiApiKey || '');
+    const [whatsappModulePrice, setWhatsappModulePrice] = useState(globalSettings?.whatsappModulePrice || 90);
+    const [twilioAccountSid, setTwilioAccountSid] = useState(globalSettings?.twilioAccountSid || '');
+    const [twilioAuthToken, setTwilioAuthToken] = useState(globalSettings?.twilioAuthToken || '');
+    const [twilioFromNumber, setTwilioFromNumber] = useState(globalSettings?.twilioFromNumber || '');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (globalSettings) {
             setPlatformComm(globalSettings.platformCommission);
             setGeminiApiKey(globalSettings.geminiApiKey || '');
+            if (globalSettings.whatsappModulePrice !== undefined) {
+                setWhatsappModulePrice(globalSettings.whatsappModulePrice);
+            }
+            setTwilioAccountSid(globalSettings.twilioAccountSid || '');
+            setTwilioAuthToken(globalSettings.twilioAuthToken || '');
+            setTwilioFromNumber(globalSettings.twilioFromNumber || '');
         }
     }, [globalSettings]);
 
@@ -31,7 +41,11 @@ export const SuperAdminDashboard = () => {
         try {
             await updateGlobalSettings({ 
                 platformCommission: platformComm,
-                geminiApiKey: geminiApiKey.trim()
+                geminiApiKey: geminiApiKey.trim(),
+                whatsappModulePrice,
+                twilioAccountSid: twilioAccountSid.trim(),
+                twilioAuthToken: twilioAuthToken.trim(),
+                twilioFromNumber: twilioFromNumber.trim()
             });
             alert("Configurações salvas!");
         } catch (err) {
@@ -149,6 +163,60 @@ export const SuperAdminDashboard = () => {
                                     </div>
                                 </div>
                             </label>
+
+                            <label className="block">
+                                <span className="text-sm font-black text-slate-700 uppercase flex items-center gap-2 mb-2">
+                                    <Activity size={16} className="text-blue-500"/> Preço do Módulo WhatsApp (R$)
+                                </span>
+                                <div className="flex gap-4">
+                                    <div className="relative flex-1">
+                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-slate-400">R$</span>
+                                        <input 
+                                            type="number" 
+                                            value={whatsappModulePrice}
+                                            onChange={e => setWhatsappModulePrice(parseFloat(e.target.value) || 0)}
+                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-2xl font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            </label>
+
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-4">
+                                <h4 className="font-bold text-slate-800 text-sm uppercase tracking-widest mb-4">Credenciais Twilio / WhatsApp</h4>
+                                
+                                <label className="block">
+                                    <span className="text-xs font-bold text-slate-500 uppercase mb-2 block">Account SID</span>
+                                    <input 
+                                        type="password" 
+                                        value={twilioAccountSid}
+                                        onChange={e => setTwilioAccountSid(e.target.value)}
+                                        placeholder="AC..."
+                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </label>
+                                
+                                <label className="block">
+                                    <span className="text-xs font-bold text-slate-500 uppercase mb-2 block">Auth Token</span>
+                                    <input 
+                                        type="password" 
+                                        value={twilioAuthToken}
+                                        onChange={e => setTwilioAuthToken(e.target.value)}
+                                        placeholder="Token..."
+                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </label>
+
+                                <label className="block">
+                                    <span className="text-xs font-bold text-slate-500 uppercase mb-2 block">Número Origem (WhatsApp)</span>
+                                    <input 
+                                        type="text" 
+                                        value={twilioFromNumber}
+                                        onChange={e => setTwilioFromNumber(e.target.value)}
+                                        placeholder="Ex: whatsapp:+14155238886"
+                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </label>
+                            </div>
 
                             <div className="pt-4 flex justify-end">
                                 <button 
