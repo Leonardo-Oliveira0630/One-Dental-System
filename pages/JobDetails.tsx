@@ -51,7 +51,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -96,6 +96,117 @@ export const JobDetails = () => {
     sectorCommissionDisabled: Record<string, boolean>;
   }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {} });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Rejection/Cancellation Modal States
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectionTargetStatus, setRejectionTargetStatus] = useState<JobStatus | null>(null);
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
+  const [isRejectionRequisition, setIsRejectionRequisition] = useState(false);
+
+  const handleConfirmRejectionStatus = async () => {
+    if (!currentUser || !job) return;
+    if (!rejectionReasonText.trim()) {
+      alert("Por favor, informe a justificativa da recusa/cancelamento.");
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      if (isRejectionRequisition) {
+        // Rejecting a pending pseudo requisition
+        const reqId = id?.replace('pseudo_req_', '');
+        if (reqId) {
+          await updateOnlineRequisition(currentUser?.organizationId || '', reqId, {
+            status: 'REJECTED',
+            rejectionReason: rejectionReasonText.trim()
+          });
+          alert("Requisição recusada com sucesso.");
+          setShowRejectionModal(false);
+          setRejectionReasonText('');
+          navigate('/incoming-requisitions');
+        }
+      } else {
+        // Rejecting a normal job
+        await updateJob(job.id, {
+          status: rejectionTargetStatus || JobStatus.REJECTED,
+          rejectionReason: rejectionReasonText.trim(),
+          history: [...(job.history || []).filter(Boolean), {
+            id: `hist_stat_${Date.now()}`,
+            timestamp: new Date(),
+            action: `Trabalho Recusado/Cancelado. Motivo: ${rejectionReasonText.trim()}`,
+            userId: currentUser.id,
+            userName: currentUser.name,
+            sector: currentUser.sector || 'Geral'
+          }]
+        });
+        alert("Trabalho recusado/cancelado com sucesso.");
+        setShowRejectionModal(false);
+        setRejectionReasonText('');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Erro ao realizar a operação.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleAcceptRequisitionFromDetails = () => {
+    if (!isPseudo || !currentUser) return;
+    const reqId = id?.replace('pseudo_req_', '');
+    const req = (onlineRequisitions || []).find(x => x.id === reqId);
+    if (!req) return;
+
+    let items: JobItem[] = [];
+    if (req.items && req.items.length > 0) {
+        items = req.items.map((reqItem, idx) => {
+            const service = jobTypes.find(t => t.id === reqItem.serviceId);
+            const basePrice = service ? service.basePrice : 0;
+            return {
+              id: `item_${Date.now()}_${idx}`,
+              jobTypeId: reqItem.serviceId,
+              name: reqItem.serviceName,
+              quantity: reqItem.quantity && reqItem.quantity > 0 ? reqItem.quantity : 1,
+              price: basePrice,
+              nature: 'NORMAL',
+              selectedVariationIds: reqItem.selectedVariationIds || []
+            };
+        });
+    } else {
+        const service = jobTypes.find(t => t.id === req.serviceId);
+        const basePrice = service ? service.basePrice : 0;
+        items = [{
+          id: `item_${Date.now()}`,
+          jobTypeId: req.serviceId,
+          name: req.serviceName,
+          quantity: req.quantity && req.quantity > 0 ? req.quantity : 1,
+          price: basePrice,
+          nature: 'NORMAL',
+          selectedVariationIds: req.selectedVariationIds || []
+        }];
+    }
+
+    navigate('/new-job', {
+      state: {
+        patientName: req.patientName,
+        dentistId: req.dentistId,
+        dentistManualId: req.dentistManualId,
+        dentistName: req.dentistName,
+        items: items,
+        notes: req.notes || '',
+        origin: 'ONLINE_REQUISITION',
+        requisitionId: req.id,
+        attachments: req.attachments || []
+      }
+    });
+  };
+
+  const handleRejectRequisitionFromDetails = () => {
+    setIsRejectionRequisition(true);
+    setRejectionTargetStatus(null);
+    setRejectionReasonText('');
+    setShowRejectionModal(true);
+  };
   
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -653,6 +764,15 @@ export const JobDetails = () => {
     if (dentist?.isBlocked && (newStatus === JobStatus.COMPLETED || newStatus === JobStatus.DELIVERED)) {
         alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível CONCLUIR ou ENTREGAR trabalhos até que a pendência seja resolvida.");
         return;
+    }
+
+    // If status is REJECTED or CANCELED, prompt for justification
+    if (newStatus === JobStatus.REJECTED || newStatus === JobStatus.CANCELED) {
+      setRejectionTargetStatus(newStatus);
+      setIsRejectionRequisition(false);
+      setRejectionReasonText('');
+      setShowRejectionModal(true);
+      return;
     }
 
     setIsUpdatingStatus(true);
@@ -1364,14 +1484,34 @@ export const JobDetails = () => {
             <div>
               <h4 className="font-extrabold text-sm uppercase tracking-tight text-amber-900">Requisição Online Pendente</h4>
               <p className="text-xs font-semibold text-amber-700 mt-1 max-w-2xl">
-                Esta é uma requisição enviada ao laboratório {job.labName}. O status do trabalho e o chat de acompanhamento estarão disponíveis e ativos assim que o laboratório aceitar este envio e criar a Ordem de Serviço em produção.
+                {isLabStaff 
+                  ? "Esta é uma nova requisição enviada por um dentista parceiro. Você pode aceitá-la para iniciar a produção ou recusá-la informando o motivo."
+                  : `Esta é uma requisição enviada ao laboratório ${job.labName}. O status do trabalho e o chat de acompanhamento estarão disponíveis e ativos assim que o laboratório aceitar este envio e criar a Ordem de Serviço em produção.`
+                }
               </p>
             </div>
           </div>
-          <div className="flex shrink-0">
-            <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
-              Aguardando Laboratório
-            </span>
+          <div className="flex shrink-0 items-center gap-3">
+            {isLabStaff ? (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAcceptRequisitionFromDetails}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 py-2 rounded-2xl text-xs uppercase flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  <Check size={14} /> Aceitar
+                </button>
+                <button
+                  onClick={handleRejectRequisitionFromDetails}
+                  className="bg-red-100 hover:bg-red-200 text-red-700 font-black px-4 py-2 rounded-2xl text-xs uppercase flex items-center gap-1.5 transition-all active:scale-95 border border-red-200 cursor-pointer"
+                >
+                  <X size={14} /> Recusar
+                </button>
+              </div>
+            ) : (
+              <span className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
+                Aguardando Laboratório
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -2729,6 +2869,61 @@ export const JobDetails = () => {
                   </div>
               </div>
           </div>
+      )}
+      {showRejectionModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" id="jobRejectionModal">
+          <div className="bg-white rounded-[32px] p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                <AlertTriangle size={20} className="text-red-500" />
+                Justificativa da Recusa
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowRejectionModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-50 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs font-bold text-slate-500 mb-4 leading-relaxed">
+              {isRejectionRequisition
+                ? "Por favor, preencha o motivo de recusar esta requisição online para que o dentista saiba o porquê e como corrigir."
+                : "Informe o motivo para recusar ou cancelar esta Ordem de Serviço."
+              }
+            </p>
+
+            <textarea
+              value={rejectionReasonText}
+              onChange={(e) => setRejectionReasonText(e.target.value)}
+              placeholder="Ex: Falta de modelo de gesso, moldagem com distorção no dente 14, arquivo STL corrompido, etc..."
+              rows={4}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all resize-none mb-4"
+              id="rejectionReasonInput"
+            />
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowRejectionModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-xs font-black uppercase tracking-tight transition active:scale-95 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRejectionStatus}
+                disabled={isUpdatingStatus}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-xs font-black uppercase tracking-tight transition active:scale-95 shadow-md shadow-red-500/10 flex items-center gap-1.5 cursor-pointer"
+                id="btnConfirmRejection"
+              >
+                {isUpdatingStatus ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                Confirmar Recusa
+              </button>
+            </div>
+          </div>
+        </div>
       )}
        {selectedAttachment && (
            <AttachmentPreviewModal 
