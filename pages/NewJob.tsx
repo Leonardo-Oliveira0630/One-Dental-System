@@ -769,6 +769,7 @@ export const NewJob = () => {
                 boxNumber,
                 boxColor,
                 currentSector: initialSector,
+                acceptedAt: new Date(),
                 sectorMovements: [...(existingMovements || []).filter(Boolean), {
                     id: Math.random().toString(),
                     sector: initialSector,

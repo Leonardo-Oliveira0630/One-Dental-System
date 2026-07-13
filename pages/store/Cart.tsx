@@ -385,6 +385,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
             history: [{ id: `hist_${Date.now()}`, timestamp: new Date(), action: 'Criado via Loja Virtual', userId: currentUser.id, userName: currentUser.name }],
             attachments: uploadedAttachments, 
             createdAt: new Date(), 
+            sentAt: new Date(),
             sectorEntryTime: new Date(),
             dueDate: date ? new Date(date) : new Date(), 
             totalValue: finalTotal, 

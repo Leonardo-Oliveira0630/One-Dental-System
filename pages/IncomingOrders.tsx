@@ -103,6 +103,9 @@ export const IncomingOrders = () => {
       setIsProcessing(true);
       try {
           await api.apiManageOrderDecision(currentOrg.id, rejectingOrderJob.id, 'REJECT', orderRejectionReason.trim());
+          await updateJob(rejectingOrderJob.id, {
+              rejectedAt: new Date()
+          });
           alert("Pedido rejeitado e estorno realizado.");
           setRejectingOrderJob(null);
           setOrderRejectionReason('');

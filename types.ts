@@ -464,6 +464,9 @@ export interface Job {
   approvalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
   origin?: 'MANUAL' | 'ONLINE_ORDER' | 'ONLINE_REQUISITION' | 'OUTSOURCING';
   dentistUserId?: string;
+  sentAt?: Date;
+  acceptedAt?: Date;
+  rejectedAt?: Date;
 }
 
 export interface Sector {
@@ -655,6 +658,9 @@ export interface OnlineRequisition {
   selectedVariationIds?: string[]; // Keep for backward compatibility
   quantity?: number; // Keep for backward compatibility
   items?: OnlineRequisitionItem[]; // Support for multiple items
+  sentAt?: Date;
+  acceptedAt?: Date;
+  rejectedAt?: Date;
 }
 
 // NOVO: Prontuário do Paciente

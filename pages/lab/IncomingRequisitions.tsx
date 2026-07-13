@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, Job, JobStatus, UserRole, JobItem, Attachment } from '../../types';
-import { ClipboardList, Check, X, FileText, Package } from 'lucide-react';
+import { ClipboardList, Check, X, FileText, Package, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
+
+const parseDateSafely = (val: any): Date | null => {
+    if (!val) return null;
+    if (val instanceof Date) return val;
+    if (val.seconds) return new Date(val.seconds * 1000);
+    try {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) return d;
+    } catch (e) {}
+    return null;
+};
 
 export const IncomingRequisitions = () => {
   const { 
@@ -192,6 +203,9 @@ export const IncomingRequisitions = () => {
                     <td className="p-4">
                       <div className="font-bold text-slate-800">{getDentistName(req)}</div>
                       <div className="text-xs text-slate-400 capitalize">{req.dentistClinicName || 'Consultório Parceiro'}</div>
+                      <div className="text-[10px] text-slate-500 font-bold mt-1.5 flex items-center gap-1">
+                        <Clock size={10} className="text-slate-400 shrink-0" /> {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString('pt-BR') || '---'}
+                      </div>
                     </td>
                     <td className="p-4 font-bold text-slate-700">
                       {req.patientName}
@@ -302,6 +316,16 @@ export const IncomingRequisitions = () => {
                         {req.status === 'PENDING' ? 'Pendente' :
                          req.status === 'ACCEPTED' ? 'Aceito' : 'Recusado'}
                       </span>
+                      {req.status === 'ACCEPTED' && req.acceptedAt && (
+                        <div className="text-[10px] text-emerald-700 font-bold mt-1.5 flex items-center gap-1">
+                          <Clock size={10} className="text-emerald-500 shrink-0" /> Aceito em: {parseDateSafely(req.acceptedAt)?.toLocaleString('pt-BR') || '---'}
+                        </div>
+                      )}
+                      {req.status === 'REJECTED' && req.rejectedAt && (
+                        <div className="text-[10px] text-red-750 font-bold mt-1.5 flex items-center gap-1">
+                          <Clock size={10} className="text-red-400 shrink-0" /> Recusado em: {parseDateSafely(req.rejectedAt)?.toLocaleString('pt-BR') || '---'}
+                        </div>
+                      )}
                       {req.status === 'REJECTED' && req.rejectionReason && (
                         <div className="mt-1 text-xs text-red-600 max-w-[200px] break-words font-medium">
                           Motivo: {req.rejectionReason}

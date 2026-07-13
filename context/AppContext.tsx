@@ -1029,16 +1029,25 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const addOnlineRequisition = async (labId: string, r: Omit<OnlineRequisition, 'id' | 'createdAt' | 'status'>) => {
       const id = `req_${Date.now()}`;
+      const now = new Date();
       await api.apiAddOnlineRequisition(labId, {
           ...r,
           id,
           status: 'PENDING',
-          createdAt: new Date()
+          createdAt: now,
+          sentAt: now
       } as OnlineRequisition);
   };
 
   const updateOnlineRequisition = async (labId: string, id: string, updates: Partial<OnlineRequisition>) => {
-      await api.apiUpdateOnlineRequisition(labId, id, updates);
+      const finalUpdates = { ...updates };
+      const now = new Date();
+      if (updates.status === 'ACCEPTED') {
+          finalUpdates.acceptedAt = now;
+      } else if (updates.status === 'REJECTED') {
+          finalUpdates.rejectedAt = now;
+      }
+      await api.apiUpdateOnlineRequisition(labId, id, finalUpdates);
   };
 
   const addCardMachine = async (m: Omit<CardMachine, 'id' | 'organizationId' | 'createdAt'>) => {

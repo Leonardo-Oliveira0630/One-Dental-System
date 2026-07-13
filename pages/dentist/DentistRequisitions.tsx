@@ -10,6 +10,17 @@ import * as firestorePkg from 'firebase/firestore';
 
 const { collection, getDocs, doc, getDoc } = firestorePkg as any;
 
+const parseDateSafely = (val: any): Date | null => {
+    if (!val) return null;
+    if (val instanceof Date) return val;
+    if (val.seconds) return new Date(val.seconds * 1000);
+    try {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) return d;
+    } catch (e) {}
+    return null;
+};
+
 interface LaboratoryOption {
   id: string;
   name: string;
@@ -1011,6 +1022,10 @@ export const DentistRequisitions = () => {
                           </div>
                         )}
 
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight flex items-center gap-1 mt-1">
+                          <Clock size={10} className="text-slate-400" /> Enviado em: {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString('pt-BR') || '---'}
+                        </div>
+
                         {req.notes && (
                           <p className="text-[10px] text-slate-500 italic line-clamp-2">
                             "{req.notes}"
@@ -1130,6 +1145,17 @@ export const DentistRequisitions = () => {
                             ))}
                           </div>
                         )}
+
+                        <div className="flex flex-col gap-1 text-[9px] font-bold uppercase tracking-tight">
+                          <div className="text-slate-500 flex items-center gap-1">
+                            <Clock size={10} className="text-slate-450" /> Enviado em: {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString('pt-BR') || '---'}
+                          </div>
+                          {req.rejectedAt && (
+                            <div className="text-red-600 flex items-center gap-1">
+                              <Clock size={10} className="text-red-400" /> Recusado em: {parseDateSafely(req.rejectedAt)?.toLocaleString('pt-BR') || '---'}
+                            </div>
+                          )}
+                        </div>
 
                         {req.rejectionReason && (
                           <div className="p-2.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700">
@@ -1480,6 +1506,31 @@ export const DentistRequisitions = () => {
                         <span className="font-extrabold text-slate-800 flex items-center gap-1.5">
                           <span className="w-2.5 h-2.5 rounded-full border border-slate-300 inline-block" style={{ backgroundColor: popupJob.boxColor?.hex || '#cbd5e1' }} />
                           Caixa #{popupJob.boxNumber}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
+                      <span className="text-slate-500 font-bold">Data de Envio:</span>
+                      <span className="font-extrabold text-slate-800">
+                        {parseDateSafely(popupJob.sentAt || popupJob.createdAt)?.toLocaleString('pt-BR') || '---'}
+                      </span>
+                    </div>
+
+                    {popupJob.acceptedAt && (
+                      <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
+                        <span className="text-slate-500 font-bold">Data de Aceite:</span>
+                        <span className="font-extrabold text-emerald-600">
+                          {parseDateSafely(popupJob.acceptedAt)?.toLocaleString('pt-BR') || '---'}
+                        </span>
+                      </div>
+                    )}
+
+                    {popupJob.rejectedAt && (
+                      <div className="flex justify-between items-center pb-2.5 border-b border-slate-200/50">
+                        <span className="text-slate-500 font-bold">Data de Recusa:</span>
+                        <span className="font-extrabold text-red-650">
+                          {parseDateSafely(popupJob.rejectedAt)?.toLocaleString('pt-BR') || '---'}
                         </span>
                       </div>
                     )}

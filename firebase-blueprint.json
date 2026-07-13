@@ -96,6 +96,10 @@
       "schema": "object",
       "description": "Jobs within an organization"
     },
+    "/organizations/{orgId}/requisitions/{requisitionId}": {
+      "schema": "object",
+      "description": "Online requisitions sent by dentists to the laboratory"
+    },
     "/organizations/{orgId}/priceTables/{tableId}": {
       "schema": "object",
       "description": "Price tables for the organization"

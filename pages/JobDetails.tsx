@@ -25,6 +25,17 @@ const { doc, onSnapshot } = firestorePkg as any;
 
 const STLViewer = React.lazy(() => import('../components/STLViewer').then(module => ({ default: module.STLViewer })));
 
+export const parseDateSafely = (val: any): Date | null => {
+    if (!val) return null;
+    if (val instanceof Date) return val;
+    if (val.seconds) return new Date(val.seconds * 1000);
+    try {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) return d;
+    } catch (e) {}
+    return null;
+};
+
 export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => {
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
     if (!jt || !jt.variationGroups || jt.variationGroups.length === 0) return item.name;
@@ -130,6 +141,7 @@ export const JobDetails = () => {
         await updateJob(job.id, {
           status: rejectionTargetStatus || JobStatus.REJECTED,
           rejectionReason: rejectionReasonText.trim(),
+          rejectedAt: new Date(),
           history: [...(job.history || []).filter(Boolean), {
             id: `hist_stat_${Date.now()}`,
             timestamp: new Date(),
@@ -250,7 +262,11 @@ export const JobDetails = () => {
           origin: 'ONLINE_REQUISITION',
           attachments: r.attachments || [],
           isPseudo: true,
-          labName: r.labName || 'Laboratório'
+          labName: r.labName || 'Laboratório',
+          rejectionReason: r.rejectionReason,
+          sentAt: r.sentAt instanceof Date ? r.sentAt : (r.sentAt ? new Date((r.sentAt as any).seconds * 1000 || r.sentAt) : (r.createdAt instanceof Date ? r.createdAt : (r.createdAt ? new Date((r.createdAt as any).seconds * 1000 || r.createdAt) : new Date()))),
+          acceptedAt: r.acceptedAt instanceof Date ? r.acceptedAt : (r.acceptedAt ? new Date((r.acceptedAt as any).seconds * 1000 || r.acceptedAt) : undefined),
+          rejectedAt: r.rejectedAt instanceof Date ? r.rejectedAt : (r.rejectedAt ? new Date((r.rejectedAt as any).seconds * 1000 || r.rejectedAt) : undefined)
         } as any;
       }
     }
@@ -2515,6 +2531,67 @@ export const JobDetails = () => {
                 </div>
 
                 <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0 pb-8">
+                    {/* Linha do Tempo de Prazos */}
+                    <div id="lifecycle-timeline-card" className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6">
+                        <h3 className="text-sm md:text-base font-black text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-tighter truncate">
+                            <Clock size={20} className="text-blue-600 shrink-0" />
+                            Prazos do Caso
+                        </h3>
+                        <div className="space-y-4 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100">
+                            {/* Passo 1: Envio */}
+                            <div className="flex gap-4 relative">
+                                <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm font-black text-[10px]">
+                                    1
+                                </div>
+                                <div className="min-w-0 flex-1 pt-1">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Envio / Solicitação</p>
+                                    <p className="font-extrabold text-slate-800 text-xs mt-1">
+                                        {parseDateSafely(job.sentAt || job.createdAt)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) || 'Não informado'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Passo 2: Aceite */}
+                            <div className="flex gap-4 relative">
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm font-black text-[10px] ${parseDateSafely(job.acceptedAt) ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-400'}`}>
+                                    2
+                                </div>
+                                <div className="min-w-0 flex-1 pt-1">
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Aceite pelo Laboratório</p>
+                                    {parseDateSafely(job.acceptedAt) ? (
+                                        <p className="font-extrabold text-emerald-600 text-xs mt-1">
+                                            {parseDateSafely(job.acceptedAt)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 italic mt-1 font-semibold">
+                                            {parseDateSafely(job.rejectedAt) ? 'Caso recusado' : 'Aguardando aceite...'}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Passo 3: Recusa (opcional, só mostra se houver recusa) */}
+                            {parseDateSafely(job.rejectedAt) && (
+                                <div className="flex gap-4 relative animate-in slide-in-from-top-2">
+                                    <div className="w-9 h-9 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm font-black text-[10px]">
+                                        ✕
+                                    </div>
+                                    <div className="min-w-0 flex-1 pt-1">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Recusa / Cancelamento</p>
+                                        <p className="font-extrabold text-red-600 text-xs mt-1">
+                                            {parseDateSafely(job.rejectedAt)?.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                        {job.rejectionReason && (
+                                            <div className="mt-2 bg-red-50/50 border border-red-100 p-2.5 rounded-xl text-[11px] text-red-700 leading-relaxed font-semibold">
+                                                <span className="font-bold text-red-800">Justificativa:</span> {job.rejectionReason}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6 overflow-hidden">
                         <div className="flex justify-between items-center mb-6 shrink-0">
                             <h3 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter truncate"><FileIcon size={20} className="text-blue-600 shrink-0" /> Documentos</h3>
