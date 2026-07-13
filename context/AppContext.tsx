@@ -8,6 +8,7 @@ import {
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
+import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/twilioService';
 
 import * as authPkg from 'firebase/auth';
 import * as firestorePkg from 'firebase/firestore';
@@ -737,6 +738,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       try {
           await api.apiUpdateJob(orgId, id, updates);
+
+          // Disparar notificação de WhatsApp caso o status seja atualizado para ENTREGUE (DELIVERED)
+          if (u.status === 'DELIVERED') {
+              const job = jobs.find(j => j.id === id);
+              if (job) {
+                  const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
+                  const dentistPhone = dentist?.phone || '';
+                  if (dentistPhone) {
+                      await notifyJobLogistics(job, 'DELIVERED', dentistPhone, dentist?.name || 'Dentista');
+                  }
+              }
+          }
       } catch (err: any) {
           handleFirestoreError(err, OperationType.UPDATE, `organizations/${orgId}/jobs/${id}`);
       }

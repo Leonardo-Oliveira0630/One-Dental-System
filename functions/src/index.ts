@@ -1653,3 +1653,80 @@ export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (reques
   }
 });
 
+/**
+ * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO TWILIO (SERVER-SIDE PROXY)
+ */
+export const sendTwilioWhatsApp = onCall({ maxInstances: 10 }, async (request) => {
+  const { to, body, orgId } = request.data as any;
+  if (!to || !body) {
+    throw new HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
+  }
+
+  // 1. Chaves de credenciais (prioriza variáveis de ambiente)
+  let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
+  let authToken = process.env.TWILIO_AUTH_TOKEN || "";
+  let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886"; // sandbox default
+
+  // 2. Tenta carregar credenciais customizadas da organização caso configuradas
+  if (orgId) {
+    try {
+      const db = admin.firestore();
+      const orgSnap = await db.collection("organizations").doc(orgId).get();
+      if (orgSnap.exists) {
+        const orgData = orgSnap.data();
+        if (orgData?.twilioSettings) {
+          if (orgData.twilioSettings.accountSid) accountSid = orgData.twilioSettings.accountSid;
+          if (orgData.twilioSettings.authToken) authToken = orgData.twilioSettings.authToken;
+          if (orgData.twilioSettings.fromNumber) fromNumber = orgData.twilioSettings.fromNumber;
+        }
+      }
+    } catch (err: any) {
+      logger.error("Erro ao carregar configurações do Twilio da organização:", err.message);
+    }
+  }
+
+  // 3. Fallback / Modo Simulado se as credenciais não estiverem configuradas
+  if (!accountSid || !authToken || accountSid === "your_twilio_account_sid_here" || authToken === "your_twilio_auth_token_here") {
+    logger.info(`[Twilio Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
+    return {
+      success: true,
+      sid: "SM_simulated_" + Math.random().toString(36).substring(2, 12),
+      simulated: true,
+      message: `WhatsApp enviado via simulador: ${body}`
+    };
+  }
+
+  // 4. Chamada HTTP real para a API do Twilio
+  try {
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    
+    // Twilio espera application/x-www-form-urlencoded
+    const params = new URLSearchParams();
+    params.append("To", to.startsWith("whatsapp:") ? to : `whatsapp:${to}`);
+    params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
+    params.append("Body", body);
+    
+    const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+    
+    logger.info(`Enviando mensagem WhatsApp Twilio real para ${to}...`);
+    const response = await axios.post(twilioUrl, params.toString(), {
+      headers: {
+        "Authorization": authHeader,
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    });
+    
+    logger.info(`Mensagem real enviada com sucesso! SID: ${response.data.sid}`);
+    return {
+      success: true,
+      sid: response.data.sid,
+      simulated: false
+    };
+  } catch (error: any) {
+    const errorMsg = error.response?.data?.message || error.message;
+    logger.error(`Erro ao enviar mensagem via Twilio real: ${errorMsg}`, error.response?.data);
+    throw new HttpsError("internal", `Erro no Twilio: ${errorMsg}`);
+  }
+});
+
+
