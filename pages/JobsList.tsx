@@ -79,7 +79,15 @@ const JobRow = memo(({
                     ) : <span className="text-slate-300">-</span>}
                 </td>
             )}
-            <td className="p-4 font-bold text-slate-900 text-sm">{job.patientName}</td>
+            <td className="p-4">
+                <div className="font-bold text-slate-900 text-sm">{job.patientName}</div>
+                {(job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
+                    <div className="mt-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1 max-w-xs">
+                        <span className="font-black text-[9px] uppercase tracking-wider block text-red-700">Motivo da Recusa:</span>
+                        {job.rejectionReason}
+                    </div>
+                )}
+            </td>
             <td className="p-4 text-xs font-bold">
                 {(() => {
                     const originInfo = getJobOriginInfo(job);
@@ -179,6 +187,12 @@ const JobCard = memo(({
                     <User size={12} className="text-blue-500" />
                     <span className="uppercase truncate">Dr(a). {job.dentistName}</span>
                 </div>
+                {(job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
+                    <div className="mt-2 text-xs font-medium text-red-700 bg-red-50 border border-red-100 rounded-xl p-2.5">
+                        <span className="font-black text-[9px] uppercase tracking-wider block mb-0.5 text-red-800">Motivo da Recusa:</span>
+                        {job.rejectionReason}
+                    </div>
+                )}
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
@@ -306,6 +320,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
         notes: r.notes || '',
         origin: 'ONLINE_REQUISITION',
         isPseudo: true,
+        rejectionReason: r.rejectionReason || '',
         labName: r.labName || 'Laboratório'
       } as any));
 
@@ -328,7 +343,18 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
           normalizeText(job.patientName).includes(searchLower) ||
           normalizeText(job.dentistName).includes(searchLower);
         if (!matchText) return false;
-        if (statusFilter !== 'ALL' && job.status !== statusFilter) return false;
+        if (statusFilter !== 'ALL') {
+            if (statusFilter === 'ACTIVE_JOBS') {
+                const inactive = ['COMPLETED', 'DELIVERED', 'REJECTED', 'REJECTED_REQUISITION', 'CANCELED'];
+                if (inactive.includes(job.status)) return false;
+            } else if (statusFilter === 'COMPLETED_DELIVERED') {
+                if (job.status !== 'COMPLETED' && job.status !== 'DELIVERED') return false;
+            } else if (statusFilter === 'REJECTED_JOBS') {
+                if (job.status !== 'REJECTED' && job.status !== 'REJECTED_REQUISITION') return false;
+            } else if (job.status !== statusFilter) {
+                return false;
+            }
+        }
         if (startDate) {
             const start = new Date(startDate);
             start.setHours(0,0,0,0);
@@ -639,6 +665,55 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
           <p className="text-xs md:text-sm text-slate-500">Mostrando {filteredJobs.length} registros encontrados.</p>
         </div>
       </div>
+
+      {isClient && (
+        <div className="flex bg-slate-100 p-1 rounded-xl max-w-lg gap-1">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('ALL')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+              statusFilter === 'ALL' 
+                ? 'bg-white text-slate-800 shadow-sm' 
+                 : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Todos ({combinedJobs.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('ACTIVE_JOBS')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+              statusFilter === 'ACTIVE_JOBS' 
+                ? 'bg-white text-blue-700 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Ativos ({combinedJobs.filter(j => !['COMPLETED', 'DELIVERED', 'REJECTED', 'REJECTED_REQUISITION', 'CANCELED'].includes(j.status)).length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('COMPLETED_DELIVERED')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+              statusFilter === 'COMPLETED_DELIVERED' 
+                ? 'bg-white text-emerald-700 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Entregues ({combinedJobs.filter(j => ['COMPLETED', 'DELIVERED'].includes(j.status)).length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('REJECTED_JOBS')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+              statusFilter === 'REJECTED_JOBS' 
+                ? 'bg-white text-rose-700 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Recusados ({combinedJobs.filter(j => ['REJECTED', 'REJECTED_REQUISITION', 'CANCELED'].includes(j.status)).length})
+          </button>
+        </div>
+      )}
 
       <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-3">

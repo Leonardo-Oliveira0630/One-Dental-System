@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, Attachment, JobStatus, Job } from '../../types';
 import { apiAddPatientHistory } from '../../services/firebaseService';
-import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw, Activity, Package, X, MessageSquare, MessageCircle, Lock } from 'lucide-react';
+import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw, Activity, Package, X, MessageSquare, MessageCircle, Lock, XCircle } from 'lucide-react';
 import { ChatSystem } from '../../components/ChatSystem';
 import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
 import { db } from '../../services/firebaseConfig';
@@ -43,7 +43,7 @@ export const DentistRequisitions = () => {
 
   const userAny = currentUser as any;
 
-  const [rightTab, setRightTab] = useState<'REQS' | 'JOBS'>('REQS');
+  const [rightTab, setRightTab] = useState<'REQS' | 'REJECTED' | 'JOBS'>('REQS');
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -890,23 +890,35 @@ export const DentistRequisitions = () => {
             </div>
             
             {/* Elegant Tabs */}
-            <div className="flex bg-slate-100 p-1 rounded-xl">
+            <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
               <button
                 type="button"
                 onClick={() => setRightTab('REQS')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
                   rightTab === 'REQS' 
                     ? 'bg-white text-slate-800 shadow-sm' 
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 <Package size={14} />
-                Solicitações ({onlineRequisitions ? onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status !== 'ACCEPTED').length : 0})
+                Solicitações ({onlineRequisitions ? onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'PENDING').length : 0})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightTab('REJECTED')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
+                  rightTab === 'REJECTED' 
+                    ? 'bg-white text-rose-700 shadow-sm' 
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <XCircle size={14} className={rightTab === 'REJECTED' ? 'text-rose-500' : 'text-slate-400'} />
+                Recusados ({onlineRequisitions ? onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'REJECTED').length : 0})
               </button>
               <button
                 type="button"
                 onClick={() => setRightTab('JOBS')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
                   rightTab === 'JOBS' 
                     ? 'bg-white text-slate-800 shadow-sm' 
                     : 'text-slate-500 hover:text-slate-700'
@@ -920,13 +932,13 @@ export const DentistRequisitions = () => {
 
           <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
             {rightTab === 'REQS' ? (
-              (!onlineRequisitions || onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status !== 'ACCEPTED').length === 0) ? (
+              (!onlineRequisitions || onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'PENDING').length === 0) ? (
                 <div className="p-12 text-center text-slate-400 italic text-xs">
-                  Nenhuma requisição enviada recentemente por você.
+                  Nenhuma solicitação pendente no momento.
                 </div>
               ) : (
                 onlineRequisitions
-                  .filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status !== 'ACCEPTED')
+                  .filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'PENDING')
                   .map(req => {
                     const linkedJob = (jobs || []).find(j => j.id === req.acceptedAsJobId || j.osNumber === 'REQ-' + req.id.substring(0, 5).toUpperCase());
                     
@@ -983,13 +995,8 @@ export const DentistRequisitions = () => {
                             )}
                           </div>
                           
-                          <span className={`inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider ${
-                            req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
-                            req.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {req.status === 'PENDING' ? 'Pendente' :
-                             req.status === 'ACCEPTED' ? 'Aceito' : 'Recusado'}
+                          <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider bg-amber-100 text-amber-800">
+                            Pendente
                           </span>
                         </div>
 
@@ -1028,25 +1035,118 @@ export const DentistRequisitions = () => {
                             ))}
                           </div>
                         )}
+                      </div>
+                    );
+                  })
+              )
+            ) : rightTab === 'REJECTED' ? (
+              (!onlineRequisitions || onlineRequisitions.filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'REJECTED').length === 0) ? (
+                <div className="p-12 text-center text-slate-400 italic text-xs">
+                  Nenhuma solicitação recusada.
+                </div>
+              ) : (
+                onlineRequisitions
+                  .filter(r => (r.dentistId === currentUser?.id || r.dentistManualId === userAny?.manualDentistId || r.dentistManualId === activeManualDentistId) && r.status === 'REJECTED')
+                  .map(req => {
+                    return (
+                      <div 
+                        key={req.id} 
+                        className="p-4 rounded-2xl border border-red-200 bg-red-50/20 hover:bg-red-50/40 transition flex flex-col gap-2.5"
+                      >
+                        <div className="flex justify-between items-start gap-1">
+                          <div>
+                            <div className="font-bold text-slate-850 text-xs uppercase">{req.patientName}</div>
+                            {req.items && req.items.length > 0 ? (
+                                <div className="space-y-1 mt-1">
+                                    {req.items.map(item => (
+                                        <div key={item.id} className="text-[10px] font-bold text-slate-700">
+                                            {item.quantity || 1}x {item.serviceName}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="text-[10px] font-bold text-slate-700">{req.serviceName}</div>
+                                    {req.quantity && req.quantity > 0 && (
+                                      <div className="text-[9px] font-bold text-slate-500 mt-0.5">
+                                        Quantidade: {req.quantity} {req.quantity === 1 ? 'item' : 'itens/dentes'}
+                                      </div>
+                                    )}
+                                    {req.selectedVariationIds && req.selectedVariationIds.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {req.selectedVariationIds.map(varId => {
+                                          let foundName = '';
+                                          for (const s of services) {
+                                            if (s.variationGroups) {
+                                              for (const g of s.variationGroups) {
+                                                const opt = g.options?.find((o: any) => o.id === varId);
+                                                if (opt) {
+                                                  foundName = `${g.name}: ${opt.name}`;
+                                                  break;
+                                                }
+                                              }
+                                            }
+                                            if (foundName) break;
+                                          }
+                                          if (!foundName) return null;
+                                          return (
+                                            <span key={varId} className="bg-white text-slate-600 border border-slate-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
+                                              {foundName}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                </>
+                            )}
+                          </div>
+                          
+                          <span className="inline-block text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider bg-red-100 text-red-800">
+                            Recusado
+                          </span>
+                        </div>
 
-                        {req.status === 'REJECTED' && req.rejectionReason && (
-                          <div className="mt-2 p-2.5 bg-rose-50 border border-rose-100 rounded-xl text-xs text-rose-700">
-                            <span className="font-bold uppercase text-[9px] tracking-wider block mb-0.5 text-rose-800">Motivo da Recusa:</span>
+                        {req.notes && (
+                          <p className="text-[10px] text-slate-500 italic line-clamp-2">
+                            "{req.notes}"
+                          </p>
+                        )}
+
+                        {req.attachments && req.attachments.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {req.attachments.map((file, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedAttachment(file);
+                                  setAllAttachmentsForPreview(req.attachments || []);
+                                }}
+                                className="bg-white hover:bg-slate-50 border border-slate-200 text-[8px] px-1.5 py-0.5 rounded text-indigo-600 hover:text-indigo-800 font-bold truncate max-w-[125px] transition-colors flex items-center gap-1 focus:outline-none"
+                                title="Clique de visualização/download de arquivo"
+                              >
+                                <FileText size={8} className="shrink-0" /> {file.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {req.rejectionReason && (
+                          <div className="p-2.5 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700">
+                            <span className="font-bold uppercase text-[9px] tracking-wider block mb-0.5 text-red-800">Motivo da Recusa:</span>
                             {req.rejectionReason}
                           </div>
                         )}
 
-                        {req.status === 'REJECTED' && (
-                          <div className="flex justify-end mt-2">
-                            <button
-                              type="button"
-                              onClick={() => handleReuseRequisition(req)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-tight transition flex items-center gap-1 focus:outline-none"
-                            >
-                              <RefreshCw size={10} /> Corrigir e Reenviar
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex justify-end mt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleReuseRequisition(req)}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-tight transition flex items-center gap-1 focus:outline-none shadow-sm"
+                          >
+                            <RefreshCw size={10} /> Corrigir e Reenviar
+                          </button>
+                        </div>
                       </div>
                     );
                   })
