@@ -5,7 +5,8 @@ import { collection, doc, query, where, orderBy, onSnapshot, addDoc, updateDoc, 
 import { 
   MessageSquare, User, Clock, CheckCircle, AlertCircle, 
   HelpCircle, ArrowRight, Shield, Send, Users, Activity, 
-  ChevronRight, Phone, Mail, Building, Landmark, LogOut, Star 
+  ChevronRight, Phone, Mail, Building, Landmark, LogOut, Star,
+  Image, Mic, Trash2, Paperclip, Square
 } from 'lucide-react';
 import { SupportTicket, SupportMessage, UserRole } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +40,119 @@ export const HelpdeskWorkspace = () => {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [resolutionNote, setResolutionNote] = useState('');
   const [showResolveModal, setShowResolveModal] = useState(false);
+
+  // Attachment & Voice Recording state
+  const [attachment, setAttachment] = useState<{ url: string; type: 'image' | 'audio'; name: string } | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setAttachment({
+        url: base64String,
+        type: 'image',
+        name: file.name
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setAttachment({
+        url: base64String,
+        type: 'audio',
+        name: file.name
+      });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = reader.result as string;
+          setAttachment({
+            url: base64String,
+            type: 'audio',
+            name: `Áudio gravado (${recordingTime}s)`
+          });
+        };
+        reader.readAsDataURL(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Erro ao acessar microfone:", err);
+      alert("Não foi possível acessar o microfone. Verifique suas permissões de áudio.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      audioChunksRef.current = [];
+      setAttachment(null);
+    }
+  };
 
   // Auto scroll chat to bottom
   const scrollToBottom = () => {
@@ -116,19 +230,28 @@ export const HelpdeskWorkspace = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTicket || !newMessageText.trim() || !currentUser) return;
+    if (!selectedTicket || !currentUser) return;
+    if (!newMessageText.trim() && !attachment) return;
 
     const messageText = newMessageText.trim();
+    const currentAttachment = attachment;
+
     setNewMessageText('');
+    setAttachment(null);
 
     try {
-      const messageDoc: Omit<SupportMessage, 'id'> = {
+      const messageDoc: any = {
         senderId: currentUser.id,
         senderName: currentUser.name,
         senderRole: 'AGENT',
         text: messageText,
         createdAt: new Date(),
       };
+
+      if (currentAttachment) {
+        messageDoc.attachmentUrl = currentAttachment.url;
+        messageDoc.attachmentType = currentAttachment.type;
+      }
 
       // 1. Add message to subcollection
       await addDoc(collection(db, `support_tickets/${selectedTicket.id}/messages`), messageDoc);
@@ -529,7 +652,26 @@ export const HelpdeskWorkspace = () => {
                               {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                             </span>
                           </div>
-                          <p className="text-xs leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                          {msg.text && <p className={`text-xs leading-relaxed whitespace-pre-wrap ${msg.attachmentUrl ? 'mb-2' : ''}`}>{msg.text}</p>}
+                          {msg.attachmentUrl && (
+                            <div className="mt-1">
+                              {msg.attachmentType === 'image' ? (
+                                <img 
+                                  src={msg.attachmentUrl} 
+                                  alt="Anexo" 
+                                  className="rounded-lg max-w-full max-h-60 object-cover cursor-pointer hover:opacity-90 transition-all border border-slate-200/50" 
+                                  onClick={() => window.open(msg.attachmentUrl, '_blank')}
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : msg.attachmentType === 'audio' ? (
+                                <audio 
+                                  src={msg.attachmentUrl} 
+                                  controls 
+                                  className="w-full max-w-[260px] h-9 text-xs outline-none" 
+                                />
+                              ) : null}
+                            </div>
+                          )}
                         </div>
 
                         {isCurrentUserMsg && (
@@ -546,22 +688,121 @@ export const HelpdeskWorkspace = () => {
 
                 {/* Live Message Input area */}
                 {selectedTicket.status !== 'RESOLVED' ? (
-                  <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 bg-white shrink-0 flex gap-2">
-                    <input
-                      type="text"
-                      value={newMessageText}
-                      onChange={(e) => setNewMessageText(e.target.value)}
-                      placeholder="Escreva sua resposta de suporte técnico..."
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!newMessageText.trim()}
-                      className="bg-slate-900 text-white p-3.5 rounded-2xl hover:bg-slate-800 transition-all shadow-md disabled:opacity-50"
-                    >
-                      <Send size={16} />
-                    </button>
-                  </form>
+                  <div className="border-t border-slate-200 bg-white flex flex-col shrink-0">
+                    {/* Attachment Preview */}
+                    {attachment && (
+                      <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2 animate-in slide-in-from-bottom duration-200">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-600 font-bold max-w-[80%] truncate">
+                          {attachment.type === 'image' ? (
+                            <div className="w-8 h-8 rounded bg-slate-100 overflow-hidden flex items-center justify-center border border-slate-200 shrink-0">
+                              <img src={attachment.url} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                              <Mic size={14} />
+                            </div>
+                          )}
+                          <span className="truncate">{attachment.name}</span>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => setAttachment(null)}
+                          className="p-1.5 hover:bg-slate-200 text-rose-500 rounded-full transition-all"
+                          title="Remover anexo"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Input Area or Recording State */}
+                    {isRecording ? (
+                      <div className="p-4 bg-red-50/50 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping shrink-0" />
+                          <span className="text-xs font-black text-rose-700">Gravando: {recordingTime}s</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <button 
+                            type="button"
+                            onClick={cancelRecording}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                          >
+                            Cancelar
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={stopRecording}
+                            className="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 transition-all"
+                          >
+                            <Square size={12} /> Parar e Anexar
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSendMessage} className="p-4 flex items-center gap-2">
+                        <input 
+                          type="file" 
+                          id="agent-image-attach" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={handleImageSelect} 
+                        />
+                        <input 
+                          type="file" 
+                          id="agent-audio-attach" 
+                          accept="audio/*" 
+                          className="hidden" 
+                          onChange={handleAudioSelect} 
+                        />
+
+                        {/* Attachment triggers */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById('agent-image-attach')?.click()}
+                            className="p-2.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                            title="Enviar foto"
+                          >
+                            <Image size={18} />
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById('agent-audio-attach')?.click()}
+                            className="p-2.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                            title="Anexar arquivo de áudio"
+                          >
+                            <Paperclip size={18} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={startRecording}
+                            className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all animate-pulse"
+                            title="Gravar áudio"
+                          >
+                            <Mic size={18} />
+                          </button>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={newMessageText}
+                          onChange={(e) => setNewMessageText(e.target.value)}
+                          placeholder="Escreva sua resposta de suporte técnico..."
+                          className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!newMessageText.trim() && !attachment}
+                          className="bg-slate-900 text-white p-3.5 rounded-2xl hover:bg-slate-800 transition-all shadow-md disabled:opacity-50 shrink-0"
+                        >
+                          <Send size={16} />
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 ) : (
                   <div className="p-4 border-t border-slate-200 bg-emerald-50 text-emerald-800 text-xs font-bold text-center shrink-0">
                     Atendimento encerrado. Este histórico está congelado para auditoria de helpdesk.

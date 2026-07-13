@@ -7,7 +7,8 @@ import {
 } from 'firebase/firestore';
 import { 
   MessageSquare, X, Send, HelpCircle, 
-  CheckCircle, AlertCircle, Clock, Shield, Headphones, Star 
+  CheckCircle, AlertCircle, Clock, Shield, Headphones, Star,
+  Image, Mic, Trash2, Paperclip, Square
 } from 'lucide-react';
 import { SupportTicket, SupportMessage } from '../types';
 
@@ -36,11 +37,129 @@ export const SupportChatWidget = () => {
   const [ratingComment, setRatingComment] = useState<string>('');
   const [isSubmittingRating, setIsSubmittingRating] = useState<boolean>(false);
 
+  // Attachment & Audio Recording State
+  const [attachment, setAttachment] = useState<{ url: string; type: 'image' | 'audio'; name: string } | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom of chat
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Convert file to Base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setAttachment({
+        url: base64String,
+        type: 'image',
+        name: file.name
+      });
+    };
+    reader.readAsDataURL(file);
+    // Reset file input value
+    e.target.value = '';
+  };
+
+  const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setAttachment({
+        url: base64String,
+        type: 'audio',
+        name: file.name
+      });
+    };
+    reader.readAsDataURL(file);
+    // Reset file input value
+    e.target.value = '';
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64String = reader.result as string;
+          setAttachment({
+            url: base64String,
+            type: 'audio',
+            name: `Áudio gravado (${recordingTime}s)`
+          });
+        };
+        reader.readAsDataURL(audioBlob);
+
+        // Stop all tracks to release microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Erro ao acessar microfone:", err);
+      alert("Não foi possível acessar o microfone. Verifique suas permissões de áudio.");
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.onstop = null; // Ignore onstop to avoid saving
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      audioChunksRef.current = [];
+      setAttachment(null);
+    }
   };
 
   useEffect(() => {
@@ -214,19 +333,30 @@ export const SupportChatWidget = () => {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeTicket || !newMessage.trim() || !currentUser) return;
+    if (!activeTicket || !currentUser) return;
+    if (!newMessage.trim() && !attachment) return;
 
     const messageText = newMessage.trim();
+    const currentAttachment = attachment;
+
     setNewMessage('');
+    setAttachment(null);
 
     try {
-      await addDoc(collection(db, `support_tickets/${activeTicket.id}/messages`), {
+      const msgData: any = {
         senderId: currentUser.id,
         senderName: currentUser.name,
         senderRole: 'CLIENT',
         text: messageText,
         createdAt: new Date(),
-      });
+      };
+
+      if (currentAttachment) {
+        msgData.attachmentUrl = currentAttachment.url;
+        msgData.attachmentType = currentAttachment.type;
+      }
+
+      await addDoc(collection(db, `support_tickets/${activeTicket.id}/messages`), msgData);
 
       // Update ticket updatedAt
       await updateDoc(doc(db, 'support_tickets', activeTicket.id), {
@@ -453,7 +583,26 @@ export const SupportChatWidget = () => {
                                   ? 'bg-slate-900 text-slate-100 rounded-tl-none shadow-md border border-slate-800'
                                   : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none shadow-sm'
                             }`}>
-                              {msg.text}
+                              {msg.text && <p className={msg.attachmentUrl ? 'mb-2' : ''}>{msg.text}</p>}
+                              {msg.attachmentUrl && (
+                                <div className="mt-1">
+                                  {msg.attachmentType === 'image' ? (
+                                    <img 
+                                      src={msg.attachmentUrl} 
+                                      alt="Anexo" 
+                                      className="rounded-lg max-w-full max-h-40 object-cover cursor-pointer hover:opacity-90 transition-all border border-slate-200/50" 
+                                      onClick={() => window.open(msg.attachmentUrl, '_blank')}
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  ) : msg.attachmentType === 'audio' ? (
+                                    <audio 
+                                      src={msg.attachmentUrl} 
+                                      controls 
+                                      className="w-full max-w-[220px] h-9 text-xs outline-none" 
+                                    />
+                                  ) : null}
+                                </div>
+                              )}
                             </div>
                           </div>
                         );
@@ -469,22 +618,121 @@ export const SupportChatWidget = () => {
 
           {/* Chat Footer/Input */}
           {triageStep === 2 && activeTicket?.status !== 'RESOLVED' && (
-            <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-200 bg-white flex gap-2 shrink-0">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Escreva sua mensagem..."
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
-              />
-              <button
-                type="submit"
-                disabled={!newMessage.trim()}
-                className="bg-slate-950 text-white p-2.5 rounded-2xl hover:bg-slate-800 transition-all disabled:opacity-50"
-              >
-                <Send size={14} />
-              </button>
-            </form>
+            <div className="border-t border-slate-200 bg-white flex flex-col shrink-0">
+              {/* Attachment Preview */}
+              {attachment && (
+                <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-2 animate-in slide-in-from-bottom duration-200">
+                  <div className="flex items-center gap-2 text-[10px] text-slate-600 font-bold max-w-[80%] truncate">
+                    {attachment.type === 'image' ? (
+                      <div className="w-8 h-8 rounded bg-slate-100 overflow-hidden flex items-center justify-center border border-slate-200 shrink-0">
+                        <img src={attachment.url} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                    ) : (
+                      <div className="w-8 h-8 rounded bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                        <Mic size={14} />
+                      </div>
+                    )}
+                    <span className="truncate">{attachment.name}</span>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setAttachment(null)}
+                    className="p-1.5 hover:bg-slate-200 text-rose-500 rounded-full transition-all"
+                    title="Remover anexo"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              )}
+
+              {/* Input Area or Recording State */}
+              {isRecording ? (
+                <div className="p-3 bg-red-50/50 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-ping shrink-0" />
+                    <span className="text-xs font-black text-rose-700">Gravando: {recordingTime}s</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button 
+                      type="button"
+                      onClick={cancelRecording}
+                      className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-2.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={stopRecording}
+                      className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all"
+                    >
+                      <Square size={10} /> Parar e Anexar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSendMessage} className="p-3 flex items-center gap-1.5">
+                  <input 
+                    type="file" 
+                    id="image-attach-input" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleImageSelect} 
+                  />
+                  <input 
+                    type="file" 
+                    id="audio-attach-input" 
+                    accept="audio/*" 
+                    className="hidden" 
+                    onChange={handleAudioSelect} 
+                  />
+
+                  {/* Attachment triggers */}
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('image-attach-input')?.click()}
+                      className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                      title="Enviar foto"
+                    >
+                      <Image size={15} />
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('audio-attach-input')?.click()}
+                      className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                      title="Anexar arquivo de áudio"
+                    >
+                      <Paperclip size={15} />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={startRecording}
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all animate-pulse"
+                      title="Gravar áudio"
+                    >
+                      <Mic size={15} />
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Escreva sua mensagem..."
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 font-medium"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim() && !attachment}
+                    className="bg-slate-950 text-white p-2.5 rounded-2xl hover:bg-slate-800 transition-all disabled:opacity-50 shrink-0"
+                  >
+                    <Send size={14} />
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
         </div>

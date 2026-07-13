@@ -1117,4 +1117,6 @@ export interface SupportMessage {
   senderRole: 'BOT' | 'CLIENT' | 'AGENT';
   text: string;
   createdAt: any;
+  attachmentUrl?: string;
+  attachmentType?: 'image' | 'audio';
 }
