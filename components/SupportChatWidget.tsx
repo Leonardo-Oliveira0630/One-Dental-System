@@ -60,19 +60,66 @@ export const SupportChatWidget = () => {
     };
   }, []);
 
+  const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        } else {
+          resolve(base64Str);
+        }
+      };
+      img.onerror = () => {
+        resolve(base64Str);
+      };
+    });
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Convert file to Base64
+    // Convert file to Base64 and compress it
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
       const base64String = reader.result as string;
-      setAttachment({
-        url: base64String,
-        type: 'image',
-        name: file.name
-      });
+      try {
+        const compressedBase64 = await compressImage(base64String);
+        setAttachment({
+          url: compressedBase64,
+          type: 'image',
+          name: file.name
+        });
+      } catch (err) {
+        console.error("Erro ao comprimir imagem:", err);
+        setAttachment({
+          url: base64String,
+          type: 'image',
+          name: file.name
+        });
+      }
     };
     reader.readAsDataURL(file);
     // Reset file input value
@@ -82,6 +129,12 @@ export const SupportChatWidget = () => {
   const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 800 * 1024) {
+      alert("O arquivo de áudio é muito grande. Para anexar, selecione um arquivo de até 800KB ou grave uma mensagem de voz diretamente pelo chat.");
+      e.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -393,10 +446,10 @@ export const SupportChatWidget = () => {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <div className={`fixed z-50 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:flex sm:flex-col sm:items-end' : 'bottom-6 right-6 flex flex-col items-end'}`}>
       {/* Expanded Chat Drawer */}
       {isOpen && (
-        <div className="w-96 h-[500px] bg-white rounded-3xl shadow-2xl border border-slate-100 flex flex-col overflow-hidden mb-4 animate-in slide-in-from-bottom duration-300">
+        <div className="w-full sm:w-96 h-[100dvh] sm:h-[500px] max-h-screen bg-white sm:rounded-3xl rounded-none sm:shadow-2xl shadow-none border sm:border-slate-100 border-none flex flex-col overflow-hidden sm:mb-4 mb-0 animate-in slide-in-from-bottom duration-300">
           
           {/* Header */}
           <div className="bg-slate-950 text-white p-4 flex justify-between items-center border-b border-slate-800">
@@ -741,7 +794,7 @@ export const SupportChatWidget = () => {
       {/* Launcher Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 bg-slate-900 text-white rounded-full flex items-center justify-center shadow-2xl hover:bg-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 border-2 border-slate-800 hover:border-blue-500 relative"
+        className={`${isOpen ? 'hidden sm:flex' : 'flex'} w-14 h-14 bg-slate-900 text-white rounded-full items-center justify-center shadow-2xl hover:bg-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 border-2 border-slate-800 hover:border-blue-500 relative`}
       >
         {isOpen ? <X size={24} /> : <Headphones size={24} />}
         

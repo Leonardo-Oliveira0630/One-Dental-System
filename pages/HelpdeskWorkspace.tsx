@@ -6,7 +6,7 @@ import {
   MessageSquare, User, Clock, CheckCircle, AlertCircle, 
   HelpCircle, ArrowRight, Shield, Send, Users, Activity, 
   ChevronRight, Phone, Mail, Building, Landmark, LogOut, Star,
-  Image, Mic, Trash2, Paperclip, Square
+  Image, Mic, Trash2, Paperclip, Square, X
 } from 'lucide-react';
 import { SupportTicket, SupportMessage, UserRole } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -40,6 +40,7 @@ export const HelpdeskWorkspace = () => {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [resolutionNote, setResolutionNote] = useState('');
   const [showResolveModal, setShowResolveModal] = useState(false);
+  const [showDetailsMobile, setShowDetailsMobile] = useState(false);
 
   // Attachment & Voice Recording state
   const [attachment, setAttachment] = useState<{ url: string; type: 'image' | 'audio'; name: string } | null>(null);
@@ -57,18 +58,65 @@ export const HelpdeskWorkspace = () => {
     };
   }, []);
 
+  const compressImage = (base64Str: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.6));
+        } else {
+          resolve(base64Str);
+        }
+      };
+      img.onerror = () => {
+        resolve(base64Str);
+      };
+    });
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = async () => {
       const base64String = reader.result as string;
-      setAttachment({
-        url: base64String,
-        type: 'image',
-        name: file.name
-      });
+      try {
+        const compressedBase64 = await compressImage(base64String);
+        setAttachment({
+          url: compressedBase64,
+          type: 'image',
+          name: file.name
+        });
+      } catch (err) {
+        console.error("Erro ao comprimir imagem de suporte:", err);
+        setAttachment({
+          url: base64String,
+          type: 'image',
+          name: file.name
+        });
+      }
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -77,6 +125,12 @@ export const HelpdeskWorkspace = () => {
   const handleAudioSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > 800 * 1024) {
+      alert("O arquivo de áudio é muito grande. Para anexar, selecione um arquivo de até 800KB ou grave uma mensagem de voz diretamente pelo chat.");
+      e.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -344,37 +398,37 @@ export const HelpdeskWorkspace = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       {/* Top Professional Banner / Header */}
-      <header className="bg-slate-900 text-white px-8 py-4 shadow-md flex justify-between items-center border-b border-slate-800 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-blue-600 rounded-xl text-white">
-            <Shield size={22} className="animate-pulse" />
+      <header className="bg-slate-900 text-white px-4 sm:px-8 py-3 sm:py-4 shadow-md flex justify-between items-center border-b border-slate-800 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-blue-600 rounded-xl text-white shrink-0">
+            <Shield size={18} className="animate-pulse" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black tracking-tight">SALA DE HELP DESIGN</h1>
-              <span className="bg-blue-500/20 text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border border-blue-500/30">
-                Agent Workspace
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h1 className="text-sm sm:text-xl font-black tracking-tight">SALA DE HELP DESIGN</h1>
+              <span className="bg-blue-500/20 text-blue-300 text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider border border-blue-500/30">
+                Agent
               </span>
             </div>
-            <p className="text-slate-400 text-xs font-semibold">
-              Logado como <strong className="text-white">{currentUser?.name}</strong> • Central de Atendimento Técnico
+            <p className="text-slate-400 text-[10px] sm:text-xs font-semibold">
+              Logado como <strong className="text-white">{currentUser?.name?.split(' ')[0]}</strong> • Central de Suporte
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <button 
             onClick={() => { logout(); navigate('/login'); }}
-            className="flex items-center gap-2 text-slate-400 hover:text-white px-4 py-2 hover:bg-slate-800 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border border-transparent hover:border-slate-700"
+            className="flex items-center gap-1.5 text-slate-400 hover:text-white px-3 py-1.5 hover:bg-slate-800 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all border border-transparent hover:border-slate-700"
           >
-            <LogOut size={16} />
+            <LogOut size={14} />
             Sair
           </button>
         </div>
       </header>
 
       {/* KPI Stats Panel */}
-      <div className="bg-white border-b border-slate-200 px-8 py-4 shrink-0 shadow-sm">
+      <div className="hidden md:block bg-white border-b border-slate-200 px-8 py-4 shrink-0 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-2xl border border-slate-100">
             <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
@@ -419,15 +473,15 @@ export const HelpdeskWorkspace = () => {
       </div>
 
       {/* Main Workspace Grid */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
+      <div className="flex-1 flex overflow-hidden min-h-0 relative">
         
         {/* Left Column: Tickets Queue List */}
-        <div className="w-96 border-r border-slate-200 bg-white flex flex-col shrink-0 min-h-0">
+        <div className={`${selectedTicket ? 'hidden md:flex' : 'flex'} w-full md:w-96 border-r border-slate-200 bg-white flex flex-col shrink-0 min-h-0`}>
           
           {/* Tabs for Ticket Status */}
           <div className="flex border-b border-slate-200 p-2 gap-1 shrink-0 bg-slate-50">
             <button
-              onClick={() => { setActiveTab('open'); setSelectedTicket(null); }}
+              onClick={() => { setActiveTab('open'); setSelectedTicket(null); setShowDetailsMobile(false); }}
               className={`flex-1 py-2 text-center text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
                 activeTab === 'open' 
                   ? 'bg-slate-900 text-white shadow-md' 
@@ -437,7 +491,7 @@ export const HelpdeskWorkspace = () => {
               Abertos ({totalOpen})
             </button>
             <button
-              onClick={() => { setActiveTab('mine'); setSelectedTicket(null); }}
+              onClick={() => { setActiveTab('mine'); setSelectedTicket(null); setShowDetailsMobile(false); }}
               className={`flex-1 py-2 text-center text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
                 activeTab === 'mine' 
                   ? 'bg-blue-600 text-white shadow-md' 
@@ -447,7 +501,7 @@ export const HelpdeskWorkspace = () => {
               Meus ({totalMine})
             </button>
             <button
-              onClick={() => { setActiveTab('resolved'); setSelectedTicket(null); }}
+              onClick={() => { setActiveTab('resolved'); setSelectedTicket(null); setShowDetailsMobile(false); }}
               className={`flex-1 py-2 text-center text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
                 activeTab === 'resolved' 
                   ? 'bg-emerald-600 text-white shadow-md' 
@@ -482,7 +536,10 @@ export const HelpdeskWorkspace = () => {
               return (
                 <div
                   key={ticket.id}
-                  onClick={() => setSelectedTicket(ticket)}
+                  onClick={() => {
+                    setSelectedTicket(ticket);
+                    setShowDetailsMobile(false);
+                  }}
                   className={`p-4 cursor-pointer transition-all border-l-4 hover:bg-slate-50 flex flex-col gap-2 ${
                     isSelected 
                       ? 'bg-blue-50/50 border-blue-600' 
@@ -555,7 +612,7 @@ export const HelpdeskWorkspace = () => {
         </div>
 
         {/* Right Column: Chat & Information details */}
-        <div className="flex-1 bg-[#F8FAFC] flex flex-col overflow-hidden min-h-0">
+        <div className={`${selectedTicket ? 'flex' : 'hidden md:flex'} flex-1 bg-[#F8FAFC] flex flex-col overflow-hidden min-h-0`}>
           
           {selectedTicket ? (
             <div className="flex-1 flex overflow-hidden min-h-0">
@@ -564,44 +621,63 @@ export const HelpdeskWorkspace = () => {
               <div className="flex-1 flex flex-col bg-white border-r border-slate-200 min-h-0">
                 
                 {/* Chat Header Info */}
-                <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Mobile Back Button */}
+                    <button
+                      onClick={() => setSelectedTicket(null)}
+                      className="md:hidden p-2 hover:bg-slate-200/70 rounded-xl text-slate-600 transition-colors shrink-0"
+                      title="Voltar"
+                    >
+                      <ChevronRight className="rotate-180" size={18} />
+                    </button>
+
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold shrink-0 text-sm">
                       {selectedTicket.userName.charAt(0)}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm leading-tight">{selectedTicket.userName}</h3>
-                      <p className="text-[10px] text-slate-500 font-medium">
-                        {CATEGORY_LABELS[selectedTicket.category]} • Código: #{selectedTicket.id.slice(0, 6)}
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-slate-800 text-xs sm:text-sm leading-tight truncate">{selectedTicket.userName}</h3>
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium truncate">
+                        {CATEGORY_LABELS[selectedTicket.category]} • Cód: #{selectedTicket.id.slice(0, 6)}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Mobile Client Info Toggle */}
+                    <button
+                      onClick={() => setShowDetailsMobile(true)}
+                      className="lg:hidden p-2 hover:bg-slate-200/70 rounded-xl text-slate-600 transition-colors shrink-0"
+                      title="Ver detalhes do cliente"
+                    >
+                      <HelpCircle size={18} />
+                    </button>
+
                     {selectedTicket.status !== 'RESOLVED' ? (
                       <>
                         {!selectedTicket.assignedAgentId || selectedTicket.assignedAgentId !== currentUser?.id ? (
                           <button
                             onClick={handleClaimTicket}
-                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-blue-100 transition-all"
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-[10px] sm:text-xs font-black uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1 shadow-md shadow-blue-100 transition-all shrink-0"
                           >
-                            <User size={14} />
-                            Assumir Chamado
+                            <User size={12} />
+                            <span className="hidden sm:inline">Assumir</span>
+                            <span className="sm:hidden">Pegar</span>
                           </button>
                         ) : null}
 
                         <button
                           onClick={() => setShowResolveModal(true)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-100 transition-all"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] sm:text-xs font-black uppercase px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl flex items-center gap-1 shadow-md shadow-emerald-100 transition-all shrink-0"
                         >
-                          <CheckCircle size={14} />
-                          Encerrar Chamado
+                          <CheckCircle size={12} />
+                          <span>Encerrar</span>
                         </button>
                       </>
                     ) : (
-                      <span className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-black px-4 py-2 rounded-xl uppercase flex items-center gap-1">
-                        <CheckCircle size={14} />
-                        Chamado Resolvido
+                      <span className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] sm:text-xs font-black px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl uppercase flex items-center gap-1 shrink-0">
+                        <CheckCircle size={12} />
+                        Resolvido
                       </span>
                     )}
                   </div>
@@ -810,8 +886,30 @@ export const HelpdeskWorkspace = () => {
                 )}
               </div>
 
+              {/* Backdrop for details drawer on mobile */}
+              {showDetailsMobile && (
+                <div 
+                  className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 lg:hidden animate-in fade-in duration-200"
+                  onClick={() => setShowDetailsMobile(false)}
+                />
+              )}
+
               {/* Sidebar with Patient & Context Detail logs */}
-              <div className="w-80 border-l border-slate-200 bg-white p-6 space-y-6 overflow-y-auto shrink-0 no-scrollbar">
+              <div className={`${
+                showDetailsMobile 
+                  ? 'fixed inset-y-0 right-0 z-50 w-80 bg-white shadow-2xl border-l border-slate-200 flex flex-col p-6 space-y-6 overflow-y-auto shrink-0 animate-in slide-in-from-right duration-300' 
+                  : 'hidden lg:flex lg:w-80 lg:border-l lg:border-slate-200 lg:bg-white lg:p-6 lg:flex-col lg:space-y-6 lg:overflow-y-auto lg:shrink-0 lg:no-scrollbar'
+              }`}>
+                {/* Mobile Details Close Header */}
+                <div className="flex lg:hidden justify-between items-center border-b border-slate-100 pb-3 shrink-0">
+                  <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Detalhes do Chamado</h4>
+                  <button 
+                    onClick={() => setShowDetailsMobile(false)}
+                    className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
                 <div>
                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Informações do Cliente</h4>
                   <div className="space-y-4">
