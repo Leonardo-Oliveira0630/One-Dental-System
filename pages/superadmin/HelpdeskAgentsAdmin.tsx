@@ -5,9 +5,9 @@ import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { 
   Shield, User, Mail, Lock, Phone, Trash2, 
-  Plus, Loader2, CheckCircle, ShieldCheck, RefreshCw 
+  Plus, Loader2, CheckCircle, ShieldCheck, RefreshCw, Star, BarChart3, MessageSquareText 
 } from 'lucide-react';
-import { User as UserType, UserRole } from '../../types';
+import { User as UserType, UserRole, SupportTicket } from '../../types';
 
 // Web Firebase Configuration
 const firebaseConfig = {
@@ -22,7 +22,26 @@ const firebaseConfig = {
 
 export const HelpdeskAgentsAdmin = () => {
   const [agents, setAgents] = useState<UserType[]>([]);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Load Support Tickets for metrics computation
+  useEffect(() => {
+    const q = query(collection(db, 'support_tickets'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const loadedTickets: SupportTicket[] = [];
+      snapshot.forEach((docSnap) => {
+        loadedTickets.push({
+          id: docSnap.id,
+          ...docSnap.data()
+        } as SupportTicket);
+      });
+      setTickets(loadedTickets);
+    }, (err) => {
+      console.error("Error loading tickets for admin metrics:", err);
+    });
+    return unsubscribe;
+  }, []);
 
   // Form State
   const [name, setName] = useState('');
@@ -138,6 +157,28 @@ export const HelpdeskAgentsAdmin = () => {
       newPass += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setPassword(newPass);
+  };
+
+  const getAgentMetrics = (agentId: string) => {
+    const agentTickets = tickets.filter(t => t.assignedAgentId === agentId);
+    const resolved = agentTickets.filter(t => t.status === 'RESOLVED');
+    const active = agentTickets.filter(t => t.status === 'ACTIVE');
+    
+    // Calculate average rating
+    const ratedTickets = resolved.filter(t => t.rating !== undefined && t.rating !== null);
+    const totalRating = ratedTickets.reduce((sum, t) => sum + (t.rating || 0), 0);
+    const avgRating = ratedTickets.length > 0 ? (totalRating / ratedTickets.length).toFixed(1) : null;
+    
+    return {
+      total: agentTickets.length,
+      resolvedCount: resolved.length,
+      activeCount: active.length,
+      avgRating,
+      ratingCount: ratedTickets.length,
+      recentFeedbacks: resolved
+        .filter(t => t.rating !== undefined && t.rating !== null && t.ratingComment)
+        .slice(0, 3) // get 3 most recent feedbacks with comments
+    };
   };
 
   return (
@@ -336,6 +377,118 @@ export const HelpdeskAgentsAdmin = () => {
           </div>
         </div>
 
+      </div>
+
+      {/* Metrics Section */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-6">
+        <div>
+          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 uppercase">
+            <BarChart3 className="text-blue-600" size={22} />
+            Métricas de Atendimento & Performance
+          </h2>
+          <p className="text-slate-500 text-xs">Acompanhe as notas de avaliação, chamados concluídos e feedbacks enviados pelos clientes para cada agente de helpdesk.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {agents.map((agent) => {
+            const metrics = getAgentMetrics(agent.id);
+            return (
+              <div key={agent.id} className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100 flex flex-col justify-between gap-4">
+                <div className="space-y-3">
+                  {/* Agent Card Header */}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm">{agent.name}</h4>
+                      <p className="text-[10px] text-slate-400 font-mono">ID: {agent.id.slice(0, 8)}</p>
+                    </div>
+                    {metrics.avgRating ? (
+                      <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full border border-amber-200 text-xs font-bold shadow-sm">
+                        <Star size={12} className="fill-amber-500 text-amber-500" />
+                        <span>{metrics.avgRating} / 5</span>
+                      </div>
+                    ) : (
+                      <span className="text-[9px] text-slate-400 bg-slate-100 px-2 py-1 rounded-full font-bold">Sem avaliações</span>
+                    )}
+                  </div>
+
+                  {/* Rating Stats info */}
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="bg-white p-2 rounded-xl border border-slate-100">
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Resolvidos</p>
+                      <p className="text-sm font-black text-slate-800">{metrics.resolvedCount}</p>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-slate-100">
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Ativos</p>
+                      <p className="text-sm font-black text-blue-600">{metrics.activeCount}</p>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-slate-100">
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Total</p>
+                      <p className="text-sm font-black text-slate-800">{metrics.total}</p>
+                    </div>
+                  </div>
+
+                  {/* Rating distribution indicator */}
+                  {metrics.avgRating && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center text-[10px] font-semibold text-slate-400">
+                        <span>Índice de Aprovação</span>
+                        <span>{((Number(metrics.avgRating) / 5) * 100).toFixed(0)}%</span>
+                      </div>
+                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-emerald-500 h-full rounded-full" 
+                          style={{ width: `${(Number(metrics.avgRating) / 5) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Customer Feedbacks */}
+                <div className="pt-3 border-t border-slate-100 space-y-2">
+                  <h5 className="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <MessageSquareText size={12} />
+                    Avaliações Recentes
+                  </h5>
+                  <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar">
+                    {metrics.recentFeedbacks.map((ticket) => (
+                      <div key={ticket.id} className="bg-white p-2.5 rounded-xl border border-slate-100 space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-bold text-slate-700 truncate max-w-[120px]">{ticket.userName}</span>
+                          <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star 
+                                key={s} 
+                                size={9} 
+                                className={(ticket.rating || 0) >= s ? 'fill-amber-400 text-amber-400' : 'text-slate-200'} 
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-slate-500 italic line-clamp-2">
+                          "{ticket.ratingComment}"
+                        </p>
+                      </div>
+                    ))}
+
+                    {metrics.recentFeedbacks.length === 0 && (
+                      <p className="text-[10px] text-slate-400 italic text-center py-2">
+                        Nenhum feedback com comentário ainda.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            );
+          })}
+
+          {agents.length === 0 && (
+            <div className="col-span-full p-8 text-center text-slate-400 italic bg-slate-50 rounded-2xl border border-slate-100">
+              Cadastre agentes de atendimento acima para começar a monitorar as métricas de performance.
+            </div>
+          )}
+        </div>
       </div>
 
     </div>

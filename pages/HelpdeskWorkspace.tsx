@@ -5,7 +5,7 @@ import { collection, doc, query, where, orderBy, onSnapshot, addDoc, updateDoc, 
 import { 
   MessageSquare, User, Clock, CheckCircle, AlertCircle, 
   HelpCircle, ArrowRight, Shield, Send, Users, Activity, 
-  ChevronRight, Phone, Mail, Building, Landmark, LogOut 
+  ChevronRight, Phone, Mail, Building, Landmark, LogOut, Star 
 } from 'lucide-react';
 import { SupportTicket, SupportMessage, UserRole } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -35,7 +35,7 @@ export const HelpdeskWorkspace = () => {
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [newMessageText, setNewMessageText] = useState('');
-  const [activeTab, setActiveTab] = useState<'open' | 'resolved'>('open');
+  const [activeTab, setActiveTab] = useState<'open' | 'mine' | 'resolved'>('open');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
   const [resolutionNote, setResolutionNote] = useState('');
   const [showResolveModal, setShowResolveModal] = useState(false);
@@ -199,13 +199,21 @@ export const HelpdeskWorkspace = () => {
   };
 
   // Stats calculation
-  const totalOpen = tickets.filter(t => t.status === 'PENDING').length;
-  const totalActive = tickets.filter(t => t.status === 'ACTIVE').length;
+  const totalOpen = tickets.filter(t => !t.assignedAgentId && t.status !== 'RESOLVED').length;
+  const totalMine = tickets.filter(t => t.assignedAgentId === currentUser?.id && t.status === 'ACTIVE').length;
+  const totalActiveGlobal = tickets.filter(t => t.status === 'ACTIVE').length;
   const totalResolved = tickets.filter(t => t.status === 'RESOLVED').length;
 
   // Filtered tickets
   const filteredTickets = tickets.filter(t => {
-    const matchesTab = activeTab === 'open' ? t.status !== 'RESOLVED' : t.status === 'RESOLVED';
+    let matchesTab = false;
+    if (activeTab === 'open') {
+      matchesTab = !t.assignedAgentId && t.status !== 'RESOLVED';
+    } else if (activeTab === 'mine') {
+      matchesTab = t.assignedAgentId === currentUser?.id && t.status === 'ACTIVE';
+    } else if (activeTab === 'resolved') {
+      matchesTab = t.status === 'RESOLVED';
+    }
     const matchesCategory = selectedCategoryFilter === 'all' || t.category === selectedCategoryFilter;
     return matchesTab && matchesCategory;
   });
@@ -250,7 +258,7 @@ export const HelpdeskWorkspace = () => {
               <AlertCircle size={22} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Aguardando Triagem</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Aguardando Atendimento</p>
               <h3 className="text-2xl font-black text-slate-800">{totalOpen}</h3>
             </div>
           </div>
@@ -260,8 +268,8 @@ export const HelpdeskWorkspace = () => {
               <Activity size={22} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Em Atendimento</p>
-              <h3 className="text-2xl font-black text-slate-800">{totalActive}</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Atendimentos Ativos</p>
+              <h3 className="text-2xl font-black text-slate-800">{totalActiveGlobal}</h3>
             </div>
           </div>
 
@@ -270,8 +278,8 @@ export const HelpdeskWorkspace = () => {
               <CheckCircle size={22} />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Chamados Resolvidos</p>
-              <h3 className="text-2xl font-black text-slate-800">{totalResolved}</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Meus Ativos / Total Resolvido</p>
+              <h3 className="text-2xl font-black text-slate-800">{totalMine} / {totalResolved}</h3>
             </div>
           </div>
 
@@ -294,26 +302,36 @@ export const HelpdeskWorkspace = () => {
         <div className="w-96 border-r border-slate-200 bg-white flex flex-col shrink-0 min-h-0">
           
           {/* Tabs for Ticket Status */}
-          <div className="flex border-b border-slate-200 p-2 shrink-0 bg-slate-50">
+          <div className="flex border-b border-slate-200 p-2 gap-1 shrink-0 bg-slate-50">
             <button
               onClick={() => { setActiveTab('open'); setSelectedTicket(null); }}
-              className={`flex-1 py-2.5 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
+              className={`flex-1 py-2 text-center text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
                 activeTab === 'open' 
                   ? 'bg-slate-900 text-white shadow-md' 
-                  : 'text-slate-500 hover:text-slate-800'
+                  : 'text-slate-500 hover:text-slate-800 bg-white border border-slate-100 hover:border-slate-200 shadow-sm'
               }`}
             >
-              Fila Ativos ({totalOpen + totalActive})
+              Abertos ({totalOpen})
+            </button>
+            <button
+              onClick={() => { setActiveTab('mine'); setSelectedTicket(null); }}
+              className={`flex-1 py-2 text-center text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
+                activeTab === 'mine' 
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'text-slate-500 hover:text-slate-800 bg-white border border-slate-100 hover:border-slate-200 shadow-sm'
+              }`}
+            >
+              Meus ({totalMine})
             </button>
             <button
               onClick={() => { setActiveTab('resolved'); setSelectedTicket(null); }}
-              className={`flex-1 py-2.5 text-center text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
+              className={`flex-1 py-2 text-center text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
                 activeTab === 'resolved' 
-                  ? 'bg-slate-900 text-white shadow-md' 
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-emerald-600 text-white shadow-md' 
+                  : 'text-slate-500 hover:text-slate-800 bg-white border border-slate-100 hover:border-slate-200 shadow-sm'
               }`}
             >
-              Resolvidos ({totalResolved})
+              Fechados ({totalResolved})
             </button>
           </div>
 
@@ -385,11 +403,20 @@ export const HelpdeskWorkspace = () => {
                       {ticket.status === 'PENDING' ? 'AGUARDANDO' : ticket.status === 'ACTIVE' ? 'EM ATENDIMENTO' : 'RESOLVIDO'}
                     </span>
 
-                    {ticket.assignedAgentName && (
+                    {ticket.status === 'RESOLVED' && ticket.rating !== undefined ? (
+                      <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full flex items-center gap-1 border border-amber-200" title={`Comentário: ${ticket.ratingComment || 'Nenhum'}`}>
+                        <Star size={11} className="fill-amber-500 text-amber-500" />
+                        {ticket.rating} / 5
+                      </span>
+                    ) : ticket.status === 'RESOLVED' ? (
+                      <span className="text-[9px] text-slate-400 font-bold bg-slate-50 px-2 py-0.5 rounded-full italic border border-slate-200">
+                        Sem avaliação
+                      </span>
+                    ) : ticket.assignedAgentName ? (
                       <span className="text-[9px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded">
                         Agente: {ticket.assignedAgentName.split(' ')[0]}
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               );
@@ -629,6 +656,40 @@ export const HelpdeskWorkspace = () => {
                     )}
                   </div>
                 </div>
+
+                {selectedTicket.status === 'RESOLVED' && (
+                  <div className="pt-4 border-t border-slate-100">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Avaliação do Cliente</h4>
+                    {selectedTicket.rating !== undefined ? (
+                      <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-100 space-y-2">
+                        <div className="flex gap-1 justify-center">
+                          {[1, 2, 3, 4, 5].map((starVal) => {
+                            const isLit = (selectedTicket.rating || 0) >= starVal;
+                            return (
+                              <Star
+                                key={starVal}
+                                size={16}
+                                className={isLit ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}
+                              />
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs font-black text-slate-800 text-center">{selectedTicket.rating} / 5 Estrelas</p>
+                        {selectedTicket.ratingComment ? (
+                          <p className="text-xs font-medium text-slate-600 italic bg-white p-2.5 rounded-xl border border-slate-200">
+                            "{selectedTicket.ratingComment}"
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-slate-400 italic text-center">O cliente não deixou comentários.</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-center">
+                        <p className="text-[10px] text-slate-400 italic">Este chamado ainda não foi avaliado pelo cliente.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
             </div>

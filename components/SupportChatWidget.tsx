@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { 
   MessageSquare, X, Send, HelpCircle, 
-  CheckCircle, AlertCircle, Clock, Shield, Headphones 
+  CheckCircle, AlertCircle, Clock, Shield, Headphones, Star 
 } from 'lucide-react';
 import { SupportTicket, SupportMessage } from '../types';
 
@@ -31,6 +31,11 @@ export const SupportChatWidget = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [description, setDescription] = useState<string>('');
 
+  // Rating feedback state
+  const [ratingStars, setRatingStars] = useState<number>(5);
+  const [ratingComment, setRatingComment] = useState<string>('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState<boolean>(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom of chat
@@ -48,7 +53,7 @@ export const SupportChatWidget = () => {
   useEffect(() => {
     if (!currentUser) return;
 
-    // Load active (PENDING or ACTIVE) tickets
+    // Load active (PENDING or ACTIVE or RESOLVED but unrated) tickets
     const q = query(
       collection(db, 'support_tickets'),
       where('userId', '==', currentUser.id),
@@ -61,18 +66,20 @@ export const SupportChatWidget = () => {
         const docSnap = snapshot.docs[0];
         const data = docSnap.data();
         
-        // Only set as active if not resolved
-        if (data.status !== 'RESOLVED') {
+        const isUnratedResolved = data.status === 'RESOLVED' && data.rating === undefined;
+
+        // Keep active if not resolved, or if resolved but not rated yet
+        if (data.status !== 'RESOLVED' || isUnratedResolved) {
           setActiveTicket({
             id: docSnap.id,
             ...data,
             createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
             updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
           } as SupportTicket);
-          setTriageStep(2); // Skip triage, go directly to chat
+          setTriageStep(2); // Skip triage, go directly to chat/feedback
         } else {
           setActiveTicket(null);
-          // If we had an active ticket and it got resolved, clear it
+          // If we had an active ticket and it got resolved and rated, clear it
           if (triageStep === 2) {
             setTriageStep(0);
           }
@@ -230,6 +237,26 @@ export const SupportChatWidget = () => {
     }
   };
 
+  const handleSubmitRating = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTicket) return;
+    setIsSubmittingRating(true);
+    try {
+      await updateDoc(doc(db, 'support_tickets', activeTicket.id), {
+        rating: ratingStars,
+        ratingComment: ratingComment.trim(),
+        updatedAt: new Date()
+      });
+      // Reset feedback states
+      setRatingStars(5);
+      setRatingComment('');
+    } catch (err) {
+      console.error("Error submitting rating:", err);
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
   // Skip rendering widget for SUPER_ADMIN or HELPDESK role since they use full screens
   if (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'HELPDESK') {
     return null;
@@ -333,61 +360,115 @@ export const SupportChatWidget = () => {
             {/* Step 2: Ongoing Triage / Chat */}
             {triageStep === 2 && (
               <div className="flex-1 flex flex-col gap-3 min-h-0">
-                {/* Agent Assignment Warning Banner */}
-                {activeTicket && !activeTicket.assignedAgentId && (
-                  <div className="bg-amber-50 border border-amber-100 text-amber-800 text-[10px] font-bold p-2.5 rounded-xl flex items-center gap-1.5 shrink-0">
-                    <Clock size={12} className="text-amber-600 shrink-0" />
-                    Aguardando conexão com atendente...
-                  </div>
-                )}
+                {activeTicket?.status === 'RESOLVED' ? (
+                  <form onSubmit={handleSubmitRating} className="flex-1 flex flex-col justify-center items-center text-center p-4 space-y-4 animate-in fade-in duration-300">
+                    <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-2">
+                      <CheckCircle size={28} />
+                    </div>
+                    <h4 className="font-black text-slate-800 text-sm uppercase tracking-tight">Atendimento Concluído!</h4>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Como foi sua experiência com o suporte técnico de <strong className="text-slate-800">{activeTicket.assignedAgentName || 'nosso agente'}</strong>? Avalie abaixo:
+                    </p>
 
-                {activeTicket && activeTicket.assignedAgentId && (
-                  <div className="bg-blue-50 border border-blue-100 text-blue-800 text-[10px] font-bold p-2.5 rounded-xl flex items-center gap-1.5 shrink-0">
-                    <CheckCircle size={12} className="text-blue-600 shrink-0" />
-                    Conectado com agente {activeTicket.assignedAgentName}
-                  </div>
-                )}
+                    {/* Star selection buttons */}
+                    <div className="flex gap-1.5 justify-center py-2">
+                      {[1, 2, 3, 4, 5].map((starValue) => {
+                        const isSelected = ratingStars >= starValue;
+                        return (
+                          <button
+                            key={starValue}
+                            type="button"
+                            onClick={() => setRatingStars(starValue)}
+                            className="p-1 transition-transform hover:scale-125 focus:outline-none"
+                          >
+                            <Star
+                              size={28}
+                              className={`transition-colors ${
+                                isSelected ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                              }`}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                {/* Messages Container */}
-                <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar flex flex-col">
-                  {messages.map((msg) => {
-                    const isBot = msg.senderRole === 'BOT';
-                    const isCurrentUser = msg.senderId === currentUser?.id;
+                    <div className="w-full text-left">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Comentário / Sugestão</label>
+                      <textarea
+                        value={ratingComment}
+                        onChange={(e) => setRatingComment(e.target.value)}
+                        placeholder="Opcional: Conte-nos o que achou do atendimento..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-none"
+                      />
+                    </div>
 
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex items-start gap-2 ${isCurrentUser ? 'justify-end' : ''}`}
-                      >
-                        {!isCurrentUser && (
-                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
-                            isBot ? 'bg-slate-900 text-blue-400' : 'bg-indigo-600 text-white'
-                          }`}>
-                            {isBot ? 'IA' : msg.senderName.charAt(0)}
-                          </div>
-                        )}
-
-                        <div className={`p-3 rounded-2xl text-xs max-w-[80%] leading-relaxed ${
-                          isCurrentUser
-                            ? 'bg-slate-950 text-white rounded-tr-none shadow-sm'
-                            : isBot
-                              ? 'bg-slate-900 text-slate-100 rounded-tl-none shadow-md border border-slate-800'
-                              : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none shadow-sm'
-                        }`}>
-                          {msg.text}
-                        </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingRating}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isSubmittingRating ? 'Enviando...' : 'Enviar Avaliação'}
+                    </button>
+                  </form>
+                ) : (
+                  <>
+                    {/* Agent Assignment Warning Banner */}
+                    {activeTicket && !activeTicket.assignedAgentId && (
+                      <div className="bg-amber-50 border border-amber-100 text-amber-800 text-[10px] font-bold p-2.5 rounded-xl flex items-center gap-1.5 shrink-0">
+                        <Clock size={12} className="text-amber-600 shrink-0" />
+                        Aguardando conexão com atendente...
                       </div>
-                    );
-                  })}
-                  <div ref={messagesEndRef} />
-                </div>
+                    )}
+
+                    {activeTicket && activeTicket.assignedAgentId && (
+                      <div className="bg-blue-50 border border-blue-100 text-blue-800 text-[10px] font-bold p-2.5 rounded-xl flex items-center gap-1.5 shrink-0">
+                        <CheckCircle size={12} className="text-blue-600 shrink-0" />
+                        Conectado com agente {activeTicket.assignedAgentName}
+                      </div>
+                    )}
+
+                    {/* Messages Container */}
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 no-scrollbar flex flex-col">
+                      {messages.map((msg) => {
+                        const isBot = msg.senderRole === 'BOT';
+                        const isCurrentUser = msg.senderId === currentUser?.id;
+
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`flex items-start gap-2 ${isCurrentUser ? 'justify-end' : ''}`}
+                          >
+                            {!isCurrentUser && (
+                              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                                isBot ? 'bg-slate-900 text-blue-400' : 'bg-indigo-600 text-white'
+                              }`}>
+                                {isBot ? 'IA' : msg.senderName.charAt(0)}
+                              </div>
+                            )}
+
+                            <div className={`p-3 rounded-2xl text-xs max-w-[80%] leading-relaxed ${
+                              isCurrentUser
+                                ? 'bg-slate-950 text-white rounded-tr-none shadow-sm'
+                                : isBot
+                                  ? 'bg-slate-900 text-slate-100 rounded-tl-none shadow-md border border-slate-800'
+                                  : 'bg-white text-slate-800 border border-slate-200 rounded-tl-none shadow-sm'
+                            }`}>
+                              {msg.text}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
           </div>
 
           {/* Chat Footer/Input */}
-          {triageStep === 2 && (
+          {triageStep === 2 && activeTicket?.status !== 'RESOLVED' && (
             <form onSubmit={handleSendMessage} className="p-3 border-t border-slate-200 bg-white flex gap-2 shrink-0">
               <input
                 type="text"

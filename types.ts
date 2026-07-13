@@ -558,6 +558,7 @@ export interface User {
   organizationId?: string;
   sector?: string;
   permissions?: PermissionKey[]; 
+  createdAt?: any;
   termsAcceptedAt?: Date | string;
   clinicName?: string;
   commissionSettings?: UserCommissionSetting[];
@@ -1105,6 +1106,8 @@ export interface SupportTicket {
   updatedAt: any;
   closedAt?: any;
   resolutionNote?: string;
+  rating?: number;
+  ratingComment?: string;
 }
 
 export interface SupportMessage {
