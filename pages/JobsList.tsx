@@ -59,9 +59,10 @@ const JobRow = memo(({
     const canRoute = isLabStaff && job.status === JobStatus.COMPLETED && !job.routeId;
     const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
     const timeInfo = getSectorTimeInfo(job);
+    const showAttention = !isClient && timeInfo.isAttention;
 
     return (
-        <tr className={`hover:bg-blue-50/30 transition-colors ${timeInfo.isAttention ? 'bg-yellow-50/50' : ''}`}>
+        <tr className={`hover:bg-blue-50/30 transition-colors ${showAttention ? 'bg-yellow-50/50' : ''}`}>
             <td className="p-4 font-mono font-bold text-sm">
                 <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 hover:text-blue-800 hover:underline text-left">
                     {job.osNumber || '---'}
@@ -117,7 +118,7 @@ const JobRow = memo(({
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
                     </span>
-                    {revealJobStatus && (
+                    {revealJobStatus && !isClient && (
                         <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
                             <Clock size={12} /> {timeInfo.label}
                             {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
@@ -157,10 +158,11 @@ const JobCard = memo(({
     revealJobStatus: boolean
 }) => {
     const timeInfo = getSectorTimeInfo(job);
+    const showAttention = !isClient && timeInfo.isAttention;
     return (
-        <div onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${timeInfo.isAttention ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
+        <div onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${showAttention ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
             {job.urgency === UrgencyLevel.VIP && <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden"><div className="bg-orange-500 text-white text-[8px] font-black py-1 px-10 transform rotate-45 translate-x-3 -translate-y-1 text-center shadow-sm uppercase">VIP</div></div>}
-            {timeInfo.isAttention && <div className="absolute top-0 left-0 w-full h-1 bg-amber-400 animate-pulse" />}
+            {showAttention && <div className="absolute top-0 left-0 w-full h-1 bg-amber-400 animate-pulse" />}
             
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
@@ -203,10 +205,10 @@ const JobCard = memo(({
                            <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
                        </div>
                    )}
-                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (timeInfo.isAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700') : 'bg-slate-100 text-slate-400'}`}>
-                       <MapPin size={14} className={revealJobStatus ? (timeInfo.isAttention ? 'text-amber-500' : 'text-blue-400') : 'text-slate-400'} />
+                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (showAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700') : 'bg-slate-100 text-slate-400'}`}>
+                       <MapPin size={14} className={revealJobStatus ? (showAttention ? 'text-amber-500' : 'text-blue-400') : 'text-slate-400'} />
                        <span className="text-xs font-bold truncate max-w-[100px]">{revealJobStatus ? (job.currentSector || 'Recepção') : 'Indisponível'}</span>
-                       {revealJobStatus && <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>}
+                       {revealJobStatus && !isClient && <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>}
                    </div>
                    {(() => {
                         const originInfo = getJobOriginInfo(job);
@@ -800,7 +802,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                         <th className="p-4">Origem</th>
                         <th className="p-4">Dentista</th>
                         <th className="p-4">Status</th>
-                        <th className="p-4">Setor/Tempo</th>
+                        <th className="p-4">{isClient ? 'Setor' : 'Setor/Tempo'}</th>
                         <th className="p-4">Entrega</th>
                         <th className="p-4 text-right">Ações</th>
                     </tr>
