@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.sendTwilioWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -637,9 +637,10 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
             }
             await writeBatch.commit();
         }
+        // Pre-generate the jobId to include in externalReference
+        const newJobId = `web_${Date.now()}`;
         // If totalValue is 0 (e.g. fully paid by vouchers or 100% discount)
         if (jobData.totalValue === 0) {
-            const newJobId = `web_${Date.now()}`;
             const newJobData = Object.assign(Object.assign({}, jobData), { id: newJobId, paymentStatus: (jobData.vouchersUsed && jobData.vouchersUsed.length > 0) ? 'VOUCHER' : 'PAID' });
             await db.collection("organizations")
                 .doc(jobData.organizationId)
@@ -655,6 +656,7 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
             value: jobData.totalValue,
             dueDate: new Date().toISOString().split("T")[0],
             description: `Pedido Loja - ${jobData.organizationId}`,
+            externalReference: `${jobData.organizationId}___order___${newJobId}`,
         };
         if (paymentData.successUrl) {
             payload.callback = {
@@ -699,7 +701,6 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
                 console.error("Erro ao buscar QR Code do PIX:", err.message);
             }
         }
-        const newJobId = `web_${Date.now()}`;
         const isPaidImmediately = payRes.data.status === 'CONFIRMED' || payRes.data.status === 'RECEIVED';
         const newJobData = Object.assign(Object.assign({}, jobData), { id: newJobId, asaasPaymentId: payRes.data.id, paymentStatus: isPaidImmediately ? 'PAID' : 'PENDING' });
         await db.collection("organizations")
@@ -1051,21 +1052,40 @@ exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
         if (isPaid) {
             const ref = ((_b = event.payment) === null || _b === void 0 ? void 0 : _b.externalReference) || "";
             if (ref.includes("___")) {
-                const [orgId, id] = ref.split("___");
-                if (id.startsWith("batch_")) {
-                    await db.collection("organizations")
-                        .doc(orgId).collection("billingBatches").doc(id)
-                        .update({ status: "PAID" });
-                    const batchSnap = await db.collection("organizations")
-                        .doc(orgId).collection("billingBatches").doc(id).get();
-                    const jobIds = ((_c = batchSnap.data()) === null || _c === void 0 ? void 0 : _c.jobIds) || [];
-                    const writeBatch = db.batch();
-                    jobIds.forEach((jid) => {
-                        const jRef = db.collection("organizations")
-                            .doc(orgId).collection("jobs").doc(jid);
-                        writeBatch.update(jRef, { paymentStatus: "PAID" });
-                    });
-                    await writeBatch.commit();
+                const parts = ref.split("___");
+                if (parts.length === 3 && parts[1] === "order") {
+                    const orgId = parts[0];
+                    const jobId = parts[2];
+                    const jobRef = db.collection("organizations")
+                        .doc(orgId)
+                        .collection("jobs")
+                        .doc(jobId);
+                    const jobSnap = await jobRef.get();
+                    if (jobSnap.exists) {
+                        const jobData = jobSnap.data() || {};
+                        if (jobData.paymentStatus !== "PAID") {
+                            await jobRef.update({ paymentStatus: "PAID" });
+                        }
+                        await generateVouchersForJob(db, Object.assign(Object.assign({}, jobData), { paymentStatus: "PAID" }), jobId);
+                    }
+                }
+                else {
+                    const [orgId, id] = parts;
+                    if (id.startsWith("batch_")) {
+                        await db.collection("organizations")
+                            .doc(orgId).collection("billingBatches").doc(id)
+                            .update({ status: "PAID" });
+                        const batchSnap = await db.collection("organizations")
+                            .doc(orgId).collection("billingBatches").doc(id).get();
+                        const jobIds = ((_c = batchSnap.data()) === null || _c === void 0 ? void 0 : _c.jobIds) || [];
+                        const writeBatch = db.batch();
+                        jobIds.forEach((jid) => {
+                            const jRef = db.collection("organizations")
+                                .doc(orgId).collection("jobs").doc(jid);
+                            writeBatch.update(jRef, { paymentStatus: "PAID" });
+                        });
+                        await writeBatch.commit();
+                    }
                 }
             }
             else if (customerId && ((_d = event.payment) === null || _d === void 0 ? void 0 : _d.subscription)) {
@@ -1296,12 +1316,23 @@ exports.syncStoreOrders = (0, https_1.onCall)(async (request) => {
         else if (clientId) {
             const orgsSnap = await db.collection("organizations").get();
             const jobsPromises = orgsSnap.docs.map(async (orgDoc) => {
-                const snap = await db.collection("organizations")
+                const snap1 = await db.collection("organizations")
+                    .doc(orgDoc.id)
+                    .collection("jobs")
+                    .where("dentistId", "==", clientId)
+                    .get();
+                const snap2 = await db.collection("organizations")
                     .doc(orgDoc.id)
                     .collection("jobs")
                     .where("dentistUserId", "==", clientId)
                     .get();
-                return snap.docs;
+                const combined = [...snap1.docs];
+                snap2.docs.forEach((doc) => {
+                    if (!combined.some((d) => d.id === doc.id)) {
+                        combined.push(doc);
+                    }
+                });
+                return combined;
             });
             const jobsSnaps = await Promise.all(jobsPromises);
             const flatDocs = jobsSnaps.flat();
@@ -1453,6 +1484,79 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
     catch (error) {
         logger.error("Error in optimizeAndUploadImage:", error);
         throw new https_1.HttpsError("internal", error.message);
+    }
+});
+/**
+ * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO TWILIO (SERVER-SIDE PROXY)
+ */
+exports.sendTwilioWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
+    var _a, _b, _c;
+    const { to, body, orgId } = request.data;
+    if (!to || !body) {
+        throw new https_1.HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
+    }
+    // 1. Chaves de credenciais (prioriza variáveis de ambiente)
+    let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
+    let authToken = process.env.TWILIO_AUTH_TOKEN || "";
+    let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886"; // sandbox default
+    // 2. Tenta carregar credenciais customizadas da organização caso configuradas
+    if (orgId) {
+        try {
+            const db = admin.firestore();
+            const orgSnap = await db.collection("organizations").doc(orgId).get();
+            if (orgSnap.exists) {
+                const orgData = orgSnap.data();
+                if (orgData === null || orgData === void 0 ? void 0 : orgData.twilioSettings) {
+                    if (orgData.twilioSettings.accountSid)
+                        accountSid = orgData.twilioSettings.accountSid;
+                    if (orgData.twilioSettings.authToken)
+                        authToken = orgData.twilioSettings.authToken;
+                    if (orgData.twilioSettings.fromNumber)
+                        fromNumber = orgData.twilioSettings.fromNumber;
+                }
+            }
+        }
+        catch (err) {
+            logger.error("Erro ao carregar configurações do Twilio da organização:", err.message);
+        }
+    }
+    // 3. Fallback / Modo Simulado se as credenciais não estiverem configuradas
+    if (!accountSid || !authToken || accountSid === "your_twilio_account_sid_here" || authToken === "your_twilio_auth_token_here") {
+        logger.info(`[Twilio Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
+        return {
+            success: true,
+            sid: "SM_simulated_" + Math.random().toString(36).substring(2, 12),
+            simulated: true,
+            message: `WhatsApp enviado via simulador: ${body}`
+        };
+    }
+    // 4. Chamada HTTP real para a API do Twilio
+    try {
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+        // Twilio espera application/x-www-form-urlencoded
+        const params = new URLSearchParams();
+        params.append("To", to.startsWith("whatsapp:") ? to : `whatsapp:${to}`);
+        params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
+        params.append("Body", body);
+        const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+        logger.info(`Enviando mensagem WhatsApp Twilio real para ${to}...`);
+        const response = await axios_1.default.post(twilioUrl, params.toString(), {
+            headers: {
+                "Authorization": authHeader,
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+        });
+        logger.info(`Mensagem real enviada com sucesso! SID: ${response.data.sid}`);
+        return {
+            success: true,
+            sid: response.data.sid,
+            simulated: false
+        };
+    }
+    catch (error) {
+        const errorMsg = ((_b = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || error.message;
+        logger.error(`Erro ao enviar mensagem via Twilio real: ${errorMsg}`, (_c = error.response) === null || _c === void 0 ? void 0 : _c.data);
+        throw new https_1.HttpsError("internal", `Erro no Twilio: ${errorMsg}`);
     }
 });
 //# sourceMappingURL=index.js.map

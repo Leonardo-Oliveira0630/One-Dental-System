@@ -4,14 +4,15 @@ import { DeliveryRoute, RouteItem, Job, ManualDentist, User, Courier } from '../
 import { 
   Truck, Calendar, Clock, Plus, Printer, Trash2, CheckCircle, 
   MapPin, Search, ChevronRight, X, User as UserIcon, Building, Loader2, Save, GripVertical, Navigation,
-  Phone, Shield, ShieldAlert, Check, ToggleLeft, ToggleRight, UserPlus, ChevronUp, ChevronDown
+  Phone, Shield, ShieldAlert, Check, ToggleLeft, ToggleRight, UserPlus, ChevronDown, ChevronUp
 } from 'lucide-react';
 import * as api from '../../services/firebaseService';
+import { notifyJobLogistics } from '../../services/twilioService';
 
 export const RoutePlanner = () => {
     const { 
         currentOrg, manualDentists, allUsers, triggerRoutePrint, currentUser,
-        couriers, addCourier, updateCourier, deleteCourier
+        couriers, addCourier, updateCourier, deleteCourier, jobs
     } = useApp();
     
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -153,6 +154,22 @@ export const RoutePlanner = () => {
     const handleUpdateStatus = async (status: DeliveryRoute['status']) => {
         if (!activeRoute || !currentOrg || !canEdit) return;
         await api.apiUpdateRoute(currentOrg.id, activeRoute.id, { status });
+
+        // Enviar WhatsApp para todos os casos da rota quando iniciar (IN_TRANSIT)
+        if (status === 'IN_TRANSIT') {
+            for (const item of routeItems) {
+                if (item.type === 'DELIVERY' && item.jobId) {
+                    const job = jobs.find(j => j.id === item.jobId);
+                    if (job) {
+                        const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
+                        const dentistPhone = dentist?.phone || '';
+                        if (dentistPhone) {
+                            await notifyJobLogistics(job, 'SHIPPED', dentistPhone, dentist?.name || 'Dentista').catch(e => console.warn(e));
+                        }
+                    }
+                }
+            }
+        }
     };
 
     const handleAddCourierSubmit = async (e: React.FormEvent) => {

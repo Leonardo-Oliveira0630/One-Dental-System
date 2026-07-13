@@ -965,7 +965,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const addAppointment = async (a: Omit<Appointment, 'id' | 'organizationId'>) => {
       const orgId = currentUser?.organizationId;
       if(!orgId) return;
-      await api.apiAddAppointment(orgId, { ...a, id: `app_${Date.now()}`, organizationId: orgId } as Appointment);
+      const newAppointment = { ...a, id: `app_${Date.now()}`, organizationId: orgId } as Appointment;
+      await api.apiAddAppointment(orgId, newAppointment);
+
+      // Notificação de Confirmação de Consulta
+      const patient = patients.find(p => p.id === a.patientId);
+      const dentist = clinicDentists.find(d => d.id === a.dentistId);
+      if (patient && patient.phone && dentist) {
+          await notifyAppointmentCreated(newAppointment, patient, dentist.name);
+      }
   }
   const updateAppointment = async (id: string, u: Partial<Appointment>) => {
       const orgId = currentUser?.organizationId;
@@ -983,7 +991,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const registerDentist = async (e: string, p: string, n: string, clinicName: string, planId: string, trialEndsAt?: Date, couponCode?: string, address?: any) => await api.apiRegisterDentist(e, p, n, clinicName, planId, trialEndsAt, couponCode, address);
   const registerSupplier = async (e: string, p: string, on: string, orn: string, pid: string, t: Date | undefined, c: string | undefined, address?: any) => await api.apiRegisterSupplier(e, p, on, orn, pid, t, c, address);
   const addSupplierOrder = async (order: import('../types').SupplierOrder) => await api.apiAddSupplierOrder(order);
-  const updateSupplierOrder = async (id: string, updates: Partial<import('../types').SupplierOrder>) => await api.apiUpdateSupplierOrder(id, updates);
+  const updateSupplierOrder = async (id: string, updates: Partial<import('../types').SupplierOrder>) => {
+      await api.apiUpdateSupplierOrder(id, updates);
+      
+      // WhatsApp Notifications
+      if (updates.status === 'CONFIRMED' || updates.status === 'SHIPPED' || updates.status === 'DELIVERED') {
+          const order = supplierOrders.find(o => o.id === id);
+          if (order && order.buyerPhone) {
+              await notifySupplierOrder({ ...order, ...updates } as any, updates.status as 'CONFIRMED' | 'SHIPPED' | 'DELIVERED', order.buyerPhone);
+          }
+      }
+  };
   const validateCro = async (uf: string, numero: string, categoria: string) => await api.apiValidateCro(uf, numero, categoria);
   const addSubscriptionPlan = async (p: SubscriptionPlan) => await api.apiAddSubscriptionPlan(p);
   const updateSubscriptionPlan = async (id: string, u: Partial<SubscriptionPlan>) => await api.apiUpdateSubscriptionPlan(id, u);
