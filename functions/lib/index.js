@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.twilioWebhook = exports.onSupplierOrderUpdated = exports.onJobUpdated = exports.onAppointmentCreated = exports.sendTwilioWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.twilioWebhook = exports.onSupplierOrderUpdated = exports.onDeliveryRouteUpdated = exports.onAppointmentCreated = exports.sendTwilioWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
@@ -1698,34 +1698,57 @@ exports.onAppointmentCreated = (0, firestore_1.onDocumentCreated)("organizations
         time: timeStr
     }, phone);
 });
-exports.onJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/jobs/{jobId}", async (event) => {
+exports.onDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/deliveryRoutes/{routeId}", async (event) => {
     var _a, _b, _c, _d;
     const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
     if (!before || !after)
         return;
-    if (before.status !== "DISPATCHED" && after.status === "DISPATCHED") {
+    if (before.status !== "IN_TRANSIT" && after.status === "IN_TRANSIT") {
         const orgId = event.params.orgId;
         const db = admin.firestore();
-        let phone = "";
-        let dentistName = after.dentistName || "Doutor(a)";
-        if (after.dentistUserId) {
-            const dSnap = await db.collection("users").doc(after.dentistUserId).get();
-            if (dSnap.exists)
-                phone = ((_c = dSnap.data()) === null || _c === void 0 ? void 0 : _c.phone) || "";
-        }
-        else if (after.dentistId) {
-            const dSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(after.dentistId).get();
-            if (dSnap.exists)
-                phone = ((_d = dSnap.data()) === null || _d === void 0 ? void 0 : _d.phone) || "";
-        }
-        if (!phone)
+        // Obter items da rota
+        const itemsSnap = await db.collection("organizations").doc(orgId).collection("deliveryRoutes").doc(event.params.routeId).collection("routeItems").get();
+        if (itemsSnap.empty)
             return;
-        await getTemplateAndSend(orgId, "LAB_DISPATCH", {
-            patient_name: after.patientName || "Paciente",
-            dentist_name: dentistName,
-            job_id: event.params.jobId
-        }, phone);
+        const items = itemsSnap.docs.map((doc) => doc.data());
+        // Agrupar por dentista
+        const jobsByDentist = {};
+        for (const item of items) {
+            if (item.type !== "DELIVERY")
+                continue; // só queremos avisar de entregas, não de coletas? Opcional
+            const dId = item.dentistId;
+            if (!jobsByDentist[dId]) {
+                jobsByDentist[dId] = {
+                    dentistName: item.dentistName,
+                    dentistId: dId,
+                    jobs: [],
+                    isAppUser: !!item.clinicName // Heuristic or we will fetch it
+                };
+            }
+            jobsByDentist[dId].jobs.push(`- ${item.patientName || "Paciente"} (OS: ${item.jobId || "Sem número"})`);
+        }
+        for (const dId of Object.keys(jobsByDentist)) {
+            const info = jobsByDentist[dId];
+            let phone = "";
+            // Try users first
+            let userSnap = await db.collection("users").doc(dId).get();
+            if (userSnap.exists) {
+                phone = ((_c = userSnap.data()) === null || _c === void 0 ? void 0 : _c.phone) || "";
+            }
+            else {
+                let manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
+                if (manualSnap.exists)
+                    phone = ((_d = manualSnap.data()) === null || _d === void 0 ? void 0 : _d.phone) || "";
+            }
+            if (!phone)
+                continue;
+            const jobsListStr = info.jobs.join("\n");
+            await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+                dentist_name: info.dentistName,
+                jobs_list: jobsListStr
+            }, phone);
+        }
     }
 });
 exports.onSupplierOrderUpdated = (0, firestore_1.onDocumentUpdated)("supplierOrders/{orderId}", async (event) => {

@@ -22,8 +22,8 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
     },
     LAB: {
       type: 'LAB_DISPATCH',
-      name: 'Pedido saiu para entrega',
-      body: 'Olá Dr(a) {{dentist_name}}, o pedido do paciente {{patient_name}} (OS: {{job_id}}) acabou de sair para entrega e logo chegará em seu consultório!'
+      name: 'Pedidos em Trânsito (Rota)',
+      body: 'Olá Dr(a) {{dentist_name}}, os seguintes trabalhos acabaram de sair para entrega em seu consultório:\n\n{{jobs_list}}'
     },
     SUPPLIER: {
       type: 'SUPPLIER_UPDATE',
@@ -170,7 +170,7 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
               <textarea
                 value={editForm.body}
                 onChange={e => setEditForm({ ...editForm, body: e.target.value })}
-                placeholder="Corpo da Mensagem. Variáveis suportadas: {{patient_name}}, {{dentist_name}}, {{job_id}}, {{date}}, {{time}}"
+                placeholder="Corpo da Mensagem. Variáveis suportadas: {{patient_name}}, {{dentist_name}}, {{job_id}}, {{jobs_list}}, {{date}}, {{time}}"
                 className="w-full p-2 border border-slate-200 rounded-lg outline-none focus:border-blue-500 min-h-[100px] bg-white"
               />
               <div className="flex items-center gap-2">

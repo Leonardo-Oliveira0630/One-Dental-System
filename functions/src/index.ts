@@ -1882,32 +1882,60 @@ export const onAppointmentCreated = onDocumentCreated("organizations/{orgId}/app
   }, phone);
 });
 
-export const onJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{jobId}", async (event: any) => {
+export const onDeliveryRouteUpdated = onDocumentUpdated("organizations/{orgId}/deliveryRoutes/{routeId}", async (event: any) => {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!before || !after) return;
   
-  if (before.status !== "DISPATCHED" && after.status === "DISPATCHED") {
+  if (before.status !== "IN_TRANSIT" && after.status === "IN_TRANSIT") {
      const orgId = event.params.orgId;
      const db = admin.firestore();
-     let phone = "";
-     let dentistName = after.dentistName || "Doutor(a)";
      
-     if (after.dentistUserId) {
-        const dSnap = await db.collection("users").doc(after.dentistUserId).get();
-        if (dSnap.exists) phone = (dSnap.data() as any)?.phone || "";
-     } else if (after.dentistId) {
-        const dSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(after.dentistId).get();
-        if (dSnap.exists) phone = (dSnap.data() as any)?.phone || "";
+     // Obter items da rota
+     const itemsSnap = await db.collection("organizations").doc(orgId).collection("deliveryRoutes").doc(event.params.routeId).collection("routeItems").get();
+     if (itemsSnap.empty) return;
+     
+     const items = itemsSnap.docs.map((doc: any) => doc.data());
+     
+     // Agrupar por dentista
+     const jobsByDentist: Record<string, { dentistName: string, jobs: string[], dentistId: string, isAppUser: boolean }> = {};
+     
+     for (const item of items) {
+       if (item.type !== "DELIVERY") continue; // só queremos avisar de entregas, não de coletas? Opcional
+       const dId = item.dentistId;
+       if (!jobsByDentist[dId]) {
+         jobsByDentist[dId] = {
+           dentistName: item.dentistName,
+           dentistId: dId,
+           jobs: [],
+           isAppUser: !!item.clinicName // Heuristic or we will fetch it
+         };
+       }
+       jobsByDentist[dId].jobs.push(`- ${item.patientName || "Paciente"} (OS: ${item.jobId || "Sem número"})`);
      }
      
-     if (!phone) return;
-     
-     await getTemplateAndSend(orgId, "LAB_DISPATCH", {
-       patient_name: after.patientName || "Paciente",
-       dentist_name: dentistName,
-       job_id: event.params.jobId
-     }, phone);
+     for (const dId of Object.keys(jobsByDentist)) {
+       const info = jobsByDentist[dId];
+       let phone = "";
+       
+       // Try users first
+       let userSnap = await db.collection("users").doc(dId).get();
+       if (userSnap.exists) {
+         phone = (userSnap.data() as any)?.phone || "";
+       } else {
+         let manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
+         if (manualSnap.exists) phone = (manualSnap.data() as any)?.phone || "";
+       }
+       
+       if (!phone) continue;
+       
+       const jobsListStr = info.jobs.join("\n");
+       
+       await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+         dentist_name: info.dentistName,
+         jobs_list: jobsListStr
+       }, phone);
+     }
   }
 });
 
