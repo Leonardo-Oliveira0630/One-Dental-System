@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ycloudWebhook = exports.onSupplierOrderUpdated = exports.onDeliveryRouteUpdated = exports.onAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.onJobUpdated = exports.ycloudWebhook = exports.onSupplierOrderUpdated = exports.onDeliveryRouteUpdated = exports.onAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
@@ -1853,6 +1853,38 @@ exports.ycloudWebhook = (0, https_1.onRequest)(async (req, res) => {
     catch (error) {
         logger.error("Erro no ycloudWebhook", error);
         res.status(200).send("Erro");
+    }
+});
+exports.onJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/jobs/{jobId}", async (event) => {
+    var _a, _b, _c, _d, _e;
+    const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
+    const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
+    if (!before || !after)
+        return;
+    if (before.status !== "DELIVERED" && after.status === "DELIVERED") {
+        const orgId = event.params.orgId;
+        const db = admin.firestore();
+        let phone = "";
+        // Try users first
+        const dId = after.dentistId;
+        let userSnap = await db.collection("users").doc(dId).get();
+        if (userSnap.exists) {
+            phone = ((_c = userSnap.data()) === null || _c === void 0 ? void 0 : _c.phone) || "";
+        }
+        else {
+            // Manual
+            const manualSnap = await db.collection("organizations").doc(orgId).collection("dentists").doc(dId).get();
+            if (manualSnap.exists) {
+                phone = ((_d = manualSnap.data()) === null || _d === void 0 ? void 0 : _d.phone) || "";
+            }
+        }
+        if (phone) {
+            const osNumber = after.osNumber || ((_e = after.id) === null || _e === void 0 ? void 0 : _e.substring(after.id.length - 6).toUpperCase()) || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
+            await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+                dentist_name: after.dentistName || "Dentista",
+                jobs_list: `- ${after.patientName} (OS: ${osNumber})`
+            }, phone);
+        }
     }
 });
 //# sourceMappingURL=index.js.map
