@@ -33,9 +33,6 @@ export interface MarketplaceCategory {
 export interface GlobalSettings {
   platformCommission: number;
   whatsappModulePrice?: number;
-  twilioAccountSid?: string;
-  twilioAuthToken?: string;
-  twilioFromNumber?: string;
   marketplaceBanners?: MarketplaceBannerConfig[];
   officialStoresIds?: string[];
   marketplaceCategories?: MarketplaceCategory[];
