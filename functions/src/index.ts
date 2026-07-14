@@ -1155,11 +1155,17 @@ export const toggleWhatsappModule = onCall(async (request: any) => {
       }
       
       // Update asaas subscription
-      await axios.post(`${url}/subscriptions/${subId}`, {
-        value: newValue
-      }, {
-        headers: { access_token: key }
-      });
+      try {
+        await axios.post(`${url}/subscriptions/${subId}`, {
+          value: newValue,
+          updatePendingPayments: true
+        }, {
+          headers: { access_token: key }
+        });
+      } catch (asaasErr: any) {
+        logger.error("Erro Asaas (toggleWhatsappModule):", asaasErr.response?.data || asaasErr.message);
+        throw new Error("Erro na API do Asaas: " + (asaasErr.response?.data?.errors?.[0]?.description || asaasErr.message));
+      }
     }
 
     await orgRef.update({

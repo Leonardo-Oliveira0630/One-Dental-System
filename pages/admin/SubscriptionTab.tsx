@@ -29,9 +29,9 @@ export const SubscriptionTab = () => {
           try {
               await api.apiToggleWhatsappModule(currentOrg.id, true);
               alert('Módulo WhatsApp ativado com sucesso!');
-          } catch (error) {
+          } catch (error: any) {
               console.error(error);
-              alert('Erro ao ativar módulo. Verifique se você possui uma assinatura ativa.');
+              alert('Erro ao ativar módulo: ' + (error.message || 'Verifique se você possui uma assinatura ativa.'));
           } finally {
               setIsActivatingWhatsapp(false);
           }
@@ -45,9 +45,9 @@ export const SubscriptionTab = () => {
           try {
               await api.apiToggleWhatsappModule(currentOrg.id, false);
               alert('Módulo WhatsApp desativado com sucesso!');
-          } catch (error) {
+          } catch (error: any) {
               console.error(error);
-              alert('Erro ao desativar módulo.');
+              alert('Erro ao desativar módulo: ' + (error.message || ''));
           } finally {
               setIsActivatingWhatsapp(false);
           }
