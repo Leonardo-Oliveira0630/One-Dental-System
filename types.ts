@@ -125,9 +125,8 @@ export interface Organization {
   isApproved?: boolean;
   revealJobStatusToDentist?: boolean;
   hasWhatsappModule?: boolean;
-  twilioSettings?: {
-    accountSid?: string;
-    authToken?: string;
+  ycloudSettings?: {
+    apiKey?: string;
     fromNumber?: string;
   };
   whatsappTemplates?: {

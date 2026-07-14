@@ -28,6 +28,7 @@
     "@google/genai": "*",
     "@react-three/drei": "^9.96.1",
     "@react-three/fiber": "^8.15.12",
+    "@ycloud-cpaas/ycloud-sdk-node": "^1.16.2",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
     "axios": "^1.6.8",

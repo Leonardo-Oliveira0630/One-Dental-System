@@ -28,9 +28,8 @@ export const ClinicSettings = () => {
   const [city, setCity] = useState(currentOrg?.city || '');
   const [state, setState] = useState(currentOrg?.state || '');
   const [loadingCep, setLoadingCep] = useState(false);
-  const [twilioAccountSid, setTwilioAccountSid] = useState(currentOrg?.twilioSettings?.accountSid || '');
-  const [twilioAuthToken, setTwilioAuthToken] = useState(currentOrg?.twilioSettings?.authToken || '');
-  const [twilioFromNumber, setTwilioFromNumber] = useState(currentOrg?.twilioSettings?.fromNumber || '');
+  const [ycloudApiKey, setYcloudApiKey] = useState(currentOrg?.ycloudSettings?.apiKey || '');
+    const [ycloudFromNumber, setYcloudFromNumber] = useState(currentOrg?.ycloudSettings?.fromNumber || '');
 
   // Sync with currentOrg updates
   useEffect(() => {
@@ -45,9 +44,8 @@ export const ClinicSettings = () => {
       setNeighborhood(currentOrg.neighborhood || '');
       setCity(currentOrg.city || '');
       setState(currentOrg.state || '');
-      setTwilioAccountSid(currentOrg.twilioSettings?.accountSid || '');
-      setTwilioAuthToken(currentOrg.twilioSettings?.authToken || '');
-      setTwilioFromNumber(currentOrg.twilioSettings?.fromNumber || '');
+      setYcloudApiKey(currentOrg.ycloudSettings?.apiKey || '');
+            setYcloudFromNumber(currentOrg.ycloudSettings?.fromNumber || '');
     }
   }, [currentOrg, currentUser]);
   
@@ -160,10 +158,9 @@ export const ClinicSettings = () => {
           neighborhood,
           city,
           state,
-          twilioSettings: {
-            accountSid: twilioAccountSid.trim(),
-            authToken: twilioAuthToken.trim(),
-            fromNumber: twilioFromNumber.trim()
+          ycloudSettings: {
+            apiKey: ycloudApiKey.trim(),
+                        fromNumber: ycloudFromNumber.trim()
           },
           financialSettings: {
               ...(currentOrg.financialSettings || {}),
@@ -294,7 +291,7 @@ export const ClinicSettings = () => {
                          </div>
                      </div>
 
-                     {/* Seção 3: Twilio / WhatsApp */}
+                     {/* Seção 3: Ycloud / WhatsApp */}
                      {currentOrg?.hasWhatsappModule && (
                          <div className="pt-6 border-t border-slate-100">
                              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">

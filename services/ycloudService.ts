@@ -21,7 +21,7 @@ export interface WhatsappMessage {
 }
 
 /**
- * Envia uma notificação de WhatsApp via API do Twilio (usando Cloud Function)
+ * Envia uma notificação de WhatsApp via API do Ycloud (usando Cloud Function)
  * e registra o log na coleção sandbox do Firestore para fins de demonstração/controle.
  */
 export async function sendWhatsappNotification(params: {
@@ -54,13 +54,13 @@ export async function sendWhatsappNotification(params: {
   try {
     await setDoc(doc(db, `organizations/${orgId}/whatsapp_messages`, msgId), msgDoc);
   } catch (err) {
-    console.warn("[TwilioService] Erro ao salvar mensagem no Firestore sandbox:", err);
+    console.warn("[YcloudService] Erro ao salvar mensagem no Firestore sandbox:", err);
   }
 
-  // 2. Chamar Cloud Function real para envio via Twilio
+  // 2. Chamar Cloud Function real para envio via Ycloud
   try {
-    const sendTwilioFn = httpsCallable(functions, 'sendTwilioWhatsApp');
-    const result = await sendTwilioFn({
+    const sendYcloudFn = httpsCallable(functions, 'sendYcloudWhatsApp');
+    const result = await sendYcloudFn({
       to: msgDoc.to,
       body: msgDoc.body,
       orgId
@@ -77,7 +77,7 @@ export async function sendWhatsappNotification(params: {
     
     return result.data;
   } catch (error: any) {
-    console.warn("[TwilioService] Erro no envio real pelo Twilio. Mantendo simulador ativo:", error.message);
+    console.warn("[YcloudService] Erro no envio real pelo Ycloud. Mantendo simulador ativo:", error.message);
     
     // Fallback: Atualiza para entregue de forma simulada
     try {

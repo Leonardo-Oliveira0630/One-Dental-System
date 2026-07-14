@@ -8,7 +8,7 @@ import {
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
-import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/twilioService';
+import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/ycloudService';
 
 import * as authPkg from 'firebase/auth';
 import * as firestorePkg from 'firebase/firestore';

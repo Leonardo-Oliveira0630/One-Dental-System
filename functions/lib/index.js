@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.twilioWebhook = exports.onSupplierOrderUpdated = exports.onDeliveryRouteUpdated = exports.onAppointmentCreated = exports.sendTwilioWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.ycloudWebhook = exports.onSupplierOrderUpdated = exports.onDeliveryRouteUpdated = exports.onAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
@@ -1545,42 +1545,36 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
     }
 });
 /**
- * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO TWILIO (SERVER-SIDE PROXY)
+ * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
-exports.sendTwilioWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
-    var _a, _b, _c;
+exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
+    var _a, _b, _c, _d, _e, _f;
     const { to, body, orgId } = request.data;
     if (!to || !body) {
         throw new https_1.HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
     }
-    // 1. Chaves de credenciais (prioriza variáveis de ambiente)
-    let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
-    let authToken = process.env.TWILIO_AUTH_TOKEN || "";
-    let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886"; // sandbox default
-    // 2. Tenta carregar credenciais customizadas da organização caso configuradas
+    let apiKey = process.env.YCLOUD_API_KEY || "";
+    let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
     if (orgId) {
         try {
             const db = admin.firestore();
             const orgSnap = await db.collection("organizations").doc(orgId).get();
             if (orgSnap.exists) {
                 const orgData = orgSnap.data();
-                if (orgData === null || orgData === void 0 ? void 0 : orgData.twilioSettings) {
-                    if (orgData.twilioSettings.accountSid)
-                        accountSid = orgData.twilioSettings.accountSid;
-                    if (orgData.twilioSettings.authToken)
-                        authToken = orgData.twilioSettings.authToken;
-                    if (orgData.twilioSettings.fromNumber)
-                        fromNumber = orgData.twilioSettings.fromNumber;
+                if (orgData === null || orgData === void 0 ? void 0 : orgData.ycloudSettings) {
+                    if (orgData.ycloudSettings.apiKey)
+                        apiKey = orgData.ycloudSettings.apiKey;
+                    if (orgData.ycloudSettings.fromNumber)
+                        fromNumber = orgData.ycloudSettings.fromNumber;
                 }
             }
         }
         catch (err) {
-            logger.error("Erro ao carregar configurações do Twilio da organização:", err.message);
+            logger.error("Erro ao carregar configurações Ycloud da organização:", err.message);
         }
     }
-    // 3. Fallback / Modo Simulado se as credenciais não estiverem configuradas
-    if (!accountSid || !authToken || accountSid === "your_twilio_account_sid_here" || authToken === "your_twilio_auth_token_here") {
-        logger.info(`[Twilio Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
+    if (!apiKey || apiKey === "your_ycloud_api_key_here") {
+        logger.info(`[Ycloud Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
         return {
             success: true,
             sid: "SM_simulated_" + Math.random().toString(36).substring(2, 12),
@@ -1588,33 +1582,35 @@ exports.sendTwilioWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
             message: `WhatsApp enviado via simulador: ${body}`
         };
     }
-    // 4. Chamada HTTP real para a API do Twilio
     try {
-        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-        // Twilio espera application/x-www-form-urlencoded
-        const params = new URLSearchParams();
-        params.append("To", to.startsWith("whatsapp:") ? to : `whatsapp:${to}`);
-        params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
-        params.append("Body", body);
-        const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-        logger.info(`Enviando mensagem WhatsApp Twilio real para ${to}...`);
-        const response = await axios_1.default.post(twilioUrl, params.toString(), {
+        const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
+        const cleanTo = to.replace(/\D/g, "");
+        const cleanFrom = fromNumber.replace(/\D/g, "");
+        logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
+        const response = await axios_1.default.post(ycloudUrl, {
+            to: `+${cleanTo}`,
+            from: `+${cleanFrom}`,
+            type: "text",
+            text: {
+                body: body
+            }
+        }, {
             headers: {
-                "Authorization": authHeader,
-                "Content-Type": "application/x-www-form-urlencoded"
+                "X-API-Key": apiKey,
+                "Content-Type": "application/json"
             }
         });
-        logger.info(`Mensagem real enviada com sucesso! SID: ${response.data.sid}`);
+        logger.info(`Mensagem real enviada com sucesso! ID: ${response.data.id}`);
         return {
             success: true,
-            sid: response.data.sid,
+            sid: response.data.id,
             simulated: false
         };
     }
     catch (error) {
-        const errorMsg = ((_b = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || error.message;
-        logger.error(`Erro ao enviar mensagem via Twilio real: ${errorMsg}`, (_c = error.response) === null || _c === void 0 ? void 0 : _c.data);
-        throw new https_1.HttpsError("internal", `Erro no Twilio: ${errorMsg}`);
+        const errorMsg = ((_b = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || ((_e = (_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.message) || error.message;
+        logger.error(`Erro ao enviar mensagem via Ycloud real: ${errorMsg}`, (_f = error.response) === null || _f === void 0 ? void 0 : _f.data);
+        throw new https_1.HttpsError("internal", `Erro no Ycloud: ${errorMsg}`);
     }
 });
 /**
@@ -1636,32 +1632,33 @@ async function getTemplateAndSend(orgId, type, variables, toNumber) {
     for (const [key, value] of Object.entries(variables)) {
         body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
     }
-    let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
-    let authToken = process.env.TWILIO_AUTH_TOKEN || "";
-    let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886";
-    if (org.twilioSettings) {
-        if (org.twilioSettings.accountSid)
-            accountSid = org.twilioSettings.accountSid;
-        if (org.twilioSettings.authToken)
-            authToken = org.twilioSettings.authToken;
-        if (org.twilioSettings.fromNumber)
-            fromNumber = org.twilioSettings.fromNumber;
+    let apiKey = process.env.YCLOUD_API_KEY || "";
+    let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
+    if (org.ycloudSettings) {
+        if (org.ycloudSettings.apiKey)
+            apiKey = org.ycloudSettings.apiKey;
+        if (org.ycloudSettings.fromNumber)
+            fromNumber = org.ycloudSettings.fromNumber;
     }
-    if (!accountSid || accountSid === "your_twilio_account_sid_here") {
+    if (!apiKey || apiKey === "your_ycloud_api_key_here") {
         logger.info(`[Simulado] WhatsApp Automático para ${toNumber}: ${body}`);
         return;
     }
     try {
-        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-        const params = new URLSearchParams();
-        params.append("To", toNumber.startsWith("whatsapp:") ? toNumber : `whatsapp:${toNumber}`);
-        params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
-        params.append("Body", body);
-        const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-        await axios_1.default.post(twilioUrl, params.toString(), {
+        const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
+        const cleanTo = toNumber.replace(/\D/g, "");
+        const cleanFrom = fromNumber.replace(/\D/g, "");
+        await axios_1.default.post(ycloudUrl, {
+            to: `+${cleanTo}`,
+            from: `+${cleanFrom}`,
+            type: "text",
+            text: {
+                body: body
+            }
+        }, {
             headers: {
-                "Authorization": authHeader,
-                "Content-Type": "application/x-www-form-urlencoded"
+                "X-API-Key": apiKey,
+                "Content-Type": "application/json"
             }
         });
         logger.info(`Notificação enviada com sucesso para ${toNumber}`);
@@ -1687,7 +1684,7 @@ exports.onAppointmentCreated = (0, firestore_1.onDocumentCreated)("organizations
     const dateStr = new Date(appointment.date).toLocaleDateString("pt-BR");
     const timeStr = appointment.startTime;
     const cleanPhone = phone.replace(/\D/g, "");
-    await db.collection("twilioSessions").doc(cleanPhone).set({
+    await db.collection("ycloudSessions").doc(cleanPhone).set({
         appointmentId: event.params.appointmentId,
         orgId: orgId,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -1779,65 +1776,83 @@ exports.onSupplierOrderUpdated = (0, firestore_1.onDocumentUpdated)("supplierOrd
         }, phone);
     }
 });
-exports.twilioWebhook = (0, https_1.onRequest)(async (req, res) => {
+exports.ycloudWebhook = (0, https_1.onRequest)(async (req, res) => {
+    var _a, _b, _c, _d, _e, _f, _g;
     const db = admin.firestore();
     try {
-        const body = req.body;
-        const from = body.From || "";
-        const msg = (body.Body || "").trim();
-        logger.info("Recebido webhook do Twilio", { from, msg });
+        const event = req.body;
+        let from = "";
+        let msg = "";
+        if (event.type === "whatsappInboundMessage") {
+            from = ((_a = event.whatsappInboundMessage) === null || _a === void 0 ? void 0 : _a.from) || "";
+            msg = ((_c = (_b = event.whatsappInboundMessage) === null || _b === void 0 ? void 0 : _b.text) === null || _c === void 0 ? void 0 : _c.body) || "";
+        }
+        else {
+            // Fallback para outros formatos ou testes
+            from = event.from || event.From || ((_d = event.whatsappInboundMessage) === null || _d === void 0 ? void 0 : _d.from) || "";
+            msg = (((_e = event.text) === null || _e === void 0 ? void 0 : _e.body) || event.Body || ((_g = (_f = event.whatsappInboundMessage) === null || _f === void 0 ? void 0 : _f.text) === null || _g === void 0 ? void 0 : _g.body) || "").trim();
+        }
+        logger.info("Recebido webhook do Ycloud", { from, msg });
+        if (!from || !msg) {
+            res.status(200).send("OK");
+            return;
+        }
         const cleanPhone = from.replace(/\D/g, "");
-        const sessionSnap = await db.collection("twilioSessions").doc(cleanPhone).get();
-        if (sessionSnap.exists) {
-            const session = sessionSnap.data();
-            const orgId = session.orgId;
-            const appointmentId = session.appointmentId;
-            let newStatus = "";
-            if (msg === "1" || msg.toLowerCase() === "sim" || msg.toLowerCase() === "confirmar") {
-                newStatus = "CONFIRMED";
-            }
-            else if (msg === "2" || msg.toLowerCase() === "não" || msg.toLowerCase() === "nao" || msg.toLowerCase() === "cancelar") {
-                newStatus = "CANCELED";
-            }
-            if (newStatus) {
-                await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).update({
-                    status: newStatus
-                });
-                const responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
-                const orgSnap = await db.collection("organizations").doc(orgId).get();
-                const org = orgSnap.data();
-                let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
-                let authToken = process.env.TWILIO_AUTH_TOKEN || "";
-                let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886";
-                if (org === null || org === void 0 ? void 0 : org.twilioSettings) {
-                    if (org.twilioSettings.accountSid)
-                        accountSid = org.twilioSettings.accountSid;
-                    if (org.twilioSettings.authToken)
-                        authToken = org.twilioSettings.authToken;
-                    if (org.twilioSettings.fromNumber)
-                        fromNumber = org.twilioSettings.fromNumber;
-                }
-                if (accountSid && accountSid !== "your_twilio_account_sid_here") {
-                    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-                    const params = new URLSearchParams();
-                    params.append("To", from);
-                    params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
-                    params.append("Body", responseMsg);
-                    const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-                    await axios_1.default.post(twilioUrl, params.toString(), {
-                        headers: { "Authorization": authHeader, "Content-Type": "application/x-www-form-urlencoded" }
-                    });
-                }
-                await db.collection("twilioSessions").doc(cleanPhone).delete();
+        const sessionSnap = await db.collection("ycloudSessions").doc(cleanPhone).get();
+        if (!sessionSnap.exists) {
+            // Fallback check twilioSessions for transition period
+            const oldSessionSnap = await db.collection("twilioSessions").doc(cleanPhone).get();
+            if (!oldSessionSnap.exists) {
+                res.status(200).send("OK");
+                return;
             }
         }
-        res.set("Content-Type", "text/xml");
-        res.status(200).send("<Response></Response>");
+        const session = sessionSnap.exists ? sessionSnap.data() : (await db.collection("twilioSessions").doc(cleanPhone).get()).data();
+        const orgId = session.orgId;
+        const appointmentId = session.appointmentId;
+        let newStatus = "";
+        if (msg === "1" || msg.toLowerCase() === "sim" || msg.toLowerCase() === "confirmar") {
+            newStatus = "CONFIRMED";
+        }
+        else if (msg === "2" || msg.toLowerCase() === "não" || msg.toLowerCase() === "nao" || msg.toLowerCase() === "cancelar") {
+            newStatus = "CANCELED";
+        }
+        if (newStatus) {
+            await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).update({
+                status: newStatus
+            });
+            const responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
+            const orgSnap = await db.collection("organizations").doc(orgId).get();
+            const org = orgSnap.data();
+            let apiKey = process.env.YCLOUD_API_KEY || "";
+            let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
+            if (org === null || org === void 0 ? void 0 : org.ycloudSettings) {
+                if (org.ycloudSettings.apiKey)
+                    apiKey = org.ycloudSettings.apiKey;
+                if (org.ycloudSettings.fromNumber)
+                    fromNumber = org.ycloudSettings.fromNumber;
+            }
+            if (apiKey && apiKey !== "your_ycloud_api_key_here") {
+                const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
+                await axios_1.default.post(ycloudUrl, {
+                    to: `+${cleanPhone}`,
+                    from: `+${fromNumber.replace(/\D/g, "")}`,
+                    type: "text",
+                    text: {
+                        body: responseMsg
+                    }
+                }, {
+                    headers: { "X-API-Key": apiKey, "Content-Type": "application/json" }
+                });
+            }
+            await db.collection("ycloudSessions").doc(cleanPhone).delete();
+            await db.collection("twilioSessions").doc(cleanPhone).delete();
+        }
+        res.status(200).send("OK");
     }
     catch (error) {
-        logger.error("Erro no twilioWebhook", error);
-        res.set("Content-Type", "text/xml");
-        res.status(200).send("<Response></Response>");
+        logger.error("Erro no ycloudWebhook", error);
+        res.status(200).send("Erro");
     }
 });
 //# sourceMappingURL=index.js.map

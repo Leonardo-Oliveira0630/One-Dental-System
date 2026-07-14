@@ -50,9 +50,8 @@ export const OrganizationTab = () => {
   const [croNumero, setCroNumero] = useState(currentOrg?.croNumero || '');
   const [croUf, setCroUf] = useState(currentOrg?.croUf || '');
   const [revealJobStatusToDentist, setRevealJobStatusToDentist] = useState(currentOrg?.revealJobStatusToDentist || false);
-  const [twilioAccountSid, setTwilioAccountSid] = useState(currentOrg?.twilioSettings?.accountSid || '');
-  const [twilioAuthToken, setTwilioAuthToken] = useState(currentOrg?.twilioSettings?.authToken || '');
-  const [twilioFromNumber, setTwilioFromNumber] = useState(currentOrg?.twilioSettings?.fromNumber || '');
+  const [ycloudApiKey, setYcloudApiKey] = useState(currentOrg?.ycloudSettings?.apiKey || '');
+    const [ycloudFromNumber, setYcloudFromNumber] = useState(currentOrg?.ycloudSettings?.fromNumber || '');
   
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(currentOrg?.storeSettings || {
     banners: [],
@@ -88,9 +87,8 @@ export const OrganizationTab = () => {
       setCroNumero(currentOrg.croNumero || '');
       setCroUf(currentOrg.croUf || '');
       setRevealJobStatusToDentist(currentOrg.revealJobStatusToDentist || false);
-      setTwilioAccountSid(currentOrg.twilioSettings?.accountSid || '');
-      setTwilioAuthToken(currentOrg.twilioSettings?.authToken || '');
-      setTwilioFromNumber(currentOrg.twilioSettings?.fromNumber || '');
+      setYcloudApiKey(currentOrg.ycloudSettings?.apiKey || '');
+            setYcloudFromNumber(currentOrg.ycloudSettings?.fromNumber || '');
       if (currentOrg.storeSettings) {
         setStoreSettings(currentOrg.storeSettings);
       }
@@ -225,10 +223,9 @@ export const OrganizationTab = () => {
         croNumero: croNumero.trim(),
         croUf: croUf.trim(),
         revealJobStatusToDentist: revealJobStatusToDentist,
-        twilioSettings: {
-          accountSid: twilioAccountSid.trim(),
-          authToken: twilioAuthToken.trim(),
-          fromNumber: twilioFromNumber.trim()
+        ycloudSettings: {
+          apiKey: ycloudApiKey.trim(),
+                    fromNumber: ycloudFromNumber.trim()
         },
         financialSettings: {
           ...currentOrg.financialSettings,
