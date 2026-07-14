@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield, MapPin, Phone, Mail, Share2, CheckCircle } from 'lucide-react';
 import { StoreSettings, BannerConfig } from '../../types';
+import { WhatsAppTemplatesEditor } from '../../components/WhatsAppTemplatesEditor';
 
 export const OrganizationTab = () => {
   const { currentOrg, updateOrganization, checkSlugAvailability, uploadFile } = useApp();
@@ -623,10 +624,16 @@ export const OrganizationTab = () => {
                     <p className="text-xs text-slate-500">Módulo Ativo</p>
                 </div>
             </div>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 mt-4">
                 O módulo de notificações por WhatsApp está ativo na sua assinatura. 
                 Sua clínica e pacientes receberão atualizações automáticas sobre os trabalhos.
             </p>
+            <div className="mt-6">
+                <WhatsAppTemplatesEditor 
+                    currentOrg={currentOrg} 
+                    onUpdate={() => {}}
+                />
+            </div>
           </div>
       )}
 

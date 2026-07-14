@@ -130,6 +130,13 @@ export interface Organization {
     authToken?: string;
     fromNumber?: string;
   };
+  whatsappTemplates?: {
+    id: string;
+    name: string;
+    body: string;
+    type: 'CLINIC_APPOINTMENT' | 'LAB_DISPATCH' | 'SUPPLIER_UPDATE' | 'CUSTOM';
+    active: boolean;
+  }[];
   receiptSettings?: {
     referentePresets?: string[];
     mensagemPresets?: string[];

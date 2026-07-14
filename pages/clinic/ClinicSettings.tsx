@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 import { searchCEP } from '../../services/addressService';
+import { WhatsAppTemplatesEditor } from '../../components/WhatsAppTemplatesEditor';
 
 export const ClinicSettings = () => {
   const { currentOrg, currentPlan, allPlans, updateOrganization, validateCoupon, currentUser, getSaaSInvoices } = useApp();
@@ -313,6 +314,16 @@ export const ClinicSettings = () => {
                      </div>
                  </form>
              </div>
+             
+             {/* WhatsApp Templates Editor */}
+             {currentOrg?.hasWhatsappModule && (
+                 <div className="mt-6">
+                     <WhatsAppTemplatesEditor 
+                         currentOrg={currentOrg} 
+                         onUpdate={() => {}}
+                     />
+                 </div>
+             )}
         </div>
       )}
 

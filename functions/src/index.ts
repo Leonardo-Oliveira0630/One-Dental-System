@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { defineSecret } from "firebase-functions/params";
@@ -1793,3 +1794,217 @@ export const sendTwilioWhatsApp = onCall({ maxInstances: 10 }, async (request) =
 });
 
 
+
+/**
+ * TRIGGERS PARA NOTIFICAÇÕES AUTOMÁTICAS (WHATSAPP)
+ */
+
+async function getTemplateAndSend(orgId: string, type: string, variables: Record<string, string>, toNumber: string) {
+  const db = admin.firestore();
+  const orgSnap = await db.collection("organizations").doc(orgId).get();
+  if (!orgSnap.exists) return;
+  const org = orgSnap.data() as any;
+  
+  if (!org.hasWhatsappModule || !org.whatsappTemplates) return;
+  
+  const template = org.whatsappTemplates.find((t: any) => t.type === type && t.active);
+  if (!template) return;
+  
+  let body = template.body;
+  for (const [key, value] of Object.entries(variables)) {
+    body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+  }
+  
+  let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
+  let authToken = process.env.TWILIO_AUTH_TOKEN || "";
+  let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886";
+  
+  if (org.twilioSettings) {
+    if (org.twilioSettings.accountSid) accountSid = org.twilioSettings.accountSid;
+    if (org.twilioSettings.authToken) authToken = org.twilioSettings.authToken;
+    if (org.twilioSettings.fromNumber) fromNumber = org.twilioSettings.fromNumber;
+  }
+  
+  if (!accountSid || accountSid === "your_twilio_account_sid_here") {
+    logger.info(`[Simulado] WhatsApp Automático para ${toNumber}: ${body}`);
+    return;
+  }
+  
+  try {
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+    const params = new URLSearchParams();
+    params.append("To", toNumber.startsWith("whatsapp:") ? toNumber : `whatsapp:${toNumber}`);
+    params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
+    params.append("Body", body);
+    
+    const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+    
+    await axios.post(twilioUrl, params.toString(), {
+      headers: {
+        "Authorization": authHeader,
+        "Content-Type": "application/x-www-form-urlencoded"
+      }
+    });
+    logger.info(`Notificação enviada com sucesso para ${toNumber}`);
+  } catch (e: any) {
+    logger.error("Erro ao enviar notificação automática:", e.response?.data || e.message);
+  }
+}
+
+export const onAppointmentCreated = onDocumentCreated("organizations/{orgId}/appointments/{appointmentId}", async (event: any) => {
+  const snap = event.data;
+  if (!snap) return;
+  const appointment = snap.data();
+  const orgId = event.params.orgId;
+  
+  const db = admin.firestore();
+  const patientSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appointment.patientId).get();
+  if (!patientSnap.exists) return;
+  const patient = patientSnap.data() as any;
+  
+  const phone = patient.phone || patient.whatsapp;
+  if (!phone) return;
+  
+  const dateStr = new Date(appointment.date).toLocaleDateString("pt-BR");
+  const timeStr = appointment.startTime;
+  
+  const cleanPhone = phone.replace(/\D/g, "");
+  await db.collection("twilioSessions").doc(cleanPhone).set({
+    appointmentId: event.params.appointmentId,
+    orgId: orgId,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+  
+  await getTemplateAndSend(orgId, "CLINIC_APPOINTMENT", {
+    patient_name: patient.name,
+    date: dateStr,
+    time: timeStr
+  }, phone);
+});
+
+export const onJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{jobId}", async (event: any) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  if (!before || !after) return;
+  
+  if (before.status !== "DISPATCHED" && after.status === "DISPATCHED") {
+     const orgId = event.params.orgId;
+     const db = admin.firestore();
+     let phone = "";
+     let dentistName = after.dentistName || "Doutor(a)";
+     
+     if (after.dentistUserId) {
+        const dSnap = await db.collection("users").doc(after.dentistUserId).get();
+        if (dSnap.exists) phone = (dSnap.data() as any)?.phone || "";
+     } else if (after.dentistId) {
+        const dSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(after.dentistId).get();
+        if (dSnap.exists) phone = (dSnap.data() as any)?.phone || "";
+     }
+     
+     if (!phone) return;
+     
+     await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+       patient_name: after.patientName || "Paciente",
+       dentist_name: dentistName,
+       job_id: event.params.jobId
+     }, phone);
+  }
+});
+
+export const onSupplierOrderUpdated = onDocumentUpdated("supplierOrders/{orderId}", async (event: any) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  if (!before || !after) return;
+  
+  if (before.deliveryStatus !== after.deliveryStatus) {
+     const db = admin.firestore();
+     const orgSnap = await db.collection("organizations").doc(after.buyerOrgId).get();
+     if (!orgSnap.exists) return;
+     const org = orgSnap.data() as any;
+     const phone = org.phone || "";
+     if (!phone) return;
+     
+     const statusMap: Record<string, string> = {
+       "PENDING": "Pendente",
+       "PROCESSING": "Em processamento",
+       "SHIPPED": "Enviado",
+       "DELIVERED": "Entregue"
+     };
+     
+     const readableStatus = statusMap[after.deliveryStatus] || after.deliveryStatus;
+     
+     await getTemplateAndSend(after.supplierId, "SUPPLIER_UPDATE", {
+       order_id: event.params.orderId,
+       status: readableStatus
+     }, phone);
+  }
+});
+
+export const twilioWebhook = onRequest(async (req: any, res: any) => {
+  const db = admin.firestore();
+  try {
+    const body = req.body;
+    const from = body.From || "";
+    const msg = (body.Body || "").trim();
+    
+    logger.info("Recebido webhook do Twilio", { from, msg });
+    
+    const cleanPhone = from.replace(/\D/g, "");
+    
+    const sessionSnap = await db.collection("twilioSessions").doc(cleanPhone).get();
+    if (sessionSnap.exists) {
+      const session = sessionSnap.data() as any;
+      const orgId = session.orgId;
+      const appointmentId = session.appointmentId;
+      
+      let newStatus = "";
+      if (msg === "1" || msg.toLowerCase() === "sim" || msg.toLowerCase() === "confirmar") {
+        newStatus = "CONFIRMED";
+      } else if (msg === "2" || msg.toLowerCase() === "não" || msg.toLowerCase() === "nao" || msg.toLowerCase() === "cancelar") {
+        newStatus = "CANCELED";
+      }
+      
+      if (newStatus) {
+        await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).update({
+          status: newStatus
+        });
+        
+        const responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
+        
+        const orgSnap = await db.collection("organizations").doc(orgId).get();
+        const org = orgSnap.data() as any;
+        let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
+        let authToken = process.env.TWILIO_AUTH_TOKEN || "";
+        let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886";
+        
+        if (org?.twilioSettings) {
+          if (org.twilioSettings.accountSid) accountSid = org.twilioSettings.accountSid;
+          if (org.twilioSettings.authToken) authToken = org.twilioSettings.authToken;
+          if (org.twilioSettings.fromNumber) fromNumber = org.twilioSettings.fromNumber;
+        }
+        
+        if (accountSid && accountSid !== "your_twilio_account_sid_here") {
+          const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+          const params = new URLSearchParams();
+          params.append("To", from);
+          params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
+          params.append("Body", responseMsg);
+          const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+          
+          await axios.post(twilioUrl, params.toString(), {
+            headers: { "Authorization": authHeader, "Content-Type": "application/x-www-form-urlencoded" }
+          });
+        }
+        
+        await db.collection("twilioSessions").doc(cleanPhone).delete();
+      }
+    }
+    
+    res.set("Content-Type", "text/xml");
+    res.status(200).send("<Response></Response>");
+  } catch (error) {
+    logger.error("Erro no twilioWebhook", error);
+    res.set("Content-Type", "text/xml");
+    res.status(200).send("<Response></Response>");
+  }
+});

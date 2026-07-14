@@ -36,9 +36,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendTwilioWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.twilioWebhook = exports.onSupplierOrderUpdated = exports.onJobUpdated = exports.onAppointmentCreated = exports.sendTwilioWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 /* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
+const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
 const v2_1 = require("firebase-functions/v2");
 const params_1 = require("firebase-functions/params");
@@ -901,7 +902,7 @@ exports.checkSubscriptionStatus = (0, https_1.onCall)(async (request) => {
  * CRIA ASSINATURA SAAS
  */
 exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
-    var _a, _b;
+    var _a;
     const { orgId, planId, email, name, cpfCnpj } = req.data;
     const { key, url } = await getAsaasConfig();
     try {
@@ -940,7 +941,12 @@ exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
             .doc(planId)
             .get();
         if (planSnap.exists && ((_a = planSnap.data()) === null || _a === void 0 ? void 0 : _a.price) !== undefined) {
-            value = (_b = planSnap.data()) === null || _b === void 0 ? void 0 : _b.price;
+            const planData = planSnap.data() || {};
+            value = planData.price;
+            if (orgData.hasWhatsappModule) {
+                let wppPrice = planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00;
+                value += wppPrice;
+            }
         }
         // Calcular data de vencimento da fatura com base no trial
         let nextDue = new Date().toISOString().split("T")[0];
@@ -993,6 +999,58 @@ exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
     catch (error) {
         logger.error("Erro em createSaaSSubscription:", error);
         throw new https_1.HttpsError("internal", error.message);
+    }
+});
+/**
+ * ATIVA OU DESATIVA MÓDULO WHATSAPP
+ * Atualiza o valor da assinatura no Asaas se existir
+ */
+exports.toggleWhatsappModule = (0, https_1.onCall)(async (request) => {
+    var _a, _b, _c, _d, _e;
+    const { orgId, activate } = request.data;
+    const { key, url } = await getAsaasConfig();
+    const db = admin.firestore();
+    try {
+        const orgRef = db.collection("organizations").doc(orgId);
+        const orgSnap = await orgRef.get();
+        if (!orgSnap.exists) {
+            throw new Error("Organização não encontrada");
+        }
+        const orgData = orgSnap.data() || {};
+        const subId = orgData.subscriptionId;
+        const planId = orgData.planId;
+        if (subId && planId) {
+            // Obter valor do plano
+            const planSnap = await db.collection("subscriptionPlans").doc(planId).get();
+            const planData = planSnap.data() || {};
+            let basePrice = planData.price || 99.00;
+            let wppPrice = planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00;
+            let newValue = basePrice;
+            if (activate) {
+                newValue += wppPrice;
+            }
+            // Update asaas subscription
+            try {
+                await axios_1.default.post(`${url}/subscriptions/${subId}`, {
+                    value: newValue,
+                    updatePendingPayments: true
+                }, {
+                    headers: { access_token: key }
+                });
+            }
+            catch (asaasErr) {
+                logger.error("Erro Asaas (toggleWhatsappModule):", ((_a = asaasErr.response) === null || _a === void 0 ? void 0 : _a.data) || asaasErr.message);
+                throw new Error("Erro na API do Asaas: " + (((_e = (_d = (_c = (_b = asaasErr.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.errors) === null || _d === void 0 ? void 0 : _d[0]) === null || _e === void 0 ? void 0 : _e.description) || asaasErr.message));
+            }
+        }
+        await orgRef.update({
+            hasWhatsappModule: activate
+        });
+        return { success: true };
+    }
+    catch (err) {
+        logger.error("Erro em toggleWhatsappModule:", err);
+        throw new https_1.HttpsError("internal", err.message);
     }
 });
 /**
@@ -1557,6 +1615,206 @@ exports.sendTwilioWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
         const errorMsg = ((_b = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || error.message;
         logger.error(`Erro ao enviar mensagem via Twilio real: ${errorMsg}`, (_c = error.response) === null || _c === void 0 ? void 0 : _c.data);
         throw new https_1.HttpsError("internal", `Erro no Twilio: ${errorMsg}`);
+    }
+});
+/**
+ * TRIGGERS PARA NOTIFICAÇÕES AUTOMÁTICAS (WHATSAPP)
+ */
+async function getTemplateAndSend(orgId, type, variables, toNumber) {
+    var _a;
+    const db = admin.firestore();
+    const orgSnap = await db.collection("organizations").doc(orgId).get();
+    if (!orgSnap.exists)
+        return;
+    const org = orgSnap.data();
+    if (!org.hasWhatsappModule || !org.whatsappTemplates)
+        return;
+    const template = org.whatsappTemplates.find((t) => t.type === type && t.active);
+    if (!template)
+        return;
+    let body = template.body;
+    for (const [key, value] of Object.entries(variables)) {
+        body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+    }
+    let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
+    let authToken = process.env.TWILIO_AUTH_TOKEN || "";
+    let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886";
+    if (org.twilioSettings) {
+        if (org.twilioSettings.accountSid)
+            accountSid = org.twilioSettings.accountSid;
+        if (org.twilioSettings.authToken)
+            authToken = org.twilioSettings.authToken;
+        if (org.twilioSettings.fromNumber)
+            fromNumber = org.twilioSettings.fromNumber;
+    }
+    if (!accountSid || accountSid === "your_twilio_account_sid_here") {
+        logger.info(`[Simulado] WhatsApp Automático para ${toNumber}: ${body}`);
+        return;
+    }
+    try {
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+        const params = new URLSearchParams();
+        params.append("To", toNumber.startsWith("whatsapp:") ? toNumber : `whatsapp:${toNumber}`);
+        params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
+        params.append("Body", body);
+        const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+        await axios_1.default.post(twilioUrl, params.toString(), {
+            headers: {
+                "Authorization": authHeader,
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+        });
+        logger.info(`Notificação enviada com sucesso para ${toNumber}`);
+    }
+    catch (e) {
+        logger.error("Erro ao enviar notificação automática:", ((_a = e.response) === null || _a === void 0 ? void 0 : _a.data) || e.message);
+    }
+}
+exports.onAppointmentCreated = (0, firestore_1.onDocumentCreated)("organizations/{orgId}/appointments/{appointmentId}", async (event) => {
+    const snap = event.data;
+    if (!snap)
+        return;
+    const appointment = snap.data();
+    const orgId = event.params.orgId;
+    const db = admin.firestore();
+    const patientSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appointment.patientId).get();
+    if (!patientSnap.exists)
+        return;
+    const patient = patientSnap.data();
+    const phone = patient.phone || patient.whatsapp;
+    if (!phone)
+        return;
+    const dateStr = new Date(appointment.date).toLocaleDateString("pt-BR");
+    const timeStr = appointment.startTime;
+    const cleanPhone = phone.replace(/\D/g, "");
+    await db.collection("twilioSessions").doc(cleanPhone).set({
+        appointmentId: event.params.appointmentId,
+        orgId: orgId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    await getTemplateAndSend(orgId, "CLINIC_APPOINTMENT", {
+        patient_name: patient.name,
+        date: dateStr,
+        time: timeStr
+    }, phone);
+});
+exports.onJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/jobs/{jobId}", async (event) => {
+    var _a, _b, _c, _d;
+    const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
+    const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
+    if (!before || !after)
+        return;
+    if (before.status !== "DISPATCHED" && after.status === "DISPATCHED") {
+        const orgId = event.params.orgId;
+        const db = admin.firestore();
+        let phone = "";
+        let dentistName = after.dentistName || "Doutor(a)";
+        if (after.dentistUserId) {
+            const dSnap = await db.collection("users").doc(after.dentistUserId).get();
+            if (dSnap.exists)
+                phone = ((_c = dSnap.data()) === null || _c === void 0 ? void 0 : _c.phone) || "";
+        }
+        else if (after.dentistId) {
+            const dSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(after.dentistId).get();
+            if (dSnap.exists)
+                phone = ((_d = dSnap.data()) === null || _d === void 0 ? void 0 : _d.phone) || "";
+        }
+        if (!phone)
+            return;
+        await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+            patient_name: after.patientName || "Paciente",
+            dentist_name: dentistName,
+            job_id: event.params.jobId
+        }, phone);
+    }
+});
+exports.onSupplierOrderUpdated = (0, firestore_1.onDocumentUpdated)("supplierOrders/{orderId}", async (event) => {
+    var _a, _b;
+    const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
+    const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
+    if (!before || !after)
+        return;
+    if (before.deliveryStatus !== after.deliveryStatus) {
+        const db = admin.firestore();
+        const orgSnap = await db.collection("organizations").doc(after.buyerOrgId).get();
+        if (!orgSnap.exists)
+            return;
+        const org = orgSnap.data();
+        const phone = org.phone || "";
+        if (!phone)
+            return;
+        const statusMap = {
+            "PENDING": "Pendente",
+            "PROCESSING": "Em processamento",
+            "SHIPPED": "Enviado",
+            "DELIVERED": "Entregue"
+        };
+        const readableStatus = statusMap[after.deliveryStatus] || after.deliveryStatus;
+        await getTemplateAndSend(after.supplierId, "SUPPLIER_UPDATE", {
+            order_id: event.params.orderId,
+            status: readableStatus
+        }, phone);
+    }
+});
+exports.twilioWebhook = (0, https_1.onRequest)(async (req, res) => {
+    const db = admin.firestore();
+    try {
+        const body = req.body;
+        const from = body.From || "";
+        const msg = (body.Body || "").trim();
+        logger.info("Recebido webhook do Twilio", { from, msg });
+        const cleanPhone = from.replace(/\D/g, "");
+        const sessionSnap = await db.collection("twilioSessions").doc(cleanPhone).get();
+        if (sessionSnap.exists) {
+            const session = sessionSnap.data();
+            const orgId = session.orgId;
+            const appointmentId = session.appointmentId;
+            let newStatus = "";
+            if (msg === "1" || msg.toLowerCase() === "sim" || msg.toLowerCase() === "confirmar") {
+                newStatus = "CONFIRMED";
+            }
+            else if (msg === "2" || msg.toLowerCase() === "não" || msg.toLowerCase() === "nao" || msg.toLowerCase() === "cancelar") {
+                newStatus = "CANCELED";
+            }
+            if (newStatus) {
+                await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).update({
+                    status: newStatus
+                });
+                const responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
+                const orgSnap = await db.collection("organizations").doc(orgId).get();
+                const org = orgSnap.data();
+                let accountSid = process.env.TWILIO_ACCOUNT_SID || "";
+                let authToken = process.env.TWILIO_AUTH_TOKEN || "";
+                let fromNumber = process.env.TWILIO_PHONE_NUMBER || "whatsapp:+14155238886";
+                if (org === null || org === void 0 ? void 0 : org.twilioSettings) {
+                    if (org.twilioSettings.accountSid)
+                        accountSid = org.twilioSettings.accountSid;
+                    if (org.twilioSettings.authToken)
+                        authToken = org.twilioSettings.authToken;
+                    if (org.twilioSettings.fromNumber)
+                        fromNumber = org.twilioSettings.fromNumber;
+                }
+                if (accountSid && accountSid !== "your_twilio_account_sid_here") {
+                    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+                    const params = new URLSearchParams();
+                    params.append("To", from);
+                    params.append("From", fromNumber.startsWith("whatsapp:") ? fromNumber : `whatsapp:${fromNumber}`);
+                    params.append("Body", responseMsg);
+                    const authHeader = "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+                    await axios_1.default.post(twilioUrl, params.toString(), {
+                        headers: { "Authorization": authHeader, "Content-Type": "application/x-www-form-urlencoded" }
+                    });
+                }
+                await db.collection("twilioSessions").doc(cleanPhone).delete();
+            }
+        }
+        res.set("Content-Type", "text/xml");
+        res.status(200).send("<Response></Response>");
+    }
+    catch (error) {
+        logger.error("Erro no twilioWebhook", error);
+        res.set("Content-Type", "text/xml");
+        res.status(200).send("<Response></Response>");
     }
 });
 //# sourceMappingURL=index.js.map
