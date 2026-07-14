@@ -13,16 +13,12 @@ export const SuperAdminDashboard = () => {
     // Settings Form State
     const [platformComm, setPlatformComm] = useState(globalSettings?.platformCommission || 5);
     const [geminiApiKey, setGeminiApiKey] = useState(globalSettings?.geminiApiKey || '');
-    const [whatsappModulePrice, setWhatsappModulePrice] = useState(globalSettings?.whatsappModulePrice || 90);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (globalSettings) {
             setPlatformComm(globalSettings.platformCommission);
             setGeminiApiKey(globalSettings.geminiApiKey || '');
-            if (globalSettings.whatsappModulePrice !== undefined) {
-                setWhatsappModulePrice(globalSettings.whatsappModulePrice);
-            }
         }
     }, [globalSettings]);
 
@@ -35,8 +31,7 @@ export const SuperAdminDashboard = () => {
         try {
             await updateGlobalSettings({ 
                 platformCommission: platformComm,
-                geminiApiKey: geminiApiKey.trim(),
-                whatsappModulePrice
+                geminiApiKey: geminiApiKey.trim()
             });
             alert("Configurações salvas!");
         } catch (err) {
@@ -150,23 +145,6 @@ export const SuperAdminDashboard = () => {
                                             onChange={e => setGeminiApiKey(e.target.value)}
                                             placeholder="Cole a chave da API do Google Gemini aqui..."
                                             className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                                        />
-                                    </div>
-                                </div>
-                            </label>
-
-                            <label className="block">
-                                <span className="text-sm font-black text-slate-700 uppercase flex items-center gap-2 mb-2">
-                                    <Activity size={16} className="text-blue-500"/> Preço do Módulo WhatsApp (R$)
-                                </span>
-                                <div className="flex gap-4">
-                                    <div className="relative flex-1">
-                                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl font-bold text-slate-400">R$</span>
-                                        <input 
-                                            type="number" 
-                                            value={whatsappModulePrice}
-                                            onChange={e => setWhatsappModulePrice(parseFloat(e.target.value) || 0)}
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-2xl font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
                                 </div>

@@ -16,6 +16,7 @@ export const Plans = () => {
   // Form State
   const [name, setName] = useState('');
   const [price, setPrice] = useState(0);
+  const [whatsappModulePrice, setWhatsappModulePrice] = useState(90);
   const [isPublic, setIsPublic] = useState(true);
   const [targetAudience, setTargetAudience] = useState<'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER'>('LAB');
   const [trialDays, setTrialDays] = useState(7);
@@ -32,6 +33,7 @@ export const Plans = () => {
   const resetForm = () => {
     setName('');
     setPrice(0);
+    setWhatsappModulePrice(90);
     setIsPublic(true);
     setTargetAudience('LAB');
     setTrialDays(7);
@@ -51,6 +53,7 @@ export const Plans = () => {
     setEditingId(plan.id);
     setName(plan.name);
     setPrice(plan.price);
+    setWhatsappModulePrice(plan.whatsappModulePrice ?? 90);
     setIsPublic(plan.isPublic);
     setTargetAudience(plan.targetAudience || 'LAB');
     setTrialDays(plan.trialDays || 0);
@@ -69,6 +72,7 @@ export const Plans = () => {
     const planData: Omit<SubscriptionPlan, 'id'> = {
         name,
         price,
+        whatsappModulePrice,
         isPublic,
         active: true,
         targetAudience,
@@ -161,6 +165,11 @@ export const Plans = () => {
                                     <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 uppercase tracking-tighter">
                                         Split: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Padrão'}
                                     </span>
+                                    {plan.whatsappModulePrice !== undefined && (
+                                        <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-green-100 text-green-800 uppercase tracking-tighter" title="Preço do Módulo WhatsApp para este plano">
+                                            WPP: R$ {plan.whatsappModulePrice.toFixed(2)}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 mb-6">
@@ -204,10 +213,14 @@ export const Plans = () => {
                                 <input value={name} onChange={e => setName(e.target.value)} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-[20px] focus:ring-2 focus:ring-blue-500 outline-none font-black text-lg" required placeholder="Ex: Enterprise Digital" />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Preço Mensal (R$)</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Preço (R$)</label>
                                     <input type="number" step="0.01" value={price} onChange={e => setPrice(parseFloat(e.target.value))} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-[20px] font-black text-xl text-blue-600 outline-none" required />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Módulo WhatsApp (R$)</label>
+                                    <input type="number" step="0.01" value={whatsappModulePrice} onChange={e => setWhatsappModulePrice(parseFloat(e.target.value))} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-[20px] font-black text-xl text-green-600 outline-none" required />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Trial (Dias)</label>

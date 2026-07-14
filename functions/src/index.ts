@@ -1046,7 +1046,12 @@ export const createSaaSSubscription = onCall(async (req: any) => {
       .doc(planId)
       .get();
     if (planSnap.exists && planSnap.data()?.price !== undefined) {
-      value = planSnap.data()?.price;
+      const planData = planSnap.data() || {};
+      value = planData.price;
+      if (orgData.hasWhatsappModule) {
+         let wppPrice = planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00;
+         value += wppPrice;
+      }
     }
 
     // Calcular data de vencimento da fatura com base no trial
@@ -1113,6 +1118,58 @@ export const createSaaSSubscription = onCall(async (req: any) => {
   } catch (error: any) {
     logger.error("Erro em createSaaSSubscription:", error);
     throw new HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * ATIVA OU DESATIVA MÓDULO WHATSAPP
+ * Atualiza o valor da assinatura no Asaas se existir
+ */
+export const toggleWhatsappModule = onCall(async (request: any) => {
+  const { orgId, activate } = request.data;
+  const { key, url } = await getAsaasConfig();
+  const db = admin.firestore();
+
+  try {
+    const orgRef = db.collection("organizations").doc(orgId);
+    const orgSnap = await orgRef.get();
+    
+    if (!orgSnap.exists) {
+      throw new Error("Organização não encontrada");
+    }
+
+    const orgData = orgSnap.data() || {};
+    const subId = orgData.subscriptionId;
+    const planId = orgData.planId;
+
+    if (subId && planId) {
+      // Obter valor do plano
+      const planSnap = await db.collection("subscriptionPlans").doc(planId).get();
+      const planData = planSnap.data() || {};
+      let basePrice = planData.price || 99.00;
+      let wppPrice = planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00;
+      
+      let newValue = basePrice;
+      if (activate) {
+         newValue += wppPrice;
+      }
+      
+      // Update asaas subscription
+      await axios.post(`${url}/subscriptions/${subId}`, {
+        value: newValue
+      }, {
+        headers: { access_token: key }
+      });
+    }
+
+    await orgRef.update({
+      hasWhatsappModule: activate
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    logger.error("Erro em toggleWhatsappModule:", err);
+    throw new HttpsError("internal", err.message);
   }
 });
 

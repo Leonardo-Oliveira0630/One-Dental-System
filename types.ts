@@ -714,6 +714,7 @@ export interface SubscriptionPlan {
   id: string;
   name: string;
   price: number;
+  whatsappModulePrice?: number;
   isPublic: boolean;
   active: boolean;
   targetAudience?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';

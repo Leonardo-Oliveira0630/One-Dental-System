@@ -764,6 +764,11 @@ export const apiCreateSaaSSubscription = async (orgId: string, planId: string, e
     const fn = httpsCallable(functions, 'createSaaSSubscription');
     return (await fn({ orgId, planId, email, name, cpfCnpj, couponCode })).data;
 };
+
+export const apiToggleWhatsappModule = async (orgId: string, activate: boolean) => {
+    const fn = httpsCallable(functions, 'toggleWhatsappModule');
+    return (await fn({ orgId, activate })).data;
+};
 export const apiCreateLabSubAccount = async (payload: any) => {
     const fn = httpsCallable(functions, 'createLabSubAccount');
     const result = (await fn(payload)).data as any;

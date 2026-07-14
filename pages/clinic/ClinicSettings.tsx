@@ -56,9 +56,12 @@ export const ClinicSettings = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
 
+  // Fallback if currentPlan is missing but we have currentOrg.planId
+  const activePlan = currentPlan || allPlans.find(p => p.id === currentOrg?.planId);
+  const isFreePlan = !activePlan || activePlan.id === 'basic' || activePlan.price === 0;
+
   // WhatsApp Module logic
-  const { globalSettings } = useApp();
-  const whatsappModulePrice = globalSettings?.whatsappModulePrice || 90;
+  const whatsappModulePrice = activePlan?.whatsappModulePrice ?? 90;
   const hasWhatsappModule = currentOrg?.hasWhatsappModule || false;
   const [isActivatingWhatsapp, setIsActivatingWhatsapp] = useState(false);
 
@@ -67,12 +70,27 @@ export const ClinicSettings = () => {
       if (window.confirm(`Confirma a ativação do Módulo WhatsApp? Será adicionado R$ ${whatsappModulePrice.toFixed(2)} à sua mensalidade.`)) {
           setIsActivatingWhatsapp(true);
           try {
-              // TODO: Idealmente precisaria atualizar o valor da assinatura no Asaas também.
-              await updateOrganization(currentOrg.id, { hasWhatsappModule: true });
+              await api.apiToggleWhatsappModule(currentOrg.id, true);
               alert('Módulo WhatsApp ativado com sucesso!');
           } catch (error) {
               console.error(error);
-              alert('Erro ao ativar módulo.');
+              alert('Erro ao ativar módulo. Verifique se você possui uma assinatura ativa.');
+          } finally {
+              setIsActivatingWhatsapp(false);
+          }
+      }
+  };
+
+  const handleDeactivateWhatsappModule = async () => {
+      if (!currentOrg) return;
+      if (window.confirm(`Confirma a desativação do Módulo WhatsApp? Ele será removido das próximas cobranças.`)) {
+          setIsActivatingWhatsapp(true);
+          try {
+              await api.apiToggleWhatsappModule(currentOrg.id, false);
+              alert('Módulo WhatsApp desativado com sucesso!');
+          } catch (error) {
+              console.error(error);
+              alert('Erro ao desativar módulo.');
           } finally {
               setIsActivatingWhatsapp(false);
           }
@@ -83,10 +101,6 @@ export const ClinicSettings = () => {
   const isTrial = currentOrg?.subscriptionStatus === 'TRIAL' || (!currentOrg?.subscriptionStatus && !!currentOrg?.trialEndsAt);
   const isPaid = currentOrg?.subscriptionStatus === 'ACTIVE';
   const displayStatus = currentOrg?.subscriptionStatus || (isTrial ? 'TRIAL' : 'N/A');
-
-  // Fallback if currentPlan is missing but we have currentOrg.planId
-  const activePlan = currentPlan || allPlans.find(p => p.id === currentOrg?.planId);
-  const isFreePlan = !activePlan || activePlan.id === 'basic' || activePlan.price === 0;
 
   const isTrialActive = currentOrg?.trialEndsAt && (() => {
     let trialDate: Date;
@@ -388,7 +402,13 @@ export const ClinicSettings = () => {
                             Envie mensagens automáticas para seus pacientes (ex: lembretes de consultas) e laboratórios. A cobrança virá na próxima fatura.
                         </p>
                         {hasWhatsappModule ? (
-                            <button disabled className="w-full py-2.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all opacity-50 cursor-not-allowed">Módulo Ativo</button>
+                            <button 
+                                onClick={handleDeactivateWhatsappModule}
+                                disabled={isActivatingWhatsapp}
+                                className="w-full py-2.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all disabled:opacity-50"
+                            >
+                                {isActivatingWhatsapp ? 'Aguarde...' : 'Desativar Módulo'}
+                            </button>
                         ) : (
                             <button 
                                 onClick={handleActivateWhatsappModule} 
