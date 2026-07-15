@@ -106,6 +106,31 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
           <div key={tpl.id} className="border border-slate-200 rounded-xl p-4 flex flex-col gap-2">
             {editingId === tpl.id ? (
               <div className="space-y-3">
+                
+                <select
+                  value={editForm.type}
+                  onChange={e => setEditForm({ ...editForm, type: e.target.value as any })}
+                  className="w-full p-2 border border-slate-200 rounded-lg outline-none focus:border-blue-500 bg-white"
+                >
+                  <option value="CUSTOM">Personalizado (Envio Manual)</option>
+                  {currentOrg.targetAudience === 'CLINIC' && (
+                    <>
+                      <option value="CLINIC_APPOINTMENT">Automático: Consulta Agendada (Convite)</option>
+                      <option value="CLINIC_APPOINTMENT_CONFIRMED">Automático: Consulta Confirmada (Resposta)</option>
+                      <option value="CLINIC_APPOINTMENT_CANCELED">Automático: Consulta Cancelada</option>
+                    </>
+                  )}
+                  {currentOrg.targetAudience === 'LAB' && (
+                    <>
+                      <option value="LAB_DISPATCH">Automático: Motoboy em Rota</option>
+                      <option value="LAB_DELIVERED">Automático: Trabalho Entregue</option>
+                    </>
+                  )}
+                  {currentOrg.targetAudience === 'SUPPLIER' && (
+                    <option value="SUPPLIER_UPDATE">Automático: Atualização de Pedido</option>
+                  )}
+                </select>
+
                 <input
                   type="text"
                   value={editForm.name}
@@ -160,9 +185,33 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
         
         {editingId === 'new' && (
           <div className="border border-blue-200 bg-blue-50/30 rounded-xl p-4 flex flex-col gap-3">
-             <input
-                type="text"
-                value={editForm.name}
+             
+                <select
+                  value={editForm.type}
+                  onChange={e => setEditForm({ ...editForm, type: e.target.value as any })}
+                  className="w-full p-2 border border-slate-200 rounded-lg outline-none focus:border-blue-500 bg-white"
+                >
+                  <option value="CUSTOM">Personalizado (Envio Manual)</option>
+                  {currentOrg.targetAudience === 'CLINIC' && (
+                    <>
+                      <option value="CLINIC_APPOINTMENT">Automático: Consulta Agendada / Confirmação</option>
+                      <option value="CLINIC_APPOINTMENT_CANCELED">Automático: Consulta Cancelada</option>
+                    </>
+                  )}
+                  {currentOrg.targetAudience === 'LAB' && (
+                    <>
+                      <option value="LAB_DISPATCH">Automático: Motoboy em Rota</option>
+                      <option value="LAB_DELIVERED">Automático: Trabalho Entregue</option>
+                    </>
+                  )}
+                  {currentOrg.targetAudience === 'SUPPLIER' && (
+                    <option value="SUPPLIER_UPDATE">Automático: Atualização de Pedido</option>
+                  )}
+                </select>
+
+                <input
+                  type="text"
+                  value={editForm.name}
                 onChange={e => setEditForm({ ...editForm, name: e.target.value })}
                 placeholder="Nome do Modelo"
                 className="w-full p-2 border border-slate-200 rounded-lg outline-none focus:border-blue-500 bg-white"

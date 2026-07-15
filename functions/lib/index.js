@@ -37,7 +37,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.onJobUpdated = exports.ycloudWebhook = exports.onSupplierOrderUpdated = exports.onDeliveryRouteUpdated = exports.onAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
-/* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -1821,9 +1820,38 @@ exports.ycloudWebhook = (0, https_1.onRequest)(async (req, res) => {
             await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).update({
                 status: newStatus
             });
-            const responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
+            let responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
             const orgSnap = await db.collection("organizations").doc(orgId).get();
             const org = orgSnap.data();
+            if ((org === null || org === void 0 ? void 0 : org.hasWhatsappModule) && (org === null || org === void 0 ? void 0 : org.whatsappTemplates)) {
+                const type = newStatus === "CONFIRMED" ? "CLINIC_APPOINTMENT_CONFIRMED" : "CLINIC_APPOINTMENT_CANCELED";
+                const template = org.whatsappTemplates.find((t) => t.type === type && t.active);
+                if (template) {
+                    let patientName = "Paciente";
+                    let dateStr = "";
+                    let timeStr = "";
+                    try {
+                        const apptSnap = await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).get();
+                        if (apptSnap.exists) {
+                            const appt = apptSnap.data();
+                            dateStr = new Date(appt.date).toLocaleDateString("pt-BR");
+                            timeStr = appt.startTime || "";
+                            const patSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appt.patientId).get();
+                            if (patSnap.exists) {
+                                patientName = patSnap.data().name;
+                            }
+                        }
+                    }
+                    catch (e) {
+                        logger.error("Erro ao buscar dados para template no webhook", e);
+                    }
+                    let body = template.body;
+                    body = body.replace(/\{\{patient_name\}\}/g, patientName);
+                    body = body.replace(/\{\{date\}\}/g, dateStr);
+                    body = body.replace(/\{\{time\}\}/g, timeStr);
+                    responseMsg = body;
+                }
+            }
             let apiKey = process.env.YCLOUD_API_KEY || "";
             let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
             if (org === null || org === void 0 ? void 0 : org.ycloudSettings) {
@@ -1880,7 +1908,7 @@ exports.onJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}
         }
         if (phone) {
             const osNumber = after.osNumber || ((_e = after.id) === null || _e === void 0 ? void 0 : _e.substring(after.id.length - 6).toUpperCase()) || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
-            await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+            await getTemplateAndSend(orgId, "LAB_DELIVERED", {
                 dentist_name: after.dentistName || "Dentista",
                 jobs_list: `- ${after.patientName} (OS: ${osNumber})`
             }, phone);

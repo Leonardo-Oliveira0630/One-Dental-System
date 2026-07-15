@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, max-len, no-trailing-spaces, comma-dangle, quotes, object-curly-spacing, indent */
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
@@ -2014,10 +2013,41 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
         status: newStatus
       });
       
-      const responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
+      let responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
       
       const orgSnap = await db.collection("organizations").doc(orgId).get();
       const org = orgSnap.data() as any;
+      
+      if (org?.hasWhatsappModule && org?.whatsappTemplates) {
+         const type = newStatus === "CONFIRMED" ? "CLINIC_APPOINTMENT_CONFIRMED" : "CLINIC_APPOINTMENT_CANCELED";
+         const template = org.whatsappTemplates.find((t: any) => t.type === type && t.active);
+         if (template) {
+            let patientName = "Paciente";
+            let dateStr = "";
+            let timeStr = "";
+            try {
+               const apptSnap = await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).get();
+               if (apptSnap.exists) {
+                  const appt = apptSnap.data() as any;
+                  dateStr = new Date(appt.date).toLocaleDateString("pt-BR");
+                  timeStr = appt.startTime || "";
+                  const patSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appt.patientId).get();
+                  if (patSnap.exists) {
+                      patientName = (patSnap.data() as any).name;
+                  }
+               }
+            } catch (e) {
+               logger.error("Erro ao buscar dados para template no webhook", e);
+            }
+            
+            let body = template.body;
+            body = body.replace(/\{\{patient_name\}\}/g, patientName);
+            body = body.replace(/\{\{date\}\}/g, dateStr);
+            body = body.replace(/\{\{time\}\}/g, timeStr);
+            responseMsg = body;
+         }
+      }
+      
       let apiKey = process.env.YCLOUD_API_KEY || "";
       let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
       
@@ -2078,7 +2108,7 @@ export const onJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{jobId
      if (phone) {
        const osNumber = after.osNumber || after.id?.substring(after.id.length - 6).toUpperCase() || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
        
-       await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+       await getTemplateAndSend(orgId, "LAB_DELIVERED", {
          dentist_name: after.dentistName || "Dentista",
          jobs_list: `- ${after.patientName} (OS: ${osNumber})`
        }, phone);

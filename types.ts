@@ -133,7 +133,7 @@ export interface Organization {
     id: string;
     name: string;
     body: string;
-    type: 'CLINIC_APPOINTMENT' | 'LAB_DISPATCH' | 'SUPPLIER_UPDATE' | 'CUSTOM';
+    type: 'CLINIC_APPOINTMENT' | 'CLINIC_APPOINTMENT_CONFIRMED' | 'CLINIC_APPOINTMENT_CANCELED' | 'LAB_DISPATCH' | 'LAB_DELIVERED' | 'SUPPLIER_UPDATE' | 'CUSTOM';
     active: boolean;
   }[];
   receiptSettings?: {
