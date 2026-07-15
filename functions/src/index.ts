@@ -1165,8 +1165,8 @@ export const toggleWhatsappModule = onCall(async (request: any) => {
       // Obter valor do plano
       const planSnap = await db.collection("subscriptionPlans").doc(planId).get();
       const planData = planSnap.data() || {};
-      let basePrice = planData.price || 99.00;
-      let wppPrice = planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00;
+      let basePrice = Number(planData.price || 99.00);
+      let wppPrice = Number(planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00);
       
       let newValue = basePrice;
       if (activate) {
