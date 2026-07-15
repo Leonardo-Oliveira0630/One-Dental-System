@@ -6,10 +6,12 @@ import { defineSecret } from "firebase-functions/params";
 
 const asaasApiKeySecret = defineSecret("ASAAS_API_KEY");
 const asaasWebhookTokenSecret = defineSecret("ASAAS_WEBHOOK_TOKEN");
+const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
+const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
 
 setGlobalOptions({ 
   maxInstances: 10,
-  secrets: [asaasApiKeySecret, asaasWebhookTokenSecret]
+  secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
@@ -57,6 +59,52 @@ const getAsaasConfig = async () => {
     key: apiKey,
     url: baseUrl,
     splitPercent: settings?.platformCommission || 5,
+  };
+};
+
+const getYcloudConfig = async () => {
+  const db = admin.firestore();
+  let apiKey = "";
+  let fromNumber = "";
+  
+  try {
+    apiKey = ycloudApiKeySecret.value();
+  } catch (e) {
+    // ignore
+  }
+  try {
+    fromNumber = ycloudPhoneNumberSecret.value();
+  } catch (e) {
+    // ignore
+  }
+  
+  if (!apiKey) {
+    apiKey = process.env.YCLOUD_API_KEY || "";
+  }
+  if (!fromNumber) {
+    fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
+  }
+  
+  try {
+    if (!apiKey || !fromNumber) {
+      const settingsSnap = await db.collection("settings").doc("global").get();
+      if (settingsSnap.exists) {
+        const settings = settingsSnap.data();
+        if (!apiKey && settings?.ycloudApiKey) {
+          apiKey = settings.ycloudApiKey;
+        }
+        if (!fromNumber && settings?.ycloudPhoneNumber) {
+          fromNumber = settings.ycloudPhoneNumber;
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn("Erro ao buscar fallback do Ycloud no Firestore:", err);
+  }
+  
+  return {
+    apiKey,
+    fromNumber
   };
 };
 
@@ -1725,8 +1773,9 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     throw new HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
   }
 
-  let apiKey = process.env.YCLOUD_API_KEY || "";
-  let fromNumber = process.env.YCLOUD_PHONE_NUMBER || ""; 
+  const globalConfig = await getYcloudConfig();
+  let apiKey = globalConfig.apiKey;
+  let fromNumber = globalConfig.fromNumber;
 
   if (orgId) {
     try {
@@ -1826,8 +1875,9 @@ async function getTemplateAndSend(orgId: string, type: string, variables: Record
     body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
   }
   
-  let apiKey = process.env.YCLOUD_API_KEY || "";
-  let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
+  const globalConfig = await getYcloudConfig();
+  let apiKey = globalConfig.apiKey;
+  let fromNumber = globalConfig.fromNumber;
   
   if (org.ycloudSettings) {
     if (org.ycloudSettings.apiKey) apiKey = org.ycloudSettings.apiKey;
@@ -1894,7 +1944,7 @@ export const onAppointmentCreated = onDocumentCreated("organizations/{orgId}/app
   }, phone);
 });
 
-export const onDeliveryRouteUpdated = onDocumentUpdated("organizations/{orgId}/deliveryRoutes/{routeId}", async (event: any) => {
+export const onDeliveryRouteUpdated = onDocumentUpdated("organizations/{orgId}/routes/{routeId}", async (event: any) => {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!before || !after) return;
@@ -1904,7 +1954,7 @@ export const onDeliveryRouteUpdated = onDocumentUpdated("organizations/{orgId}/d
      const db = admin.firestore();
      
      // Obter items da rota
-     const itemsSnap = await db.collection("organizations").doc(orgId).collection("deliveryRoutes").doc(event.params.routeId).collection("routeItems").get();
+     const itemsSnap = await db.collection("organizations").doc(orgId).collection("routes").doc(event.params.routeId).collection("items").get();
      if (itemsSnap.empty) return;
      
      const items = itemsSnap.docs.map((doc: any) => doc.data());
@@ -2081,8 +2131,9 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
          responseMsg = body;
       }
       
-      let apiKey = process.env.YCLOUD_API_KEY || "";
-      let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
+      const globalConfig = await getYcloudConfig();
+      let apiKey = globalConfig.apiKey;
+      let fromNumber = globalConfig.fromNumber;
       
       if (org?.ycloudSettings) {
         if (org.ycloudSettings.apiKey) apiKey = org.ycloudSettings.apiKey;
@@ -2132,7 +2183,7 @@ export const onJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{jobId
        phone = (userSnap.data() as any)?.phone || "";
      } else {
        // Manual
-       const manualSnap = await db.collection("organizations").doc(orgId).collection("dentists").doc(dId).get();
+       const manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
        if (manualSnap.exists) {
          phone = (manualSnap.data() as any)?.phone || "";
        }

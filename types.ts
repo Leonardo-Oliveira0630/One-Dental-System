@@ -45,6 +45,8 @@ export interface GlobalSettings {
   officialStoresIds?: string[];
   marketplaceCategories?: MarketplaceCategory[];
   geminiApiKey?: string;
+  ycloudApiKey?: string;
+  ycloudPhoneNumber?: string;
   globalWhatsappTemplates?: GlobalWhatsAppTemplate[];
   updatedAt: Date;
   updatedBy: string;

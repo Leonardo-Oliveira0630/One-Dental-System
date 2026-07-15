@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   Plus, Edit2, Trash2, Save, X, Loader2, MessageSquare, Info, AlertCircle, CheckCircle, Smartphone
@@ -16,6 +16,17 @@ export const WhatsAppTemplates = () => {
   const [name, setName] = useState('');
   const [body, setBody] = useState('');
   const [active, setActive] = useState(true);
+
+  // Ycloud Config State
+  const [ycloudApiKey, setYcloudApiKey] = useState(globalSettings?.ycloudApiKey || '');
+  const [ycloudPhoneNumber, setYcloudPhoneNumber] = useState(globalSettings?.ycloudPhoneNumber || '');
+  const [isSavingYcloud, setIsSavingYcloud] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  React.useEffect(() => {
+    setYcloudApiKey(globalSettings?.ycloudApiKey || '');
+    setYcloudPhoneNumber(globalSettings?.ycloudPhoneNumber || '');
+  }, [globalSettings?.ycloudApiKey, globalSettings?.ycloudPhoneNumber]);
 
   const templatesList = globalSettings?.globalWhatsappTemplates || [];
 
@@ -104,7 +115,7 @@ export const WhatsAppTemplates = () => {
         updatedTemplates.push(newTemplate);
       } else {
         const index = updatedTemplates.findIndex(t => t.id === editingId);
-        if (index !== -1) {
+        if (index !== -1 && editingId) {
           updatedTemplates[index] = {
             id: editingId,
             action,
@@ -151,6 +162,24 @@ export const WhatsAppTemplates = () => {
     }
   };
 
+  const handleSaveYcloud = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingYcloud(true);
+    setMessage(null);
+    try {
+      await updateGlobalSettings({
+        ycloudApiKey: ycloudApiKey.trim(),
+        ycloudPhoneNumber: ycloudPhoneNumber.trim()
+      });
+      setMessage({ type: 'success', text: 'Configurações globais do Ycloud salvas com sucesso!' });
+    } catch (err: any) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Erro ao salvar configurações do Ycloud.' });
+    } finally {
+      setIsSavingYcloud(false);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
@@ -164,6 +193,61 @@ export const WhatsAppTemplates = () => {
         >
           <Plus size={18} /> Novo Modelo Global
         </button>
+      </div>
+
+      <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+        <div className="flex items-start gap-3">
+          <Smartphone className="text-blue-600 mt-0.5" size={22} />
+          <div>
+            <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">Configurações Globais da API Ycloud</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Insira a chave de API e o número de telefone do Ycloud para funcionar como fallback na plataforma inteira. 
+              Ao preencher aqui, as notificações do WhatsApp funcionarão imediatamente sem a necessidade de configurar secrets no GCP!
+            </p>
+          </div>
+        </div>
+        
+        <form onSubmit={handleSaveYcloud} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block mb-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Número de Telefone Ycloud (From)</label>
+            <input
+              type="text"
+              value={ycloudPhoneNumber}
+              onChange={(e) => setYcloudPhoneNumber(e.target.value)}
+              placeholder="Ex: 5511999999999"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="relative">
+            <label className="block mb-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Chave de API do Ycloud (X-API-Key)</label>
+            <div className="relative flex items-center">
+              <input
+                type={showApiKey ? "text" : "password"}
+                value={ycloudApiKey}
+                onChange={(e) => setYcloudApiKey(e.target.value)}
+                placeholder="Insira a API Key do Ycloud..."
+                className="w-full pl-4 pr-16 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-3 text-[10px] font-black text-slate-400 hover:text-slate-600 focus:outline-none"
+              >
+                {showApiKey ? "OCULTAR" : "MOSTRAR"}
+              </button>
+            </div>
+          </div>
+          <div>
+            <button
+              type="submit"
+              disabled={isSavingYcloud}
+              className="w-full py-3.5 px-6 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isSavingYcloud ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+              SALVAR CREDENCIAIS
+            </button>
+          </div>
+        </form>
       </div>
 
       {message && (
