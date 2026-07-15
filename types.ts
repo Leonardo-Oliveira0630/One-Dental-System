@@ -30,6 +30,14 @@ export interface MarketplaceCategory {
   subcategories?: MarketplaceCategory[];
 }
 
+export interface GlobalWhatsAppTemplate {
+  id: string;
+  action: string;
+  name: string;
+  body: string;
+  active: boolean;
+}
+
 export interface GlobalSettings {
   platformCommission: number;
   whatsappModulePrice?: number;
@@ -37,6 +45,7 @@ export interface GlobalSettings {
   officialStoresIds?: string[];
   marketplaceCategories?: MarketplaceCategory[];
   geminiApiKey?: string;
+  globalWhatsappTemplates?: GlobalWhatsAppTemplate[];
   updatedAt: Date;
   updatedBy: string;
 }

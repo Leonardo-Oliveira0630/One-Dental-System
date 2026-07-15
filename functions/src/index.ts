@@ -1794,13 +1794,31 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
 
 async function getTemplateAndSend(orgId: string, type: string, variables: Record<string, string>, toNumber: string) {
   const db = admin.firestore();
+  
+  // 1. Check global template first
+  let template = null;
+  try {
+    const globalSettingsSnap = await db.collection("settings").doc("global").get();
+    if (globalSettingsSnap.exists) {
+      const globalSettings = globalSettingsSnap.data();
+      if (globalSettings && globalSettings.globalWhatsappTemplates) {
+        template = globalSettings.globalWhatsappTemplates.find((t: any) => t.action === type && t.active);
+      }
+    }
+  } catch (err) {
+    logger.error("Erro ao carregar modelo global de WhatsApp:", err);
+  }
+
   const orgSnap = await db.collection("organizations").doc(orgId).get();
   if (!orgSnap.exists) return;
   const org = orgSnap.data() as any;
   
-  if (!org.hasWhatsappModule || !org.whatsappTemplates) return;
+  // 2. Fallback to organization template if no active global template
+  if (!template) {
+    if (!org.hasWhatsappModule || !org.whatsappTemplates) return;
+    template = org.whatsappTemplates.find((t: any) => t.type === type && t.active);
+  }
   
-  const template = org.whatsappTemplates.find((t: any) => t.type === type && t.active);
   if (!template) return;
   
   let body = template.body;
@@ -2018,34 +2036,49 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
       const orgSnap = await db.collection("organizations").doc(orgId).get();
       const org = orgSnap.data() as any;
       
-      if (org?.hasWhatsappModule && org?.whatsappTemplates) {
-         const type = newStatus === "CONFIRMED" ? "CLINIC_APPOINTMENT_CONFIRMED" : "CLINIC_APPOINTMENT_CANCELED";
-         const template = org.whatsappTemplates.find((t: any) => t.type === type && t.active);
-         if (template) {
-            let patientName = "Paciente";
-            let dateStr = "";
-            let timeStr = "";
-            try {
-               const apptSnap = await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).get();
-               if (apptSnap.exists) {
-                  const appt = apptSnap.data() as any;
-                  dateStr = new Date(appt.date).toLocaleDateString("pt-BR");
-                  timeStr = appt.startTime || "";
-                  const patSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appt.patientId).get();
-                  if (patSnap.exists) {
-                      patientName = (patSnap.data() as any).name;
-                  }
-               }
-            } catch (e) {
-               logger.error("Erro ao buscar dados para template no webhook", e);
+      const type = newStatus === "CONFIRMED" ? "CLINIC_APPOINTMENT_CONFIRMED" : "CLINIC_APPOINTMENT_CANCELED";
+      let template = null;
+      
+      try {
+         const globalSettingsSnap = await db.collection("settings").doc("global").get();
+         if (globalSettingsSnap.exists) {
+            const globalSettings = globalSettingsSnap.data();
+            if (globalSettings && globalSettings.globalWhatsappTemplates) {
+               template = globalSettings.globalWhatsappTemplates.find((t: any) => t.action === type && t.active);
             }
-            
-            let body = template.body;
-            body = body.replace(/\{\{patient_name\}\}/g, patientName);
-            body = body.replace(/\{\{date\}\}/g, dateStr);
-            body = body.replace(/\{\{time\}\}/g, timeStr);
-            responseMsg = body;
          }
+      } catch (err) {
+         logger.error("Erro ao carregar modelo global de WhatsApp no webhook:", err);
+      }
+      
+      if (!template && org?.hasWhatsappModule && org?.whatsappTemplates) {
+         template = org.whatsappTemplates.find((t: any) => t.type === type && t.active);
+      }
+      
+      if (template) {
+         let patientName = "Paciente";
+         let dateStr = "";
+         let timeStr = "";
+         try {
+            const apptSnap = await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).get();
+            if (apptSnap.exists) {
+               const appt = apptSnap.data() as any;
+               dateStr = new Date(appt.date).toLocaleDateString("pt-BR");
+               timeStr = appt.startTime || "";
+               const patSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appt.patientId).get();
+               if (patSnap.exists) {
+                   patientName = (patSnap.data() as any).name;
+               }
+            }
+         } catch (e) {
+            logger.error("Erro ao buscar dados para template no webhook", e);
+         }
+         
+         let body = template.body;
+         body = body.replace(/\{\{patient_name\}\}/g, patientName);
+         body = body.replace(/\{\{date\}\}/g, dateStr);
+         body = body.replace(/\{\{time\}\}/g, timeStr);
+         responseMsg = body;
       }
       
       let apiKey = process.env.YCLOUD_API_KEY || "";

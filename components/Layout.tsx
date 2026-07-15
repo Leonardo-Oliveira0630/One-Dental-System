@@ -8,7 +8,7 @@ import {
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList
-, ChevronLeft} from 'lucide-react';
+, ChevronLeft, MessageSquare} from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
@@ -281,6 +281,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     <SidebarItem to="/superadmin/subscriptions" icon={<Users size={20} />} label="Assinaturas" active={location.pathname === '/superadmin/subscriptions'} />
                     <SidebarItem to="/superadmin/categories" icon={<LayoutGrid size={20} />} label="Categorias (Store)" active={location.pathname === '/superadmin/categories'} />
                     <SidebarItem to="/superadmin/finance" icon={<DollarSign size={20} />} label="Financeiro SaaS" active={location.pathname === '/superadmin/finance'} />
+                    <SidebarItem to="/superadmin/whatsapp" icon={<MessageSquare size={20} />} label="Modelos WhatsApp" active={location.pathname === '/superadmin/whatsapp'} />
                     <SidebarItem to="/superadmin/tutorials" icon={<BookOpen size={20} />} label="Gerenciar Tutoriais" active={location.pathname === '/superadmin/tutorials'} />
                     <SidebarItem to="/superadmin/helpdesk" icon={<ShieldCheck size={20} />} label="Agentes de Atendimento" active={location.pathname === '/superadmin/helpdesk'} />
                   </>

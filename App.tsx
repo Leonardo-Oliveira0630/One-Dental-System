@@ -45,6 +45,7 @@ import SuperAdminFinance from './pages/superadmin/Finance';
 import { Tutorials } from './pages/superadmin/Tutorials';
 import { HelpdeskAgentsAdmin } from './pages/superadmin/HelpdeskAgentsAdmin';
 import { MarketplaceCategoriesAdmin } from './pages/superadmin/MarketplaceCategoriesAdmin';
+import { WhatsAppTemplates } from './pages/superadmin/WhatsAppTemplates';
 import { TutorialsView } from './pages/TutorialsView';
 import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { TermsOfUse } from './pages/TermsOfUse';
@@ -207,6 +208,7 @@ const AppContent = () => {
       <Route path="/superadmin/finance" element={<ProtectedRoute><SuperAdminFinance /></ProtectedRoute>} />
       <Route path="/superadmin/tutorials" element={<ProtectedRoute><Tutorials /></ProtectedRoute>} />
       <Route path="/superadmin/helpdesk" element={<ProtectedRoute><HelpdeskAgentsAdmin /></ProtectedRoute>} />
+      <Route path="/superadmin/whatsapp" element={<ProtectedRoute><WhatsAppTemplates /></ProtectedRoute>} />
       <Route path="/helpdesk" element={<ProtectedRoute><HelpdeskWorkspace /></ProtectedRoute>} />
       
       <Route path="*" element={<Navigate to="/" replace />} />
