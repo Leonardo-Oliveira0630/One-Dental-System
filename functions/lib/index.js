@@ -198,7 +198,7 @@ exports.registerUserInOrg = (0, https_1.onCall)(async (request) => {
         return { success: true, uid: userRecord.uid };
     }
     catch (error) {
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 /**
@@ -291,7 +291,7 @@ exports.deleteUserAdmin = (0, https_1.onCall)(async (request) => {
         return { success: true };
     }
     catch (error) {
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 /**
@@ -308,7 +308,7 @@ exports.updateUserAdmin = (0, https_1.onCall)(async (request) => {
         return { success: true };
     }
     catch (error) {
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 /**
@@ -448,16 +448,16 @@ exports.generateBatchBoleto = (0, https_1.onCall)(async (request) => {
             msg,
             d: (_u = error.response) === null || _u === void 0 ? void 0 : _u.data,
         });
-        throw new https_1.HttpsError("internal", msg);
+        throw new https_1.HttpsError("aborted", msg);
     }
 });
 /**
  * CRIA SUB-CONTA (WALLET) NO ASAAS PARA O LABORATÓRIO
  */
 exports.createLabSubAccount = (0, https_1.onCall)(async (request) => {
-    const { orgId, accountData } = request.data;
-    const { key, url } = await getAsaasConfig();
     try {
+        const { orgId, accountData } = request.data;
+        const { key, url } = await getAsaasConfig();
         const res = await axios_1.default.post(`${url}/accounts`, accountData, {
             headers: { access_token: key },
         });
@@ -472,7 +472,7 @@ exports.createLabSubAccount = (0, https_1.onCall)(async (request) => {
         return { success: true };
     }
     catch (error) {
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 /**
@@ -741,7 +741,7 @@ exports.createOrderPayment = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         const msg = ((_r = (_q = (_p = (_o = error.response) === null || _o === void 0 ? void 0 : _o.data) === null || _p === void 0 ? void 0 : _p.errors) === null || _q === void 0 ? void 0 : _q[0]) === null || _r === void 0 ? void 0 : _r.description) || error.message;
-        throw new https_1.HttpsError("internal", msg);
+        throw new https_1.HttpsError("aborted", msg);
     }
 });
 /**
@@ -802,7 +802,7 @@ exports.createPatientPayment = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         const msg = ((_q = (_p = (_o = (_m = error.response) === null || _m === void 0 ? void 0 : _m.data) === null || _o === void 0 ? void 0 : _o.errors) === null || _p === void 0 ? void 0 : _p[0]) === null || _q === void 0 ? void 0 : _q.description) || error.message;
-        throw new https_1.HttpsError("internal", msg);
+        throw new https_1.HttpsError("aborted", msg);
     }
 });
 /**
@@ -850,7 +850,7 @@ exports.setSubscriptionStatus = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         logger.error("Erro em setSubscriptionStatus:", error);
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 exports.checkSubscriptionStatus = (0, https_1.onCall)(async (request) => {
@@ -917,7 +917,7 @@ exports.checkSubscriptionStatus = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         logger.error("Erro em checkSubscriptionStatus:", error);
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 /**
@@ -928,9 +928,9 @@ exports.checkSubscriptionStatus = (0, https_1.onCall)(async (request) => {
  */
 exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
     var _a;
-    const { orgId, planId, email, name, cpfCnpj } = req.data;
-    const { key, url } = await getAsaasConfig();
     try {
+        const { orgId, planId, email, name, cpfCnpj } = req.data;
+        const { key, url } = await getAsaasConfig();
         const cleanCpfCnpj = String(cpfCnpj).replace(/\D/g, "");
         // Buscar Informações da Organização para pegar dados de Endereço e Telefone
         const orgSnap = await admin.firestore()
@@ -1023,7 +1023,7 @@ exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
     }
     catch (error) {
         logger.error("Erro em createSaaSSubscription:", error);
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 /**
@@ -1032,10 +1032,10 @@ exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
  */
 exports.toggleWhatsappModule = (0, https_1.onCall)(async (request) => {
     var _a, _b, _c, _d, _e;
-    const { orgId, activate } = request.data;
-    const { key, url } = await getAsaasConfig();
-    const db = admin.firestore();
     try {
+        const { orgId, activate } = request.data;
+        const { key, url } = await getAsaasConfig();
+        const db = admin.firestore();
         const orgRef = db.collection("organizations").doc(orgId);
         const orgSnap = await orgRef.get();
         if (!orgSnap.exists) {
@@ -1048,8 +1048,8 @@ exports.toggleWhatsappModule = (0, https_1.onCall)(async (request) => {
             // Obter valor do plano
             const planSnap = await db.collection("subscriptionPlans").doc(planId).get();
             const planData = planSnap.data() || {};
-            let basePrice = planData.price || 99.00;
-            let wppPrice = planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00;
+            let basePrice = Number(planData.price || 99.00);
+            let wppPrice = Number(planData.whatsappModulePrice !== undefined ? planData.whatsappModulePrice : 90.00);
             let newValue = basePrice;
             if (activate) {
                 newValue += wppPrice;
@@ -1075,7 +1075,7 @@ exports.toggleWhatsappModule = (0, https_1.onCall)(async (request) => {
     }
     catch (err) {
         logger.error("Erro em toggleWhatsappModule:", err);
-        throw new https_1.HttpsError("internal", err.message);
+        throw new https_1.HttpsError("aborted", err.message);
     }
 });
 /**
@@ -1083,9 +1083,9 @@ exports.toggleWhatsappModule = (0, https_1.onCall)(async (request) => {
  */
 exports.getSaaSInvoices = (0, https_1.onCall)(async (request) => {
     var _a;
-    const { orgId } = request.data;
-    const { key, url } = await getAsaasConfig();
     try {
+        const { orgId } = request.data;
+        const { key, url } = await getAsaasConfig();
         const orgSnap = await admin.firestore()
             .collection("organizations")
             .doc(orgId)
@@ -1098,7 +1098,7 @@ exports.getSaaSInvoices = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         logger.error("Erro em getSaaSInvoices:", error);
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
@@ -1274,7 +1274,7 @@ exports.createSupplierPayment = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         const msg = ((_m = (_l = (_k = (_j = error.response) === null || _j === void 0 ? void 0 : _j.data) === null || _k === void 0 ? void 0 : _k.errors) === null || _l === void 0 ? void 0 : _l[0]) === null || _m === void 0 ? void 0 : _m.description) || error.message;
-        throw new https_1.HttpsError("internal", msg);
+        throw new https_1.HttpsError("aborted", msg);
     }
 });
 exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true }, async (req) => {
@@ -1355,7 +1355,7 @@ exports.manageOrderDecision = (0, https_1.onCall)(async (request) => {
         return { success: true };
     }
     catch (error) {
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 /**
@@ -1477,7 +1477,7 @@ exports.syncStoreOrders = (0, https_1.onCall)(async (request) => {
     }
     catch (error) {
         logger.error("Error in syncStoreOrders:", error);
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
@@ -1494,7 +1494,7 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
         }
         catch (err) {
             logger.error("Erro ao carregar o modulo sharp. Certifique-se de que ele esta instalado no ambiente.", err);
-            throw new https_1.HttpsError("internal", "Biblioteca de processamento de imagem nao disponivel no servidor.");
+            throw new https_1.HttpsError("aborted", "Biblioteca de processamento de imagem nao disponivel no servidor.");
         }
         const buffer = Buffer.from(base64, "base64");
         // Retrieve metadata using sharp
@@ -1566,7 +1566,7 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
     }
     catch (error) {
         logger.error("Error in optimizeAndUploadImage:", error);
-        throw new https_1.HttpsError("internal", error.message);
+        throw new https_1.HttpsError("aborted", error.message);
     }
 });
 /**
@@ -1627,7 +1627,7 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
     catch (error) {
         const errorMsg = ((_b = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || ((_e = (_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.message) || error.message;
         logger.error(`Erro ao enviar mensagem via Ycloud real: ${errorMsg}`, (_f = error.response) === null || _f === void 0 ? void 0 : _f.data);
-        throw new https_1.HttpsError("internal", `Erro no Ycloud: ${errorMsg}`);
+        throw new https_1.HttpsError("aborted", `Erro no Ycloud: ${errorMsg}`);
     }
 });
 /**
