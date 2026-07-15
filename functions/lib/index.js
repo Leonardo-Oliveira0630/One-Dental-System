@@ -44,9 +44,11 @@ const v2_1 = require("firebase-functions/v2");
 const params_1 = require("firebase-functions/params");
 const asaasApiKeySecret = (0, params_1.defineSecret)("ASAAS_API_KEY");
 const asaasWebhookTokenSecret = (0, params_1.defineSecret)("ASAAS_WEBHOOK_TOKEN");
+const ycloudApiKeySecret = (0, params_1.defineSecret)("YCLOUD_API_KEY");
+const ycloudPhoneNumberSecret = (0, params_1.defineSecret)("YCLOUD_PHONE_NUMBER");
 (0, v2_1.setGlobalOptions)({
     maxInstances: 10,
-    secrets: [asaasApiKeySecret, asaasWebhookTokenSecret]
+    secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
 });
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
@@ -88,6 +90,30 @@ const getAsaasConfig = async () => {
         url: baseUrl,
         splitPercent: (settings === null || settings === void 0 ? void 0 : settings.platformCommission) || 5,
     };
+};
+const getYcloudConfig = async () => {
+    let apiKey = "";
+    let fromNumber = "";
+    try {
+        apiKey = ycloudApiKeySecret.value();
+    }
+    catch (e) {
+        logger.warn("Secret YCLOUD_API_KEY não disponível via Secret Manager.");
+    }
+    if (!apiKey)
+        apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
+    try {
+        fromNumber = ycloudPhoneNumberSecret.value();
+    }
+    catch (e) {
+        logger.warn("Secret YCLOUD_PHONE_NUMBER não disponível via Secret Manager.");
+    }
+    if (!fromNumber)
+        fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
+    if (!apiKey || apiKey === "your_ycloud_api_key_here") {
+        logger.warn("YCLOUD_API_KEY não configurada no servidor (Secret/Env).");
+    }
+    return { apiKey, fromNumber };
 };
 async function getOrCreateAsaasCustomer(url, key, name, cpfCnpj, externalReference, email = "") {
     if (externalReference) {
@@ -1548,30 +1574,13 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
  */
 exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
     var _a, _b, _c, _d, _e, _f;
-    const { to, body, orgId } = request.data;
+    const { to, body } = request.data;
     if (!to || !body) {
         throw new https_1.HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
     }
-    let apiKey = process.env.YCLOUD_API_KEY || "";
-    let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
-    if (orgId) {
-        try {
-            const db = admin.firestore();
-            const orgSnap = await db.collection("organizations").doc(orgId).get();
-            if (orgSnap.exists) {
-                const orgData = orgSnap.data();
-                if (orgData === null || orgData === void 0 ? void 0 : orgData.ycloudSettings) {
-                    if (orgData.ycloudSettings.apiKey)
-                        apiKey = orgData.ycloudSettings.apiKey;
-                    if (orgData.ycloudSettings.fromNumber)
-                        fromNumber = orgData.ycloudSettings.fromNumber;
-                }
-            }
-        }
-        catch (err) {
-            logger.error("Erro ao carregar configurações Ycloud da organização:", err.message);
-        }
-    }
+    const globalConfig = await getYcloudConfig();
+    let apiKey = globalConfig.apiKey;
+    let fromNumber = globalConfig.fromNumber;
     if (!apiKey || apiKey === "your_ycloud_api_key_here") {
         logger.info(`[Ycloud Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
         return {
@@ -1618,27 +1627,39 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
 async function getTemplateAndSend(orgId, type, variables, toNumber) {
     var _a;
     const db = admin.firestore();
+    // 1. Check global template first
+    let template = null;
+    try {
+        const globalSettingsSnap = await db.collection("settings").doc("global").get();
+        if (globalSettingsSnap.exists) {
+            const globalSettings = globalSettingsSnap.data();
+            if (globalSettings && globalSettings.globalWhatsappTemplates) {
+                template = globalSettings.globalWhatsappTemplates.find((t) => t.action === type && t.active);
+            }
+        }
+    }
+    catch (err) {
+        logger.error("Erro ao carregar modelo global de WhatsApp:", err);
+    }
     const orgSnap = await db.collection("organizations").doc(orgId).get();
     if (!orgSnap.exists)
         return;
     const org = orgSnap.data();
-    if (!org.hasWhatsappModule || !org.whatsappTemplates)
-        return;
-    const template = org.whatsappTemplates.find((t) => t.type === type && t.active);
+    // 2. Fallback to organization template if no active global template
+    if (!template) {
+        if (!org.hasWhatsappModule || !org.whatsappTemplates)
+            return;
+        template = org.whatsappTemplates.find((t) => t.type === type && t.active);
+    }
     if (!template)
         return;
     let body = template.body;
     for (const [key, value] of Object.entries(variables)) {
         body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
     }
-    let apiKey = process.env.YCLOUD_API_KEY || "";
-    let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
-    if (org.ycloudSettings) {
-        if (org.ycloudSettings.apiKey)
-            apiKey = org.ycloudSettings.apiKey;
-        if (org.ycloudSettings.fromNumber)
-            fromNumber = org.ycloudSettings.fromNumber;
-    }
+    const globalConfig = await getYcloudConfig();
+    let apiKey = globalConfig.apiKey;
+    let fromNumber = globalConfig.fromNumber;
     if (!apiKey || apiKey === "your_ycloud_api_key_here") {
         logger.info(`[Simulado] WhatsApp Automático para ${toNumber}: ${body}`);
         return;
@@ -1694,7 +1715,7 @@ exports.onAppointmentCreated = (0, firestore_1.onDocumentCreated)("organizations
         time: timeStr
     }, phone);
 });
-exports.onDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/deliveryRoutes/{routeId}", async (event) => {
+exports.onDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/routes/{routeId}", async (event) => {
     var _a, _b, _c, _d;
     const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
@@ -1704,7 +1725,7 @@ exports.onDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizatio
         const orgId = event.params.orgId;
         const db = admin.firestore();
         // Obter items da rota
-        const itemsSnap = await db.collection("organizations").doc(orgId).collection("deliveryRoutes").doc(event.params.routeId).collection("routeItems").get();
+        const itemsSnap = await db.collection("organizations").doc(orgId).collection("routes").doc(event.params.routeId).collection("items").get();
         if (itemsSnap.empty)
             return;
         const items = itemsSnap.docs.map((doc) => doc.data());
@@ -1823,43 +1844,51 @@ exports.ycloudWebhook = (0, https_1.onRequest)(async (req, res) => {
             let responseMsg = newStatus === "CONFIRMED" ? "Sua consulta foi confirmada com sucesso. Obrigado!" : "Sua consulta foi cancelada.";
             const orgSnap = await db.collection("organizations").doc(orgId).get();
             const org = orgSnap.data();
-            if ((org === null || org === void 0 ? void 0 : org.hasWhatsappModule) && (org === null || org === void 0 ? void 0 : org.whatsappTemplates)) {
-                const type = newStatus === "CONFIRMED" ? "CLINIC_APPOINTMENT_CONFIRMED" : "CLINIC_APPOINTMENT_CANCELED";
-                const template = org.whatsappTemplates.find((t) => t.type === type && t.active);
-                if (template) {
-                    let patientName = "Paciente";
-                    let dateStr = "";
-                    let timeStr = "";
-                    try {
-                        const apptSnap = await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).get();
-                        if (apptSnap.exists) {
-                            const appt = apptSnap.data();
-                            dateStr = new Date(appt.date).toLocaleDateString("pt-BR");
-                            timeStr = appt.startTime || "";
-                            const patSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appt.patientId).get();
-                            if (patSnap.exists) {
-                                patientName = patSnap.data().name;
-                            }
-                        }
+            const type = newStatus === "CONFIRMED" ? "CLINIC_APPOINTMENT_CONFIRMED" : "CLINIC_APPOINTMENT_CANCELED";
+            let template = null;
+            try {
+                const globalSettingsSnap = await db.collection("settings").doc("global").get();
+                if (globalSettingsSnap.exists) {
+                    const globalSettings = globalSettingsSnap.data();
+                    if (globalSettings && globalSettings.globalWhatsappTemplates) {
+                        template = globalSettings.globalWhatsappTemplates.find((t) => t.action === type && t.active);
                     }
-                    catch (e) {
-                        logger.error("Erro ao buscar dados para template no webhook", e);
-                    }
-                    let body = template.body;
-                    body = body.replace(/\{\{patient_name\}\}/g, patientName);
-                    body = body.replace(/\{\{date\}\}/g, dateStr);
-                    body = body.replace(/\{\{time\}\}/g, timeStr);
-                    responseMsg = body;
                 }
             }
-            let apiKey = process.env.YCLOUD_API_KEY || "";
-            let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
-            if (org === null || org === void 0 ? void 0 : org.ycloudSettings) {
-                if (org.ycloudSettings.apiKey)
-                    apiKey = org.ycloudSettings.apiKey;
-                if (org.ycloudSettings.fromNumber)
-                    fromNumber = org.ycloudSettings.fromNumber;
+            catch (err) {
+                logger.error("Erro ao carregar modelo global de WhatsApp no webhook:", err);
             }
+            if (!template && (org === null || org === void 0 ? void 0 : org.hasWhatsappModule) && (org === null || org === void 0 ? void 0 : org.whatsappTemplates)) {
+                template = org.whatsappTemplates.find((t) => t.type === type && t.active);
+            }
+            if (template) {
+                let patientName = "Paciente";
+                let dateStr = "";
+                let timeStr = "";
+                try {
+                    const apptSnap = await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).get();
+                    if (apptSnap.exists) {
+                        const appt = apptSnap.data();
+                        dateStr = new Date(appt.date).toLocaleDateString("pt-BR");
+                        timeStr = appt.startTime || "";
+                        const patSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appt.patientId).get();
+                        if (patSnap.exists) {
+                            patientName = patSnap.data().name;
+                        }
+                    }
+                }
+                catch (e) {
+                    logger.error("Erro ao buscar dados para template no webhook", e);
+                }
+                let body = template.body;
+                body = body.replace(/\{\{patient_name\}\}/g, patientName);
+                body = body.replace(/\{\{date\}\}/g, dateStr);
+                body = body.replace(/\{\{time\}\}/g, timeStr);
+                responseMsg = body;
+            }
+            const globalConfig = await getYcloudConfig();
+            let apiKey = globalConfig.apiKey;
+            let fromNumber = globalConfig.fromNumber;
             if (apiKey && apiKey !== "your_ycloud_api_key_here") {
                 const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
                 await axios_1.default.post(ycloudUrl, {
@@ -1901,7 +1930,7 @@ exports.onJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}
         }
         else {
             // Manual
-            const manualSnap = await db.collection("organizations").doc(orgId).collection("dentists").doc(dId).get();
+            const manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
             if (manualSnap.exists) {
                 phone = ((_d = manualSnap.data()) === null || _d === void 0 ? void 0 : _d.phone) || "";
             }

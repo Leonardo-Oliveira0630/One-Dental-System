@@ -137,10 +137,7 @@ export interface Organization {
   revealJobStatusToDentist?: boolean;
   targetAudience?: 'CLINIC' | 'LAB' | 'SUPPLIER';
   hasWhatsappModule?: boolean;
-  ycloudSettings?: {
-    apiKey?: string;
-    fromNumber?: string;
-  };
+  ycloudPhoneNumber?: string;
   whatsappTemplates?: {
     id: string;
     name: string;

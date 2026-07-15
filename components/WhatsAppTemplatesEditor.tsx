@@ -14,24 +14,22 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
   const [editForm, setEditForm] = useState({ name: '', body: '', type: 'CUSTOM' as any, active: true });
   const [saving, setSaving] = useState(false);
 
-  const [ycloudApiKey, setYcloudApiKey] = useState(currentOrg.ycloudSettings?.apiKey || '');
-  const [ycloudPhoneNumber, setYcloudPhoneNumber] = useState(currentOrg.ycloudSettings?.fromNumber || '');
+
+
+  const [ycloudPhoneNumber, setYcloudPhoneNumber] = useState(currentOrg.ycloudPhoneNumber || '');
   const [savingSettings, setSavingSettings] = useState(false);
 
   const saveYcloudSettings = async () => {
     setSavingSettings(true);
     try {
       await api.apiUpdateOrganization(currentOrg.id, {
-        ycloudSettings: {
-          apiKey: ycloudApiKey.trim(),
-          fromNumber: ycloudPhoneNumber.trim()
-        }
+        ycloudPhoneNumber: ycloudPhoneNumber.trim()
       });
-      alert('Configurações do YCloud salvas com sucesso!');
+      alert('Número do WhatsApp salvo com sucesso!');
       onUpdate();
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar configurações do YCloud');
+      alert('Erro ao salvar o Número do WhatsApp');
     } finally {
       setSavingSettings(false);
     }
@@ -104,24 +102,16 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
 
   return (
     <div className="space-y-6">
-      {/* YCLOUD SETTINGS */}
+
+
+      {/* YCLOUD SENDER NUMBER */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">Credenciais YCloud (Opcional)</h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-4">Número de Envio (Opcional)</h3>
         <p className="text-sm text-slate-600 mb-4">
-          Configure a sua própria chave de API e Número de WhatsApp (registrado no YCloud) para que as mensagens sejam enviadas pelo seu próprio número. Caso deixe em branco, será utilizado o número global da plataforma.
+          Configure o seu próprio Número de WhatsApp (registrado no YCloud) para que as mensagens sejam enviadas pelo seu próprio número. Caso deixe em branco, será utilizado o número global da plataforma.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">YCloud API Key</label>
-            <input 
-              type="text" 
-              value={ycloudApiKey}
-              onChange={e => setYcloudApiKey(e.target.value)}
-              className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 bg-slate-50"
-              placeholder="Ex: seu_api_key_aqui"
-            />
-          </div>
-          <div>
+        <div className="flex gap-4 mb-4">
+          <div className="flex-1">
             <label className="block text-sm font-bold text-slate-700 mb-1">Número de Envio (WhatsApp)</label>
             <input 
               type="text" 
@@ -137,7 +127,7 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
           disabled={savingSettings}
           className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
-          <Save size={18} /> {savingSettings ? 'Salvando...' : 'Salvar Credenciais YCloud'}
+          <Save size={18} /> {savingSettings ? 'Salvando...' : 'Salvar Número'}
         </button>
       </div>
 

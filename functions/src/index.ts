@@ -6,10 +6,12 @@ import { defineSecret } from "firebase-functions/params";
 
 const asaasApiKeySecret = defineSecret("ASAAS_API_KEY");
 const asaasWebhookTokenSecret = defineSecret("ASAAS_WEBHOOK_TOKEN");
+const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
+const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
 
 setGlobalOptions({ 
   maxInstances: 10,
-  secrets: [asaasApiKeySecret, asaasWebhookTokenSecret]
+  secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
@@ -61,31 +63,20 @@ const getAsaasConfig = async () => {
 };
 
 const getYcloudConfig = async () => {
-  const db = admin.firestore();
-  let apiKey = process.env.YCLOUD_API_KEY || "";
-  let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
+  let apiKey = "";
+  let fromNumber = "";
   
-  try {
-    if (!apiKey || !fromNumber) {
-      const settingsSnap = await db.collection("settings").doc("global").get();
-      if (settingsSnap.exists) {
-        const settings = settingsSnap.data();
-        if (!apiKey && settings?.ycloudApiKey) {
-          apiKey = settings.ycloudApiKey;
-        }
-        if (!fromNumber && settings?.ycloudPhoneNumber) {
-          fromNumber = settings.ycloudPhoneNumber;
-        }
-      }
-    }
-  } catch (err) {
-    logger.warn("Erro ao buscar fallback do Ycloud no Firestore:", err);
+  try { apiKey = ycloudApiKeySecret.value(); } catch (e) { logger.warn("Secret YCLOUD_API_KEY não disponível via Secret Manager."); }
+  if (!apiKey) apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
+  
+  try { fromNumber = ycloudPhoneNumberSecret.value(); } catch (e) { logger.warn("Secret YCLOUD_PHONE_NUMBER não disponível via Secret Manager."); }
+  if (!fromNumber) fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
+
+  if (!apiKey || apiKey === "your_ycloud_api_key_here") {
+    logger.warn("YCLOUD_API_KEY não configurada no servidor (Secret/Env).");
   }
-  
-  return {
-    apiKey,
-    fromNumber
-  };
+
+  return { apiKey, fromNumber };
 };
 
 async function getOrCreateAsaasCustomer(
@@ -1748,7 +1739,7 @@ export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (reques
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
 export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) => {
-  const { to, body, orgId } = request.data as any;
+  const { to, body } = request.data as any;
   if (!to || !body) {
     throw new HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
   }
@@ -1757,21 +1748,7 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
   let apiKey = globalConfig.apiKey;
   let fromNumber = globalConfig.fromNumber;
 
-  if (orgId) {
-    try {
-      const db = admin.firestore();
-      const orgSnap = await db.collection("organizations").doc(orgId).get();
-      if (orgSnap.exists) {
-        const orgData = orgSnap.data();
-        if (orgData?.ycloudSettings) {
-          if (orgData.ycloudSettings.apiKey) apiKey = orgData.ycloudSettings.apiKey;
-          if (orgData.ycloudSettings.fromNumber) fromNumber = orgData.ycloudSettings.fromNumber;
-        }
-      }
-    } catch (err: any) {
-      logger.error("Erro ao carregar configurações Ycloud da organização:", err.message);
-    }
-  }
+
 
   if (!apiKey || apiKey === "your_ycloud_api_key_here") {
     logger.info(`[Ycloud Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
@@ -1859,10 +1836,7 @@ async function getTemplateAndSend(orgId: string, type: string, variables: Record
   let apiKey = globalConfig.apiKey;
   let fromNumber = globalConfig.fromNumber;
   
-  if (org.ycloudSettings) {
-    if (org.ycloudSettings.apiKey) apiKey = org.ycloudSettings.apiKey;
-    if (org.ycloudSettings.fromNumber) fromNumber = org.ycloudSettings.fromNumber;
-  }
+
   
   if (!apiKey || apiKey === "your_ycloud_api_key_here") {
     logger.info(`[Simulado] WhatsApp Automático para ${toNumber}: ${body}`);
@@ -2115,10 +2089,7 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
       let apiKey = globalConfig.apiKey;
       let fromNumber = globalConfig.fromNumber;
       
-      if (org?.ycloudSettings) {
-        if (org.ycloudSettings.apiKey) apiKey = org.ycloudSettings.apiKey;
-        if (org.ycloudSettings.fromNumber) fromNumber = org.ycloudSettings.fromNumber;
-      }
+
       
       if (apiKey && apiKey !== "your_ycloud_api_key_here") {
         const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;

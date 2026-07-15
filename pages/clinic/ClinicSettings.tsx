@@ -28,9 +28,7 @@ export const ClinicSettings = () => {
   const [city, setCity] = useState(currentOrg?.city || '');
   const [state, setState] = useState(currentOrg?.state || '');
   const [loadingCep, setLoadingCep] = useState(false);
-  const [ycloudApiKey, setYcloudApiKey] = useState(currentOrg?.ycloudSettings?.apiKey || '');
-    const [ycloudFromNumber, setYcloudFromNumber] = useState(currentOrg?.ycloudSettings?.fromNumber || '');
-
+  
   // Sync with currentOrg updates
   useEffect(() => {
     if (currentOrg) {
@@ -44,9 +42,7 @@ export const ClinicSettings = () => {
       setNeighborhood(currentOrg.neighborhood || '');
       setCity(currentOrg.city || '');
       setState(currentOrg.state || '');
-      setYcloudApiKey(currentOrg.ycloudSettings?.apiKey || '');
-            setYcloudFromNumber(currentOrg.ycloudSettings?.fromNumber || '');
-    }
+          }
   }, [currentOrg, currentUser]);
   
   // Subscription State
@@ -158,10 +154,7 @@ export const ClinicSettings = () => {
           neighborhood,
           city,
           state,
-          ycloudSettings: {
-            apiKey: ycloudApiKey.trim(),
-                        fromNumber: ycloudFromNumber.trim()
-          },
+  
           financialSettings: {
               ...(currentOrg.financialSettings || {}),
               techResponsibleName: adminName,
