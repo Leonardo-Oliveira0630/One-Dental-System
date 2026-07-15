@@ -1739,7 +1739,7 @@ export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (reques
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
 export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) => {
-  const { to, body } = request.data as any;
+  const { to, body, orgId } = request.data as any;
   if (!to || !body) {
     throw new HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
   }
@@ -1747,8 +1747,16 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
   const globalConfig = await getYcloudConfig();
   let apiKey = globalConfig.apiKey;
   let fromNumber = globalConfig.fromNumber;
-
-
+  
+  if (orgId) {
+    const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
+    if (orgSnap.exists) {
+      const org = orgSnap.data() as any;
+      if (org.ycloudPhoneNumber) {
+        fromNumber = org.ycloudPhoneNumber;
+      }
+    }
+  }
 
   if (!apiKey || apiKey === "your_ycloud_api_key_here") {
     logger.info(`[Ycloud Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
@@ -1834,10 +1842,8 @@ async function getTemplateAndSend(orgId: string, type: string, variables: Record
   
   const globalConfig = await getYcloudConfig();
   let apiKey = globalConfig.apiKey;
-  let fromNumber = globalConfig.fromNumber;
-  
+  let fromNumber = org.ycloudPhoneNumber || globalConfig.fromNumber;
 
-  
   if (!apiKey || apiKey === "your_ycloud_api_key_here") {
     logger.info(`[Simulado] WhatsApp Automático para ${toNumber}: ${body}`);
     return;

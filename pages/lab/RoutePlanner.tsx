@@ -155,21 +155,7 @@ export const RoutePlanner = () => {
         if (!activeRoute || !currentOrg || !canEdit) return;
         await api.apiUpdateRoute(currentOrg.id, activeRoute.id, { status });
 
-        // Enviar WhatsApp para todos os casos da rota quando iniciar (IN_TRANSIT)
-        if (status === 'IN_TRANSIT') {
-            for (const item of routeItems) {
-                if (item.type === 'DELIVERY' && item.jobId) {
-                    const job = jobs.find(j => j.id === item.jobId);
-                    if (job) {
-                        const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
-                        const dentistPhone = dentist?.phone || '';
-                        if (dentistPhone) {
-                            await notifyJobLogistics(job, 'SHIPPED', dentistPhone, dentist?.name || 'Dentista').catch(e => console.warn(e));
-                        }
-                    }
-                }
-            }
-        }
+
     };
 
     const handleAddCourierSubmit = async (e: React.FormEvent) => {
