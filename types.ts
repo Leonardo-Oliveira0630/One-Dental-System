@@ -135,6 +135,7 @@ export interface Organization {
   croValid?: boolean;
   isApproved?: boolean;
   revealJobStatusToDentist?: boolean;
+  targetAudience?: 'CLINIC' | 'LAB' | 'SUPPLIER';
   hasWhatsappModule?: boolean;
   ycloudSettings?: {
     apiKey?: string;
@@ -1030,6 +1031,7 @@ export interface SupplierOrder {
   buyerOrgName: string;
   buyerName: string;
   buyerEmail: string;
+  buyerPhone?: string;
   items: {
     productId: string;
     name: string;
@@ -1039,7 +1041,9 @@ export interface SupplierOrder {
   totalValue: number;
   discountValue?: number;
   couponCode?: string;
-  status: 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  status?: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  deliveryStatus?: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED';
+  paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
   createdAt: Date;
   notes?: string;
   paymentMethod: 'CREDIT_CARD' | 'PIX' | 'BOLETO';

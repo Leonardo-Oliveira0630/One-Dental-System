@@ -7,7 +7,7 @@ import {
   Settings, Store, Sparkles, Tag, HelpCircle, Save, Plus, Trash2, 
   ArrowUp, ArrowDown, ChevronRight, CheckCircle2, DollarSign, Wallet, 
   MapPin, Landmark, Layout, Grid, List as ListIcon, RefreshCw, Eye, Image as ImageIcon,
-  CheckCircle, Crown, Info, Zap
+  CheckCircle, Crown, Info, Zap, MessageSquare
 } from 'lucide-react';
 import * as api from '../../services/firebaseService';
 

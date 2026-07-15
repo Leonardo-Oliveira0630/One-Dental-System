@@ -14,6 +14,29 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
   const [editForm, setEditForm] = useState({ name: '', body: '', type: 'CUSTOM' as any, active: true });
   const [saving, setSaving] = useState(false);
 
+  const [ycloudApiKey, setYcloudApiKey] = useState(currentOrg.ycloudSettings?.apiKey || '');
+  const [ycloudPhoneNumber, setYcloudPhoneNumber] = useState(currentOrg.ycloudSettings?.fromNumber || '');
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const saveYcloudSettings = async () => {
+    setSavingSettings(true);
+    try {
+      await api.apiUpdateOrganization(currentOrg.id, {
+        ycloudSettings: {
+          apiKey: ycloudApiKey.trim(),
+          fromNumber: ycloudPhoneNumber.trim()
+        }
+      });
+      alert('Configurações do YCloud salvas com sucesso!');
+      onUpdate();
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar configurações do YCloud');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const defaultTemplates = {
     CLINIC: {
       type: 'CLINIC_APPOINTMENT',
@@ -80,8 +103,46 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
   };
 
   return (
-    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      {/* YCLOUD SETTINGS */}
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <h3 className="text-lg font-bold text-slate-800 mb-4">Credenciais YCloud (Opcional)</h3>
+        <p className="text-sm text-slate-600 mb-4">
+          Configure a sua própria chave de API e Número de WhatsApp (registrado no YCloud) para que as mensagens sejam enviadas pelo seu próprio número. Caso deixe em branco, será utilizado o número global da plataforma.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">YCloud API Key</label>
+            <input 
+              type="text" 
+              value={ycloudApiKey}
+              onChange={e => setYcloudApiKey(e.target.value)}
+              className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 bg-slate-50"
+              placeholder="Ex: seu_api_key_aqui"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1">Número de Envio (WhatsApp)</label>
+            <input 
+              type="text" 
+              value={ycloudPhoneNumber}
+              onChange={e => setYcloudPhoneNumber(e.target.value)}
+              className="w-full p-3 border border-slate-200 rounded-xl outline-none focus:border-blue-500 bg-slate-50"
+              placeholder="Ex: 5511999999999"
+            />
+          </div>
+        </div>
+        <button 
+          onClick={saveYcloudSettings}
+          disabled={savingSettings}
+          className="px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+        >
+          <Save size={18} /> {savingSettings ? 'Salvando...' : 'Salvar Credenciais YCloud'}
+        </button>
+      </div>
+
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+        <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-bold text-slate-800">Modelos de Mensagem (WhatsApp)</h3>
         <div className="flex gap-2">
           {templates.length === 0 && (
@@ -249,6 +310,7 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
       <div className="mt-4 text-xs text-slate-500">
         <p><strong>Dica:</strong> Modelos "Automáticos" são enviados pelo sistema automaticamente em eventos específicos, desde que estejam ativos.</p>
       </div>
+    </div>
     </div>
   );
 }

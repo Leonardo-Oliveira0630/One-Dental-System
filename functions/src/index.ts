@@ -6,12 +6,10 @@ import { defineSecret } from "firebase-functions/params";
 
 const asaasApiKeySecret = defineSecret("ASAAS_API_KEY");
 const asaasWebhookTokenSecret = defineSecret("ASAAS_WEBHOOK_TOKEN");
-const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
-const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
 
 setGlobalOptions({ 
   maxInstances: 10,
-  secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
+  secrets: [asaasApiKeySecret, asaasWebhookTokenSecret]
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
@@ -64,26 +62,8 @@ const getAsaasConfig = async () => {
 
 const getYcloudConfig = async () => {
   const db = admin.firestore();
-  let apiKey = "";
-  let fromNumber = "";
-  
-  try {
-    apiKey = ycloudApiKeySecret.value();
-  } catch (e) {
-    // ignore
-  }
-  try {
-    fromNumber = ycloudPhoneNumberSecret.value();
-  } catch (e) {
-    // ignore
-  }
-  
-  if (!apiKey) {
-    apiKey = process.env.YCLOUD_API_KEY || "";
-  }
-  if (!fromNumber) {
-    fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
-  }
+  let apiKey = process.env.YCLOUD_API_KEY || "";
+  let fromNumber = process.env.YCLOUD_PHONE_NUMBER || "";
   
   try {
     if (!apiKey || !fromNumber) {
