@@ -18,16 +18,17 @@ export const getJobOriginInfo = (job: any) => {
 
   switch(origin) {
     case 'ONLINE_ORDER':
-      return { label: 'Loja Online', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' };
+      return { label: 'Loja Online', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' }
     case 'ONLINE_REQUISITION':
-      return { label: 'Requisição Online', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' };
+      return { label: 'Requisição Online', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' }
     case 'OUTSOURCING':
-      return { label: 'Terceirização', color: 'bg-purple-50 border-purple-200 text-purple-700' };
+      return { label: 'Terceirização', color: 'bg-purple-50 border-purple-200 text-purple-700' }
     case 'MANUAL':
     default:
-      return { label: 'Manual', color: 'bg-slate-50 border-slate-200 text-slate-700' };
+      return { label: 'Manual', color: 'bg-slate-50 border-slate-200 text-slate-700' }
   }
-};
+
+}
 
 // Componente de Linha Memoizado para evitar re-renders desnecessários
 const JobRow = memo(({ isJobOverdue, 
@@ -67,6 +68,7 @@ const JobRow = memo(({ isJobOverdue,
             <td className="p-4 font-mono font-bold text-sm">
                 <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 hover:text-blue-800 hover:underline text-left">
                     {job.osNumber || '---'}
+
                 </button>
             </td>
             {!isClient && (
@@ -75,20 +77,26 @@ const JobRow = memo(({ isJobOverdue,
                         <div 
                             className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs shadow-sm border border-black/10"
                             style={{ backgroundColor: job.boxColor?.hex || '#f1f5f9', color: job.boxColor ? getContrastColor(job.boxColor.hex) : '#64748b' }}
+
                         >
                             {job.boxNumber}
+
                         </div>
                     ) : <span className="text-slate-300">-</span>}
+
                 </td>
             )}
+
             <td className="p-4">
                 <div className="font-bold text-slate-900 text-sm">{job.patientName}</div>
                 {(job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
                     <div className="mt-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1 max-w-xs">
                         <span className="font-black text-[9px] uppercase tracking-wider block text-red-700">Motivo da Recusa:</span>
                         {job.rejectionReason}
+
                     </div>
                 )}
+
             </td>
             <td className="p-4 text-xs font-bold">
                 {(() => {
@@ -96,9 +104,11 @@ const JobRow = memo(({ isJobOverdue,
                     return (
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${originInfo.color}`}>
                             {originInfo.label}
+
                         </span>
                     );
                 })()}
+
             </td>
             <td className="p-4">
                 <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
@@ -107,32 +117,41 @@ const JobRow = memo(({ isJobOverdue,
                 {revealJobStatus ? (
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
                         {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
+
                     </span>
                 ) : (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200" title="Função de andamento indisponível no momento">
                         Indisponível
                     </span>
                 )}
+
             </td>
             <td className="p-4">
                 <div className="flex flex-col">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                         {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
+
                     </span>
                     {revealJobStatus && !isClient && (
                         <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
                             <Clock size={12} /> {timeInfo.label}
+
                             {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
+
                         </div>
                     )}
+
                 </div>
             </td>
             <td className="p-4 text-slate-600 text-xs font-bold">{new Date(job.dueDate).toLocaleDateString()}</td>
             <td className="p-4 text-right">
                 <div className="flex justify-end gap-1">
                     {canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 hover:bg-green-100 rounded-lg"><CheckCircle2 size={18} /></button>}
+
                     {canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg"><RotateCcw size={18} /></button>}
+
                     {canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg"><Truck size={18} /></button>}
+
                     <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Eye size={18} /></button>
                 </div>
             </td>
@@ -164,7 +183,9 @@ const JobCard = memo(({ isJobOverdue,
     return (
         <div onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${showAttention ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
             {job.urgency === UrgencyLevel.VIP && <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden"><div className="bg-orange-500 text-white text-[8px] font-black py-1 px-10 transform rotate-45 translate-x-3 -translate-y-1 text-center shadow-sm uppercase">VIP</div></div>}
+
             {showAttention && <div className="absolute top-0 left-0 w-full h-1 bg-amber-400 animate-pulse" />}
+
             
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
@@ -172,12 +193,14 @@ const JobCard = memo(({ isJobOverdue,
                     {revealJobStatus ? (
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
                             {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
+
                         </span>
                     ) : (
                         <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200">
                             Indisponível
                         </span>
                     )}
+
                 </div>
                 <div className="text-right">
                     <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Entrega</p>
@@ -195,8 +218,10 @@ const JobCard = memo(({ isJobOverdue,
                     <div className="mt-2 text-xs font-medium text-red-700 bg-red-50 border border-red-100 rounded-xl p-2.5">
                         <span className="font-black text-[9px] uppercase tracking-wider block mb-0.5 text-red-800">Motivo da Recusa:</span>
                         {job.rejectionReason}
+
                     </div>
                 )}
+
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
@@ -207,25 +232,78 @@ const JobCard = memo(({ isJobOverdue,
                            <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
                        </div>
                    )}
+
                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (showAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700') : 'bg-slate-100 text-slate-400'}`}>
                        <MapPin size={14} className={revealJobStatus ? (showAttention ? 'text-amber-500' : 'text-blue-400') : 'text-slate-400'} />
                        <span className="text-xs font-bold truncate max-w-[100px]">{revealJobStatus ? (job.currentSector || 'Recepção') : 'Indisponível'}</span>
                        {revealJobStatus && !isClient && <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>}
+
                    </div>
                    {(() => {
                         const originInfo = getJobOriginInfo(job);
                         return (
                             <span className={`px-2 py-1 rounded-lg text-xs font-bold border ${originInfo.color}`}>
                                 {originInfo.label}
+
                             </span>
                         );
                    })()}
+
                 </div>
                 <ChevronRight className="text-slate-300 flex-shrink-0" size={20} />
             </div>
         </div>
     );
 });
+
+
+export const getStatusColor = (status: any, isOverdue = false) => {
+    if (isOverdue) return 'bg-red-500 text-white border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse';
+    switch(status) {
+        case 'PENDING_REQUISITION': return 'bg-amber-100 text-amber-700 border border-amber-200';
+        case 'REJECTED_REQUISITION': return 'bg-red-100 text-red-700 border border-red-200';
+        case 'COMPLETED': return 'bg-green-100 text-green-700 border border-green-200';
+        case 'IN_PROGRESS': return 'bg-blue-100 text-blue-700 border border-blue-200';
+        case 'WAITING_APPROVAL': return 'bg-purple-100 text-purple-700 border border-purple-200';
+        case 'DELIVERED': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+        case 'REJECTED': return 'bg-red-100 text-red-700 border border-red-200';
+        case 'CANCELED': return 'bg-gray-200 text-gray-700 border border-gray-300';
+        case 'RETURNED': return 'bg-orange-100 text-orange-700 border border-orange-200';
+        case 'SECTOR_TRANSITION': return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
+        default: return 'bg-slate-100 text-slate-700 border border-slate-200';
+    }
+
+}
+
+export const getTranslatedStatus = (status: any, isOverdue = false) => {
+    if (isOverdue) return 'Atrasado';
+    switch(status) {
+        case 'PENDING_REQUISITION': return 'Req. Pendente';
+        case 'REJECTED_REQUISITION': return 'Req. Recusada';
+        case 'WAITING_APPROVAL': return 'Aguardando';
+        case 'PENDING': return 'Pendente';
+        case 'IN_PROGRESS': return 'Produção';
+        case 'COMPLETED': return 'Concluído';
+        case 'DELIVERED': return 'Entregue';
+        case 'REJECTED': return 'Rejeitado';
+        case 'CANCELED': return 'Cancelado';
+        case 'RETURNED': return 'Devolvido';
+        case 'SECTOR_TRANSITION': return 'Em Transição';
+        default: return status;
+    }
+
+}
+
+export const getSectorTimeInfo = (job: any) => {
+    if (!job.sectorEntryTime) return { hours: 0, isAttention: false, label: '---' }
+    const diff = new Date().getTime() - new Date(job.sectorEntryTime).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    let label = '';
+    if (hours > 0) label += `${hours}h `;
+    label += `${minutes}m`;
+    return { hours, isAttention: hours >= 18, label }
+}
 
 export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) => {
   const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
@@ -261,20 +339,14 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
     try {
       await updateJob(jobId, { notes });
       setEditingJob(null);
-    } catch (e) {
-      alert("Erro ao salvar observação.");
-    }
-  };
-
-  const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
+    } catch (e) { alert("Erro ao salvar observação."); }
+}
+const handleUpdateStatus = async (jobId: string, status: JobStatus) => {
     try {
       await updateJob(jobId, { status });
-    } catch (e) {
-      alert("Erro ao atualizar status.");
-    }
-  };
-
-  const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
+    } catch (e) { alert("Erro ao atualizar status."); }
+}
+const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
   const isLabStaff = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.COLLABORATOR;
   const revealJobStatus = !isClient || (activeOrganization?.revealJobStatusToDentist ?? false);
 
@@ -294,7 +366,9 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
 
   const normalizeText = (text: string) => {
       return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  };
+  }
+
+  
 
   const isJobOverdue = (job: any) => {
     if (!job.dueDate) return false;
@@ -303,7 +377,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
     const due = new Date(job.dueDate);
     due.setHours(23, 59, 59, 999);
     return new Date() > due;
-  };
+  }
 
   const statusOptions = useMemo(() => [
     { value: 'OVERDUE', label: 'Atrasado' },
@@ -371,10 +445,12 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
             if (hasOverdueSelected && isJobOverdue(job)) {
                 matchesStatus = true;
             }
+
             
             if (hasOtherStatuses && selectedStatuses.includes(job.status)) {
                 matchesStatus = true;
             }
+
             
             if (!matchesStatus) return false;
         } else if (statusFilter !== 'ALL') {
@@ -388,17 +464,21 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
             } else if (job.status !== statusFilter) {
                 return false;
             }
+
         }
+
         if (startDate) {
             const start = new Date(startDate);
             start.setHours(0,0,0,0);
             if (new Date(job.createdAt) < start) return false;
         }
+
         if (endDate) {
             const end = new Date(endDate);
             end.setHours(23,59,59,999);
             if (new Date(job.createdAt) > end) return false;
         }
+
         
         if (selectedDentists.length > 0 && !selectedDentists.includes(job.dentistId)) return false;
         if (selectedSectors.length > 0 && !selectedSectors.includes(job.currentSector || '')) return false;
@@ -407,12 +487,14 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
             if (!hasCollaborator) return false;
         }
 
+
         if (filterUrgency && job.urgency !== filterUrgency) return false;
         if (filterAttention) {
             if (!job.sectorEntryTime) return false;
             const hours = (new Date().getTime() - new Date(job.sectorEntryTime).getTime()) / (1000 * 60 * 60);
             if (hours < 18) return false;
         }
+
         if (filterOrigin !== 'ALL') {
             const isWebStore = (job.history || []).some((h: any) => h?.action?.toLowerCase().includes('loja virtual') || h?.action?.toLowerCase().includes('pedido online'));
             const isReq = (job.history || []).some((h: any) => h?.action?.toLowerCase().includes('requisica') || h?.action?.toLowerCase().includes('requisiç') || h?.action?.toLowerCase().includes('portal de requisicoes') || h?.action?.toLowerCase().includes('portal de requisições'));
@@ -420,6 +502,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
             
             if (filterOrigin !== resolvedOrigin) return false;
         }
+
         return true;
       });
   }, [jobs, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
@@ -430,6 +513,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
           alert("Este cliente está BLOQUEADO por limite de fatura. Não é possível finalizar o trabalho até que a pendência seja resolvida.");
           return;
       }
+
 
       if (!window.confirm(`Deseja finalizar o caso de ${job.patientName}?`)) return;
       await updateJob(job.id, {
@@ -443,7 +527,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
               sector: 'Expedição'
           }]
       });
-  };
+  }
 
   const handleReopenJob = async (job: Job) => {
       if (!window.confirm(`Deseja reabrir o caso de ${job.patientName}?`)) return;
@@ -458,7 +542,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
               sector: currentUser?.sector || 'Gestão'
           }]
       });
-  };
+  }
 
   const handleAddToRoute = async () => {
     if (!routeModalJob || !routeDriver) return;
@@ -468,55 +552,11 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
         setRouteModalJob(null);
         alert("Adicionado à rota!");
     } catch (e) { alert("Erro."); } finally { setIsProcessing(false); }
-  };
 
-  const getStatusColor = (status: any, isOverdue = false) => {
-      if (isOverdue) return 'bg-red-500 text-white border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse';
-    switch(status) {
-        case 'PENDING_REQUISITION': return 'bg-amber-100 text-amber-700 border border-amber-200';
-        case 'REJECTED_REQUISITION': return 'bg-red-100 text-red-700 border border-red-200';
-        case JobStatus.COMPLETED: return 'bg-green-100 text-green-700 border border-green-200';
-        case JobStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-700 border border-blue-200';
-        case JobStatus.WAITING_APPROVAL: return 'bg-purple-100 text-purple-700 border border-purple-200';
-        case JobStatus.DELIVERED: return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
-        case JobStatus.REJECTED: return 'bg-red-100 text-red-700 border border-red-200';
-        case JobStatus.CANCELED: return 'bg-gray-200 text-gray-700 border border-gray-300';
-        case JobStatus.RETURNED: return 'bg-orange-100 text-orange-700 border border-orange-200';
-        case JobStatus.SECTOR_TRANSITION: return 'bg-yellow-100 text-yellow-700 border border-yellow-200';
-        default: return 'bg-slate-100 text-slate-700 border border-slate-200';
-    }
-  };
+  }
 
-  const getTranslatedStatus = (status: any, isOverdue = false) => {
-      if (isOverdue) return 'Atrasado';
-      switch(status) {
-        case 'PENDING_REQUISITION': return 'Req. Pendente';
-        case 'REJECTED_REQUISITION': return 'Req. Recusada';
-        case JobStatus.WAITING_APPROVAL: return 'Aguardando';
-        case JobStatus.PENDING: return 'Pendente';
-        case JobStatus.IN_PROGRESS: return 'Produção';
-        case JobStatus.COMPLETED: return 'Concluído';
-        case JobStatus.DELIVERED: return 'Entregue';
-        case JobStatus.REJECTED: return 'Rejeitado';
-        case JobStatus.CANCELED: return 'Cancelado';
-        case JobStatus.RETURNED: return 'Devolvido';
-        case JobStatus.SECTOR_TRANSITION: return 'Em Transição';
-        default: return status;
-      }
-  };
+  
 
-  const getSectorTimeInfo = (job: Job) => {
-    if (!job.sectorEntryTime) return { hours: 0, isAttention: false, label: '---' };
-    const diff = new Date().getTime() - new Date(job.sectorEntryTime).getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    let label = '';
-    if (hours > 0) label += `${hours}h `;
-    label += `${minutes}m`;
-    
-    return { hours, isAttention: hours >= 18, label };
-  };
 
   if (isClient && !activeOrganization) {
     return (
@@ -532,6 +572,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
         </div>
     );
   }
+
 
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
 
@@ -549,6 +590,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
         </div>
 
         {/* JOBS LIST */}
+
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
@@ -581,6 +623,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                             className="text-blue-600 hover:text-blue-800 hover:underline font-bold focus:outline-none cursor-pointer"
                           >
                             #{job.osNumber || job.id.substring(0, 6)}
+
                           </button>
                         </td>
                         <td className="px-6 py-4">
@@ -589,6 +632,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                             className="hover:text-blue-600 hover:underline text-left font-medium focus:outline-none cursor-pointer"
                           >
                             {job.dentistName}
+
                           </button>
                         </td>
                         <td className="px-6 py-4 font-bold text-slate-900">
@@ -597,11 +641,13 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                             className="hover:text-blue-600 hover:underline text-left font-bold focus:outline-none text-slate-900 cursor-pointer"
                           >
                             {job.patientName}
+
                           </button>
                         </td>
                         <td className="px-6 py-4 text-slate-500">
                           {job.items?.map(i => `${i.name} (x${i.quantity || 1})`).join(', ') || 
                            job.products?.map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || '---'}
+
                         </td>
                         <td className="px-6 py-4 max-w-[200px]">
                           {isEditingThis ? (
@@ -609,17 +655,21 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                               <input 
                                 type="text"
                                 value={editNotesText}
+
                                 onChange={(e) => setEditNotesText(e.target.value)}
+
                                 className="px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
                               />
                               <button 
                                 onClick={() => handleSaveNotes(job.id, editNotesText)}
+
                                 className="px-2 py-1 bg-green-600 text-white font-bold rounded text-xs"
                               >
                                 Salvar
                               </button>
                               <button 
                                 onClick={() => setEditingJob(null)}
+
                                 className="px-2 py-1 bg-slate-200 text-slate-700 font-bold rounded text-xs"
                               >
                                 X
@@ -629,21 +679,25 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                             <div className="flex items-center gap-2 group">
                               <span className="truncate block max-w-[150px]" title={job.notes || 'Sem observações'}>
                                 {job.notes || <span className="text-slate-300 italic">Sem obs</span>}
+
                               </span>
                               <button 
                                 onClick={() => {
                                   setEditingJob(job);
                                   setEditNotesText(job.notes || '');
                                 }}
+
                                 className="text-blue-500 hover:text-blue-700 text-xs underline cursor-pointer"
                               >
                                 Editar
                               </button>
                             </div>
                           )}
+
                         </td>
                         <td className="px-6 py-4 text-slate-500">
                           {new Date(job.dueDate).toLocaleDateString('pt-BR')}
+
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
@@ -655,27 +709,32 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                                 : 'bg-blue-50 border-blue-200 text-blue-700'
                             }`}>
                               {job.status === JobStatus.COMPLETED ? 'Finalizado' : job.status === JobStatus.DELIVERED ? 'Logística' : 'Pendente'}
+
                             </span>
                             
                             <div className="flex gap-1">
                               {job.status !== JobStatus.COMPLETED && (
                                 <button 
                                   onClick={() => handleUpdateStatus(job.id, JobStatus.COMPLETED)}
+
                                   className="px-2 py-1 bg-green-600 text-white text-[10px] font-bold rounded hover:bg-green-700 transition-colors"
                                   title="Marcar como Finalizado"
                                 >
                                   Finalizar
                                 </button>
                               )}
+
                               {job.status !== JobStatus.DELIVERED && (
                                 <button 
                                   onClick={() => handleUpdateStatus(job.id, JobStatus.DELIVERED)}
+
                                   className="px-2 py-1 bg-indigo-600 text-white text-[10px] font-bold rounded hover:bg-indigo-700 transition-colors"
                                   title="Enviar para Logística"
                                 >
                                   Logística
                                 </button>
                               )}
+
                             </div>
                           </div>
                         </td>
@@ -683,6 +742,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                     );
                   })
                 )}
+
               </tbody>
             </table>
           </div>
@@ -691,9 +751,11 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
     );
   }
 
+
   return (
     <div className={`flex flex-col h-full ${isClient ? '-mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50' : ''}`}>
        {isClient && <StoreTopMenu />}
+
        <div className={`space-y-4 md:space-y-6 pb-20 ${isClient ? 'p-4 md:p-8 flex-1 overflow-y-auto' : ''}`}>
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -707,49 +769,58 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
           <button
             type="button"
             onClick={() => setStatusFilter('ALL')}
+
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               statusFilter === 'ALL' 
                 ? 'bg-white text-slate-800 shadow-sm' 
                  : 'text-slate-500 hover:text-slate-700'
             }`}
+
           >
             Todos ({combinedJobs.length})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('ACTIVE_JOBS')}
+
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               statusFilter === 'ACTIVE_JOBS' 
                 ? 'bg-white text-blue-700 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-700'
             }`}
+
           >
             Ativos ({combinedJobs.filter(j => !['COMPLETED', 'DELIVERED', 'REJECTED', 'REJECTED_REQUISITION', 'CANCELED'].includes(j.status)).length})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('COMPLETED_DELIVERED')}
+
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               statusFilter === 'COMPLETED_DELIVERED' 
                 ? 'bg-white text-emerald-700 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-700'
             }`}
+
           >
             Entregues ({combinedJobs.filter(j => ['COMPLETED', 'DELIVERED'].includes(j.status)).length})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('REJECTED_JOBS')}
+
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               statusFilter === 'REJECTED_JOBS' 
                 ? 'bg-white text-rose-700 shadow-sm' 
                 : 'text-slate-500 hover:text-slate-700'
             }`}
+
           >
             Recusados ({combinedJobs.filter(j => ['REJECTED', 'REJECTED_REQUISITION', 'CANCELED'].includes(j.status)).length})
           </button>
         </div>
       )}
+
 
       <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-3">
@@ -759,15 +830,19 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                     type="text" 
                     placeholder="Buscar OS, Paciente, Dentista..." 
                     value={filterText}
+
                     onChange={(e) => setFilterText(e.target.value)}
+
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
                 />
             </div>
             <button 
                 onClick={() => setShowFilters(!showFilters)}
+
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-bold ${
                     showFilters ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
+
             >
                 <SlidersHorizontal size={18} /> Filtros
             </button>
@@ -784,6 +859,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                 <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
                     <option value="">Todas Prioridades</option>
                     {Object.values(UrgencyLevel).map(u => <option key={u} value={u}>{u}</option>)}
+
                 </select>
 
                 {!isClient && (
@@ -809,6 +885,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                     </>
                 )}
 
+
                 <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Inicial" />
                 <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Final" />
                 <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
@@ -824,9 +901,11 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                 </label>
             </div>
         )}
+
       </div>
 
       {/* VIEW PARA DESKTOP (TABELA) */}
+
       <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -834,6 +913,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-[10px] uppercase tracking-widest font-black">
                         <th className="p-4">OS #</th>
                         {!isClient && <th className="p-4">Caixa</th>}
+
                         <th className="p-4">Paciente</th>
                         <th className="p-4">Origem</th>
                         <th className="p-4">Dentista</th>
@@ -849,18 +929,30 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                             key={job.id} 
                             job={job} 
                             isClient={isClient}
+
                             isLabStaff={isLabStaff}
+
                             navigate={navigate}
+
                             handleFinalizeJob={handleFinalizeJob}
+
                             handleReopenJob={handleReopenJob}
+
                             setRouteModalJob={setRouteModalJob}
+
                             getStatusColor={getStatusColor}
+
                             getTranslatedStatus={getTranslatedStatus}
+
                             isJobOverdue={isJobOverdue}
+
                             getSectorTimeInfo={getSectorTimeInfo}
+
                             revealJobStatus={revealJobStatus}
+
                         />
                     ))}
+
                     {filteredJobs.length > 100 && (
                         <tr>
                             <td colSpan={8} className="p-4 text-center text-slate-400 text-xs italic">
@@ -868,12 +960,14 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                             </td>
                         </tr>
                     )}
+
                 </tbody>
             </table>
         </div>
       </div>
 
       {/* VIEW PARA MOBILE (CARDS) */}
+
       <div className="md:hidden space-y-4">
         {filteredJobs.length === 0 ? (
             <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-dashed">Nenhum pedido encontrado.</div>
@@ -881,24 +975,35 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
             filteredJobs.slice(0, 50).map(job => (
                 <JobCard 
                     key={job.id}
+
                     job={job}
+
                     navigate={navigate}
+
                     getStatusColor={getStatusColor}
+
                     getTranslatedStatus={getTranslatedStatus}
+
                     getSectorTimeInfo={getSectorTimeInfo}
+
                     isClient={isClient}
+
                     revealJobStatus={revealJobStatus}
+
                 />
             ))
         )}
+
         {filteredJobs.length > 50 && (
             <div className="p-4 text-center text-slate-400 text-xs italic">
                 Refine os filtros para ver mais resultados.
             </div>
         )}
+
       </div>
 
       {/* ROUTE MODAL */}
+
       {routeModalJob && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
@@ -930,6 +1035,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                                           } else {
                                               setRouteDriver(e.target.value);
                                           }
+
                                       }} 
                                       className="w-full px-4 py-2 border rounded-xl bg-white font-bold text-slate-800"
                                   >
@@ -937,6 +1043,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                                       {couriers.filter(c => c.active).map(c => (
                                           <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>
                                       ))}
+
                                       <option value="MANUAL">Outro (Digitar nome)</option>
                                   </select>
                                   {(!couriers.filter(c => c.active).map(c => c.name).includes(routeDriver) || routeDriver === '') && (
@@ -947,19 +1054,24 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                                           className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" 
                                       />
                                   )}
+
                               </div>
                           ) : (
                               <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" />
                           )}
+
                       </div>
                       <button onClick={handleAddToRoute} disabled={isProcessing} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 active:scale-95 transition-transform">
                           {isProcessing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={20} /> CONFIRMAR NA ROTA</>}
+
                       </button>
                   </div>
               </div>
           </div>
       )}
+
     </div>
     </div>
   );
-};
+}
+
