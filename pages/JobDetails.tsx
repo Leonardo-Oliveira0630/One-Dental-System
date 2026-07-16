@@ -477,11 +477,31 @@ export const JobDetails = () => {
         const blob = new Blob([byteArray], { type: 'image/jpeg' });
         const file = new File([blob], `webcam_${Date.now()}.jpg`, { type: 'image/jpeg' });
         
-        await uploadJobAttachment(job.id, file, currentUser);
+        const url = await uploadFile(file);
         
-        // Refresh job
-        const updatedJob = await getJobById(job.id, job.organizationId);
-        if (updatedJob) setJob(updatedJob);
+        const newAttachment: Attachment = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: file.name,
+            url: url,
+            uploadedAt: new Date()
+        };
+
+        const updatedAttachments = [...(job.attachments || []).filter(Boolean), newAttachment];
+        
+        const newHistory = [...(job.history || []).filter(Boolean), {
+            id: `hist_photo_${Date.now()}`,
+            timestamp: new Date(),
+            action: 'Nova foto adicionada via webcam',
+            userId: currentUser.id,
+            userName: currentUser.name
+        }];
+
+        await updateJob(job.id, { 
+            attachments: updatedAttachments,
+            history: newHistory
+        });
+        
+        
     } catch (e: any) {
         alert("Erro ao enviar foto: " + e.message);
     } finally {
