@@ -30,7 +30,7 @@ export const getJobOriginInfo = (job: any) => {
 };
 
 // Componente de Linha Memoizado para evitar re-renders desnecessários
-const JobRow = memo(({ 
+const JobRow = memo(({ isJobOverdue, 
     job, 
     isClient, 
     isLabStaff, 
@@ -43,6 +43,7 @@ const JobRow = memo(({
     getSectorTimeInfo,
     revealJobStatus
 }: { 
+    isJobOverdue?: any,
     job: Job, 
     isClient: boolean, 
     isLabStaff: boolean, 
@@ -104,8 +105,8 @@ const JobRow = memo(({
             </td>
             <td className="p-4">
                 {revealJobStatus ? (
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status)}`}>
-                        {getTranslatedStatus(job.status)}
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
+                        {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
                     </span>
                 ) : (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200" title="Função de andamento indisponível no momento">
@@ -140,7 +141,7 @@ const JobRow = memo(({
 });
 
 // Componente de Card Mobile Memoizado
-const JobCard = memo(({ 
+const JobCard = memo(({ isJobOverdue, 
     job, 
     navigate, 
     getStatusColor, 
@@ -149,6 +150,7 @@ const JobCard = memo(({
     isClient,
     revealJobStatus
 }: { 
+    isJobOverdue?: any,
     job: Job, 
     navigate: any, 
     getStatusColor: any, 
@@ -168,8 +170,8 @@ const JobCard = memo(({
                 <div className="flex items-center gap-2">
                     <span className="font-mono font-black text-blue-600 text-base">#{job.osNumber || '---'}</span>
                     {revealJobStatus ? (
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status)}`}>
-                            {getTranslatedStatus(job.status)}
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
+                            {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
                         </span>
                     ) : (
                         <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200">
@@ -232,6 +234,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
   const [filterText, setFilterText] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterUrgency, setFilterUrgency] = useState('');
@@ -293,6 +296,20 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
       return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   };
 
+  const isJobOverdue = (job: any) => {
+    if (!job.dueDate) return false;
+    const isInactive = ['COMPLETED', 'DELIVERED', 'REJECTED', 'REJECTED_REQUISITION', 'CANCELED'].includes(job.status);
+    if (isInactive) return false;
+    const due = new Date(job.dueDate);
+    due.setHours(23, 59, 59, 999);
+    return new Date() > due;
+  };
+
+  const statusOptions = useMemo(() => [
+    { value: 'OVERDUE', label: 'Atrasado' },
+    ...Object.values(JobStatus).map(s => ({ value: s, label: getTranslatedStatus(s) }))
+  ].sort((a, b) => a.label.localeCompare(b.label)), []);
+
   const combinedJobs = useMemo(() => {
     if (!isClient) return jobs;
 
@@ -345,7 +362,22 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
           normalizeText(job.patientName).includes(searchLower) ||
           normalizeText(job.dentistName).includes(searchLower);
         if (!matchText) return false;
-        if (statusFilter !== 'ALL') {
+        if (selectedStatuses.length > 0) {
+            const hasOverdueSelected = selectedStatuses.includes('OVERDUE');
+            const hasOtherStatuses = selectedStatuses.some(s => s !== 'OVERDUE');
+            
+            let matchesStatus = false;
+            
+            if (hasOverdueSelected && isJobOverdue(job)) {
+                matchesStatus = true;
+            }
+            
+            if (hasOtherStatuses && selectedStatuses.includes(job.status)) {
+                matchesStatus = true;
+            }
+            
+            if (!matchesStatus) return false;
+        } else if (statusFilter !== 'ALL') {
             if (statusFilter === 'ACTIVE_JOBS') {
                 const inactive = ['COMPLETED', 'DELIVERED', 'REJECTED', 'REJECTED_REQUISITION', 'CANCELED'];
                 if (inactive.includes(job.status)) return false;
@@ -390,7 +422,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
         }
         return true;
       });
-  }, [jobs, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
+  }, [jobs, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
 
   const handleFinalizeJob = async (job: Job) => {
       const dentist = allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId);
@@ -438,7 +470,8 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
     } catch (e) { alert("Erro."); } finally { setIsProcessing(false); }
   };
 
-  const getStatusColor = (status: any) => {
+  const getStatusColor = (status: any, isOverdue = false) => {
+      if (isOverdue) return 'bg-red-500 text-white border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse';
     switch(status) {
         case 'PENDING_REQUISITION': return 'bg-amber-100 text-amber-700 border border-amber-200';
         case 'REJECTED_REQUISITION': return 'bg-red-100 text-red-700 border border-red-200';
@@ -454,7 +487,8 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
     }
   };
 
-  const getTranslatedStatus = (status: any) => {
+  const getTranslatedStatus = (status: any, isOverdue = false) => {
+      if (isOverdue) return 'Atrasado';
       switch(status) {
         case 'PENDING_REQUISITION': return 'Req. Pendente';
         case 'REJECTED_REQUISITION': return 'Req. Recusada';
@@ -741,10 +775,12 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
 
         {showFilters && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-slate-100 pt-3">
-                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
-                    <option value="ALL">Todos os Status</option>
-                    {Object.values(JobStatus).map(s => <option key={s} value={s}>{getTranslatedStatus(s as JobStatus)}</option>)}
-                </select>
+                <MultiSelect 
+                            options={statusOptions} 
+                            selectedValues={selectedStatuses} 
+                            onChange={setSelectedStatuses} 
+                            placeholder="Filtrar Status" 
+                        />
                 <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
                     <option value="">Todas Prioridades</option>
                     {Object.values(UrgencyLevel).map(u => <option key={u} value={u}>{u}</option>)}
@@ -820,6 +856,7 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
                             setRouteModalJob={setRouteModalJob}
                             getStatusColor={getStatusColor}
                             getTranslatedStatus={getTranslatedStatus}
+                            isJobOverdue={isJobOverdue}
                             getSectorTimeInfo={getSectorTimeInfo}
                             revealJobStatus={revealJobStatus}
                         />

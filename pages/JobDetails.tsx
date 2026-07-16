@@ -2,6 +2,7 @@
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { WebcamModal } from '../components/WebcamModal';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct } from '../types';
@@ -221,6 +222,7 @@ export const JobDetails = () => {
   };
   
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadProgressMsg, setUploadProgressMsg] = useState('');
 
@@ -455,6 +457,37 @@ export const JobDetails = () => {
       if (e.target.files) {
           setSelectedFiles(Array.from(e.target.files));
       }
+  };
+
+  const handleWebcamCapture = async (base64String: string) => {
+    if (!job || !currentUser) return;
+    try {
+        setIsUploadingFiles(true);
+        setUploadProgressMsg('Enviando foto da webcam...');
+        
+        // Remove the data:image/jpeg;base64, part
+        const base64Data = base64String.split(',')[1];
+        
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'image/jpeg' });
+        const file = new File([blob], `webcam_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        
+        await uploadJobAttachment(job.id, file, currentUser);
+        
+        // Refresh job
+        const updatedJob = await getJobById(job.id, job.organizationId);
+        if (updatedJob) setJob(updatedJob);
+    } catch (e: any) {
+        alert("Erro ao enviar foto: " + e.message);
+    } finally {
+        setIsUploadingFiles(false);
+        setUploadProgressMsg('');
+    }
   };
 
   const handleTakePhoto = async () => {
@@ -2615,6 +2648,14 @@ export const JobDetails = () => {
                                     <CameraIcon size={28} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Foto</span>
                                 </button>
+                                <button 
+                                    onClick={() => setIsWebcamOpen(true)}
+                                    disabled={isUploadingFiles}
+                                    className="w-20 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0"
+                                >
+                                    <CameraIcon size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center leading-tight">Webcam<br/>PC</span>
+                                </button>
                             </div>
 
                             {selectedFiles.length > 0 && (
@@ -3002,6 +3043,7 @@ export const JobDetails = () => {
           </div>
         </div>
       )}
+       <WebcamModal isOpen={isWebcamOpen} onClose={() => setIsWebcamOpen(false)} onCapture={handleWebcamCapture} />
        {selectedAttachment && (
            <AttachmentPreviewModal 
                file={selectedAttachment}
