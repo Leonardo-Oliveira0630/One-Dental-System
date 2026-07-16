@@ -1867,7 +1867,7 @@ async function getTemplateAndSend(orgId: string, type: string, variables: Record
   }
 }
 
-export const onAppointmentCreated = onDocumentCreated("organizations/{orgId}/appointments/{appointmentId}", async (event: any) => {
+export const onAppointmentCreatedV2 = onDocumentCreated("organizations/{orgId}/appointments/{appointmentId}", async (event: any) => {
   const snap = event.data;
   if (!snap) return;
   const appointment = snap.data();
@@ -1898,7 +1898,7 @@ export const onAppointmentCreated = onDocumentCreated("organizations/{orgId}/app
   }, phone);
 });
 
-export const onDeliveryRouteUpdated = onDocumentUpdated("organizations/{orgId}/routes/{routeId}", async (event: any) => {
+export const onDeliveryRouteUpdatedV2 = onDocumentUpdated("organizations/{orgId}/routes/{routeId}", async (event: any) => {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!before || !after) return;
@@ -1955,7 +1955,7 @@ export const onDeliveryRouteUpdated = onDocumentUpdated("organizations/{orgId}/r
   }
 });
 
-export const onSupplierOrderUpdated = onDocumentUpdated("supplierOrders/{orderId}", async (event: any) => {
+export const onSupplierOrderUpdatedV2 = onDocumentUpdated("supplierOrders/{orderId}", async (event: any) => {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!before || !after) return;
@@ -2117,7 +2117,7 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
   }
 });
 
-export const onJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{jobId}", async (event: any) => {
+export const onJobUpdatedV2 = onDocumentUpdated("organizations/{orgId}/jobs/{jobId}", async (event: any) => {
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!before || !after) return;

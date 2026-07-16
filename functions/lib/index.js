@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onJobUpdated = exports.ycloudWebhook = exports.onSupplierOrderUpdated = exports.onDeliveryRouteUpdated = exports.onAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.onJobUpdatedV2 = exports.ycloudWebhook = exports.onSupplierOrderUpdatedV2 = exports.onDeliveryRouteUpdatedV2 = exports.onAppointmentCreatedV2 = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -1694,7 +1694,7 @@ async function getTemplateAndSend(orgId, type, variables, toNumber) {
         logger.error("Erro ao enviar notificação automática:", ((_a = e.response) === null || _a === void 0 ? void 0 : _a.data) || e.message);
     }
 }
-exports.onAppointmentCreated = (0, firestore_1.onDocumentCreated)("organizations/{orgId}/appointments/{appointmentId}", async (event) => {
+exports.onAppointmentCreatedV2 = (0, firestore_1.onDocumentCreated)("organizations/{orgId}/appointments/{appointmentId}", async (event) => {
     const snap = event.data;
     if (!snap)
         return;
@@ -1722,7 +1722,7 @@ exports.onAppointmentCreated = (0, firestore_1.onDocumentCreated)("organizations
         time: timeStr
     }, phone);
 });
-exports.onDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/routes/{routeId}", async (event) => {
+exports.onDeliveryRouteUpdatedV2 = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/routes/{routeId}", async (event) => {
     var _a, _b, _c, _d;
     const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
@@ -1775,7 +1775,7 @@ exports.onDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizatio
         }
     }
 });
-exports.onSupplierOrderUpdated = (0, firestore_1.onDocumentUpdated)("supplierOrders/{orderId}", async (event) => {
+exports.onSupplierOrderUpdatedV2 = (0, firestore_1.onDocumentUpdated)("supplierOrders/{orderId}", async (event) => {
     var _a, _b;
     const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
@@ -1919,7 +1919,7 @@ exports.ycloudWebhook = (0, https_1.onRequest)(async (req, res) => {
         res.status(200).send("Erro");
     }
 });
-exports.onJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/jobs/{jobId}", async (event) => {
+exports.onJobUpdatedV2 = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/jobs/{jobId}", async (event) => {
     var _a, _b, _c, _d, _e;
     const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
