@@ -6,12 +6,13 @@ import { defineSecret } from "firebase-functions/params";
 
 const asaasApiKeySecret = defineSecret("ASAAS_API_KEY");
 const asaasWebhookTokenSecret = defineSecret("ASAAS_WEBHOOK_TOKEN");
-// const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
-// const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
+const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
+const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
 
 setGlobalOptions({
     maxInstances: 10,
-    // secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
+    region: "us-central1",
+    secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
@@ -66,17 +67,8 @@ const getYcloudConfig = async () => {
   let apiKey = "";
   let fromNumber = "";
   
-  try {
-    const db = admin.firestore();
-    const doc = await db.collection("secrets").doc("api_keys").get();
-    if (doc.exists) {
-      const data = doc.data();
-      if (data?.YCLOUD_API_KEY) apiKey = data.YCLOUD_API_KEY;
-      if (data?.YCLOUD_PHONE_NUMBER) fromNumber = data.YCLOUD_PHONE_NUMBER;
-    }
-  } catch (e) {
-    logger.warn("Erro ao buscar secrets no Firestore", e);
-  }
+  try { apiKey = ycloudApiKeySecret.value(); } catch (e) { logger.warn("Secret YCLOUD_API_KEY não disponível via Secret Manager."); }
+  try { fromNumber = ycloudPhoneNumberSecret.value(); } catch (e) { logger.warn("Secret YCLOUD_PHONE_NUMBER não disponível via Secret Manager."); }
 
   if (!apiKey) apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
   if (!fromNumber) fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
@@ -1422,7 +1414,7 @@ export const createSupplierPayment = onCall(async (request: any) => {
   }
 });
 
-export const calculateFrenetShipping = onCall({ cors: true }, async (req: any) => {
+export const calculateFrenetShipping = onCall({ cors: true, secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (req: any) => {
   const { originCep, destinationCep, items, frenetToken } = req.data;
   
   if (!originCep || !destinationCep || !frenetToken) {
@@ -1633,7 +1625,7 @@ export const syncStoreOrders = onCall(async (request: any) => {
   }
 });
 
-export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (request) => {
+export const optimizeAndUploadImage = onCall({ maxInstances: 10, secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (request) => {
   try {
     const { base64, fileName, mimeType } = request.data as any;
     if (!base64 || !fileName || !mimeType) {
@@ -1740,7 +1732,7 @@ export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (reques
 /**
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
-export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) => {
+export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (request) => {
   const { to, body, orgId } = request.data as any;
   if (!to || !body) {
     throw new HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");

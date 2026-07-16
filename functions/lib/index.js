@@ -44,11 +44,12 @@ const v2_1 = require("firebase-functions/v2");
 const params_1 = require("firebase-functions/params");
 const asaasApiKeySecret = (0, params_1.defineSecret)("ASAAS_API_KEY");
 const asaasWebhookTokenSecret = (0, params_1.defineSecret)("ASAAS_WEBHOOK_TOKEN");
-// const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
-// const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
+const ycloudApiKeySecret = (0, params_1.defineSecret)("YCLOUD_API_KEY");
+const ycloudPhoneNumberSecret = (0, params_1.defineSecret)("YCLOUD_PHONE_NUMBER");
 (0, v2_1.setGlobalOptions)({
     maxInstances: 10,
-    // secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
+    region: "us-central1",
+    secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
 });
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
@@ -95,18 +96,16 @@ const getYcloudConfig = async () => {
     let apiKey = "";
     let fromNumber = "";
     try {
-        const db = admin.firestore();
-        const doc = await db.collection("secrets").doc("api_keys").get();
-        if (doc.exists) {
-            const data = doc.data();
-            if (data === null || data === void 0 ? void 0 : data.YCLOUD_API_KEY)
-                apiKey = data.YCLOUD_API_KEY;
-            if (data === null || data === void 0 ? void 0 : data.YCLOUD_PHONE_NUMBER)
-                fromNumber = data.YCLOUD_PHONE_NUMBER;
-        }
+        apiKey = ycloudApiKeySecret.value();
     }
     catch (e) {
-        logger.warn("Erro ao buscar secrets no Firestore", e);
+        logger.warn("Secret YCLOUD_API_KEY não disponível via Secret Manager.");
+    }
+    try {
+        fromNumber = ycloudPhoneNumberSecret.value();
+    }
+    catch (e) {
+        logger.warn("Secret YCLOUD_PHONE_NUMBER não disponível via Secret Manager.");
     }
     if (!apiKey)
         apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
@@ -1276,7 +1275,7 @@ exports.createSupplierPayment = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("aborted", msg);
     }
 });
-exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true }, async (req) => {
+exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true, secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (req) => {
     var _a;
     const { originCep, destinationCep, items, frenetToken } = req.data;
     if (!originCep || !destinationCep || !frenetToken) {
@@ -1479,7 +1478,7 @@ exports.syncStoreOrders = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("aborted", error.message);
     }
 });
-exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
+exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10, secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (request) => {
     try {
         const { base64, fileName, mimeType } = request.data;
         if (!base64 || !fileName || !mimeType) {
@@ -1571,7 +1570,7 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
 /**
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
-exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
+exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (request) => {
     var _a, _b, _c, _d, _e, _f;
     const { to, body, orgId } = request.data;
     if (!to || !body) {
