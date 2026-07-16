@@ -1599,7 +1599,10 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [y
     }
     try {
         const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
-        const cleanTo = to.replace(/\D/g, "");
+        let cleanTo = to.replace(/\D/g, "");
+        if (cleanTo.length === 10 || cleanTo.length === 11) {
+            cleanTo = "55" + cleanTo;
+        }
         const cleanFrom = fromNumber.replace(/\D/g, "");
         logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
         const response = await axios_1.default.post(ycloudUrl, {
@@ -1658,8 +1661,10 @@ async function getTemplateAndSend(orgId, type, variables, toNumber) {
             return;
         template = org.whatsappTemplates.find((t) => t.type === type && t.active);
     }
-    if (!template)
+    if (!template) {
+        logger.warn(`[getTemplateAndSend] Template do tipo ${type} não encontrado ou inativo para orgId: ${orgId}`);
         return;
+    }
     let body = template.body;
     for (const [key, value] of Object.entries(variables)) {
         body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
@@ -1673,7 +1678,10 @@ async function getTemplateAndSend(orgId, type, variables, toNumber) {
     }
     try {
         const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
-        const cleanTo = toNumber.replace(/\D/g, "");
+        let cleanTo = toNumber.replace(/\D/g, "");
+        if (cleanTo.length === 10 || cleanTo.length === 11) {
+            cleanTo = "55" + cleanTo;
+        }
         const cleanFrom = fromNumber.replace(/\D/g, "");
         await axios_1.default.post(ycloudUrl, {
             to: `+${cleanTo}`,
@@ -1700,6 +1708,7 @@ exports.triggerAppointmentCreated = (0, firestore_1.onDocumentCreated)("organiza
         return;
     const appointment = snap.data();
     const orgId = event.params.orgId;
+    logger.info(`[triggerDeliveryRouteUpdated] Rota ${event.params.routeId} iniciada. orgId: ${orgId}`);
     const db = admin.firestore();
     const patientSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appointment.patientId).get();
     if (!patientSnap.exists)
@@ -1710,7 +1719,10 @@ exports.triggerAppointmentCreated = (0, firestore_1.onDocumentCreated)("organiza
         return;
     const dateStr = new Date(appointment.date).toLocaleDateString("pt-BR");
     const timeStr = appointment.startTime;
-    const cleanPhone = phone.replace(/\D/g, "");
+    let cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+        cleanPhone = "55" + cleanPhone;
+    }
     await db.collection("ycloudSessions").doc(cleanPhone).set({
         appointmentId: event.params.appointmentId,
         orgId: orgId,
@@ -1723,7 +1735,7 @@ exports.triggerAppointmentCreated = (0, firestore_1.onDocumentCreated)("organiza
     }, phone);
 });
 exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/routes/{routeId}", async (event) => {
-    var _a, _b, _c, _d;
+    var _a, _b;
     const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
     if (!before || !after)
@@ -1733,8 +1745,11 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
         const db = admin.firestore();
         // Obter items da rota
         const itemsSnap = await db.collection("organizations").doc(orgId).collection("routes").doc(event.params.routeId).collection("items").get();
-        if (itemsSnap.empty)
+        if (itemsSnap.empty) {
+            logger.info(`[triggerDeliveryRouteUpdated] Rota vazia (sem itens).`);
             return;
+        }
+        logger.info(`[triggerDeliveryRouteUpdated] Encontrados ${itemsSnap.size} itens na rota.`);
         const items = itemsSnap.docs.map((doc) => doc.data());
         // Agrupar por dentista
         const jobsByDentist = {};
@@ -1758,15 +1773,21 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
             // Try users first
             let userSnap = await db.collection("users").doc(dId).get();
             if (userSnap.exists) {
-                phone = ((_c = userSnap.data()) === null || _c === void 0 ? void 0 : _c.phone) || "";
+                const data = userSnap.data();
+                phone = (data === null || data === void 0 ? void 0 : data.phone) || (data === null || data === void 0 ? void 0 : data.whatsapp) || "";
             }
             else {
                 let manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
-                if (manualSnap.exists)
-                    phone = ((_d = manualSnap.data()) === null || _d === void 0 ? void 0 : _d.phone) || "";
+                if (manualSnap.exists) {
+                    const data = manualSnap.data();
+                    phone = (data === null || data === void 0 ? void 0 : data.phone) || (data === null || data === void 0 ? void 0 : data.whatsapp) || "";
+                }
             }
-            if (!phone)
+            if (!phone) {
+                logger.info(`[triggerDeliveryRouteUpdated] Dentista ${info.dentistName} (ID: ${dId}) sem telefone, ignorando.`);
                 continue;
+            }
+            logger.info(`[triggerDeliveryRouteUpdated] Preparando envio para ${info.dentistName} (telefone: ${phone}).`);
             const jobsListStr = info.jobs.join("\n");
             await getTemplateAndSend(orgId, "LAB_DISPATCH", {
                 dentist_name: info.dentistName,
@@ -1920,7 +1941,7 @@ exports.ycloudWebhook = (0, https_1.onRequest)(async (req, res) => {
     }
 });
 exports.triggerJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/jobs/{jobId}", async (event) => {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c;
     const before = (_a = event.data) === null || _a === void 0 ? void 0 : _a.before.data();
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
     if (!before || !after)
@@ -1933,17 +1954,19 @@ exports.triggerJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{o
         const dId = after.dentistId;
         let userSnap = await db.collection("users").doc(dId).get();
         if (userSnap.exists) {
-            phone = ((_c = userSnap.data()) === null || _c === void 0 ? void 0 : _c.phone) || "";
+            const data = userSnap.data();
+            phone = (data === null || data === void 0 ? void 0 : data.phone) || (data === null || data === void 0 ? void 0 : data.whatsapp) || "";
         }
         else {
             // Manual
             const manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
             if (manualSnap.exists) {
-                phone = ((_d = manualSnap.data()) === null || _d === void 0 ? void 0 : _d.phone) || "";
+                const data = manualSnap.data();
+                phone = (data === null || data === void 0 ? void 0 : data.phone) || (data === null || data === void 0 ? void 0 : data.whatsapp) || "";
             }
         }
         if (phone) {
-            const osNumber = after.osNumber || ((_e = after.id) === null || _e === void 0 ? void 0 : _e.substring(after.id.length - 6).toUpperCase()) || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
+            const osNumber = after.osNumber || ((_c = after.id) === null || _c === void 0 ? void 0 : _c.substring(after.id.length - 6).toUpperCase()) || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
             await getTemplateAndSend(orgId, "LAB_DELIVERED", {
                 dentist_name: after.dentistName || "Dentista",
                 jobs_list: `- ${after.patientName} (OS: ${osNumber})`

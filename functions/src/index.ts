@@ -1764,7 +1764,10 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
 
   try {
     const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
-    const cleanTo = to.replace(/\D/g, "");
+    let cleanTo = to.replace(/\D/g, "");
+    if (cleanTo.length === 10 || cleanTo.length === 11) {
+      cleanTo = "55" + cleanTo;
+    }
     const cleanFrom = fromNumber.replace(/\D/g, "");
     
     logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
@@ -1827,7 +1830,10 @@ async function getTemplateAndSend(orgId: string, type: string, variables: Record
     template = org.whatsappTemplates.find((t: any) => t.type === type && t.active);
   }
   
-  if (!template) return;
+  if (!template) {
+    logger.warn(`[getTemplateAndSend] Template do tipo ${type} não encontrado ou inativo para orgId: ${orgId}`);
+    return;
+  }
   
   let body = template.body;
   for (const [key, value] of Object.entries(variables)) {
@@ -1845,7 +1851,10 @@ async function getTemplateAndSend(orgId: string, type: string, variables: Record
   
   try {
     const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
-    const cleanTo = toNumber.replace(/\D/g, "");
+    let cleanTo = toNumber.replace(/\D/g, "");
+    if (cleanTo.length === 10 || cleanTo.length === 11) {
+      cleanTo = "55" + cleanTo;
+    }
     const cleanFrom = fromNumber.replace(/\D/g, "");
     
     await axios.post(ycloudUrl, {
@@ -1872,6 +1881,7 @@ export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId
   if (!snap) return;
   const appointment = snap.data();
   const orgId = event.params.orgId;
+     logger.info(`[triggerDeliveryRouteUpdated] Rota ${event.params.routeId} iniciada. orgId: ${orgId}`);
   
   const db = admin.firestore();
   const patientSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appointment.patientId).get();
@@ -1884,7 +1894,10 @@ export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId
   const dateStr = new Date(appointment.date).toLocaleDateString("pt-BR");
   const timeStr = appointment.startTime;
   
-  const cleanPhone = phone.replace(/\D/g, "");
+  let cleanPhone = phone.replace(/\D/g, "");
+  if (cleanPhone.length === 10 || cleanPhone.length === 11) {
+    cleanPhone = "55" + cleanPhone;
+  }
   await db.collection("ycloudSessions").doc(cleanPhone).set({
     appointmentId: event.params.appointmentId,
     orgId: orgId,
@@ -1909,7 +1922,11 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
      
      // Obter items da rota
      const itemsSnap = await db.collection("organizations").doc(orgId).collection("routes").doc(event.params.routeId).collection("items").get();
-     if (itemsSnap.empty) return;
+     if (itemsSnap.empty) {
+       logger.info(`[triggerDeliveryRouteUpdated] Rota vazia (sem itens).`);
+       return;
+     }
+     logger.info(`[triggerDeliveryRouteUpdated] Encontrados ${itemsSnap.size} itens na rota.`);
      
      const items = itemsSnap.docs.map((doc: any) => doc.data());
      
@@ -1937,13 +1954,21 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
        // Try users first
        let userSnap = await db.collection("users").doc(dId).get();
        if (userSnap.exists) {
-         phone = (userSnap.data() as any)?.phone || "";
+         const data = userSnap.data() as any;
+         phone = data?.phone || data?.whatsapp || "";
        } else {
          let manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
-         if (manualSnap.exists) phone = (manualSnap.data() as any)?.phone || "";
+         if (manualSnap.exists) {
+            const data = manualSnap.data() as any;
+            phone = data?.phone || data?.whatsapp || "";
+         }
        }
        
-       if (!phone) continue;
+       if (!phone) {
+         logger.info(`[triggerDeliveryRouteUpdated] Dentista ${info.dentistName} (ID: ${dId}) sem telefone, ignorando.`);
+         continue;
+       }
+       logger.info(`[triggerDeliveryRouteUpdated] Preparando envio para ${info.dentistName} (telefone: ${phone}).`);
        
        const jobsListStr = info.jobs.join("\n");
        
@@ -2131,12 +2156,14 @@ export const triggerJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{
      const dId = after.dentistId;
      let userSnap = await db.collection("users").doc(dId).get();
      if (userSnap.exists) {
-       phone = (userSnap.data() as any)?.phone || "";
+       const data = userSnap.data() as any;
+       phone = data?.phone || data?.whatsapp || "";
      } else {
        // Manual
        const manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
        if (manualSnap.exists) {
-         phone = (manualSnap.data() as any)?.phone || "";
+         const data = manualSnap.data() as any;
+         phone = data?.phone || data?.whatsapp || "";
        }
      }
      
