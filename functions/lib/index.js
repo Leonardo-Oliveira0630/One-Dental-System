@@ -44,11 +44,11 @@ const v2_1 = require("firebase-functions/v2");
 const params_1 = require("firebase-functions/params");
 const asaasApiKeySecret = (0, params_1.defineSecret)("ASAAS_API_KEY");
 const asaasWebhookTokenSecret = (0, params_1.defineSecret)("ASAAS_WEBHOOK_TOKEN");
-const ycloudApiKeySecret = (0, params_1.defineSecret)("YCLOUD_API_KEY");
-const ycloudPhoneNumberSecret = (0, params_1.defineSecret)("YCLOUD_PHONE_NUMBER");
+// const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
+// const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
 (0, v2_1.setGlobalOptions)({
     maxInstances: 10,
-    secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
+    // secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
 });
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
@@ -95,24 +95,23 @@ const getYcloudConfig = async () => {
     let apiKey = "";
     let fromNumber = "";
     try {
-        apiKey = ycloudApiKeySecret.value();
+        const db = admin.firestore();
+        const doc = await db.collection("secrets").doc("api_keys").get();
+        if (doc.exists) {
+            const data = doc.data();
+            if (data === null || data === void 0 ? void 0 : data.YCLOUD_API_KEY)
+                apiKey = data.YCLOUD_API_KEY;
+            if (data === null || data === void 0 ? void 0 : data.YCLOUD_PHONE_NUMBER)
+                fromNumber = data.YCLOUD_PHONE_NUMBER;
+        }
     }
     catch (e) {
-        logger.warn("Secret YCLOUD_API_KEY não disponível via Secret Manager.");
+        logger.warn("Erro ao buscar secrets no Firestore", e);
     }
     if (!apiKey)
         apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
-    try {
-        fromNumber = ycloudPhoneNumberSecret.value();
-    }
-    catch (e) {
-        logger.warn("Secret YCLOUD_PHONE_NUMBER não disponível via Secret Manager.");
-    }
     if (!fromNumber)
         fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
-    if (!apiKey || apiKey === "your_ycloud_api_key_here") {
-        logger.warn("YCLOUD_API_KEY não configurada no servidor (Secret/Env).");
-    }
     return { apiKey, fromNumber };
 };
 async function getOrCreateAsaasCustomer(url, key, name, cpfCnpj, externalReference, email = "") {

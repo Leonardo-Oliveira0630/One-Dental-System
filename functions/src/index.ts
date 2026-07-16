@@ -6,12 +6,12 @@ import { defineSecret } from "firebase-functions/params";
 
 const asaasApiKeySecret = defineSecret("ASAAS_API_KEY");
 const asaasWebhookTokenSecret = defineSecret("ASAAS_WEBHOOK_TOKEN");
-const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
-const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
+// const ycloudApiKeySecret = defineSecret("YCLOUD_API_KEY");
+// const ycloudPhoneNumberSecret = defineSecret("YCLOUD_PHONE_NUMBER");
 
-setGlobalOptions({ 
-  maxInstances: 10,
-  secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
+setGlobalOptions({
+    maxInstances: 10,
+    // secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
@@ -66,15 +66,20 @@ const getYcloudConfig = async () => {
   let apiKey = "";
   let fromNumber = "";
   
-  try { apiKey = ycloudApiKeySecret.value(); } catch (e) { logger.warn("Secret YCLOUD_API_KEY não disponível via Secret Manager."); }
-  if (!apiKey) apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
-  
-  try { fromNumber = ycloudPhoneNumberSecret.value(); } catch (e) { logger.warn("Secret YCLOUD_PHONE_NUMBER não disponível via Secret Manager."); }
-  if (!fromNumber) fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
-
-  if (!apiKey || apiKey === "your_ycloud_api_key_here") {
-    logger.warn("YCLOUD_API_KEY não configurada no servidor (Secret/Env).");
+  try {
+    const db = admin.firestore();
+    const doc = await db.collection("secrets").doc("api_keys").get();
+    if (doc.exists) {
+      const data = doc.data();
+      if (data?.YCLOUD_API_KEY) apiKey = data.YCLOUD_API_KEY;
+      if (data?.YCLOUD_PHONE_NUMBER) fromNumber = data.YCLOUD_PHONE_NUMBER;
+    }
+  } catch (e) {
+    logger.warn("Erro ao buscar secrets no Firestore", e);
   }
+
+  if (!apiKey) apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
+  if (!fromNumber) fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
 
   return { apiKey, fromNumber };
 };
