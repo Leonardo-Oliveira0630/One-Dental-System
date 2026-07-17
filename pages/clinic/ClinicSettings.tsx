@@ -8,20 +8,17 @@ import {
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 import { searchCEP } from '../../services/addressService';
-import { WhatsAppChannelSettings } from '../../components/WhatsAppChannelSettings';
-import { WhatsAppTemplatesEditor } from '../../components/WhatsAppTemplatesEditor';
 
 export const ClinicSettings = () => {
   const { currentOrg, currentPlan, allPlans, updateOrganization, validateCoupon, currentUser, getSaaSInvoices } = useApp();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'INFO' | 'SUBSCRIPTION' | 'WHATSAPP'>('SUBSCRIPTION');
+  const [activeTab, setActiveTab] = useState<'INFO' | 'SUBSCRIPTION'>('SUBSCRIPTION');
   const [clinicName, setClinicName] = useState(currentOrg?.name || '');
   
   // Custom states for clinic faturamento and address
   const [adminName, setAdminName] = useState(currentOrg?.financialSettings?.techResponsibleName || currentUser?.name || '');
   const [phone, setPhone] = useState(currentOrg?.phone || currentOrg?.whatsapp || '');
-  const [email, setEmail] = useState(currentOrg?.email || '');
   const [cpfCnpj, setCpfCnpj] = useState(currentOrg?.cpfCnpj || currentOrg?.financialSettings?.techResponsibleCpf || '');
   const [cep, setCep] = useState(currentOrg?.cep || '');
   const [address, setAddress] = useState(currentOrg?.address || '');
@@ -239,14 +236,6 @@ export const ClinicSettings = () => {
                                  <input required value={adminName} onChange={e => setAdminName(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="Nome do Admin / Responsável" />
                              </div>
                              <div>
-                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email da Clínica</label>
-                                 <input value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" />
-                             </div>
-                             <div>
-                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">WhatsApp / Telefone</label>
-                                 <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" />
-                             </div>
-                             <div>
                                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CPF ou CNPJ para Faturamento</label>
                                  <input required value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800 font-mono" placeholder="000.000.000-00 ou 00.000.000/0000-00" />
                              </div>
@@ -317,25 +306,14 @@ export const ClinicSettings = () => {
                  </form>
              </div>
              
-             {/* WhatsApp Templates Editor */}
-             {currentOrg?.hasWhatsappModule && (
-                 <div className="mt-6">
-                     <WhatsAppTemplatesEditor 
-                         currentOrg={currentOrg} 
-                         onUpdate={() => {}}
-                     />
-                 </div>
-             )}
+             
+             
         </div>
       )}
 
       {/* SUBSCRIPTION CONTENT */}
       
-        {activeTab === 'WHATSAPP' && currentOrg && (
-          <div className="space-y-6">
-            <WhatsAppChannelSettings orgId={currentOrg.id} />
-          </div>
-        )}
+        
 
         {activeTab === 'SUBSCRIPTION' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-6">

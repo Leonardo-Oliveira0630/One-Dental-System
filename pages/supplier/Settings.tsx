@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { StoreLayoutBlock, StoreSettings, BannerConfig } from '../../types';
-import { WhatsAppChannelSettings } from '../../components/WhatsAppChannelSettings';
-import { WhatsAppTemplatesEditor } from '../../components/WhatsAppTemplatesEditor';
 import { smartCompress } from '../../services/compressionService';
 import { 
   Settings, Store, Sparkles, Tag, HelpCircle, Save, Plus, Trash2, 
@@ -17,7 +15,7 @@ export const SupplierSettings = () => {
     currentOrg, currentPlan, allPlans, updateOrganization, inventoryItems, getSaaSInvoices 
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'store' | 'plans' | 'asaas' | 'notifications'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'plans' | 'asaas'>('store');
   const [loading, setLoading] = useState(false);
 
   // Store Customization state
@@ -329,17 +327,7 @@ export const SupplierSettings = () => {
           <Wallet size={18} />
           Configurar Conta Asaas
         </button>
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
-            activeTab === 'notifications' 
-              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
-              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <MessageSquare size={18} />
-          Notificações
-        </button>
+        
       </div>
 
       {/* TABS CONTAINER */}
@@ -1021,16 +1009,7 @@ export const SupplierSettings = () => {
           </div>
         )}
 
-        {/* TAB 4: NOTIFICATIONS */}
-        {activeTab === 'notifications' && currentOrg && (
-          <div className="animate-in fade-in duration-300">
-            <WhatsAppChannelSettings orgId={currentOrg.id} />
-            <WhatsAppTemplatesEditor 
-                currentOrg={currentOrg} 
-                onUpdate={() => {}}
-            />
-          </div>
-        )}
+        
       </div>
     </main>
   );

@@ -1,3 +1,4 @@
+import { YcloudTester } from '../../components/YcloudTester';
  import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
@@ -369,6 +370,7 @@ export const WhatsAppTemplates = () => {
           </div>
         </div>
       </div>
+      <YcloudTester />
     </div>
   );
 };

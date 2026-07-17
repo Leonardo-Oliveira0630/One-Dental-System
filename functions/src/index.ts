@@ -71,11 +71,23 @@ const getYcloudConfig = async () => {
   let apiKey = "";
   let fromNumber = "";
   
-  try { apiKey = ycloudApiKeySecret.value(); } catch (e) { logger.warn("Secret YCLOUD_API_KEY não disponível via Secret Manager."); }
-  try { fromNumber = ycloudPhoneNumberSecret.value(); } catch (e) { logger.warn("Secret YCLOUD_PHONE_NUMBER não disponível via Secret Manager."); }
+  try { apiKey = ycloudApiKeySecret.value(); } catch (e) {}
+  try { fromNumber = ycloudPhoneNumberSecret.value(); } catch (e) {}
 
   if (!apiKey) apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
   if (!fromNumber) fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
+
+  try {
+    const db = admin.firestore();
+    const globalSettingsDoc = await db.collection("settings").doc("global").get();
+    if (globalSettingsDoc.exists) {
+      const data = globalSettingsDoc.data();
+      if (data?.ycloudApiKey) apiKey = data.ycloudApiKey;
+      if (data?.ycloudPhoneNumber) fromNumber = data.ycloudPhoneNumber;
+    }
+  } catch (e) {
+    logger.error("Failed to fetch Ycloud config from DB", e);
+  }
 
   return { apiKey, fromNumber };
 };
@@ -1754,6 +1766,16 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
         fromNumber = org.ycloudPhoneNumber;
       }
     }
+    const channelSnap = await admin.firestore().collection("communication_channels")
+      .where("orgId", "==", orgId)
+      .where("status", "==", "ACTIVE")
+      .limit(1)
+      .get();
+    if (!channelSnap.empty) {
+      const channelData = channelSnap.docs[0].data();
+      if (channelData.phoneNumber) fromNumber = channelData.phoneNumber;
+      if (channelData.apiKey) apiKey = channelData.apiKey;
+    }
   }
 
   if (!apiKey || apiKey === "your_ycloud_api_key_here") {
@@ -1790,6 +1812,18 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
     });
     
     logger.info(`Mensagem real enviada com sucesso! ID: ${response.data.id}`);
+        // Log in Firestore
+        await admin.firestore().collection("message_logs").add({
+            orgId: orgId || "TEST",
+            channelId: "YCLOUD_API",
+            provider: "YCLOUD",
+            direction: "OUTBOUND",
+            templateId: "MANUAL_TEST",
+            recipient: cleanTo,
+            message: body,
+            status: "SENT",
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
     return {
       success: true,
       sid: response.data.id,
@@ -1798,7 +1832,18 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
   } catch (error: any) {
     const errorMsg = error.response?.data?.message || error.response?.data?.error?.message || error.message;
     logger.error(`Erro ao enviar mensagem via Ycloud real: ${errorMsg}`, error.response?.data);
-    throw new HttpsError("aborted", `Erro no Ycloud: ${errorMsg}`);
+    await admin.firestore().collection("message_logs").add({
+            orgId: orgId || "TEST",
+            channelId: "YCLOUD_API",
+            provider: "YCLOUD",
+            direction: "OUTBOUND",
+            templateId: "MANUAL_TEST",
+            recipient: to,
+            message: `Erro: ${errorMsg}`,
+            status: "FAILED",
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        throw new HttpsError("aborted", `Erro no Ycloud: ${errorMsg}`);
   }
 });
 

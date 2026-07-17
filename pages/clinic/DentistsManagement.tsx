@@ -17,6 +17,8 @@ export const DentistsManagement = () => {
     const [name, setName] = useState('');
     const [cro, setCro] = useState('');
     const [specialty, setSpecialty] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
     const [color, setColor] = useState(COLORS[0]);
 
     // --- PLAN CHECK ---
@@ -25,7 +27,9 @@ export const DentistsManagement = () => {
     }
 
     const resetForm = () => {
-        setName(''); setCro(''); setSpecialty(''); setColor(COLORS[0]);
+        setName(''); setCro(''); setSpecialty('');
+    setPhone('');
+    setEmail(''); setColor(COLORS[0]);
         setIsEditing(false); setEditingId(null);
     };
 

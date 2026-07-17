@@ -100,19 +100,29 @@ const getYcloudConfig = async () => {
     try {
         apiKey = ycloudApiKeySecret.value();
     }
-    catch (e) {
-        logger.warn("Secret YCLOUD_API_KEY não disponível via Secret Manager.");
-    }
+    catch (e) { }
     try {
         fromNumber = ycloudPhoneNumberSecret.value();
     }
-    catch (e) {
-        logger.warn("Secret YCLOUD_PHONE_NUMBER não disponível via Secret Manager.");
-    }
+    catch (e) { }
     if (!apiKey)
         apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
     if (!fromNumber)
         fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
+    try {
+        const db = admin.firestore();
+        const globalSettingsDoc = await db.collection("settings").doc("global").get();
+        if (globalSettingsDoc.exists) {
+            const data = globalSettingsDoc.data();
+            if (data === null || data === void 0 ? void 0 : data.ycloudApiKey)
+                apiKey = data.ycloudApiKey;
+            if (data === null || data === void 0 ? void 0 : data.ycloudPhoneNumber)
+                fromNumber = data.ycloudPhoneNumber;
+        }
+    }
+    catch (e) {
+        logger.error("Failed to fetch Ycloud config from DB", e);
+    }
     return { apiKey, fromNumber };
 };
 async function getOrCreateAsaasCustomer(url, key, name, cpfCnpj, externalReference, email = "") {
@@ -1589,6 +1599,18 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [y
                 fromNumber = org.ycloudPhoneNumber;
             }
         }
+        const channelSnap = await admin.firestore().collection("communication_channels")
+            .where("orgId", "==", orgId)
+            .where("status", "==", "ACTIVE")
+            .limit(1)
+            .get();
+        if (!channelSnap.empty) {
+            const channelData = channelSnap.docs[0].data();
+            if (channelData.phoneNumber)
+                fromNumber = channelData.phoneNumber;
+            if (channelData.apiKey)
+                apiKey = channelData.apiKey;
+        }
     }
     if (!apiKey || apiKey === "your_ycloud_api_key_here") {
         logger.info(`[Ycloud Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
@@ -1621,6 +1643,18 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [y
             }
         });
         logger.info(`Mensagem real enviada com sucesso! ID: ${response.data.id}`);
+        // Log in Firestore
+        await admin.firestore().collection("message_logs").add({
+            orgId: orgId || "TEST",
+            channelId: "YCLOUD_API",
+            provider: "YCLOUD",
+            direction: "OUTBOUND",
+            templateId: "MANUAL_TEST",
+            recipient: cleanTo,
+            message: body,
+            status: "SENT",
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
         return {
             success: true,
             sid: response.data.id,
@@ -1630,6 +1664,17 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [y
     catch (error) {
         const errorMsg = ((_b = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || ((_e = (_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.message) || error.message;
         logger.error(`Erro ao enviar mensagem via Ycloud real: ${errorMsg}`, (_f = error.response) === null || _f === void 0 ? void 0 : _f.data);
+        await admin.firestore().collection("message_logs").add({
+            orgId: orgId || "TEST",
+            channelId: "YCLOUD_API",
+            provider: "YCLOUD",
+            direction: "OUTBOUND",
+            templateId: "MANUAL_TEST",
+            recipient: to,
+            message: `Erro: ${errorMsg}`,
+            status: "FAILED",
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
         throw new https_1.HttpsError("aborted", `Erro no Ycloud: ${errorMsg}`);
     }
 });

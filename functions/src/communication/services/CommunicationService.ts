@@ -56,38 +56,12 @@ export class CommunicationService {
 
         return {
             ...channelConfig,
-            apiKey: systemApiKey
+            apiKey: channelConfig.apiKey || systemApiKey
         };
     }
 
     async getTemplate(orgId: string, module: string, templateType: string) {
-        // Try to find a Meta template in message_templates
-        let snapshot = await this.db.collection('message_templates')
-            .where('orgId', '==', orgId)
-            .where('module', '==', module)
-            .where('type', '==', templateType)
-            .where('status', '==', 'APPROVED')
-            .limit(1)
-            .get();
-
-        if (!snapshot.empty) {
-            return { type: 'meta_template', data: { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } };
-        }
-
-        // Try GLOBAL in message_templates
-        snapshot = await this.db.collection('message_templates')
-            .where('orgId', '==', 'GLOBAL')
-            .where('module', '==', module)
-            .where('type', '==', templateType)
-            .where('status', '==', 'APPROVED')
-            .limit(1)
-            .get();
-
-        if (!snapshot.empty) {
-            return { type: 'meta_template', data: { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } };
-        }
-
-        // Fallback to globalSettings.globalWhatsappTemplates created by SuperAdmin UI
+        // Use globalSettings.globalWhatsappTemplates created by SuperAdmin UI
         try {
             const settingsSnap = await this.db.collection('settings').doc('global').get();
             if (settingsSnap.exists) {
