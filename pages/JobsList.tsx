@@ -333,7 +333,8 @@ export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) 
   const [routeDriver, setRouteDriver] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isProcessing, setIsProcessing] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const handleSaveNotes = async (jobId: string, notes: string) => {
     try {
@@ -613,7 +614,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                     </td>
                   </tr>
                 ) : (
-                  freeLabJobs.map((job) => {
+                  freeLabJobs.slice(0, visibleCount).map((job) => {
                     const isEditingThis = editingJob?.id === job.id;
                     return (
                       <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
@@ -742,7 +743,18 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                     );
                   })
                 )}
-
+                {freeLabJobs.length > visibleCount && (
+                  <tr>
+                    <td colSpan={7} className="p-4 text-center">
+                        <button 
+                            onClick={() => setVisibleCount(prev => prev + 20)}
+                            className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-sm"
+                        >
+                            Carregar mais trabalhos
+                        </button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -924,7 +936,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                    {filteredJobs.slice(0, 100).map(job => (
+                    {filteredJobs.slice(0, visibleCount).map(job => (
                         <JobRow 
                             key={job.id} 
                             job={job} 
@@ -953,14 +965,19 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                         />
                     ))}
 
-                    {filteredJobs.length > 100 && (
+                    
+                    {filteredJobs.length > visibleCount && (
                         <tr>
-                            <td colSpan={8} className="p-4 text-center text-slate-400 text-xs italic">
-                                Mostrando os 100 resultados mais recentes para melhor desempenho. Use os filtros para refinar sua busca.
+                            <td colSpan={8} className="p-4 text-center">
+                                <button 
+                                    onClick={() => setVisibleCount(prev => prev + 20)}
+                                    className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-sm"
+                                >
+                                    Carregar mais trabalhos
+                                </button>
                             </td>
                         </tr>
                     )}
-
                 </tbody>
             </table>
         </div>
@@ -972,34 +989,30 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
         {filteredJobs.length === 0 ? (
             <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-dashed">Nenhum pedido encontrado.</div>
         ) : (
-            filteredJobs.slice(0, 50).map(job => (
+            filteredJobs.slice(0, visibleCount).map(job => (
                 <JobCard 
                     key={job.id}
-
                     job={job}
-
                     navigate={navigate}
-
                     getStatusColor={getStatusColor}
-
                     getTranslatedStatus={getTranslatedStatus}
-
                     getSectorTimeInfo={getSectorTimeInfo}
-
                     isClient={isClient}
-
                     revealJobStatus={revealJobStatus}
-
                 />
             ))
         )}
 
-        {filteredJobs.length > 50 && (
-            <div className="p-4 text-center text-slate-400 text-xs italic">
-                Refine os filtros para ver mais resultados.
+        {filteredJobs.length > visibleCount && (
+            <div className="p-4 flex justify-center">
+                <button 
+                    onClick={() => setVisibleCount(prev => prev + 20)}
+                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-sm"
+                >
+                    Carregar mais trabalhos
+                </button>
             </div>
         )}
-
       </div>
 
       {/* ROUTE MODAL */}
@@ -1018,60 +1031,43 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                       </div>
                       <div>
                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turno</label>
-                          <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border rounded-xl bg-white font-bold">
+                          <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800 bg-slate-50">
                               <option value="MORNING">Manhã</option>
                               <option value="AFTERNOON">Tarde</option>
                           </select>
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Entregador</label>
-                          {couriers && couriers.filter(c => c.active).length > 0 ? (
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motoboy</label>
+                          {couriers.filter(c => c.active).length > 0 ? (
                               <div className="space-y-2">
-                                  <select 
-                                      value={couriers.filter(c => c.active).map(c => c.name).includes(routeDriver) ? routeDriver : (routeDriver ? 'MANUAL' : '')} 
-                                      onChange={e => {
-                                          if (e.target.value === 'MANUAL') {
-                                              setRouteDriver('');
-                                          } else {
-                                              setRouteDriver(e.target.value);
-                                          }
-
-                                      }} 
-                                      className="w-full px-4 py-2 border rounded-xl bg-white font-bold text-slate-800"
-                                  >
-                                      <option value="">-- Selecione o Motoboy --</option>
+                                  <select value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800 bg-slate-50">
+                                      <option value="">Selecione um motoboy...</option>
                                       {couriers.filter(c => c.active).map(c => (
                                           <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>
                                       ))}
-
                                       <option value="MANUAL">Outro (Digitar nome)</option>
                                   </select>
-                                  {(!couriers.filter(c => c.active).map(c => c.name).includes(routeDriver) || routeDriver === '') && (
+                                  {(!couriers.filter(c => c.active).map(c => c.name).includes(routeDriver) || routeDriver === 'MANUAL') && (
                                       <input 
                                           placeholder="Digite o nome do Motoboy" 
-                                          value={routeDriver} 
+                                          value={routeDriver === 'MANUAL' ? '' : routeDriver} 
                                           onChange={e => setRouteDriver(e.target.value)} 
                                           className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" 
                                       />
                                   )}
-
                               </div>
                           ) : (
                               <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" />
                           )}
-
                       </div>
                       <button onClick={handleAddToRoute} disabled={isProcessing} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 active:scale-95 transition-transform">
                           {isProcessing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={20} /> CONFIRMAR NA ROTA</>}
-
                       </button>
                   </div>
               </div>
           </div>
       )}
-
     </div>
     </div>
   );
 }
-

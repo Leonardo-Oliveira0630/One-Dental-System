@@ -16,6 +16,9 @@ setGlobalOptions({
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
+import { CommunicationService } from "./communication";
+const communicationService = new CommunicationService();
+
 // Triggers sync 2
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -1803,78 +1806,7 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
  * TRIGGERS PARA NOTIFICAÇÕES AUTOMÁTICAS (WHATSAPP)
  */
 
-async function getTemplateAndSend(orgId: string, type: string, variables: Record<string, string>, toNumber: string) {
-  const db = admin.firestore();
-  
-  // 1. Check global template first
-  let template = null;
-  try {
-    const globalSettingsSnap = await db.collection("settings").doc("global").get();
-    if (globalSettingsSnap.exists) {
-      const globalSettings = globalSettingsSnap.data();
-      if (globalSettings && globalSettings.globalWhatsappTemplates) {
-        template = globalSettings.globalWhatsappTemplates.find((t: any) => t.action === type && t.active);
-      }
-    }
-  } catch (err) {
-    logger.error("Erro ao carregar modelo global de WhatsApp:", err);
-  }
 
-  const orgSnap = await db.collection("organizations").doc(orgId).get();
-  if (!orgSnap.exists) return;
-  const org = orgSnap.data() as any;
-  
-  // 2. Fallback to organization template if no active global template
-  if (!template) {
-    if (!org.hasWhatsappModule || !org.whatsappTemplates) return;
-    template = org.whatsappTemplates.find((t: any) => t.type === type && t.active);
-  }
-  
-  if (!template) {
-    logger.warn(`[getTemplateAndSend] Template do tipo ${type} não encontrado ou inativo para orgId: ${orgId}`);
-    return;
-  }
-  
-  let body = template.body;
-  for (const [key, value] of Object.entries(variables)) {
-    body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-  }
-  
-  const globalConfig = await getYcloudConfig();
-  let apiKey = globalConfig.apiKey;
-  let fromNumber = org.ycloudPhoneNumber || globalConfig.fromNumber;
-
-  if (!apiKey || apiKey === "your_ycloud_api_key_here") {
-    logger.info(`[Simulado] WhatsApp Automático para ${toNumber}: ${body}`);
-    return;
-  }
-  
-  try {
-    const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
-    let cleanTo = toNumber.replace(/\D/g, "");
-    if (cleanTo.length === 10 || cleanTo.length === 11) {
-      cleanTo = "55" + cleanTo;
-    }
-    const cleanFrom = fromNumber.replace(/\D/g, "");
-    
-    await axios.post(ycloudUrl, {
-      to: `+${cleanTo}`,
-      from: `+${cleanFrom}`,
-      type: "text",
-      text: {
-        body: body
-      }
-    }, {
-      headers: {
-        "X-API-Key": apiKey,
-        "Content-Type": "application/json"
-      }
-    });
-    logger.info(`Notificação enviada com sucesso para ${toNumber}`);
-  } catch (e: any) {
-    logger.error("Erro ao enviar notificação automática:", e.response?.data || e.message);
-  }
-}
 
 export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId}/appointments/{appointmentId}", async (event: any) => {
   const snap = event.data;
@@ -1904,11 +1836,11 @@ export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
   
-  await getTemplateAndSend(orgId, "CLINIC_APPOINTMENT", {
+  await communicationService.sendTemplateMessage(orgId, phone, "CLINIC", "CLINIC_APPOINTMENT", {
     patient_name: patient.name,
     date: dateStr,
     time: timeStr
-  }, phone);
+  });
 });
 
 export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{orgId}/routes/{routeId}", async (event: any) => {
@@ -1972,10 +1904,10 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
        
        const jobsListStr = info.jobs.join("\n");
        
-       await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+       await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DISPATCH", {
          dentist_name: info.dentistName,
          jobs_list: jobsListStr
-       }, phone);
+       });
      }
   }
 });
@@ -2002,10 +1934,10 @@ export const triggerSupplierOrderUpdated = onDocumentUpdated("supplierOrders/{or
      
      const readableStatus = statusMap[after.deliveryStatus] || after.deliveryStatus;
      
-     await getTemplateAndSend(after.supplierId, "SUPPLIER_UPDATE", {
+     await communicationService.sendTemplateMessage(after.supplierId, phone, "SUPPLIER", "SUPPLIER_UPDATE", {
        order_id: event.params.orderId,
        status: readableStatus
-     }, phone);
+     });
   }
 });
 
@@ -2170,10 +2102,16 @@ export const triggerJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{
      if (phone) {
        const osNumber = after.osNumber || after.id?.substring(after.id.length - 6).toUpperCase() || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
        
-       await getTemplateAndSend(orgId, "LAB_DELIVERED", {
+       await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DELIVERED", {
          dentist_name: after.dentistName || "Dentista",
          jobs_list: `- ${after.patientName} (OS: ${osNumber})`
-       }, phone);
+       });
      }
   }
 });
+
+
+import { communicationWebhook } from './communication/webhook';
+export const communication = {
+    webhook: communicationWebhook
+};

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Save, Image as ImageIcon, UploadCloud, Loader2, Building2, Trash2, Plus, LayoutGrid, List, X, ExternalLink, MessageSquare, Star, Info, Copy, Check, Shield, MapPin, Phone, Mail, Share2, CheckCircle } from 'lucide-react';
 import { StoreSettings, BannerConfig } from '../../types';
+import { WhatsAppChannelSettings } from '../../components/WhatsAppChannelSettings';
 import { WhatsAppTemplatesEditor } from '../../components/WhatsAppTemplatesEditor';
 
 export const OrganizationTab = () => {
@@ -619,6 +620,7 @@ export const OrganizationTab = () => {
                 Sua clínica e pacientes receberão atualizações automáticas sobre os trabalhos.
             </p>
             <div className="mt-6">
+                <WhatsAppChannelSettings orgId={currentOrg.id} />
                 <WhatsAppTemplatesEditor 
                     currentOrg={currentOrg} 
                     onUpdate={() => {}}

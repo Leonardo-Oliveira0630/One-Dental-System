@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { StoreLayoutBlock, StoreSettings, BannerConfig } from '../../types';
+import { WhatsAppChannelSettings } from '../../components/WhatsAppChannelSettings';
 import { WhatsAppTemplatesEditor } from '../../components/WhatsAppTemplatesEditor';
 import { smartCompress } from '../../services/compressionService';
 import { 
@@ -1021,6 +1022,7 @@ export const SupplierSettings = () => {
         {/* TAB 4: NOTIFICATIONS */}
         {activeTab === 'notifications' && currentOrg && (
           <div className="animate-in fade-in duration-300">
+            <WhatsAppChannelSettings orgId={currentOrg.id} />
             <WhatsAppTemplatesEditor 
                 currentOrg={currentOrg} 
                 onUpdate={() => {}}

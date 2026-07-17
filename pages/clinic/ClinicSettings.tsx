@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 import { searchCEP } from '../../services/addressService';
+import { WhatsAppChannelSettings } from '../../components/WhatsAppChannelSettings';
 import { WhatsAppTemplatesEditor } from '../../components/WhatsAppTemplatesEditor';
 
 export const ClinicSettings = () => {
@@ -318,7 +319,14 @@ export const ClinicSettings = () => {
       )}
 
       {/* SUBSCRIPTION CONTENT */}
-      {activeTab === 'SUBSCRIPTION' && (
+      
+        {activeTab === 'WHATSAPP' && currentOrg && (
+          <div className="space-y-6">
+            <WhatsAppChannelSettings orgId={currentOrg.id} />
+          </div>
+        )}
+
+        {activeTab === 'SUBSCRIPTION' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-6">
               <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
                   <div className="absolute top-0 right-0 p-8 opacity-10"><Crown size={120} /></div>

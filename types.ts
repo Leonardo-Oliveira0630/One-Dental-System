@@ -138,6 +138,7 @@ export interface Organization {
   targetAudience?: 'CLINIC' | 'LAB' | 'SUPPLIER';
   hasWhatsappModule?: boolean;
   ycloudPhoneNumber?: string;
+  ycloudApiKey?: string;
   whatsappTemplates?: {
     id: string;
     name: string;
@@ -1145,4 +1146,63 @@ export interface SupportMessage {
   createdAt: any;
   attachmentUrl?: string;
   attachmentType?: 'image' | 'audio';
+}
+
+export interface ICommunicationProvider {
+  name: string;
+  connect(credentials: any): Promise<any>;
+  disconnect(channelId: string): Promise<any>;
+  sendMessage(channelId: string, to: string, message: string): Promise<any>;
+  sendTemplate(channelId: string, to: string, template: any, variables: any): Promise<any>;
+  receiveWebhook(payload: any): Promise<any>;
+}
+
+export type CommunicationStatus = 'PENDING' | 'PROCESSING' | 'SENT' | 'DELIVERED' | 'READ' | 'FAILED' | 'RETRYING';
+
+export interface CommunicationChannel {
+  id?: string;
+  tenantId: string;
+  companyId: string;
+  provider: string;
+  channelId: string;
+  phoneNumber: string;
+  businessName: string;
+  apiKey?: string;
+  accessToken?: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'ERROR';
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface MessageTemplate {
+  id?: string;
+  tenantId: string;
+  module: 'LAB' | 'CLINIC' | 'SUPPLIER' | 'GLOBAL';
+  name: string;
+  type: string;
+  language: string;
+  variables: string[];
+  templateProviderId?: string;
+  provider: string;
+  status: 'APPROVED' | 'PENDING' | 'REJECTED';
+  body: string;
+}
+
+export interface MessageLog {
+  id?: string;
+  tenantId: string;
+  companyId: string;
+  channelId: string;
+  provider: string;
+  direction: 'INBOUND' | 'OUTBOUND';
+  templateId?: string;
+  recipient: string;
+  message: string;
+  status: CommunicationStatus;
+  providerMessageId?: string;
+  sentAt?: Date;
+  deliveredAt?: Date;
+  readAt?: Date;
+  failedReason?: string;
+  createdAt?: Date;
 }

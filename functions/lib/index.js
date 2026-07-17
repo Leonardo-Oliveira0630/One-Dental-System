@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.triggerJobUpdated = exports.ycloudWebhook = exports.triggerSupplierOrderUpdated = exports.triggerDeliveryRouteUpdated = exports.triggerAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.communication = exports.triggerJobUpdated = exports.ycloudWebhook = exports.triggerSupplierOrderUpdated = exports.triggerDeliveryRouteUpdated = exports.triggerAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -53,6 +53,8 @@ const ycloudPhoneNumberSecret = (0, params_1.defineSecret)("YCLOUD_PHONE_NUMBER"
 });
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
+const communication_1 = require("./communication");
+const communicationService = new communication_1.CommunicationService();
 // Triggers sync 2
 if (admin.apps.length === 0) {
     admin.initializeApp();
@@ -1634,74 +1636,6 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [y
 /**
  * TRIGGERS PARA NOTIFICAÇÕES AUTOMÁTICAS (WHATSAPP)
  */
-async function getTemplateAndSend(orgId, type, variables, toNumber) {
-    var _a;
-    const db = admin.firestore();
-    // 1. Check global template first
-    let template = null;
-    try {
-        const globalSettingsSnap = await db.collection("settings").doc("global").get();
-        if (globalSettingsSnap.exists) {
-            const globalSettings = globalSettingsSnap.data();
-            if (globalSettings && globalSettings.globalWhatsappTemplates) {
-                template = globalSettings.globalWhatsappTemplates.find((t) => t.action === type && t.active);
-            }
-        }
-    }
-    catch (err) {
-        logger.error("Erro ao carregar modelo global de WhatsApp:", err);
-    }
-    const orgSnap = await db.collection("organizations").doc(orgId).get();
-    if (!orgSnap.exists)
-        return;
-    const org = orgSnap.data();
-    // 2. Fallback to organization template if no active global template
-    if (!template) {
-        if (!org.hasWhatsappModule || !org.whatsappTemplates)
-            return;
-        template = org.whatsappTemplates.find((t) => t.type === type && t.active);
-    }
-    if (!template) {
-        logger.warn(`[getTemplateAndSend] Template do tipo ${type} não encontrado ou inativo para orgId: ${orgId}`);
-        return;
-    }
-    let body = template.body;
-    for (const [key, value] of Object.entries(variables)) {
-        body = body.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
-    }
-    const globalConfig = await getYcloudConfig();
-    let apiKey = globalConfig.apiKey;
-    let fromNumber = org.ycloudPhoneNumber || globalConfig.fromNumber;
-    if (!apiKey || apiKey === "your_ycloud_api_key_here") {
-        logger.info(`[Simulado] WhatsApp Automático para ${toNumber}: ${body}`);
-        return;
-    }
-    try {
-        const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
-        let cleanTo = toNumber.replace(/\D/g, "");
-        if (cleanTo.length === 10 || cleanTo.length === 11) {
-            cleanTo = "55" + cleanTo;
-        }
-        const cleanFrom = fromNumber.replace(/\D/g, "");
-        await axios_1.default.post(ycloudUrl, {
-            to: `+${cleanTo}`,
-            from: `+${cleanFrom}`,
-            type: "text",
-            text: {
-                body: body
-            }
-        }, {
-            headers: {
-                "X-API-Key": apiKey,
-                "Content-Type": "application/json"
-            }
-        });
-        logger.info(`Notificação enviada com sucesso para ${toNumber}`);
-    }
-    catch (e) {
-        logger.error("Erro ao enviar notificação automática:", ((_a = e.response) === null || _a === void 0 ? void 0 : _a.data) || e.message);
-    }
-}
 exports.triggerAppointmentCreated = (0, firestore_1.onDocumentCreated)("organizations/{orgId}/appointments/{appointmentId}", async (event) => {
     const snap = event.data;
     if (!snap)
@@ -1728,11 +1662,11 @@ exports.triggerAppointmentCreated = (0, firestore_1.onDocumentCreated)("organiza
         orgId: orgId,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    await getTemplateAndSend(orgId, "CLINIC_APPOINTMENT", {
+    await communicationService.sendTemplateMessage(orgId, phone, "CLINIC", "CLINIC_APPOINTMENT", {
         patient_name: patient.name,
         date: dateStr,
         time: timeStr
-    }, phone);
+    });
 });
 exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/routes/{routeId}", async (event) => {
     var _a, _b;
@@ -1789,10 +1723,10 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
             }
             logger.info(`[triggerDeliveryRouteUpdated] Preparando envio para ${info.dentistName} (telefone: ${phone}).`);
             const jobsListStr = info.jobs.join("\n");
-            await getTemplateAndSend(orgId, "LAB_DISPATCH", {
+            await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DISPATCH", {
                 dentist_name: info.dentistName,
                 jobs_list: jobsListStr
-            }, phone);
+            });
         }
     }
 });
@@ -1818,10 +1752,10 @@ exports.triggerSupplierOrderUpdated = (0, firestore_1.onDocumentUpdated)("suppli
             "DELIVERED": "Entregue"
         };
         const readableStatus = statusMap[after.deliveryStatus] || after.deliveryStatus;
-        await getTemplateAndSend(after.supplierId, "SUPPLIER_UPDATE", {
+        await communicationService.sendTemplateMessage(after.supplierId, phone, "SUPPLIER", "SUPPLIER_UPDATE", {
             order_id: event.params.orderId,
             status: readableStatus
-        }, phone);
+        });
     }
 });
 exports.ycloudWebhook = (0, https_1.onRequest)(async (req, res) => {
@@ -1967,11 +1901,15 @@ exports.triggerJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{o
         }
         if (phone) {
             const osNumber = after.osNumber || ((_c = after.id) === null || _c === void 0 ? void 0 : _c.substring(after.id.length - 6).toUpperCase()) || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
-            await getTemplateAndSend(orgId, "LAB_DELIVERED", {
+            await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DELIVERED", {
                 dentist_name: after.dentistName || "Dentista",
                 jobs_list: `- ${after.patientName} (OS: ${osNumber})`
-            }, phone);
+            });
         }
     }
 });
+const webhook_1 = require("./communication/webhook");
+exports.communication = {
+    webhook: webhook_1.communicationWebhook
+};
 //# sourceMappingURL=index.js.map
