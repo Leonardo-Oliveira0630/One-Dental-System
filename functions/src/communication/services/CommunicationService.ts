@@ -17,6 +17,21 @@ export class CommunicationService {
     }
 
     async getChannelConfig(orgId: string) {
+        let channelConfig: any = null;
+        let systemApiKey = process.env.YCLOUD_API_KEY || '';
+        let systemPhoneNumber = process.env.YCLOUD_PHONE_NUMBER || '';
+
+        try {
+            const settingsSnap = await this.db.collection('settings').doc('global').get();
+            if (settingsSnap.exists) {
+                const globalData = settingsSnap.data();
+                if (globalData?.ycloudApiKey) systemApiKey = globalData.ycloudApiKey;
+                if (globalData?.ycloudPhoneNumber) systemPhoneNumber = globalData.ycloudPhoneNumber;
+            }
+        } catch (e) {
+            console.error("Could not fetch global settings for YCloud API key", e);
+        }
+
         const snapshot = await this.db.collection('communication_channels')
             .where('orgId', '==', orgId)
             .where('status', '==', 'ACTIVE')
@@ -24,27 +39,24 @@ export class CommunicationService {
             .get();
 
         if (snapshot.empty) {
-            throw new Error(`No active communication channel found for org ${orgId}`);
-        }
-
-        const data = snapshot.docs[0].data() as any;
-
-        let systemApiKey = process.env.YCLOUD_API_KEY || '';
-        if (!systemApiKey) {
-            try {
-                const settingsSnap = await this.db.collection('settings').doc('global').get();
-                if (settingsSnap.exists) {
-                    systemApiKey = settingsSnap.data()?.ycloudApiKey || '';
-                }
-            } catch (e) {
-                console.error("Could not fetch global settings for YCloud API key", e);
+            console.log(`No active communication channel found for org ${orgId}, falling back to global Ycloud`);
+            channelConfig = {
+                provider: 'YCloud',
+                status: 'ACTIVE',
+                orgId: orgId,
+                phoneNumber: systemPhoneNumber
+            };
+        } else {
+            channelConfig = { ...snapshot.docs[0].data(), id: snapshot.docs[0].id };
+            // If the org channel is YCloud but doesn't have phone, fallback to system
+            if (channelConfig.provider === 'YCloud' && !channelConfig.phoneNumber) {
+                channelConfig.phoneNumber = systemPhoneNumber;
             }
         }
 
         return {
-            ...data,
-            apiKey: systemApiKey, 
-            id: snapshot.docs[0].id
+            ...channelConfig,
+            apiKey: systemApiKey
         };
     }
 
@@ -89,6 +101,17 @@ export class CommunicationService {
             }
         } catch (e) {
             console.error('Error fetching globalWhatsappTemplates', e);
+        }
+
+        const defaultTemplates: any = {
+            'LAB_DISPATCH': { body: 'Olá {{ dentist_name }}, seus trabalhos estão saindo para entrega/coleta com nosso motoboy:\n{{jobs_list}}' },
+            'LAB_DELIVERED': { body: 'Olá {{ dentist_name }}, os seguintes trabalhos foram entregues:\n{{jobs_list}}' },
+            'CLINIC_APPOINTMENT': { body: 'Olá {{ patient_name }}, sua consulta está marcada para {{date}}.' },
+            'SUPPLIER_UPDATE': { body: 'Seu pedido {{order_id}} foi atualizado para: {{status}}' }
+        };
+        
+        if (defaultTemplates[templateType]) {
+            return { type: 'text_template', data: defaultTemplates[templateType] };
         }
 
         throw new Error(`Template not found for module ${module} and type ${templateType}`);

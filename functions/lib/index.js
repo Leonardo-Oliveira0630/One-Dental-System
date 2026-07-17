@@ -1674,7 +1674,9 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
     const after = (_b = event.data) === null || _b === void 0 ? void 0 : _b.after.data();
     if (!before || !after)
         return;
-    if (before.status !== "IN_TRANSIT" && after.status === "IN_TRANSIT") {
+    const justInTransit = before.status !== "IN_TRANSIT" && after.status === "IN_TRANSIT";
+    const justCompleted = before.status !== "COMPLETED" && after.status === "COMPLETED";
+    if (justInTransit || justCompleted) {
         const orgId = event.params.orgId;
         const db = admin.firestore();
         // Obter items da rota
@@ -1683,23 +1685,33 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
             logger.info(`[triggerDeliveryRouteUpdated] Rota vazia (sem itens).`);
             return;
         }
-        logger.info(`[triggerDeliveryRouteUpdated] Encontrados ${itemsSnap.size} itens na rota.`);
         const items = itemsSnap.docs.map((doc) => doc.data());
         // Agrupar por dentista
         const jobsByDentist = {};
         for (const item of items) {
-            if (item.type !== "DELIVERY")
-                continue; // só queremos avisar de entregas, não de coletas? Opcional
             const dId = item.dentistId;
             if (!jobsByDentist[dId]) {
                 jobsByDentist[dId] = {
                     dentistName: item.dentistName,
                     dentistId: dId,
                     jobs: [],
-                    isAppUser: !!item.clinicName // Heuristic or we will fetch it
+                    isAppUser: !!item.clinicName
                 };
             }
-            jobsByDentist[dId].jobs.push(`- ${item.patientName || "Paciente"} (OS: ${item.jobId || "Sem número"})`);
+            const action = item.type === "DELIVERY" ? "Entrega" : "Coleta";
+            jobsByDentist[dId].jobs.push(`- [${action}] ${item.patientName || "Paciente"} (OS: ${item.jobId || "Sem número"})`);
+            // Automatically mark jobs as delivered if route completed
+            if (justCompleted && item.type === "DELIVERY" && item.jobId) {
+                try {
+                    await db.collection("organizations").doc(orgId).collection("jobs").doc(item.jobId).update({
+                        status: 'DELIVERED',
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                catch (e) {
+                    logger.warn("Could not update job to DELIVERED", e);
+                }
+            }
         }
         for (const dId of Object.keys(jobsByDentist)) {
             const info = jobsByDentist[dId];
@@ -1718,12 +1730,11 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
                 }
             }
             if (!phone) {
-                logger.info(`[triggerDeliveryRouteUpdated] Dentista ${info.dentistName} (ID: ${dId}) sem telefone, ignorando.`);
                 continue;
             }
-            logger.info(`[triggerDeliveryRouteUpdated] Preparando envio para ${info.dentistName} (telefone: ${phone}).`);
             const jobsListStr = info.jobs.join("\n");
-            await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DISPATCH", {
+            const templateType = justCompleted ? "LAB_DELIVERED" : "LAB_DISPATCH";
+            await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType, {
                 dentist_name: info.dentistName,
                 jobs_list: jobsListStr
             });
@@ -1742,7 +1753,7 @@ exports.triggerSupplierOrderUpdated = (0, firestore_1.onDocumentUpdated)("suppli
         if (!orgSnap.exists)
             return;
         const org = orgSnap.data();
-        const phone = org.phone || "";
+        const phone = org.phone || org.whatsapp || "";
         if (!phone)
             return;
         const statusMap = {

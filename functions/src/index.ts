@@ -1849,7 +1849,10 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
   const after = event.data?.after.data();
   if (!before || !after) return;
   
-  if (before.status !== "IN_TRANSIT" && after.status === "IN_TRANSIT") {
+  const justInTransit = before.status !== "IN_TRANSIT" && after.status === "IN_TRANSIT";
+  const justCompleted = before.status !== "COMPLETED" && after.status === "COMPLETED";
+
+  if (justInTransit || justCompleted) {
      const orgId = event.params.orgId;
      const db = admin.firestore();
      
@@ -1859,7 +1862,6 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
        logger.info(`[triggerDeliveryRouteUpdated] Rota vazia (sem itens).`);
        return;
      }
-     logger.info(`[triggerDeliveryRouteUpdated] Encontrados ${itemsSnap.size} itens na rota.`);
      
      const items = itemsSnap.docs.map((doc: any) => doc.data());
      
@@ -1867,17 +1869,29 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
      const jobsByDentist: Record<string, { dentistName: string, jobs: string[], dentistId: string, isAppUser: boolean }> = {};
      
      for (const item of items) {
-       if (item.type !== "DELIVERY") continue; // só queremos avisar de entregas, não de coletas? Opcional
        const dId = item.dentistId;
        if (!jobsByDentist[dId]) {
          jobsByDentist[dId] = {
            dentistName: item.dentistName,
            dentistId: dId,
            jobs: [],
-           isAppUser: !!item.clinicName // Heuristic or we will fetch it
+           isAppUser: !!item.clinicName
          };
        }
-       jobsByDentist[dId].jobs.push(`- ${item.patientName || "Paciente"} (OS: ${item.jobId || "Sem número"})`);
+       const action = item.type === "DELIVERY" ? "Entrega" : "Coleta";
+       jobsByDentist[dId].jobs.push(`- [${action}] ${item.patientName || "Paciente"} (OS: ${item.jobId || "Sem número"})`);
+       
+       // Automatically mark jobs as delivered if route completed
+       if (justCompleted && item.type === "DELIVERY" && item.jobId) {
+          try {
+             await db.collection("organizations").doc(orgId).collection("jobs").doc(item.jobId).update({
+                 status: 'DELIVERED',
+                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
+             });
+          } catch (e) {
+             logger.warn("Could not update job to DELIVERED", e);
+          }
+       }
      }
      
      for (const dId of Object.keys(jobsByDentist)) {
@@ -1887,25 +1901,24 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
        // Try users first
        let userSnap = await db.collection("users").doc(dId).get();
        if (userSnap.exists) {
-         const data = userSnap.data() as any;
+         const data = userSnap.data();
          phone = data?.phone || data?.whatsapp || "";
        } else {
          let manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
          if (manualSnap.exists) {
-            const data = manualSnap.data() as any;
+            const data = manualSnap.data();
             phone = data?.phone || data?.whatsapp || "";
          }
        }
        
        if (!phone) {
-         logger.info(`[triggerDeliveryRouteUpdated] Dentista ${info.dentistName} (ID: ${dId}) sem telefone, ignorando.`);
          continue;
        }
-       logger.info(`[triggerDeliveryRouteUpdated] Preparando envio para ${info.dentistName} (telefone: ${phone}).`);
        
        const jobsListStr = info.jobs.join("\n");
+       const templateType = justCompleted ? "LAB_DELIVERED" : "LAB_DISPATCH";
        
-       await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DISPATCH", {
+       await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType as any, {
          dentist_name: info.dentistName,
          jobs_list: jobsListStr
        });
@@ -1923,7 +1936,7 @@ export const triggerSupplierOrderUpdated = onDocumentUpdated("supplierOrders/{or
      const orgSnap = await db.collection("organizations").doc(after.buyerOrgId).get();
      if (!orgSnap.exists) return;
      const org = orgSnap.data() as any;
-     const phone = org.phone || "";
+     const phone = org.phone || org.whatsapp || "";
      if (!phone) return;
      
      const statusMap: Record<string, string> = {
@@ -2089,13 +2102,13 @@ export const triggerJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{
      const dId = after.dentistId;
      let userSnap = await db.collection("users").doc(dId).get();
      if (userSnap.exists) {
-       const data = userSnap.data() as any;
+       const data = userSnap.data();
        phone = data?.phone || data?.whatsapp || "";
      } else {
        // Manual
        const manualSnap = await db.collection("organizations").doc(orgId).collection("manualDentists").doc(dId).get();
        if (manualSnap.exists) {
-         const data = manualSnap.data() as any;
+         const data = manualSnap.data();
          phone = data?.phone || data?.whatsapp || "";
        }
      }
@@ -2111,8 +2124,8 @@ export const triggerJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{
   }
 });
 
-
 import { communicationWebhook } from './communication/webhook';
+
 export const communication = {
     webhook: communicationWebhook
 };
