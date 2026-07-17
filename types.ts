@@ -88,6 +88,7 @@ export interface StoreSettings {
 }
 
 export interface Organization {
+  whatsapp?: string;
   id: string;
   name: string;
   logoUrl?: string; 
@@ -572,6 +573,7 @@ export interface PriceTable {
 }
 
 export interface User {
+  whatsapp?: string;
   id: string;
   name: string;
   email: string;
