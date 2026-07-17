@@ -941,7 +941,7 @@ exports.createSaaSSubscription = (0, https_1.onCall)(async (req) => {
         if (orgSnap.exists) {
             orgData = orgSnap.data() || {};
         }
-        const phone = orgData.phone || "";
+        const phone = orgData.phone || orgData.whatsapp || "";
         const cep = orgData.cep || "";
         const address = orgData.address || "";
         const number = orgData.number || "";

@@ -1039,7 +1039,7 @@ export const createSaaSSubscription = onCall(async (req: any) => {
       orgData = orgSnap.data() || {};
     }
 
-    const phone = orgData.phone || "";
+    const phone = orgData.phone || orgData.whatsapp || "";
     const cep = orgData.cep || "";
     const address = orgData.address || "";
     const number = orgData.number || "";

@@ -20,6 +20,7 @@ export const ClinicSettings = () => {
   
   // Custom states for clinic faturamento and address
   const [adminName, setAdminName] = useState(currentOrg?.financialSettings?.techResponsibleName || currentUser?.name || '');
+  const [phone, setPhone] = useState(currentOrg?.phone || currentOrg?.whatsapp || '');
   const [cpfCnpj, setCpfCnpj] = useState(currentOrg?.cpfCnpj || currentOrg?.financialSettings?.techResponsibleCpf || '');
   const [cep, setCep] = useState(currentOrg?.cep || '');
   const [address, setAddress] = useState(currentOrg?.address || '');
@@ -38,6 +39,7 @@ export const ClinicSettings = () => {
       setCpfCnpj(currentOrg.cpfCnpj || currentOrg.financialSettings?.techResponsibleCpf || '');
       setCep(currentOrg.cep || '');
       setAddress(currentOrg.address || '');
+      setPhone(currentOrg.phone || currentOrg.whatsapp || '');
       setNumber(currentOrg.number || '');
       setComplement(currentOrg.complement || '');
       setNeighborhood(currentOrg.neighborhood || '');

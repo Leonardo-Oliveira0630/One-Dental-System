@@ -37,6 +37,7 @@ export const SupplierSettings = () => {
   // Asaas & Frenet Integrations State
   const [asaasWalletId, setAsaasWalletId] = useState('');
   const [frenetToken, setFrenetToken] = useState('');
+  const [phone, setPhone] = useState('');
   const [cep, setCep] = useState('');
   const [address, setAddress] = useState('');
   const [number, setNumber] = useState('');
@@ -238,6 +239,7 @@ export const SupplierSettings = () => {
         financialSettings: updatedFin,
         frenetToken,
         cep,
+        phone,
         address,
         number,
         complement,
