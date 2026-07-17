@@ -15,7 +15,7 @@ export const ClinicSettings = () => {
   const { currentOrg, currentPlan, allPlans, updateOrganization, validateCoupon, currentUser, getSaaSInvoices } = useApp();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'INFO' | 'SUBSCRIPTION'>('SUBSCRIPTION');
+  const [activeTab, setActiveTab] = useState<'INFO' | 'SUBSCRIPTION' | 'WHATSAPP'>('SUBSCRIPTION');
   const [clinicName, setClinicName] = useState(currentOrg?.name || '');
   
   // Custom states for clinic faturamento and address

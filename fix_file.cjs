@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+const fs = require('fs');
+
+const content = `import React, { useState } from 'react';
 import { Plus, Trash2, Edit2, Save, X } from 'lucide-react';
 import { Organization } from '../types';
 import * as api from '../services/firebaseService';
@@ -23,7 +25,7 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
     LAB: {
       type: 'LAB_DISPATCH',
       name: 'Aviso de Motoboy (Rota)',
-      body: 'Olá {{dentist_name}}, informamos que os seguintes trabalhos estão em rota:\n{{jobs_list}}'
+      body: 'Olá {{dentist_name}}, informamos que os seguintes trabalhos estão em rota:\\n{{jobs_list}}'
     },
     SUPPLIER: {
       type: 'SUPPLIER_UPDATE',
@@ -43,7 +45,7 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
         newTemplates = newTemplates.map(t => t.id === editingId ? { ...t, ...editForm } : t);
       }
       
-      await api.apiUpdateOrganization(currentOrg.id, { whatsappTemplates: newTemplates });
+      await api.updateOrganization(currentOrg.id, { whatsappTemplates: newTemplates });
       setTemplates(newTemplates);
       setEditingId(null);
       onUpdate();
@@ -57,7 +59,7 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
     if (!confirm('Deseja excluir este modelo?')) return;
     try {
       const newTemplates = templates.filter(t => t.id !== id);
-      await api.apiUpdateOrganization(currentOrg.id, { whatsappTemplates: newTemplates });
+      await api.updateOrganization(currentOrg.id, { whatsappTemplates: newTemplates });
       setTemplates(newTemplates);
       onUpdate();
     } catch (e: any) {
@@ -131,9 +133,9 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
                       type="checkbox" 
                       checked={editForm.active}
                       onChange={e => setEditForm({ ...editForm, active: e.target.checked })}
-                      id={`active-${tpl.id}`}
+                      id={\`active-\${tpl.id}\`}
                     />
-                    <label htmlFor={`active-${tpl.id}`}>Modelo Ativo</label>
+                    <label htmlFor={\`active-\${tpl.id}\`}>Modelo Ativo</label>
                   </div>
                   <div className="flex justify-end gap-2">
                     <button onClick={() => setEditingId(null)} className="px-3 py-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">Cancelar</button>
@@ -234,3 +236,5 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
     </div>
   );
 }
+`;
+fs.writeFileSync('components/WhatsAppTemplatesEditor.tsx', content);

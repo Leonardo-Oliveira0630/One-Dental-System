@@ -16,7 +16,7 @@ setGlobalOptions({
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
-import { CommunicationService } from "./communication";
+import { CommunicationService } from "./communication/services/CommunicationService";
 const communicationService = new CommunicationService();
 
 // Triggers sync 2
