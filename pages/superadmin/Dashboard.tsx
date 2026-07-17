@@ -13,6 +13,8 @@ export const SuperAdminDashboard = () => {
     // Settings Form State
     const [platformComm, setPlatformComm] = useState(globalSettings?.platformCommission || 5);
     const [geminiApiKey, setGeminiApiKey] = useState(globalSettings?.geminiApiKey || '');
+    const [ycloudApiKey, setYcloudApiKey] = useState(globalSettings?.ycloudApiKey || '');
+    const [ycloudPhone, setYcloudPhone] = useState(globalSettings?.ycloudPhoneNumber || '');
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
@@ -31,7 +33,9 @@ export const SuperAdminDashboard = () => {
         try {
             await updateGlobalSettings({ 
                 platformCommission: platformComm,
-                geminiApiKey: geminiApiKey.trim()
+                geminiApiKey: geminiApiKey.trim(),
+                ycloudApiKey: ycloudApiKey.trim(),
+                ycloudPhoneNumber: ycloudPhone.trim()
             });
             alert("Configurações salvas!");
         } catch (err) {

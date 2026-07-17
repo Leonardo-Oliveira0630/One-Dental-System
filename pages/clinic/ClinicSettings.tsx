@@ -21,6 +21,7 @@ export const ClinicSettings = () => {
   // Custom states for clinic faturamento and address
   const [adminName, setAdminName] = useState(currentOrg?.financialSettings?.techResponsibleName || currentUser?.name || '');
   const [phone, setPhone] = useState(currentOrg?.phone || currentOrg?.whatsapp || '');
+  const [email, setEmail] = useState(currentOrg?.email || '');
   const [cpfCnpj, setCpfCnpj] = useState(currentOrg?.cpfCnpj || currentOrg?.financialSettings?.techResponsibleCpf || '');
   const [cep, setCep] = useState(currentOrg?.cep || '');
   const [address, setAddress] = useState(currentOrg?.address || '');
@@ -236,6 +237,14 @@ export const ClinicSettings = () => {
                              <div>
                                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nome do Administrador</label>
                                  <input required value={adminName} onChange={e => setAdminName(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" placeholder="Nome do Admin / Responsável" />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email da Clínica</label>
+                                 <input value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" />
+                             </div>
+                             <div>
+                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">WhatsApp / Telefone</label>
+                                 <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" />
                              </div>
                              <div>
                                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CPF ou CNPJ para Faturamento</label>

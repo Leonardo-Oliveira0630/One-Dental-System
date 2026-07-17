@@ -13,6 +13,7 @@ export function WhatsAppChannelSettings({ orgId, companyId }: { orgId: string, c
   const [channel, setChannel] = useState<ChannelConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export function WhatsAppChannelSettings({ orgId, companyId }: { orgId: string, c
           const docData = querySnapshot.docs[0];
           setChannel({ id: docData.id, ...docData.data() } as ChannelConfig);
           setPhoneNumber(docData.data().phoneNumber || '');
+          setApiKey(docData.data().apiKey || '');
         }
       } catch (error) {
         console.error("Error fetching channel:", error);
@@ -44,6 +46,7 @@ export function WhatsAppChannelSettings({ orgId, companyId }: { orgId: string, c
       if (channel?.id) {
         await updateDoc(doc(db, 'communication_channels', channel.id), {
           phoneNumber: phoneNumber.replace(/\D/g, ''),
+          apiKey: apiKey.trim(),
           updatedAt: serverTimestamp()
         });
         setChannel({ ...channel, phoneNumber: phoneNumber.replace(/\D/g, '') });
@@ -54,6 +57,7 @@ export function WhatsAppChannelSettings({ orgId, companyId }: { orgId: string, c
           orgId: orgId,
           provider: 'YCloud', 
           phoneNumber: phoneNumber.replace(/\D/g, ''),
+          apiKey: apiKey.trim(),
           status: 'ACTIVE',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
@@ -107,7 +111,16 @@ export function WhatsAppChannelSettings({ orgId, companyId }: { orgId: string, c
             Insira o número com código do país (ex: 55 para o Brasil).
           </p>
         </div>
-
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Sua API Key (Opcional - YCloud)</label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Deixe em branco para usar a API Global"
+            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+          />
+        </div>
         <button
           onClick={handleSave}
           disabled={saving}
