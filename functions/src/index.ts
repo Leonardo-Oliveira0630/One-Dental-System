@@ -16,13 +16,14 @@ setGlobalOptions({
 });
 import * as admin from "firebase-admin";
 import axios from "axios";
-import { CommunicationService } from "./communication/services/CommunicationService";
-const communicationService = new CommunicationService();
 
 // Triggers sync 2
 if (admin.apps.length === 0) {
   admin.initializeApp();
 }
+
+import { CommunicationService } from "./communication/services/CommunicationService";
+const communicationService = new CommunicationService();
 
 /**
  * CONFIGURAÇÕES E HELPERS

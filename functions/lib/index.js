@@ -53,12 +53,12 @@ const ycloudPhoneNumberSecret = (0, params_1.defineSecret)("YCLOUD_PHONE_NUMBER"
 });
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
-const CommunicationService_1 = require("./communication/services/CommunicationService");
-const communicationService = new CommunicationService_1.CommunicationService();
 // Triggers sync 2
 if (admin.apps.length === 0) {
     admin.initializeApp();
 }
+const CommunicationService_1 = require("./communication/services/CommunicationService");
+const communicationService = new CommunicationService_1.CommunicationService();
 /**
  * CONFIGURAÇÕES E HELPERS
  */
