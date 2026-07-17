@@ -6,16 +6,16 @@ export class YCloudProvider implements ICommunicationProvider {
   name = 'YCloud';
 
   async sendMessage(channelConfig: any, to: string, message: string): Promise<any> {
-    const { apiKey, fromNumber } = channelConfig;
+    const { apiKey, phoneNumber } = channelConfig;
     if (!apiKey) {
         throw new Error('YCloud Provider requires system apiKey');
     }
-    if (!fromNumber) {
-        throw new Error('YCloud Provider requires fromNumber in channelConfig for the tenant');
+    if (!phoneNumber) {
+        throw new Error('YCloud Provider requires phoneNumber in channelConfig for the tenant');
     }
 
     const payload = {
-        from: fromNumber, // YCloud requires specifying the sender if you have multiple
+        from: phoneNumber, // YCloud requires specifying the sender if you have multiple
         to: to,
         type: 'text',
         text: { body: message }
@@ -32,12 +32,12 @@ export class YCloudProvider implements ICommunicationProvider {
   }
 
   async sendTemplate(channelConfig: any, to: string, template: any, variables: any): Promise<any> {
-    const { apiKey, fromNumber } = channelConfig;
+    const { apiKey, phoneNumber } = channelConfig;
     if (!apiKey) {
         throw new Error('YCloud Provider requires system apiKey');
     }
-    if (!fromNumber) {
-        throw new Error('YCloud Provider requires fromNumber in channelConfig for the tenant');
+    if (!phoneNumber) {
+        throw new Error('YCloud Provider requires phoneNumber in channelConfig for the tenant');
     }
 
     let components: any[] = [];
@@ -56,7 +56,7 @@ export class YCloudProvider implements ICommunicationProvider {
     }
 
     const payload = {
-        from: fromNumber,
+        from: phoneNumber,
         to: to,
         type: 'template',
         template: {
@@ -69,7 +69,7 @@ export class YCloudProvider implements ICommunicationProvider {
         }
     };
 
-    logger.info(`Sending YCloud Template ${template.name} from ${fromNumber} to ${to}`);
+    logger.info(`Sending YCloud Template ${template.name} from ${phoneNumber} to ${to}`);
     const response = await axios.post('https://api.ycloud.com/v2/whatsapp/messages', payload, {
         headers: {
             'X-API-Key': apiKey,
