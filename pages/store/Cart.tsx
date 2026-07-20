@@ -408,6 +408,15 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
         const result = await api.apiCreateOrderPayment(jobData, paymentData);
 
         if (result.success) {
+            // Ensure connection exists so clinic can see the order in JobsList
+            if (activeOrganization && currentUser?.organizationId) {
+                try {
+                    await api.apiAddConnectionByCode(currentUser.organizationId, currentUser.id, activeOrganization.id);
+                } catch (err) {
+                    console.warn("Erro ao auto-conectar clínica e laboratório:", err);
+                }
+            }
+
             if (appliedCoupon) {
                 await updateLabCoupon(appliedCoupon.id, { usedCount: (appliedCoupon.usedCount || 0) + 1 });
             }

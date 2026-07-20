@@ -176,6 +176,10 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /productReviews/{reviewId} {
+      allow read, write: if isAuthenticated();
+    }
+
     match /settings/global {
       allow read, write: if true;
     }

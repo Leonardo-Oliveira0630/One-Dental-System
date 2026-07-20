@@ -36,6 +36,7 @@ export interface GlobalWhatsAppTemplate {
   name: string;
   body: string;
   active: boolean;
+  metaTemplateName?: string;
 }
 
 export interface GlobalSettings {

@@ -17,6 +17,7 @@ export const WhatsAppTemplates = () => {
   const [name, setName] = useState('');
   const [body, setBody] = useState('');
   const [active, setActive] = useState(true);
+  const [metaTemplateName, setMetaTemplateName] = useState('');
 
   
   
@@ -68,6 +69,7 @@ export const WhatsAppTemplates = () => {
     setAction('LAB_DISPATCH');
     setName('');
     setBody(actionsConfig['LAB_DISPATCH'].example);
+    setMetaTemplateName('');
     setActive(true);
     setEditingId('new');
     setMessage(null);
@@ -77,6 +79,7 @@ export const WhatsAppTemplates = () => {
     setAction(t.action);
     setName(t.name);
     setBody(t.body);
+    setMetaTemplateName(t.metaTemplateName || '');
     setActive(t.active);
     setEditingId(t.id);
     setMessage(null);
@@ -105,7 +108,8 @@ export const WhatsAppTemplates = () => {
           action,
           name: name.trim(),
           body: body.trim(),
-          active
+          active,
+          metaTemplateName: metaTemplateName.trim()
         };
         updatedTemplates.push(newTemplate);
       } else {
@@ -116,7 +120,8 @@ export const WhatsAppTemplates = () => {
             action,
             name: name.trim(),
             body: body.trim(),
-            active
+            active,
+            metaTemplateName: metaTemplateName.trim()
           };
         }
       }
@@ -232,6 +237,18 @@ export const WhatsAppTemplates = () => {
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block mb-2 text-xs font-black text-slate-500 uppercase tracking-widest">Nome do Template Oficial (Meta/YCloud) - Opcional</label>
+              <input
+                type="text"
+                value={metaTemplateName}
+                onChange={(e) => setMetaTemplateName(e.target.value)}
+                placeholder="Ex: trabalho_entregue_v2"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-slate-500">Se preenchido, o sistema enviará a notificação usando este modelo pré-aprovado pela Meta, suportando o envio fora da janela de 24h. As variáveis serão passadas na mesma ordem que aparecem abaixo.</p>
             </div>
 
             <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-2">

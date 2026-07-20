@@ -1797,14 +1797,21 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
     const cleanFrom = fromNumber.replace(/\D/g, "");
     
     logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
-    const response = await axios.post(ycloudUrl, {
+    
+    const payload: any = {
       to: `+${cleanTo}`,
-      from: `+${cleanFrom}`,
-      type: "text",
-      text: {
-        body: body
-      }
-    }, {
+      from: `+${cleanFrom}`
+    };
+
+    if (request.data.template) {
+      payload.type = "template";
+      payload.template = request.data.template;
+    } else {
+      payload.type = "text";
+      payload.text = { body: body };
+    }
+
+    const response = await axios.post(ycloudUrl, payload, {
       headers: {
         "X-API-Key": apiKey,
         "Content-Type": "application/json"

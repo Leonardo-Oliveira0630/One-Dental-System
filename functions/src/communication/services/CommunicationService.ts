@@ -69,6 +69,9 @@ export class CommunicationService {
                 if (globalSettings && globalSettings.globalWhatsappTemplates) {
                     const t = globalSettings.globalWhatsappTemplates.find((tpl: any) => tpl.action === templateType && tpl.active);
                     if (t) {
+                        if (t.metaTemplateName) {
+                            return { type: 'meta_template', data: { ...t, name: t.metaTemplateName } };
+                        }
                         return { type: 'text_template', data: t };
                     }
                 }

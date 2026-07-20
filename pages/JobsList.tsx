@@ -579,8 +579,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
   if (isFreeLab) {
     const freeLabJobs = jobs.filter(j => 
-      (j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION') && 
-      j.status !== JobStatus.WAITING_APPROVAL
+      (j.origin === 'ONLINE_ORDER' || j.origin === 'ONLINE_REQUISITION')
     );
 
     return (

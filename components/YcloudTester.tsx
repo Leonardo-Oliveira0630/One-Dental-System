@@ -51,7 +51,16 @@ export const YcloudTester = () => {
 
     try {
       const sendYcloudWhatsApp = httpsCallable(functions, 'sendYcloudWhatsApp');
-      const res = await sendYcloudWhatsApp({ to: phone, body: message });
+      let payload: any = { to: phone, body: message };
+      if (message.startsWith('{') && message.includes('"name"')) {
+        try {
+          const templateData = JSON.parse(message);
+          payload.template = templateData;
+        } catch (e) {
+          console.warn('Mensagem parece JSON mas falhou no parse');
+        }
+      }
+      const res = await sendYcloudWhatsApp(payload);
       setResult(res.data);
       // Refresh logs after sending
       setTimeout(fetchLogs, 1500);
