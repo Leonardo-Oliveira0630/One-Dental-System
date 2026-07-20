@@ -9,6 +9,7 @@ import { InventoryItem, Organization, SupplierOrder, StoreLayoutBlock } from '..
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MarketplaceBanner } from '../../components/MarketplaceBanner';
 import { OfficialStores } from '../../components/OfficialStores';
+import { Odontogram } from '../../components/Odontogram';
 import { 
   ShoppingBag, Search, Filter, ShoppingCart, Plus, Minus, Trash2, 
   X, MapPin, CreditCard, Sparkles, Building2, Package, Check, 
@@ -32,6 +33,7 @@ interface SupplierCartItem {
     optionName: string;
     priceModifier: number;
   }[];
+  selectedTeeth?: string[];
 }
 
 type SortOption = 'RELEVANCE' | 'LATEST' | 'SALES' | 'PRICE_ASC' | 'PRICE_DESC';
@@ -124,6 +126,7 @@ export const SupplierStore = () => {
 
   const [detailSelectedVar, setDetailSelectedVar] = useState<any>(null);
   const [detailSelectedOptions, setDetailSelectedOptions] = useState<{groupId: string, groupName: string, optionId: string, optionName: string, priceModifier: number}[]>([]);
+  const [detailSelectedTeeth, setDetailSelectedTeeth] = useState<string[]>([]);
   const [detailActiveImg, setDetailActiveImg] = useState<string>('');
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [bannerIndex, setBannerIndex] = useState(0);
@@ -471,9 +474,10 @@ const isPromo = (jt: any) => {
   };
 
   const openProductDetail = (p: InventoryItem) => {
-    setSelectedItemForDetail(p);
+    openProductDetail(p);
     setDetailActiveImg(p.imageUrl || '');
     setIsDescExpanded(false);
+    setDetailSelectedTeeth([]);
     if (p.variations && p.variations.length > 0) {
       // select first variation by default
       setDetailSelectedVar(p.variations[0]);
@@ -485,13 +489,16 @@ const isPromo = (jt: any) => {
     }
   };
 
-  const addToCart = (product: InventoryItem, customVar?: any, selectedOptions?: any[]) => {
+  const addToCart = (product: InventoryItem, customVar?: any, selectedOptions?: any[], teeth?: string[]) => {
     // Generate unique ID for cart item (product id + variation suffix if any)
     let cartItemId = product.id;
     if (customVar) cartItemId += `_var_${customVar.id}`;
     if (selectedOptions && selectedOptions.length > 0) {
       const optsHash = selectedOptions.map(o => o.optionId).sort().join('_');
       cartItemId += `_opts_${optsHash}`;
+    }
+    if (teeth && teeth.length > 0) {
+      cartItemId += `_teeth_${teeth.sort().join('_')}`;
     }
 
     const basePrice = (product.isPromotion && product.promotionalPrice) ? product.promotionalPrice : product.sellPrice;
@@ -520,10 +527,12 @@ const isPromo = (jt: any) => {
           priceModifier: customVar.priceModifier,
           imageUrl: customVar.imageUrl
         } : undefined,
-        selectedOptions: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined
+        selectedOptions: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined,
+        selectedTeeth: teeth && teeth.length > 0 ? teeth : undefined
       };
       saveCartToStorage([...cart, targetCartItem]);
     }
+
     setIsCartOpen(true);
   };
 
@@ -704,12 +713,19 @@ const isPromo = (jt: any) => {
             if (i.selectedOptions && i.selectedOptions.length > 0) {
               itemName += ` [${i.selectedOptions.map(o => o.optionName).join(', ')}]`;
             }
+            if (i.selectedTeeth && i.selectedTeeth.length > 0) {
+              itemName += ` - Dentes: ${i.selectedTeeth.sort().join(", ")}`;
+            }
 
             return {
               productId: i.product.id,
               name: itemName,
               quantity: i.quantity,
-              price: unitPrice
+              price: unitPrice,
+              variationId: i.variation?.id,
+              variationName: i.variation?.name,
+              selectedOptions: i.selectedOptions,
+              selectedTeeth: i.selectedTeeth
             };
           }),
           totalValue: totalVal + supShippingCost,
@@ -915,7 +931,7 @@ const isPromo = (jt: any) => {
                   <h2 className="text-2xl font-bold mb-6">Produtos em Destaque</h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).slice(0, 4).map(p => (
-                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedItemForDetail(p)}>
+                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
                           {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Package size={48} className="text-slate-300 m-auto h-full" />}
                         </div>
@@ -957,7 +973,7 @@ const isPromo = (jt: any) => {
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).map(p => (
-                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedItemForDetail(p)}>
+                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
                           {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Package size={48} className="text-slate-300 m-auto h-full" />}
                         </div>
@@ -977,7 +993,7 @@ const isPromo = (jt: any) => {
                   </h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     {rankedProducts.map(p => (
-                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedItemForDetail(p)}>
+                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
                           {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Package size={48} className="text-slate-300" />}
                         </div>
@@ -1006,7 +1022,7 @@ const isPromo = (jt: any) => {
                         .slice(0, 4);
                       
                       return otherProducts.map(p => (
-                        <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedItemForDetail(p)}>
+                        <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
                           <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
                             {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Package size={48} className="text-slate-300" />}
                           </div>
@@ -1467,6 +1483,11 @@ const isPromo = (jt: any) => {
                                 ))}
                               </div>
                             )}
+                            {item.selectedTeeth && item.selectedTeeth.length > 0 && (
+                              <p className="text-xs text-indigo-600 font-bold mt-1">
+                                Dentes: <span className="text-slate-900">{item.selectedTeeth.join(', ')}</span>
+                              </p>
+                            )}
                             <p className="text-[10px] text-slate-500 font-mono uppercase mt-1">
                               FORNECEDOR: {getSupplierName(item.product.organizationId)}
                             </p>
@@ -1706,6 +1727,27 @@ const isPromo = (jt: any) => {
                     </div>
                   )}
 
+                  {/* Seleção de Dentes (Odontograma) */}
+                  {(selectedItemForDetail.type === 'OTHER' || selectedItemForDetail.type === 'IMPLANT') && (
+                    <div className="space-y-4">
+                      <h4 className="font-bold text-sm text-slate-800 uppercase tracking-wider">Selecione os Dentes Relacionados (Opcional)</h4>
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
+                        <Odontogram 
+                          selectedTeeth={detailSelectedTeeth} 
+                          onToothClick={(id) => {
+                            setDetailSelectedTeeth(prev => 
+                              prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+                            )
+                          }}
+                          className="min-w-[600px]"
+                        />
+                      </div>
+                      {detailSelectedTeeth.length > 0 && (
+                        <p className="text-xs text-indigo-600 font-bold">Dentes selecionados: {detailSelectedTeeth.sort().join(', ')}</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Dynamic Price Display */}
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
                     <div>
@@ -1730,7 +1772,7 @@ const isPromo = (jt: any) => {
                   {/* Action insert to Cesta */}
                   <button
                     onClick={() => {
-                      addToCart(selectedItemForDetail, detailSelectedVar, detailSelectedOptions);
+                      addToCart(selectedItemForDetail, detailSelectedVar, detailSelectedOptions, detailSelectedTeeth);
                       setSelectedItemForDetail(null);
                     }}
                     className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"

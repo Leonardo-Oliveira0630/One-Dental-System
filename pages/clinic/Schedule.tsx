@@ -8,6 +8,7 @@ import {
   Briefcase, Filter, RotateCcw, Search, MapPin
 } from 'lucide-react';
 import { FeatureLocked } from '../../components/FeatureLocked';
+import { Odontogram } from '../../components/Odontogram';
 
 export const Schedule = () => {
   const { 
@@ -36,6 +37,7 @@ export const Schedule = () => {
   const [patientId, setPatientId] = useState('');
   const [time, setTime] = useState('09:00');
   const [procedure, setProcedure] = useState('');
+  const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
   const [duration, setDuration] = useState(60);
   const [notes, setNotes] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -62,6 +64,7 @@ export const Schedule = () => {
       setPatientId(appt.patientId);
       setTime(new Date(appt.date).toTimeString().substr(0, 5));
       setProcedure(appt.procedure);
+      setSelectedTeeth(appt.selectedTeeth || []);
       setDuration(appt.durationMinutes);
       setNotes(appt.notes || '');
       setRoomId(appt.roomId || '');
@@ -72,6 +75,7 @@ export const Schedule = () => {
       setPatientId('');
       setTime('09:00');
       setProcedure('');
+      setSelectedTeeth([]);
       setDuration(60);
       setNotes('');
       setRoomId('');
@@ -100,7 +104,8 @@ export const Schedule = () => {
     date.setHours(parseInt(hours), parseInt(minutes));
 
     const payload = { 
-        date, procedure, durationMinutes: duration, notes, patientId, patientName: patient.name,
+        date, procedure,
+      selectedTeeth, durationMinutes: duration, notes, patientId, patientName: patient.name,
         roomId, clinicDentistId, status
     };
 
@@ -367,6 +372,26 @@ export const Schedule = () => {
                         </select>
                     </div>
                 </div>
+
+                {procedure && (
+                    <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Dentes Relacionados (Opcional)</label>
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto w-full max-w-full">
+                            <Odontogram 
+                                selectedTeeth={selectedTeeth} 
+                                onToothClick={(id) => {
+                                    setSelectedTeeth(prev => 
+                                        prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+                                    )
+                                }}
+                                className="min-w-[500px] h-64"
+                            />
+                        </div>
+                        {selectedTeeth.length > 0 && (
+                            <p className="text-xs text-indigo-600 font-bold mt-2 ml-1">Dentes selecionados: {selectedTeeth.sort().join(', ')}</p>
+                        )}
+                    </div>
+                )}
 
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Horário</label>

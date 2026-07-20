@@ -5,17 +5,35 @@ import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { getContrastColor } from '../services/mockData';
 // Added Crown to the lucide-react imports to fix line 404 error
+import { Odontogram } from "../components/Odontogram";
 import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package } from 'lucide-react';
 
 import * as api from '../services/firebaseService';
 
 type EntryType = 'NEW' | 'CONTINUATION';
 
+
+// Colors for different job types in odontogram
+const JOB_COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', 
+  '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e'
+];
+const getJobTypeColor = (jobTypeId: string) => {
+  let hash = 0;
+  for (let i = 0; i < jobTypeId.length; i++) {
+    hash = jobTypeId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return JOB_COLORS[Math.abs(hash) % JOB_COLORS.length];
+};
+
 export const NewJob = () => {
   const { addJob, updateJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+
+
   const jobTypeDropdownRef = useRef<HTMLDivElement>(null);
 
   // --- Global States ---
@@ -38,6 +56,21 @@ export const NewJob = () => {
   const [lastJobFound, setLastJobFound] = useState<Job | null>(null);
   const loadedJobIdRef = useRef<string | null>(null);
   const [addedItems, setAddedItems] = useState<JobItem[]>(location.state?.items || []);
+  const odontogramProps = useMemo(() => {
+    const colors: Record<string, string> = {};
+    const disabled: string[] = [];
+    
+    addedItems.forEach(item => {
+      if (item.selectedTeeth && item.selectedTeeth.length > 0) {
+        const color = getJobTypeColor(item.jobTypeId);
+        item.selectedTeeth.forEach(t => {
+          colors[t] = color;
+          disabled.push(t);
+        });
+      }
+    });
+    return { colors, disabled };
+  }, [addedItems]);
   const [addedProducts, setAddedProducts] = useState<import('../types').JobProduct[]>(location.state?.products || []);
   const [lastCreatedJob, setLastCreatedJob] = useState<Job | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,6 +116,7 @@ export const NewJob = () => {
   const [quantity, setQuantity] = useState(1);
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); 
   const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
+  const [itemSelectedTeeth, setItemSelectedTeeth] = useState<string[]>([]);
   const [commissionDisabled, setCommissionDisabled] = useState(false);
   const [manualPrice, setManualPrice] = useState<number | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
@@ -573,7 +607,7 @@ export const NewJob = () => {
       });
   };
   
-  useEffect(() => { setSelectedVariations({}); setVariationTextValues({}); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL'); }, [selectedTypeId]);
+  useEffect(() => { setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL'); }, [selectedTypeId]);
 
   const handleAddProduct = () => {
     if (!selectedProductId) return;
@@ -635,10 +669,10 @@ export const NewJob = () => {
         appliedPriceTable: appliedTableName,
         selectedVariationIds: allSelectedOptionIds, 
         variationValues: variationTextValues, 
-        commissionDisabled: commissionDisabled 
+        commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined 
     };
     setAddedItems([...addedItems, newItem]);
-    setQuantity(1); setSelectedVariations({}); setVariationTextValues({}); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL');
+    setQuantity(1); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1050,6 +1084,28 @@ export const NewJob = () => {
                             </div>
                         )}
 
+                        {activeJobType && (
+                            <div className="pt-4 border-t border-slate-200 space-y-2">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dentes Relacionados (Opcional)</h4>
+                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
+                                    <Odontogram 
+    selectedTeeth={itemSelectedTeeth} 
+    onToothClick={(id) => {
+      setItemSelectedTeeth(prev => 
+        prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+      )
+    }}
+    toothColors={odontogramProps.colors}
+    disabledTeeth={odontogramProps.disabled}
+    className="min-w-[600px] h-64"
+  />
+                                </div>
+                                {itemSelectedTeeth.length > 0 && (
+                                    <p className="text-xs text-indigo-600 font-bold">Dentes selecionados: {itemSelectedTeeth.sort().join(', ')}</p>
+                                )}
+                            </div>
+                        )}
+
                         <div className="pt-4 border-t border-slate-200 space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
@@ -1098,7 +1154,35 @@ export const NewJob = () => {
                                 <div className="flex items-center gap-3">
                                     <div className={`w-8 h-8 ${item.nature === 'REPETITION' ? 'bg-red-600' : item.nature === 'ADJUSTMENT' ? 'bg-orange-600' : 'bg-blue-600'} text-white rounded-lg flex items-center justify-center font-black text-xs`}>{item.quantity}</div>
                                     <div className="min-w-0">
-                                        <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{item.name}</p>
+                                        <div className="flex items-center gap-2">
+      <div 
+        className="w-2.5 h-2.5 rounded-full" 
+        style={{ backgroundColor: getJobTypeColor(item.jobTypeId) }} 
+        title="Cor no Odontograma"
+      />
+      <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{item.name}</p>
+   </div>
+                                        
+                                        {/* Variations and Teeth */}
+                                        <div className="flex flex-col gap-0.5 mt-1">
+                                            {item.selectedVariationIds && item.selectedVariationIds.length > 0 && (
+                                                <p className="text-[10px] text-slate-500 font-bold">
+                                                    Opções: {
+                                                        item.selectedVariationIds.map(id => {
+                                                            const group = activeJobType?.variationGroups.find(g => g.options.some(o => o.id === id));
+                                                            const opt = group?.options.find(o => o.id === id);
+                                                            return opt?.name;
+                                                        }).filter(Boolean).join(', ') || 'Várias opções'
+                                                    }
+                                                </p>
+                                            )}
+                                            {item.selectedTeeth && item.selectedTeeth.length > 0 && (
+                                                <p className="text-[10px] text-indigo-600 font-bold">
+                                                    Dentes: {item.selectedTeeth.sort().join(', ')}
+                                                </p>
+                                            )}
+                                        </div>
+
                                         <div className="flex items-center gap-1.5 mt-0.5">
                                             {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && (
                                                 <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${item.nature === 'REPETITION' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'} inline-block`}>

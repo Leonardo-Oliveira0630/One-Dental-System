@@ -366,6 +366,7 @@ export interface JobItem {
   commissionDisabled?: boolean;
   sectorQuantities?: Record<string, number>;
   sectorCommissionDisabled?: Record<string, boolean>;
+  selectedTeeth?: string[];
 }
 
 export interface JobHistory {
@@ -724,6 +725,7 @@ export interface Appointment {
   date: Date;
   durationMinutes: number;
   procedure: string;
+  selectedTeeth?: string[];
   status: AppointmentStatus;
   notes?: string;
   roomId?: string; 
@@ -1039,6 +1041,15 @@ export interface SupplierOrder {
     name: string;
     quantity: number;
     price: number;
+    variationId?: string;
+    variationName?: string;
+    selectedOptions?: {
+      groupId: string;
+      groupName: string;
+      optionId: string;
+      optionName: string;
+    }[];
+    selectedTeeth?: string[];
   }[];
   totalValue: number;
   discountValue?: number;
