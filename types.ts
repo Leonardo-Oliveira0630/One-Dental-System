@@ -263,6 +263,7 @@ export interface InventoryCategory {
   name: string;
   type: InventoryItemType;
   organizationId: string;
+  imageUrl?: string;
 }
 
 export interface ProductCatalogItem {
