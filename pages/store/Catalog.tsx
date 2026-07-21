@@ -10,6 +10,7 @@ import { JobType, VariationGroup, CartItem, LabRating, BannerConfig } from '../.
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { FeatureLocked } from '../../components/FeatureLocked';
 import { StoreTopMenu } from '../../components/StoreTopMenu';
+import { Odontogram } from '../../components/Odontogram';
 import { motion, AnimatePresence } from 'motion/react';
 import * as api from '../../services/firebaseService';
 
@@ -377,6 +378,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
     const [quantity, setQuantity] = useState(1);
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
     const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
+    const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
 
     // Soft-partnership checkout gate state
     const [showPartnerModal, setShowPartnerModal] = useState(false);
@@ -512,7 +514,8 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
             unitPrice,
             finalPrice,
             selectedVariationIds: Object.values(selectedVariations).flat() as string[],
-            variationValues: variationTextValues 
+            variationValues: variationTextValues,
+            selectedTeeth: selectedTeeth.length > 0 ? selectedTeeth : undefined
         };
         addToCart(newItem);
         onClose();
@@ -533,7 +536,8 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                 unitPrice,
                 finalPrice,
                 selectedVariationIds: Object.values(selectedVariations).flat() as string[],
-                variationValues: variationTextValues 
+                variationValues: variationTextValues,
+                selectedTeeth: selectedTeeth.length > 0 ? selectedTeeth : undefined
             };
             addToCart(newItem);
             setShowPartnerModal(false);
@@ -645,6 +649,22 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                             </div>
                         </div>
                     ))}
+                    
+                    <div className="pt-2 pb-4">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 block">Dentes Relacionados (Opcional)</label>
+                        <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 overflow-x-auto">
+                            <Odontogram 
+                                selectedTeeth={selectedTeeth}
+                                onChange={setSelectedTeeth}
+                                className="min-w-[500px]"
+                            />
+                        </div>
+                        {selectedTeeth.length > 0 && (
+                            <p className="text-xs text-indigo-600 font-bold mt-3">
+                                Dentes selecionados: {selectedTeeth.sort().join(', ')}
+                            </p>
+                        )}
+                    </div>
                 </div>
                 <div className="p-8 bg-white border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-6 w-full md:w-auto">

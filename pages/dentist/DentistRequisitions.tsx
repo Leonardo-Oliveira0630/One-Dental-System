@@ -5,6 +5,7 @@ import { apiAddPatientHistory } from '../../services/firebaseService';
 import { ClipboardList, Plus, FileText, Send, Loader2, AlertCircle, CheckCircle, Clock, Trash2, HelpCircle, HardDrive, ShieldAlert, Building, RefreshCw, Activity, Package, X, MessageSquare, MessageCircle, Lock, XCircle } from 'lucide-react';
 import { ChatSystem } from '../../components/ChatSystem';
 import { AttachmentPreviewModal } from '../../components/AttachmentPreviewModal';
+import { Odontogram } from '../../components/Odontogram';
 import { db } from '../../services/firebaseConfig';
 import * as firestorePkg from 'firebase/firestore';
 
@@ -120,11 +121,13 @@ export const DentistRequisitions = () => {
   // Dynamic service variations and quantity
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
   const [quantity, setQuantity] = useState<number>(1);
+  const [itemSelectedTeeth, setItemSelectedTeeth] = useState<string[]>([]);
   const [requisitionItems, setRequisitionItems] = useState<any[]>([]);
 
   useEffect(() => {
     setSelectedVariations({});
     setQuantity(1);
+    setItemSelectedTeeth([]);
   }, [selectedServiceId]);
 
   const handleVariationChange = (group: any, optionId: string) => {
@@ -360,13 +363,15 @@ export const DentistRequisitions = () => {
             serviceId: selectedServiceId,
             serviceName: activeService.name,
             selectedVariationIds: allSelectedOptionIds,
-            quantity: quantity
+            quantity: quantity,
+            selectedTeeth: itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined
         }
     ]);
     
     setSelectedServiceId('');
     setSelectedVariations({});
     setQuantity(1);
+    setItemSelectedTeeth([]);
   };
 
   const handleReuseRequisition = (req: OnlineRequisition) => {
@@ -381,7 +386,8 @@ export const DentistRequisitions = () => {
         serviceId: item.serviceId,
         serviceName: item.serviceName,
         selectedVariationIds: item.selectedVariationIds || [],
-        quantity: item.quantity || 1
+        quantity: item.quantity || 1,
+        selectedTeeth: item.selectedTeeth || []
       })));
     } else {
       setRequisitionItems([{
@@ -389,7 +395,8 @@ export const DentistRequisitions = () => {
         serviceId: req.serviceId,
         serviceName: req.serviceName,
         selectedVariationIds: req.selectedVariationIds || [],
-        quantity: req.quantity || 1
+        quantity: req.quantity || 1,
+        selectedTeeth: req.selectedTeeth || []
       }]);
     }
     
@@ -734,8 +741,26 @@ export const DentistRequisitions = () => {
                             </div>
                           )}
 
+                          <div className="pt-2">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">
+                              Dentes Relacionados (Opcional)
+                            </label>
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
+                              <Odontogram 
+                                selectedTeeth={itemSelectedTeeth}
+                                onChange={setItemSelectedTeeth}
+                                className="min-w-[500px]"
+                              />
+                            </div>
+                            {itemSelectedTeeth.length > 0 && (
+                              <p className="text-xs text-indigo-600 font-bold mt-2 ml-1">
+                                Dentes selecionados: {itemSelectedTeeth.sort().join(', ')}
+                              </p>
+                            )}
+                          </div>
+
                           {/* Quantity Selector */}
-                          <div className="w-24">
+                          <div className="w-24 mt-2">
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
                               Quantidade *
                             </label>
@@ -770,6 +795,9 @@ export const DentistRequisitions = () => {
                                     <p className="font-extrabold text-xs text-slate-800">{item.quantity}x {item.serviceName}</p>
                                     {item.selectedVariationIds && item.selectedVariationIds.length > 0 && (
                                         <p className="text-[10px] text-slate-500 mt-1 font-bold">Variações selecionadas: {item.selectedVariationIds.length}</p>
+                                    )}
+                                    {item.selectedTeeth && item.selectedTeeth.length > 0 && (
+                                        <p className="text-[10px] text-indigo-500 mt-1 font-bold">Dentes: {item.selectedTeeth.join(', ')}</p>
                                     )}
                                 </div>
                                 <button type="button" onClick={() => setRequisitionItems(prev => prev.filter(i => i.id !== item.id))} className="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors shrink-0">
@@ -1002,6 +1030,13 @@ export const DentistRequisitions = () => {
                                         })}
                                       </div>
                                     )}
+                                    {req.selectedTeeth && req.selectedTeeth.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        <span className="bg-indigo-50 text-indigo-600 border border-indigo-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
+                                          Dentes: {req.selectedTeeth.join(', ')}
+                                        </span>
+                                      </div>
+                                    )}
                                 </>
                             )}
                           </div>
@@ -1110,6 +1145,13 @@ export const DentistRequisitions = () => {
                                             </span>
                                           );
                                         })}
+                                      </div>
+                                    )}
+                                    {req.selectedTeeth && req.selectedTeeth.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        <span className="bg-indigo-50 text-indigo-600 border border-indigo-200 rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-tight">
+                                          Dentes: {req.selectedTeeth.join(', ')}
+                                        </span>
                                       </div>
                                     )}
                                 </>

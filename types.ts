@@ -630,6 +630,7 @@ export interface CartItem {
   finalPrice: number;
   selectedVariationIds: string[];
   variationValues?: Record<string, string>;
+  selectedTeeth?: string[];
 }
 
 export interface JobAlert {
@@ -666,6 +667,7 @@ export interface OnlineRequisitionItem {
   serviceName: string;
   selectedVariationIds?: string[];
   quantity?: number;
+  selectedTeeth?: string[];
 }
 
 export interface OnlineRequisition {
@@ -687,6 +689,7 @@ export interface OnlineRequisition {
   rejectionReason?: string;
   selectedVariationIds?: string[]; // Keep for backward compatibility
   quantity?: number; // Keep for backward compatibility
+  selectedTeeth?: string[]; // Keep for backward compatibility
   items?: OnlineRequisitionItem[]; // Support for multiple items
   sentAt?: Date;
   acceptedAt?: Date;

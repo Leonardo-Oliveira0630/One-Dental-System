@@ -136,7 +136,8 @@ export function Odontogram({ selectedTeeth = [], onChange, onToothClick, toothCo
     const customColor = toothColors[tooth.id];
     const isDisabled = disabledTeeth.includes(tooth.id) || readOnly;
 
-    const fillColor = isSelected && selectionColor ? selectionColor : customColor;
+    const activeSelectionColor = selectionColor || '#4f46e5';
+    const fillColor = isSelected ? activeSelectionColor : customColor;
 
     return (
       <g 
@@ -150,13 +151,13 @@ export function Odontogram({ selectedTeeth = [], onChange, onToothClick, toothCo
           <path 
             className="tooth-body" 
             d={toothPaths[tooth.type].body} 
-            style={fillColor ? { fill: fillColor, opacity: isSelected && selectionColor ? 1 : 0.8, stroke: isSelected && selectionColor ? fillColor : undefined } : undefined}
+            style={fillColor ? { fill: fillColor, opacity: isSelected ? 1 : 0.8, stroke: isSelected ? fillColor : undefined } : undefined}
           />
           {toothPaths[tooth.type].sulcus && (
             <path 
               className="tooth-sulcus" 
               d={toothPaths[tooth.type].sulcus}
-              style={isSelected && selectionColor ? { stroke: '#ffffff', opacity: 0.8 } : undefined}
+              style={isSelected ? { stroke: '#ffffff', opacity: 0.8 } : undefined}
             />
           )}
         </g>

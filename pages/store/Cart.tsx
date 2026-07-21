@@ -370,6 +370,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                     quantity: c.quantity, 
                     price: c.unitPrice, 
                     selectedVariationIds: c.selectedVariationIds || [], 
+                    selectedTeeth: c.selectedTeeth || [],
                     variationValues: c.variationValues,
                     originalJobTypeId: c.jobType.originalJobTypeId,
                     promotionQuantity: c.jobType.promotionQuantity,
@@ -620,6 +621,11 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                                             </span>
                                         )}
                                     </h4>
+                                    {item.selectedTeeth && item.selectedTeeth.length > 0 && (
+                                        <p className="text-xs text-indigo-500 mt-0.5 font-bold">
+                                            Dentes: {item.selectedTeeth.sort().join(', ')}
+                                        </p>
+                                    )}
                                     <p className="text-xs text-slate-400 mt-0.5">
                                         Preço unitário: R$ {item.unitPrice.toFixed(2)}
                                     </p>

@@ -77,7 +77,8 @@ export const IncomingRequisitions = () => {
               quantity: reqItem.quantity && reqItem.quantity > 0 ? reqItem.quantity : 1,
               price: basePrice,
               nature: 'NORMAL',
-              selectedVariationIds: reqItem.selectedVariationIds || []
+              selectedVariationIds: reqItem.selectedVariationIds || [],
+              selectedTeeth: reqItem.selectedTeeth || []
             };
         });
     } else {
@@ -91,7 +92,8 @@ export const IncomingRequisitions = () => {
           quantity: req.quantity && req.quantity > 0 ? req.quantity : 1,
           price: basePrice,
           nature: 'NORMAL',
-          selectedVariationIds: req.selectedVariationIds || []
+          selectedVariationIds: req.selectedVariationIds || [],
+          selectedTeeth: req.selectedTeeth || []
         }];
     }
 
