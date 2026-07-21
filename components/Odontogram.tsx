@@ -11,24 +11,28 @@ export interface OdontogramProps {
 
 const toothPaths = {
   incisor: {
-    body: "M -12,-8 C -14,-15 14,-15 12,-8 C 14,8 -14,8 -12,-8 Z",
-    sulcus: ""
+    body: "M -12,-12 C -6,-14 6,-14 12,-12 C 16,-4 13,6 8,12 C 4,16 -4,16 -8,12 C -13,6 -16,-4 -12,-12 Z",
+    sulcus: "M -7,-7 C -3,-2 0,3 0,3 C 0,3 3,-2 7,-7 M -4,7 C -2,10 2,10 4,7 M 0,3 L 0,7"
   },
   lower_incisor: {
-    body: "M -10,-6 C -12,-12 12,-12 10,-6 C 12,6 -12,6 -10,-6 Z",
-    sulcus: ""
+    body: "M -8,-10 C -4,-12 4,-12 8,-10 C 11,-3 9,5 5,11 C 3,14 -3,14 -5,11 C -9,5 -11,-3 -8,-10 Z",
+    sulcus: "M -5,-5 C -2,-1 0,3 0,3 C 0,3 2,-1 5,-5 M -3,6 C -1,9 1,9 3,6 M 0,3 L 0,6"
   },
   canine: {
-    body: "M 0,-13 C 14,-8 14,8 0,11 C -14,8 -14,-8 0,-13 Z",
-    sulcus: ""
+    body: "M -12,-9 C -5,-16 5,-16 12,-9 C 16,-2 14,7 7,13 C 3,17 -3,17 -7,13 C -14,7 -16,-2 -12,-9 Z",
+    sulcus: "M 0,-11 L 0,0 M -6,-5 C -3,1 -1,3 -1,3 M 6,-5 C 3,1 1,3 1,3 M -4,9 C -2,12 2,12 4,9 M 0,3 L 0,11"
   },
   premolar: {
-    body: "M -14,-10 C -14,-18 14,-18 14,-10 C 16,12 -16,12 -14,-10 Z",
-    sulcus: "M -6,0 L 6,0 M -3,-2 L -6,0 L -3,2 M 3,-2 L 6,0 L 3,2"
+    body: "M -12,-12 C -6,-16 6,-16 12,-12 C 18,-4 14,-2 14,0 C 14,2 18,4 12,12 C 6,16 -6,16 -12,12 C -18,4 -14,2 -14,0 C -14,-2 -18,-4 -12,-12 Z",
+    sulcus: "M -9,0 C -4,2 4,2 9,0 M -9,0 C -11,3 -9,6 -7,8 M 9,0 C 11,3 9,6 7,8 M -9,0 C -11,-3 -9,-6 -7,-8 M 9,0 C 11,-3 9,-6 7,-8 M -3,0 L -3,3 M 3,0 L 3,-3"
   },
-  molar: {
-    body: "M -18,-15 C -22,-22 22,-22 18,-15 C 24,15 -24,15 -18,-15 Z",
-    sulcus: "M -10,0 L 10,0 M 0,-8 L 0,8 M -5,-3 L 0,0 L 5,-3 M -5,3 L 0,0 L 5,3"
+  upper_molar: {
+    body: "M -16,-16 C -8,-20 -2,-18 0,-18 C 2,-18 8,-20 16,-16 C 22,-8 18,-2 18,0 C 18,2 22,8 16,16 C 8,20 2,18 0,18 C -2,18 -8,20 -16,16 C -22,8 -18,2 -18,0 C -18,-2 -22,-8 -16,-16 Z",
+    sulcus: "M -10,-2 C -4,2 2,2 6,-2 M 6,-2 C 10,-6 14,-6 16,-4 M -2,1 C -2,6 -5,10 0,15 M 6,-2 C 4,-8 7,-12 3,-16 M -10,-2 C -12,2 -14,2 -13,6 M -10,-2 L -14,-6 M -4,-2 L -4,-6 M 2,-4 L -1,-8 M -6,5 L -2,8"
+  },
+  lower_molar: {
+    body: "M -18,-14 C -10,-18 -4,-16 0,-16 C 4,-16 10,-18 18,-14 C 24,-6 20,-2 20,0 C 20,2 24,6 18,14 C 10,18 4,16 0,16 C -4,16 -10,18 -18,14 C -24,6 -20,2 -20,0 C -20,-2 -24,-6 -18,-14 Z",
+    sulcus: "M -14,0 C -7,2 7,2 14,0 M -3,1 C -3,7 -5,11 -1,15 M 5,1 C 3,7 5,11 9,14 M -5,0 C -3,-6 -6,-10 -2,-14 M 3,0 C 5,-6 3,-10 7,-14 M -14,0 L -16,4 M -14,0 L -16,-4 M 14,0 L 16,4 M 14,0 L 16,-4 M -1,-2 L 2,1"
   }
 };
 
@@ -42,38 +46,38 @@ type ToothDef = {
 }
 
 const TEETH: ToothDef[] = [
-  { id: '11', type: 'incisor', x: 283.3, y: 41.1, angle: -6, quadrant: 1 },
-  { id: '12', type: 'incisor', x: 250.6, y: 49.8, angle: -18, quadrant: 1 },
-  { id: '13', type: 'canine', x: 215.2, y: 70.4, angle: -32, quadrant: 1 },
-  { id: '14', type: 'premolar', x: 181.1, y: 106.2, angle: -48, quadrant: 1 },
-  { id: '15', type: 'premolar', x: 156.2, y: 152.3, angle: -64, quadrant: 1 },
-  { id: '16', type: 'molar', x: 142.4, y: 205.3, angle: -80, quadrant: 1 },
-  { id: '17', type: 'molar', x: 140.6, y: 257.4, angle: -95, quadrant: 1 },
-  { id: '18', type: 'molar', x: 149.6, y: 308.4, angle: -110, quadrant: 1 },
-  { id: '21', type: 'incisor', x: 316.7, y: 41.1, angle: 6, quadrant: 2 },
-  { id: '22', type: 'incisor', x: 349.4, y: 49.8, angle: 18, quadrant: 2 },
-  { id: '23', type: 'canine', x: 384.8, y: 70.4, angle: 32, quadrant: 2 },
-  { id: '24', type: 'premolar', x: 418.9, y: 106.2, angle: 48, quadrant: 2 },
-  { id: '25', type: 'premolar', x: 443.8, y: 152.3, angle: 64, quadrant: 2 },
-  { id: '26', type: 'molar', x: 457.6, y: 205.3, angle: 80, quadrant: 2 },
-  { id: '27', type: 'molar', x: 459.4, y: 257.4, angle: 95, quadrant: 2 },
-  { id: '28', type: 'molar', x: 450.4, y: 308.4, angle: 110, quadrant: 2 },
-  { id: '31', type: 'lower_incisor', x: 316.7, y: 858.9, angle: 186, quadrant: 3 },
-  { id: '32', type: 'lower_incisor', x: 349.4, y: 850.2, angle: 198, quadrant: 3 },
-  { id: '33', type: 'canine', x: 384.8, y: 829.6, angle: 212, quadrant: 3 },
-  { id: '34', type: 'premolar', x: 418.9, y: 793.8, angle: 228, quadrant: 3 },
-  { id: '35', type: 'premolar', x: 443.8, y: 747.7, angle: 244, quadrant: 3 },
-  { id: '36', type: 'molar', x: 457.6, y: 694.7, angle: 260, quadrant: 3 },
-  { id: '37', type: 'molar', x: 459.4, y: 642.6, angle: 275, quadrant: 3 },
-  { id: '38', type: 'molar', x: 450.4, y: 591.6, angle: 290, quadrant: 3 },
-  { id: '41', type: 'lower_incisor', x: 283.3, y: 858.9, angle: -186, quadrant: 4 },
-  { id: '42', type: 'lower_incisor', x: 250.6, y: 850.2, angle: -198, quadrant: 4 },
-  { id: '43', type: 'canine', x: 215.2, y: 829.6, angle: -212, quadrant: 4 },
-  { id: '44', type: 'premolar', x: 181.1, y: 793.8, angle: -228, quadrant: 4 },
-  { id: '45', type: 'premolar', x: 156.2, y: 747.7, angle: -244, quadrant: 4 },
-  { id: '46', type: 'molar', x: 142.4, y: 694.7, angle: -260, quadrant: 4 },
-  { id: '47', type: 'molar', x: 140.6, y: 642.6, angle: -275, quadrant: 4 },
-  { id: '48', type: 'molar', x: 149.6, y: 591.6, angle: -290, quadrant: 4 },
+  { id: '11', type: 'incisor', x: 287.0, y: 55.0, angle: -4, quadrant: 1 },
+  { id: '12', type: 'incisor', x: 262.3, y: 59.1, angle: -15, quadrant: 1 },
+  { id: '13', type: 'canine', x: 239.7, y: 69.7, angle: -35, quadrant: 1 },
+  { id: '14', type: 'premolar', x: 220.6, y: 88.8, angle: -55, quadrant: 1 },
+  { id: '15', type: 'premolar', x: 208.3, y: 115.1, angle: -75, quadrant: 1 },
+  { id: '16', type: 'upper_molar', x: 202.6, y: 147.6, angle: -85, quadrant: 1 },
+  { id: '17', type: 'upper_molar', x: 201.0, y: 184.5, angle: -90, quadrant: 1 },
+  { id: '18', type: 'upper_molar', x: 202.6, y: 221.5, angle: -95, quadrant: 1 },
+  { id: '21', type: 'incisor', x: 313.0, y: 55.0, angle: 4, quadrant: 2 },
+  { id: '22', type: 'incisor', x: 337.7, y: 59.1, angle: 15, quadrant: 2 },
+  { id: '23', type: 'canine', x: 360.3, y: 69.7, angle: 35, quadrant: 2 },
+  { id: '24', type: 'premolar', x: 379.4, y: 88.8, angle: 55, quadrant: 2 },
+  { id: '25', type: 'premolar', x: 391.7, y: 115.1, angle: 75, quadrant: 2 },
+  { id: '26', type: 'upper_molar', x: 397.4, y: 147.6, angle: 85, quadrant: 2 },
+  { id: '27', type: 'upper_molar', x: 399.0, y: 184.5, angle: 90, quadrant: 2 },
+  { id: '28', type: 'upper_molar', x: 397.4, y: 221.5, angle: 95, quadrant: 2 },
+  { id: '31', type: 'lower_incisor', x: 309.0, y: 465.0, angle: 176, quadrant: 3 },
+  { id: '32', type: 'lower_incisor', x: 328.3, y: 462.3, angle: 168, quadrant: 3 },
+  { id: '33', type: 'canine', x: 349.5, y: 454.6, angle: 152, quadrant: 3 },
+  { id: '34', type: 'premolar', x: 370.7, y: 438.0, angle: 132, quadrant: 3 },
+  { id: '35', type: 'premolar', x: 386.9, y: 412.1, angle: 112, quadrant: 3 },
+  { id: '36', type: 'lower_molar', x: 396.9, y: 374.9, angle: 98, quadrant: 3 },
+  { id: '37', type: 'lower_molar', x: 400.9, y: 329.1, angle: 92, quadrant: 3 },
+  { id: '38', type: 'lower_molar', x: 400.9, y: 283.1, angle: 88, quadrant: 3 },
+  { id: '41', type: 'lower_incisor', x: 291.0, y: 465.0, angle: -176, quadrant: 4 },
+  { id: '42', type: 'lower_incisor', x: 271.7, y: 462.3, angle: -168, quadrant: 4 },
+  { id: '43', type: 'canine', x: 250.5, y: 454.6, angle: -152, quadrant: 4 },
+  { id: '44', type: 'premolar', x: 229.3, y: 438.0, angle: -132, quadrant: 4 },
+  { id: '45', type: 'premolar', x: 213.1, y: 412.1, angle: -112, quadrant: 4 },
+  { id: '46', type: 'lower_molar', x: 203.1, y: 374.9, angle: -98, quadrant: 4 },
+  { id: '47', type: 'lower_molar', x: 199.1, y: 329.1, angle: -92, quadrant: 4 },
+  { id: '48', type: 'lower_molar', x: 199.1, y: 283.1, angle: -88, quadrant: 4 },
 ];
 
 export function Odontogram({ selectedTeeth = [], onToothClick, toothColors = {}, disabledTeeth = [], readOnly = false, className = '' }: OdontogramProps) {
@@ -124,7 +128,7 @@ export function Odontogram({ selectedTeeth = [], onToothClick, toothColors = {},
   };
 
   return (
-    <svg viewBox="100 0 400 900" className={`w-full h-auto max-h-[80vh] max-w-lg mx-auto ${className}`}>
+    <svg viewBox="150 0 300 500" className={`w-full h-auto max-h-[80vh] max-w-lg mx-auto ${className}`}>
 
       
       
