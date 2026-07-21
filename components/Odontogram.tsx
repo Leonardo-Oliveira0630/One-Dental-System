@@ -2,12 +2,18 @@ import React from 'react';
 
 export interface OdontogramProps {
   selectedTeeth?: string[];
-  onToothClick?: (id: string) => void;
+  onChange?: (selectedIds: string[]) => void;
+  // deprecated, use onChange instead
+  onToothClick?: (id: string, shiftKey?: boolean) => void;
   toothColors?: Record<string, string>;
   disabledTeeth?: string[];
   readOnly?: boolean;
   className?: string;
+  selectionColor?: string;
 }
+
+const UPPER_ARCH = ['18', '17', '16', '15', '14', '13', '12', '11', '21', '22', '23', '24', '25', '26', '27', '28'];
+const LOWER_ARCH = ['48', '47', '46', '45', '44', '43', '42', '41', '31', '32', '33', '34', '35', '36', '37', '38'];
 
 const toothPaths = {
   incisor: {
@@ -46,22 +52,22 @@ type ToothDef = {
 }
 
 const TEETH: ToothDef[] = [
-  { id: '11', type: 'incisor', x: 287.0, y: 55.0, angle: -4, quadrant: 1 },
-  { id: '12', type: 'incisor', x: 262.3, y: 59.1, angle: -15, quadrant: 1 },
-  { id: '13', type: 'canine', x: 239.7, y: 69.7, angle: -35, quadrant: 1 },
-  { id: '14', type: 'premolar', x: 220.6, y: 88.8, angle: -55, quadrant: 1 },
-  { id: '15', type: 'premolar', x: 208.3, y: 115.1, angle: -75, quadrant: 1 },
-  { id: '16', type: 'upper_molar', x: 202.6, y: 147.6, angle: -85, quadrant: 1 },
-  { id: '17', type: 'upper_molar', x: 201.0, y: 184.5, angle: -90, quadrant: 1 },
-  { id: '18', type: 'upper_molar', x: 202.6, y: 221.5, angle: -95, quadrant: 1 },
-  { id: '21', type: 'incisor', x: 313.0, y: 55.0, angle: 4, quadrant: 2 },
-  { id: '22', type: 'incisor', x: 337.7, y: 59.1, angle: 15, quadrant: 2 },
-  { id: '23', type: 'canine', x: 360.3, y: 69.7, angle: 35, quadrant: 2 },
-  { id: '24', type: 'premolar', x: 379.4, y: 88.8, angle: 55, quadrant: 2 },
-  { id: '25', type: 'premolar', x: 391.7, y: 115.1, angle: 75, quadrant: 2 },
-  { id: '26', type: 'upper_molar', x: 397.4, y: 147.6, angle: 85, quadrant: 2 },
-  { id: '27', type: 'upper_molar', x: 399.0, y: 184.5, angle: 90, quadrant: 2 },
-  { id: '28', type: 'upper_molar', x: 397.4, y: 221.5, angle: 95, quadrant: 2 },
+  { id: '11', type: 'incisor', x: 286.0, y: 55.0, angle: -4, quadrant: 1 },
+  { id: '12', type: 'incisor', x: 258.9, y: 59.5, angle: -15, quadrant: 1 },
+  { id: '13', type: 'canine', x: 233.5, y: 71.4, angle: -35, quadrant: 1 },
+  { id: '14', type: 'premolar', x: 212.3, y: 92.6, angle: -55, quadrant: 1 },
+  { id: '15', type: 'premolar', x: 199.0, y: 121.1, angle: -75, quadrant: 1 },
+  { id: '16', type: 'upper_molar', x: 192.5, y: 157.6, angle: -85, quadrant: 1 },
+  { id: '17', type: 'upper_molar', x: 190.7, y: 199.0, angle: -90, quadrant: 1 },
+  { id: '18', type: 'upper_molar', x: 192.5, y: 240.5, angle: -95, quadrant: 1 },
+  { id: '21', type: 'incisor', x: 314.0, y: 55.0, angle: 4, quadrant: 2 },
+  { id: '22', type: 'incisor', x: 341.1, y: 59.5, angle: 15, quadrant: 2 },
+  { id: '23', type: 'canine', x: 366.5, y: 71.4, angle: 35, quadrant: 2 },
+  { id: '24', type: 'premolar', x: 387.7, y: 92.6, angle: 55, quadrant: 2 },
+  { id: '25', type: 'premolar', x: 401.0, y: 121.1, angle: 75, quadrant: 2 },
+  { id: '26', type: 'upper_molar', x: 407.5, y: 157.6, angle: 85, quadrant: 2 },
+  { id: '27', type: 'upper_molar', x: 409.3, y: 199.0, angle: 90, quadrant: 2 },
+  { id: '28', type: 'upper_molar', x: 407.5, y: 240.5, angle: 95, quadrant: 2 },
   { id: '31', type: 'lower_incisor', x: 309.0, y: 465.0, angle: 176, quadrant: 3 },
   { id: '32', type: 'lower_incisor', x: 328.3, y: 462.3, angle: 168, quadrant: 3 },
   { id: '33', type: 'canine', x: 349.5, y: 454.6, angle: 152, quadrant: 3 },
@@ -80,8 +86,45 @@ const TEETH: ToothDef[] = [
   { id: '48', type: 'lower_molar', x: 199.1, y: 283.1, angle: -88, quadrant: 4 },
 ];
 
-export function Odontogram({ selectedTeeth = [], onToothClick, toothColors = {}, disabledTeeth = [], readOnly = false, className = '' }: OdontogramProps) {
+export function Odontogram({ selectedTeeth = [], onChange, onToothClick, toothColors = {}, disabledTeeth = [], readOnly = false, className = '', selectionColor }: OdontogramProps) {
   
+  const [lastSelected, setLastSelected] = React.useState<string | null>(null);
+
+  const handleClick = (id: string, shiftKey: boolean) => {
+    if (readOnly || disabledTeeth.includes(id)) return;
+    
+    if (onChange) {
+      if (shiftKey && lastSelected) {
+        const arch = UPPER_ARCH.includes(id) && UPPER_ARCH.includes(lastSelected) ? UPPER_ARCH 
+                   : LOWER_ARCH.includes(id) && LOWER_ARCH.includes(lastSelected) ? LOWER_ARCH : null;
+        
+        if (arch) {
+          const idx1 = arch.indexOf(lastSelected);
+          const idx2 = arch.indexOf(id);
+          const start = Math.min(idx1, idx2);
+          const end = Math.max(idx1, idx2);
+          const range = arch.slice(start, end + 1);
+          
+          const newSet = new Set(selectedTeeth);
+          range.forEach(t => newSet.add(t));
+          onChange(Array.from(newSet));
+          setLastSelected(id);
+          return;
+        }
+      }
+
+      const isSelected = selectedTeeth.includes(id);
+      const newSelection = isSelected
+        ? selectedTeeth.filter(t => t !== id)
+        : [...selectedTeeth, id];
+        
+      onChange(newSelection);
+      setLastSelected(isSelected ? null : id);
+    } else if (onToothClick) {
+      onToothClick(id, shiftKey);
+    }
+  };
+
   const renderTooth = (tooth: ToothDef) => {
     const isUpper = tooth.quadrant === 1 || tooth.quadrant === 2;
     const distance = 40;
@@ -93,24 +136,27 @@ export function Odontogram({ selectedTeeth = [], onToothClick, toothColors = {},
     const customColor = toothColors[tooth.id];
     const isDisabled = disabledTeeth.includes(tooth.id) || readOnly;
 
+    const fillColor = isSelected && selectionColor ? selectionColor : customColor;
+
     return (
       <g 
         key={tooth.id}
         id={`tooth-${tooth.id}`}
         className={`tooth-group ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
         transform={`translate(${tooth.x}, ${tooth.y})`}
-        onClick={() => !isDisabled && onToothClick?.(tooth.id)}
+        onClick={(e) => handleClick(tooth.id, e.shiftKey)}
       >
         <g transform={`rotate(${tooth.angle})`}>
           <path 
             className="tooth-body" 
             d={toothPaths[tooth.type].body} 
-            style={customColor ? { fill: customColor, opacity: 0.8 } : undefined}
+            style={fillColor ? { fill: fillColor, opacity: isSelected && selectionColor ? 1 : 0.8, stroke: isSelected && selectionColor ? fillColor : undefined } : undefined}
           />
           {toothPaths[tooth.type].sulcus && (
             <path 
               className="tooth-sulcus" 
               d={toothPaths[tooth.type].sulcus}
+              style={isSelected && selectionColor ? { stroke: '#ffffff', opacity: 0.8 } : undefined}
             />
           )}
         </g>

@@ -18,7 +18,17 @@ const JOB_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#22c55e', 
   '#06b6d4', '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e'
 ];
-const getJobTypeColor = (jobTypeId: string) => {
+const getJobTypeColor = (jobTypeId: string, jobTypeName?: string) => {
+  if (jobTypeName) {
+    const nameLower = jobTypeName.toLowerCase();
+    if (nameLower.includes('coroa monolítica') || nameLower.includes('coroa monolitica')) return '#3b82f6'; // blue
+    if (nameLower.includes('onlay') && nameLower.includes('emax')) return '#f97316'; // orange
+    if (nameLower.includes('faceta')) return '#a855f7'; // purple
+    if (nameLower.includes('lente')) return '#d946ef'; // fuchsia/pink
+    if (nameLower.includes('protese') || nameLower.includes('prótese')) return '#10b981'; // emerald/green
+    if (nameLower.includes('coroa')) return '#0ea5e9'; // light blue
+  }
+
   let hash = 0;
   for (let i = 0; i < jobTypeId.length; i++) {
     hash = jobTypeId.charCodeAt(i) + ((hash << 5) - hash);
@@ -62,7 +72,7 @@ export const NewJob = () => {
     
     addedItems.forEach(item => {
       if (item.selectedTeeth && item.selectedTeeth.length > 0) {
-        const color = getJobTypeColor(item.jobTypeId);
+        const color = getJobTypeColor(item.jobTypeId, item.name);
         item.selectedTeeth.forEach(t => {
           colors[t] = color;
           disabled.push(t);
@@ -1090,13 +1100,10 @@ export const NewJob = () => {
                                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
                                     <Odontogram 
     selectedTeeth={itemSelectedTeeth} 
-    onToothClick={(id) => {
-      setItemSelectedTeeth(prev => 
-        prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-      )
-    }}
+    onChange={setItemSelectedTeeth}
     toothColors={odontogramProps.colors}
     disabledTeeth={odontogramProps.disabled}
+    selectionColor={activeJobType ? getJobTypeColor(activeJobType.id, activeJobType.name) : undefined}
     className="min-w-[600px] h-64"
   />
                                 </div>
@@ -1157,7 +1164,7 @@ export const NewJob = () => {
                                         <div className="flex items-center gap-2">
       <div 
         className="w-2.5 h-2.5 rounded-full" 
-        style={{ backgroundColor: getJobTypeColor(item.jobTypeId) }} 
+        style={{ backgroundColor: getJobTypeColor(item.jobTypeId, item.name) }} 
         title="Cor no Odontograma"
       />
       <p className="font-black text-slate-800 text-sm uppercase truncate max-w-[200px] leading-tight">{item.name}</p>

@@ -1734,11 +1734,7 @@ const isPromo = (jt: any) => {
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
                         <Odontogram 
                           selectedTeeth={detailSelectedTeeth} 
-                          onToothClick={(id) => {
-                            setDetailSelectedTeeth(prev => 
-                              prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-                            )
-                          }}
+                          onChange={setDetailSelectedTeeth}
                           className="min-w-[600px]"
                         />
                       </div>

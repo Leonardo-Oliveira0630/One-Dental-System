@@ -379,11 +379,7 @@ export const Schedule = () => {
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto w-full max-w-full">
                             <Odontogram 
                                 selectedTeeth={selectedTeeth} 
-                                onToothClick={(id) => {
-                                    setSelectedTeeth(prev => 
-                                        prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-                                    )
-                                }}
+                                onChange={setSelectedTeeth}
                                 className="min-w-[500px] h-64"
                             />
                         </div>
