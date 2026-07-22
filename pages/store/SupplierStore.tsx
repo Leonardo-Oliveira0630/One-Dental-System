@@ -836,12 +836,7 @@ const isPromo = (jt: any) => {
                 </div>
               )}
             </div>
-            <button 
-              onClick={() => setSortOption('SALES')}
-              className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${sortOption === 'SALES' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
-            >
-              Mais Vendidos
-            </button>
+
           </div>
         </div>
         
@@ -1137,16 +1132,7 @@ const isPromo = (jt: any) => {
               Mais Recentes
             </button>
 
-            <button
-              onClick={() => setSortOption('SALES')}
-              className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
-                sortOption === 'SALES' 
-                  ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-white text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Mais Vendidos
-            </button>
+
 
             <button
               onClick={() => setSortOption('PRICE_ASC')}

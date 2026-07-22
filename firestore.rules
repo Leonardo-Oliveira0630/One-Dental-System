@@ -40,7 +40,7 @@ service cloud.firestore {
     }
 
     match /organizations/{orgId}/inventoryCategories/{categoryId} {
-      allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      allow read: if isAuthenticated();
       allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
     }
     match /organizations/{orgId}/inventoryItems/{itemId} {
