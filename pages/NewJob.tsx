@@ -1098,7 +1098,7 @@ export const NewJob = () => {
                         {activeJobType && (
                             <div className="pt-4 border-t border-slate-200 space-y-2">
                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dentes Relacionados (Opcional)</h4>
-                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
+                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-center items-center overflow-hidden">
                                     <Odontogram 
     selectedTeeth={itemSelectedTeeth} 
     onChange={(teeth) => {
@@ -1112,7 +1112,7 @@ export const NewJob = () => {
     toothColors={odontogramProps.colors}
     disabledTeeth={odontogramProps.disabled}
     selectionColor={activeJobType ? getJobTypeColor(activeJobType.id, activeJobType.name) : undefined}
-    className="min-w-[320px] md:min-w-[400px] max-w-full h-auto"
+    className="w-full max-w-[260px] sm:max-w-[320px] md:max-w-[400px] h-auto"
   />
                                 </div>
                                 {itemSelectedTeeth.length > 0 && (

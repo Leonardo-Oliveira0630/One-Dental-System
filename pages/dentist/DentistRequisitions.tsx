@@ -745,7 +745,7 @@ export const DentistRequisitions = () => {
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">
                               Dentes Relacionados (Opcional)
                             </label>
-                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-center items-center overflow-hidden">
                               <Odontogram 
                                 selectedTeeth={itemSelectedTeeth}
                                 onChange={(teeth) => {
@@ -756,7 +756,7 @@ export const DentistRequisitions = () => {
                                     setQuantity(1);
                                   }
                                 }}
-                                className="min-w-[320px] md:min-w-[400px] max-w-full h-auto"
+                                className="w-full max-w-[260px] sm:max-w-[320px] md:max-w-[400px] h-auto"
                               />
                             </div>
                             {itemSelectedTeeth.length > 0 && (

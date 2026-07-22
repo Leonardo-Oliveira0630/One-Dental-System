@@ -652,7 +652,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                     
                     <div className="pt-2 pb-4">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 block">Dentes Relacionados (Opcional)</label>
-                        <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 overflow-x-auto">
+                        <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 flex justify-center items-center overflow-hidden">
                             <Odontogram 
                                 selectedTeeth={selectedTeeth}
                                 onChange={(teeth) => {
@@ -663,7 +663,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                                         setQuantity(1);
                                     }
                                 }}
-                                className="min-w-[320px] md:min-w-[400px] max-w-full h-auto"
+                                className="w-full max-w-[260px] sm:max-w-[320px] md:max-w-[400px] h-auto"
                             />
                         </div>
                         {selectedTeeth.length > 0 && (

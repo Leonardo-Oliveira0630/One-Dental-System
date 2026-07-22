@@ -376,11 +376,11 @@ export const Schedule = () => {
                 {procedure && (
                     <div className="md:col-span-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Dentes Relacionados (Opcional)</label>
-                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto w-full max-w-full">
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-center items-center overflow-hidden w-full max-w-full">
                             <Odontogram 
                                 selectedTeeth={selectedTeeth} 
                                 onChange={setSelectedTeeth}
-                                className="min-w-[320px] md:min-w-[400px] max-w-full h-auto"
+                                className="w-full max-w-[260px] sm:max-w-[320px] md:max-w-[400px] h-auto"
                             />
                         </div>
                         {selectedTeeth.length > 0 && (
