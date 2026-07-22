@@ -149,7 +149,7 @@ export const RoomsManagement = () => {
 
             {/* MODAL: NOVA SALA */}
             {isAdding && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
                             <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Novo Consultório</h3>

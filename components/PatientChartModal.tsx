@@ -549,7 +549,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
     };
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-0 sm:p-4 text-slate-800" id="patient-chart-modal">
+        <div className="fixed inset-0 md:left-64 print:left-0 z-[60] overflow-y-auto bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-0 sm:p-4 text-slate-800" id="patient-chart-modal">
             
             {/* PRINT WATERMARK PRESCRIPTION SCREEN */}
             {printingPrescription && (

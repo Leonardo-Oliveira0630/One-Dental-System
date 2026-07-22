@@ -947,7 +947,7 @@ export const ClinicFinance = () => {
 
             {/* MODAL: LANÇAMENTO MANUAL CAIXA GENERAL */}
             {showEntryModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
@@ -993,7 +993,7 @@ export const ClinicFinance = () => {
 
             {/* MODAL: REGISTRAR RECEBIMENTO MANUAL PATIENTE */}
             {showPaymentModal && selectedPatient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
                             <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">
@@ -1071,7 +1071,7 @@ export const ClinicFinance = () => {
 
             {/* MODAL: EMITIR FATURA (BOLETO/PIX/CARTÃO) PATIENTE */}
             {showBillingModal && selectedPatient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">

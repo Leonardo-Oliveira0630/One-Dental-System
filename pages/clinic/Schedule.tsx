@@ -336,7 +336,7 @@ export const Schedule = () => {
 
       {/* Modal Agendamento */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-xl p-8 animate-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
               <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{selectedAppt ? 'Reagendar / Editar' : 'Marcar Consulta'}</h2>
