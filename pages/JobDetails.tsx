@@ -17,6 +17,7 @@ import { ChatSystem } from '../components/ChatSystem';
 import { CaseApprovalSystem } from '../components/CaseApprovalSystem';
 import { AttachmentPreviewModal, handleDownloadFile } from '../components/AttachmentPreviewModal';
 import { calculateItemCommission } from '../utils/commissionUtils';
+import { formatTeethRange } from '../utils/toothUtils';
 import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
 import * as firestorePkg from 'firebase/firestore';
@@ -2433,7 +2434,11 @@ export const JobDetails = () => {
                                             ) : (
                                                 <>
                                                     <div className="flex justify-between items-start mb-4">
-                                                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 flex-1">
+                                                        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 flex-1">
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Dentes</p>
+                                                                <p className="text-sm font-bold text-indigo-600">{formatTeethRange(item.selectedTeeth)}</p>
+                                                            </div>
                                                             <div>
                                                                 <p className="text-[9px] font-black text-slate-400 uppercase">Quant. Original</p>
                                                                 <p className="text-sm font-bold text-slate-700">{item.quantity}</p>

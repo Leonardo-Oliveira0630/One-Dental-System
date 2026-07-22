@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { getContrastColor } from '../services/mockData';
+import { formatTeethRange } from '../utils/toothUtils';
 // Added Crown to the lucide-react imports to fix line 404 error
 import { Odontogram } from "../components/Odontogram";
 import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package } from 'lucide-react';
@@ -1192,7 +1193,7 @@ export const NewJob = () => {
                                             )}
                                             {item.selectedTeeth && item.selectedTeeth.length > 0 && (
                                                 <p className="text-[10px] text-indigo-600 font-bold">
-                                                    Dentes: {item.selectedTeeth.sort().join(', ')}
+                                                    Dentes: {formatTeethRange(item.selectedTeeth)}
                                                 </p>
                                             )}
                                         </div>
