@@ -454,19 +454,33 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       {/* Store Header */}
       {isStoreRoute && (
-         <header className={`fixed top-0 right-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] left-0 md:left-64 print:hidden transition-all duration-300`}>
-           <div className="flex items-center gap-2 shrink-0">
-               {!isMobileMenuOpen && (
-                   <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0 md:hidden"><Menu size={24} /></button>
-               )}
-               <div className="flex items-center gap-2 overflow-visible">
-                  <Logo size={120} variant="colored" />
+         <header className={`fixed top-0 right-0 bg-white border-b border-slate-200 min-h-16 flex flex-col md:flex-row md:items-center justify-between z-[50] left-0 md:left-64 print:hidden transition-all duration-300`}>
+           <div className="flex items-center justify-between px-4 h-14 md:h-16 shrink-0 w-full md:w-auto border-b border-slate-100 md:border-none">
+               <div className="flex items-center gap-2 shrink-0">
+                   {!isMobileMenuOpen && (
+                       <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 -ml-2 rounded-lg active:bg-slate-100 transition-colors shrink-0 md:hidden"><Menu size={24} /></button>
+                   )}
+                   <div className="flex items-center gap-2 overflow-visible">
+                      <Logo size={120} variant="colored" />
+                   </div>
+               </div>
+               
+               <div className="flex items-center gap-1 shrink-0 md:hidden">
+                   {currentUser ? (
+                       <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">
+                         {currentUser.name?.charAt(0) || 'U'}
+                       </Link>
+                   ) : (
+                       <Link to="/login" className="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-xs shadow-sm">
+                         Entrar
+                       </Link>
+                   )}
                </div>
            </div>
            
-           <div id="store-header-portal" className="flex-1 flex justify-center mx-2 overflow-hidden items-center h-full"></div>
+           <div id="store-header-portal" className="flex-1 flex justify-center items-center py-2 md:p-0 min-h-[48px] overflow-hidden w-full md:w-auto bg-slate-50 md:bg-transparent shadow-inner md:shadow-none"></div>
            
-           <div className="flex items-center gap-1 shrink-0">
+           <div className="hidden md:flex items-center gap-1 shrink-0 px-4">
                {currentUser ? (
                    <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">
                      {currentUser.name?.charAt(0) || 'U'}
@@ -546,7 +560,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className={`pt-20 ${isStoreRoute ? "md:pt-20 px-0 max-w-full" : "p-4 md:pt-8 md:p-8 max-w-[1400px]"} w-full  mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
+        <div className={`pt-24 ${isStoreRoute ? "md:pt-20 px-0 max-w-full" : "p-4 md:pt-8 md:p-8 max-w-[1400px]"} w-full  mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
           {isClinicPendingApproval() ? (
             <div className="flex-1 flex items-center justify-center py-12 px-4">
               <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">
