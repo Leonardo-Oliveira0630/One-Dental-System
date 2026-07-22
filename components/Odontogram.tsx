@@ -175,7 +175,7 @@ export function Odontogram({ selectedTeeth = [], onChange, onToothClick, toothCo
   };
 
   return (
-    <svg viewBox="140 -20 320 540" className={`w-full h-auto max-h-[80vh] max-w-lg mx-auto ${className}`}>
+    <svg viewBox="150 0 300 500" className={`w-full h-auto max-h-[80vh] max-w-lg mx-auto ${className}`}>
 
       
       
