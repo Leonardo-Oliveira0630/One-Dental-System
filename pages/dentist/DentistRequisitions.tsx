@@ -458,7 +458,8 @@ export const DentistRequisitions = () => {
         serviceId: selectedServiceId,
         serviceName: activeService.name,
         selectedVariationIds: allSelectedOptionIds,
-        quantity: quantity
+        quantity: quantity,
+        selectedTeeth: itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined
       } : null;
 
       const finalItems = [...requisitionItems];
@@ -506,6 +507,7 @@ export const DentistRequisitions = () => {
         attachments: mappedAttachments,
         selectedVariationIds: finalItems[0].selectedVariationIds,
         quantity: finalItems[0].quantity,
+        selectedTeeth: finalItems[0].selectedTeeth,
         items: finalItems
       };
 
