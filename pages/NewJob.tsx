@@ -943,8 +943,8 @@ export const NewJob = () => {
             </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8">
-            <div className="lg:col-span-8 space-y-4 md:space-y-6">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+            <div className="space-y-4 md:space-y-6">
                 
                 <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
                   <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação Obrigatória</h2>
@@ -981,6 +981,8 @@ export const NewJob = () => {
                   </div>
                 </div>
 
+            </div>
+            <div className="space-y-4 md:space-y-6">
                 <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
                     <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> Configurar Itens da OS <span className="text-red-500">*</span></h2>
                     <div className="bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-200 space-y-6">
@@ -1307,7 +1309,7 @@ export const NewJob = () => {
                 </div>
             </div>
             
-            <div className="lg:col-span-4 space-y-4 md:space-y-6">
+            <div className="space-y-4 md:space-y-6">
               <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-6 space-y-6">
                 <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Box size={18} className="text-blue-500" /> Logística Interna</h2>
 
