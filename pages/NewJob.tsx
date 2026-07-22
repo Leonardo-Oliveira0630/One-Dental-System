@@ -1112,7 +1112,7 @@ export const NewJob = () => {
     toothColors={odontogramProps.colors}
     disabledTeeth={odontogramProps.disabled}
     selectionColor={activeJobType ? getJobTypeColor(activeJobType.id, activeJobType.name) : undefined}
-    className="min-w-[600px] h-64"
+    className="min-w-[320px] md:min-w-[400px] max-w-full h-auto"
   />
                                 </div>
                                 {itemSelectedTeeth.length > 0 && (

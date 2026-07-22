@@ -380,7 +380,7 @@ export const Schedule = () => {
                             <Odontogram 
                                 selectedTeeth={selectedTeeth} 
                                 onChange={setSelectedTeeth}
-                                className="min-w-[500px] h-64"
+                                className="min-w-[320px] md:min-w-[400px] max-w-full h-auto"
                             />
                         </div>
                         {selectedTeeth.length > 0 && (

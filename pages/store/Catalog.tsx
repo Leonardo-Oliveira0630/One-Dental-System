@@ -663,7 +663,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                                         setQuantity(1);
                                     }
                                 }}
-                                className="min-w-[500px]"
+                                className="min-w-[320px] md:min-w-[400px] max-w-full h-auto"
                             />
                         </div>
                         {selectedTeeth.length > 0 && (
