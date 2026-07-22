@@ -1066,9 +1066,9 @@ export const NewJob = () => {
                                         </div>
                                     )}
                                 </div>
-                                <div className="w-16">
+                                <div className={`w-16 ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Qtd</label>
-                                    <input type="number" min="1" value={quantity} onChange={e => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" />
+                                    <input type="number" min="1" value={quantity} readOnly={itemSelectedTeeth.length > 0} onChange={e => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" />
                                 </div>
                             </div>
                         </div>
@@ -1100,7 +1100,14 @@ export const NewJob = () => {
                                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
                                     <Odontogram 
     selectedTeeth={itemSelectedTeeth} 
-    onChange={setItemSelectedTeeth}
+    onChange={(teeth) => {
+        setItemSelectedTeeth(teeth);
+        if (teeth.length > 0) {
+            setQuantity(teeth.length);
+        } else {
+            setQuantity(1);
+        }
+    }}
     toothColors={odontogramProps.colors}
     disabledTeeth={odontogramProps.disabled}
     selectionColor={activeJobType ? getJobTypeColor(activeJobType.id, activeJobType.name) : undefined}

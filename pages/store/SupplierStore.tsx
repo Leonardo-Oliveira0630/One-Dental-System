@@ -520,7 +520,7 @@ const isPromo = (jt: any) => {
       const targetCartItem: SupplierCartItem = {
         id: cartItemId,
         product,
-        quantity: 1,
+        quantity: teeth && teeth.length > 0 ? teeth.length : 1,
         variation: customVar ? {
           id: customVar.id,
           name: customVar.name,
@@ -1501,10 +1501,11 @@ const isPromo = (jt: any) => {
                         </div>
 
                         <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                          <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5">
+                          <div className={`flex items-center bg-white border border-slate-200 rounded-lg p-0.5 ${item.selectedTeeth && item.selectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                             <button 
                               onClick={() => updateQuantity(item.id, -1)}
                               className="p-1 text-slate-500 hover:text-slate-900"
+                              disabled={item.selectedTeeth && item.selectedTeeth.length > 0}
                             >
                               <Minus size={14} />
                             </button>
@@ -1512,6 +1513,7 @@ const isPromo = (jt: any) => {
                             <button 
                               onClick={() => updateQuantity(item.id, 1)}
                               className="p-1 text-slate-500 hover:text-slate-900"
+                              disabled={item.selectedTeeth && item.selectedTeeth.length > 0}
                             >
                               <Plus size={14} />
                             </button>

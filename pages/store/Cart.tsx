@@ -638,9 +638,10 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                             </div>
                             <div className="flex items-center justify-between sm:justify-end gap-6">
                                 {/* Controller de Quantidade */}
-                                <div className="flex items-center gap-1.5 border border-slate-200 rounded-lg p-1 bg-slate-50">
+                                <div className={`flex items-center gap-1.5 border border-slate-200 rounded-lg p-1 bg-slate-50 ${item.selectedTeeth && item.selectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <button 
                                         type="button"
+                                        disabled={item.selectedTeeth && item.selectedTeeth.length > 0}
                                         onClick={() => {
                                             if (item.quantity > 1) {
                                                 updateCartItemQty(item.cartItemId, item.quantity - 1);
@@ -655,6 +656,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                                     <input 
                                         type="number" 
                                         min="1"
+                                        readOnly={item.selectedTeeth && item.selectedTeeth.length > 0}
                                         value={item.quantity} 
                                         onChange={e => {
                                             const val = parseInt(e.target.value);
@@ -666,6 +668,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                                     />
                                     <button 
                                         type="button"
+                                        disabled={item.selectedTeeth && item.selectedTeeth.length > 0}
                                         onClick={() => {
                                             updateCartItemQty(item.cartItemId, item.quantity + 1);
                                         }}

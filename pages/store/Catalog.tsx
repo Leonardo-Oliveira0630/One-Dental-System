@@ -655,7 +655,14 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                         <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 overflow-x-auto">
                             <Odontogram 
                                 selectedTeeth={selectedTeeth}
-                                onChange={setSelectedTeeth}
+                                onChange={(teeth) => {
+                                    setSelectedTeeth(teeth);
+                                    if (teeth.length > 0) {
+                                        setQuantity(teeth.length);
+                                    } else {
+                                        setQuantity(1);
+                                    }
+                                }}
                                 className="min-w-[500px]"
                             />
                         </div>
@@ -670,10 +677,10 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                     <div className="flex items-center gap-6 w-full md:w-auto">
                         <div className="flex items-center gap-3">
                             <label className="text-xs font-black uppercase tracking-widest text-slate-400">Qtd:</label>
-                            <div className="flex bg-slate-100 p-1 rounded-xl">
-                                <button onClick={() => setQuantity(q => Math.max(1, q-1))} className="w-8 h-8 flex items-center justify-center font-bold text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all">-</button>
+                            <div className={`flex bg-slate-100 p-1 rounded-xl ${selectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <button onClick={() => setQuantity(q => Math.max(1, q-1))} className="w-8 h-8 flex items-center justify-center font-bold text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all" disabled={selectedTeeth.length > 0}>-</button>
                                 <input type="number" readOnly value={quantity} className="w-10 bg-transparent text-center font-black text-slate-800 pointer-events-none" />
-                                <button onClick={() => setQuantity(q => q+1)} className="w-8 h-8 flex items-center justify-center font-bold text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all">+</button>
+                                <button onClick={() => setQuantity(q => q+1)} className="w-8 h-8 flex items-center justify-center font-bold text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all" disabled={selectedTeeth.length > 0}>+</button>
                             </div>
                         </div>
                         <div className="h-10 w-[1px] bg-slate-100 hidden md:block" />

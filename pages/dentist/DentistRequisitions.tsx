@@ -748,7 +748,14 @@ export const DentistRequisitions = () => {
                             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
                               <Odontogram 
                                 selectedTeeth={itemSelectedTeeth}
-                                onChange={setItemSelectedTeeth}
+                                onChange={(teeth) => {
+                                  setItemSelectedTeeth(teeth);
+                                  if (teeth.length > 0) {
+                                    setQuantity(teeth.length);
+                                  } else {
+                                    setQuantity(1);
+                                  }
+                                }}
                                 className="min-w-[500px]"
                               />
                             </div>
@@ -760,7 +767,7 @@ export const DentistRequisitions = () => {
                           </div>
 
                           {/* Quantity Selector */}
-                          <div className="w-24 mt-2">
+                          <div className={`w-24 mt-2 ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
                               Quantidade *
                             </label>
@@ -768,6 +775,7 @@ export const DentistRequisitions = () => {
                               type="number"
                               min="1"
                               required
+                              readOnly={itemSelectedTeeth.length > 0}
                               value={quantity}
                               onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
                               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-center font-black text-slate-700 focus:ring-2 focus:ring-indigo-500"
