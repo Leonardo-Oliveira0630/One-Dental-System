@@ -9,7 +9,6 @@ import { InventoryItem, Organization, SupplierOrder, StoreLayoutBlock } from '..
 import { useNavigate, useLocation } from 'react-router-dom';
 import { MarketplaceBanner } from '../../components/MarketplaceBanner';
 import { OfficialStores } from '../../components/OfficialStores';
-import { Odontogram } from '../../components/Odontogram';
 import { 
   ShoppingBag, Search, Filter, ShoppingCart, Plus, Minus, Trash2, 
   X, MapPin, CreditCard, Sparkles, Building2, Package, Check, 
@@ -126,7 +125,6 @@ export const SupplierStore = () => {
 
   const [detailSelectedVar, setDetailSelectedVar] = useState<any>(null);
   const [detailSelectedOptions, setDetailSelectedOptions] = useState<{groupId: string, groupName: string, optionId: string, optionName: string, priceModifier: number}[]>([]);
-  const [detailSelectedTeeth, setDetailSelectedTeeth] = useState<string[]>([]);
   const [detailActiveImg, setDetailActiveImg] = useState<string>('');
   const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [bannerIndex, setBannerIndex] = useState(0);
@@ -474,10 +472,9 @@ const isPromo = (jt: any) => {
   };
 
   const openProductDetail = (p: InventoryItem) => {
-    openProductDetail(p);
+    setSelectedItemForDetail(p);
     setDetailActiveImg(p.imageUrl || '');
     setIsDescExpanded(false);
-    setDetailSelectedTeeth([]);
     if (p.variations && p.variations.length > 0) {
       // select first variation by default
       setDetailSelectedVar(p.variations[0]);
@@ -489,16 +486,13 @@ const isPromo = (jt: any) => {
     }
   };
 
-  const addToCart = (product: InventoryItem, customVar?: any, selectedOptions?: any[], teeth?: string[]) => {
+  const addToCart = (product: InventoryItem, customVar?: any, selectedOptions?: any[]) => {
     // Generate unique ID for cart item (product id + variation suffix if any)
     let cartItemId = product.id;
     if (customVar) cartItemId += `_var_${customVar.id}`;
     if (selectedOptions && selectedOptions.length > 0) {
       const optsHash = selectedOptions.map(o => o.optionId).sort().join('_');
       cartItemId += `_opts_${optsHash}`;
-    }
-    if (teeth && teeth.length > 0) {
-      cartItemId += `_teeth_${teeth.sort().join('_')}`;
     }
 
     const basePrice = (product.isPromotion && product.promotionalPrice) ? product.promotionalPrice : product.sellPrice;
@@ -520,15 +514,14 @@ const isPromo = (jt: any) => {
       const targetCartItem: SupplierCartItem = {
         id: cartItemId,
         product,
-        quantity: teeth && teeth.length > 0 ? teeth.length : 1,
+        quantity: 1,
         variation: customVar ? {
           id: customVar.id,
           name: customVar.name,
           priceModifier: customVar.priceModifier,
           imageUrl: customVar.imageUrl
         } : undefined,
-        selectedOptions: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined,
-        selectedTeeth: teeth && teeth.length > 0 ? teeth : undefined
+        selectedOptions: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined
       };
       saveCartToStorage([...cart, targetCartItem]);
     }
@@ -1729,23 +1722,6 @@ const isPromo = (jt: any) => {
                     </div>
                   )}
 
-                  {/* Seleção de Dentes (Odontograma) */}
-                  {(selectedItemForDetail.type === 'OTHER' || selectedItemForDetail.type === 'IMPLANT') && (
-                    <div className="space-y-4">
-                      <h4 className="font-bold text-sm text-slate-800 uppercase tracking-wider">Selecione os Dentes Relacionados (Opcional)</h4>
-                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 overflow-x-auto">
-                        <Odontogram 
-                          selectedTeeth={detailSelectedTeeth} 
-                          onChange={setDetailSelectedTeeth}
-                          className="min-w-[600px]"
-                        />
-                      </div>
-                      {detailSelectedTeeth.length > 0 && (
-                        <p className="text-xs text-indigo-600 font-bold">Dentes selecionados: {detailSelectedTeeth.sort().join(', ')}</p>
-                      )}
-                    </div>
-                  )}
-
                   {/* Dynamic Price Display */}
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
                     <div>
@@ -1770,7 +1746,7 @@ const isPromo = (jt: any) => {
                   {/* Action insert to Cesta */}
                   <button
                     onClick={() => {
-                      addToCart(selectedItemForDetail, detailSelectedVar, detailSelectedOptions, detailSelectedTeeth);
+                      addToCart(selectedItemForDetail, detailSelectedVar, detailSelectedOptions);
                       setSelectedItemForDetail(null);
                     }}
                     className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
