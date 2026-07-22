@@ -1,3 +1,4 @@
+import logger from "../utils/logger";
 
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';

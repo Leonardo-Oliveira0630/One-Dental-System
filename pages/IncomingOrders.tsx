@@ -1,3 +1,4 @@
+import logger from "../utils/logger";
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
@@ -65,7 +66,7 @@ export const IncomingOrders = () => {
       const res = await api.apiSyncStoreOrders({ organizationId: currentOrg?.id, jobId, forceMarkPaid: force });
       alert(`Sincronização concluída! Status de pagamento: ${res.paymentsUpdated ? 'Atualizado para Pago' : 'Inalterado/Já Pago'}. Vouchers de combos gerados: ${res.vouchersGenerated || 0}.`);
     } catch (err: any) {
-      console.error("Erro ao sincronizar pedido:", err);
+      logger.error({ userId: currentUser?.id }, "Erro ao sincronizar pedido:", err);
       alert("Erro ao sincronizar pedido: " + (err.message || err));
     } finally {
       setSyncingJobId(null);
@@ -110,7 +111,7 @@ export const IncomingOrders = () => {
           setRejectingOrderJob(null);
           setOrderRejectionReason('');
       } catch (error: any) {
-          console.error("Erro ao rejeitar:", error);
+          logger.error({ userId: currentUser?.id }, "Erro ao rejeitar:", error);
           alert("Erro ao realizar estorno: " + error.message);
       } finally {
           setIsProcessing(false);
@@ -136,7 +137,7 @@ export const IncomingOrders = () => {
                   const blob = await response.blob();
                   folder?.file(file.name, blob);
               } catch (err) {
-                  console.error(`Erro ao baixar arquivo ${file.name}:`, err);
+                  logger.error({ userId: currentUser?.id }, `Erro ao baixar arquivo ${file.name}:`, err);
               }
           });
 
@@ -146,7 +147,7 @@ export const IncomingOrders = () => {
           FileSaver.saveAs(content, `${folderName}.zip`);
 
       } catch (error) {
-          console.error("Erro ao criar ZIP:", error);
+          logger.error({ userId: currentUser?.id }, "Erro ao criar ZIP:", error);
           alert("Erro ao criar arquivo ZIP. Tente baixar os arquivos individualmente.");
       } finally {
           setZippingJobId(null);

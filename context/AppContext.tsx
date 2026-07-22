@@ -1,3 +1,4 @@
+import logger from "../utils/logger";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
@@ -62,8 +63,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     },
     operationType,
     path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  };
+  logger.error({ context: errInfo }, 'Firestore Error');
   throw new Error(JSON.stringify(errInfo));
 }
 
@@ -492,7 +493,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         setActiveManualDentistId(match.id);
         if (!match.userId || match.userId !== currentUser.id) {
           api.apiUpdateManualDentist(activeDataId, match.id, { userId: currentUser.id }).catch((err: any) => {
-            console.error("Erro ao atualizar userId do dentista manual:", err);
+            logger.error("Erro ao atualizar userId do dentista manual:", err);
           });
         }
       }
@@ -1160,7 +1161,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
              setActiveOrganization({ id: snap.id, ...data, createdAt: createdAtDate } as Organization);
          }
     }).catch((err: any) => {
-         console.warn(`[Firestore] Error in switchActiveOrganization for id ${id}:`, err);
+         logger.warn(`[Firestore] Error in switchActiveOrganization for id ${id}:`, err);
     });
   };
 
@@ -1224,7 +1225,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
            if (result.totalAmount && !customAmount) newBatch.totalAmount = result.totalAmount;
          }
        } catch (err) {
-         console.warn("Real Asaas failed, using robust offline generation:", err);
+         logger.warn("Real Asaas failed, using robust offline generation:", err);
        }
     }
 
@@ -1274,7 +1275,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           }
         }
       } catch (err) {
-        console.error("Erro ao dar baixa no extrato do faturamento:", err);
+        logger.error("Erro ao dar baixa no extrato do faturamento:", err);
       }
     }
   };

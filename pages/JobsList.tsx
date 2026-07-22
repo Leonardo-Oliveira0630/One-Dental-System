@@ -1,3 +1,4 @@
+import logger from "../utils/logger";
 
 import React, { useState, useMemo, memo } from 'react';
 import { useApp } from '../context/AppContext';
