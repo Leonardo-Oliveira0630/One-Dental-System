@@ -11,6 +11,7 @@ export const NFCReader: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     
     
+    
     useEffect(() => {
         const boxNumber = searchParams.get('box');
         
@@ -19,15 +20,40 @@ export const NFCReader: React.FC = () => {
             return;
         }
 
-        // Tentar encontrar um trabalho ativo com esta caixa
         const activeJob = jobs.find(j => 
             (j.boxNumber || '').trim() === boxNumber.trim() && 
             ![JobStatus.COMPLETED, JobStatus.DELIVERED, JobStatus.CANCELED, JobStatus.REJECTED].includes(j.status)
         );
 
         if (activeJob) {
-            window.dispatchEvent(new CustomEvent('nfcScan', { detail: { code: boxNumber.trim() } }));
-            navigate('/dashboard', { replace: true, state: { nfcScanCode: boxNumber.trim() } });
+            const channel = new BroadcastChannel('nfc-channel');
+            let ackReceived = false;
+
+            channel.onmessage = (event) => {
+                if (event.data?.type === 'NFC_ACK') {
+                    ackReceived = true;
+                    // Fechar a aba atual já que a principal pegou o evento
+                    window.close();
+                    // Fallback caso o navegador bloqueie window.close()
+                    setError('Leitura enviada para a aba principal. Você pode fechar esta aba.');
+                }
+            };
+
+            channel.postMessage({ type: 'NFC_SCAN', code: boxNumber.trim() });
+
+            // Se não receber ACK em 500ms, navega normalmente (significa que não há outra aba aberta)
+            const timeoutId = setTimeout(() => {
+                if (!ackReceived) {
+                    window.dispatchEvent(new CustomEvent('nfcScan', { detail: { code: boxNumber.trim() } }));
+                    navigate('/dashboard', { replace: true, state: { nfcScanCode: boxNumber.trim() } });
+                }
+                channel.close();
+            }, 600);
+
+            return () => {
+                clearTimeout(timeoutId);
+                channel.close();
+            };
         } else {
             // Wait for jobs to potentially load
             const timeoutId = setTimeout(() => {
@@ -42,6 +68,7 @@ export const NFCReader: React.FC = () => {
             return () => clearTimeout(timeoutId);
         }
     }, [jobs, searchParams, navigate]);
+
 
 
     if (error) {
