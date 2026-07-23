@@ -10,6 +10,7 @@ export const NFCReader: React.FC = () => {
     const { jobs } = useApp();
     const [error, setError] = useState<string | null>(null);
     
+    
     useEffect(() => {
         const boxNumber = searchParams.get('box');
         
@@ -20,31 +21,28 @@ export const NFCReader: React.FC = () => {
 
         // Tentar encontrar um trabalho ativo com esta caixa
         const activeJob = jobs.find(j => 
-            j.boxNumber === boxNumber && 
+            (j.boxNumber || '').trim() === boxNumber.trim() && 
             ![JobStatus.COMPLETED, JobStatus.DELIVERED, JobStatus.CANCELED, JobStatus.REJECTED].includes(j.status)
         );
 
         if (activeJob) {
-            // Trabalho encontrado! Vamos redirecionar para a página do trabalho com um state para abrir o scanner
-            // Como o GlobalScanner está no Layout, ele escuta eventos do teclado.
-            // Mas para abrir o modal de scanner, talvez seja mais fácil redirecionar para a página de detalhes 
-            // e lá podemos mostrar um botão de movimentação ou o scanner se adapta.
-            // Para acionar o GlobalScanner, poderíamos disparar um evento customizado ou usar o contexto.
-            // Vamos disparar um evento de teclado simulado para o GlobalScanner pegar, ou apenas redirecionar para os detalhes.
-            // O ideal seria que a leitura da caixa pela URL abrisse a mesma interface do scanner.
-            // Como o GlobalScanner usa um input invisível ou keypress, podemos tentar injetar o código ou apenas redirecionar.
-            
-            // Para não quebrar a lógica atual, redirecionamos para os detalhes do caso, e lá o usuário vê que a caixa foi lida.
-            // Ou melhor, podemos disparar um evento customizado 'nfcScan' que o GlobalScanner pode escutar!
-            window.dispatchEvent(new CustomEvent('nfcScan', { detail: { code: boxNumber } }));
-            
-            // Redirect para a home (onde o scanner vai aparecer)
-            navigate('/dashboard', { replace: true });
+            window.dispatchEvent(new CustomEvent('nfcScan', { detail: { code: boxNumber.trim() } }));
+            navigate('/dashboard', { replace: true, state: { nfcScanCode: boxNumber.trim() } });
         } else {
-            setError(`Nenhum trabalho ativo encontrado para a caixa ${boxNumber}.`);
+            // Wait for jobs to potentially load
+            const timeoutId = setTimeout(() => {
+                const currentJob = jobs.find(j => 
+                    (j.boxNumber || '').trim() === boxNumber.trim() && 
+                    ![JobStatus.COMPLETED, JobStatus.DELIVERED, JobStatus.CANCELED, JobStatus.REJECTED].includes(j.status)
+                );
+                if (!currentJob) {
+                    setError(`Nenhum trabalho ativo encontrado para a caixa ${boxNumber}.`);
+                }
+            }, 2500);
+            return () => clearTimeout(timeoutId);
         }
-        
     }, [jobs, searchParams, navigate]);
+
 
     if (error) {
         return (
