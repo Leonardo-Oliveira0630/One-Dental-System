@@ -7,6 +7,7 @@ import { Job, JobStatus, UserRole, CommissionStatus, JobItem, JobType } from '..
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2, MessageCircle, Loader2, ImagePlus } from 'lucide-react';
 import { BrowserMultiFormatReader } from '@zxing/library';
 import { calculateItemCommission } from '../utils/commissionUtils';
+import { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';
 
 // Importação segura do Capacitor
 const playNativeHaptic = async (isSuccess: boolean) => {
@@ -36,6 +37,8 @@ export const GlobalScanner: React.FC = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [cameras, setCameras] = useState<CameraDevice[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [nextSector, setNextSector] = useState<string>('');
   const [isNfcSupported, setIsNfcSupported] = useState(false);
   const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'error'>('idle');
@@ -380,6 +383,27 @@ export const GlobalScanner: React.FC = () => {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    
+    const fetchCameras = async () => {
+        if (!isCameraActive) return;
+        const availableCameras = await getAvailableCameras();
+        if (isMounted) {
+            setCameras(availableCameras);
+            if (availableCameras.length > 0 && !selectedCameraId) {
+                setSelectedCameraId(getSmartCameraSelection(availableCameras) || null);
+            }
+        }
+    };
+    
+    if (isCameraActive && cameras.length === 0) {
+        fetchCameras();
+    }
+    
+    return () => { isMounted = false; };
+  }, [isCameraActive, selectedCameraId, cameras.length]);
+
+  useEffect(() => {
       let isMounted = true;
       let reader: BrowserMultiFormatReader | null = null;
 
@@ -389,11 +413,9 @@ export const GlobalScanner: React.FC = () => {
           
           const startScanner = async () => {
               try {
-                  const videoConstraints: MediaTrackConstraints = {
-                    facingMode: 'environment',
-                    width: { ideal: 1920, min: 1280 },
-                    height: { ideal: 1080, min: 720 }
-                  };
+                  const videoConstraints: MediaTrackConstraints = selectedCameraId 
+                    ? { deviceId: { exact: selectedCameraId }, width: { ideal: 4096 }, height: { ideal: 2160 } }
+                    : { facingMode: 'environment', width: { ideal: 4096 }, height: { ideal: 2160 } };
 
                   if (videoRef.current && isMounted) {
                       await activeReader.decodeFromConstraints(
@@ -418,14 +440,31 @@ export const GlobalScanner: React.FC = () => {
                       if (track) {
                         try {
                             const capabilities = track.getCapabilities() as any;
+                            
                             // Configurar zoom para melhorar a leitura de códigos
                             if (capabilities.zoom) {
-                                const maxZoom = capabilities.zoom.max;
-                                const targetZoom = Math.min(3.5, maxZoom); // Define um zoom 3.5x para câmera cropada
+                                const minZoom = capabilities.zoom.min || 1;
                                 track.applyConstraints({
-                                    advanced: [{ zoom: targetZoom }] as any
+                                    advanced: [{ zoom: minZoom }] as any
                                 }).catch(e => console.log("Erro ao aplicar zoom:", e));
                             }
+                            
+                            // Focus modes (continuous) and distance
+                            const advancedConstraints: any = {};
+                            if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+                                advancedConstraints.focusMode = 'continuous';
+                            }
+                            if (capabilities.focusDistance) {
+                                // Prefer closer focus for barcode scanning
+                                advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
+                            }
+                            
+                            if (Object.keys(advancedConstraints).length > 0) {
+                                track.applyConstraints({
+                                    advanced: [advancedConstraints]
+                                }).catch(e => console.log("Erro ao aplicar focus:", e));
+                            }
+                            
                             if (capabilities.torch) {
                               // Torch is supported
                             }
@@ -447,7 +486,7 @@ export const GlobalScanner: React.FC = () => {
                                       if (processScanRef.current) {
                                           processScanRef.current(result.getText());
                                       }
-                                      setIsCameraActive(false);
+                                      setIsCameraActive(false);                                      
                                   }
                               }
                           );
@@ -468,7 +507,7 @@ export const GlobalScanner: React.FC = () => {
               reader.reset();
           }
       };
-  }, [isCameraActive]);
+  }, [isCameraActive, selectedCameraId]);
 
   const toggleTorch = useCallback(async () => {
     if (!videoRef.current) return;
@@ -862,6 +901,17 @@ export const GlobalScanner: React.FC = () => {
                       <p className="text-xs opacity-70">Aponte para o código de barras da OS</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {cameras.length > 1 && (
+                      <select 
+                        className="bg-black/40 border border-white/20 text-white text-[10px] rounded-lg px-2 py-1 outline-none mr-2 max-w-[120px] truncate"
+                        value={selectedCameraId || ''}
+                        onChange={(e) => setSelectedCameraId(e.target.value)}
+                      >
+                        {cameras.map(cam => (
+                          <option key={cam.deviceId} value={cam.deviceId} className="text-black">{cam.label}</option>
+                        ))}
+                      </select>
+                    )}
                     <button 
                         onClick={toggleTorch}
                         className={`p-3 rounded-full transition-all ${isTorchOn ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-200' : 'bg-white/10 text-white'}`}
