@@ -39,25 +39,6 @@ export const GlobalScanner: React.FC = () => {
           }, 300);
       }
   }, [location.state?.nfcScanCode, navigate, location.pathname, processScan]);
-  
-  // Listen for NFC scans from other tabs
-  useEffect(() => {
-      const channel = new BroadcastChannel('nfc-channel');
-      channel.onmessage = (event) => {
-          if (event.data?.type === 'NFC_SCAN') {
-              const code = event.data.code;
-              // Acknowledge receipt so the other tab can close
-              channel.postMessage({ type: 'NFC_ACK' });
-              
-              // Process the scan
-              if (code) {
-                  processScan(code);
-              }
-          }
-      };
-      return () => channel.close();
-  }, [processScan]);
-
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
   
