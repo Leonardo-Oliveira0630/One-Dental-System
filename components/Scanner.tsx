@@ -408,6 +408,7 @@ export const GlobalScanner: React.FC = () => {
       let reader: BrowserMultiFormatReader | null = null;
 
       if (isCameraActive && videoRef.current) {
+          if (cameras.length === 0) return; // wait for cameras to load
           const hints = new Map();
           // Prioritize CODE_128, EAN_13, and QR_CODE to make scanning significantly faster
           hints.set(DecodeHintType.POSSIBLE_FORMATS, [
