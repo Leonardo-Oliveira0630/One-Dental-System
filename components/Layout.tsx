@@ -10,7 +10,7 @@ import {
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList
 , ChevronLeft, MessageSquare} from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
-import { GlobalScanner } from './Scanner';
+import { GlobalScanner, ManualScannerInput } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
 import { AlertPopup } from './AlertSystem';
 import { PWAInstallPrompt } from './PWAInstallPrompt';
@@ -547,6 +547,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
           <div className="flex-1 max-w-xl mx-8">
             <JobSearch />
+          </div>
+
+          <div className="mr-4 hidden lg:block">
+            <ManualScannerInput />
           </div>
 
           <div className="flex items-center gap-4 shrink-0">

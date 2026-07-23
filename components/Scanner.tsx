@@ -85,6 +85,63 @@ export const GlobalScanner: React.FC = () => {
   const scannedJobRef = useRef(scannedJob);
   const scanActionRef = useRef(scanAction);
   const nextSectorRef = useRef(nextSector);
+  
+  // Web NFC API integration
+  useEffect(() => {
+    let ndef: any = null;
+    let abortController = new AbortController();
+
+    const startNfc = async () => {
+      if ('NDEFReader' in window) {
+        try {
+          ndef = new (window as any).NDEFReader();
+          await ndef.scan({ signal: abortController.signal });
+          
+          ndef.addEventListener("reading", ({ message, serialNumber }: any) => {
+            console.log("[Web NFC] Tag detected:", serialNumber);
+            try {
+              for (const record of message.records) {
+                if (record.recordType === "text") {
+                  const textDecoder = new TextDecoder(record.encoding);
+                  const text = textDecoder.decode(record.data);
+                  console.log("[Web NFC] Text record:", text);
+                  if (processScanRef.current) {
+                      processScanRef.current(text);
+                  }
+                  break;
+                } else if (record.recordType === "url") {
+                  const textDecoder = new TextDecoder();
+                  const url = textDecoder.decode(record.data);
+                  console.log("[Web NFC] URL record:", url);
+                  // Extract box number or ID from URL if it's our app URL
+                  const parts = url.split('/');
+                  const lastPart = parts[parts.length - 1];
+                  if (lastPart) {
+                    if (processScanRef.current) {
+                        processScanRef.current(lastPart);
+                    }
+                  }
+                  break;
+                }
+              }
+            } catch (error) {
+              console.error("[Web NFC] Error processing reading:", error);
+            }
+          });
+          
+          console.log("[Web NFC] Scanning active.");
+        } catch (error) {
+          console.log("[Web NFC] Error starting scan:", error);
+        }
+      }
+    };
+
+    startNfc();
+
+    return () => {
+      abortController.abort();
+    };
+  }, []);
   const isUploadingRef = useRef(isUploading);
 
   const getEligibleItemsAndComm = (job: Job, user: any, jobTypes: JobType[]) => {
@@ -275,12 +332,19 @@ export const GlobalScanner: React.FC = () => {
     // Ouvinte para evento customizado de abrir scanner (útil para botões globais)
     const handleOpenScanner = () => setIsCameraActive(true);
     window.addEventListener('open-scanner', handleOpenScanner);
+    const handleManualTrigger = (e: any) => {
+        if (e.detail?.code && processScanRef.current) {
+            processScanRef.current(e.detail.code);
+        }
+    };
+    window.addEventListener('manual-scan-trigger', handleManualTrigger);
 
     return () => {
         window.removeEventListener('keydown', handleKeyDown, { capture: true });
         window.removeEventListener('keypress', preventShortcuts, { capture: true });
         window.removeEventListener('keyup', preventShortcuts, { capture: true });
         window.removeEventListener('open-scanner', handleOpenScanner);
+        window.removeEventListener('manual-scan-trigger', handleManualTrigger);
     };
   }, []); // Dependências vazias pois usamos refs
 
@@ -939,4 +1003,35 @@ export const GlobalScanner: React.FC = () => {
       </div>
     </div>
   );
+};
+
+
+export const ManualScannerInput: React.FC = () => {
+    const [value, setValue] = useState('');
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (value.trim()) {
+                window.dispatchEvent(new CustomEvent('manual-scan-trigger', { detail: { code: value.trim() } }));
+                setValue('');
+            }
+        }
+    };
+
+    return (
+        <div className="relative flex items-center">
+            <div className="absolute left-3 text-slate-400">
+                <ScanBarcode size={16} />
+            </div>
+            <input 
+                type="text" 
+                value={value}
+                onChange={e => setValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Bipar Caixa/OS..." 
+                className="w-48 pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder:font-normal"
+            />
+        </div>
+    );
 };
