@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus, JobItem, JobType } from '../types';
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2, MessageCircle, Loader2, ImagePlus } from 'lucide-react';
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { calculateItemCommission } from '../utils/commissionUtils';
 import { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';
 
@@ -408,14 +408,27 @@ export const GlobalScanner: React.FC = () => {
       let reader: BrowserMultiFormatReader | null = null;
 
       if (isCameraActive && videoRef.current) {
-          const activeReader = new BrowserMultiFormatReader();
+          const hints = new Map();
+          // Prioritize CODE_128, EAN_13, and QR_CODE to make scanning significantly faster
+          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+              BarcodeFormat.CODE_128,
+              BarcodeFormat.QR_CODE,
+              BarcodeFormat.EAN_13,
+              BarcodeFormat.EAN_8,
+              BarcodeFormat.CODE_39
+          ]);
+          // Add TRY_HARDER hint to improve accuracy
+          hints.set(DecodeHintType.TRY_HARDER, true);
+          const activeReader = new BrowserMultiFormatReader(hints);
+          activeReader.timeBetweenDecodingAttempts = 150; // default is 500ms, decrease to read faster
+          
           reader = activeReader;
           
           const startScanner = async () => {
               try {
                   const videoConstraints: MediaTrackConstraints = selectedCameraId 
-                    ? { deviceId: { exact: selectedCameraId }, width: { ideal: 4096 }, height: { ideal: 2160 } }
-                    : { facingMode: 'environment', width: { ideal: 4096 }, height: { ideal: 2160 } };
+                    ? { deviceId: { exact: selectedCameraId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+                    : { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } };
 
                   if (videoRef.current && isMounted) {
                       await activeReader.decodeFromConstraints(
