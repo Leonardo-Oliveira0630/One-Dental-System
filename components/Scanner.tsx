@@ -414,9 +414,13 @@ export const GlobalScanner: React.FC = () => {
 
           const startScanner = async () => {
               try {
+                  const isPortrait = window.innerHeight > window.innerWidth;
+                  const idealWidth = isPortrait ? 1080 : 1920;
+                  const idealHeight = isPortrait ? 1920 : 1080;
+
                   const videoConstraints: MediaTrackConstraints = selectedCameraId 
-                    ? { deviceId: { exact: selectedCameraId } }
-                    : { facingMode: 'environment' };
+                    ? { deviceId: { exact: selectedCameraId }, width: { ideal: idealWidth }, height: { ideal: idealHeight } }
+                    : { facingMode: 'environment', width: { ideal: idealWidth }, height: { ideal: idealHeight } };
 
                   const hasNativeScanner = 'BarcodeDetector' in window;
 
