@@ -172,7 +172,7 @@ export const PrintOverlay = () => {
                       </div>
                       
                       <div className="absolute right-0 top-[-22px] flex flex-col items-end shrink-0">
-                          <div className="scale-x-[1.1] origin-top-right">
+                          <div className="scale-x-[1.3] origin-top-right">
                               <Barcode 
                                 value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
                                 width={1} 
