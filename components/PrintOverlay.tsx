@@ -154,7 +154,7 @@ export const PrintOverlay = () => {
 
           {printData.mode === 'LABEL' && printData.job && (
             <div 
-              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print py-1 pl-[13px] pr-2" 
+              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print py-1 pl-[18px] pr-2" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
             > 
                {/* Top Section: Information */}
@@ -171,12 +171,12 @@ export const PrintOverlay = () => {
                         <span className="text-[12px] leading-tight mt-1 font-black">{printData.job.osNumber || printData.job.id.substring(0,8)}</span>
                       </div>
                       
-                      <div className="flex flex-col items-end shrink-0 -mt-2">
-                          <div className="scale-x-[1.26] origin-top-right">
+                      <div className="flex flex-col items-end shrink-0 -mt-[4px] mr-[2px]">
+                          <div className="scale-x-[1.45] origin-top-right">
                               <Barcode 
                                 value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
                                 width={1} 
-                                height={42} 
+                                height={58} 
                                 displayValue={false}
                                 margin={0} 
                                 format="CODE128" 
