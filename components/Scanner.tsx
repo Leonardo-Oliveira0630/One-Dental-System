@@ -37,6 +37,8 @@ export const GlobalScanner: React.FC = () => {
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [nextSector, setNextSector] = useState<string>('');
+  const [isNfcSupported, setIsNfcSupported] = useState(false);
+  const [nfcStatus, setNfcStatus] = useState<'idle' | 'scanning' | 'error'>('idle');
   
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -90,30 +92,34 @@ export const GlobalScanner: React.FC = () => {
   useEffect(() => {
     let ndef: any = null;
     let abortController = new AbortController();
+    
+    setIsNfcSupported('NDEFReader' in window);
 
-    const startNfc = async () => {
+    const startNfc = async (fromUserInteraction = false) => {
       if ('NDEFReader' in window) {
         try {
           ndef = new (window as any).NDEFReader();
           await ndef.scan({ signal: abortController.signal });
+          setNfcStatus('scanning');
+          console.log("NFC Scanner started successfully!");
           
           ndef.addEventListener("reading", ({ message, serialNumber }: any) => {
             console.log("[Web NFC] Tag detected:", serialNumber);
             try {
               for (const record of message.records) {
-                if (record.recordType === "text") {
-                  const textDecoder = new TextDecoder(record.encoding);
+                console.log("[Web NFC] Record Type:", record.recordType, "Media Type:", record.mediaType);
+                if (record.recordType === "text" || (record.recordType === "mime" && record.mediaType === "text/plain")) {
+                  const textDecoder = new TextDecoder(record.encoding || 'utf-8');
                   const text = textDecoder.decode(record.data);
-                  console.log("[Web NFC] Text record:", text);
+                  console.log("[Web NFC] Text/Mime record:", text);
                   if (processScanRef.current) {
                       processScanRef.current(text);
                   }
                   break;
                 } else if (record.recordType === "url") {
-                  const textDecoder = new TextDecoder();
+                  const textDecoder = new TextDecoder(record.encoding || 'utf-8');
                   const url = textDecoder.decode(record.data);
                   console.log("[Web NFC] URL record:", url);
-                  // Extract box number or ID from URL if it's our app URL
                   const parts = url.split('/');
                   const lastPart = parts[parts.length - 1];
                   if (lastPart) {
@@ -122,21 +128,41 @@ export const GlobalScanner: React.FC = () => {
                     }
                   }
                   break;
+                } else {
+                  // Fallback
+                  const textDecoder = new TextDecoder('utf-8');
+                  const text = textDecoder.decode(record.data);
+                  console.log("[Web NFC] Fallback record decode:", text);
+                  if (text && text.length > 0 && text.length < 50) {
+                      if (processScanRef.current) {
+                          processScanRef.current(text);
+                      }
+                      break;
+                  }
                 }
               }
-            } catch (error) {
+            } catch (error: any) {
               console.error("[Web NFC] Error processing reading:", error);
+              alert("Erro ao processar tag NFC: " + error.message);
             }
           });
           
-          console.log("[Web NFC] Scanning active.");
-        } catch (error) {
+        } catch (error: any) {
           console.log("[Web NFC] Error starting scan:", error);
+          setNfcStatus('error');
+          if (fromUserInteraction) {
+             alert("Erro ao iniciar NFC: " + error.message);
+          } else if (error.name === 'NotAllowedError') {
+             console.warn("NFC scan requires user gesture or permission.");
+          }
         }
       }
     };
 
     startNfc();
+    
+    // Expose for manual triggering
+    (window as any).triggerNfcStart = () => startNfc(true);
 
     return () => {
       abortController.abort();
@@ -525,9 +551,11 @@ export const GlobalScanner: React.FC = () => {
         
         // Busca por Número da Caixa (NFC)
         if (!job) {
-            const activeJobWithBox = jobsRef.current.find(j => 
-                j.boxNumber === rawCode || j.boxNumber === cleanedCode
-            );
+            const activeJobWithBox = jobsRef.current.find(j => {
+                if (!j.boxNumber) return false;
+                const box = String(j.boxNumber).trim().toUpperCase();
+                return box === rawCode || box === cleanedCode;
+            });
             
             if (activeJobWithBox && !['COMPLETED', 'DELIVERED', 'CANCELED', 'REJECTED'].includes(activeJobWithBox.status)) {
                 job = activeJobWithBox;
@@ -561,6 +589,7 @@ export const GlobalScanner: React.FC = () => {
             console.warn(`[Scanner] Trabalho não encontrado para o código: ${cleanedCode}`);
             await playNativeHaptic(false);
             playBeep(false);
+            alert(`Nenhuma Ordem de Serviço encontrada com a caixa ou ID: "${rawCode}"`);
             // Opcional: mostrar um feedback visual temporário de "Não encontrado"
         }
     } catch (err) {
@@ -792,12 +821,23 @@ export const GlobalScanner: React.FC = () => {
 
   if (!scannedJob && !isCameraActive && currentUser?.role !== UserRole.CLIENT) {
       return (
-          <button 
-            onClick={() => setIsCameraActive(true)}
-            className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[60] w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all md:hidden print:hidden"
-          >
-              <Camera size={28} />
-          </button>
+          <div className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[60] flex flex-col gap-3 items-center md:hidden print:hidden">
+              {isNfcSupported && nfcStatus !== 'scanning' && (
+                 <button 
+                   onClick={() => (window as any).triggerNfcStart?.()}
+                   className="w-12 h-12 bg-slate-800 text-white rounded-full shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+                   title="Ativar NFC"
+                 >
+                     <span className="font-black text-[10px]">NFC</span>
+                 </button>
+              )}
+              <button 
+                onClick={() => setIsCameraActive(true)}
+                className="w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+              >
+                  <Camera size={28} />
+              </button>
+          </div>
       );
   }
 
