@@ -391,8 +391,8 @@ export const GlobalScanner: React.FC = () => {
               try {
                   const videoConstraints: MediaTrackConstraints = {
                     facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+                    width: { ideal: 1920, min: 1280 },
+                    height: { ideal: 1080, min: 720 }
                   };
 
                   if (videoRef.current && isMounted) {
@@ -421,7 +421,7 @@ export const GlobalScanner: React.FC = () => {
                             // Configurar zoom para melhorar a leitura de códigos
                             if (capabilities.zoom) {
                                 const maxZoom = capabilities.zoom.max;
-                                const targetZoom = Math.min(2.5, maxZoom); // Define um zoom 2.5x se suportado
+                                const targetZoom = Math.min(3.5, maxZoom); // Define um zoom 3.5x para câmera cropada
                                 track.applyConstraints({
                                     advanced: [{ zoom: targetZoom }] as any
                                 }).catch(e => console.log("Erro ao aplicar zoom:", e));
