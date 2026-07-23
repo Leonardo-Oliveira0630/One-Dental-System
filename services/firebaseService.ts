@@ -75,7 +75,7 @@ export const getUserProfile = async (uid: string): Promise<User | null> => {
             return { id: d.id, ...d.data() as any } as User;
         }
     } catch (e) {
-        logger.error("Erro ao buscar perfil:", e);
+        logger.error({ err: e }, "Erro ao buscar perfil:");
     }
     return null;
 };
@@ -199,7 +199,7 @@ export const apiRequestNotificationPermission = async (userId: string) => {
         }
         return null;
     } catch (error) {
-        logger.error("Erro ao obter token de notificação:", error);
+        logger.error({ err: error }, "Erro ao obter token de notificação:");
         return null;
     }
 };
@@ -382,7 +382,7 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
         try {
             processSnap(snap);
         } catch (err) {
-            logger.error("[ProTrack] Erro ao processar lista de trabalhos recentes:", err);
+            logger.error({ err: err }, "[ProTrack] Erro ao processar lista de trabalhos recentes:");
         }
     }, (error: any) => {
         logger.warn(`[Firestore] Erro em subscribeJobs para ${orgId}: ${error.code}`);
@@ -392,7 +392,7 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
         try {
             processSnap(snap);
         } catch (err) {
-            logger.error("[ProTrack] Erro ao processar lista de trabalhos da loja:", err);
+            logger.error({ err: err }, "[ProTrack] Erro ao processar lista de trabalhos da loja:");
         }
     }, (error: any) => {
         logger.warn(`[Firestore] Erro em subscribeJobsStore para ${orgId}: ${error.code}`);
@@ -455,7 +455,7 @@ export const subscribeDentistJobs = (orgId: string, dentistId: string, cb: (jobs
               cb(sortedJobs);
             }
         } catch (err) {
-            logger.error("[ProTrack] Erro ao processar lista de trabalhos do dentista:", err);
+            logger.error({ err: err }, "[ProTrack] Erro ao processar lista de trabalhos do dentista:");
         }
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeDentistJobs: ${error.code}`));
 };
@@ -720,7 +720,7 @@ export const getOrganizationBySlug = async (slug: string): Promise<Organization 
             return { id: docSnap.id, ...docSnap.data() as any, createdAt: toDate(docSnap.data().createdAt) } as Organization;
         }
     } catch (e) {
-        logger.warn("getOrganizationBySlug document lookup fallback failed:", e);
+        logger.warn({ err: e }, "getOrganizationBySlug document lookup fallback failed:");
     }
     return null;
 };
@@ -891,7 +891,7 @@ export const getOriginalUrl = async (url: string): Promise<string> => {
             return data.originalUrl || url;
         }
     } catch (error) {
-        logger.warn("[getOriginalUrl] Erro ao buscar URL original:", error);
+        logger.warn({ err: error }, "[getOriginalUrl] Erro ao buscar URL original:");
     }
     return url;
 };
@@ -914,7 +914,7 @@ export const uploadJobFile = async (file: File): Promise<string> => {
                 return data.webpUrl;
             }
         } catch (err) {
-            logger.error("[uploadJobFile] Erro ao otimizar imagem no servidor, usando fallback normal:", err);
+            logger.error({ err: err }, "[uploadJobFile] Erro ao otimizar imagem no servidor, usando fallback normal:");
         }
     }
 
@@ -941,7 +941,7 @@ export const uploadBannerImage = async (file: File): Promise<string> => {
                 return data.webpUrl;
             }
         } catch (err) {
-            logger.error("[uploadBannerImage] Erro ao otimizar imagem no servidor, usando fallback normal:", err);
+            logger.error({ err: err }, "[uploadBannerImage] Erro ao otimizar imagem no servidor, usando fallback normal:");
         }
     }
 
@@ -1219,7 +1219,7 @@ export const apiValidateLabCoupon = async (orgId: string, code: string): Promise
         
         return coupon;
     } catch (e) {
-        logger.error("Erro ao validar cupom do lab", e);
+        logger.error({ err: e }, "Erro ao validar cupom do lab");
         return null;
     }
 };
@@ -1396,7 +1396,7 @@ export const subscribeAllSupplierProducts = (supplierIds: string[], cb: (items: 
             
             const aggregated = Array.from(itemsMap.values()).flat();
             cb(aggregated);
-        }, (error: any) => logger.warn(`[Firestore] Erro em subscribeAllSupplierProducts para ${supplierId}:`, error));
+        }, (error: any) => logger.warn({ err: error }, `[Firestore] Erro em subscribeAllSupplierProducts para ${supplierId}:`));
         unsubs.push(unsub);
     });
 

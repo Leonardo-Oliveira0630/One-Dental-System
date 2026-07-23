@@ -493,7 +493,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         setActiveManualDentistId(match.id);
         if (!match.userId || match.userId !== currentUser.id) {
           api.apiUpdateManualDentist(activeDataId, match.id, { userId: currentUser.id }).catch((err: any) => {
-            logger.error("Erro ao atualizar userId do dentista manual:", err);
+            logger.error({ err: err }, "Erro ao atualizar userId do dentista manual:");
           });
         }
       }
@@ -1161,7 +1161,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
              setActiveOrganization({ id: snap.id, ...data, createdAt: createdAtDate } as Organization);
          }
     }).catch((err: any) => {
-         logger.warn(`[Firestore] Error in switchActiveOrganization for id ${id}:`, err);
+         logger.warn({ err: err }, `[Firestore] Error in switchActiveOrganization for id ${id}:`);
     });
   };
 
@@ -1225,7 +1225,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
            if (result.totalAmount && !customAmount) newBatch.totalAmount = result.totalAmount;
          }
        } catch (err) {
-         logger.warn("Real Asaas failed, using robust offline generation:", err);
+         logger.warn({ err: err }, "Real Asaas failed, using robust offline generation:");
        }
     }
 
@@ -1275,7 +1275,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           }
         }
       } catch (err) {
-        logger.error("Erro ao dar baixa no extrato do faturamento:", err);
+        logger.error({ err: err }, "Erro ao dar baixa no extrato do faturamento:");
       }
     }
   };

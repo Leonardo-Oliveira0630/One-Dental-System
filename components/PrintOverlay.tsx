@@ -181,14 +181,14 @@ export const PrintOverlay = () => {
                </div>
 
                {/* Bottom Section: Barcode */}
-               <div className="h-[12mm] w-full flex flex-col items-center justify-end overflow-hidden mb-1">
-                  <div className="flex items-center justify-center scale-x-125 origin-bottom">
+               <div className="h-[12mm] w-full flex flex-col items-center justify-start overflow-visible -mt-0.5 ml-2">
+                  <div className="flex items-center justify-center scale-x-110">
                     <Barcode 
                       value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
                       width={1} 
-                      height={40} 
+                      height={30} 
                       displayValue={true}
-                      fontSize={12}
+                      fontSize={11}
                       textMargin={0}
                       margin={0} 
                       format="CODE128" 
