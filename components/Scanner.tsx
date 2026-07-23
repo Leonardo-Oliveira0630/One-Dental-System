@@ -428,8 +428,8 @@ export const GlobalScanner: React.FC = () => {
           const startScanner = async () => {
               try {
                   const videoConstraints: MediaTrackConstraints = selectedCameraId 
-                    ? { deviceId: { exact: selectedCameraId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-                    : { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } };
+                    ? { deviceId: { exact: selectedCameraId } }
+                    : { facingMode: 'environment' };
 
                   if (videoRef.current && isMounted) {
                       await activeReader.decodeFromConstraints(
