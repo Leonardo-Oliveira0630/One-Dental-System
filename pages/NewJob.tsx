@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { getContrastColor } from '../services/mockData';
@@ -61,6 +61,14 @@ export const NewJob = () => {
   const [osNumber, setOsNumber] = useState(location.state?.osNumber || '');
   const [dueDate, setDueDate] = useState('');
   const [boxNumber, setBoxNumber] = useState('');
+  
+  const activeJobsWithSameBox = useMemo(() => {
+    if (!boxNumber.trim()) return [];
+    return jobs.filter(j => 
+        j.boxNumber === boxNumber.trim() && 
+        ![JobStatus.COMPLETED, JobStatus.DELIVERED, JobStatus.CANCELED, JobStatus.REJECTED].includes(j.status)
+    );
+  }, [boxNumber, jobs]);
   const [selectedColorId, setSelectedColorId] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [notes, setNotes] = useState(location.state?.notes || '');
@@ -687,6 +695,11 @@ export const NewJob = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (activeJobsWithSameBox.length > 0) {
+        alert('A caixa ' + boxNumber + ' já está em uso por outro caso em aberto. Finalize-o antes de usar esta caixa.');
+        return;
+    }
     e.preventDefault();
     
     // Check conflicts before submitting
@@ -1342,6 +1355,24 @@ export const NewJob = () => {
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nº Caixa</label>
                         <input value={boxNumber} onChange={e => setBoxNumber(e.target.value)} placeholder="00" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center font-black text-2xl focus:ring-2 focus:ring-blue-500 outline-none" />
+                        {activeJobsWithSameBox.length > 0 && (
+                            <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl relative z-10">
+                                <div className="flex items-center gap-2 text-amber-700 font-bold mb-2 text-[10px] uppercase">
+                                    <AlertTriangle size={14} />
+                                    <span>Caixa em uso!</span>
+                                </div>
+                                <ul className="space-y-2">
+                                    {activeJobsWithSameBox.map(conflictingJob => (
+                                        <li key={conflictingJob.id}>
+                                            <Link to={`/jobs/${conflictingJob.id}`} target="_blank" rel="noopener noreferrer" className="block p-2 bg-white rounded-lg border border-amber-100 hover:border-amber-300 transition-colors shadow-sm">
+                                                <div className="text-xs font-bold text-slate-800">OS {conflictingJob.osNumber}</div>
+                                                <div className="text-[10px] text-slate-500 truncate">{conflictingJob.dentistName} - {conflictingJob.patientName}</div>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Cor</label>

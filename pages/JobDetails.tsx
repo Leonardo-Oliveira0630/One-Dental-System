@@ -2,7 +2,7 @@ import logger from "../utils/logger";
 
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { WebcamModal } from '../components/WebcamModal';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useApp } from '../context/AppContext';
@@ -378,6 +378,15 @@ export const JobDetails = () => {
   const [editPatientName, setEditPatientName] = useState('');
   const [editOsNumber, setEditOsNumber] = useState('');
   const [editBoxNumber, setEditBoxNumber] = useState('');
+        
+  const activeJobsWithSameBox = useMemo(() => {
+    if (!editBoxNumber.trim() || editBoxNumber.trim() === job?.boxNumber) return [];
+    return jobs.filter(j => 
+        j.id !== job?.id &&
+        j.boxNumber === editBoxNumber.trim() && 
+        ![JobStatus.COMPLETED, JobStatus.DELIVERED, JobStatus.CANCELED, JobStatus.REJECTED].includes(j.status)
+    );
+  }, [editBoxNumber, jobs, job]);
   const [editDueDate, setEditDueDate] = useState('');
   const [editDueTime, setEditDueTime] = useState('');
   const [editTotalValue, setEditTotalValue] = useState<number>(0);
@@ -721,6 +730,10 @@ export const JobDetails = () => {
   };
 
   const handleSaveChanges = async () => {
+        if (activeJobsWithSameBox.length > 0) {
+            alert('A caixa ' + editBoxNumber + ' já está em uso por outro caso em aberto. Finalize-o antes de usar esta caixa.');
+            return;
+        }
     if (!currentUser || !job) return;
     setIsUpdatingStatus(true);
     try {
@@ -1785,6 +1798,24 @@ export const JobDetails = () => {
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Caixa</label>
                               <input type="text" value={editBoxNumber} onChange={e => setEditBoxNumber(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
+                              {activeJobsWithSameBox.length > 0 && (
+                                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl relative z-10">
+                                      <div className="flex items-center gap-2 text-amber-700 font-bold mb-2 text-[10px] uppercase">
+                                          <AlertTriangle size={14} />
+                                          <span>Caixa em uso!</span>
+                                      </div>
+                                      <ul className="space-y-2">
+                                          {activeJobsWithSameBox.map(conflictingJob => (
+                                              <li key={conflictingJob.id}>
+                                                  <Link to={`/jobs/${conflictingJob.id}`} target="_blank" rel="noopener noreferrer" className="block p-2 bg-white rounded-lg border border-amber-100 hover:border-amber-300 transition-colors shadow-sm">
+                                                      <div className="text-xs font-bold text-slate-800">OS {conflictingJob.osNumber}</div>
+                                                      <div className="text-[10px] text-slate-500 truncate">{conflictingJob.dentistName} - {conflictingJob.patientName}</div>
+                                                  </Link>
+                                              </li>
+                                          ))}
+                                      </ul>
+                                  </div>
+                              )}
                           </div>
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Valor Total (R$)</label>
