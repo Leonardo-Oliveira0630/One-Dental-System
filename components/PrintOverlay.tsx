@@ -171,8 +171,8 @@ export const PrintOverlay = () => {
                         <span className="text-[12px] leading-tight mt-1 font-black">{printData.job.osNumber || printData.job.id.substring(0,8)}</span>
                       </div>
                       
-                      <div className="absolute right-0 top-[-2px] flex flex-col items-end shrink-0">
-                          <div className="scale-x-[1.35] origin-top-right">
+                      <div className="absolute right-0 top-[-12px] flex flex-col items-end shrink-0">
+                          <div className="scale-x-[1.25] origin-top-right">
                               <Barcode 
                                 value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
                                 width={1} 
