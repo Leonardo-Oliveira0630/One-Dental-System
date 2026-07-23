@@ -1,1 +1,1 @@
-console.log("ready to respond");
+console.log("App was updated successfully");

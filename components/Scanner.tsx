@@ -24,21 +24,6 @@ const playNativeHaptic = async (isSuccess: boolean) => {
 export const GlobalScanner: React.FC = () => {
   const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes } = useApp();
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  // Check location state for NFC scans
-  useEffect(() => {
-      if (location.state?.nfcScanCode) {
-          const code = location.state.nfcScanCode;
-          // Clear the state to avoid re-triggering
-          navigate(location.pathname, { replace: true, state: { ...location.state, nfcScanCode: undefined } });
-          
-          // Process scan after a small delay to ensure everything is mounted
-          setTimeout(() => {
-              processScan(code);
-          }, 300);
-      }
-  }, [location.state?.nfcScanCode, navigate, location.pathname, processScan]);
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
   
