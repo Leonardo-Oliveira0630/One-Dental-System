@@ -424,14 +424,17 @@ export const GlobalScanner: React.FC = () => {
         const cleanedCode = rawCode.replace(/^0+/, ''); // Remove leading zeros and trim
         console.log(`[Scanner] Processando código: "${cleanedCode}" (Original: "${code}")`);
 
+
         // Lógica de confirmação por "Bip Duplo"
         if (scannedJobRef.current) {
             const currentJob = scannedJobRef.current;
             const jobOs = (currentJob.osNumber || '').trim().toUpperCase().replace(/^0+/, '');
             const jobId = currentJob.id.trim().toUpperCase();
             const jobIdShort = currentJob.id.substring(0,8).toUpperCase();
+            const jobBox = (currentJob.boxNumber || '').trim().toUpperCase();
             
-            if (jobOs === cleanedCode || jobId === cleanedCode || jobIdShort === rawCode) {
+            if (jobOs === cleanedCode || jobId === cleanedCode || jobIdShort === rawCode || (jobBox && (jobBox === cleanedCode || jobBox === rawCode))) {
+
                 await playNativeHaptic(true);
                 playBeep(true);
                 await handleMoveJob(nextSectorRef.current);
@@ -445,6 +448,7 @@ export const GlobalScanner: React.FC = () => {
         // Busca instantânea via Map (tenta o raw normal, o raw sem zeros, e depois fuzzy)
         let job = jobMapRef.current.get(cleanedCode) || jobMapRef.current.get(rawCode);
         
+
         if (!job) {
             // Busca mais rigorosa no array
             job = jobsRef.current.find(j => 
@@ -454,6 +458,19 @@ export const GlobalScanner: React.FC = () => {
                 j.id.substring(0, 8).toUpperCase() === rawCode
             );
         }
+        
+        // Busca por Número da Caixa (NFC)
+        if (!job) {
+            const activeJobWithBox = jobsRef.current.find(j => 
+                j.boxNumber === rawCode || j.boxNumber === cleanedCode
+            );
+            
+            if (activeJobWithBox && !['COMPLETED', 'DELIVERED', 'CANCELED', 'REJECTED'].includes(activeJobWithBox.status)) {
+                job = activeJobWithBox;
+                console.log(`[Scanner] Trabalho encontrado pela Caixa NFC: ${job.osNumber} (Caixa: ${job.boxNumber})`);
+            }
+        }
+
         
         if (job) {
           console.log(`[Scanner] Trabalho encontrado: ${job.osNumber} (${job.id})`);

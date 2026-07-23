@@ -769,10 +769,10 @@ const isPromo = (jt: any) => {
     <main id="supplier-store-container" className="h-full w-full overflow-y-auto bg-white text-[#15263f] relative block">
       
       {/* ALWAYS SHOW MARKETPLACE TOP MENU */}
-      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide">
+      <div className="flex items-center md:justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
         <div className="hidden md:block w-auto md:w-32 flex-shrink-0"></div>
         
-        <div className="flex items-center justify-start md:justify-center flex-1 gap-2 md:gap-6 whitespace-nowrap min-w-max" style={{ marginBottom: '3px', marginTop: '-16px' }}>
+        <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-6 whitespace-nowrap md:flex-1">
           <button 
             onClick={() => { setSelectedSupplierId('ALL'); setActiveTab('STORE'); }}
             className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'STORE' && selectedSupplierId === 'ALL' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
@@ -844,7 +844,6 @@ const isPromo = (jt: any) => {
           <button
             onClick={() => setIsCartOpen(true)}
             className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-500 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
-            style={{ marginTop: '-22px' }}
           >
             <ShoppingCart className="w-5 h-5" />
             <span className="text-sm">Carrinho ({cart.length})</span>

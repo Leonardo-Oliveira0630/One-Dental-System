@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { NFCReader } from "./pages/NFCReader";
 import { AppProvider, useApp } from './context/AppContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
@@ -148,6 +149,7 @@ const AppContent = () => {
       <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><JobsList /></ProtectedRoute>} />
       <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
+      <Route path="/nfc" element={<ProtectedRoute><NFCReader /></ProtectedRoute>} />
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
        <Route path="/incoming-orders" element={<ProtectedRoute><IncomingOrders /></ProtectedRoute>} />
       <Route path="/incoming-requisitions" element={<ProtectedRoute><IncomingRequisitions /></ProtectedRoute>} />

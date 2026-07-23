@@ -961,9 +961,9 @@ export const Catalog = () => {
 
     return (
         <div className="flex flex-col h-full bg-slate-50 relative">
-            <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide">
+            <div className="flex items-center md:justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
                 <div className="hidden md:block w-auto md:w-32 flex-shrink-0"></div>
-                <div className="flex items-center justify-start md:justify-center flex-1 gap-2 md:gap-6 whitespace-nowrap min-w-max" style={{ marginBottom: '3px', marginTop: '-16px' }}>
+                <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-6 whitespace-nowrap md:flex-1">
                     <button
                         onClick={() => setMainTab('STORE')}
                         className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'STORE' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
@@ -993,7 +993,6 @@ export const Catalog = () => {
                     <button
                         onClick={() => setMainTab('CART')}
                         className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
-                        style={{ marginTop: '-22px' }}
                     >
                         <ShoppingCart className="w-5 h-5" />
                         <span className="text-sm">Carrinho ({cart?.length || 0})</span>

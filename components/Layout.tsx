@@ -560,7 +560,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className={`pt-24 ${isStoreRoute ? "md:pt-20 px-0 max-w-full" : "p-4 md:pt-8 md:p-8 max-w-[1400px]"} w-full  mx-auto print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
+        <div className={`${isStoreRoute ? "mt-[104px] md:mt-16 px-0 max-w-full" : "mt-[56px] md:mt-16 p-4 md:p-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
           {isClinicPendingApproval() ? (
             <div className="flex-1 flex items-center justify-center py-12 px-4">
               <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">
