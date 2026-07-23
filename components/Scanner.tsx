@@ -406,93 +406,124 @@ export const GlobalScanner: React.FC = () => {
   useEffect(() => {
       let isMounted = true;
       let reader: BrowserMultiFormatReader | null = null;
+      let scanLoopId: number | null = null;
+      let stream: MediaStream | null = null;
 
       if (isCameraActive && videoRef.current) {
-          if (cameras.length === 0) return; // wait for cameras to load
-          const hints = new Map();
-          // Prioritize CODE_128, EAN_13, and QR_CODE to make scanning significantly faster
-          hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-              BarcodeFormat.CODE_128,
-              BarcodeFormat.QR_CODE,
-              BarcodeFormat.EAN_13,
-              BarcodeFormat.EAN_8,
-              BarcodeFormat.CODE_39
-          ]);
-          // Add TRY_HARDER hint to improve accuracy
-          hints.set(DecodeHintType.TRY_HARDER, true);
-          const activeReader = new BrowserMultiFormatReader(hints);
-          activeReader.timeBetweenDecodingAttempts = 150; // default is 500ms, decrease to read faster
-          
-          reader = activeReader;
-          
+          if (cameras.length === 0) return;
+
           const startScanner = async () => {
               try {
                   const videoConstraints: MediaTrackConstraints = selectedCameraId 
                     ? { deviceId: { exact: selectedCameraId } }
                     : { facingMode: 'environment' };
 
-                  if (videoRef.current && isMounted) {
-                      await activeReader.decodeFromConstraints(
-                          {
-                              audio: false,
-                              video: videoConstraints
-                          },
-                          videoRef.current,
-                          (result, err) => {
-                              if (result && isMounted) {
-                                  if (processScanRef.current) {
-                                      processScanRef.current(result.getText());
+                  const hasNativeScanner = 'BarcodeDetector' in window;
+
+                  if (hasNativeScanner && videoRef.current) {
+                      console.log("Using Native Web Barcode Scanner API");
+                      const barcodeDetector = new (window as any).BarcodeDetector({ 
+                          formats: ['code_128', 'qr_code', 'ean_13', 'ean_8', 'code_39'] 
+                      });
+
+                      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints });
+                      if (!isMounted) {
+                          stream.getTracks().forEach(t => t.stop());
+                          return;
+                      }
+
+                      videoRef.current.srcObject = stream;
+                      videoRef.current.setAttribute("playsinline", "true");
+                      await videoRef.current.play();
+
+                      const track = stream.getVideoTracks()[0];
+                      if (track) {
+                          try {
+                              const capabilities = track.getCapabilities() as any;
+                              const advancedConstraints: any = {};
+                              if (capabilities.zoom) advancedConstraints.zoom = capabilities.zoom.min || 1;
+                              if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) advancedConstraints.focusMode = 'continuous';
+                              if (capabilities.focusDistance) advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
+                              
+                              if (Object.keys(advancedConstraints).length > 0) {
+                                  await track.applyConstraints({ advanced: [advancedConstraints] });
+                              }
+                          } catch (e) {}
+                      }
+
+                      let lastScan = 0;
+                      const scanFrame = async () => {
+                          if (!isMounted || !isCameraActive || !videoRef.current) return;
+                          
+                          const now = Date.now();
+                          if (now - lastScan > 100) {
+                              lastScan = now;
+                              try {
+                                  const barcodes = await barcodeDetector.detect(videoRef.current);
+                                  if (barcodes && barcodes.length > 0) {
+                                      const text = barcodes[0].rawValue;
+                                      if (processScanRef.current) {
+                                          processScanRef.current(text);
+                                      }
+                                      setIsCameraActive(false);
+                                      return;
                                   }
-                                  setIsCameraActive(false);
+                              } catch (e) {}
+                          }
+                          scanLoopId = requestAnimationFrame(scanFrame);
+                      };
+                      
+                      scanFrame();
+
+                  } else {
+                      const hints = new Map();
+                      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+                          BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.CODE_39
+                      ]);
+                      hints.set(DecodeHintType.TRY_HARDER, true);
+                      
+                      const activeReader = new BrowserMultiFormatReader(hints);
+                      activeReader.timeBetweenDecodingAttempts = 150; 
+                      reader = activeReader;
+
+                      if (videoRef.current && isMounted) {
+                          await activeReader.decodeFromConstraints(
+                              { audio: false, video: videoConstraints },
+                              videoRef.current,
+                              (result, err) => {
+                                  if (result && isMounted) {
+                                      if (processScanRef.current) {
+                                          processScanRef.current(result.getText());
+                                      }
+                                      setIsCameraActive(false);
+                                  }
+                              }
+                          );
+
+                          const s = videoRef.current.srcObject;
+                          if (s) {
+                              stream = s as MediaStream;
+                              const track = stream.getVideoTracks()[0];
+                              if (track) {
+                                  try {
+                                      const capabilities = track.getCapabilities() as any;
+                                      const advancedConstraints: any = {};
+                                      if (capabilities.zoom) advancedConstraints.zoom = capabilities.zoom.min || 1;
+                                      if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) advancedConstraints.focusMode = 'continuous';
+                                      if (capabilities.focusDistance) advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
+                                      if (Object.keys(advancedConstraints).length > 0) {
+                                          track.applyConstraints({ advanced: [advancedConstraints] }).catch(e => {});
+                                      }
+                                  } catch (e) {}
                               }
                           }
-                      );
-
-                      // Check for torch support and zoom after starting
-                      const stream = videoRef.current.srcObject as MediaStream;
-                      const track = stream?.getVideoTracks()[0];
-                      if (track) {
-                        try {
-                            const capabilities = track.getCapabilities() as any;
-                            
-                            // Configurar zoom para melhorar a leitura de códigos
-                            if (capabilities.zoom) {
-                                const minZoom = capabilities.zoom.min || 1;
-                                track.applyConstraints({
-                                    advanced: [{ zoom: minZoom }] as any
-                                }).catch(e => console.log("Erro ao aplicar zoom:", e));
-                            }
-                            
-                            // Focus modes (continuous) and distance
-                            const advancedConstraints: any = {};
-                            if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-                                advancedConstraints.focusMode = 'continuous';
-                            }
-                            if (capabilities.focusDistance) {
-                                // Prefer closer focus for barcode scanning
-                                advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
-                            }
-                            
-                            if (Object.keys(advancedConstraints).length > 0) {
-                                track.applyConstraints({
-                                    advanced: [advancedConstraints]
-                                }).catch(e => console.log("Erro ao aplicar focus:", e));
-                            }
-                            
-                            if (capabilities.torch) {
-                              // Torch is supported
-                            }
-                        } catch (e) {
-                            console.log("Capabilities error", e);
-                        }
                       }
                   }
               } catch (err) {
                   console.error("Camera error:", err);
-                  // Fallback to any camera if environment fails
-                  if (isMounted && videoRef.current) {
+                  if (reader && isMounted && videoRef.current) {
                       try {
-                          await activeReader.decodeFromVideoDevice(
+                          await reader.decodeFromVideoDevice(
                               null,
                               videoRef.current,
                               (result, err) => {
@@ -500,7 +531,7 @@ export const GlobalScanner: React.FC = () => {
                                       if (processScanRef.current) {
                                           processScanRef.current(result.getText());
                                       }
-                                      setIsCameraActive(false);                                      
+                                      setIsCameraActive(false);
                                   }
                               }
                           );
@@ -517,11 +548,17 @@ export const GlobalScanner: React.FC = () => {
 
       return () => { 
           isMounted = false;
+          if (scanLoopId !== null) {
+              cancelAnimationFrame(scanLoopId);
+          }
+          if (stream) {
+              stream.getTracks().forEach(t => t.stop());
+          }
           if (reader) {
               reader.reset();
           }
       };
-  }, [isCameraActive, selectedCameraId]);
+  }, [isCameraActive, selectedCameraId, cameras.length]);
 
   const toggleTorch = useCallback(async () => {
     if (!videoRef.current) return;
