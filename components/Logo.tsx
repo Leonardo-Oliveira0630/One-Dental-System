@@ -13,7 +13,7 @@ const { ref, getDownloadURL } = storagePkg as any;
 // Se você fez o upload do arquivo 'logoapp.svg' ou de um 'logo.png' diretamente para a pasta raiz 
 // ou pasta pública do seu projeto (usando a barra lateral esquerda do AI Studio), digite o caminho abaixo.
 // Exemplo: '/logoapp.svg' se estiver carregado na pasta pública do servidor.
-export const LOGO_LOCAL_PATH: string = '/logo labprox.svg'; 
+export const LOGO_LOCAL_PATH: string = logoLocal; 
 
 // ALTERNATIVA 2: CÓDIGO SVG BRUTO (MUITO SEGURO E RÁPIDO)
 // Abra o seu arquivo '.svg' no Bloco de Notas ou qualquer editor de texto, copie todo o código 
@@ -131,12 +131,8 @@ export const useBrowserMetadataEffect = (iconicUrl: string, completeUrl: string)
       faviconUrl = LOGO_BASE64.startsWith('data:') 
         ? LOGO_BASE64 
         : `data:image/svg+xml;base64,${LOGO_BASE64}`;
-    } else if (LOGO_LOCAL_PATH) {
-      faviconUrl = LOGO_LOCAL_PATH;
-    } else if (finalCompletoUrl) {
-      faviconUrl = finalCompletoUrl;
-    } else if (finalIconUrl) {
-      faviconUrl = finalIconUrl;
+    } else {
+      faviconUrl = '/logo labprox.svg';
     }
 
     // Atualiza / Cria o favicon nas abas do navegador
