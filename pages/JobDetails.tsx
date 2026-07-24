@@ -2099,41 +2099,41 @@ export const JobDetails = () => {
                     <div className="flex items-center lg:justify-end gap-1.5 text-sm md:text-lg font-black text-slate-800"><Calendar size={18} className="text-blue-600 shrink-0" /> {new Date(job.dueDate).toLocaleDateString()}</div>
                 </div>
                 
-                <div className="flex flex-wrap gap-2 flex-1 lg:justify-end">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1 lg:justify-end w-full">
                     {isLabStaff && !isFinished && (
                         <button 
                             onClick={() => window.dispatchEvent(new CustomEvent('open-job-scanner-popup', { detail: { jobId: job.id } }))} 
-                            className="flex-1 xs:flex-none px-4 py-2.5 bg-slate-800 text-white font-black text-[10px] rounded-xl hover:bg-slate-900 shadow-xl shadow-slate-200 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95"
+                            className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 text-white font-black text-[10px] rounded-xl hover:bg-slate-900 shadow-xl shadow-slate-200 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95"
                         >
                             <ScanBarcode size={16} /> LER CÓDIGO
                         </button>
                     )}
                     {canFinalize && (
-                         <button onClick={handleFinalizeJob} disabled={isUpdatingStatus} className="flex-1 xs:flex-none px-4 py-2.5 bg-green-600 text-white font-black text-[10px] rounded-xl hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95">
+                         <button onClick={handleFinalizeJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-green-600 text-white font-black text-[10px] rounded-xl hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95">
                             {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} FINALIZAR
                         </button>
                     )}
                     {isFinished && isLabStaff && !job.routeId && (
-                        <button onClick={() => setShowRouteModal(true)} className="flex-1 xs:flex-none px-4 py-2.5 bg-indigo-600 text-white font-black text-[10px] rounded-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all">
+                        <button onClick={() => setShowRouteModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white font-black text-[10px] rounded-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all">
                             <Truck size={16} /> LOGÍSTICA
                         </button>
                     )}
                     {isLabStaff && (
-                         <button onClick={() => setShowAlertModal(true)} className="flex-1 xs:flex-none px-4 py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-red-100">
+                         <button onClick={() => setShowAlertModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-red-100">
                             <Bell size={16} /> Alerta
                         </button>
                     )}
                     {canEdit && (
-                        <button onClick={() => setShowEditModal(true)} className="flex-1 xs:flex-none px-4 py-2.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-blue-100">
+                        <button onClick={() => setShowEditModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-blue-100">
                             <Edit size={16} /> Editar
                         </button>
                     )}
                     {canCancelOrReturn && (
                         <>
-                            <button onClick={handleReturnJob} disabled={isUpdatingStatus} className="flex-1 xs:flex-none px-4 py-2.5 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-orange-100">
+                            <button onClick={handleReturnJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-orange-100">
                                 {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftCircle size={16} />} Devolver
                             </button>
-                            <button onClick={handleCancelJob} disabled={isUpdatingStatus} className="flex-1 xs:flex-none px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-gray-100">
+                            <button onClick={handleCancelJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-gray-100">
                                 {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />} Cancelar
                             </button>
                         </>
