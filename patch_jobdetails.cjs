@@ -1,23 +1,14 @@
 const fs = require('fs');
 let code = fs.readFileSync('pages/JobDetails.tsx', 'utf8');
 
-const validationCode = `
-        if (editBoxNumber.trim() && editBoxNumber.trim() !== job.boxNumber) {
-            const activeJobWithBox = jobs.find(j => 
-                j.id !== job.id &&
-                j.boxNumber === editBoxNumber.trim() && 
-                ![JobStatus.COMPLETED, JobStatus.DELIVERED, JobStatus.CANCELED, JobStatus.REJECTED].includes(j.status)
-            );
-            if (activeJobWithBox) {
-                alert(\`A caixa \${editBoxNumber.trim()} está em uso pelo trabalho OS \${activeJobWithBox.osNumber}. Finalize-o antes de usar esta caixa.\`);
-                return;
-            }
-        }
-`;
+const target = `<button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> A4</button>`;
+const replacement = `<button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha Interna</button>
+                      <button onClick={() => triggerPrint(job, 'INVOICE_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha de Entrega</button>`;
 
-code = code.replace(
-    'const oldDate = new Date(job.dueDate).toISOString().split(\\\'T\\\')[0];',
-    validationCode + '\n        const oldDate = new Date(job.dueDate).toISOString().split(\'T\')[0];'
-);
-
-fs.writeFileSync('pages/JobDetails.tsx', code);
+if (code.includes(target)) {
+    code = code.replace(target, replacement);
+    fs.writeFileSync('pages/JobDetails.tsx', code);
+    console.log("Patched JobDetails.tsx");
+} else {
+    console.log("Could not find target in JobDetails.tsx");
+}
