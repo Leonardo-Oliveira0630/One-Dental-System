@@ -595,6 +595,7 @@ export const subscribeAlerts = (orgId: string, cb: (a: JobAlert[]) => void) => {
 };
 export const apiAddAlert = (orgId: string, alert: JobAlert) => setDoc(doc(db, `organizations/${orgId}/alerts`, alert.id), alert);
 export const apiMarkAlertAsRead = (orgId: string, id: string, userId: string) => updateDoc(doc(db, `organizations/${orgId}/alerts`, id), { readBy: arrayUnion(userId) });
+export const apiUpdateAlert = (orgId: string, id: string, updates: Partial<JobAlert>) => updateDoc(doc(db, `organizations/${orgId}/alerts`, id), updates);
 
 export const subscribePatients = (orgId: string, cb: (p: ClinicPatient[]) => void) => {
     if (!orgId) return () => {};

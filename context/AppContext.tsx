@@ -984,7 +984,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const dismissAlert = async (id: string) => {
       const orgId = activeDataId;
       if(!orgId || !currentUser) return;
-      await api.apiMarkAlertAsRead(orgId, id, currentUser.id);
+      
+      const alertToDismiss = alerts.find(a => a.id === id);
+      
+      if (alertToDismiss && alertToDismiss.repeatInterval && (alertToDismiss.repeatCount || 0) > (alertToDismiss.repeatedCount || 0)) {
+          // Re-schedule
+          const nextRepeatedCount = (alertToDismiss.repeatedCount || 0) + 1;
+          const nextScheduledFor = new Date();
+          nextScheduledFor.setMinutes(nextScheduledFor.getMinutes() + alertToDismiss.repeatInterval);
+          
+          await api.apiUpdateAlert(orgId, id, {
+              readBy: [],
+              repeatedCount: nextRepeatedCount,
+              scheduledFor: nextScheduledFor
+          });
+      } else {
+          await api.apiMarkAlertAsRead(orgId, id, currentUser.id);
+      }
+      
       setActiveAlert(null); 
   }
   const addPatient = async (p: Omit<ClinicPatient, 'id' | 'organizationId'>) => {

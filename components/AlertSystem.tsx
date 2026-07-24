@@ -16,8 +16,13 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
     const [targetType, setTargetType] = useState<'SECTOR' | 'USER'>('SECTOR');
     const [selectedSector, setSelectedSector] = useState(job.currentSector || '');
     const [selectedUserId, setSelectedUserId] = useState('');
+    
     const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
     const [scheduledTime, setScheduledTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
+    const [isRecurring, setIsRecurring] = useState(false);
+    const [repeatInterval, setRepeatInterval] = useState(15);
+    const [repeatCount, setRepeatCount] = useState(3);
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,6 +31,7 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
         // Combine date and time
         const scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`);
 
+        
         const newAlert: JobAlert = {
             id: Math.random().toString(36).substr(2, 9),
             organizationId: currentUser.organizationId || 'mock-org',
@@ -37,8 +43,12 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
             scheduledFor: scheduledFor,
             createdBy: currentUser.name,
             createdAt: new Date(),
-            readBy: []
+            readBy: [],
+            repeatInterval: isRecurring ? repeatInterval : undefined,
+            repeatCount: isRecurring ? repeatCount : undefined,
+            repeatedCount: isRecurring ? 0 : undefined
         };
+
 
         addAlert(newAlert);
         onClose();
@@ -68,6 +78,7 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
                         />
                     </div>
 
+                    
                     <div className="grid grid-cols-2 gap-4">
                          <div>
                             <label className="block text-sm font-bold text-slate-700 mb-1">Data</label>
@@ -90,6 +101,46 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
                             />
                          </div>
                     </div>
+
+                    <div className="space-y-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <label className="flex items-center gap-2 text-sm font-bold text-slate-700 cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                checked={isRecurring}
+                                onChange={e => setIsRecurring(e.target.checked)}
+                                className="w-4 h-4 text-red-600 rounded"
+                            />
+                            Repetir este Alarme
+                        </label>
+                        
+                        {isRecurring && (
+                            <div className="grid grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Intervalo (Minutos)</label>
+                                    <input 
+                                        type="number"
+                                        min="1"
+                                        required={isRecurring}
+                                        value={repeatInterval}
+                                        onChange={e => setRepeatInterval(Number(e.target.value))}
+                                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-slate-500 mb-1">Quantas Vezes?</label>
+                                    <input 
+                                        type="number"
+                                        min="1"
+                                        required={isRecurring}
+                                        value={repeatCount}
+                                        onChange={e => setRepeatCount(Number(e.target.value))}
+                                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
 
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">Destinatário</label>
@@ -157,7 +208,28 @@ export const AlertPopup = () => {
     const { activeAlert, dismissAlert, jobs } = useApp();
 
     useEffect(() => {
-        if (activeAlert) {
+        if (!activeAlert) return;
+
+        // Tenta disparar notificação push
+        if ("Notification" in window) {
+            if (Notification.permission === "granted") {
+                new Notification("LABPROX: Alerta de Urgência", {
+                    body: activeAlert.message,
+                    icon: '/logo labprox.svg'
+                });
+            } else if (Notification.permission !== "denied") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        new Notification("LABPROX: Alerta de Urgência", {
+                            body: activeAlert.message,
+                            icon: '/logo labprox.svg'
+                        });
+                    }
+                });
+            }
+        }
+
+        const playSound = () => {
             try {
                 const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
                 
@@ -185,7 +257,12 @@ export const AlertPopup = () => {
             } catch (e) {
                 console.error("Audio playback failed", e);
             }
-        }
+        };
+
+        playSound();
+        const soundInterval = setInterval(playSound, 2 * 60 * 1000); // Repete a cada 2 minutos
+
+        return () => clearInterval(soundInterval);
     }, [activeAlert]);
 
     if (!activeAlert) return null;

@@ -645,6 +645,9 @@ export interface JobAlert {
   createdBy: string;
   createdAt: Date;
   readBy: string[];
+  repeatInterval?: number;
+  repeatCount?: number;
+  repeatedCount?: number;
 }
 
 export interface ClinicPatient {
