@@ -1,162 +1,42 @@
 const fs = require('fs');
 let code = fs.readFileSync('components/Scanner.tsx', 'utf8');
 
-// 1. Add CameraDevice and getAvailableCameras, getSmartCameraSelection to imports
-if (!code.includes('cameraUtils')) {
-    code = code.replace(
-        "import { calculateItemCommission } from '../utils/commissionUtils';",
-        "import { calculateItemCommission } from '../utils/commissionUtils';\nimport { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';"
-    );
-}
+const targetStr = '<div className="flex justify-between items-center border-b border-slate-200 pb-2"><span className="text-slate-500 text-xs font-bold uppercase">OS</span><span className="font-mono font-black text-2xl text-blue-600">{scannedJob.osNumber || "N/A"}</span></div>';
 
-// 2. Add cameras state and selectedCamera state
-const stateInsertion = `  const [isUploading, setIsUploading] = useState(false);
-  const [cameras, setCameras] = useState<CameraDevice[]>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);`;
-if (!code.includes('setCameras')) {
-    code = code.replace("  const [isUploading, setIsUploading] = useState(false);", stateInsertion);
-}
+const newStr = `
+            <div className="flex justify-between items-center border-b border-slate-200 pb-2 overflow-visible">
+                <span className="text-slate-500 text-xs font-bold uppercase shrink-0 mr-2">OS</span>
+                <div className="flex items-center gap-2 relative">
+                    {jobs.filter(j => j.patientName === scannedJob.patientName).length > 1 && (
+                        <div className="relative group">
+                            <button className="text-[9px] bg-slate-200 text-slate-600 px-2 py-1 rounded font-black uppercase tracking-widest hover:bg-slate-300 transition-colors shadow-sm">Todos os Casos</button>
+                            <div className="absolute right-0 top-full mt-2 hidden group-hover:block bg-white shadow-2xl border border-slate-200 rounded-xl py-2 w-48 z-[9999]">
+                                {jobs.filter(j => j.patientName === scannedJob.patientName)
+                                     .sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                                     .map(j => (
+                                    <button 
+                                        key={j.id} 
+                                        onClick={() => { setScannedJob(null); navigate(\`/lab/jobs/\${j.id}\`); }} 
+                                        className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors text-sm font-mono font-bold text-slate-700 flex items-center justify-between"
+                                    >
+                                        <span>OS {j.osNumber || 'N/A'}</span>
+                                        {j.id === scannedJob.id && <span className="w-2 h-2 rounded-full bg-blue-500"></span>}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    <button 
+                        onClick={() => { setScannedJob(null); navigate(\`/lab/jobs/\${scannedJob.id}\`); }} 
+                        className="font-mono font-black text-2xl text-blue-600 hover:text-blue-800 transition-colors hover:underline cursor-pointer text-right"
+                    >
+                        {scannedJob.osNumber || "N/A"}
+                    </button>
+                </div>
+            </div>
+`.trim();
 
-// 3. Replace the useEffect for camera activation
-const targetUseEffectStart = `  useEffect(() => {
-      let isMounted = true;
-      let reader: BrowserMultiFormatReader | null = null;`;
+code = code.replace(targetStr, newStr);
 
-const targetUseEffectEnd = `  }, [isCameraActive]);`;
-
-const targetRegex = new RegExp(
-    targetUseEffectStart.replace(/[.*+?^$\{\}\(\)\|\[\]\\]/g, '\\$&') + 
-    '[\\s\\S]*?' + 
-    targetUseEffectEnd.replace(/[.*+?^$\{\}\(\)\|\[\]\\]/g, '\\$&')
-);
-
-const newUseEffect = `  useEffect(() => {
-    let isMounted = true;
-    
-    const fetchCameras = async () => {
-        if (!isCameraActive) return;
-        const availableCameras = await getAvailableCameras();
-        if (isMounted) {
-            setCameras(availableCameras);
-            if (availableCameras.length > 0 && !selectedCameraId) {
-                setSelectedCameraId(getSmartCameraSelection(availableCameras) || null);
-            }
-        }
-    };
-    
-    if (isCameraActive && cameras.length === 0) {
-        fetchCameras();
-    }
-    
-    return () => { isMounted = false; };
-  }, [isCameraActive, selectedCameraId, cameras.length]);
-
-  useEffect(() => {
-      let isMounted = true;
-      let reader: BrowserMultiFormatReader | null = null;
-
-      if (isCameraActive && videoRef.current) {
-          const activeReader = new BrowserMultiFormatReader();
-          reader = activeReader;
-          
-          const startScanner = async () => {
-              try {
-                  const videoConstraints: MediaTrackConstraints = selectedCameraId 
-                    ? { deviceId: { exact: selectedCameraId }, width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 } }
-                    : { facingMode: 'environment', width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 } };
-
-                  if (videoRef.current && isMounted) {
-                      await activeReader.decodeFromConstraints(
-                          {
-                              audio: false,
-                              video: videoConstraints
-                          },
-                          videoRef.current,
-                          (result, err) => {
-                              if (result && isMounted) {
-                                  if (processScanRef.current) {
-                                      processScanRef.current(result.getText());
-                                  }
-                                  setIsCameraActive(false);
-                              }
-                          }
-                      );
-
-                      // Check for torch support and zoom after starting
-                      const stream = videoRef.current.srcObject as MediaStream;
-                      const track = stream?.getVideoTracks()[0];
-                      if (track) {
-                        try {
-                            const capabilities = track.getCapabilities() as any;
-                            
-                            // Configurar zoom para melhorar a leitura de códigos
-                            if (capabilities.zoom) {
-                                const minZoom = capabilities.zoom.min || 1;
-                                track.applyConstraints({
-                                    advanced: [{ zoom: minZoom }] as any
-                                }).catch(e => console.log("Erro ao aplicar zoom:", e));
-                            }
-                            
-                            // Focus modes (continuous) and distance
-                            const advancedConstraints: any = {};
-                            if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-                                advancedConstraints.focusMode = 'continuous';
-                            }
-                            if (capabilities.focusDistance) {
-                                // Prefer closer focus for barcode scanning
-                                advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
-                            }
-                            
-                            if (Object.keys(advancedConstraints).length > 0) {
-                                track.applyConstraints({
-                                    advanced: [advancedConstraints]
-                                }).catch(e => console.log("Erro ao aplicar focus:", e));
-                            }
-                            
-                            if (capabilities.torch) {
-                              // Torch is supported
-                            }
-                        } catch (e) {
-                            console.log("Capabilities error", e);
-                        }
-                      }
-                  }
-              } catch (err) {
-                  console.error("Camera error:", err);
-                  // Fallback to any camera if environment fails
-                  if (isMounted && videoRef.current) {
-                      try {
-                          await activeReader.decodeFromVideoDevice(
-                              null,
-                              videoRef.current,
-                              (result, err) => {
-                                  if (result && isMounted) {
-                                      if (processScanRef.current) {
-                                          processScanRef.current(result.getText());
-                                      }
-                                      setIsCameraActive(false);                                      
-                                  }
-                              }
-                          );
-                      } catch (fallbackErr) {
-                          console.error("Fallback camera error:", fallbackErr);
-                          if (isMounted) setIsCameraActive(false);
-                      }
-                  }
-              }
-          };
-
-          startScanner();
-      }
-
-      return () => { 
-          isMounted = false;
-          if (reader) {
-              reader.reset();
-          }
-      };
-  }, [isCameraActive, selectedCameraId]);`;
-
-code = code.replace(targetRegex, newUseEffect);
 fs.writeFileSync('components/Scanner.tsx', code);
-console.log('Patched camera logic');
+console.log("Patched Scanner.tsx");
