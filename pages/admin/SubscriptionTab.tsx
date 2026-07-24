@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag, Receipt, ExternalLink, Calendar, CreditCard, Landmark, Banknote, MessageCircle, Puzzle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
+import PricingSection from '../../components/ui/pricing-section-4';
 
 export const SubscriptionTab = () => {
   const { currentPlan, currentOrg, allPlans, updateOrganization, getSaaSInvoices, globalSettings } = useApp();
@@ -219,26 +220,19 @@ export const SubscriptionTab = () => {
       
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600" /> Upgrade de Plano</h3>
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'LAB').map(plan => (
-              <div key={plan.id} className={`p-6 rounded-2xl border-2 transition-all flex flex-col ${plan.id === currentOrg?.planId ? 'border-blue-600 bg-blue-50/30' : 'border-slate-100 hover:border-blue-200'}`}>
-                <h4 className="font-bold text-slate-800 uppercase tracking-tight mb-1">{plan.name}</h4>
-                <p className="text-2xl font-black text-slate-900 mb-4">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400 font-normal">/mês</span></p>
-                <ul className="text-xs space-y-2 text-slate-500 flex-1 mb-6">
-                   <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Ilimitados' : plan.features.maxUsers} Usuários</li>
-                   <li className="flex items-center gap-2"><Check size={14} className="text-green-500"/> {plan.features.maxStorageGB}GB Armazenamento</li>
-                </ul>
-                <button 
-                  onClick={() => navigate(`/subscribe?plan=${plan.id}`)}
-                  disabled={plan.id === currentOrg?.planId}
-                  className={`w-full py-2.5 rounded-xl font-bold transition-all ${plan.id === currentOrg?.planId ? 'bg-blue-100 text-blue-600' : 'bg-slate-900 text-white hover:bg-blue-600'}`}
-                >
-                  {plan.id === currentOrg?.planId ? 'Plano Atual' : 'Contratar'}
-                </button>
-              </div>
-            ))}
-         </div>
-      </div>
+         <PricingSection 
+            plans={allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'LAB')}
+            selectedPlanId={currentOrg?.planId || ''}
+            onSelectPlan={(id) => {
+              if (id !== currentOrg?.planId) {
+                navigate(`/subscribe?plan=${id}`);
+              }
+            }}
+            regType="LAB"
+            title="Escolha o melhor plano"
+            subtitle="Faça o upgrade do seu laboratório"
+          />
+        </div>
 
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">

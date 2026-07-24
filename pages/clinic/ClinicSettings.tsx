@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
+import PricingSection from '../../components/ui/pricing-section-4';
 import { searchCEP } from '../../services/addressService';
 
 export const ClinicSettings = () => {
@@ -429,37 +430,18 @@ export const ClinicSettings = () => {
                   {allPlans.length === 0 ? (
                       <div className="text-center text-slate-400 py-10">Carregando opções de planos...</div>
                   ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                          {/* FILTER ONLY CLINIC PLANS */}
-                          {allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').map(plan => {
-                              const isCurrentPlan = plan.id === activePlan?.id;
-                              
-                              if (isCurrentPlan && isPaid && !isFreePlan) return null;
-
-                              return (
-                                <div key={plan.id} className={`border rounded-xl p-4 transition-all flex flex-col ${isCurrentPlan ? 'border-teal-500 bg-teal-50/50 relative' : 'border-slate-200 hover:border-teal-300'}`}>
-                                    {isCurrentPlan && <span className="absolute top-0 right-0 bg-teal-500 text-white text-[10px] px-2 py-0.5 rounded-bl-lg font-bold">PLANO ATUAL</span>}
-                                    
-                                    <h4 className="font-bold text-slate-800 uppercase tracking-tight">{plan.name}</h4>
-                                    <p className="text-2xl font-black text-teal-600 my-2">R$ {plan.price.toFixed(2)}<span className="text-xs text-slate-400 font-normal">/mês</span></p>
-                                    
-                                    <ul className="text-xs text-slate-500 space-y-2 mb-6 flex-1 pt-2">
-                                        <li className="flex items-center gap-1 text-slate-600 font-medium">• Max. Usuários: {plan.features.maxUsers === -1 ? 'Ilimitados' : plan.features.maxUsers}</li>
-                                        <li className="flex items-center gap-1 text-slate-600 font-medium">• Armazenamento: {plan.features.maxStorageGB}GB</li>
-                                        {plan.features.hasClinicModule && <li className="text-teal-700 font-bold flex items-center gap-1">✔ Inclui Prontuário, Agenda e CRM</li>}
-                                        {plan.features.hasStoreModule && <li className="text-slate-600 font-medium">• Acesso completo à Loja de Próteses</li>}
-                                    </ul>
-                                    <button 
-                                        onClick={() => handleUpgrade(plan.id)} 
-                                        disabled={isCurrentPlan && (currentOrg?.subscriptionStatus === 'ACTIVE' || currentOrg?.subscriptionStatus === 'FREE')}
-                                        className={`w-full py-2.5 font-bold rounded-xl transition-all text-sm shadow-sm ${isCurrentPlan ? 'bg-teal-50 text-teal-700 border border-teal-200' : 'bg-slate-900 text-white hover:bg-teal-600'}`}
-                                    >
-                                        {isCurrentPlan ? 'Seu Plano Atual' : 'Contratar'}
-                                    </button>
-                                </div>
-                              );
-                          })}
-                      </div>
+                      <PricingSection 
+                            plans={allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC')}
+                            selectedPlanId={activePlan?.id || ''}
+                            onSelectPlan={(id) => {
+                                if (id !== activePlan?.id) {
+                                    handleUpgrade(id);
+                                }
+                            }}
+                            regType="DENTIST"
+                            title="Planos para Dentistas"
+                            subtitle="Evolua sua clínica com as melhores ferramentas"
+                        />
                   )}
 
                   <div className="border-t border-slate-100 pt-6">

@@ -1,23 +1,31 @@
 const fs = require('fs');
 let code = fs.readFileSync('pages/clinic/ClinicSettings.tsx', 'utf8');
 
-const stateRegex = /const \[phone, setPhone\] = useState\(currentOrg\?\.phone \|\| currentOrg\?\.whatsapp \|\| ''\);/;
-code = code.replace(stateRegex, "const [phone, setPhone] = useState(currentOrg?.phone || currentOrg?.whatsapp || '');\n  const [email, setEmail] = useState(currentOrg?.email || '');");
+if (!code.includes('import PricingSection')) {
+    code = code.replace("import { Settings, Image as ImageIcon, Save, Loader2, Store, CreditCard, ChevronRight, XCircle, ArrowRight, Upload, AlertCircle, Copy, Check, Info } from 'lucide-react';",
+    "import { Settings, Image as ImageIcon, Save, Loader2, Store, CreditCard, ChevronRight, XCircle, ArrowRight, Upload, AlertCircle, Copy, Check, Info } from 'lucide-react';\nimport PricingSection from '../../components/ui/pricing-section-4';");
+}
 
-const updateRegex = /const updatedOrg: Partial<any> = \{\n\s*name: clinicName,/;
-code = code.replace(updateRegex, "const updatedOrg: Partial<any> = {\n          name: clinicName,\n          phone,\n          whatsapp: phone,\n          email,");
+const targetRegex = /<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">[\s\S]*?<\/div>[\s\S]*?<\/div>/;
 
-const renderRegex = /<label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CPF ou CNPJ para Faturamento<\/label>/;
-const newRender = `<label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email da Clínica</label>
-                                 <input value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" />
-                             </div>
-                             <div>
-                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">WhatsApp / Telefone</label>
-                                 <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="(00) 00000-0000" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-slate-800" />
-                             </div>
-                             <div>
-                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CPF ou CNPJ para Faturamento</label>`;
-code = code.replace(renderRegex, newRender);
+const replacement = `<PricingSection 
+                            plans={allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC')}
+                            selectedPlanId={activePlan?.id || ''}
+                            onSelectPlan={(id) => {
+                                if (id !== activePlan?.id) {
+                                    handleUpgrade(id);
+                                }
+                            }}
+                            regType="DENTIST"
+                            title="Planos para Dentistas"
+                            subtitle="Evolua sua clínica com as melhores ferramentas"
+                        />
+                      </div>`;
 
-fs.writeFileSync('pages/clinic/ClinicSettings.tsx', code);
-console.log('Fixed ClinicSettings');
+if (code.includes('grid grid-cols-1 md:grid-cols-3 gap-6 mb-8')) {
+    code = code.replace(targetRegex, replacement);
+    fs.writeFileSync('pages/clinic/ClinicSettings.tsx', code);
+    console.log("Patched ClinicSettings");
+} else {
+    console.log("Could not find the target grid in ClinicSettings");
+}
