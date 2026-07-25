@@ -2057,7 +2057,7 @@ export const JobDetails = () => {
                                                  .map(j => (
                                                 <button 
                                                     key={j.id} 
-                                                    onClick={() => { setIsCasesDropdownOpen(false); navigate(`/lab/jobs/${j.id}`); }} 
+                                                    onClick={() => { setIsCasesDropdownOpen(false); navigate(`/jobs/${j.id}`); }} 
                                                     className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors text-sm font-mono font-bold text-slate-700 flex items-center justify-between"
                                                 >
                                                     <span>OS {j.osNumber || 'N/A'}</span>

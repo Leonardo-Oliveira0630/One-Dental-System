@@ -1056,7 +1056,7 @@ export const GlobalScanner: React.FC = () => {
                                              .map(j => (
                                             <button 
                                                 key={j.id} 
-                                                onClick={() => { setIsCasesDropdownOpen(false); setScannedJob(null); navigate(`/lab/jobs/${j.id}`); }} 
+                                                onClick={() => { setIsCasesDropdownOpen(false); setScannedJob(null); navigate(`/jobs/${j.id}`); }} 
                                                 className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors text-sm font-mono font-bold text-slate-700 flex items-center justify-between"
                                             >
                                                 <span>OS {j.osNumber || 'N/A'}</span>
@@ -1069,7 +1069,7 @@ export const GlobalScanner: React.FC = () => {
                         </div>
                     )}
                     <button 
-                        onClick={() => { setScannedJob(null); navigate(`/lab/jobs/${scannedJob.id}`); }} 
+                        onClick={() => { setScannedJob(null); navigate(`/jobs/${scannedJob.id}`); }} 
                         className="font-mono font-black text-2xl text-blue-600 hover:text-blue-800 transition-colors hover:underline cursor-pointer text-right"
                     >
                         {scannedJob.osNumber || "N/A"}
