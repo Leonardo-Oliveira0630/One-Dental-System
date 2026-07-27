@@ -378,7 +378,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                         
                         <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                         {isBuyer && (
-                          <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/requisitions'} />
+                          <>
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/cases" icon={<Briefcase size={20} />} label="Meus Casos" active={location.pathname === '/dentist/cases' || location.pathname === '/my-cases'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/requisitions'} />
+                          </>
                         )}
                         <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
                       </>

@@ -38,6 +38,7 @@ import { Inventory } from './pages/lab/Inventory';
 import { PriceTables } from './pages/lab/PriceTables';
 import { IncomingRequisitions } from './pages/lab/IncomingRequisitions';
 import { DentistRequisitions } from './pages/dentist/DentistRequisitions';
+import { DentistCases } from './pages/dentist/DentistCases';
 import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
 import { Plans } from './pages/superadmin/Plans';
 import { Coupons } from './pages/superadmin/Coupons';
@@ -191,6 +192,8 @@ const AppContent = () => {
       <Route path="/clinic-settings" element={<ProtectedRoute><ClinicSettings /></ProtectedRoute>} />
       <Route path="/dentist/partnerships" element={<ProtectedRoute><Partnerships /></ProtectedRoute>} />
       <Route path="/requisitions" element={<ProtectedRoute><DentistRequisitions /></ProtectedRoute>} />
+      <Route path="/dentist/cases" element={<ProtectedRoute><DentistCases /></ProtectedRoute>} />
+      <Route path="/my-cases" element={<ProtectedRoute><DentistCases /></ProtectedRoute>} />
 
       <Route path="/supplier/dashboard" element={<ProtectedRoute><SupplierDashboard /></ProtectedRoute>} />
       <Route path="/supplier/products" element={<ProtectedRoute><SupplierProducts /></ProtectedRoute>} />
