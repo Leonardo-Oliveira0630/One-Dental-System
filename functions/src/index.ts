@@ -2194,3 +2194,64 @@ export const sendDeleteCodeEmail = onCall(async (request) => {
   return { success: true };
 });
 
+/**
+ * CANCELA ASSINATURA E COBRANÇAS PENDENTES DO ASAAS AO DELETAR ORGANIZAÇÃO/SISTEMA
+ */
+export const cancelAsaasSubscriptionOnDelete = onCall(async (request) => {
+  const { orgId } = request.data || {};
+  if (!orgId) {
+    throw new HttpsError("invalid-argument", "ID da organização não fornecido.");
+  }
+
+  const { key, url } = await getAsaasConfig();
+  try {
+    const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
+    if (orgSnap.exists) {
+      const orgData = orgSnap.data();
+      const subId = orgData?.subscriptionId;
+      const customerId = orgData?.asaasCustomerId;
+
+      // 1. Cancelar a assinatura recorrente no Asaas (DELETE /subscriptions/{id})
+      if (subId) {
+        try {
+          logger.info(`[CancelAsaas] Cancelando assinatura Asaas ${subId} para org ${orgId}`);
+          await axios.delete(`${url}/subscriptions/${subId}`, {
+            headers: { access_token: key },
+          });
+        } catch (e: any) {
+          logger.warn(`[CancelAsaas] Aviso ao deletar assinatura ${subId}:`, e.response?.data || e.message);
+        }
+      }
+
+      // 2. Cancelar faturas/boletos pendentes no Asaas para evitar novas cobranças ao cliente
+      try {
+        const queryParam = subId ? `subscription=${subId}` : (customerId ? `customer=${customerId}` : "");
+        if (queryParam) {
+          const pendingRes = await axios.get(`${url}/payments?${queryParam}&status=PENDING`, {
+            headers: { access_token: key },
+          });
+          const pendingPayments = pendingRes.data?.data || [];
+          for (const payment of pendingPayments) {
+            try {
+              logger.info(`[CancelAsaas] Cancelando cobrança pendente Asaas ${payment.id}`);
+              await axios.delete(`${url}/payments/${payment.id}`, {
+                headers: { access_token: key },
+              });
+            } catch (pErr: any) {
+              logger.warn(`[CancelAsaas] Erro ao cancelar cobrança ${payment.id}:`, pErr.response?.data || pErr.message);
+            }
+          }
+        }
+      } catch (pListErr: any) {
+        logger.warn("[CancelAsaas] Erro ao listar cobranças pendentes no Asaas:", pListErr.response?.data || pListErr.message);
+      }
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    logger.error("[CancelAsaas] Erro crítico ao cancelar no Asaas:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+

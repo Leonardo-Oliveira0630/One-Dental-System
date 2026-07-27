@@ -1556,6 +1556,15 @@ export const apiDeleteEntireSystem = async (orgId: string, userId: string) => {
 
     if (!orgId) throw new Error("ID da organização não fornecido.");
 
+    // 0. Cancelar assinatura recorrente e cobranças pendentes no Asaas para cessar emissão de faturas
+    try {
+        const fn = httpsCallable(functions, 'cancelAsaasSubscriptionOnDelete');
+        await fn({ orgId });
+        logger.info(`[DeleteSystem] Chamada de cancelamento no Asaas executada para org: ${orgId}`);
+    } catch (asaasErr) {
+        logger.warn({ err: asaasErr }, '[DeleteSystem] Aviso ao cancelar assinatura Asaas');
+    }
+
     const subcollections = [
         'jobs', 'requisitions', 'patients', 'suppliers', 'expenses', 
         'commissions', 'alerts', 'jobTypes', 'inventoryCategories', 
