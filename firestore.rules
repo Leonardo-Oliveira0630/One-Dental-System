@@ -212,6 +212,30 @@ service cloud.firestore {
       );
     }
 
+    match /supplierCoupons/{couponId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        belongsToOrg(request.resource.data.organizationId)
+      );
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        belongsToOrg(resource.data.organizationId) ||
+        (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount']) &&
+          request.resource.data.usedCount == resource.data.usedCount + 1
+        )
+      );
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        belongsToOrg(resource.data.organizationId)
+      );
+    }
+
+    match /imageMetadata/{imageId} {
+      allow read, write: if isAuthenticated();
+    }
+
     match /subscriptionPlans/{planId} {
       allow read: if true; // Allow public reading for registration
       allow write: if isSuperAdmin();

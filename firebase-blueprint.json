@@ -116,9 +116,30 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["senderId", "senderName", "senderRole", "text"]
+    },
+    "SupplierCoupon": {
+      "title": "SupplierCoupon",
+      "description": "Discount coupons offered by suppliers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "organizationId": { "type": "string" },
+        "code": { "type": "string" },
+        "discountType": { "type": "string", "enum": ["PERCENTAGE", "FIXED"] },
+        "discountValue": { "type": "number" },
+        "maxUses": { "type": "number" },
+        "usedCount": { "type": "number" },
+        "active": { "type": "boolean" },
+        "applicableProductIds": { "type": "array" }
+      },
+      "required": ["organizationId", "code", "discountType", "discountValue", "usedCount", "active"]
     }
   },
   "firestore": {
+    "/supplierCoupons/{couponId}": {
+      "schema": "SupplierCoupon",
+      "description": "Supplier discount coupons"
+    },
     "/users/{userId}": {
       "schema": "User",
       "description": "User documents"
