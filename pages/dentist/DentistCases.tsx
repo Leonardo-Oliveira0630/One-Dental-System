@@ -335,13 +335,13 @@ export const DentistCases = () => {
 
       // Status Filter
       if (statusFilter === 'ACTIVE') {
-        const isDone = c.status === JobStatus.COMPLETED || c.status === JobStatus.DELIVERED || c.status === JobStatus.CANCELED || c.status === JobStatus.REJECTED || c.status === 'REJECTED';
+        const isDone = (c.status as string) === JobStatus.COMPLETED || (c.status as string) === JobStatus.DELIVERED || (c.status as string) === JobStatus.CANCELED || (c.status as string) === JobStatus.REJECTED || (c.status as string) === 'REJECTED';
         if (isDone) return false;
       } else if (statusFilter === 'PENDING') {
-        const isPending = c.status === JobStatus.PENDING || c.status === JobStatus.WAITING_APPROVAL || c.status === 'PENDING';
+        const isPending = (c.status as string) === JobStatus.PENDING || (c.status as string) === JobStatus.WAITING_APPROVAL || (c.status as string) === 'PENDING';
         if (!isPending) return false;
       } else if (statusFilter === 'COMPLETED') {
-        const isDone = c.status === JobStatus.COMPLETED || c.status === JobStatus.DELIVERED;
+        const isDone = (c.status as string) === JobStatus.COMPLETED || (c.status as string) === JobStatus.DELIVERED;
         if (!isDone) return false;
       }
 
@@ -353,17 +353,17 @@ export const DentistCases = () => {
   const stats = useMemo(() => {
     const total = unifiedCases.length;
     const active = unifiedCases.filter(c => 
-      c.status !== JobStatus.COMPLETED && 
-      c.status !== JobStatus.DELIVERED && 
-      c.status !== JobStatus.CANCELED && 
-      c.status !== JobStatus.REJECTED && 
-      c.status !== 'REJECTED'
+      (c.status as string) !== JobStatus.COMPLETED && 
+      (c.status as string) !== JobStatus.DELIVERED && 
+      (c.status as string) !== JobStatus.CANCELED && 
+      (c.status as string) !== JobStatus.REJECTED && 
+      (c.status as string) !== 'REJECTED'
     ).length;
     const waitingApproval = unifiedCases.filter(c => 
-      c.status === JobStatus.WAITING_APPROVAL || c.status === JobStatus.PENDING || c.status === 'PENDING'
+      (c.status as string) === JobStatus.WAITING_APPROVAL || (c.status as string) === JobStatus.PENDING || (c.status as string) === 'PENDING'
     ).length;
     const completed = unifiedCases.filter(c => 
-      c.status === JobStatus.COMPLETED || c.status === JobStatus.DELIVERED
+      (c.status as string) === JobStatus.COMPLETED || (c.status as string) === JobStatus.DELIVERED
     ).length;
 
     return { total, active, waitingApproval, completed };

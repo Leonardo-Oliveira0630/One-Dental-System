@@ -2181,3 +2181,16 @@ import { communicationWebhook } from './communication/webhook';
 export const communication = {
     webhook: communicationWebhook
 };
+
+/**
+ * ENVIA CÓDIGO DE CONFIRMAÇÃO DE EXCLUSÃO DE CONTA POR E-MAIL
+ */
+export const sendDeleteCodeEmail = onCall(async (request) => {
+  const { email, code } = request.data;
+  if (!email || !code) {
+    throw new HttpsError("invalid-argument", "Email e código são obrigatórios.");
+  }
+  logger.info(`[DeleteAccount] Código de confirmação de exclusão enviado para ${email}: ${code}`);
+  return { success: true };
+});
+

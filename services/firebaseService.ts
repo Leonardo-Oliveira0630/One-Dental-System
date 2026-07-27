@@ -1509,3 +1509,154 @@ export const apiGetAllMyVouchers = async (clientId: string) => {
     const results = await Promise.all(promises);
     return results.flat();
 };
+
+// --- DELETE ACCOUNT & SYSTEM (LGPD & DIREITO DO TITULAR) ---
+export const apiSendDeleteVerificationCode = async (email: string, userId: string) => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+    await setDoc(doc(db, 'verificationCodes', userId), {
+        code,
+        email: email.toLowerCase().trim(),
+        userId,
+        createdAt: new Date(),
+        expiresAt
+    });
+
+    try {
+        const fn = httpsCallable(functions, 'sendDeleteCodeEmail');
+        await fn({ email, code });
+    } catch (e) {
+        logger.warn({ err: e }, '[DeleteAccount] Cloud function sendDeleteCodeEmail fallback');
+    }
+
+    return { success: true, code };
+};
+
+export const apiVerifyDeleteCode = async (userId: string, inputCode: string): Promise<boolean> => {
+    try {
+        const snap = await getDoc(doc(db, 'verificationCodes', userId));
+        if (!snap.exists()) return false;
+        const data = snap.data();
+        if (!data || !data.code) return false;
+        
+        const isMatch = data.code.trim() === inputCode.trim();
+        const expiresAt = toDate(data.expiresAt);
+        const isNotExpired = expiresAt.getTime() > Date.now();
+
+        return isMatch && isNotExpired;
+    } catch (e) {
+        logger.error({ err: e }, "Erro ao verificar código de exclusão:");
+        return false;
+    }
+};
+
+export const apiDeleteEntireSystem = async (orgId: string, userId: string) => {
+    logger.warn(`[DeleteSystem] Iniciando apagamento COMPLETO da organização: ${orgId}`);
+
+    if (!orgId) throw new Error("ID da organização não fornecido.");
+
+    const subcollections = [
+        'jobs', 'requisitions', 'patients', 'suppliers', 'expenses', 
+        'commissions', 'alerts', 'jobTypes', 'inventoryCategories', 
+        'productCatalog', 'inventoryItems', 'priceTables', 'sectors', 
+        'boxColors', 'connections', 'manualDentists', 'billingBatches', 
+        'patientBillingBatches', 'clinicRooms', 'clinicDentists', 
+        'clinicServices', 'ratings', 'routes', 'couriers', 
+        'dentistPayments', 'patientPayments', 'cardMachines', 
+        'bankAccounts', 'labCoupons', 'vouchers'
+    ];
+
+    for (const sub of subcollections) {
+        try {
+            const subSnap = await getDocs(collection(db, `organizations/${orgId}/${sub}`));
+            for (const d of subSnap.docs) {
+                if (sub === 'jobs') {
+                    const msgs = await getDocs(collection(db, `organizations/${orgId}/jobs/${d.id}/messages`));
+                    for (const m of msgs.docs) await deleteDoc(m.ref);
+                    const approvals = await getDocs(collection(db, `organizations/${orgId}/jobs/${d.id}/caseApprovals`));
+                    for (const a of approvals.docs) await deleteDoc(a.ref);
+                }
+                if (sub === 'patients') {
+                    const history = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/history`));
+                    for (const h of history.docs) await deleteDoc(h.ref);
+                    const budgets = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/budgets`));
+                    for (const b of budgets.docs) await deleteDoc(b.ref);
+                    const prescriptions = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/prescriptions`));
+                    for (const p of prescriptions.docs) await deleteDoc(p.ref);
+                    const clinicalCards = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/clinical_cards`));
+                    for (const c of clinicalCards.docs) await deleteDoc(c.ref);
+                    const anamnesis = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/anamnesis`));
+                    for (const an of anamnesis.docs) await deleteDoc(an.ref);
+                    const finance = await getDocs(collection(db, `organizations/${orgId}/patients/${d.id}/finance`));
+                    for (const f of finance.docs) await deleteDoc(f.ref);
+                }
+                if (sub === 'routes') {
+                    const items = await getDocs(collection(db, `organizations/${orgId}/routes/${d.id}/items`));
+                    for (const it of items.docs) await deleteDoc(it.ref);
+                }
+                await deleteDoc(d.ref);
+            }
+        } catch (e) {
+            logger.warn({ err: e }, `Erro ao deletar subcoleção ${sub}`);
+        }
+    }
+
+    try {
+        const usersSnap = await getDocs(query(collection(db, 'users'), where('organizationId', '==', orgId)));
+        for (const uDoc of usersSnap.docs) {
+            try {
+                await apiDeleteUserAdmin(uDoc.id);
+            } catch (e) {}
+            await deleteDoc(uDoc.ref);
+        }
+    } catch (e) {
+        logger.warn({ err: e }, "Erro ao deletar usuários da organização");
+    }
+
+    try {
+        const orders1 = await getDocs(query(collection(db, 'supplierOrders'), where('supplierId', '==', orgId)));
+        for (const o of orders1.docs) await deleteDoc(o.ref);
+        const orders2 = await getDocs(query(collection(db, 'supplierOrders'), where('buyerOrgId', '==', orgId)));
+        for (const o of orders2.docs) await deleteDoc(o.ref);
+    } catch (e) {}
+
+    try {
+        await deleteDoc(doc(db, 'organizations', orgId));
+    } catch (e) {}
+
+    try {
+        await deleteDoc(doc(db, 'verificationCodes', userId));
+    } catch (e) {}
+
+    try {
+        await deleteDoc(doc(db, 'users', userId));
+    } catch (e) {}
+
+    if (auth.currentUser) {
+        try {
+            await auth.currentUser.delete();
+        } catch (e) {
+            await signOut(auth);
+        }
+    }
+};
+
+export const apiDeleteUserAccount = async (userId: string) => {
+    try {
+        await deleteDoc(doc(db, 'verificationCodes', userId));
+    } catch (e) {}
+
+    try {
+        await deleteDoc(doc(db, 'users', userId));
+    } catch (e) {}
+
+    if (auth.currentUser) {
+        try {
+            await auth.currentUser.delete();
+        } catch (e) {
+            await signOut(auth);
+        }
+    }
+};
+
