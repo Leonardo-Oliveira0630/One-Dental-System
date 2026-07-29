@@ -1227,3 +1227,29 @@ export interface MessageLog {
   failedReason?: string;
   createdAt?: Date;
 }
+
+export interface NfcKit {
+  id: string;
+  codigoKit: string;
+  nome: string;
+  descricao?: string;
+  quantidadeCaixas: number;
+  caixaInicial: number;
+  caixaFinal: number;
+  status: 'Disponível' | 'Vendido' | 'Ativado';
+  empresaDestino?: string | null;
+  createdAt: any;
+  updatedAt: any;
+  activatedAt?: any;
+  activatedBy?: string;
+  activatedByOrgId?: string;
+}
+
+export interface NfcBox {
+  id: string;
+  numeroCaixa: string;
+  uid: string;
+  textoGravado?: string;
+  status: 'Disponível' | 'Associada';
+  updatedAt?: any;
+}

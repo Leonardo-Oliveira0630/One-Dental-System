@@ -42,6 +42,7 @@ import { DentistCases } from './pages/dentist/DentistCases';
 import { SuperAdminDashboard } from './pages/superadmin/Dashboard';
 import { Plans } from './pages/superadmin/Plans';
 import { Coupons } from './pages/superadmin/Coupons';
+import { NfcKitsAdmin } from './pages/superadmin/NfcKitsAdmin';
 import Subscriptions from './pages/superadmin/Subscriptions';
 import SuperAdminFinance from './pages/superadmin/Finance';
 import { Tutorials } from './pages/superadmin/Tutorials';
@@ -208,6 +209,7 @@ const AppContent = () => {
       <Route path="/superadmin" element={<ProtectedRoute><SuperAdminDashboard /></ProtectedRoute>} />
       <Route path="/superadmin/plans" element={<ProtectedRoute><Plans /></ProtectedRoute>} />
       <Route path="/superadmin/coupons" element={<ProtectedRoute><Coupons /></ProtectedRoute>} />
+      <Route path="/superadmin/nfc" element={<ProtectedRoute><NfcKitsAdmin /></ProtectedRoute>} />
       <Route path="/superadmin/subscriptions" element={<ProtectedRoute><Subscriptions /></ProtectedRoute>} />
       <Route path="/superadmin/categories" element={<ProtectedRoute><MarketplaceCategoriesAdmin /></ProtectedRoute>} />
       <Route path="/superadmin/finance" element={<ProtectedRoute><SuperAdminFinance /></ProtectedRoute>} />

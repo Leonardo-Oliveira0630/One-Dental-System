@@ -232,6 +232,17 @@ service cloud.firestore {
       );
     }
 
+    match /nfc_kits/{kitId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isSuperAdmin();
+      allow update: if isAuthenticated();
+      
+      match /boxes/{boxId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isSuperAdmin();
+      }
+    }
+
     match /imageMetadata/{imageId} {
       allow read, write: if isAuthenticated();
     }

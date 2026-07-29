@@ -7,7 +7,7 @@ import {
   LayoutDashboard, List, Calendar, ShoppingBag, 
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
-  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList
+  Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList, Cpu
 , ChevronLeft, MessageSquare} from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner, ManualScannerInput } from './Scanner';
@@ -276,6 +276,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 {isSuperAdmin && (
                   <>
                     <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
+                    <SidebarItem to="/superadmin/nfc" icon={<Cpu size={20} />} label="Gerenciar Kits NFC" active={location.pathname === '/superadmin/nfc'} />
                     <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label="Planos" active={location.pathname === '/superadmin/plans'} />
                     <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/superadmin/coupons'} />
                     <SidebarItem to="/superadmin/subscriptions" icon={<Users size={20} />} label="Assinaturas" active={location.pathname === '/superadmin/subscriptions'} />

@@ -7,20 +7,32 @@ import { Loader2, AlertTriangle, Box } from 'lucide-react';
 export const NFCReader: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { jobs } = useApp();
+    const { jobs, nfcBoxes } = useApp();
     const [error, setError] = useState<string | null>(null);
     
     useEffect(() => {
-        const boxNumber = searchParams.get('box');
+        const boxParam = searchParams.get('box');
         
-        if (!boxNumber) {
-            setError('Nenhum número de caixa fornecido na tag NFC.');
+        if (!boxParam) {
+            setError('Nenhum número de caixa ou UID fornecido na tag NFC.');
             return;
+        }
+
+        const rawBoxParam = boxParam.trim().toUpperCase();
+        let finalBoxNumber = rawBoxParam;
+
+        // Verificar se é um UID cadastrado nas caixas NFC do laboratório
+        if (nfcBoxes && nfcBoxes.length > 0) {
+            const matchedBox = nfcBoxes.find(b => b.uid && b.uid.trim().toUpperCase() === rawBoxParam);
+            if (matchedBox) {
+                finalBoxNumber = String(matchedBox.numeroCaixa).trim().toUpperCase();
+                console.log(`[NFCReader] Mapeando UID ${rawBoxParam} para Caixa #${finalBoxNumber}`);
+            }
         }
 
         // Tentar encontrar um trabalho ativo com esta caixa
         const activeJob = jobs.find(j => 
-            j.boxNumber === boxNumber && 
+            j.boxNumber === finalBoxNumber && 
             ![JobStatus.COMPLETED, JobStatus.DELIVERED, JobStatus.CANCELED, JobStatus.REJECTED].includes(j.status)
         );
 
@@ -36,15 +48,15 @@ export const NFCReader: React.FC = () => {
             
             // Para não quebrar a lógica atual, redirecionamos para os detalhes do caso, e lá o usuário vê que a caixa foi lida.
             // Ou melhor, podemos disparar um evento customizado 'nfcScan' que o GlobalScanner pode escutar!
-            window.dispatchEvent(new CustomEvent('nfcScan', { detail: { code: boxNumber } }));
+            window.dispatchEvent(new CustomEvent('nfcScan', { detail: { code: finalBoxNumber } }));
             
             // Redirect para a home (onde o scanner vai aparecer)
             navigate('/dashboard', { replace: true });
         } else {
-            setError(`Nenhum trabalho ativo encontrado para a caixa ${boxNumber}.`);
+            setError(`Nenhum trabalho ativo encontrado para a caixa #${finalBoxNumber}.`);
         }
         
-    }, [jobs, searchParams, navigate]);
+    }, [jobs, nfcBoxes, searchParams, navigate]);
 
     if (error) {
         return (

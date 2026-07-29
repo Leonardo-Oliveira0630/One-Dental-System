@@ -1669,3 +1669,10 @@ export const apiDeleteUserAccount = async (userId: string) => {
     }
 };
 
+export const subscribeNfcBoxes = (orgId: string, cb: (boxes: any[]) => void) => {
+    if (!orgId) return () => {};
+    return onSnapshot(collection(db, `organizations/${orgId}/nfcBoxes`), (snap: any) => {
+        cb(snap.docs.map((d: any) => ({ id: d.id, ...d.data() as any })));
+    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeNfcBoxes: ${error.code}`));
+};
+

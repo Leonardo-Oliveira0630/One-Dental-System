@@ -23,7 +23,7 @@ const playNativeHaptic = async (isSuccess: boolean) => {
 };
 
 export const GlobalScanner: React.FC = () => {
-  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes } = useApp();
+  const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes } = useApp();
   const navigate = useNavigate();
   const bufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
@@ -91,6 +91,7 @@ export const GlobalScanner: React.FC = () => {
   const scannedJobRef = useRef(scannedJob);
   const scanActionRef = useRef(scanAction);
   const nextSectorRef = useRef(nextSector);
+  const nfcBoxesRef = useRef(nfcBoxes);
   
   // Web NFC API integration
   useEffect(() => {
@@ -254,7 +255,8 @@ export const GlobalScanner: React.FC = () => {
     scanActionRef.current = scanAction;
     nextSectorRef.current = nextSector;
     isUploadingRef.current = isUploading;
-  }, [currentUser, isCameraActive, jobs, commissions, jobTypes, scannedJob, scanAction, nextSector, jobMap, isUploading]);
+    nfcBoxesRef.current = nfcBoxes;
+  }, [currentUser, isCameraActive, jobs, commissions, jobTypes, scannedJob, scanAction, nextSector, jobMap, isUploading, nfcBoxes]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -656,12 +658,24 @@ export const GlobalScanner: React.FC = () => {
             );
         }
         
-        // Busca por Número da Caixa (NFC)
+        // Busca por UID da Caixa NFC do laboratório ou por Número da Caixa (NFC)
         if (!job) {
+            let searchBoxNumber = rawCode;
+            if (nfcBoxesRef.current && nfcBoxesRef.current.length > 0) {
+                const matchedBox = nfcBoxesRef.current.find(b => 
+                    (b.uid && b.uid.trim().toUpperCase() === rawCode) ||
+                    (b.uid && b.uid.trim().toUpperCase() === cleanedCode)
+                );
+                if (matchedBox) {
+                    searchBoxNumber = String(matchedBox.numeroCaixa).trim().toUpperCase();
+                    console.log(`[Scanner] UID NFC mapeado para Caixa #${searchBoxNumber}`);
+                }
+            }
+
             const activeJobWithBox = jobsRef.current.find(j => {
                 if (!j.boxNumber) return false;
                 const box = String(j.boxNumber).trim().toUpperCase();
-                return box === rawCode || box === cleanedCode;
+                return box === searchBoxNumber || box === rawCode || box === cleanedCode;
             });
             
             if (activeJobWithBox && !['COMPLETED', 'DELIVERED', 'CANCELED', 'REJECTED'].includes(activeJobWithBox.status)) {

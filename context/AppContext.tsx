@@ -119,6 +119,7 @@ interface AppContextType {
   activeAlert: JobAlert | null;
   onlineRequisitions: OnlineRequisition[];
   activeManualDentistId: string | null;
+  nfcBoxes: any[];
 
   addOnlineRequisition: (labId: string, req: Omit<OnlineRequisition, 'id' | 'createdAt' | 'status'>) => Promise<void>;
   updateOnlineRequisition: (labId: string, id: string, updates: Partial<OnlineRequisition>) => Promise<void>;
@@ -318,6 +319,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [couriers, setCouriers] = useState<Courier[]>([]);
   const [onlineRequisitions, setOnlineRequisitions] = useState<OnlineRequisition[]>([]);
   const [activeManualDentistId, setActiveManualDentistId] = useState<string | null>(null);
+  const [nfcBoxes, setNfcBoxes] = useState<any[]>([]);
 
   const [activeOrganization, setActiveOrganization] = useState<Organization | null>(null);
   const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
@@ -553,6 +555,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeInventoryCategories(myOrgId, setInventoryCategories));
             unsubs.push(api.subscribeInventoryItems(myOrgId, setInventoryItems));
             unsubs.push(api.subscribeProductCatalogItems(myOrgId, setProductCatalogItems));
+            unsubs.push(api.subscribeNfcBoxes(myOrgId, setNfcBoxes));
             if (currentOrg?.orgType !== 'CLINIC') {
                 unsubs.push(api.subscribeLabOnlineRequisitions(myOrgId, setOnlineRequisitions));
             }
@@ -1416,6 +1419,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     cardMachines, bankAccounts, inventoryCategories, inventoryItems, productCatalogItems,
     activeAlert,
     allPayments,
+    nfcBoxes,
     login, logout, updateUser, addUser, deleteUser,
     addJob, updateJob, addCommissionRecord, updateCommissionStatus, updateCommissionRecord, deleteCommissionRecord,
     addInventoryCategory, updateInventoryCategory, deleteInventoryCategory, addInventoryItem, updateInventoryItem, deleteInventoryItem,
@@ -1455,7 +1459,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allSuppliers, allSupplierProducts, supplierOrders,
-    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions
+    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions, nfcBoxes
   ]);
 
   return (
