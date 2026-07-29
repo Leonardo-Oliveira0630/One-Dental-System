@@ -109,46 +109,50 @@ export const GlobalScanner: React.FC = () => {
           console.log("NFC Scanner started successfully!");
           
           ndef.addEventListener("reading", ({ message, serialNumber }: any) => {
-            console.log("[Web NFC] Tag detected:", serialNumber);
+            console.log("[Web NFC] Tag detected. SerialNumber:", serialNumber);
+            
+            // Decodificar registros NDEF (se houver texto/URL gravados na memória)
+            let textValue = '';
             try {
               for (const record of message.records) {
-                console.log("[Web NFC] Record Type:", record.recordType, "Media Type:", record.mediaType);
                 if (record.recordType === "text" || (record.recordType === "mime" && record.mediaType === "text/plain")) {
                   const textDecoder = new TextDecoder(record.encoding || 'utf-8');
-                  const text = textDecoder.decode(record.data);
-                  console.log("[Web NFC] Text/Mime record:", text);
-                  if (processScanRef.current) {
-                      processScanRef.current(text);
-                  }
+                  textValue = textDecoder.decode(record.data);
                   break;
                 } else if (record.recordType === "url") {
                   const textDecoder = new TextDecoder(record.encoding || 'utf-8');
                   const url = textDecoder.decode(record.data);
-                  console.log("[Web NFC] URL record:", url);
                   const parts = url.split('/');
                   const lastPart = parts[parts.length - 1];
-                  if (lastPart) {
-                    if (processScanRef.current) {
-                        processScanRef.current(lastPart);
-                    }
-                  }
+                  if (lastPart) textValue = lastPart;
                   break;
                 } else {
-                  // Fallback
                   const textDecoder = new TextDecoder('utf-8');
                   const text = textDecoder.decode(record.data);
-                  console.log("[Web NFC] Fallback record decode:", text);
                   if (text && text.length > 0 && text.length < 50) {
-                      if (processScanRef.current) {
-                          processScanRef.current(text);
-                      }
-                      break;
+                    textValue = text;
+                    break;
                   }
                 }
               }
             } catch (error: any) {
               console.error("[Web NFC] Error processing reading:", error);
-              alert("Erro ao processar tag NFC: " + error.message);
+            }
+
+            // Normalizar o UID do hardware (ex: "04:A1:B2:C3" -> "04A1B2C3")
+            const cleanSerialNumber = serialNumber ? String(serialNumber).replace(/[:\s-]/g, '').toUpperCase() : '';
+            const cleanText = textValue ? textValue.trim().toUpperCase() : '';
+
+            // Processar a leitura no scanner
+            if (processScanRef.current) {
+              if (cleanSerialNumber) {
+                console.log("[Web NFC] Processando Serial Number (UID):", cleanSerialNumber);
+                processScanRef.current(cleanSerialNumber);
+              }
+              if (cleanText && cleanText !== cleanSerialNumber) {
+                console.log("[Web NFC] Processando Texto NDEF:", cleanText);
+                processScanRef.current(cleanText);
+              }
             }
           });
           
@@ -658,17 +662,26 @@ export const GlobalScanner: React.FC = () => {
             );
         }
         
-        // Busca por UID da Caixa NFC do laboratório ou por Número da Caixa (NFC)
+        // Busca por UID da Caixa NFC do laboratório, Número da Caixa (NFC) ou Texto Gravado
         if (!job) {
             let searchBoxNumber = rawCode;
             if (nfcBoxesRef.current && nfcBoxesRef.current.length > 0) {
-                const matchedBox = nfcBoxesRef.current.find(b => 
-                    (b.uid && b.uid.trim().toUpperCase() === rawCode) ||
-                    (b.uid && b.uid.trim().toUpperCase() === cleanedCode)
-                );
+                const matchedBox = nfcBoxesRef.current.find(b => {
+                    const cleanBoxUid = b.uid ? b.uid.trim().toUpperCase().replace(/[:\s-]/g, '') : '';
+                    const cleanBoxNum = String(b.numeroCaixa || '').trim().toUpperCase().replace(/^0+/, '');
+                    const cleanRawNum = rawCode.replace(/^0+/, '');
+                    const cleanText = (b.textoGravado || '').trim().toUpperCase();
+
+                    return (
+                        (cleanBoxUid && (cleanBoxUid === rawCode || cleanBoxUid === cleanedCode)) ||
+                        (b.uid && b.uid.trim().toUpperCase() === rawCode) ||
+                        (cleanBoxNum && cleanBoxNum === cleanRawNum) ||
+                        (cleanText && (cleanText === rawCode || rawCode.includes(cleanText)))
+                    );
+                });
                 if (matchedBox) {
                     searchBoxNumber = String(matchedBox.numeroCaixa).trim().toUpperCase();
-                    console.log(`[Scanner] UID NFC mapeado para Caixa #${searchBoxNumber}`);
+                    console.log(`[Scanner] Tag NFC mapeada para Caixa #${searchBoxNumber}`);
                 }
             }
 

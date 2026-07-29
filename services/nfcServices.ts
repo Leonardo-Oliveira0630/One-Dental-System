@@ -39,6 +39,7 @@ export const NfcReaderService = {
       await ndef.scan({ signal });
 
       ndef.addEventListener("reading", ({ message, serialNumber }: any) => {
+        // Decodificar conteúdo NDEF se houver
         let textValue = '';
         try {
           for (const record of message.records) {
@@ -65,7 +66,11 @@ export const NfcReaderService = {
           console.error("Erro ao decodificar registro NDEF:", err);
         }
 
-        onScan(serialNumber, textValue);
+        // Sanitizar e normalizar o serialNumber (remover dois-pontos e espaços, ex: "04:A1:B2:C3" -> "04A1B2C3")
+        const cleanSerialNumber = serialNumber ? String(serialNumber).replace(/[:\s-]/g, '').toUpperCase() : '';
+        const cleanText = textValue ? textValue.trim() : '';
+
+        onScan(cleanSerialNumber, cleanText);
       });
     } catch (err) {
       if (onError) onError(err);

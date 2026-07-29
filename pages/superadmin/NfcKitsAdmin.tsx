@@ -151,8 +151,14 @@ export const NfcKitsAdmin: React.FC = () => {
 
   // Core Processing of Tag Scanned (for both Web NFC and Keyboard USB HID reader)
   const processTagScanned = async (uid: string, nfcText?: string) => {
-    const cleanUid = uid.trim().toUpperCase();
-    if (!cleanUid) return;
+    // No celular, se o hardware UID vier bloqueado/vazio pelo browser, utiliza o texto NDEF gravado na memória
+    const rawUid = uid || nfcText || '';
+    const cleanUid = rawUid.trim().toUpperCase().replace(/[:\s-]/g, '');
+    if (!cleanUid) {
+      setScanMessage({ text: 'Nenhum UID ou texto NDEF detectado na leitura da tag.', type: 'error' });
+      playBeep(false);
+      return;
+    }
 
     const kit = activeScanKitRef.current;
     if (!kit) return;
