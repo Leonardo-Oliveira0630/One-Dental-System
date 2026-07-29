@@ -94,6 +94,31 @@ export function getNfcUidFormats(uidInput: string): {
       if (pairs.length > 1) {
         candidates.add(pairs.join(':'));
       }
+
+      // Se for uma tag de 7 bytes (14 caracteres HEX, comum em NTAG213/215/216 e MIFARE)
+      if (raw.length >= 14) {
+        // Leitores USB de 4 bytes recortam os primeiros 4 bytes (8 caracteres HEX)
+        const first4Hex = raw.slice(0, 8); // ex: "0427DE7D"
+        candidates.add(first4Hex);
+
+        const first4Pairs = first4Hex.match(/.{1,2}/g) || [];
+        const reversedFirst4 = [...first4Pairs].reverse().join(''); // ex: "7DDE2704"
+        if (reversedFirst4) {
+          candidates.add(reversedFirst4);
+          try {
+            const decReversedFirst4 = BigInt('0x' + reversedFirst4).toString(10); // ex: "2111710980"
+            candidates.add(decReversedFirst4);
+            if (!uidDecimal || uidDecimal === raw) {
+              uidDecimal = decReversedFirst4;
+            }
+          } catch {}
+        }
+
+        try {
+          const decFirst4 = BigInt('0x' + first4Hex).toString(10);
+          candidates.add(decFirst4);
+        } catch {}
+      }
     } catch {
       // Fallback
     }
