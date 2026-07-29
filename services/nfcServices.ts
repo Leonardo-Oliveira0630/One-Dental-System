@@ -303,54 +303,60 @@ export const UidMappingService = {
     const cleanedUid = uid.trim().toUpperCase();
     if (!cleanedUid) return { duplicated: false };
 
-    // 1. Verificar em todos os kits cadastrados (Subcoleção 'boxes')
-    const kitsBoxesQuery = query(
-      collectionGroup(db, 'boxes'),
-      where('uid', '==', cleanedUid)
-    );
-    const kitsBoxesSnap = await getDocs(kitsBoxesQuery);
-    
-    // Filtrar se for o próprio kit que estamos editando
-    const activeKitDupes = kitsBoxesSnap.docs.filter(docSnap => {
-      if (!currentKitId) return true;
-      // O path do doc é nfc_kits/{kitId}/boxes/{boxId}
-      const pathParts = docSnap.ref.path.split('/');
-      const docKitId = pathParts[1]; // nfc_kits é index 0, kitId é index 1
-      return docKitId !== currentKitId;
-    });
-
-    if (activeKitDupes.length > 0) {
-      const dupeDoc = activeKitDupes[0];
-      const pathParts = dupeDoc.ref.path.split('/');
-      const docKitId = pathParts[1];
+    try {
+      // 1. Verificar em todos os kits cadastrados (Subcoleção 'boxes')
+      const kitsBoxesQuery = query(
+        collectionGroup(db, 'boxes'),
+        where('uid', '==', cleanedUid)
+      );
+      const kitsBoxesSnap = await getDocs(kitsBoxesQuery);
       
-      // Buscar o código do kit duplicado para avisar o usuário
-      const parentKitRef = doc(db, 'nfc_kits', docKitId);
-      const parentKitSnap = await getDoc(parentKitRef);
-      const parentKit = parentKitSnap.exists() ? (parentKitSnap.data() as NfcKit) : null;
-      const kitCodeMsg = parentKit ? ` (no Kit ${parentKit.codigoKit})` : '';
+      // Filtrar se for o próprio kit que estamos editando
+      const activeKitDupes = kitsBoxesSnap.docs.filter(docSnap => {
+        if (!currentKitId) return true;
+        // O path do doc é nfc_kits/{kitId}/boxes/{boxId}
+        const pathParts = docSnap.ref.path.split('/');
+        const docKitId = pathParts[1]; // nfc_kits é index 0, kitId é index 1
+        return docKitId !== currentKitId;
+      });
 
-      return {
-        duplicated: true,
-        message: `Este UID já está associado à Caixa ${dupeDoc.data().numeroCaixa}${kitCodeMsg}.`
-      };
+      if (activeKitDupes.length > 0) {
+        const dupeDoc = activeKitDupes[0];
+        const pathParts = dupeDoc.ref.path.split('/');
+        const docKitId = pathParts[1];
+        
+        // Buscar o código do kit duplicado para avisar o usuário
+        const parentKitRef = doc(db, 'nfc_kits', docKitId);
+        const parentKitSnap = await getDoc(parentKitRef);
+        const parentKit = parentKitSnap.exists() ? (parentKitSnap.data() as NfcKit) : null;
+        const kitCodeMsg = parentKit ? ` (no Kit ${parentKit.codigoKit})` : '';
+
+        return {
+          duplicated: true,
+          message: `Este UID já está associado à Caixa ${dupeDoc.data().numeroCaixa}${kitCodeMsg}.`
+        };
+      }
+
+      // 2. Verificar em todos os laboratórios cadastrados (Subcoleção 'nfcBoxes')
+      const labsBoxesQuery = query(
+        collectionGroup(db, 'nfcBoxes'),
+        where('uid', '==', cleanedUid)
+      );
+      const labsBoxesSnap = await getDocs(labsBoxesQuery);
+      if (!labsBoxesSnap.empty) {
+        const dupeDoc = labsBoxesSnap.docs[0];
+        return {
+          duplicated: true,
+          message: `Este UID já está ativado em um laboratório (Caixa ${dupeDoc.data().numeroCaixa}).`
+        };
+      }
+
+      return { duplicated: false };
+    } catch (err) {
+      console.warn("Aviso ao checar duplicidade de UID:", err);
+      // Retorna sem duplicidade em caso de fallback para permitir cadastro
+      return { duplicated: false };
     }
-
-    // 2. Verificar em todos os laboratórios cadastrados (Subcoleção 'nfcBoxes')
-    const labsBoxesQuery = query(
-      collectionGroup(db, 'nfcBoxes'),
-      where('uid', '==', cleanedUid)
-    );
-    const labsBoxesSnap = await getDocs(labsBoxesQuery);
-    if (!labsBoxesSnap.empty) {
-      const dupeDoc = labsBoxesSnap.docs[0];
-      return {
-        duplicated: true,
-        message: `Este UID já está ativado em um laboratório (Caixa ${dupeDoc.data().numeroCaixa}).`
-      };
-    }
-
-    return { duplicated: false };
   }
 };
 

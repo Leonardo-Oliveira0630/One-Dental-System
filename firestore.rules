@@ -234,13 +234,23 @@ service cloud.firestore {
 
     match /nfc_kits/{kitId} {
       allow read: if isAuthenticated();
-      allow create, delete: if isSuperAdmin();
+      allow create, delete: if isAuthenticated() && (isSuperAdmin() || isAdmin());
       allow update: if isAuthenticated();
       
       match /boxes/{boxId} {
         allow read: if isAuthenticated();
-        allow create, update, delete: if isSuperAdmin();
+        allow create, update, delete: if isAuthenticated();
       }
+    }
+
+    match /{path=**}/boxes/{boxId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /{path=**}/nfcBoxes/{boxId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
 
     match /imageMetadata/{imageId} {
