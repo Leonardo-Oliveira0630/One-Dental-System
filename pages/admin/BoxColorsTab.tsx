@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Plus, Trash2, Box, Palette, X, Cpu, Key, HelpCircle, CheckCircle2, Loader2, Search } from 'lucide-react';
 import { getContrastColor } from '../../services/mockData';
-import { ActivationService } from '../../services/nfcServices';
+import { ActivationService, getNfcUidFormats } from '../../services/nfcServices';
 
 export const BoxColorsTab = () => {
   const { boxColors, addBoxColor, deleteBoxColor, currentUser, currentOrg, nfcBoxes } = useApp();
@@ -73,12 +73,20 @@ export const BoxColorsTab = () => {
 
   // Filtered NFC boxes
   const filteredNfcBoxes = nfcBoxes.filter(box => {
-    const query = nfcBoxSearch.trim().toLowerCase();
-    const matchesSearch = !query || 
-      box.numeroCaixa.toLowerCase().includes(query) || 
-      (box.uid && box.uid.toLowerCase().includes(query)) ||
-      (box.textoGravado && box.textoGravado.toLowerCase().includes(query));
-      
+    const query = nfcBoxSearch.trim().toLowerCase().replace(/[:\s-]/g, '');
+    if (!query) return selectedKitFilter === 'ALL' || box.kitCodigo === selectedKitFilter;
+
+    const formats = getNfcUidFormats(box.uid || '');
+    const candidates = [
+      box.numeroCaixa,
+      box.uid,
+      box.uidHex,
+      box.uidDecimal,
+      box.textoGravado,
+      ...formats.allCandidates
+    ].filter(Boolean).map(s => String(s).toLowerCase());
+
+    const matchesSearch = candidates.some(c => c.includes(query));
     const matchesKit = selectedKitFilter === 'ALL' || box.kitCodigo === selectedKitFilter;
     return matchesSearch && matchesKit;
   });
@@ -390,9 +398,31 @@ export const BoxColorsTab = () => {
                           <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
                             {box.kitCodigo}
                           </span>
-                          <span className="font-bold text-indigo-600 text-[10px] bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100/50">
-                            {box.uid}
-                          </span>
+                          {(() => {
+                            const formats = getNfcUidFormats(box.uid || '');
+                            const hexVal = box.uidHex || formats.uidHex;
+                            const decVal = box.uidDecimal || formats.uidDecimal;
+                            const hasBoth = hexVal && decVal && hexVal !== decVal;
+
+                            if (hasBoth) {
+                              return (
+                                <div className="flex items-center gap-1">
+                                  <span className="font-bold text-indigo-600 text-[10px] bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100/50">
+                                    HEX: {hexVal}
+                                  </span>
+                                  <span className="font-bold text-emerald-600 text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/50">
+                                    DEC: {decVal}
+                                  </span>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <span className="font-bold text-indigo-600 text-[10px] bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100/50">
+                                {box.uid}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     ))}

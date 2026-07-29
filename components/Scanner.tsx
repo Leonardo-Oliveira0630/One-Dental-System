@@ -8,6 +8,7 @@ import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, Refr
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { calculateItemCommission } from '../utils/commissionUtils';
 import { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';
+import { getNfcUidFormats } from '../services/nfcServices';
 
 // Importação segura do Capacitor
 const playNativeHaptic = async (isSuccess: boolean) => {
@@ -666,18 +667,24 @@ export const GlobalScanner: React.FC = () => {
         if (!job) {
             let searchBoxNumber = rawCode;
             if (nfcBoxesRef.current && nfcBoxesRef.current.length > 0) {
+                const rawCandidates = getNfcUidFormats(rawCode).allCandidates;
                 const matchedBox = nfcBoxesRef.current.find(b => {
-                    const cleanBoxUid = b.uid ? b.uid.trim().toUpperCase().replace(/[:\s-]/g, '') : '';
+                    const boxCandidates = new Set([
+                        b.uid,
+                        b.uidHex,
+                        b.uidDecimal,
+                        ...getNfcUidFormats(b.uid || '').allCandidates
+                    ].filter(Boolean).map(s => String(s).trim().toUpperCase().replace(/[:\s-]/g, '')));
+
                     const cleanBoxNum = String(b.numeroCaixa || '').trim().toUpperCase().replace(/^0+/, '');
                     const cleanRawNum = rawCode.replace(/^0+/, '');
                     const cleanText = (b.textoGravado || '').trim().toUpperCase();
 
-                    return (
-                        (cleanBoxUid && (cleanBoxUid === rawCode || cleanBoxUid === cleanedCode)) ||
-                        (b.uid && b.uid.trim().toUpperCase() === rawCode) ||
-                        (cleanBoxNum && cleanBoxNum === cleanRawNum) ||
-                        (cleanText && (cleanText === rawCode || rawCode.includes(cleanText)))
-                    );
+                    const matchesUid = rawCandidates.some(c => boxCandidates.has(c));
+                    const matchesBoxNum = cleanBoxNum && cleanBoxNum === cleanRawNum;
+                    const matchesText = cleanText && (cleanText === rawCode || rawCode.includes(cleanText));
+
+                    return matchesUid || matchesBoxNum || matchesText;
                 });
                 if (matchedBox) {
                     searchBoxNumber = String(matchedBox.numeroCaixa).trim().toUpperCase();

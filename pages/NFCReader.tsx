@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobStatus } from '../types';
 import { Loader2, AlertTriangle, Box } from 'lucide-react';
+import { getNfcUidFormats } from '../services/nfcServices';
 
 export const NFCReader: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -23,18 +24,24 @@ export const NFCReader: React.FC = () => {
 
         // Verificar se é um UID cadastrado nas caixas NFC do laboratório, número de caixa ou texto gravado
         if (nfcBoxes && nfcBoxes.length > 0) {
+            const rawCandidates = getNfcUidFormats(rawBoxParam).allCandidates;
             const matchedBox = nfcBoxes.find(b => {
-                const cleanBoxUid = b.uid ? b.uid.trim().toUpperCase().replace(/[:\s-]/g, '') : '';
+                const boxCandidates = new Set([
+                    b.uid,
+                    b.uidHex,
+                    b.uidDecimal,
+                    ...getNfcUidFormats(b.uid || '').allCandidates
+                ].filter(Boolean).map(s => String(s).trim().toUpperCase().replace(/[:\s-]/g, '')));
+
                 const cleanBoxNum = String(b.numeroCaixa || '').trim().toUpperCase().replace(/^0+/, '');
                 const cleanRawParam = rawBoxParam.replace(/^0+/, '');
                 const cleanText = (b.textoGravado || '').trim().toUpperCase();
 
-                return (
-                    (cleanBoxUid && cleanBoxUid === rawBoxParam.replace(/[:\s-]/g, '')) ||
-                    (b.uid && b.uid.trim().toUpperCase() === rawBoxParam) ||
-                    (cleanBoxNum && cleanBoxNum === cleanRawParam) ||
-                    (cleanText && (cleanText === rawBoxParam || rawBoxParam.includes(cleanText)))
-                );
+                const matchesUid = rawCandidates.some(c => boxCandidates.has(c));
+                const matchesBoxNum = cleanBoxNum && cleanBoxNum === cleanRawParam;
+                const matchesText = cleanText && (cleanText === rawBoxParam || rawBoxParam.includes(cleanText));
+
+                return matchesUid || matchesBoxNum || matchesText;
             });
             if (matchedBox) {
                 finalBoxNumber = String(matchedBox.numeroCaixa).trim().toUpperCase();

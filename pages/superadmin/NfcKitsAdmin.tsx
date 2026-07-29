@@ -3,7 +3,7 @@ import {
   Cpu, Plus, Search, RotateCcw, Copy, Trash2, ArrowRight, Play, Eye, X, CheckCircle, 
   AlertTriangle, ArrowLeft, Loader2, RefreshCw, Layers, Shield, Check, HelpCircle
 } from 'lucide-react';
-import { KitService, NfcReaderService, UidMappingService } from '../../services/nfcServices';
+import { KitService, NfcReaderService, UidMappingService, getNfcUidFormats } from '../../services/nfcServices';
 import { NfcKit, NfcBox } from '../../types';
 import { useApp } from '../../context/AppContext';
 
@@ -199,10 +199,13 @@ export const NfcKitsAdmin: React.FC = () => {
       }
 
       // 4. Salvar na Firestore
+      const formats = getNfcUidFormats(cleanUid);
       const updatedBox: NfcBox = {
         id: targetBoxNumber,
         numeroCaixa: targetBoxNumber,
         uid: cleanUid,
+        uidHex: formats.uidHex,
+        uidDecimal: formats.uidDecimal,
         textoGravado: nfcText || `BOX-${targetBoxNumber}`,
         status: 'Associada'
       };
@@ -215,8 +218,12 @@ export const NfcKitsAdmin: React.FC = () => {
       );
       setSelectedKitBoxes(newBoxesList);
 
+      const msgText = (formats.uidHex && formats.uidDecimal && formats.uidHex !== formats.uidDecimal)
+        ? `Caixa ${targetBoxNumber} associada com sucesso! (HEX: ${formats.uidHex} | DEC: ${formats.uidDecimal})`
+        : `Caixa ${targetBoxNumber} associada com sucesso ao UID ${cleanUid}!`;
+
       setScanMessage({ 
-        text: `Caixa ${targetBoxNumber} associada com sucesso ao UID ${cleanUid}!`, 
+        text: msgText, 
         type: 'success' 
       });
       playBeep(true);
@@ -358,11 +365,19 @@ export const NfcKitsAdmin: React.FC = () => {
 
   // Filtered boxes inside Details view
   const filteredBoxes = selectedKitBoxes.filter(b => {
-    const query = boxSearchQuery.trim().toLowerCase();
+    const query = boxSearchQuery.trim().toLowerCase().replace(/[:\s-]/g, '');
     if (!query) return true;
-    return b.numeroCaixa.toLowerCase().includes(query) || 
-           (b.uid && b.uid.toLowerCase().includes(query)) ||
-           (b.textoGravado && b.textoGravado.toLowerCase().includes(query));
+    const formats = getNfcUidFormats(b.uid || '');
+    const candidates = [
+      b.numeroCaixa,
+      b.uid,
+      b.uidHex,
+      b.uidDecimal,
+      b.textoGravado,
+      ...formats.allCandidates
+    ].filter(Boolean).map(s => String(s).toLowerCase());
+
+    return candidates.some(c => c.includes(query));
   });
 
   return (
@@ -823,11 +838,31 @@ export const NfcKitsAdmin: React.FC = () => {
                               <span className="text-[10px] text-slate-400 block font-normal">({box.textoGravado})</span>
                             )}
                           </div>
-                          {box.uid ? (
-                            <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-100">
-                              {box.uid}
-                            </span>
-                          ) : (
+                          {box.uid ? (() => {
+                            const formats = getNfcUidFormats(box.uid);
+                            const hexVal = box.uidHex || formats.uidHex;
+                            const decVal = box.uidDecimal || formats.uidDecimal;
+                            const hasBoth = hexVal && decVal && hexVal !== decVal;
+
+                            return (
+                              <div className="flex flex-col items-end gap-0.5">
+                                {hasBoth ? (
+                                  <>
+                                    <span className="text-[10px] font-bold bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded border border-indigo-100/60 font-mono">
+                                      HEX: {hexVal}
+                                    </span>
+                                    <span className="text-[9px] text-slate-500 font-mono font-medium">
+                                      DEC: {decVal}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-100 font-mono">
+                                    {box.uid}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })() : (
                             <span className="text-[10px] text-slate-400 italic">Pendente</span>
                           )}
                         </div>

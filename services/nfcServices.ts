@@ -18,6 +18,96 @@ import { db } from './firebaseConfig';
 import { NfcKit, NfcBox } from '../types';
 
 /**
+ * Utilitário para converter e gerenciar formatos de UID NFC (Hexadecimal <-> Decimal e byte swapping)
+ */
+export function getNfcUidFormats(uidInput: string): {
+  uid: string;
+  uidHex: string;
+  uidDecimal: string;
+  allCandidates: string[];
+} {
+  const raw = (uidInput || '').trim().toUpperCase().replace(/[:\s-]/g, '');
+  if (!raw) {
+    return { uid: '', uidHex: '', uidDecimal: '', allCandidates: [] };
+  }
+
+  const candidates = new Set<string>();
+  candidates.add(raw);
+  candidates.add(uidInput.trim().toUpperCase());
+
+  let uidHex = '';
+  let uidDecimal = '';
+
+  const isNumericOnly = /^\d+$/.test(raw);
+  const isHexOnly = /^[0-9A-F]+$/i.test(raw);
+
+  if (isNumericOnly) {
+    uidDecimal = raw;
+    try {
+      const bigVal = BigInt(raw);
+      let hex = bigVal.toString(16).toUpperCase();
+      if (hex.length % 2 !== 0) hex = '0' + hex;
+      uidHex = hex;
+      candidates.add(hex);
+
+      // Inversão de ordem de bytes (Little-Endian <-> Big-Endian)
+      const pairs = hex.match(/.{1,2}/g) || [];
+      const reversedHex = [...pairs].reverse().join('');
+      if (reversedHex) {
+        candidates.add(reversedHex);
+        try {
+          const revBig = BigInt('0x' + reversedHex);
+          candidates.add(revBig.toString(10));
+        } catch {}
+      }
+
+      // Variações com zeros à esquerda
+      if (hex.length < 8) candidates.add(hex.padStart(8, '0'));
+      if (hex.length < 14) candidates.add(hex.padStart(14, '0'));
+    } catch {
+      // Fallback
+    }
+  } else if (isHexOnly) {
+    uidHex = raw;
+    try {
+      let paddedHex = raw;
+      if (paddedHex.length % 2 !== 0) paddedHex = '0' + paddedHex;
+
+      const bigVal = BigInt('0x' + paddedHex);
+      uidDecimal = bigVal.toString(10);
+      candidates.add(uidDecimal);
+
+      // Inversão de ordem de bytes (Little-Endian <-> Big-Endian)
+      const pairs = paddedHex.match(/.{1,2}/g) || [];
+      const reversedHex = [...pairs].reverse().join('');
+      if (reversedHex && reversedHex !== raw) {
+        candidates.add(reversedHex);
+        try {
+          const revBigVal = BigInt('0x' + reversedHex);
+          const revDec = revBigVal.toString(10);
+          candidates.add(revDec);
+          if (!uidDecimal) uidDecimal = revDec;
+        } catch {}
+      }
+
+      // Formato com dois pontos
+      if (pairs.length > 1) {
+        candidates.add(pairs.join(':'));
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  return {
+    uid: raw,
+    uidHex: uidHex || raw,
+    uidDecimal: uidDecimal || raw,
+    allCandidates: Array.from(candidates).filter(Boolean)
+  };
+}
+
+/**
  * Service 1: NfcReaderService
  * Abstração para leitura de tags NFC via Web NFC e simulação de leitores USB HID (teclado).
  */
@@ -220,14 +310,18 @@ export const KitService = {
   },
 
   /**
-   * Salva a associação de uma caixa em um kit
+   * Salva a associação de uma caixa em um kit (calculando automaticamente uidHex e uidDecimal)
    */
   saveKitBox: async (kitId: string, box: NfcBox): Promise<void> => {
+    const formats = getNfcUidFormats(box.uid || '');
     const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', box.numeroCaixa);
-    await setDoc(boxRef, {
+    const boxData = {
       ...box,
+      uidHex: box.uidHex || formats.uidHex || box.uid,
+      uidDecimal: box.uidDecimal || formats.uidDecimal || box.uid,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    };
+    await setDoc(boxRef, boxData, { merge: true });
 
     // Atualizar updatedAt do kit
     const kitRef = doc(db, 'nfc_kits', kitId);
@@ -305,38 +399,42 @@ export const UidMappingService = {
    * Verifica se o UID já está cadastrado em algum kit ou em algum laboratório
    */
   checkUidDuplicate: async (uid: string, currentKitId?: string): Promise<{ duplicated: boolean; message?: string }> => {
-    const cleanedUid = uid.trim().toUpperCase();
-    if (!cleanedUid) return { duplicated: false };
+    const formats = getNfcUidFormats(uid);
+    if (!formats.uid) return { duplicated: false };
+
+    const candidates = formats.allCandidates;
 
     // 1. Verificar em todos os kits cadastrados (Subcoleção 'boxes')
     try {
-      const kitsBoxesQuery = query(
-        collectionGroup(db, 'boxes'),
-        where('uid', '==', cleanedUid)
-      );
-      const kitsBoxesSnap = await getDocs(kitsBoxesQuery);
-      
-      const activeKitDupes = kitsBoxesSnap.docs.filter(docSnap => {
-        if (!currentKitId) return true;
-        const pathParts = docSnap.ref.path.split('/');
-        const docKitId = pathParts[1]; // nfc_kits é index 0, kitId é index 1
-        return docKitId !== currentKitId;
-      });
-
-      if (activeKitDupes.length > 0) {
-        const dupeDoc = activeKitDupes[0];
-        const pathParts = dupeDoc.ref.path.split('/');
-        const docKitId = pathParts[1];
+      for (const cand of candidates) {
+        const kitsBoxesQuery = query(
+          collectionGroup(db, 'boxes'),
+          where('uid', '==', cand)
+        );
+        const kitsBoxesSnap = await getDocs(kitsBoxesQuery);
         
-        const parentKitRef = doc(db, 'nfc_kits', docKitId);
-        const parentKitSnap = await getDoc(parentKitRef);
-        const parentKit = parentKitSnap.exists() ? (parentKitSnap.data() as NfcKit) : null;
-        const kitCodeMsg = parentKit ? ` (no Kit ${parentKit.codigoKit})` : '';
+        const activeKitDupes = kitsBoxesSnap.docs.filter(docSnap => {
+          if (!currentKitId) return true;
+          const pathParts = docSnap.ref.path.split('/');
+          const docKitId = pathParts[1]; // nfc_kits é index 0, kitId é index 1
+          return docKitId !== currentKitId;
+        });
 
-        return {
-          duplicated: true,
-          message: `Este UID já está associado à Caixa ${dupeDoc.data().numeroCaixa}${kitCodeMsg}.`
-        };
+        if (activeKitDupes.length > 0) {
+          const dupeDoc = activeKitDupes[0];
+          const pathParts = dupeDoc.ref.path.split('/');
+          const docKitId = pathParts[1];
+          
+          const parentKitRef = doc(db, 'nfc_kits', docKitId);
+          const parentKitSnap = await getDoc(parentKitRef);
+          const parentKit = parentKitSnap.exists() ? (parentKitSnap.data() as NfcKit) : null;
+          const kitCodeMsg = parentKit ? ` (no Kit ${parentKit.codigoKit})` : '';
+
+          return {
+            duplicated: true,
+            message: `Este UID/SerialNumber (${cand}) já está associado à Caixa ${dupeDoc.data().numeroCaixa}${kitCodeMsg}.`
+          };
+        }
       }
     } catch (err: any) {
       console.warn("Aviso: Consulta de grupo de coleções em 'boxes' sem índice ou falhou:", err?.message || err);
@@ -344,17 +442,19 @@ export const UidMappingService = {
 
     // 2. Verificar em todos os laboratórios cadastrados (Subcoleção 'nfcBoxes')
     try {
-      const labsBoxesQuery = query(
-        collectionGroup(db, 'nfcBoxes'),
-        where('uid', '==', cleanedUid)
-      );
-      const labsBoxesSnap = await getDocs(labsBoxesQuery);
-      if (!labsBoxesSnap.empty) {
-        const dupeDoc = labsBoxesSnap.docs[0];
-        return {
-          duplicated: true,
-          message: `Este UID já está ativado em um laboratório (Caixa ${dupeDoc.data().numeroCaixa}).`
-        };
+      for (const cand of candidates) {
+        const labsBoxesQuery = query(
+          collectionGroup(db, 'nfcBoxes'),
+          where('uid', '==', cand)
+        );
+        const labsBoxesSnap = await getDocs(labsBoxesQuery);
+        if (!labsBoxesSnap.empty) {
+          const dupeDoc = labsBoxesSnap.docs[0];
+          return {
+            duplicated: true,
+            message: `Este UID/SerialNumber (${cand}) já está ativado em um laboratório (Caixa ${dupeDoc.data().numeroCaixa}).`
+          };
+        }
       }
     } catch (err: any) {
       console.warn("Aviso: Consulta de grupo de coleções em 'nfcBoxes' sem índice ou falhou:", err?.message || err);
@@ -412,9 +512,12 @@ export const ActivationService = {
     const batch = writeBatch(db);
     
     registeredBoxes.forEach(box => {
+      const formats = getNfcUidFormats(box.uid || '');
       const labBoxRef = doc(db, 'organizations', organizationId, 'nfcBoxes', box.uid);
       batch.set(labBoxRef, {
         uid: box.uid,
+        uidHex: box.uidHex || formats.uidHex || box.uid,
+        uidDecimal: box.uidDecimal || formats.uidDecimal || box.uid,
         numeroCaixa: box.numeroCaixa,
         textoGravado: box.textoGravado || `BOX-${box.numeroCaixa}`,
         status: 'Associada',

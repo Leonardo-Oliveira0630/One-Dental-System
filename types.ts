@@ -1249,7 +1249,11 @@ export interface NfcBox {
   id: string;
   numeroCaixa: string;
   uid: string;
+  uidHex?: string;
+  uidDecimal?: string;
   textoGravado?: string;
   status: 'Disponível' | 'Associada';
   updatedAt?: any;
+  kitCodigo?: string;
+  kitId?: string;
 }
