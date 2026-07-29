@@ -303,18 +303,16 @@ export const UidMappingService = {
     const cleanedUid = uid.trim().toUpperCase();
     if (!cleanedUid) return { duplicated: false };
 
+    // 1. Verificar em todos os kits cadastrados (Subcoleção 'boxes')
     try {
-      // 1. Verificar em todos os kits cadastrados (Subcoleção 'boxes')
       const kitsBoxesQuery = query(
         collectionGroup(db, 'boxes'),
         where('uid', '==', cleanedUid)
       );
       const kitsBoxesSnap = await getDocs(kitsBoxesQuery);
       
-      // Filtrar se for o próprio kit que estamos editando
       const activeKitDupes = kitsBoxesSnap.docs.filter(docSnap => {
         if (!currentKitId) return true;
-        // O path do doc é nfc_kits/{kitId}/boxes/{boxId}
         const pathParts = docSnap.ref.path.split('/');
         const docKitId = pathParts[1]; // nfc_kits é index 0, kitId é index 1
         return docKitId !== currentKitId;
@@ -325,7 +323,6 @@ export const UidMappingService = {
         const pathParts = dupeDoc.ref.path.split('/');
         const docKitId = pathParts[1];
         
-        // Buscar o código do kit duplicado para avisar o usuário
         const parentKitRef = doc(db, 'nfc_kits', docKitId);
         const parentKitSnap = await getDoc(parentKitRef);
         const parentKit = parentKitSnap.exists() ? (parentKitSnap.data() as NfcKit) : null;
@@ -336,8 +333,12 @@ export const UidMappingService = {
           message: `Este UID já está associado à Caixa ${dupeDoc.data().numeroCaixa}${kitCodeMsg}.`
         };
       }
+    } catch (err: any) {
+      console.warn("Aviso: Consulta de grupo de coleções em 'boxes' sem índice ou falhou:", err?.message || err);
+    }
 
-      // 2. Verificar em todos os laboratórios cadastrados (Subcoleção 'nfcBoxes')
+    // 2. Verificar em todos os laboratórios cadastrados (Subcoleção 'nfcBoxes')
+    try {
       const labsBoxesQuery = query(
         collectionGroup(db, 'nfcBoxes'),
         where('uid', '==', cleanedUid)
@@ -350,13 +351,11 @@ export const UidMappingService = {
           message: `Este UID já está ativado em um laboratório (Caixa ${dupeDoc.data().numeroCaixa}).`
         };
       }
-
-      return { duplicated: false };
-    } catch (err) {
-      console.warn("Aviso ao checar duplicidade de UID:", err);
-      // Retorna sem duplicidade em caso de fallback para permitir cadastro
-      return { duplicated: false };
+    } catch (err: any) {
+      console.warn("Aviso: Consulta de grupo de coleções em 'nfcBoxes' sem índice ou falhou:", err?.message || err);
     }
+
+    return { duplicated: false };
   }
 };
 
