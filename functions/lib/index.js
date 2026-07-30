@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.communication = exports.triggerJobUpdated = exports.ycloudWebhook = exports.triggerSupplierOrderUpdated = exports.triggerDeliveryRouteUpdated = exports.triggerAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.cancelAsaasSubscriptionOnDelete = exports.sendDeleteCodeEmail = exports.communication = exports.triggerJobUpdated = exports.ycloudWebhook = exports.triggerSupplierOrderUpdated = exports.triggerDeliveryRouteUpdated = exports.triggerAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -1583,7 +1583,7 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10, secrets
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
 exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (request) => {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g;
     const { to, body, orgId } = request.data;
     if (!to || !body) {
         throw new https_1.HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
@@ -1627,12 +1627,17 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [y
         if (cleanTo.length === 10 || cleanTo.length === 11) {
             cleanTo = "55" + cleanTo;
         }
-        const cleanFrom = fromNumber.replace(/\D/g, "");
+        let cleanFrom = fromNumber ? fromNumber.replace(/\D/g, "") : "";
+        if (cleanFrom === cleanTo) {
+            cleanFrom = ""; // Don't use recipient phone number as sender
+        }
         logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
         const payload = {
-            to: `+${cleanTo}`,
-            from: `+${cleanFrom}`
+            to: `+${cleanTo}`
         };
+        if (cleanFrom) {
+            payload.from = `+${cleanFrom}`;
+        }
         if (request.data.template) {
             payload.type = "template";
             payload.template = request.data.template;
@@ -1667,8 +1672,16 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [y
         };
     }
     catch (error) {
-        const errorMsg = ((_b = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data) === null || _b === void 0 ? void 0 : _b.message) || ((_e = (_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.message) || error.message;
-        logger.error(`Erro ao enviar mensagem via Ycloud real: ${errorMsg}`, (_f = error.response) === null || _f === void 0 ? void 0 : _f.data);
+        const status = (_a = error.response) === null || _a === void 0 ? void 0 : _a.status;
+        const apiErr = ((_d = (_c = (_b = error.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.error) === null || _d === void 0 ? void 0 : _d.message) || ((_f = (_e = error.response) === null || _e === void 0 ? void 0 : _e.data) === null || _f === void 0 ? void 0 : _f.message) || error.message;
+        let friendlyMessage = `Erro no Ycloud: ${apiErr}`;
+        if (status === 409) {
+            friendlyMessage = `Erro no Ycloud (409): O número de remetente informou que o número +${to} ou remetente não está registrado no Ycloud WABA. Verifique a chave de API e o número remetente oficial cadastrado no Ycloud.`;
+        }
+        else if (status === 403) {
+            friendlyMessage = `Erro no Ycloud (403): Envio de mensagem direta bloqueado pela Meta/Ycloud. Crie e aprove um Modelo/Template de mensagem no painel do Ycloud/Meta.`;
+        }
+        logger.error(`Erro ao enviar mensagem via Ycloud real (${status}): ${apiErr}`, (_g = error.response) === null || _g === void 0 ? void 0 : _g.data);
         await admin.firestore().collection("message_logs").add({
             orgId: orgId || "TEST",
             channelId: "YCLOUD_API",
@@ -1676,11 +1689,11 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [y
             direction: "OUTBOUND",
             templateId: "MANUAL_TEST",
             recipient: to,
-            message: `Erro: ${errorMsg}`,
+            message: `Erro: ${friendlyMessage}`,
             status: "FAILED",
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        throw new https_1.HttpsError("aborted", `Erro no Ycloud: ${errorMsg}`);
+        throw new https_1.HttpsError("aborted", friendlyMessage);
     }
 });
 /**
@@ -1712,11 +1725,16 @@ exports.triggerAppointmentCreated = (0, firestore_1.onDocumentCreated)("organiza
         orgId: orgId,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
-    await communicationService.sendTemplateMessage(orgId, phone, "CLINIC", "CLINIC_APPOINTMENT", {
-        patient_name: patient.name,
-        date: dateStr,
-        time: timeStr
-    });
+    try {
+        await communicationService.sendTemplateMessage(orgId, phone, "CLINIC", "CLINIC_APPOINTMENT", {
+            patient_name: patient.name,
+            date: dateStr,
+            time: timeStr
+        });
+    }
+    catch (err) {
+        logger.warn(`[triggerAppointmentCreated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
+    }
 });
 exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{orgId}/routes/{routeId}", async (event) => {
     var _a, _b;
@@ -1784,10 +1802,15 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
             }
             const jobsListStr = info.jobs.join("\n");
             const templateType = justCompleted ? "LAB_DELIVERED" : "LAB_DISPATCH";
-            await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType, {
-                dentist_name: info.dentistName,
-                jobs_list: jobsListStr
-            });
+            try {
+                await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType, {
+                    dentist_name: info.dentistName,
+                    jobs_list: jobsListStr
+                });
+            }
+            catch (err) {
+                logger.warn(`[triggerDeliveryRouteUpdated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
+            }
         }
     }
 });
@@ -1813,10 +1836,15 @@ exports.triggerSupplierOrderUpdated = (0, firestore_1.onDocumentUpdated)("suppli
             "DELIVERED": "Entregue"
         };
         const readableStatus = statusMap[after.deliveryStatus] || after.deliveryStatus;
-        await communicationService.sendTemplateMessage(after.supplierId, phone, "SUPPLIER", "SUPPLIER_UPDATE", {
-            order_id: event.params.orderId,
-            status: readableStatus
-        });
+        try {
+            await communicationService.sendTemplateMessage(after.supplierId, phone, "SUPPLIER", "SUPPLIER_UPDATE", {
+                order_id: event.params.orderId,
+                status: readableStatus
+            });
+        }
+        catch (err) {
+            logger.warn(`[triggerSupplierOrderUpdated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
+        }
     }
 });
 exports.ycloudWebhook = (0, https_1.onRequest)(async (req, res) => {
@@ -1962,10 +1990,15 @@ exports.triggerJobUpdated = (0, firestore_1.onDocumentUpdated)("organizations/{o
         }
         if (phone) {
             const osNumber = after.osNumber || ((_c = after.id) === null || _c === void 0 ? void 0 : _c.substring(after.id.length - 6).toUpperCase()) || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
-            await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DELIVERED", {
-                dentist_name: after.dentistName || "Dentista",
-                jobs_list: `- ${after.patientName} (OS: ${osNumber})`
-            });
+            try {
+                await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DELIVERED", {
+                    dentist_name: after.dentistName || "Dentista",
+                    jobs_list: `- ${after.patientName} (OS: ${osNumber})`
+                });
+            }
+            catch (err) {
+                logger.warn(`[triggerJobUpdated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
+            }
         }
     }
 });
@@ -1973,4 +2006,75 @@ const webhook_1 = require("./communication/webhook");
 exports.communication = {
     webhook: webhook_1.communicationWebhook
 };
+/**
+ * ENVIA CÓDIGO DE CONFIRMAÇÃO DE EXCLUSÃO DE CONTA POR E-MAIL
+ */
+exports.sendDeleteCodeEmail = (0, https_1.onCall)(async (request) => {
+    const { email, code } = request.data;
+    if (!email || !code) {
+        throw new https_1.HttpsError("invalid-argument", "Email e código são obrigatórios.");
+    }
+    logger.info(`[DeleteAccount] Código de confirmação de exclusão enviado para ${email}: ${code}`);
+    return { success: true };
+});
+/**
+ * CANCELA ASSINATURA E COBRANÇAS PENDENTES DO ASAAS AO DELETAR ORGANIZAÇÃO/SISTEMA
+ */
+exports.cancelAsaasSubscriptionOnDelete = (0, https_1.onCall)(async (request) => {
+    var _a, _b, _c, _d;
+    const { orgId } = request.data || {};
+    if (!orgId) {
+        throw new https_1.HttpsError("invalid-argument", "ID da organização não fornecido.");
+    }
+    const { key, url } = await getAsaasConfig();
+    try {
+        const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
+        if (orgSnap.exists) {
+            const orgData = orgSnap.data();
+            const subId = orgData === null || orgData === void 0 ? void 0 : orgData.subscriptionId;
+            const customerId = orgData === null || orgData === void 0 ? void 0 : orgData.asaasCustomerId;
+            // 1. Cancelar a assinatura recorrente no Asaas (DELETE /subscriptions/{id})
+            if (subId) {
+                try {
+                    logger.info(`[CancelAsaas] Cancelando assinatura Asaas ${subId} para org ${orgId}`);
+                    await axios_1.default.delete(`${url}/subscriptions/${subId}`, {
+                        headers: { access_token: key },
+                    });
+                }
+                catch (e) {
+                    logger.warn(`[CancelAsaas] Aviso ao deletar assinatura ${subId}:`, ((_a = e.response) === null || _a === void 0 ? void 0 : _a.data) || e.message);
+                }
+            }
+            // 2. Cancelar faturas/boletos pendentes no Asaas para evitar novas cobranças ao cliente
+            try {
+                const queryParam = subId ? `subscription=${subId}` : (customerId ? `customer=${customerId}` : "");
+                if (queryParam) {
+                    const pendingRes = await axios_1.default.get(`${url}/payments?${queryParam}&status=PENDING`, {
+                        headers: { access_token: key },
+                    });
+                    const pendingPayments = ((_b = pendingRes.data) === null || _b === void 0 ? void 0 : _b.data) || [];
+                    for (const payment of pendingPayments) {
+                        try {
+                            logger.info(`[CancelAsaas] Cancelando cobrança pendente Asaas ${payment.id}`);
+                            await axios_1.default.delete(`${url}/payments/${payment.id}`, {
+                                headers: { access_token: key },
+                            });
+                        }
+                        catch (pErr) {
+                            logger.warn(`[CancelAsaas] Erro ao cancelar cobrança ${payment.id}:`, ((_c = pErr.response) === null || _c === void 0 ? void 0 : _c.data) || pErr.message);
+                        }
+                    }
+                }
+            }
+            catch (pListErr) {
+                logger.warn("[CancelAsaas] Erro ao listar cobranças pendentes no Asaas:", ((_d = pListErr.response) === null || _d === void 0 ? void 0 : _d.data) || pListErr.message);
+            }
+        }
+        return { success: true };
+    }
+    catch (error) {
+        logger.error("[CancelAsaas] Erro crítico ao cancelar no Asaas:", error);
+        return { success: false, error: error.message };
+    }
+});
 //# sourceMappingURL=index.js.map

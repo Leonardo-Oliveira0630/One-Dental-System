@@ -94,6 +94,9 @@ class CommunicationService {
                 if (globalSettings && globalSettings.globalWhatsappTemplates) {
                     const t = globalSettings.globalWhatsappTemplates.find((tpl) => tpl.action === templateType && tpl.active);
                     if (t) {
+                        if (t.metaTemplateName) {
+                            return { type: 'meta_template', data: Object.assign(Object.assign({}, t), { name: t.metaTemplateName }) };
+                        }
                         return { type: 'text_template', data: t };
                     }
                 }
