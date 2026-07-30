@@ -1794,14 +1794,20 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
     if (cleanTo.length === 10 || cleanTo.length === 11) {
       cleanTo = "55" + cleanTo;
     }
-    const cleanFrom = fromNumber.replace(/\D/g, "");
+    let cleanFrom = fromNumber ? fromNumber.replace(/\D/g, "") : "";
+    if (cleanFrom === cleanTo) {
+      cleanFrom = ""; // Don't use recipient phone number as sender
+    }
     
     logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
     
     const payload: any = {
-      to: `+${cleanTo}`,
-      from: `+${cleanFrom}`
+      to: `+${cleanTo}`
     };
+
+    if (cleanFrom) {
+      payload.from = `+${cleanFrom}`;
+    }
 
     if (request.data.template) {
       payload.type = "template";
@@ -1837,8 +1843,16 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
       simulated: false
     };
   } catch (error: any) {
-    const errorMsg = error.response?.data?.message || error.response?.data?.error?.message || error.message;
-    logger.error(`Erro ao enviar mensagem via Ycloud real: ${errorMsg}`, error.response?.data);
+    const status = error.response?.status;
+    const apiErr = error.response?.data?.error?.message || error.response?.data?.message || error.message;
+    let friendlyMessage = `Erro no Ycloud: ${apiErr}`;
+    if (status === 409) {
+      friendlyMessage = `Erro no Ycloud (409): O número de remetente informou que o número +${to} ou remetente não está registrado no Ycloud WABA. Verifique a chave de API e o número remetente oficial cadastrado no Ycloud.`;
+    } else if (status === 403) {
+      friendlyMessage = `Erro no Ycloud (403): Envio de mensagem direta bloqueado pela Meta/Ycloud. Crie e aprove um Modelo/Template de mensagem no painel do Ycloud/Meta.`;
+    }
+
+    logger.error(`Erro ao enviar mensagem via Ycloud real (${status}): ${apiErr}`, error.response?.data);
     await admin.firestore().collection("message_logs").add({
             orgId: orgId || "TEST",
             channelId: "YCLOUD_API",
@@ -1846,11 +1860,11 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10, secrets: [ycloudApi
             direction: "OUTBOUND",
             templateId: "MANUAL_TEST",
             recipient: to,
-            message: `Erro: ${errorMsg}`,
+            message: `Erro: ${friendlyMessage}`,
             status: "FAILED",
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
-        throw new HttpsError("aborted", `Erro no Ycloud: ${errorMsg}`);
+        throw new HttpsError("aborted", friendlyMessage);
   }
 });
 
@@ -1889,11 +1903,15 @@ export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
   
-  await communicationService.sendTemplateMessage(orgId, phone, "CLINIC", "CLINIC_APPOINTMENT", {
-    patient_name: patient.name,
-    date: dateStr,
-    time: timeStr
-  });
+  try {
+    await communicationService.sendTemplateMessage(orgId, phone, "CLINIC", "CLINIC_APPOINTMENT", {
+      patient_name: patient.name,
+      date: dateStr,
+      time: timeStr
+    });
+  } catch (err: any) {
+    logger.warn(`[triggerAppointmentCreated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
+  }
 });
 
 export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{orgId}/routes/{routeId}", async (event: any) => {
@@ -1970,10 +1988,14 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
        const jobsListStr = info.jobs.join("\n");
        const templateType = justCompleted ? "LAB_DELIVERED" : "LAB_DISPATCH";
        
-       await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType as any, {
-         dentist_name: info.dentistName,
-         jobs_list: jobsListStr
-       });
+       try {
+         await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType as any, {
+           dentist_name: info.dentistName,
+           jobs_list: jobsListStr
+         });
+       } catch (err: any) {
+         logger.warn(`[triggerDeliveryRouteUpdated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
+       }
      }
   }
 });
@@ -2000,10 +2022,14 @@ export const triggerSupplierOrderUpdated = onDocumentUpdated("supplierOrders/{or
      
      const readableStatus = statusMap[after.deliveryStatus] || after.deliveryStatus;
      
-     await communicationService.sendTemplateMessage(after.supplierId, phone, "SUPPLIER", "SUPPLIER_UPDATE", {
-       order_id: event.params.orderId,
-       status: readableStatus
-     });
+     try {
+       await communicationService.sendTemplateMessage(after.supplierId, phone, "SUPPLIER", "SUPPLIER_UPDATE", {
+         order_id: event.params.orderId,
+         status: readableStatus
+       });
+     } catch (err: any) {
+       logger.warn(`[triggerSupplierOrderUpdated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
+     }
   }
 });
 
@@ -2168,10 +2194,14 @@ export const triggerJobUpdated = onDocumentUpdated("organizations/{orgId}/jobs/{
      if (phone) {
        const osNumber = after.osNumber || after.id?.substring(after.id.length - 6).toUpperCase() || event.params.jobId.substring(event.params.jobId.length - 6).toUpperCase();
        
-       await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DELIVERED", {
-         dentist_name: after.dentistName || "Dentista",
-         jobs_list: `- ${after.patientName} (OS: ${osNumber})`
-       });
+       try {
+         await communicationService.sendTemplateMessage(orgId, phone, "LAB", "LAB_DELIVERED", {
+           dentist_name: after.dentistName || "Dentista",
+           jobs_list: `- ${after.patientName} (OS: ${osNumber})`
+         });
+       } catch (err: any) {
+         logger.warn(`[triggerJobUpdated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
+       }
      }
   }
 });

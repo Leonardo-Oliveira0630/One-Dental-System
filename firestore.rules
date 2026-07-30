@@ -166,6 +166,27 @@ service cloud.firestore {
         );
       }
 
+      match /productCatalog/{itemId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
+      match /clinicServices/{serviceId} {
+        allow read, write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
+      match /clinicRooms/{roomId} {
+        allow read, write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
+      match /clinicDentists/{dentistId} {
+        allow read, write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
+      match /billingBatches/{batchId} {
+        allow read, write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+      }
+
       match /manualDentists/{dentistId} {
         allow read: if true;
         allow write: if isAuthenticated() && (
@@ -185,8 +206,8 @@ service cloud.firestore {
       }
 
       match /{allSubcollections=**} {
-        allow read: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(orgId) && (getUserData().get('role', 'USER') != 'CLIENT' || get(/databases/$(database)/documents/organizations/$(orgId)).data.orgType == 'CLINIC')));
-        allow write: if isAuthenticated() && (isSuperAdmin() || (belongsToOrg(orgId) && (getUserData().get('role', 'USER') != 'CLIENT' || get(/databases/$(database)/documents/organizations/$(orgId)).data.orgType == 'CLINIC')));
+        allow read: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
+        allow write: if isAuthenticated() && (isSuperAdmin() || belongsToOrg(orgId));
       }
     }
     
