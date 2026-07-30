@@ -69,10 +69,11 @@ export class CommunicationService {
                 if (globalSettings && globalSettings.globalWhatsappTemplates) {
                     const t = globalSettings.globalWhatsappTemplates.find((tpl: any) => tpl.action === templateType && tpl.active);
                     if (t) {
-                        if (t.metaTemplateName) {
-                            return { type: 'meta_template', data: { ...t, name: t.metaTemplateName } };
+                        const templateName = (t.metaTemplateName || t.name || '').trim();
+                        if (templateName) {
+                            return { type: 'meta_template', data: { ...t, name: templateName } };
                         }
-                        return { type: 'text_template', data: t };
+                        return { type: 'meta_template', data: { ...t, name: t.action.toLowerCase() } };
                     }
                 }
             }
@@ -81,14 +82,14 @@ export class CommunicationService {
         }
 
         const defaultTemplates: any = {
-            'LAB_DISPATCH': { body: 'Olá {{ dentist_name }}, seus trabalhos estão saindo para entrega/coleta com nosso motoboy:\n{{jobs_list}}' },
-            'LAB_DELIVERED': { body: 'Olá {{ dentist_name }}, os seguintes trabalhos foram entregues:\n{{jobs_list}}' },
-            'CLINIC_APPOINTMENT': { body: 'Olá {{ patient_name }}, sua consulta está marcada para {{date}}.' },
-            'SUPPLIER_UPDATE': { body: 'Seu pedido {{order_id}} foi atualizado para: {{status}}' }
+            'LAB_DISPATCH': { name: 'lab_boa_em_rota', body: 'Olá {{ dentist_name }}, seus trabalhos estão saindo para entrega/coleta com nosso motoboy:\n{{jobs_list}}' },
+            'LAB_DELIVERED': { name: 'lab_delivered', body: 'Olá {{ dentist_name }}, os seguintes trabalhos foram entregues:\n{{jobs_list}}' },
+            'CLINIC_APPOINTMENT': { name: 'clinic_appointment', body: 'Olá {{ patient_name }}, sua consulta está marcada para {{date}}.' },
+            'SUPPLIER_UPDATE': { name: 'supplier_update', body: 'Seu pedido {{order_id}} foi atualizado para: {{status}}' }
         };
         
         if (defaultTemplates[templateType]) {
-            return { type: 'text_template', data: defaultTemplates[templateType] };
+            return { type: 'meta_template', data: defaultTemplates[templateType] };
         }
 
         throw new Error(`Template not found for module ${module} and type ${templateType}`);
