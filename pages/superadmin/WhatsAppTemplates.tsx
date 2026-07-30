@@ -2,7 +2,7 @@ import { YcloudTester } from '../../components/YcloudTester';
  import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
-  Plus, Edit2, Trash2, Save, X, Loader2, MessageSquare, Info, AlertCircle, CheckCircle, Smartphone
+  Plus, Edit2, Trash2, Save, X, Loader2, MessageSquare, Info, AlertCircle, CheckCircle, Smartphone, Sparkles
 } from 'lucide-react';
 import { GlobalWhatsAppTemplate } from '../../types';
 
@@ -316,10 +316,90 @@ export const WhatsAppTemplates = () => {
       {/* Templates List */}
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-slate-800">Modelos Globais Ativos</h3>
-          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-            {templatesList.length} Modelos Configurados
+        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">Modelos Globais Ativos</h3>
+            <p className="text-xs text-slate-400">Modelos cadastrados para notificações automáticas do sistema.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={async () => {
+                if (!window.confirm('Deseja carregar o conjunto padrão de modelos recomendados para Laboratórios, Clínicas e Fornecedores?')) return;
+                setIsSaving(true);
+                try {
+                  const defaultTpls: GlobalWhatsAppTemplate[] = [
+                    {
+                      id: `global_tpl_lab_dispatch`,
+                      action: 'LAB_DISPATCH',
+                      name: 'Laboratório: Trabalho em Rota de Entrega',
+                      body: 'Olá Dr(a) {{dentist_name}}, os seguintes trabalhos do laboratório acabaram de sair para entrega com o entregador:\n\n{{jobs_list}}\n\nAcompanhe o recebimento em seu consultório!',
+                      metaTemplateName: 'lab_trabalho_em_rota',
+                      active: true
+                    },
+                    {
+                      id: `global_tpl_lab_delivered`,
+                      action: 'LAB_DELIVERED',
+                      name: 'Laboratório: Trabalho Entregue',
+                      body: 'Olá Dr(a) {{dentist_name}}, confirmamos que os seguintes trabalhos foram entregues com sucesso no seu consultório:\n\n{{jobs_list}}\n\nQualquer dúvida estamos à disposição!',
+                      metaTemplateName: 'lab_trabalho_entregue',
+                      active: true
+                    },
+                    {
+                      id: `global_tpl_clinic_app`,
+                      action: 'CLINIC_APPOINTMENT',
+                      name: 'Clínica: Lembrete e Confirmação de Consulta',
+                      body: 'Olá {{patient_name}}, sua consulta está agendada para o dia {{date}} às {{time}}.\n\nPor favor, responda:\n1️⃣ para CONFIRMAR sua presença\n2️⃣ para CANCELAR ou solicitar reagendamento.',
+                      metaTemplateName: 'clinica_lembrete_consulta',
+                      active: true
+                    },
+                    {
+                      id: `global_tpl_clinic_conf`,
+                      action: 'CLINIC_APPOINTMENT_CONFIRMED',
+                      name: 'Clínica: Confirmação Registrada',
+                      body: 'Olá {{patient_name}}, recebemos sua confirmação! Sua consulta para o dia {{date}} às {{time}} está confirmada. Te esperamos!',
+                      metaTemplateName: 'clinica_consulta_confirmada',
+                      active: true
+                    },
+                    {
+                      id: `global_tpl_clinic_canc`,
+                      action: 'CLINIC_APPOINTMENT_CANCELED',
+                      name: 'Clínica: Cancelamento / Reagendamento Solicitado',
+                      body: 'Olá {{patient_name}}, informamos que sua consulta do dia {{date}} às {{time}} foi cancelada. Nossa equipe entrará em contato para reagendamento.',
+                      metaTemplateName: 'clinica_consulta_cancelada',
+                      active: true
+                    },
+                    {
+                      id: `global_tpl_supplier_upd`,
+                      action: 'SUPPLIER_UPDATE',
+                      name: 'Fornecedor: Status de Pedido / Entrega',
+                      body: 'Olá, informamos que o status do seu pedido #{{order_id}} foi atualizado para: *{{status}}*.\n\nAcompanhe o progresso diretamente em nosso portal!',
+                      metaTemplateName: 'fornecedor_status_pedido',
+                      active: true
+                    }
+                  ];
+
+                  // Merge preserving existing ones that don't collide
+                  const existingIds = new Set(templatesList.map(t => t.action));
+                  const newEntries = defaultTpls.filter(t => !existingIds.has(t.action));
+                  const merged = [...templatesList, ...newEntries];
+
+                  await updateGlobalSettings({ globalWhatsappTemplates: merged });
+                  setMessage({ type: 'success', text: 'Modelos recomendados carregados com sucesso!' });
+                } catch (err) {
+                  console.error(err);
+                  setMessage({ type: 'error', text: 'Erro ao carregar modelos padrão.' });
+                } finally {
+                  setIsSaving(false);
+                }
+              }}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5"
+            >
+              <Sparkles size={14} className="text-amber-500" />
+              Carregar Modelos Recomendados
+            </button>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+              {templatesList.length} Modelos
+            </div>
           </div>
         </div>
 
