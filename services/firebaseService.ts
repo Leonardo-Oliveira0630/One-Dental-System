@@ -69,13 +69,18 @@ export const apiResetPassword = (email: string) => sendPasswordResetEmail(auth, 
 
 export const getUserProfile = async (uid: string): Promise<User | null> => {
     if (!db) return null;
-    try {
-        const d = await getDoc(doc(db, 'users', uid));
-        if (d.exists()) {
-            return { id: d.id, ...d.data() as any } as User;
+    for (let attempt = 0; attempt < 4; attempt++) {
+        try {
+            const d = await getDoc(doc(db, 'users', uid));
+            if (d.exists()) {
+                return { id: d.id, ...d.data() as any } as User;
+            }
+        } catch (e) {
+            logger.error({ err: e }, "Erro ao buscar perfil (tentativa " + (attempt + 1) + "):");
         }
-    } catch (e) {
-        logger.error({ err: e }, "Erro ao buscar perfil:");
+        if (attempt < 3) {
+            await new Promise(r => setTimeout(r, 600));
+        }
     }
     return null;
 };

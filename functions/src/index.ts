@@ -213,20 +213,17 @@ export const registerUserInOrg = onCall(async (request) => {
         const existingUserDoc = await admin.firestore().collection("users").doc(userUid).get();
         if (existingUserDoc.exists) {
           const uData = existingUserDoc.data();
-          if (uData?.organizationId === targetOrgId) {
-            await admin.firestore().collection("users").doc(userUid).update({
-              name: cleanName,
-              role: role || uData?.role || "COLLABORATOR",
-              sector: sector || uData?.sector || "Geral",
-            });
-            return {
-              success: true,
-              uid: userUid,
-              message: "Colaborador já cadastrado. Dados do perfil atualizados com sucesso!",
-            };
-          } else {
-            throw new HttpsError("already-exists", "Este e-mail já está em uso por outro usuário ou organização.");
-          }
+          await admin.firestore().collection("users").doc(userUid).update({
+            name: cleanName,
+            role: role || uData?.role || "COLLABORATOR",
+            organizationId: targetOrgId,
+            sector: sector || uData?.sector || "Geral",
+          });
+          return {
+            success: true,
+            uid: userUid,
+            message: "Colaborador já cadastrado. Vinculado à organização e atualizado com sucesso!",
+          };
         }
       } else if (errCode === "auth/invalid-email") {
         throw new HttpsError("invalid-argument", "O formato do e-mail informado é inválido.");
