@@ -563,6 +563,7 @@ export interface PriceTable {
   id: string;
   organizationId: string;
   name: string;
+  isDefault?: boolean;
   prices: {
     [jobTypeId: string]: {
       basePrice: number;
@@ -589,6 +590,7 @@ export interface User {
   createdAt?: any;
   termsAcceptedAt?: Date | string;
   clinicName?: string;
+  clientType?: 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO';
   commissionSettings?: UserCommissionSetting[];
   globalDiscountPercent?: number; 
   priceTableId?: string;
@@ -867,6 +869,7 @@ export interface ManualDentist {
   name: string;
   userId?: string;
   clinicName?: string;
+  clientType?: 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO';
   email?: string;
   phone?: string;
   cpfCnpj?: string;

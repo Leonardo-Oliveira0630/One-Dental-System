@@ -42,8 +42,9 @@ export const DentistsTab = () => {
     state: '',
     country: 'Brasil',
     clinicName: '',
+    clientType: 'CLINICA' as any,
     deliveryViaPost: false,
-    priceTableId: '',
+    priceTableId: priceTables.find(t => t.isDefault)?.id || '',
     billingLimit: 0,
     isBlocked: false,
     blockReason: '' as any,
@@ -173,8 +174,8 @@ export const DentistsTab = () => {
       name: '', email: '', phone: '', cpfCnpj: '', cro: '',
       birthDate: '', approvalDate: '', cep: '', address: '',
       number: '', complement: '', neighborhood: '', city: '',
-      state: '', country: 'Brasil', clinicName: '', deliveryViaPost: false,
-      priceTableId: '', billingLimit: 0, 
+      state: '', country: 'Brasil', clinicName: '', clientType: 'CLINICA' as any, deliveryViaPost: false,
+      priceTableId: priceTables.find(t => t.isDefault)?.id || '', billingLimit: 0, 
       isBlocked: false, blockReason: '' as any, temporaryUnblockUntil: null as any,
       isCustomPricing: false, globalDiscountPercent: 0, customPrices: [] as any[]
     });
@@ -507,6 +508,14 @@ export const DentistsTab = () => {
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Clínica</label>
                             <input name="clinicName" value={formData.clinicName} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Tipo de Cliente *</label>
+                            <select name="clientType" value={formData.clientType || 'CLINICA'} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold">
+                                <option value="CLINICA">Clínica</option>
+                                <option value="PESSOA_FISICA">Pessoa Física</option>
+                                <option value="LABORATORIO">Laboratório</option>
+                            </select>
                           </div>
                         </div>
                       </div>

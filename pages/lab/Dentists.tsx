@@ -17,6 +17,8 @@ export const Dentists = () => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
+    const [clientTypeFilter, setClientTypeFilter] = useState<'ALL' | 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO'>('ALL');
+    const [priceTableFilter, setPriceTableFilter] = useState<string>('ALL');
 
     const hasPerm = (perm: string) => {
         if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
@@ -27,6 +29,7 @@ export const Dentists = () => {
     const [selectedClient, setSelectedClient] = useState<{ id: string, name: string, isManual: boolean } | null>(null);
     const [globalDiscount, setGlobalDiscount] = useState<number>(0);
     const [priceTableId, setPriceTableId] = useState<string>('');
+    const [clientType, setClientType] = useState<'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO'>('CLINICA');
     const [isCustomPricing, setIsCustomPricing] = useState(false);
     const [isBlocked, setIsBlocked] = useState(false);
     const [billingLimit, setBillingLimit] = useState<number>(0);
@@ -83,6 +86,7 @@ export const Dentists = () => {
             clientMap.set(d.id, {
                 ...d,
                 isManual: true,
+                clientType: d.clientType || 'CLINICA',
                 globalDiscountPercent: d.globalDiscountPercent || 0,
                 customPrices: d.customPrices || [],
                 deliveryViaPost: d.deliveryViaPost || false,
@@ -113,6 +117,7 @@ export const Dentists = () => {
                     ...u,
                     clinicName: u.clinicName || 'Cliente Web',
                     isManual: false,
+                    clientType: u.clientType || 'CLINICA',
                     globalDiscountPercent: u.globalDiscountPercent || 0, 
                     customPrices: u.customPrices || [],
                     deliveryViaPost: u.deliveryViaPost || false,
@@ -157,6 +162,7 @@ export const Dentists = () => {
         });
         setGlobalDiscount(client.globalDiscountPercent || 0);
         setPriceTableId(client.priceTableId || '');
+        setClientType(client.clientType || 'CLINICA');
         setIsCustomPricing(client.isCustomPricing || false);
         setIsBlocked(client.isBlocked || false);
         setBillingLimit(client.billingLimit || 0);
@@ -174,6 +180,7 @@ export const Dentists = () => {
                 globalDiscountPercent: globalDiscount,
                 customPrices: customPrices,
                 isCustomPricing: isCustomPricing,
+                clientType: clientType,
             };
 
             // STRICT PERMISSION CHECK
@@ -245,6 +252,12 @@ export const Dentists = () => {
             
             if (!matchesSearch) return false;
 
+            if (clientTypeFilter !== 'ALL' && d.clientType !== clientTypeFilter) return false;
+            if (priceTableFilter !== 'ALL') {
+                if (priceTableFilter === 'NONE' && d.priceTableId) return false;
+                if (priceTableFilter !== 'NONE' && d.priceTableId !== priceTableFilter) return false;
+            }
+
             if (statusFilter === 'ALL') return true;
             if (statusFilter === 'ACTIVE') return !d.isBlocked;
             if (statusFilter === 'BLOCKED') return d.isBlocked;
@@ -253,7 +266,7 @@ export const Dentists = () => {
 
             return true;
         });
-    }, [combinedClients, searchTerm, statusFilter]);
+    }, [combinedClients, searchTerm, statusFilter, clientTypeFilter, priceTableFilter]);
 
     // Advanced chronological statement with previous balance
     const chronoHistory = useMemo(() => {
@@ -640,13 +653,34 @@ export const Dentists = () => {
                             className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                         />
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <select 
+                            value={clientTypeFilter}
+                            onChange={e => setClientTypeFilter(e.target.value as any)}
+                            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="ALL">Todos os Tipos</option>
+                            <option value="CLINICA">Clínica</option>
+                            <option value="PESSOA_FISICA">Pessoa Física</option>
+                            <option value="LABORATORIO">Laboratório</option>
+                        </select>
+                        <select 
+                            value={priceTableFilter}
+                            onChange={e => setPriceTableFilter(e.target.value)}
+                            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="ALL">Todas as Tabelas</option>
+                            <option value="NONE">Sem Tabela (Padrão)</option>
+                            {priceTables.map(t => (
+                                <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                        </select>
                         <select 
                             value={statusFilter}
                             onChange={e => setStatusFilter(e.target.value as any)}
-                            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value="ALL">Todos os Clientes</option>
+                            <option value="ALL">Todos os Status</option>
                             <option value="ACTIVE">Clientes Ativos</option>
                             <option value="BLOCKED">Todos os Bloqueados</option>
                             <option value="DEBT">Por Inadimplência</option>
@@ -854,6 +888,19 @@ export const Dentists = () => {
                                         </select>
                                     </div>
                                 )}
+
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tipo de Cliente</label>
+                                    <select 
+                                        value={clientType}
+                                        onChange={e => setClientType(e.target.value as any)}
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
+                                    >
+                                        <option value="CLINICA">Clínica</option>
+                                        <option value="PESSOA_FISICA">Pessoa Física</option>
+                                        <option value="LABORATORIO">Laboratório</option>
+                                    </select>
+                                </div>
 
                                 <div className="space-y-4">
                                      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">

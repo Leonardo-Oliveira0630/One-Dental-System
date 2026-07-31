@@ -124,11 +124,30 @@ export const PriceTables = () => {
                                 </button>
                             </div>
                         </div>
-                        <h3 className="font-black text-slate-800 text-lg uppercase mb-1">{table.name}</h3>
+                        <h3 className="font-black text-slate-800 text-lg uppercase mb-1 flex items-center gap-2">
+                            {table.name}
+                            {table.isDefault && (
+                                <span className="bg-emerald-100 text-emerald-800 text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider">Padrão</span>
+                            )}
+                        </h3>
                         <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{Object.keys(table.prices).length} Serviços Customizados</p>
                         
                         <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
                             <span>Criado em: {new Date(table.createdAt).toLocaleDateString()}</span>
+                            <button
+                                onClick={async () => {
+                                    for (const pt of priceTables) {
+                                        if (pt.id === table.id) {
+                                            await updatePriceTable(pt.id, { isDefault: true });
+                                        } else if (pt.isDefault) {
+                                            await updatePriceTable(pt.id, { isDefault: false });
+                                        }
+                                    }
+                                }}
+                                className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase transition-all ${table.isDefault ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                            >
+                                {table.isDefault ? '✓ Tabela Padrão' : 'Tornar Padrão'}
+                            </button>
                         </div>
                     </div>
                 ))}
