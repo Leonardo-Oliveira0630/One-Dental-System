@@ -41,15 +41,9 @@ const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
 const v2_1 = require("firebase-functions/v2");
-const params_1 = require("firebase-functions/params");
-const asaasApiKeySecret = (0, params_1.defineSecret)("ASAAS_API_KEY");
-const asaasWebhookTokenSecret = (0, params_1.defineSecret)("ASAAS_WEBHOOK_TOKEN");
-const ycloudApiKeySecret = (0, params_1.defineSecret)("YCLOUD_API_KEY");
-const ycloudPhoneNumberSecret = (0, params_1.defineSecret)("YCLOUD_PHONE_NUMBER");
 (0, v2_1.setGlobalOptions)({
     maxInstances: 10,
-    region: "us-central1",
-    secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret]
+    region: "us-central1"
 });
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
@@ -66,17 +60,7 @@ const getAsaasConfig = async () => {
     const db = admin.firestore();
     const settingsSnap = await db.collection("settings").doc("global").get();
     const settings = settingsSnap.data();
-    // Prioridade: Secret Manager -> Env Var
-    let apiKey = "";
-    try {
-        apiKey = asaasApiKeySecret.value();
-    }
-    catch (e) {
-        logger.warn("Secret ASAAS_API_KEY não disponível via Secret Manager.");
-    }
-    if (!apiKey) {
-        apiKey = process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY || "";
-    }
+    let apiKey = process.env.ASAAS_API_KEY || process.env.asaas_api_key || process.env.asaa_api_key || process.env.ASAA_API_KEY || "";
     if (!apiKey || apiKey === "SUA_CHAVE_AQUI") {
         logger.error("ERRO: ASAAS_API_KEY não configurada.");
         throw new Error("Chave de API do Asaas não configurada no servidor. Configure a chave no menu Admin > Configurações ou garanta que a variável ASAAS_API_KEY exista.");
@@ -95,20 +79,8 @@ const getAsaasConfig = async () => {
     };
 };
 const getYcloudConfig = async () => {
-    let apiKey = "";
-    let fromNumber = "";
-    try {
-        apiKey = ycloudApiKeySecret.value();
-    }
-    catch (e) { }
-    try {
-        fromNumber = ycloudPhoneNumberSecret.value();
-    }
-    catch (e) { }
-    if (!apiKey)
-        apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
-    if (!fromNumber)
-        fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
+    let apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
+    let fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
     try {
         const db = admin.firestore();
         const globalSettingsDoc = await db.collection("settings").doc("global").get();
@@ -182,7 +154,8 @@ async function getOrCreateAsaasCustomer(url, key, name, cpfCnpj, externalReferen
  * REGISTRA UM NOVO USUÁRIO EM UMA ORGANIZAÇÃO
  */
 exports.registerUserInOrg = (0, https_1.onCall)(async (request) => {
-    var _a, _b;
+    var _a;
+    logger.info("registerUserInOrg triggered", { data: request.data });
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Usuário não autenticado.");
     }
@@ -214,37 +187,47 @@ exports.registerUserInOrg = (0, https_1.onCall)(async (request) => {
             userUid = userRecord.uid;
         }
         catch (authErr) {
-            if (authErr.code === "auth/email-already-in-use" || ((_b = authErr.message) === null || _b === void 0 ? void 0 : _b.includes("already in use"))) {
-                const existingAuthUser = await admin.auth().getUserByEmail(cleanEmail);
-                userUid = existingAuthUser.uid;
-                const existingUserDoc = await admin.firestore().collection("users").doc(userUid).get();
-                if (existingUserDoc.exists) {
-                    const uData = existingUserDoc.data();
-                    if ((uData === null || uData === void 0 ? void 0 : uData.organizationId) === targetOrgId) {
-                        await admin.firestore().collection("users").doc(userUid).update({
-                            name: cleanName,
-                            role: role || (uData === null || uData === void 0 ? void 0 : uData.role) || "COLLABORATOR",
-                            sector: sector || (uData === null || uData === void 0 ? void 0 : uData.sector) || "Geral",
-                        });
-                        return {
-                            success: true,
-                            uid: userUid,
-                            message: "Colaborador já cadastrado. Dados do perfil atualizados com sucesso!",
-                        };
-                    }
-                    else {
-                        throw new https_1.HttpsError("already-exists", "Este e-mail já está em uso por outro usuário ou organização.");
-                    }
+            logger.warn("auth.createUser warning/error:", { code: authErr === null || authErr === void 0 ? void 0 : authErr.code, message: authErr === null || authErr === void 0 ? void 0 : authErr.message });
+            const errCode = (authErr === null || authErr === void 0 ? void 0 : authErr.code) || "";
+            const errMsg = (authErr === null || authErr === void 0 ? void 0 : authErr.message) || "";
+            if (errCode === "auth/email-already-in-use" ||
+                errCode === "auth/email-already-exists" ||
+                errMsg.toLowerCase().includes("already in use") ||
+                errMsg.toLowerCase().includes("already exists") ||
+                errMsg.toLowerCase().includes("email")) {
+                try {
+                    const existingAuthUser = await admin.auth().getUserByEmail(cleanEmail);
+                    userUid = existingAuthUser.uid;
                 }
+                catch (getErr) {
+                    logger.error("Failed to get existing auth user by email:", getErr);
+                    throw new https_1.HttpsError("invalid-argument", "E-mail já cadastrado, mas ocorreu um erro ao recuperar o usuário.");
+                }
+                const existingUserDoc = await admin.firestore().collection("users").doc(userUid).get();
+                const uData = existingUserDoc.exists ? existingUserDoc.data() : {};
+                await admin.firestore().collection("users").doc(userUid).set({
+                    id: userUid,
+                    name: cleanName || (uData === null || uData === void 0 ? void 0 : uData.name) || cleanEmail.split('@')[0],
+                    email: cleanEmail,
+                    role: role || (uData === null || uData === void 0 ? void 0 : uData.role) || "COLLABORATOR",
+                    organizationId: targetOrgId,
+                    sector: sector || (uData === null || uData === void 0 ? void 0 : uData.sector) || "Geral",
+                    updatedAt: admin.firestore.Timestamp.now(),
+                }, { merge: true });
+                return {
+                    success: true,
+                    uid: userUid,
+                    message: "Colaborador já cadastrado no sistema. Vinculado à organização com sucesso!",
+                };
             }
-            else if (authErr.code === "auth/invalid-email") {
+            else if (errCode === "auth/invalid-email") {
                 throw new https_1.HttpsError("invalid-argument", "O formato do e-mail informado é inválido.");
             }
-            else if (authErr.code === "auth/weak-password") {
+            else if (errCode === "auth/weak-password") {
                 throw new https_1.HttpsError("invalid-argument", "A senha fornecida é muito fraca. Digite ao menos 6 caracteres.");
             }
             else {
-                throw authErr;
+                throw new https_1.HttpsError("invalid-argument", errMsg || "Erro ao registrar autenticação do colaborador.");
             }
         }
         const userData = {
@@ -260,14 +243,14 @@ exports.registerUserInOrg = (0, https_1.onCall)(async (request) => {
             .collection("users")
             .doc(userUid)
             .set(userData, { merge: true });
-        return { success: true, uid: userUid };
+        return { success: true, uid: userUid, message: "Colaborador cadastrado com sucesso!" };
     }
     catch (error) {
         if (error instanceof https_1.HttpsError) {
             throw error;
         }
         logger.error("Erro em registerUserInOrg:", error);
-        throw new https_1.HttpsError("internal", error.message || "Erro ao registrar colaborador.");
+        throw new https_1.HttpsError("invalid-argument", error.message || "Erro ao registrar colaborador.");
     }
 });
 /**
@@ -1174,17 +1157,7 @@ exports.asaasWebhook = (0, https_1.onRequest)(async (req, res) => {
     var _a, _b, _c, _d, _e, _f, _g;
     const db = admin.firestore();
     try {
-        // Validar Asaas-Access-Token do Webhook
-        let webhookToken = "";
-        try {
-            webhookToken = asaasWebhookTokenSecret.value();
-        }
-        catch (e) {
-            logger.warn("Secret ASAAS_WEBHOOK_TOKEN não disponível via Secret Manager.");
-        }
-        if (!webhookToken) {
-            webhookToken = process.env.ASAAS_WEBHOOK_TOKEN || "";
-        }
+        let webhookToken = process.env.ASAAS_WEBHOOK_TOKEN || "";
         if (webhookToken) {
             const authHeader = req.headers["asaas-access-token"] ||
                 req.headers["Asaas-Access-Token"];
@@ -1346,7 +1319,7 @@ exports.createSupplierPayment = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("aborted", msg);
     }
 });
-exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true, secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (req) => {
+exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true }, async (req) => {
     var _a;
     const { originCep, destinationCep, items, frenetToken } = req.data;
     if (!originCep || !destinationCep || !frenetToken) {
@@ -1549,7 +1522,7 @@ exports.syncStoreOrders = (0, https_1.onCall)(async (request) => {
         throw new https_1.HttpsError("aborted", error.message);
     }
 });
-exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10, secrets: [asaasApiKeySecret, asaasWebhookTokenSecret, ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (request) => {
+exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
     try {
         const { base64, fileName, mimeType } = request.data;
         if (!base64 || !fileName || !mimeType) {
@@ -1641,7 +1614,7 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10, secrets
 /**
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
-exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10, secrets: [ycloudApiKeySecret, ycloudPhoneNumberSecret] }, async (request) => {
+exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
     var _a, _b, _c, _d, _e, _f, _g;
     const { to, body, orgId } = request.data;
     if (!to || !body) {
