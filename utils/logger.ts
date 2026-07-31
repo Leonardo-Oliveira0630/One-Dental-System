@@ -23,6 +23,20 @@ const redactOptions = {
   censor: '[MASKED]'
 };
 
+// Helper for safe JSON stringify handling circular references
+const getCircularReplacer = () => {
+  const seen = new WeakSet();
+  return (key: string, value: any) => {
+    if (typeof value === "object" && value !== null) {
+      if (seen.has(value)) {
+        return "[Circular]";
+      }
+      seen.add(value);
+    }
+    return value;
+  };
+};
+
 // Create a professional structured logger
 const logger = pino({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
@@ -30,10 +44,11 @@ const logger = pino({
   browser: {
     asObject: true, // Use structured JSON in browser console as well
     write: (o) => {
-      // Custom writer if needed, but default is fine
-      // It outputs structured log objects to console
-      // which tools like DataDog/LogRocket can capture natively
-      console.log(JSON.stringify(o));
+      try {
+        console.log(JSON.stringify(o, getCircularReplacer()));
+      } catch (err) {
+        console.log(o);
+      }
     }
   },
   base: {
