@@ -1017,7 +1017,10 @@ export const Dentists = () => {
                                                 {jobTypes.map(type => {
                                                     const cp = customPrices.find(p => p.jobTypeId === type.id);
                                                     const discountValue = cp?.discountPercent ?? (cp?.fixedPrice ? 0 : globalDiscount);
-                                                    const finalPrice = cp?.fixedPrice ?? (type.basePrice * (1 - discountValue / 100));
+                                                    const assignedTable = priceTables.find(t => t.id === priceTableId);
+                                                     const tablePriceObj = assignedTable?.prices[type.id];
+                                                     const basePriceForService = tablePriceObj?.basePrice !== undefined ? tablePriceObj.basePrice : type.basePrice;
+                                                     const finalPrice = cp?.fixedPrice ?? (basePriceForService * (1 - discountValue / 100));
                                                     
                                                     return (
                                                         <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
