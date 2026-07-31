@@ -1023,7 +1023,16 @@ export const Dentists = () => {
                                                         <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
                                                             <div className="mb-2 sm:mb-0">
                                                                 <p className="font-bold text-slate-800">{type.name}</p>
-                                                                <p className="text-xs text-slate-400">Preço Padrão: R$ {type.basePrice.toFixed(2)}</p>
+                                                                {(() => {
+                                                                    const assignedTable = priceTables.find(t => t.id === priceTableId);
+                                                                    const tablePriceObj = assignedTable?.prices[type.id];
+                                                                    const basePriceForService = tablePriceObj?.basePrice !== undefined ? tablePriceObj.basePrice : type.basePrice;
+                                                                    return (
+                                                                        <p className="text-xs text-slate-400">
+                                                                            {assignedTable ? `Preço Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Preço Padrão: R$ {type.basePrice.toFixed(2)}`}
+                                                                        </p>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                             <div className="flex items-center gap-4">
                                                                 <div className="text-right">

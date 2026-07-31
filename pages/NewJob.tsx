@@ -209,11 +209,11 @@ export const NewJob = () => {
                 // Fallback to Global Discount if custom pricing is ON but no specific price for this jobType
                 dentistDiscountRate = selectedDentistObj.globalDiscountPercent / 100;
             }
-        } else if (selectedDentistObj.priceTableId) {
-            // Priority: Price Table
+        }
+        if (selectedDentistObj.priceTableId) {
             const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
-            if (table && table.prices[activeJobType.id]) {
-                basePrice = table.prices[activeJobType.id].basePrice ?? activeJobType.basePrice;
+            if (table && table.prices[activeJobType.id]?.basePrice !== undefined) {
+                basePrice = table.prices[activeJobType.id].basePrice;
             }
         }
     }
@@ -257,6 +257,12 @@ export const NewJob = () => {
     let dentistDiscountRate = 0;
     
     if (dentist) {
+        if (dentist.priceTableId) {
+            const table = priceTables.find(t => t.id === dentist.priceTableId);
+            if (table && table.prices[jobType.id]?.basePrice !== undefined) {
+                basePrice = table.prices[jobType.id].basePrice;
+            }
+        }
         if (dentist.isCustomPricing) {
             const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
             if (custom) {
@@ -272,11 +278,6 @@ export const NewJob = () => {
             } else if (dentist.globalDiscountPercent) {
                 dentistDiscountRate = dentist.globalDiscountPercent / 100;
             }
-        } else if (dentist.priceTableId) {
-            const table = priceTables.find(t => t.id === dentist.priceTableId);
-            if (table && table.prices[jobType.id]) {
-                basePrice = table.prices[jobType.id].basePrice ?? jobType.basePrice;
-            }
         }
     }
 
@@ -289,7 +290,7 @@ export const NewJob = () => {
         if (option) {
             let modifier = option.priceModifier;
             
-            if (dentist && !dentist.isCustomPricing && dentist.priceTableId) {
+            if (dentist && dentist.priceTableId) {
                 const table = priceTables.find(t => t.id === dentist.priceTableId);
                 if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
                     modifier = table.prices[jobType.id].variations[option.id];
