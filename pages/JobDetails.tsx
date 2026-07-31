@@ -722,6 +722,7 @@ export const JobDetails = () => {
                 sector: 'Gestão'
             }]
         });
+        await recalculateAllCommissions(editItems, job.itemExecutions || []);
         setShowEditModal(false);
     } catch (err) {
         alert("Erro ao salvar.");
@@ -1116,6 +1117,57 @@ export const JobDetails = () => {
       }
   };
 
+  const recalculateAllCommissions = async (itemsToUse: any[], executionsToUse: any[]) => {
+      const sectorUserPairs = new Map<string, { sector: string; userId: string }>();
+      (executionsToUse || []).forEach((e: any) => {
+          if (e.sector && e.userId) {
+              sectorUserPairs.set(`${e.sector}_${e.userId}`, { sector: e.sector, userId: e.userId });
+          }
+      });
+
+      for (const { sector, userId } of sectorUserPairs.values()) {
+          const selectedUser = labUsers.find(u => u.id === userId);
+          const userItemsInSector = (executionsToUse || [])
+              .filter((e: any) => e.userId === userId && e.sector === sector)
+              .map((e: any) => e.itemId);
+          
+          let totalUserComm = 0;
+          itemsToUse.forEach((item: any) => {
+              if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
+                  const sectorDisabled = item.sectorCommissionDisabled?.[sector];
+                  if (!sectorDisabled) {
+                      const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) !== undefined 
+                          ? item.sectorQuantities[sector] 
+                          : item.quantity;
+                      const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty);
+                  }
+              }
+          });
+
+          const existingComm = commissions.find(c => c.jobId === job.id && c.sector === sector && c.userId === userId);
+          if (totalUserComm > 0) {
+              if (existingComm) {
+                  await updateCommissionRecord(existingComm.id, { amount: totalUserComm });
+              } else {
+                  await addCommissionRecord({
+                      jobId: job.id,
+                      osNumber: job.osNumber || 'N/A',
+                      patientName: job.patientName,
+                      sector: sector,
+                      userId: userId,
+                      userName: selectedUser?.name || '',
+                      amount: totalUserComm,
+                      status: CommissionStatus.PENDING,
+                      createdAt: new Date()
+                  });
+              }
+          } else if (existingComm) {
+              await deleteCommissionRecord(existingComm.id);
+          }
+      }
+  };
+
   const handleSectorQuantityChange = async (itemId: string, sectorName: string, newQty: number) => {
       if (!canManageCommissions) return;
       const updatedItems = job.items.map((item: any) => {
@@ -1133,6 +1185,7 @@ export const JobDetails = () => {
       });
 
       await updateJob(job.id, { items: updatedItems });
+      await recalculateAllCommissions(updatedItems, job.itemExecutions || []);
   };
 
   const handleSectorCommissionToggle = async (itemId: string, sectorName: string, disabled: boolean) => {
@@ -1152,6 +1205,7 @@ export const JobDetails = () => {
       });
 
       await updateJob(job.id, { items: updatedItems });
+      await recalculateAllCommissions(updatedItems, job.itemExecutions || []);
   };
 
   const startEditingItem = (item: JobItem) => {
@@ -1210,6 +1264,7 @@ export const JobDetails = () => {
           }]
       });
 
+      await recalculateAllCommissions(updatedItems, job.itemExecutions || []);
       setEditingItemId(null);
   };
 
