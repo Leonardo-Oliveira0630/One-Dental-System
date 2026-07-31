@@ -74,7 +74,7 @@ export const UsersTab = () => {
   const [tempPerms, setTempPerms] = useState<PermissionKey[]>([]);
 
   const maxUsersLimit = currentPlan?.features?.maxUsers ?? -1;
-  const activeTeamUsers = allUsers.filter(u => u.role !== UserRole.CLIENT);
+  const activeTeamUsers = (allUsers || []).filter(u => u.role !== UserRole.CLIENT);
   const isAtMaxUsers = maxUsersLimit !== -1 && activeTeamUsers.length >= maxUsersLimit;
 
   const resetForm = () => {
@@ -199,7 +199,7 @@ export const UsersTab = () => {
             <tr><th className="p-4">Nome</th><th className="p-4">Cargo</th><th className="p-4">Setor</th><th className="p-4 text-right">Ações</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
+            {(allUsers || []).filter(u => u.role !== UserRole.CLIENT).map(user => (
               <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                 <td className="p-4">
                   <div className="flex items-center gap-3">

@@ -198,7 +198,15 @@ export const registerUserInOrg = onCall(async (request) => {
       });
       userUid = userRecord.uid;
     } catch (authErr: any) {
-      if (authErr.code === "auth/email-already-in-use" || authErr.message?.includes("already in use")) {
+      const errCode = authErr?.code || "";
+      const errMsg = authErr?.message || "";
+
+      if (
+        errCode === "auth/email-already-in-use" ||
+        errCode === "auth/email-already-exists" ||
+        errMsg.toLowerCase().includes("already in use") ||
+        errMsg.toLowerCase().includes("already exists")
+      ) {
         const existingAuthUser = await admin.auth().getUserByEmail(cleanEmail);
         userUid = existingAuthUser.uid;
 
@@ -220,12 +228,12 @@ export const registerUserInOrg = onCall(async (request) => {
             throw new HttpsError("already-exists", "Este e-mail já está em uso por outro usuário ou organização.");
           }
         }
-      } else if (authErr.code === "auth/invalid-email") {
+      } else if (errCode === "auth/invalid-email") {
         throw new HttpsError("invalid-argument", "O formato do e-mail informado é inválido.");
-      } else if (authErr.code === "auth/weak-password") {
+      } else if (errCode === "auth/weak-password") {
         throw new HttpsError("invalid-argument", "A senha fornecida é muito fraca. Digite ao menos 6 caracteres.");
       } else {
-        throw authErr;
+        throw new HttpsError("invalid-argument", errMsg || "Erro ao registrar autenticação do colaborador.");
       }
     }
 
@@ -250,7 +258,7 @@ export const registerUserInOrg = onCall(async (request) => {
       throw error;
     }
     logger.error("Erro em registerUserInOrg:", error);
-    throw new HttpsError("internal", error.message || "Erro ao registrar colaborador.");
+    throw new HttpsError("invalid-argument", error.message || "Erro ao registrar colaborador.");
   }
 });
 
