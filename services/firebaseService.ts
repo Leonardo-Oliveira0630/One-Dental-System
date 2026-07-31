@@ -1397,7 +1397,11 @@ export const subscribeAllSupplierProducts = (supplierIds: string[], cb: (items: 
             
             const aggregated = Array.from(itemsMap.values()).flat();
             cb(aggregated);
-        }, (error: any) => logger.warn({ err: error }, `[Firestore] Erro em subscribeAllSupplierProducts para ${supplierId}:`));
+        }, (error: any) => {
+            logger.warn(`[Firestore] Erro em subscribeAllSupplierProducts para ${supplierId}: ${error.code}`);
+            itemsMap.set(supplierId, []);
+            cb(Array.from(itemsMap.values()).flat());
+        });
         unsubs.push(unsub);
     });
 

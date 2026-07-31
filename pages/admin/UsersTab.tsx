@@ -95,12 +95,12 @@ export const UsersTab = () => {
     }
     setIsSubmitting(true);
     try {
-        await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, userSector);
+        const res = await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, userSector);
         setIsAddingUser(false);
         resetForm();
-        alert("Colaborador cadastrado com sucesso!");
+        alert(res?.message || "Colaborador cadastrado com sucesso!");
     } catch (err: any) {
-        alert("Erro ao criar usuário. Verifique se o e-mail já está em uso ou se você tem permissões.");
+        alert(err.message || "Erro ao criar usuário. Verifique se o e-mail já está em uso ou se você tem permissões.");
     } finally { setIsSubmitting(false); }
   };
 

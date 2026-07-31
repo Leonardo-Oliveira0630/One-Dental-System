@@ -459,10 +459,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                             });
                         }
                     });
-                    api.subscribeClinicServices(profileOrgId, setClinicServices);
-                    api.subscribeClinicRooms(profileOrgId, setClinicRooms);
-                    api.subscribeClinicDentists(profileOrgId, setClinicDentists);
-                    api.subscribeBillingBatches(profileOrgId, setBillingBatches);
                 }
             }
         }
@@ -558,6 +554,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             unsubs.push(api.subscribeNfcBoxes(myOrgId, setNfcBoxes));
             if (currentOrg?.orgType !== 'CLINIC') {
                 unsubs.push(api.subscribeLabOnlineRequisitions(myOrgId, setOnlineRequisitions));
+            } else {
+                unsubs.push(api.subscribeClinicServices(myOrgId, setClinicServices));
+                unsubs.push(api.subscribeClinicRooms(myOrgId, setClinicRooms));
+                unsubs.push(api.subscribeClinicDentists(myOrgId, setClinicDentists));
             }
         } else if (activeDataId) {
             unsubs.push(api.subscribeDentistOnlineRequisitions([activeDataId], currentUser.id, setOnlineRequisitions));

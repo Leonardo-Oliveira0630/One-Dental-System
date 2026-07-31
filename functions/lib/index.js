@@ -182,33 +182,92 @@ async function getOrCreateAsaasCustomer(url, key, name, cpfCnpj, externalReferen
  * REGISTRA UM NOVO USUÁRIO EM UMA ORGANIZAÇÃO
  */
 exports.registerUserInOrg = (0, https_1.onCall)(async (request) => {
-    const { email, pass, name, role, organizationId, sector } = request.data;
+    var _a, _b;
     if (!request.auth) {
-        throw new https_1.HttpsError("unauthenticated", "Não logado.");
+        throw new https_1.HttpsError("unauthenticated", "Usuário não autenticado.");
+    }
+    const { email, pass, name, role, organizationId, sector } = request.data || {};
+    const cleanEmail = (email || "").toLowerCase().trim();
+    const cleanName = (name || "").trim();
+    if (!cleanEmail || !cleanName || !pass) {
+        throw new https_1.HttpsError("invalid-argument", "Nome, e-mail e senha são obrigatórios.");
+    }
+    if (pass.length < 6) {
+        throw new https_1.HttpsError("invalid-argument", "A senha deve ter no mínimo 6 caracteres.");
+    }
+    let targetOrgId = organizationId;
+    if (!targetOrgId) {
+        const callerDoc = await admin.firestore().collection("users").doc(request.auth.uid).get();
+        targetOrgId = (_a = callerDoc.data()) === null || _a === void 0 ? void 0 : _a.organizationId;
+    }
+    if (!targetOrgId) {
+        throw new https_1.HttpsError("failed-precondition", "Organização não informada e não identificada.");
     }
     try {
-        const userRecord = await admin.auth().createUser({
-            email,
-            password: pass,
-            displayName: name,
-        });
+        let userUid;
+        try {
+            const userRecord = await admin.auth().createUser({
+                email: cleanEmail,
+                password: pass,
+                displayName: cleanName,
+            });
+            userUid = userRecord.uid;
+        }
+        catch (authErr) {
+            if (authErr.code === "auth/email-already-in-use" || ((_b = authErr.message) === null || _b === void 0 ? void 0 : _b.includes("already in use"))) {
+                const existingAuthUser = await admin.auth().getUserByEmail(cleanEmail);
+                userUid = existingAuthUser.uid;
+                const existingUserDoc = await admin.firestore().collection("users").doc(userUid).get();
+                if (existingUserDoc.exists) {
+                    const uData = existingUserDoc.data();
+                    if ((uData === null || uData === void 0 ? void 0 : uData.organizationId) === targetOrgId) {
+                        await admin.firestore().collection("users").doc(userUid).update({
+                            name: cleanName,
+                            role: role || (uData === null || uData === void 0 ? void 0 : uData.role) || "COLLABORATOR",
+                            sector: sector || (uData === null || uData === void 0 ? void 0 : uData.sector) || "Geral",
+                        });
+                        return {
+                            success: true,
+                            uid: userUid,
+                            message: "Colaborador já cadastrado. Dados do perfil atualizados com sucesso!",
+                        };
+                    }
+                    else {
+                        throw new https_1.HttpsError("already-exists", "Este e-mail já está em uso por outro usuário ou organização.");
+                    }
+                }
+            }
+            else if (authErr.code === "auth/invalid-email") {
+                throw new https_1.HttpsError("invalid-argument", "O formato do e-mail informado é inválido.");
+            }
+            else if (authErr.code === "auth/weak-password") {
+                throw new https_1.HttpsError("invalid-argument", "A senha fornecida é muito fraca. Digite ao menos 6 caracteres.");
+            }
+            else {
+                throw authErr;
+            }
+        }
         const userData = {
-            id: userRecord.uid,
-            name,
-            email,
-            role,
-            organizationId,
+            id: userUid,
+            name: cleanName,
+            email: cleanEmail,
+            role: role || "COLLABORATOR",
+            organizationId: targetOrgId,
             sector: sector || "Geral",
             createdAt: admin.firestore.Timestamp.now(),
         };
         await admin.firestore()
             .collection("users")
-            .doc(userRecord.uid)
-            .set(userData);
-        return { success: true, uid: userRecord.uid };
+            .doc(userUid)
+            .set(userData, { merge: true });
+        return { success: true, uid: userUid };
     }
     catch (error) {
-        throw new https_1.HttpsError("aborted", error.message);
+        if (error instanceof https_1.HttpsError) {
+            throw error;
+        }
+        logger.error("Erro em registerUserInOrg:", error);
+        throw new https_1.HttpsError("internal", error.message || "Erro ao registrar colaborador.");
     }
 });
 /**
