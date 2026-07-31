@@ -4,7 +4,6 @@ import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { WebcamModal } from '../components/WebcamModal';
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct } from '../types';
 import { 
@@ -477,7 +476,7 @@ export const JobDetails = () => {
     if (!job || !currentUser) return;
     try {
         setIsUploadingFiles(true);
-        setUploadProgressMsg('Enviando foto da webcam...');
+        setUploadProgressMsg('Processando foto em alta definição...');
         
         // Remove the data:image/jpeg;base64, part
         const base64Data = base64String.split(',')[1];
@@ -489,8 +488,12 @@ export const JobDetails = () => {
         }
         const byteArray = new Uint8Array(byteNumbers);
         const blob = new Blob([byteArray], { type: 'image/jpeg' });
-        const file = new File([blob], `webcam_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        let file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
         
+        setUploadProgressMsg('Otimizando imagem...');
+        file = await smartCompress(file);
+        
+        setUploadProgressMsg('Enviando foto...');
         const url = await uploadFile(file);
         
         const newAttachment: Attachment = {
@@ -505,7 +508,7 @@ export const JobDetails = () => {
         const newHistory = [...(job.history || []).filter(Boolean), {
             id: `hist_photo_${Date.now()}`,
             timestamp: new Date(),
-            action: 'Nova foto adicionada via webcam',
+            action: 'Nova foto adicionada via câmera',
             userId: currentUser.id,
             userName: currentUser.name
         }];
@@ -515,72 +518,13 @@ export const JobDetails = () => {
             history: newHistory
         });
         
-        
+        setUploadProgressMsg('');
+        alert("Foto anexada com sucesso!");
     } catch (e: any) {
         alert("Erro ao enviar foto: " + e.message);
     } finally {
         setIsUploadingFiles(false);
         setUploadProgressMsg('');
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    if (!job || !currentUser) return;
-    try {
-      const image = await Camera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.Base64,
-        source: CameraSource.Prompt,
-        promptLabelHeader: 'Anexar Foto',
-        promptLabelPhoto: 'Escolher da Galeria',
-        promptLabelPicture: 'Tirar Foto'
-      });
-
-      if (image.base64String) {
-        setIsUploadingFiles(true);
-        setUploadProgressMsg('Enviando foto...');
-        
-        const byteCharacters = atob(image.base64String);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: `image/${image.format}` });
-        const file = new File([blob], `photo_${Date.now()}.${image.format}`, { type: `image/${image.format}` });
-        
-        const url = await uploadFile(file);
-        
-        const newAttachment: Attachment = {
-            id: Math.random().toString(36).substr(2, 9),
-            name: file.name,
-            url: url,
-            uploadedAt: new Date()
-        };
-
-        const updatedAttachments = [...(job.attachments || []).filter(Boolean), newAttachment];
-        await updateJob(job.id, { 
-            attachments: updatedAttachments,
-            history: [...(job.history || []).filter(Boolean), {
-                id: `hist_photo_${Date.now()}`,
-                timestamp: new Date(),
-                action: `Foto anexada ao caso via câmera`,
-                userId: currentUser.id,
-                userName: currentUser.name
-            }]
-        });
-
-        setUploadProgressMsg('');
-        alert("Foto anexada!");
-      }
-    } catch (error) {
-      console.error('Error taking photo:', error);
-      if (error instanceof Error && error.message !== 'User cancelled photos app') {
-        alert('Erro ao acessar a câmera.');
-      }
-    } finally {
-      setIsUploadingFiles(false);
     }
   };
 
@@ -2731,20 +2675,12 @@ export const JobDetails = () => {
                                     </div>
                                 </div>
                                 <button 
-                                    onClick={handleTakePhoto}
-                                    disabled={isUploadingFiles}
-                                    className="w-20 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-emerald-400 hover:bg-emerald-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0"
-                                >
-                                    <CameraIcon size={28} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Foto</span>
-                                </button>
-                                <button 
                                     onClick={() => setIsWebcamOpen(true)}
                                     disabled={isUploadingFiles}
-                                    className="w-20 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0"
+                                    className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0"
                                 >
                                     <CameraIcon size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center leading-tight">Webcam<br/>PC</span>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center leading-tight">Tirar Foto</span>
                                 </button>
                             </div>
 

@@ -5,7 +5,7 @@ import JSZip from 'jszip';
  * Comprime imagens usando Canvas.
  * Qualidade de 0.85 é o "sweet spot" para fotos odontológicas (mantém detalhes de textura e cor).
  */
-export const compressImage = async (file: File, maxWidth = 2048, quality = 0.85): Promise<File> => {
+export const compressImage = async (file: File, maxWidth = 4096, quality = 0.98): Promise<File> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
