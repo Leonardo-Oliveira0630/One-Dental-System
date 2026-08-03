@@ -21,6 +21,7 @@ import { formatTeethRange } from '../utils/toothUtils';
 import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
 import * as firestorePkg from 'firebase/firestore';
+import { Odontogram } from '../components/Odontogram';
 import { db } from '../services/firebaseConfig';
 
 const { doc, onSnapshot } = firestorePkg as any;
@@ -108,7 +109,9 @@ export const JobDetails = () => {
     selectedVariationIds: string[];
     variationValues: Record<string, string>;
     sectorCommissionDisabled: Record<string, boolean>;
-  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {} });
+    selectedTeeth: string[];
+    color: string;
+  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Rejection/Cancellation Modal States
@@ -398,6 +401,8 @@ export const JobDetails = () => {
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
   const [newItemVariationIds, setNewItemVariationIds] = useState<string[]>([]);
+  const [newItemTeeth, setNewItemTeeth] = useState<string[]>([]);
+  const [newItemColor, setNewItemColor] = useState('');
   
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -583,7 +588,9 @@ export const JobDetails = () => {
           quantity: newItemQty,
           price: type.basePrice,
           selectedVariationIds: newItemVariationIds,
-          nature: newItemNature
+          nature: newItemNature,
+          selectedTeeth: newItemTeeth.length > 0 ? newItemTeeth : undefined,
+          color: newItemColor || undefined
       };
       const newItems = [...editItems, newItem];
       setEditItems(newItems);
@@ -591,6 +598,8 @@ export const JobDetails = () => {
       setEditTotalValue(newItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) + productsTotal);
       setNewItemNature('NORMAL');
       setNewItemVariationIds([]);
+      setNewItemTeeth([]);
+      setNewItemColor('');
   };
 
   const handleRemoveItemFromJob = (itemId: string) => {
@@ -1218,7 +1227,9 @@ export const JobDetails = () => {
           commissionDisabled: item.commissionDisabled || false,
           selectedVariationIds: item.selectedVariationIds || [],
           variationValues: item.variationValues || {},
-          sectorCommissionDisabled: item.sectorCommissionDisabled || {}
+          sectorCommissionDisabled: item.sectorCommissionDisabled || {},
+          selectedTeeth: item.selectedTeeth || [],
+          color: item.color || ''
       });
   };
 
@@ -1242,7 +1253,9 @@ export const JobDetails = () => {
                   commissionDisabled: itemEditForm.commissionDisabled,
                   selectedVariationIds: itemEditForm.selectedVariationIds,
                   variationValues: itemEditForm.variationValues,
-                  sectorCommissionDisabled: itemEditForm.sectorCommissionDisabled
+                  sectorCommissionDisabled: itemEditForm.sectorCommissionDisabled,
+                  selectedTeeth: itemEditForm.selectedTeeth.length > 0 ? itemEditForm.selectedTeeth : undefined,
+                  color: itemEditForm.color || undefined
               };
           }
           return i;
@@ -1891,16 +1904,39 @@ export const JobDetails = () => {
                               <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
                                   Novo Serviço
                               </h5>
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-wrap gap-2 items-end">
                                   <div className="flex-1 min-w-[150px]">
+                                      <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Tipo de Serviço</label>
                                       <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
                                           {jobTypes.filter(t => t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                       </select>
                                   </div>
-                                  <div className="w-16">
-                                      <input type="number" value={newItemQty} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                  <div className={`w-16 ${newItemTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                                      <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
+                                      <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                   </div>
-                                  <button onClick={handleAddItemToJob} className="p-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
+                                  <div className="w-20">
+                                      <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Cor</label>
+                                      <input type="text" value={newItemColor} onChange={e => setNewItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
+                                  </div>
+                                  <button onClick={handleAddItemToJob} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
+                              </div>
+                              <div className="mt-2">
+                                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Dentes (Odontograma)</label>
+                                  <div className="bg-white border border-slate-200 rounded-xl p-3 flex justify-center">
+                                      <Odontogram 
+                                          selectedTeeth={newItemTeeth}
+                                          onChange={(teeth) => {
+                                              setNewItemTeeth(teeth);
+                                              if (teeth.length > 0) setNewItemQty(teeth.length);
+                                              else setNewItemQty(1);
+                                          }}
+                                          className="w-full max-w-[260px] h-auto"
+                                      />
+                                  </div>
+                                  {newItemTeeth.length > 0 && (
+                                      <p className="text-[10px] text-indigo-600 font-bold mt-1">Dentes selecionados: {newItemTeeth.sort().join(', ')}</p>
+                                  )}
                               </div>
                               <div className="flex flex-wrap gap-2">
                                   <button onClick={() => setNewItemNature('NORMAL')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>

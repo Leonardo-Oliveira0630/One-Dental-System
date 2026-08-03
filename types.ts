@@ -367,6 +367,7 @@ export interface JobItem {
   sectorQuantities?: Record<string, number>;
   sectorCommissionDisabled?: Record<string, boolean>;
   selectedTeeth?: string[];
+  color?: string;
 }
 
 export interface JobHistory {

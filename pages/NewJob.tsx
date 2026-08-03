@@ -133,6 +133,7 @@ export const NewJob = () => {
   });
   const [hasSetInitialType, setHasSetInitialType] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [itemColor, setItemColor] = useState('');
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); 
   const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
   const [itemSelectedTeeth, setItemSelectedTeeth] = useState<string[]>([]);
@@ -689,10 +690,10 @@ export const NewJob = () => {
         appliedPriceTable: appliedTableName,
         selectedVariationIds: allSelectedOptionIds, 
         variationValues: variationTextValues, 
-        commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined 
+        commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined, color: itemColor || undefined 
     };
     setAddedItems([...addedItems, newItem]);
-    setQuantity(1); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL');
+    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1081,9 +1082,13 @@ export const NewJob = () => {
                                         </div>
                                     )}
                                 </div>
-                                <div className={`w-16 ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <div className={`w-20 ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Qtd</label>
                                     <input type="number" min="1" value={quantity} readOnly={itemSelectedTeeth.length > 0} onChange={e => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" />
+                                </div>
+                                <div className="w-24">
+                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Cor</label>
+                                    <input type="text" value={itemColor} onChange={e => setItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 text-xs" />
                                 </div>
                             </div>
                         </div>
