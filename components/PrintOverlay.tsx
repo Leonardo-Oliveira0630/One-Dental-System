@@ -322,8 +322,8 @@ export const PrintOverlay = () => {
 
           {printData.mode === 'LABEL' && printData.job && (
             <div 
-              className="w-[51mm] h-[28mm] print:w-[51mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-2 py-1" 
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
+              className="w-[51mm] h-[28mm] print:w-[51mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print py-1 pr-1" 
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '1mm', transform: 'scale(0.95)', transformOrigin: 'top left' }}
             > 
                {/* Patient Name */}
                <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
@@ -353,8 +353,8 @@ export const PrintOverlay = () => {
           )}
           {printData.mode === 'ADDRESS_LABEL' && printData.job && (
             <div 
-              className="w-[51mm] h-[28mm] print:w-[51mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-3 py-2" 
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
+              className="w-[51mm] h-[28mm] print:w-[51mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print py-2 pr-2" 
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '1mm', transform: 'scale(0.95)', transformOrigin: 'top left' }}
             >
                <div className="flex justify-between items-start mb-1">
                   <p className="font-black text-[14px] leading-tight">{printData.job.osNumber || printData.job.id.substring(0,8)}</p>
