@@ -15,7 +15,12 @@ export default function Reports() {
   const [collaboratorId, setCollaboratorId] = useState('');
   const [sector, setSector] = useState('');
   const [jobTypeId, setJobTypeId] = useState('');
+  const [variationFilters, setVariationFilters] = useState<Record<string, string>>({});
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE'>('DATE');
+
+  const selectedJobType = useMemo(() => {
+    return jobTypes.find(jt => jt.id === jobTypeId);
+  }, [jobTypes, jobTypeId]);
 
   // Filter jobs
   const filteredJobs = useMemo(() => {
@@ -51,15 +56,25 @@ export default function Reports() {
       // Sector filter
       if (sector && job.currentSector !== sector) return false;
 
-      // Job Type filter
+      // Job Type & Variation filter
       if (jobTypeId) {
-        const hasJobType = job.items.some(item => item.jobTypeId === jobTypeId);
-        if (!hasJobType) return false;
+        const hasMatchingItem = job.items.some(item => {
+          if (item.jobTypeId !== jobTypeId) return false;
+          // Check variation filters
+          for (const [groupId, optionId] of Object.entries(variationFilters)) {
+            if (optionId) {
+              const hasOpt = item.selectedVariationIds?.includes(optionId);
+              if (!hasOpt) return false;
+            }
+          }
+          return true;
+        });
+        if (!hasMatchingItem) return false;
       }
 
       return true;
     });
-  }, [jobs, startDate, endDate, dateType, dentistId, collaboratorId, sector, jobTypeId]);
+  }, [jobs, startDate, endDate, dateType, dentistId, collaboratorId, sector, jobTypeId, variationFilters]);
 
   // Group jobs
   const groupedJobs = useMemo(() => {
@@ -171,6 +186,7 @@ export default function Reports() {
     setCollaboratorId('');
     setSector('');
     setJobTypeId('');
+    setVariationFilters({});
   };
 
   return (
@@ -248,11 +264,29 @@ export default function Reports() {
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase">Tipo de Trabalho</label>
-            <select value={jobTypeId} onChange={(e) => setJobTypeId(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
+            <select value={jobTypeId} onChange={(e) => { setJobTypeId(e.target.value); setVariationFilters({}); }} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="">Todos os Tipos</option>
               {jobTypes.map(jt => <option key={jt.id} value={jt.id}>{jt.name}</option>)}
             </select>
           </div>
+
+          {selectedJobType && selectedJobType.variationGroups && selectedJobType.variationGroups.map(group => (
+            <div key={group.id} className="space-y-1.5 animate-in fade-in duration-200">
+              <label className="text-xs font-bold text-indigo-600 uppercase flex items-center gap-1">
+                <span>Variação:</span> {group.name}
+              </label>
+              <select 
+                value={variationFilters[group.id] || ''} 
+                onChange={(e) => setVariationFilters(prev => ({ ...prev, [group.id]: e.target.value }))} 
+                className="w-full p-3 bg-indigo-50/50 border border-indigo-200 rounded-xl font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+              >
+                <option value="">Todas as Opções</option>
+                {group.options.map(opt => (
+                  <option key={opt.id} value={opt.id}>{opt.name}</option>
+                ))}
+              </select>
+            </div>
+          ))}
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase">Agrupar Por</label>

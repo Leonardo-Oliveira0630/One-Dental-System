@@ -417,6 +417,32 @@ export const GlobalScanner: React.FC = () => {
       let scanLoopId: number | null = null;
       let stream: MediaStream | null = null;
 
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+      const getRotatedCanvas = (video: HTMLVideoElement, angleDeg: number) => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const vWidth = video.videoWidth;
+          const vHeight = video.videoHeight;
+          if (!vWidth || !vHeight || !ctx) return null;
+
+          const rad = (angleDeg * Math.PI) / 180;
+          if (Math.abs(angleDeg) === 90 || Math.abs(angleDeg) === 270) {
+              canvas.width = vHeight;
+              canvas.height = vWidth;
+          } else {
+              canvas.width = vWidth;
+              canvas.height = vHeight;
+          }
+
+          ctx.save();
+          ctx.translate(canvas.width / 2, canvas.height / 2);
+          ctx.rotate(rad);
+          ctx.drawImage(video, -vWidth / 2, -vHeight / 2);
+          ctx.restore();
+          return canvas;
+      };
+
       if (isCameraActive && videoRef.current) {
           if (cameras.length === 0) return;
 
@@ -439,8 +465,8 @@ export const GlobalScanner: React.FC = () => {
                       });
 
                       stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints });
-                      if (!isMounted) {
-                          stream.getTracks().forEach(t => t.stop());
+                      if (!isMounted || !videoRef.current) {
+                          if (stream) stream.getTracks().forEach(t => t.stop());
                           return;
                       }
 
@@ -471,7 +497,27 @@ export const GlobalScanner: React.FC = () => {
                           if (now - lastScan > 100) {
                               lastScan = now;
                               try {
-                                  const barcodes = await barcodeDetector.detect(videoRef.current);
+                                  let barcodes = [];
+                                  if (isIOS) {
+                                      const rotatedCanvas = getRotatedCanvas(videoRef.current, 90);
+                                      if (rotatedCanvas) {
+                                          try {
+                                              barcodes = await barcodeDetector.detect(rotatedCanvas);
+                                          } catch (e) {}
+                                      }
+                                      if (!barcodes || barcodes.length === 0) {
+                                          const rotatedCanvas270 = getRotatedCanvas(videoRef.current, 270);
+                                          if (rotatedCanvas270) {
+                                              try {
+                                                  barcodes = await barcodeDetector.detect(rotatedCanvas270);
+                                              } catch (e) {}
+                                          }
+                                      }
+                                  }
+                                  if (!barcodes || barcodes.length === 0) {
+                                      barcodes = await barcodeDetector.detect(videoRef.current);
+                                  }
+
                                   if (barcodes && barcodes.length > 0) {
                                       const text = barcodes[0].rawValue;
                                       if (processScanRef.current) {
@@ -498,36 +544,76 @@ export const GlobalScanner: React.FC = () => {
                       activeReader.timeBetweenDecodingAttempts = 150; 
                       reader = activeReader;
 
-                      if (videoRef.current && isMounted) {
-                          await activeReader.decodeFromConstraints(
-                              { audio: false, video: videoConstraints },
-                              videoRef.current,
-                              (result, err) => {
-                                  if (result && isMounted) {
-                                      if (processScanRef.current) {
-                                          processScanRef.current(result.getText());
-                                      }
-                                      setIsCameraActive(false);
-                                  }
-                              }
-                          );
+                      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints });
+                      if (!isMounted || !videoRef.current) {
+                          if (stream) stream.getTracks().forEach(t => t.stop());
+                          return;
+                      }
 
-                          const s = videoRef.current.srcObject;
-                          if (s) {
-                              stream = s as MediaStream;
-                              const track = stream.getVideoTracks()[0];
-                              if (track) {
-                                  try {
-                                      const capabilities = track.getCapabilities() as any;
-                                      const advancedConstraints: any = {};
-                                      if (capabilities.zoom) advancedConstraints.zoom = capabilities.zoom.min || 1;
-                                      if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) advancedConstraints.focusMode = 'continuous';
-                                      if (capabilities.focusDistance) advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
-                                      if (Object.keys(advancedConstraints).length > 0) {
-                                          track.applyConstraints({ advanced: [advancedConstraints] }).catch(e => {});
-                                      }
-                                  } catch (e) {}
-                              }
+                      videoRef.current.srcObject = stream;
+                      videoRef.current.setAttribute("playsinline", "true");
+                      await videoRef.current.play();
+
+                      let lastScan = 0;
+                      const zxingScanFrame = async () => {
+                          if (!isMounted || !isCameraActive || !videoRef.current) return;
+
+                          const now = Date.now();
+                          if (now - lastScan > 200) {
+                              lastScan = now;
+                              try {
+                                  const canvases = [];
+                                  if (isIOS) {
+                                      const c90 = getRotatedCanvas(videoRef.current, 90);
+                                      if (c90) canvases.push(c90);
+                                      const c270 = getRotatedCanvas(videoRef.current, 270);
+                                      if (c270) canvases.push(c270);
+                                  }
+                                  canvases.push(videoRef.current);
+
+                                  for (const target of canvases) {
+                                      try {
+                                          let result = null;
+                                          if (target instanceof HTMLCanvasElement) {
+                                              const dataUrl = target.toDataURL('image/jpeg', 0.8);
+                                              result = await activeReader.decodeFromImageUrl(dataUrl);
+                                          } else {
+                                              result = await activeReader.decodeFromVideoElement(target);
+                                          }
+                                          if (result) {
+                                              const text = result.getText();
+                                              if (text) {
+                                                  if (processScanRef.current) {
+                                                      processScanRef.current(text);
+                                                  }
+                                                  setIsCameraActive(false);
+                                                  return;
+                                              }
+                                          }
+                                      } catch (e) {}
+                                  }
+                              } catch (e) {}
+                          }
+                          scanLoopId = requestAnimationFrame(zxingScanFrame);
+                      };
+
+                      zxingScanFrame();
+
+                      const s = videoRef.current.srcObject;
+                      if (s) {
+                          stream = s as MediaStream;
+                          const track = stream.getVideoTracks()[0];
+                          if (track) {
+                              try {
+                                  const capabilities = track.getCapabilities() as any;
+                                  const advancedConstraints: any = {};
+                                  if (capabilities.zoom) advancedConstraints.zoom = capabilities.zoom.min || 1;
+                                  if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) advancedConstraints.focusMode = 'continuous';
+                                  if (capabilities.focusDistance) advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
+                                  if (Object.keys(advancedConstraints).length > 0) {
+                                      track.applyConstraints({ advanced: [advancedConstraints] }).catch(e => {});
+                                  }
+                              } catch (e) {}
                           }
                       }
                   }
