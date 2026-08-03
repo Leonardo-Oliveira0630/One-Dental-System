@@ -313,36 +313,32 @@ export const PrintOverlay = () => {
 
           {printData.mode === 'LABEL' && printData.job && (
             <div 
-              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print py-1 pl-[23px] pr-2" 
+              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-2 py-1" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
             > 
-               {/* Top Section: Information */}
-               <div className="flex-1 flex flex-col justify-start space-y-0.5 mt-0.5 relative">
-                  <div className="flex justify-between items-start">
-                      <p className="font-bold text-[12px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
-                  </div>
-                  <p className="text-[10px] leading-tight truncate uppercase w-full">{printData.job.dentistName}</p>
-                  
-                  <div className="flex justify-between items-start pt-1 pr-1 relative">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] leading-tight">{new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(printData.job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        <span className="text-[11px] font-bold leading-tight mt-0.5">{new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                        <span className="text-[12px] leading-tight mt-1 font-black">{printData.job.osNumber || printData.job.id.substring(0,8)}</span>
-                      </div>
-                      
-                      <div className="absolute right-0 top-[-5px] flex flex-col items-end shrink-0">
-                          <div className="scale-x-[1.3] origin-top-right">
-                              <Barcode 
-                                value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
-                                width={1} 
-                                height={69} 
-                                displayValue={false}
-                                margin={0} 
-                                format="CODE128" 
-                              />
-                          </div>
-                      </div>
-                  </div>
+               {/* Patient Name */}
+               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
+               {/* Dentist Name */}
+               <p className="text-[9px] leading-tight truncate uppercase w-full">{printData.job.dentistName}</p>
+               
+               {/* Bottom Section: Dates/OS on left, Barcode on right */}
+               <div className="flex-1 flex justify-between items-end mt-1">
+                   <div className="flex flex-col justify-end min-w-[20mm] pr-1">
+                     <span className="text-[9px] leading-tight">{new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(printData.job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                     <span className="text-[10px] font-bold leading-tight mt-0.5">{new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                     <span className="text-[11px] leading-tight mt-0.5 font-black">{printData.job.osNumber || printData.job.id.substring(0,8)}</span>
+                   </div>
+                   
+                   <div className="flex-1 flex justify-end items-end overflow-hidden max-w-[27mm]">
+                       <Barcode 
+                         value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
+                         width={0.7} 
+                         height={38} 
+                         displayValue={false}
+                         margin={0} 
+                         format="CODE128" 
+                       />
+                   </div>
                </div>
             </div>
           )}
