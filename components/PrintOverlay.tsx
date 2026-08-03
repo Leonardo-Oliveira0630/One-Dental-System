@@ -372,26 +372,26 @@ export const PrintOverlay = () => {
             <div 
               id="slp-mrl-print"
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.5mm', paddingRight: '0mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
             > 
                {/* Patient Name */}
-               <p className="font-bold text-[10px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
+               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
                {/* Dentist Name */}
-               <p className="text-[8px] leading-tight truncate uppercase w-full">{printData.job.dentistName}</p>
+               <p className="text-[10px] leading-tight truncate uppercase w-full">{printData.job.dentistName}</p>
                
                {/* Bottom Section: Dates/OS on left, Barcode on right */}
                <div className="flex-1 flex flex-col justify-end mt-0.5">
-                   <div className="flex justify-between items-center text-[8px] leading-tight mb-0.5">
+                   <div className="flex justify-between items-center text-[10px] leading-tight mb-0.5">
                      <span>{new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
                      <span className="font-bold">{new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                     <span className="font-black">{printData.job.osNumber || printData.job.id.substring(0,8)}</span>
+                     <span className="font-black">{printData.job.osNumber || printData.job.id.substring(1,0)}</span>
                    </div>
                    
                    <div className="w-full flex justify-center overflow-hidden">
                        <Barcode 
                          value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
                          width={1.0} 
-                         height={39} 
+                         height={45} 
                          displayValue={false}
                          margin={0} 
                          format="CODE128" 
