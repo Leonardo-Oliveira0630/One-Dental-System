@@ -372,7 +372,7 @@ export const PrintOverlay = () => {
             <div 
               id="slp-mrl-print"
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1.5mm', paddingTop: '2.5mm', paddingBottom: '2.5mm' }}
             > 
                {/* Patient Name */}
                <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
