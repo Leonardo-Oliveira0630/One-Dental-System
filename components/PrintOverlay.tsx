@@ -320,29 +320,51 @@ export const PrintOverlay = () => {
             </div>
           )}
 
+          {(printData.mode === 'LABEL' || printData.mode === 'ADDRESS_LABEL') && (
+            <style>{`
+              @media print {
+                @page {
+                  size: 88mm 51mm;
+                  margin: 0;
+                }
+                body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                }
+                .thermal-print {
+                  width: 88mm !important;
+                  height: 51mm !important;
+                  padding-left: 1mm !important;
+                  transform: scale(0.95) !important;
+                  transform-origin: top left !important;
+                }
+              }
+            `}</style>
+          )}
+
           {printData.mode === 'LABEL' && printData.job && (
             <div 
-              className="w-[51mm] h-[28mm] print:w-[51mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print py-1 pr-1" 
+              className="w-[88mm] h-[51mm] print:w-[88mm] print:h-[51mm] overflow-hidden flex flex-col bg-white thermal-print py-1 pr-1" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '1mm', transform: 'scale(0.95)', transformOrigin: 'top left' }}
             > 
                {/* Patient Name */}
-               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
+               <p className="font-bold text-[12px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
                {/* Dentist Name */}
-               <p className="text-[9px] leading-tight truncate uppercase w-full">{printData.job.dentistName}</p>
+               <p className="text-[10px] leading-tight truncate uppercase w-full">{printData.job.dentistName}</p>
                
                {/* Bottom Section: Dates/OS on left, Barcode on right */}
                <div className="flex-1 flex justify-between items-end mt-1">
-                   <div className="flex flex-col justify-end min-w-[20mm] pr-1">
-                     <span className="text-[9px] leading-tight">{new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(printData.job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                     <span className="text-[10px] font-bold leading-tight mt-0.5">{new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                     <span className="text-[11px] leading-tight mt-0.5 font-black">{printData.job.osNumber || printData.job.id.substring(0,8)}</span>
+                   <div className="flex flex-col justify-end min-w-[30mm] pr-1">
+                     <span className="text-[10px] leading-tight">{new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {new Date(printData.job.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                     <span className="text-[11px] font-bold leading-tight mt-0.5">{new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                     <span className="text-[12px] leading-tight mt-0.5 font-black">{printData.job.osNumber || printData.job.id.substring(0,8)}</span>
                    </div>
                    
-                   <div className="flex-1 flex justify-end items-end overflow-hidden max-w-[28mm]">
+                   <div className="flex-1 flex justify-end items-end overflow-hidden max-w-[45mm]">
                        <Barcode 
                          value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
-                         width={1.1} 
-                         height={42} 
+                         width={1.2} 
+                         height={45} 
                          displayValue={false}
                          margin={0} 
                          format="CODE128" 
@@ -353,18 +375,18 @@ export const PrintOverlay = () => {
           )}
           {printData.mode === 'ADDRESS_LABEL' && printData.job && (
             <div 
-              className="w-[51mm] h-[28mm] print:w-[51mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print py-2 pr-2" 
+              className="w-[88mm] h-[51mm] print:w-[88mm] print:h-[51mm] overflow-hidden flex flex-col bg-white thermal-print py-2 pr-2" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '1mm', transform: 'scale(0.95)', transformOrigin: 'top left' }}
             >
                <div className="flex justify-between items-start mb-1">
-                  <p className="font-black text-[14px] leading-tight">{printData.job.osNumber || printData.job.id.substring(0,8)}</p>
+                  <p className="font-black text-[15px] leading-tight">{printData.job.osNumber || printData.job.id.substring(0,8)}</p>
                </div>
-               <div className="flex-1 flex flex-col justify-center space-y-0.5">
-                  <p className="font-bold text-[11px] leading-tight truncate uppercase">DENTISTA: {printData.job.dentistName}</p>
-                  <p className="text-[11px] leading-tight truncate uppercase">PACIENTE: {printData.job.patientName}</p>
-                  <div className="mt-1 pt-1 border-t border-black/10">
-                    <p className="text-[9px] font-bold leading-tight uppercase">ENDEREÇO:</p>
-                    <p className="text-[9px] leading-tight uppercase line-clamp-2">
+               <div className="flex-1 flex flex-col justify-center space-y-1">
+                  <p className="font-bold text-[12px] leading-tight truncate uppercase">DENTISTA: {printData.job.dentistName}</p>
+                  <p className="text-[12px] leading-tight truncate uppercase">PACIENTE: {printData.job.patientName}</p>
+                  <div className="mt-1 pt-1 border-t border-black/15">
+                    <p className="text-[10px] font-bold leading-tight uppercase">ENDEREÇO:</p>
+                    <p className="text-[10px] leading-tight uppercase line-clamp-2">
                       {(() => {
                         const { manualDentists, allUsers } = useApp();
                         const dentist = manualDentists.find(d => d.id === printData.job?.dentistId);
