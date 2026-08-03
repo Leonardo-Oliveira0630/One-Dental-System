@@ -578,15 +578,84 @@ export const JobDetails = () => {
     }
   };
 
+  const calculateItemPriceWithDentist = (
+    jobType: any | undefined,
+    selectedVariationIds: string[],
+    dentist: any | null,
+    priceTables: any[]
+  ) => {
+    if (!jobType) return 0;
+    
+    let basePrice = jobType.basePrice;
+    let dentistDiscountRate = 0;
+    
+    if (dentist) {
+        if (dentist.priceTableId) {
+            const table = priceTables.find(t => t.id === dentist.priceTableId);
+            if (table && table.prices[jobType.id]?.basePrice !== undefined) {
+                basePrice = table.prices[jobType.id].basePrice;
+            }
+        }
+        if (dentist.isCustomPricing) {
+            const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                    basePrice = custom.fixedPrice;
+                    dentistDiscountRate = 0;
+                } else if (custom.discountPercent !== undefined) {
+                    dentistDiscountRate = custom.discountPercent / 100;
+                } else if (custom.price !== undefined) {
+                    basePrice = custom.price;
+                    dentistDiscountRate = 0;
+                }
+            } else if (dentist.globalDiscountPercent) {
+                dentistDiscountRate = dentist.globalDiscountPercent / 100;
+            }
+        }
+    }
+
+    let discountableSum = basePrice;
+    let exemptSum = 0;
+    
+    selectedVariationIds.forEach(selectedId => {
+      jobType.variationGroups?.forEach((group: any) => {
+        const option = group.options.find((opt: any) => opt.id === selectedId);
+        if (option) {
+            let modifier = option.priceModifier;
+            
+            if (dentist && dentist.priceTableId) {
+                const table = priceTables.find(t => t.id === dentist.priceTableId);
+                if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
+                    modifier = table.prices[jobType.id].variations[option.id];
+                }
+            }
+
+            if (option.isDiscountExempt) exemptSum += modifier;
+            else discountableSum += modifier;
+        }
+      });
+    });
+
+    return (discountableSum * (1 - dentistDiscountRate)) + exemptSum;
+  };
+
   const handleAddItemToJob = () => {
       const type = jobTypes.find(t => t.id === newItemTypeId);
       if (!type) return;
+
+      const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
+      const calculatedBasePrice = calculateItemPriceWithDentist(type, newItemVariationIds, dentistObj, priceTables);
+      const finalItemPrice = newItemNature === 'REPETITION' || newItemNature === 'ADJUSTMENT' ? 0 : calculatedBasePrice;
+
       const newItem: JobItem = {
           id: `item_edit_${Date.now()}`,
           jobTypeId: type.id,
           name: type.name,
           quantity: newItemQty,
-          price: type.basePrice,
+          price: finalItemPrice,
+          basePriceBeforeDiscount: calculatedBasePrice,
+          appliedDiscount: 0,
+          appliedPriceTable: dentistObj?.priceTableId ? (priceTables.find(t => t.id === dentistObj.priceTableId)?.name || 'Padrão') : 'Padrão',
           selectedVariationIds: newItemVariationIds,
           nature: newItemNature,
           selectedTeeth: newItemTeeth.length > 0 ? newItemTeeth : undefined,
