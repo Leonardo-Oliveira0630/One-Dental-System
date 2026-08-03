@@ -202,9 +202,9 @@ export const PrintOverlay = () => {
                 )}
               </div>
               
-              <div className="mb-2 border border-gray-300 p-2 rounded shrink-0">
+              <div className="mb-2 border border-gray-300 p-2 rounded flex-1 overflow-y-auto">
                 <h3 className="font-bold text-[10px] uppercase text-gray-500 mb-1">Observações / Instruções</h3>
-                <p className="whitespace-pre-wrap text-xs">{printData.job.notes || "Sem observações."}</p>
+                <p className="whitespace-pre-wrap text-xs leading-relaxed">{printData.job.notes || "Sem observações."}</p>
               </div>
               
               <div className="text-center mt-auto pt-2 border-t border-dashed border-gray-400 shrink-0"><p className="text-[10px] text-gray-500">Documento de Uso Interno - Gerado via LABPROX</p></div>
@@ -316,7 +316,7 @@ export const PrintOverlay = () => {
 
           {printData.mode === 'LABEL' && printData.job && (
             <div 
-              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-2 py-1" 
+              className="w-[51mm] h-[28mm] print:w-[51mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-2 py-1" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
             > 
                {/* Patient Name */}
@@ -332,11 +332,11 @@ export const PrintOverlay = () => {
                      <span className="text-[11px] leading-tight mt-0.5 font-black">{printData.job.osNumber || printData.job.id.substring(0,8)}</span>
                    </div>
                    
-                   <div className="flex-1 flex justify-end items-end overflow-hidden max-w-[27mm]">
+                   <div className="flex-1 flex justify-end items-end overflow-hidden max-w-[28mm]">
                        <Barcode 
                          value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
-                         width={0.7} 
-                         height={38} 
+                         width={1.1} 
+                         height={42} 
                          displayValue={false}
                          margin={0} 
                          format="CODE128" 
@@ -347,7 +347,7 @@ export const PrintOverlay = () => {
           )}
           {printData.mode === 'ADDRESS_LABEL' && printData.job && (
             <div 
-              className="w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-3 py-2" 
+              className="w-[51mm] h-[28mm] print:w-[51mm] print:h-[28mm] overflow-hidden flex flex-col bg-white thermal-print px-3 py-2" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black' }}
             >
                <div className="flex justify-between items-start mb-1">
