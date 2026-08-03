@@ -404,6 +404,24 @@ export const JobDetails = () => {
   const [newItemTeeth, setNewItemTeeth] = useState<string[]>([]);
   const [newItemColor, setNewItemColor] = useState('');
   
+  useEffect(() => {
+    const type = jobTypes.find(t => t.id === newItemTypeId);
+    if (type && type.variationGroups) {
+      const defaultIds: string[] = [];
+      type.variationGroups.forEach((group: any) => {
+        if (group.selectionType === 'SINGLE' && group.options && group.options.length > 0) {
+          defaultIds.push(group.options[0].id);
+        }
+      });
+      setNewItemVariationIds(defaultIds);
+    } else {
+      setNewItemVariationIds([]);
+    }
+    setNewItemTeeth([]);
+    setNewItemColor('');
+    setNewItemQty(1);
+  }, [newItemTypeId, jobTypes]);
+  
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productQuantity, setProductQuantity] = useState(1);
@@ -1969,91 +1987,89 @@ export const JobDetails = () => {
                           </div>
                           )}
 
-                          <div className="flex flex-col gap-3 pt-2 border-b border-slate-100 pb-4">
-                              <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
-                                  Novo Serviço
-                              </h5>
-                              <div className="space-y-2">
-                                  <div>
-                                      <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Tipo de Serviço</label>
-                                      <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
-                                          {jobTypes.filter(t => t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                      </select>
-                                  </div>
-                                  <div className="flex gap-2 items-end">
-                                      <div className={`w-20 ${newItemTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
-                                          <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
-                                          <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
-                                      </div>
-                                      <div className="flex-1">
-                                          <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Cor</label>
-                                          <input type="text" value={newItemColor} onChange={e => setNewItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
-                                      </div>
-                                      <button onClick={handleAddItemToJob} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
-                                  </div>
-                              </div>
-                              <div className="mt-2">
-                                  <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Dentes (Odontograma)</label>
-                                  <div className="bg-white border border-slate-200 rounded-xl p-3 flex justify-center">
-                                      <Odontogram 
-                                          selectedTeeth={newItemTeeth}
-                                          onChange={(teeth) => {
-                                              setNewItemTeeth(teeth);
-                                              if (teeth.length > 0) setNewItemQty(teeth.length);
-                                              else setNewItemQty(1);
-                                          }}
-                                          className="w-full max-w-[260px] h-auto"
-                                      />
-                                  </div>
-                                  {newItemTeeth.length > 0 && (
-                                      <p className="text-[10px] text-indigo-600 font-bold mt-1">Dentes selecionados: {newItemTeeth.sort().join(', ')}</p>
-                                  )}
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                  <button onClick={() => setNewItemNature('NORMAL')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>
-                                  <button onClick={() => setNewItemNature('REPETITION')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
-                                  <button onClick={() => setNewItemNature('ADJUSTMENT')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
-                              </div>
-                              {(() => {
-                                  const type = jobTypes.find(t => t.id === newItemTypeId);
-                                  if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
-                                  return (
-                                      <div className="grid grid-cols-1 gap-3 mt-2">
-                                          {type.variationGroups.map(group => (
-                                              <div key={group.id} className="space-y-1">
-                                                  <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{group.name}</h4>
-                                                  <div className="flex flex-wrap gap-1.5">
-                                                      {group.options.map(option => {
-                                                          const isSelected = newItemVariationIds.includes(option.id);
-                                                          return (
-                                                              <button 
-                                                                  key={option.id} 
-                                                                  type="button" 
-                                                                  onClick={() => {
-                                                                      let newSelected = [...newItemVariationIds];
-                                                                      if (group.selectionType === 'SINGLE') {
-                                                                          newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
-                                                                          if (!isSelected) newSelected.push(option.id);
-                                                                      } else {
-                                                                          if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
-                                                                          else newSelected.push(option.id);
-                                                                      }
-                                                                      setNewItemVariationIds(newSelected);
-                                                                  }} 
-                                                                  className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-blue-400'}`}
-                                                              >
-                                                                  {option.name}
-                                                              </button>
-                                                          );
-                                                      })}
-                                                  </div>
-                                              </div>
-                                          ))}
-                                      </div>
-                                  );
-                              })()}
-                          </div>
-                      
+                           <div className="flex flex-col gap-3 pt-2 border-b border-slate-100 pb-4">
+                               <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                                   Novo Serviço
+                               </h5>
+                               <div className="space-y-2">
+                                   <div>
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Tipo de Serviço</label>
+                                       <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
+                                           {jobTypes.filter(t => t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                       </select>
+                                   </div>
+                                   <div className="flex gap-2 items-end">
+                                       <div className={`w-20 ${newItemTeeth.length > 0 ? 'opacity-50 pointer-events-none' : '}`}>
+                                           <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
+                                           <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                       </div>
+                                       <div className="flex-1">
+                                           <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Cor</label>
+                                           <input type="text" value={newItemColor} onChange={e => setNewItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
+                                       </div>
+                                       <button onClick={handleAddItemToJob} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
+                                   </div>
+                               </div>
+
+                               <div className="bg-white border border-slate-200 rounded-xl p-3 flex justify-center">
+                                   <Odontogram 
+                                       selectedTeeth={newItemTeeth}
+                                       onChange={(teeth) => {
+                                           setNewItemTeeth(teeth);
+                                           if (teeth.length > 0) setNewItemQty(teeth.length);
+                                           else setNewItemQty(1);
+                                       }}
+                                       className="w-full max-w-[260px] h-auto"
+                                   />
+                               </div>
+                               {newItemTeeth.length > 0 && (
+                                   <p className="text-[10px] text-indigo-600 font-bold mt-1">Dentes selecionados: {newItemTeeth.sort().join(', ')}</p>
+                               )}
+
+                               <div className="flex flex-wrap gap-2">
+                                   <button onClick={() => setNewItemNature('NORMAL')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>
+                                   <button onClick={() => setNewItemNature('REPETITION')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
+                                   <button onClick={() => setNewItemNature('ADJUSTMENT')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${newItemNature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
+                               </div>
+                               {(() => {
+                                   const type = jobTypes.find(t => t.id === newItemTypeId);
+                                   if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                   return (
+                                       <div className="grid grid-cols-1 gap-3 mt-2">
+                                           {type.variationGroups.map(group => (
+                                               <div key={group.id} className="space-y-1">
+                                                   <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{group.name}</h4>
+                                                   <div className="flex flex-wrap gap-1.5">
+                                                       {group.options.map(option => {
+                                                           const isSelected = newItemVariationIds.includes(option.id);
+                                                           return (
+                                                               <button 
+                                                                   key={option.id} 
+                                                                   type="button" 
+                                                                   onClick={() => {
+                                                                       let newSelected = [...newItemVariationIds];
+                                                                       if (group.selectionType === 'SINGLE') {
+                                                                           newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                           if (!isSelected) newSelected.push(option.id);
+                                                                       } else {
+                                                                           if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
+                                                                           else newSelected.push(option.id);
+                                                                       }
+                                                                       setNewItemVariationIds(newSelected);
+                                                                   }} 
+                                                                   className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-blue-400'}`
+                                                               >
+                                                                   {option.name}
+                                                               </button>
+                                                           );
+                                                       })}
+                                                   </div>
+                                               </div>
+                                           ))}
+                                       </div>
+                                   );
+                               })()}
+                           </div>
                           <div className="pt-2">
                               <div className="flex justify-between items-center mb-2">
                                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Produto / Implante</h4>
