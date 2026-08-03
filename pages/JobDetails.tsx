@@ -1999,7 +1999,7 @@ export const JobDetails = () => {
                                        </select>
                                    </div>
                                    <div className="flex gap-2 items-end">
-                                       <div className={`w-20 ${newItemTeeth.length > 0 ? 'opacity-50 pointer-events-none' : '}`}>
+                                       <div className={`w-20 ${newItemTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
                                            <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                        </div>
@@ -2057,7 +2057,7 @@ export const JobDetails = () => {
                                                                        }
                                                                        setNewItemVariationIds(newSelected);
                                                                    }} 
-                                                                   className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-blue-400'}`
+                                                                   className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-500 border-slate-200 hover:border-blue-400'}`}
                                                                >
                                                                    {option.name}
                                                                </button>
