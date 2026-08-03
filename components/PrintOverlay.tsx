@@ -323,15 +323,15 @@ export const PrintOverlay = () => {
           {(printData.mode === 'LABEL' || printData.mode === 'ADDRESS_LABEL') && (
             <style>{`
               @page {
-                size: 28mm 51mm;
+                size: 49mm 28mm;
                 margin: 0;
               }
 
               @media print {
                 html,
                 body {
-                  width: 28mm !important;
-                  height: 51mm !important;
+                  width: 49mm !important;
+                  height: 28mm !important;
                   margin: 0 !important;
                   padding: 0 !important;
                   overflow: hidden !important;
@@ -350,8 +350,8 @@ export const PrintOverlay = () => {
                   position: fixed;
                   left: 0;
                   top: 0;
-                  width: 28mm;
-                  height: 51mm;
+                  width: 49mm;
+                  height: 28mm;
                   margin: 0;
                   padding: 1.5mm;
                   overflow: hidden;
@@ -365,7 +365,7 @@ export const PrintOverlay = () => {
           {printData.mode === 'LABEL' && printData.job && (
             <div 
               id="slp-mrl-print"
-              className="w-[28mm] h-[51mm] print:w-[28mm] print:h-[51mm] overflow-hidden flex flex-col bg-white box-border" 
+              className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', padding: '1.5mm' }}
             > 
                {/* Patient Name */}
@@ -385,7 +385,7 @@ export const PrintOverlay = () => {
                        <Barcode 
                          value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
                          width={1.0} 
-                         height={30} 
+                         height={26} 
                          displayValue={false}
                          margin={0} 
                          format="CODE128" 
@@ -397,7 +397,7 @@ export const PrintOverlay = () => {
           {printData.mode === 'ADDRESS_LABEL' && printData.job && (
             <div 
               id="slp-mrl-print"
-              className="w-[28mm] h-[51mm] print:w-[28mm] print:h-[51mm] overflow-hidden flex flex-col bg-white box-border" 
+              className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', padding: '1.5mm' }}
             >
                <div className="flex justify-between items-start mb-0.5">
