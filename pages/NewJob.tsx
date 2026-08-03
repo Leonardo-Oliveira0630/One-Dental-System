@@ -84,7 +84,6 @@ export const NewJob = () => {
         const color = getJobTypeColor(item.jobTypeId, item.name);
         item.selectedTeeth.forEach(t => {
           colors[t] = color;
-          disabled.push(t);
         });
       }
     });
