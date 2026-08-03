@@ -1900,26 +1900,28 @@ export const JobDetails = () => {
                           </div>
                           )}
 
-                          <div className="flex flex-col gap-2 pt-2 border-b border-slate-100 pb-4">
+                          <div className="flex flex-col gap-3 pt-2 border-b border-slate-100 pb-4">
                               <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
                                   Novo Serviço
                               </h5>
-                              <div className="flex flex-wrap gap-2 items-end">
-                                  <div className="flex-1 min-w-[150px]">
+                              <div className="space-y-2">
+                                  <div>
                                       <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Tipo de Serviço</label>
                                       <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
                                           {jobTypes.filter(t => t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                       </select>
                                   </div>
-                                  <div className={`w-16 ${newItemTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
-                                      <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
-                                      <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                  <div className="flex gap-2 items-end">
+                                      <div className={`w-20 ${newItemTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                                          <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
+                                          <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                      </div>
+                                      <div className="flex-1">
+                                          <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Cor</label>
+                                          <input type="text" value={newItemColor} onChange={e => setNewItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
+                                      </div>
+                                      <button onClick={handleAddItemToJob} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
                                   </div>
-                                  <div className="w-20">
-                                      <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Cor</label>
-                                      <input type="text" value={newItemColor} onChange={e => setNewItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
-                                  </div>
-                                  <button onClick={handleAddItemToJob} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shrink-0 shadow-md"><Plus size={18}/></button>
                               </div>
                               <div className="mt-2">
                                   <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Dentes (Odontograma)</label>
