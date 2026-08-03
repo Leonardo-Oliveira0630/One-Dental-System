@@ -1999,7 +1999,7 @@ export const JobDetails = () => {
                                        </select>
                                    </div>
                                    <div className="flex gap-2 items-end">
-                                       <div className={`w-20 ${newItemTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                                      <div className={newItemTeeth.length > 0 ? "w-20 opacity-50 pointer-events-none" : "w-20"}>
                                            <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Qtd</label>
                                            <input type="number" min="1" value={newItemQty} readOnly={newItemTeeth.length > 0} onChange={e => setNewItemQty(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                        </div>
