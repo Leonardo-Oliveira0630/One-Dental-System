@@ -385,7 +385,7 @@ export const PrintOverlay = () => {
                        <Barcode 
                          value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
                          width={1.0} 
-                         height={26} 
+                         height={39} 
                          displayValue={false}
                          margin={0} 
                          format="CODE128" 
