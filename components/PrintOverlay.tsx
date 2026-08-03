@@ -8,10 +8,15 @@ import { formatItemNameWithVariations } from '../pages/JobDetails';
 import { formatTeethRange } from '../utils/toothUtils';
 
 export const PrintOverlay = () => {
-  const { printData, clearPrint, currentOrg, jobTypes, manualDentists, allUsers } = useApp();
+  const { printData, clearPrint, currentOrg, jobTypes, manualDentists, allUsers, jobs } = useApp();
 
-  const dentist = manualDentists?.find(d => d.id === printData?.job?.dentistId);
-  const onlineDentist = allUsers?.find(u => u.id === printData?.job?.dentistId);
+  const job = React.useMemo(() => {
+    if (!printData?.job) return null;
+    return jobs.find(j => j.id === printData.job.id) || printData.job;
+  }, [printData, jobs]);
+
+  const dentist = manualDentists?.find(d => d.id === job?.dentistId);
+  const onlineDentist = allUsers?.find(u => u.id === job?.dentistId);
   const dentistCityState = dentist 
     ? `${dentist.city || ''}${dentist.city && dentist.state ? '/' : ''}${dentist.state || ''}`
     : onlineDentist 
