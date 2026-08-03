@@ -366,7 +366,7 @@ export const PrintOverlay = () => {
             <div 
               id="slp-mrl-print"
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', padding: '1.5mm' }}
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.5mm', paddingRight: '1mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
             > 
                {/* Patient Name */}
                <p className="font-bold text-[10px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
@@ -398,7 +398,7 @@ export const PrintOverlay = () => {
             <div 
               id="slp-mrl-print"
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
-              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', padding: '1.5mm' }}
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.5mm', paddingRight: '1mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
             >
                <div className="flex justify-between items-start mb-0.5">
                   <p className="font-black text-[11px] leading-tight">{printData.job.osNumber || printData.job.id.substring(0,8)}</p>
