@@ -405,6 +405,7 @@ export const JobDetails = () => {
   const [editNotes, setEditNotes] = useState('');
   const [editItems, setEditItems] = useState<JobItem[]>([]);
   const [editProducts, setEditProducts] = useState<JobProduct[]>([]);
+  const [editingModalItemId, setEditingModalItemId] = useState<string | null>(null);
   const [newItemTypeId, setNewItemTypeId] = useState('');
   const [newItemQty, setNewItemQty] = useState(1);
   const [newItemNature, setNewItemNature] = useState<JobNature>('NORMAL');
@@ -703,6 +704,46 @@ export const JobDetails = () => {
       setEditItems(newItems);
       const productsTotal = (job.products || []).reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
       setEditTotalValue(newItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) + productsTotal);
+  };
+
+  const handleUpdateEditItem = (itemId: string, field: string, value: any) => {
+      let itemsTotal = 0;
+      const newItems = editItems.map(item => {
+          if (item.id === itemId) {
+              const updated = { ...item, [field]: value };
+              
+              if (field === 'jobTypeId') {
+                  const type = jobTypes.find(t => t.id === value);
+                  if (type) {
+                      updated.name = type.name;
+                      updated.selectedVariationIds = [];
+                  }
+              }
+
+              if (['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount'].includes(field)) {
+                  const type = jobTypes.find(t => t.id === updated.jobTypeId);
+                  const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
+                  
+                  if (type && ['jobTypeId', 'selectedVariationIds'].includes(field)) {
+                      const basePrice = calculateItemPriceWithDentist(type, updated.selectedVariationIds || [], dentistObj, priceTables);
+                      updated.basePriceBeforeDiscount = basePrice;
+                  }
+
+                  if (updated.nature === 'REPETITION' || updated.nature === 'ADJUSTMENT') {
+                      updated.price = 0;
+                  } else {
+                      updated.price = (updated.basePriceBeforeDiscount || 0) * (1 - (updated.appliedDiscount || 0) / 100);
+                  }
+              }
+              itemsTotal += (updated.price * (updated.quantity || 1));
+              return updated;
+          }
+          itemsTotal += ((item.price || 0) * (item.quantity || 1));
+          return item;
+      });
+      setEditItems(newItems);
+      const productsTotal = editProducts.reduce((acc: number, p: any) => acc + (p.unitPrice * p.quantity), 0);
+      setEditTotalValue(itemsTotal + productsTotal);
   };
 
   const handleRemoveProductFromJob = (prodId: string) => {
@@ -1990,15 +2031,105 @@ export const JobDetails = () => {
                       <div className="space-y-3">
                           <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-100 pb-1">Itens da OS</h4>
                           <div className="space-y-2">
-                              {editItems.map(item => (
-                                  <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                      <div className="flex flex-col min-w-0 mr-2">
-                                          <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {formatItemNameWithVariations(item, jobTypes)}</div>
-                                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</div>
+                              {editItems.map(item => {
+                                  if (editingModalItemId === item.id) {
+                                      return (
+                                          <div key={item.id} className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-3">
+                                              <div className="flex justify-between items-center mb-2">
+                                                  <h4 className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Editando Serviço</h4>
+                                                  <button type="button" onClick={() => setEditingModalItemId(null)} className="text-blue-500 hover:text-blue-700 p-1 bg-white rounded-md shadow-sm border border-blue-100 hover:bg-blue-100"><Check size={16}/></button>
+                                              </div>
+                                              <div className="space-y-2">
+                                                  <div>
+                                                      <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Tipo de Serviço</label>
+                                                      <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, 'jobTypeId', e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
+                                                          {jobTypes.filter(t => t.isVisibleInternally !== false || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                      </select>
+                                                  </div>
+                                                  <div className="flex gap-2 items-end">
+                                                      <div className={(item.selectedTeeth && item.selectedTeeth.length > 0) ? "w-20 opacity-50 pointer-events-none" : "w-20"}>
+                                                          <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Qtd</label>
+                                                          <input type="number" min="1" value={item.quantity || 1} readOnly={!!(item.selectedTeeth && item.selectedTeeth.length > 0)} onChange={e => handleUpdateEditItem(item.id, 'quantity', parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                                      </div>
+                                                      <div className="flex-1">
+                                                          <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Cor</label>
+                                                          <input type="text" value={item.color || ''} onChange={e => handleUpdateEditItem(item.id, 'color', e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
+                                                      </div>
+                                                  </div>
+                                              </div>
+                                              <div className="bg-white border border-slate-200 rounded-xl p-3 flex justify-center">
+                                                  <Odontogram 
+                                                      selectedTeeth={item.selectedTeeth || []}
+                                                      onChange={(teeth) => {
+                                                          handleUpdateEditItem(item.id, 'selectedTeeth', teeth);
+                                                          if (teeth.length > 0) handleUpdateEditItem(item.id, 'quantity', teeth.length);
+                                                          else handleUpdateEditItem(item.id, 'quantity', 1);
+                                                      }}
+                                                      className="w-full max-w-[260px] h-auto"
+                                                  />
+                                              </div>
+                                              {(item.selectedTeeth && item.selectedTeeth.length > 0) && (
+                                                  <p className="text-[10px] text-indigo-600 font-bold mt-1">Dentes selecionados: {item.selectedTeeth.sort().join(', ')}</p>
+                                              )}
+                                              <div className="flex flex-wrap gap-2 mt-2">
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, 'nature', 'NORMAL')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, 'nature', 'REPETITION')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, 'nature', 'ADJUSTMENT')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
+                                              </div>
+                                              {(() => {
+                                                  const type = jobTypes.find(t => t.id === item.jobTypeId);
+                                                  if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                                  return (
+                                                      <div className="grid grid-cols-1 gap-3 mt-2">
+                                                          {type.variationGroups.map(group => (
+                                                              <div key={group.id} className="space-y-1">
+                                                                  <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{group.name}</h4>
+                                                                  <div className="flex flex-wrap gap-1.5">
+                                                                      {group.options.map(option => {
+                                                                          const isSelected = (item.selectedVariationIds || []).includes(option.id);
+                                                                          return (
+                                                                              <button
+                                                                                  key={option.id}
+                                                                                  type="button"
+                                                                                  onClick={() => {
+                                                                                      let newSelected = [...(item.selectedVariationIds || [])];
+                                                                                      if (group.selectionType === 'SINGLE') {
+                                                                                          newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                                          if (!isSelected) newSelected.push(option.id);
+                                                                                      } else {
+                                                                                          if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
+                                                                                          else newSelected.push(option.id);
+                                                                                      }
+                                                                                      handleUpdateEditItem(item.id, 'selectedVariationIds', newSelected);
+                                                                                  }}
+                                                                                  className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-400'}`}
+                                                                              >
+                                                                                  {option.name}
+                                                                              </button>
+                                                                          );
+                                                                      })}
+                                                                  </div>
+                                                              </div>
+                                                          ))}
+                                                      </div>
+                                                  );
+                                              })()}
+                                          </div>
+                                      );
+                                  }
+                                  return (
+                                      <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                          <div className="flex flex-col min-w-0 mr-2">
+                                              <div className="text-xs font-bold text-slate-700 truncate">{item.quantity}x {formatItemNameWithVariations(item, jobTypes)}</div>
+                                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</div>
+                                          </div>
+                                          <div className="flex items-center gap-2 shrink-0">
+                                              <button type="button" onClick={() => setEditingModalItemId(item.id)} className="text-blue-400 hover:text-blue-600 p-1.5 hover:bg-blue-50 rounded-lg transition-colors"><Edit3 size={14}/></button>
+                                              <button type="button" onClick={() => handleRemoveItemFromJob(item.id)} className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={14}/></button>
+                                          </div>
                                       </div>
-                                      <button onClick={() => handleRemoveItemFromJob(item.id)} className="text-red-400 hover:text-red-600 shrink-0"><Trash2 size={16}/></button>
-                                  </div>
-                              ))}
+                                  );
+                              })}
                           </div>
                           
                           {editProducts.length > 0 && (

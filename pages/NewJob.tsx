@@ -401,13 +401,13 @@ export const NewJob = () => {
       initialMountRef.current = false;
       const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
       if (entryType === 'NEW' && !location.state?.osNumber) {
-        setOsNumber(generateNextNewOs());
+        setOsNumber('');
       }
       return;
     }
 
     if (entryType === 'NEW') {
-        setOsNumber(generateNextNewOs());
+        if (!location.state?.osNumber) setOsNumber('');
         setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
         setLastJobFound(null);
         loadedJobIdRef.current = null;
@@ -426,16 +426,7 @@ export const NewJob = () => {
   }, [entryType]); 
 // Removed 'jobs' from dependency array to prevent form clearing
 
-  // Update OS number when jobs load initially
-  useEffect(() => {
-    if (jobs.length > 0 && entryType === 'NEW') {
-        const nextOs = generateNextNewOs();
-        const exists = jobs.find(j => j.osNumber === osNumber);
-        if (osNumber === '0001' || (exists && !osNumber.includes('-'))) {
-            setOsNumber(nextOs);
-        }
-    }
-  }, [jobs]);
+  // Removed useEffect that auto-updates OS number on jobs load
 
   const handleOsNumberBlur = () => {
       if (!osNumber) return;
@@ -704,11 +695,14 @@ export const NewJob = () => {
     e.preventDefault();
     
     // Check conflicts before submitting
-    let finalOsNumber = osNumber;
-    if (osNumber.includes('-')) {
-        const exists = jobs.find(j => j.osNumber === osNumber);
+    let finalOsNumber = osNumber.trim();
+    if (!finalOsNumber) {
+        finalOsNumber = generateNextNewOs();
+        setOsNumber(finalOsNumber);
+    } else if (finalOsNumber.includes('-')) {
+        const exists = jobs.find(j => j.osNumber === finalOsNumber);
         if (exists) {
-            const baseOs = osNumber.split('-')[0];
+            const baseOs = finalOsNumber.split('-')[0];
             const baseJobs = jobs.filter(j => String(j.osNumber || '').startsWith(baseOs));
             let nextSeq = 1;
             baseJobs.forEach(j => {
@@ -726,7 +720,7 @@ export const NewJob = () => {
             setOsNumber(finalOsNumber); // Update visually
         }
     } else {
-        const exists = jobs.find(j => j.osNumber === osNumber);
+        const exists = jobs.find(j => j.osNumber === finalOsNumber);
         if (exists) {
             setSuggestedOsNumber(generateNextNewOs());
             setShowOsConflictPopup(true);
@@ -965,8 +959,8 @@ export const NewJob = () => {
                   <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação Obrigatória</h2>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
-                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nº OS <span className="text-red-500">*</span></label>
-                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} onBlur={handleOsNumberBlur} required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all" />
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nº OS <span className="text-slate-400 font-medium normal-case ml-1">(Automático)</span></label>
+                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} onBlur={handleOsNumberBlur} placeholder="Auto" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300 placeholder:font-normal" />
                     </div>
                     <div className="md:col-span-9">
                          <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nome do Paciente <span className="text-red-500">*</span></label>
