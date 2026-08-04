@@ -174,7 +174,7 @@ export const Dentists = () => {
             } else {
                 parsedDate = new Date(client.temporaryUnblockUntil);
             }
-            if (isNaN(parsedDate.getTime())) parsedDate = null;
+            if (parsedDate && isNaN(parsedDate.getTime())) parsedDate = null;
         }
         setTemporaryUnblockUntil(parsedDate);
         setCustomPrices(client.customPrices || []);

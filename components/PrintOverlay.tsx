@@ -374,10 +374,10 @@ export const PrintOverlay = () => {
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1.5mm', paddingTop: '2.5mm', paddingBottom: '2.5mm' }}
             > 
-               {/* Patient Name */}
-               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{job.patientName}</p>
                {/* Dentist Name */}
-               <p className="text-[10px] leading-tight truncate uppercase w-full">{job.dentistName}</p>
+               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">DENT.: {job.dentistName}</p>
+               {/* Patient Name */}
+               <p className="text-[10px] leading-tight truncate uppercase w-full">PAC.: {job.patientName}</p>
                
                {/* Bottom Section: Dates/OS on left, Barcode on right */}
                <div className="flex-1 flex flex-col justify-end mt-0.5">
@@ -406,12 +406,12 @@ export const PrintOverlay = () => {
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
             >
-               <div className="flex justify-between items-start mb-0.5">
-                  <p className="font-black text-[11px] leading-tight">{job.osNumber || job.id.substring(0,8)}</p>
+               <p className="font-bold text-[10px] leading-tight truncate uppercase">DENT.: {job.dentistName}</p>
+               <p className="text-[9px] leading-tight truncate uppercase">PAC.: {job.patientName}</p>
+               <div className="flex justify-between items-start my-0.5">
+                  <p className="font-black text-[11px] leading-tight">OS: {job.osNumber || job.id.substring(0,8)}</p>
                </div>
-               <div className="flex-1 flex flex-col justify-center space-y-0.5">
-                  <p className="font-bold text-[9px] leading-tight truncate uppercase">DENT.: {job.dentistName}</p>
-                  <p className="text-[9px] leading-tight truncate uppercase">PAC.: {job.patientName}</p>
+               <div className="flex-1 flex flex-col justify-end space-y-0.5">
                   <div className="mt-0.5 pt-0.5 border-t border-black/15">
                     <p className="text-[8px] font-bold leading-tight uppercase">ENDEREÇO:</p>
                     <p className="text-[8px] leading-tight uppercase line-clamp-3">

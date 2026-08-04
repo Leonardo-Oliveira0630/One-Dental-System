@@ -159,7 +159,7 @@ exports.registerUserInOrg = (0, https_1.onCall)(async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "Usuário não autenticado.");
     }
-    const { email, pass, name, role, organizationId, sector } = request.data || {};
+    const { email, pass, name, role, organizationId, sector, sectors } = request.data || {};
     const cleanEmail = (email || "").toLowerCase().trim();
     const cleanName = (name || "").trim();
     if (!cleanEmail || !cleanName || !pass) {
@@ -241,6 +241,9 @@ exports.registerUserInOrg = (0, https_1.onCall)(async (request) => {
             sector: sector || "Geral",
             createdAt: admin.firestore.Timestamp.now(),
         };
+        if (sectors && Array.isArray(sectors)) {
+            userData.sectors = sectors;
+        }
         await admin.firestore()
             .collection("users")
             .doc(userUid)

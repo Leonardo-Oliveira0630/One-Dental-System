@@ -972,9 +972,9 @@ export const apiSyncStoreOrders = async (params: { organizationId?: string; clie
     const fn = httpsCallable(functions, 'syncStoreOrders');
     return (await fn(params)).data as any;
 };
-export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string, sector?: string) => {
+export const apiRegisterUserInOrg = async (email: string, pass: string, name: string, role: UserRole, organizationId: string, sector?: string, sectors?: string[]) => {
     const fn = httpsCallable(functions, 'registerUserInOrg');
-    return (await fn({ email, pass, name, role, organizationId, sector })).data;
+    return (await fn({ email, pass, name, role, organizationId, sector, sectors })).data;
 };
 export const apiValidateCro = async (uf: string, numero: string, categoria: string) => {
     const fn = httpsCallable(functions, 'validateCro');

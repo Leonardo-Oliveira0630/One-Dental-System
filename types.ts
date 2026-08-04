@@ -368,6 +368,7 @@ export interface JobItem {
   sectorCommissionDisabled?: Record<string, boolean>;
   selectedTeeth?: string[];
   color?: string;
+  isInternalStep?: boolean;
 }
 
 export interface JobHistory {
@@ -587,6 +588,7 @@ export interface User {
   cpfCnpj?: string;
   organizationId?: string;
   sector?: string;
+  sectors?: string[];
   permissions?: PermissionKey[]; 
   createdAt?: any;
   termsAcceptedAt?: Date | string;

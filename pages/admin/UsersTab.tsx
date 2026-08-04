@@ -78,6 +78,7 @@ export const UsersTab = () => {
   const [userPass, setUserPass] = useState('');
   const [userRole, setUserRole] = useState<UserRole>(UserRole.COLLABORATOR);
   const [userSector, setUserSector] = useState('');
+  const [userSectors, setUserSectors] = useState<string[]>([]);
   const [tempPerms, setTempPerms] = useState<PermissionKey[]>([]);
 
   const maxUsersLimit = currentPlan?.features?.maxUsers ?? -1;
