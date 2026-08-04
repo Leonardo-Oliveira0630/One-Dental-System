@@ -101,14 +101,14 @@ export const PrintOverlay = () => {
 
       <div className="flex-1 w-full overflow-y-auto p-4 md:p-8 flex justify-center print:p-0 print:overflow-visible print:block">
         <div id="printable-content" className={`bg-white text-black shadow-2xl mx-auto print:shadow-none print:m-0 break-inside-avoid ${
-            printData.mode === 'SHEET' ? 'w-[210mm] h-[148.5mm] p-6 print:w-[210mm] print:h-[148.5mm] overflow-hidden' : 
-            printData.mode === 'INVOICE_SHEET' ? 'w-[210mm] h-[297mm] p-10 print:w-[210mm] print:h-[297mm] overflow-hidden' : 
+            printData.mode === 'SHEET' ? 'w-[210mm] min-h-[148.5mm] p-6 print:w-[210mm] print:min-h-[148.5mm] print:h-auto' : 
+            printData.mode === 'INVOICE_SHEET' ? 'w-[210mm] min-h-[297mm] p-10 print:w-[210mm] print:min-h-[297mm] print:h-auto' : 
             printData.mode === 'ROUTE' ? 'w-[210mm] min-h-[297mm] p-12 print:w-[210mm] print:h-auto' : 
             'w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] print:overflow-hidden relative print:m-0 print:p-0'
         }`}>
           
           {printData.mode === 'SHEET' && job && (
-            <div className="h-full flex flex-col text-sm">
+            <div className="flex flex-col text-sm">
               <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-3">
                 <div className="flex items-center gap-3">
                     {labLogo ? (
@@ -178,9 +178,9 @@ export const PrintOverlay = () => {
                 </div>
               </div>
               
-              <div className="mb-3 flex-1 overflow-hidden flex flex-col">
+              <div className="mb-3 flex flex-col">
                 <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Serviços do Pedido</h3>
-                <div className="overflow-hidden">
+                <div className="">
                   <table className="w-full text-left text-xs">
                       <thead><tr className="border-b border-gray-300"><th className="py-1 w-10">Qtd</th><th className="py-1 w-20">Dentes</th><th className="py-1 w-16">Cor</th><th className="py-1">Descrição</th><th className="py-1 w-20">Natureza</th></tr></thead>
                       <tbody className="divide-y divide-gray-200">
@@ -189,7 +189,7 @@ export const PrintOverlay = () => {
                                   <td className="py-1 font-bold align-top text-sm">{item.quantity}x</td>
                                   <td className="py-1 font-bold align-top text-[10px] text-indigo-600">{formatTeethRange(item.selectedTeeth) || '-'}</td>
                                   <td className="py-1 font-bold align-top text-[11px] text-slate-800">{item.color || (item as any).cor || '-'}</td>
-                                  <td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{formatItemNameWithVariations(item, jobTypes)}</div></td>
+                                  <td className="py-1 align-top font-bold text-sm"><div>{formatItemNameWithVariations(item, jobTypes)}</div></td>
                                   <td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</td>
                               </tr>
                           ))}
@@ -200,12 +200,12 @@ export const PrintOverlay = () => {
                 {job.products && job.products.length > 0 && (
                   <div className="mt-2">
                     <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Produtos do Pedido</h3>
-                    <div className="overflow-hidden">
+                    <div className="">
                       <table className="w-full text-left text-xs">
                           <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24">Origem</th></tr></thead>
                           <tbody className="divide-y divide-gray-200">
                               {job.products.map((prod, idx) => (
-                                  <tr key={`prod-${idx}`}><td className="py-1 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{prod.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td></tr>
+                                  <tr key={`prod-${idx}`}><td className="py-1 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div>{prod.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td></tr>
                               ))}
                           </tbody>
                       </table>
@@ -214,7 +214,7 @@ export const PrintOverlay = () => {
                 )}
               </div>
               
-              <div className="mb-2 border border-gray-300 p-2 rounded flex-1 overflow-y-auto">
+              <div className="mb-2 border border-gray-300 p-2 rounded flex-1">
                 <h3 className="font-bold text-[10px] uppercase text-gray-500 mb-1">Observações / Instruções</h3>
                 <p className="whitespace-pre-wrap text-xs leading-relaxed">{job.notes || "Sem observações."}</p>
               </div>
@@ -223,7 +223,7 @@ export const PrintOverlay = () => {
             </div>
           )}
 
-          {printData.mode === 'INVOICE_SHEET' && printData.job && (
+          {printData.mode === 'INVOICE_SHEET' && job && (
             <div className="h-full flex flex-col text-sm">
               <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-3">
                 <div className="flex items-center gap-3">
@@ -242,7 +242,7 @@ export const PrintOverlay = () => {
                     </div>
                 </div>
                 <div className="flex flex-col items-end">
-                    <Barcode value={String(printData.job.osNumber || printData.job.id.substring(0,8))} width={2} height={40} displayValue={true} fontSize={14} margin={0} format="CODE128" />
+                    <Barcode value={String(job.osNumber || job.id.substring(0,8))} width={2} height={40} displayValue={true} fontSize={14} margin={0} format="CODE128" />
                     <p className="text-[10px] mt-1 text-gray-500">Emissão: {new Date().toLocaleString()}</p>
                 </div>
               </div>
@@ -252,7 +252,7 @@ export const PrintOverlay = () => {
                     <div className="border border-gray-300 p-2 rounded flex flex-col items-start">
                         <div className="w-full mb-1">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista / Clínica</p>
-                            <p className="text-base font-bold leading-tight truncate mt-1">{printData.job.dentistName}</p>
+                            <p className="text-base font-bold leading-tight truncate mt-1">{job.dentistName}</p>
                         </div>
                         <div className="w-full mt-1 pt-1 border-t border-gray-200">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Endereço Completo</p>
@@ -262,11 +262,11 @@ export const PrintOverlay = () => {
                     <div className="flex gap-2">
                         <div className="border border-gray-300 p-2 rounded relative flex-1">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
-                            <p className="text-base font-bold leading-tight truncate mt-1">{printData.job.patientName}</p>
+                            <p className="text-base font-bold leading-tight truncate mt-1">{job.patientName}</p>
                         </div>
                         <div className="bg-gray-100 p-2 rounded w-24 shrink-0 flex flex-col justify-center items-center">
                             <p className="text-[10px] font-bold text-gray-500 leading-none mb-1">Caixa</p>
-                            <p className="font-bold text-lg leading-none">{printData.job.boxNumber || '-'}</p>
+                            <p className="font-bold text-lg leading-none">{job.boxNumber || '-'}</p>
                         </div>
                     </div>
                 </div>
@@ -274,37 +274,37 @@ export const PrintOverlay = () => {
                 <div className="flex flex-col gap-2 w-32 shrink-0">
                     <div className="bg-gray-100 p-2 rounded flex-1 flex flex-col justify-center items-center">
                         <p className="text-[10px] font-bold text-gray-500 leading-tight">Data Entrada</p>
-                        <p className="font-mono text-sm leading-tight mt-0.5">{new Date(printData.job.createdAt).toLocaleDateString()}</p>
+                        <p className="font-mono text-sm leading-tight mt-0.5">{new Date(job.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="bg-gray-100 p-2 rounded border-2 border-black flex-1 flex flex-col justify-center items-center">
                         <p className="text-[10px] font-bold text-gray-500 leading-tight">Data Saída</p>
-                        <p className="font-mono text-sm font-bold leading-tight mt-0.5">{new Date(printData.job.dueDate).toLocaleDateString()}</p>
+                        <p className="font-mono text-sm font-bold leading-tight mt-0.5">{new Date(job.dueDate).toLocaleDateString()}</p>
                     </div>
                 </div>
               </div>
               
-              <div className="mb-3 flex-1 overflow-hidden flex flex-col">
+              <div className="mb-3 flex flex-col">
                 <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Serviços Executados</h3>
-                <div className="overflow-hidden">
+                <div className="">
                   <table className="w-full text-left text-xs">
                       <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24 text-right">Valor Unit.</th><th className="py-1 w-24 text-right">Total</th></tr></thead>
                       <tbody className="divide-y divide-gray-200">
-                          {printData.job.items.map((item, idx) => (
-                              <tr key={`item-${idx}`}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                          {job.items.map((item, idx) => (
+                              <tr key={`item-${idx}`}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div>{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                           ))}
                       </tbody>
                   </table>
                 </div>
                 
-                {printData.job.products && printData.job.products.length > 0 && (
+                {job.products && job.products.length > 0 && (
                   <div className="mt-2">
                     <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Produtos</h3>
-                    <div className="overflow-hidden">
+                    <div className="">
                       <table className="w-full text-left text-xs">
                           <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24 text-right">Valor Unit.</th><th className="py-1 w-24 text-right">Total</th></tr></thead>
                           <tbody className="divide-y divide-gray-200">
-                              {printData.job.products.map((prod, idx) => (
-                                  <tr key={`prod-${idx}`}><td className="py-1 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div className="line-clamp-2">{prod.name}</div></td><td className="py-1 align-top text-right text-gray-700 text-sm">{(prod.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 align-top font-bold text-right text-sm">{((prod.unitPrice || 0) * prod.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                              {job.products.map((prod, idx) => (
+                                  <tr key={`prod-${idx}`}><td className="py-1 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div>{prod.name}</div></td><td className="py-1 align-top text-right text-gray-700 text-sm">{(prod.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 align-top font-bold text-right text-sm">{((prod.unitPrice || 0) * prod.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                               ))}
                           </tbody>
                       </table>
@@ -314,7 +314,7 @@ export const PrintOverlay = () => {
                 
                 <div className="mt-4 pt-2 border-t-2 border-black flex justify-between items-center shrink-0">
                     <span className="font-black uppercase text-sm">Total do Serviço</span>
-                    <span className="font-black text-xl">{calculateTotal(printData.job).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                    <span className="font-black text-xl">{calculateTotal(job).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                 </div>
               </div>
               
@@ -368,29 +368,29 @@ export const PrintOverlay = () => {
             `}</style>
           )}
 
-          {printData.mode === 'LABEL' && printData.job && (
+          {printData.mode === 'LABEL' && job && (
             <div 
               id="slp-mrl-print"
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1.5mm', paddingTop: '2.5mm', paddingBottom: '2.5mm' }}
             > 
                {/* Patient Name */}
-               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{printData.job.patientName}</p>
+               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{job.patientName}</p>
                {/* Dentist Name */}
-               <p className="text-[10px] leading-tight truncate uppercase w-full">{printData.job.dentistName}</p>
+               <p className="text-[10px] leading-tight truncate uppercase w-full">{job.dentistName}</p>
                
                {/* Bottom Section: Dates/OS on left, Barcode on right */}
                <div className="flex-1 flex flex-col justify-end mt-0.5">
                    <div className="flex justify-between items-center text-[10px] leading-tight mb-0.5">
-                     <span>{new Date(printData.job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                     <span className="font-bold">{new Date(printData.job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                     <span className="font-black">{printData.job.osNumber || printData.job.id.substring(1,0)}</span>
+                     <span>{new Date(job.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                     <span className="font-bold">{new Date(job.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                     <span className="font-black">{job.osNumber || job.id.substring(0,8)}</span>
                    </div>
                    
                    <div className="w-full flex justify-center overflow-hidden">
                        <Barcode 
-                         value={String(printData.job.osNumber || printData.job.id.substring(0,8))} 
-                         width={1.0} 
+                         value={String(job.osNumber || job.id.substring(0,8))} 
+                         width={2.0} 
                          height={45} 
                          displayValue={false}
                          margin={0} 
@@ -400,30 +400,22 @@ export const PrintOverlay = () => {
                </div>
             </div>
           )}
-          {printData.mode === 'ADDRESS_LABEL' && printData.job && (
+          {printData.mode === 'ADDRESS_LABEL' && job && (
             <div 
               id="slp-mrl-print"
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
             >
                <div className="flex justify-between items-start mb-0.5">
-                  <p className="font-black text-[11px] leading-tight">{printData.job.osNumber || printData.job.id.substring(0,8)}</p>
+                  <p className="font-black text-[11px] leading-tight">{job.osNumber || job.id.substring(0,8)}</p>
                </div>
                <div className="flex-1 flex flex-col justify-center space-y-0.5">
-                  <p className="font-bold text-[9px] leading-tight truncate uppercase">DENT.: {printData.job.dentistName}</p>
-                  <p className="text-[9px] leading-tight truncate uppercase">PAC.: {printData.job.patientName}</p>
+                  <p className="font-bold text-[9px] leading-tight truncate uppercase">DENT.: {job.dentistName}</p>
+                  <p className="text-[9px] leading-tight truncate uppercase">PAC.: {job.patientName}</p>
                   <div className="mt-0.5 pt-0.5 border-t border-black/15">
                     <p className="text-[8px] font-bold leading-tight uppercase">ENDEREÇO:</p>
                     <p className="text-[8px] leading-tight uppercase line-clamp-3">
-                      {(() => {
-                        const { manualDentists, allUsers } = useApp();
-                        const dentist = manualDentists.find(d => d.id === printData.job?.dentistId);
-                        const onlineDentist = allUsers.find(u => u.id === printData.job?.dentistId);
-                        if (dentist) {
-                          return `${dentist.address || ''}, ${dentist.number || ''} ${dentist.complement || ''} - ${dentist.neighborhood || ''} - ${dentist.city || ''}/${dentist.state || ''}`;
-                        }
-                        return onlineDentist?.address || 'Endereço não cadastrado';
-                      })()}
+                      {dentistFullAddress || 'Endereço não cadastrado'}
                     </p>
                   </div>
                </div>

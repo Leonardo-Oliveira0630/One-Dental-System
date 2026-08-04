@@ -65,7 +65,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition } = useApp();
+  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -381,6 +381,7 @@ export const JobDetails = () => {
   const [editPatientName, setEditPatientName] = useState('');
   const [editOsNumber, setEditOsNumber] = useState('');
   const [editBoxNumber, setEditBoxNumber] = useState('');
+  const [editBoxColorId, setEditBoxColorId] = useState('');
         
   const activeJobsWithSameBox = useMemo(() => {
     if (!editBoxNumber.trim() || editBoxNumber.trim() === job?.boxNumber) return [];
@@ -471,6 +472,7 @@ export const JobDetails = () => {
         setEditPatientName(job.patientName || '');
         setEditOsNumber(job.osNumber || '');
         setEditBoxNumber(job.boxNumber || '');
+        setEditBoxColorId(job.boxColor?.id || '');
         setEditDueDate(new Date(job.dueDate).toISOString().split('T')[0]);
         setEditDueTime(job.dueTime || '');
         setEditTotalValue(job.totalValue || 0);
@@ -786,6 +788,11 @@ export const JobDetails = () => {
         if (editOsNumber !== job.osNumber) changes.push(`- OS: ${job.osNumber} -> ${editOsNumber}`);
         if (editBoxNumber !== job.boxNumber) changes.push(`- Caixa: ${job.boxNumber} -> ${editBoxNumber}`);
         
+        const selectedBoxColor = boxColors.find(c => c.id === editBoxColorId);
+        if (selectedBoxColor?.id !== job.boxColor?.id) {
+            changes.push(`- Cor da Caixa: ${job.boxColor?.name || 'Sem cor'} -> ${selectedBoxColor?.name || 'Sem cor'}`);
+        }
+        
         const oldDate = new Date(job.dueDate).toISOString().split('T')[0];
         if (editDueDate !== oldDate) changes.push(`- Vencimento: ${oldDate} -> ${editDueDate}`);
         
@@ -802,6 +809,7 @@ export const JobDetails = () => {
             dentistId: editDentistId,
             dentistName: editDentistName,
             boxNumber: editBoxNumber,
+            boxColor: selectedBoxColor,
             dueDate: adjustedDate,
             dueTime: editDueTime,
             urgency: editUrgency,
@@ -1917,6 +1925,31 @@ export const JobDetails = () => {
                                   </div>
                               )}
                           </div>
+                          {boxColors.length > 0 && (
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Cor da Caixa</label>
+                                  <div className="flex flex-wrap gap-1.5">
+                                      {boxColors.map(color => (
+                                          <button 
+                                            key={color.id} 
+                                            type="button" 
+                                            onClick={() => setEditBoxColorId(color.id)} 
+                                            className={`w-7 h-7 rounded-full border-2 transition-all ${editBoxColorId === color.id ? 'border-slate-900 scale-125 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`} 
+                                            style={{ backgroundColor: color.hex }}
+                                            title={color.name}
+                                          />
+                                      ))}
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditBoxColorId('')}
+                                        className={`w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center bg-slate-100 ${!editBoxColorId ? 'border-slate-900 scale-125 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                                        title="Sem cor"
+                                      >
+                                        <span className="text-[10px] font-bold text-slate-400">X</span>
+                                      </button>
+                                  </div>
+                              </div>
+                          )}
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Valor Total (R$)</label>
                               <input type="number" step="0.01" value={editTotalValue} onChange={e => setEditTotalValue(parseFloat(e.target.value) || 0)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
