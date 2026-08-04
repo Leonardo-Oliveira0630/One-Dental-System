@@ -8,6 +8,8 @@ import { calculateItemCommission } from '../utils/commissionUtils';
 
 export const JobSearch = () => {
   const { jobs, jobTypes, currentUser, updateJob, addCommissionRecord, commissions } = useApp();
+  const userSectors = currentUser?.sectors || (currentUser?.sector ? [currentUser.sector] : []);
+  const hasSector = userSectors.length > 0;
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -35,11 +37,22 @@ export const JobSearch = () => {
 
   const handleMoveJob = async (e: React.MouseEvent, job: Job, actionType: 'ENTRY' | 'EXIT') => {
     e.stopPropagation();
-    if (!currentUser?.sector) return;
+    if (!currentUser) return;
+    
+    let sector = currentUser.sector;
+    if (currentUser.sectors && currentUser.sectors.length > 0) {
+        const openMovement = job.sectorMovements?.find((m: any) => !m.exitTime && (m.sector === currentUser.sector || currentUser.sectors?.includes(m.sector)));
+        if (openMovement) {
+            sector = openMovement.sector;
+        } else if (!sector && currentUser.sectors.length > 0) {
+            sector = currentUser.sectors[0];
+        }
+    }
+    
+    if (!sector) return;
     
     setIsProcessing(job.id);
     try {
-      const sector = currentUser.sector;
       const action = actionType === 'ENTRY' ? `Entrada manual no setor ${sector}` : `Saída manual do setor ${sector}`;
       let newStatus = job.status;
 
@@ -220,9 +233,9 @@ export const JobSearch = () => {
                     </div>
                     
                     <div className="flex items-center gap-2 ml-4">
-                      {currentUser?.sector && (
+                      {hasSector && (
                         <div className="flex items-center gap-2 pr-2 border-r border-slate-100">
-                          {job.currentSector !== currentUser.sector ? (
+                          {(!job.currentSector || !userSectors.includes(job.currentSector)) ? (
                             <button
                               onClick={(e) => handleMoveJob(e, job, 'ENTRY')}
                               disabled={isProcessing === job.id}
@@ -263,10 +276,10 @@ export const JobSearch = () => {
           
           <div className="bg-slate-50 p-3 border-t border-slate-100 flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Clique para ver detalhes</span>
-            {currentUser?.sector && (
+            {hasSector && (
               <div className="flex items-center gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase">Setor:</span>
-                <span className="text-[10px] font-black text-blue-600 uppercase">{currentUser.sector}</span>
+                <span className="text-[10px] font-black text-blue-600 uppercase truncate max-w-[150px]">{userSectors.join(', ')}</span>
               </div>
             )}
           </div>

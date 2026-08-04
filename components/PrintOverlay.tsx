@@ -184,7 +184,7 @@ export const PrintOverlay = () => {
                   <table className="w-full text-left text-xs">
                       <thead><tr className="border-b border-gray-300"><th className="py-1 w-10">Qtd</th><th className="py-1 w-20">Dentes</th><th className="py-1 w-16">Cor</th><th className="py-1">Descrição</th><th className="py-1 w-20">Natureza</th></tr></thead>
                       <tbody className="divide-y divide-gray-200">
-                          {job.items.map((item, idx) => (
+                          {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
                               <tr key={`item-${idx}`}>
                                   <td className="py-1 font-bold align-top text-sm">{item.quantity}x</td>
                                   <td className="py-1 font-bold align-top text-[10px] text-indigo-600">{formatTeethRange(item.selectedTeeth) || '-'}</td>
@@ -289,7 +289,7 @@ export const PrintOverlay = () => {
                   <table className="w-full text-left text-xs">
                       <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24 text-right">Valor Unit.</th><th className="py-1 w-24 text-right">Total</th></tr></thead>
                       <tbody className="divide-y divide-gray-200">
-                          {job.items.map((item, idx) => (
+                          {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
                               <tr key={`item-${idx}`}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div>{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                           ))}
                       </tbody>

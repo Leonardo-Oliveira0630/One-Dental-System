@@ -90,6 +90,7 @@ export const UsersTab = () => {
     setUserEmail('');
     setUserPass('');
     setUserRole(UserRole.COLLABORATOR);
+    setUserSectors([]);
     setUserSector('');
     setEditingUser(null);
   };
@@ -103,7 +104,8 @@ export const UsersTab = () => {
     }
     setIsSubmitting(true);
     try {
-        const res = await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, userSector);
+        const primarySector = userSectors.length > 0 ? userSectors[0] : '';
+        const res = await api.apiRegisterUserInOrg(userEmail, userPass, userName, userRole, currentOrg.id, primarySector, userSectors);
         setIsAddingUser(false);
         resetForm();
         alert(res?.message || "Colaborador cadastrado com sucesso!");
@@ -134,6 +136,7 @@ export const UsersTab = () => {
       setUserEmail(user.email);
       setUserRole(user.role);
       setUserSector(user.sector || '');
+      setUserSectors(user.sectors || (user.sector ? [user.sector] : []));
   };
 
   const handleUpdateUserInfo = async (e: React.FormEvent) => {
@@ -141,7 +144,8 @@ export const UsersTab = () => {
       if (!editingUser) return;
       setIsSubmitting(true);
       try {
-          await updateUser(editingUser.id, { name: userName, role: userRole, sector: userSector });
+          const primarySector = userSectors.length > 0 ? userSectors[0] : '';
+          await updateUser(editingUser.id, { name: userName, role: userRole, sector: primarySector, sectors: userSectors });
           setEditingUser(null);
           alert("Dados atualizados!");
       } catch (err: any) { alert("Erro ao atualizar."); } finally { setIsSubmitting(false); }
@@ -216,7 +220,11 @@ export const UsersTab = () => {
                   </div>
                 </td>
                 <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">{user.role}</span></td>
-                <td className="p-4 text-slate-600 text-sm font-medium">{user.sector || 'Geral'}</td>
+                <td className="p-4 text-slate-600 text-sm font-medium">
+                  {user.sectors && user.sectors.length > 0 
+                    ? user.sectors.join(', ') 
+                    : (user.sector || 'Geral')}
+                </td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-2">
                     <button onClick={() => openEditUser(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit size={18}/></button>
@@ -252,11 +260,25 @@ export const UsersTab = () => {
                                   <option value={UserRole.ADMIN}>Administrador</option>
                               </select>
                           </div>
-                          <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setor</label>
-                              <select value={userSector} onChange={e => setUserSector(e.target.value)} className="w-full px-4 py-2 border rounded-xl bg-white">
-                                  <option value="">Geral</option>
-                                  {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                              </select>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setores Atuantes</label>
+                          <div className="flex flex-col gap-2 max-h-40 overflow-y-auto p-3 border border-slate-200 rounded-xl bg-slate-50">
+                              {sectors.map(s => (
+                                  <label key={s.id} className="flex items-center gap-2 cursor-pointer">
+                                      <input 
+                                          type="checkbox" 
+                                          checked={userSectors.includes(s.name)} 
+                                          onChange={e => {
+                                              if (e.target.checked) setUserSectors([...userSectors, s.name]);
+                                              else setUserSectors(userSectors.filter(sec => sec !== s.name));
+                                          }} 
+                                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600/20"
+                                      />
+                                      <span className="text-sm font-medium text-slate-700">{s.name}</span>
+                                  </label>
+                              ))}
+                              {sectors.length === 0 && <span className="text-xs text-slate-400">Nenhum setor cadastrado</span>}
                           </div>
                       </div>
                       <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">

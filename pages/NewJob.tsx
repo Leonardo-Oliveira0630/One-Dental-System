@@ -126,6 +126,7 @@ export const NewJob = () => {
   }, [boxColors]);
 
   const [itemNature, setItemNature] = useState<JobNature>('NORMAL');
+  const [isInternalStep, setIsInternalStep] = useState(false);
   const [selectedTypeId, setSelectedTypeId] = useState(() => {
     const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
     return visible[0]?.id || jobTypes[0]?.id || '';
@@ -184,7 +185,7 @@ export const NewJob = () => {
 
   const calculatedBasePrice = useMemo(() => {
     if (!activeJobType) return 0;
-    if (itemNature === 'REPETITION' || itemNature === 'ADJUSTMENT') return 0;
+    if (itemNature === 'REPETITION' || itemNature === 'ADJUSTMENT' || isInternalStep) return 0;
     
     let basePrice = activeJobType.basePrice;
     let dentistDiscountRate = 0;
@@ -674,6 +675,7 @@ export const NewJob = () => {
         name: activeJobType.name, 
         quantity: quantity, 
         nature: itemNature, 
+        isInternalStep: isInternalStep,
         price: finalItemPrice, 
         basePriceBeforeDiscount: manualPrice !== null ? manualPrice : calculatedBasePrice,
         appliedDiscount: discountPercent,
@@ -683,7 +685,7 @@ export const NewJob = () => {
         commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined, color: itemColor || undefined 
     };
     setAddedItems([...addedItems, newItem]);
-    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL');
+    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL'); setIsInternalStep(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1001,6 +1003,18 @@ export const NewJob = () => {
                                         <button type="button" onClick={() => { setItemNature('NORMAL'); setCommissionDisabled(false); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>Normal</button>
                                         <button type="button" onClick={() => { setItemNature('REPETITION'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>Repetição</button>
                                         <button type="button" onClick={() => { setItemNature('ADJUSTMENT'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Definir como Etapa</label>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setIsInternalStep(!isInternalStep)} 
+                                            className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center justify-center gap-2 ${isInternalStep ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-400'}`}
+                                        >
+                                            {isInternalStep ? '✅ SIM (Não Faturado)' : 'NÃO (Item Normal)'}
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="relative" ref={jobTypeDropdownRef}>

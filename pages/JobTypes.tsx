@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -76,6 +76,7 @@ export const JobTypes = () => {
   const [applyToAllVariations, setApplyToAllVariations] = useState(true);
   const [promoVariationOptionId, setPromoVariationOptionId] = useState('');
   const [promoVariationOptionIds, setPromoVariationOptionIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const resetForm = () => {
     setName('');
@@ -343,8 +344,22 @@ export const JobTypes = () => {
         {/* Left Column: List */}
         <div className="space-y-4 lg:col-span-1 order-2 lg:order-1">
             <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">{mainTab === 'PROMOTIONS' ? 'Promoções' : 'Serviços'} Cadastrados</h3>
+            
+            <div className="mb-3 relative">
+                <input 
+                    type="text"
+                    placeholder="Pesquisar serviços..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium text-sm transition-all text-slate-700"
+                />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                    <Search size={16} />
+                </div>
+            </div>
+
             <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-                {jobTypes.filter(type => mainTab === 'PROMOTIONS' ? isPromo(type) : !isPromo(type)).map(type => (
+                {jobTypes.filter(type => mainTab === 'PROMOTIONS' ? isPromo(type) : !isPromo(type)).filter(type => type.name.toLowerCase().includes(searchQuery.toLowerCase()) || (type.category || '').toLowerCase().includes(searchQuery.toLowerCase())).map(type => (
                     <div 
                         key={type.id} 
                         onClick={() => handleEdit(type)}

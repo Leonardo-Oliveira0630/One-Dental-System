@@ -31,6 +31,9 @@ export const GlobalScanner: React.FC = () => {
   
   const [scannedJob, setScannedJob] = useState<Job | null>(null);
   const [scanAction, setScanAction] = useState<'ENTRY' | 'EXIT'>('ENTRY');
+  const [activeUserSector, setActiveUserSector] = useState<string>('');
+  const activeUserSectorRef = useRef(activeUserSector);
+  useEffect(() => { activeUserSectorRef.current = activeUserSector; }, [activeUserSector]);
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
   const [eligibleItems, setEligibleItems] = useState<{item: JobItem, jobType?: JobType}[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -180,9 +183,9 @@ export const GlobalScanner: React.FC = () => {
   }, []);
   const isUploadingRef = useRef(isUploading);
 
-  const getEligibleItemsAndComm = (job: Job, user: any, jobTypes: JobType[]) => {
-      if (!user.sector) return { eligible: [], commission: 0 };
-      const sector = user.sector;
+  const getEligibleItemsAndComm = (job: Job, user: any, jobTypes: JobType[], sectorToUse: string) => {
+      if (!sectorToUse) return { eligible: [], commission: 0 };
+      const sector = sectorToUse;
       const availableItems: { item: JobItem, jobType?: JobType }[] = [];
       let totalComm = 0;
       
@@ -202,9 +205,9 @@ export const GlobalScanner: React.FC = () => {
       return { eligible: availableItems, commission: totalComm };
   };
 
-  const calculateCommissionForItems = (job: Job, user: any, selectedIds: string[], jobTypes: JobType[]) => {
+  const calculateCommissionForItems = (job: Job, user: any, selectedIds: string[], jobTypes: JobType[], sectorToUse: string) => {
       if (!user || (!selectedIds || selectedIds.length === 0)) return 0;
-      const sector = user.sector || 'Gestão';
+      const sector = sectorToUse || 'Gestão';
       let totalComm = 0;
       
       job.items.forEach(item => {
@@ -228,11 +231,23 @@ export const GlobalScanner: React.FC = () => {
             setTimeout(() => setScanSuccess(false), 500);
             setScannedJob(job);
             const user = currentUserRef.current;
-            const isLastActionEntryHere = user?.sector ? job.sectorMovements?.some(m => m.sector === user.sector && !m.exitTime) : false;
+            
+            let detectedSector = user?.sector || '';
+            if (user?.sectors && user.sectors.length > 0) {
+                const openMovement = job.sectorMovements?.find(m => !m.exitTime && (m.sector === user.sector || user.sectors?.includes(m.sector)));
+                if (openMovement) {
+                    detectedSector = openMovement.sector;
+                } else if (!detectedSector && user.sectors.length > 0) {
+                    detectedSector = user.sectors[0];
+                }
+            }
+            setActiveUserSector(detectedSector);
+
+            const isLastActionEntryHere = detectedSector ? job.sectorMovements?.some(m => m.sector === detectedSector && !m.exitTime) : false;
             setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
             
-            if (isLastActionEntryHere && user && user.sector) {
-                const { eligible, commission } = getEligibleItemsAndComm(job, user, jobTypesRef.current);
+            if (isLastActionEntryHere && user && detectedSector) {
+                const { eligible, commission } = getEligibleItemsAndComm(job, user, jobTypesRef.current, detectedSector);
                 setEligibleItems(eligible);
                 setSelectedItemIds(eligible.map(e => e.item.id));
                 setCommissionEarned(commission);
@@ -795,16 +810,31 @@ export const GlobalScanner: React.FC = () => {
           console.log(`[Scanner] Trabalho encontrado: ${job.osNumber} (${job.id})`);
           await playNativeHaptic(true);
           playBeep(true);
-          if (currentUserRef.current?.sector) {
+          if (currentUserRef.current) {
               const user = currentUserRef.current;
-              const isLastActionEntryHere = job.sectorMovements?.some(m => m.sector === user.sector && !m.exitTime);
+              
+              let detectedSector = user?.sector || '';
+              if (user?.sectors && user.sectors.length > 0) {
+                  const openMovement = job.sectorMovements?.find(m => !m.exitTime && (m.sector === user.sector || user.sectors?.includes(m.sector)));
+                  if (openMovement) {
+                      detectedSector = openMovement.sector;
+                  } else if (!detectedSector && user.sectors.length > 0) {
+                      detectedSector = user.sectors[0];
+                  }
+              }
+              setActiveUserSector(detectedSector);
+
+              const isLastActionEntryHere = detectedSector ? job.sectorMovements?.some(m => m.sector === detectedSector && !m.exitTime) : false;
               setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
               
-              if (isLastActionEntryHere) {
-                  const { eligible, commission } = getEligibleItemsAndComm(job, user, jobTypesRef.current);
+              if (isLastActionEntryHere && detectedSector) {
+                  const { eligible, commission } = getEligibleItemsAndComm(job, user, jobTypesRef.current, detectedSector);
                   setEligibleItems(eligible);
                   setSelectedItemIds(eligible.map(e => e.item.id));
                   setCommissionEarned(commission);
+              } else {
+                  setEligibleItems([]);
+                  setSelectedItemIds([]);
               }
           } else {
               setEligibleItems([]);
@@ -838,7 +868,7 @@ export const GlobalScanner: React.FC = () => {
     
     try {
         let newStatus = currentJob.status;
-        let sector = user.sector || currentJob.currentSector || 'Gestão';
+        let sector = activeUserSectorRef.current || user.sector || currentJob.currentSector || 'Gestão';
         
         // --- VALIDAÇÃO DE SETORES PERMITIDOS ---
         const isSectorAllowed = (targetSector: string) => {
@@ -886,7 +916,7 @@ export const GlobalScanner: React.FC = () => {
             }
 
             // Calcular comissão em tempo de execução
-            const calculatedCommission = calculateCommissionForItems(currentJob, user, selectedItemIds, jobTypesRef.current);
+            const calculatedCommission = calculateCommissionForItems(currentJob, user, selectedItemIds, jobTypesRef.current, sector);
             
             // Atualizar o state para o UI
             setCommissionEarned(calculatedCommission);
@@ -1151,7 +1181,27 @@ export const GlobalScanner: React.FC = () => {
                 </div>
                 <div>
                     <h3 className="text-2xl font-black text-slate-800">{isEntry ? 'Entrada' : 'Saída'}</h3>
-                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Setor: {currentUser?.sector || 'Geral'}</p>
+                    {currentUser?.sectors && currentUser.sectors.length > 1 && isEntry ? (
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Setor:</span>
+                            <select 
+                                value={activeUserSector} 
+                                onChange={e => {
+                                    setActiveUserSector(e.target.value);
+                                    // Re-calculate eligible items
+                                    const { eligible, commission } = getEligibleItemsAndComm(scannedJob, currentUser, jobTypes, e.target.value);
+                                    setEligibleItems(eligible);
+                                    setSelectedItemIds(eligible.map(item => item.item.id));
+                                    setCommissionEarned(commission);
+                                }}
+                                className="bg-slate-100 border-none text-slate-700 text-xs font-bold rounded-lg py-1 px-2 cursor-pointer focus:ring-0"
+                            >
+                                {currentUser.sectors.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                    ) : (
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Setor: {activeUserSector || 'Geral'}</p>
+                    )}
                 </div>
             </div>
             <button onClick={() => setScannedJob(null)} className="text-slate-400 hover:text-slate-600 p-2"><X size={24} /></button>
@@ -1265,7 +1315,7 @@ export const GlobalScanner: React.FC = () => {
                                         : selectedItemIds.filter(id => id !== item.id);
                                     setSelectedItemIds(newIds);
                                     if (currentUserRef.current) {
-                                        setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, newIds, jobTypesRef.current));
+                                        setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, newIds, jobTypesRef.current, activeUserSector));
                                     }
                                 }}
                             />

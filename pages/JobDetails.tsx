@@ -105,12 +105,13 @@ export const JobDetails = () => {
     appliedDiscount: number;
     appliedPriceTable: string;
     commissionDisabled: boolean;
+    isInternalStep: boolean;
     selectedVariationIds: string[];
     variationValues: Record<string, string>;
     sectorCommissionDisabled: Record<string, boolean>;
     selectedTeeth: string[];
     color: string;
-  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
+  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Rejection/Cancellation Modal States
@@ -1337,6 +1338,7 @@ export const JobDetails = () => {
           appliedDiscount: item.appliedDiscount || 0,
           appliedPriceTable: item.appliedPriceTable || 'Padrão',
           commissionDisabled: item.commissionDisabled || false,
+          isInternalStep: item.isInternalStep || false,
           selectedVariationIds: item.selectedVariationIds || [],
           variationValues: item.variationValues || {},
           sectorCommissionDisabled: item.sectorCommissionDisabled || {},
@@ -1363,6 +1365,7 @@ export const JobDetails = () => {
                   appliedDiscount: itemEditForm.appliedDiscount,
                   appliedPriceTable: itemEditForm.appliedPriceTable,
                   commissionDisabled: itemEditForm.commissionDisabled,
+                  isInternalStep: itemEditForm.isInternalStep,
                   selectedVariationIds: itemEditForm.selectedVariationIds,
                   variationValues: itemEditForm.variationValues,
                   sectorCommissionDisabled: itemEditForm.sectorCommissionDisabled,
@@ -1816,7 +1819,7 @@ export const JobDetails = () => {
                               className="w-full bg-white border-2 border-blue-100 text-blue-900 rounded-xl p-3 font-bold focus:ring-0 focus:border-blue-400"
                           >
                               <option value="">Selecione...</option>
-                              {labUsers.filter(u => u.sector === editingExecution.sector || u.id === editingExecution.userId).map(u => (
+                              {labUsers.filter(u => u.sector === editingExecution.sector || u.sectors?.includes(editingExecution.sector) || u.id === editingExecution.userId).map(u => (
                                   <option key={u.id} value={u.id}>{u.name}</option>
                               ))}
                           </select>
@@ -2632,7 +2635,11 @@ export const JobDetails = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
-                                            <p className="font-black text-slate-600 text-sm md:text-base">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                            {item.isInternalStep ? (
+                                                <p className="font-black text-indigo-500 text-[10px] uppercase">NÃO FATURADO</p>
+                                            ) : (
+                                                <p className="font-black text-slate-600 text-sm md:text-base">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                            )}
                                             <ChevronDown size={18} className={`text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                         </div>
                                     </div>
@@ -2700,6 +2707,20 @@ export const JobDetails = () => {
                                                     </div>
                                                     
                                                     {/* Variations Editing */}
+                                                    <div className="mt-4 pt-4 border-t border-slate-200">
+                                                        <label className="flex items-center gap-2 cursor-pointer p-3 bg-indigo-50 border border-indigo-100 rounded-xl w-fit">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={itemEditForm.isInternalStep}
+                                                                onChange={(e) => setItemEditForm({...itemEditForm, isInternalStep: e.target.checked})}
+                                                                className="h-4 w-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-600"
+                                                            />
+                                                            <span className="text-xs font-black text-indigo-900 uppercase tracking-widest">
+                                                                Definir como Etapa (Não Faturado)
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                    
                                                     {(() => {
                                                         const itemJobType = jobTypes.find(jt => jt.id === item.jobTypeId);
                                                         if (!itemJobType || !itemJobType.variationGroups || itemJobType.variationGroups.length === 0) return null;
@@ -2787,7 +2808,11 @@ export const JobDetails = () => {
                                                             </div>
                                                             <div>
                                                                 <p className="text-[9px] font-black text-slate-400 uppercase">Preço Total</p>
-                                                                <p className="text-sm font-bold text-slate-700">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                                                {item.isInternalStep ? (
+                                                                    <p className="text-[10px] font-black text-indigo-500 mt-1 uppercase">Não Faturado</p>
+                                                                ) : (
+                                                                    <p className="text-sm font-bold text-slate-700">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                                                )}
                                                             </div>
                                                         </div>
                                                         {isLabStaff && (
