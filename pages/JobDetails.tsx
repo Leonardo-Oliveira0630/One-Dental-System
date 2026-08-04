@@ -606,6 +606,32 @@ export const JobDetails = () => {
     }
   };
 
+  const handleDeleteAttachment = async (attId: string) => {
+    if (!job || !currentUser) return;
+    if (!confirm("Tem certeza que deseja excluir este arquivo?")) return;
+    
+    try {
+        const updatedAttachments = job.attachments?.filter((a: any) => a.id !== attId) || [];
+        
+        const newHistory = [...(job.history || []).filter(Boolean), {
+            id: `hist_delatt_${Date.now()}`,
+            timestamp: new Date(),
+            action: 'Arquivo removido',
+            userId: currentUser.id,
+            userName: currentUser.name
+        }];
+
+        await updateJob(job.id, {
+            attachments: updatedAttachments,
+            history: newHistory
+        });
+        
+    } catch (error) {
+        console.error("Erro ao remover arquivo", error);
+        alert("Erro ao remover o arquivo.");
+    }
+  };
+
   const calculateItemPriceWithDentist = (
     jobType: any | undefined,
     selectedVariationIds: string[],
@@ -3081,6 +3107,13 @@ export const JobDetails = () => {
                                                 title="Baixar arquivo original"
                                             >
                                                 <Download size={14} />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteAttachment(att.id)} 
+                                                className="p-2 text-slate-400 hover:text-red-600 transition-colors focus:outline-none"
+                                                title="Excluir arquivo"
+                                            >
+                                                <Trash2 size={14} />
                                             </button>
                                         </div>
                                     </div>

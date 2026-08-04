@@ -54,10 +54,12 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({ isOpen, onClose, onCap
                             ref={webcamRef}
                             screenshotFormat="image/jpeg"
                             screenshotQuality={1.0}
+                            forceScreenshotSourceSize={true}
                             className="w-full h-full object-cover"
                             videoConstraints={{ 
-                                width: { ideal: 3840 }, 
-                                height: { ideal: 2160 } 
+                                width: { ideal: 4096 }, 
+                                height: { ideal: 2160 },
+                                facingMode: { ideal: "environment" }
                             }}
                         />
                     )}

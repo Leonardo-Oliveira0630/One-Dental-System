@@ -167,7 +167,16 @@ export const Dentists = () => {
         setIsBlocked(client.isBlocked || false);
         setBillingLimit(client.billingLimit || 0);
         setBlockReason(client.blockReason || '');
-        setTemporaryUnblockUntil(client.temporaryUnblockUntil ? new Date(client.temporaryUnblockUntil) : null);
+        let parsedDate: Date | null = null;
+        if (client.temporaryUnblockUntil) {
+            if (typeof client.temporaryUnblockUntil.toDate === 'function') {
+                parsedDate = client.temporaryUnblockUntil.toDate();
+            } else {
+                parsedDate = new Date(client.temporaryUnblockUntil);
+            }
+            if (isNaN(parsedDate.getTime())) parsedDate = null;
+        }
+        setTemporaryUnblockUntil(parsedDate);
         setCustomPrices(client.customPrices || []);
     };
 
@@ -192,7 +201,9 @@ export const Dentists = () => {
                 updates.isBlocked = isBlocked;
                 updates.billingLimit = billingLimit;
                 updates.blockReason = blockReason || null;
-                updates.temporaryUnblockUntil = temporaryUnblockUntil;
+                updates.temporaryUnblockUntil = temporaryUnblockUntil && !isNaN(temporaryUnblockUntil.getTime())
+                    ? temporaryUnblockUntil.toISOString()
+                    : null;
             }
 
             if (selectedClient.isManual) {
