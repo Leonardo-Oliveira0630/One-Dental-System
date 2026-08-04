@@ -375,9 +375,9 @@ export const PrintOverlay = () => {
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1.5mm', paddingTop: '2.5mm', paddingBottom: '2.5mm' }}
             > 
                {/* Dentist Name */}
-               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">DENT.: {job.dentistName}</p>
+               <p className="font-bold text-[11px] leading-tight truncate uppercase w-full">{job.dentistName}</p>
                {/* Patient Name */}
-               <p className="text-[10px] leading-tight truncate uppercase w-full">PAC.: {job.patientName}</p>
+               <p className="text-[10px] leading-tight truncate uppercase w-full">{job.patientName}</p>
                
                {/* Bottom Section: Dates/OS on left, Barcode on right */}
                <div className="flex-1 flex flex-col justify-end mt-0.5">
@@ -406,8 +406,8 @@ export const PrintOverlay = () => {
               className="w-[49mm] h-[28mm] print:w-[49mm] print:h-[28mm] overflow-hidden flex flex-col bg-white box-border" 
               style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: 'black', paddingLeft: '2.9mm', paddingRight: '1mm', paddingTop: '1.5mm', paddingBottom: '1.5mm' }}
             >
-               <p className="font-bold text-[10px] leading-tight truncate uppercase">DENT.: {job.dentistName}</p>
-               <p className="text-[9px] leading-tight truncate uppercase">PAC.: {job.patientName}</p>
+               <p className="font-bold text-[10px] leading-tight truncate uppercase">{job.dentistName}</p>
+               <p className="text-[9px] leading-tight truncate uppercase">{job.patientName}</p>
                <div className="flex justify-between items-start my-0.5">
                   <p className="font-black text-[11px] leading-tight">OS: {job.osNumber || job.id.substring(0,8)}</p>
                </div>
