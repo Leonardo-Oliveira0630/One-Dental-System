@@ -742,7 +742,6 @@ export const NewJob = () => {
       return;
     }
 
-    if (addedItems.length === 0) { alert("Adicione pelo menos um serviço ao caso."); return; }
     if (!currentUser) return;
 
     const itemsTotal = addedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
