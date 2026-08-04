@@ -1447,3 +1447,5 @@ export const NewJob = () => {
     </div>
   );
 };
+
+export default NewJob;

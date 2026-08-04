@@ -675,25 +675,27 @@ export const JobDetails = () => {
       setEditTotalValue(newItems.reduce((acc: number, i: any) => acc + (i.price * i.quantity), 0) + productsTotal);
   };
 
-  const handleUpdateEditItem = (itemId: string, field: string, value: any) => {
+  const handleUpdateEditItem = (itemId: string, updates: Record<string, any>) => {
       let itemsTotal = 0;
       const newItems = editItems.map(item => {
           if (item.id === itemId) {
-              const updated = { ...item, [field]: value };
+              const updated = { ...item, ...updates };
               
-              if (field === 'jobTypeId') {
-                  const type = jobTypes.find(t => t.id === value);
+              if ('jobTypeId' in updates) {
+                  const type = jobTypes.find(t => t.id === updates.jobTypeId);
                   if (type) {
                       updated.name = type.name;
                       updated.selectedVariationIds = [];
                   }
               }
 
-              if (['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount'].includes(field)) {
+              const requiresPriceRecalc = Object.keys(updates).some(k => ['jobTypeId', 'selectedVariationIds', 'nature', 'quantity', 'basePriceBeforeDiscount', 'appliedDiscount'].includes(k));
+
+              if (requiresPriceRecalc) {
                   const type = jobTypes.find(t => t.id === updated.jobTypeId);
                   const dentistObj = allUsers.find(u => u.id === job?.dentistId) || manualDentists.find(d => d.id === job?.dentistId);
                   
-                  if (type && ['jobTypeId', 'selectedVariationIds'].includes(field)) {
+                  if (type && ('jobTypeId' in updates || 'selectedVariationIds' in updates)) {
                       const basePrice = calculateItemPriceWithDentist(type, updated.selectedVariationIds || [], dentistObj, priceTables);
                       updated.basePriceBeforeDiscount = basePrice;
                   }
@@ -2013,18 +2015,18 @@ export const JobDetails = () => {
                                               <div className="space-y-2">
                                                   <div>
                                                       <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Tipo de Serviço</label>
-                                                      <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, 'jobTypeId', e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
+                                                      <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, { jobTypeId: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
                                                           {jobTypes.filter(t => t.isVisibleInternally !== false || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                       </select>
                                                   </div>
                                                   <div className="flex gap-2 items-end">
                                                       <div className={(item.selectedTeeth && item.selectedTeeth.length > 0) ? "w-20 opacity-50 pointer-events-none" : "w-20"}>
                                                           <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Qtd</label>
-                                                          <input type="number" min="1" value={item.quantity || 1} readOnly={!!(item.selectedTeeth && item.selectedTeeth.length > 0)} onChange={e => handleUpdateEditItem(item.id, 'quantity', parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
+                                                          <input type="number" min="1" value={item.quantity || 1} readOnly={!!(item.selectedTeeth && item.selectedTeeth.length > 0)} onChange={e => handleUpdateEditItem(item.id, { quantity: parseInt(e.target.value) || 1 })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center" />
                                                       </div>
                                                       <div className="flex-1">
                                                           <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Cor</label>
-                                                          <input type="text" value={item.color || ''} onChange={e => handleUpdateEditItem(item.id, 'color', e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
+                                                          <input type="text" value={item.color || ''} onChange={e => handleUpdateEditItem(item.id, { color: e.target.value })} placeholder="Ex: A3" className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold" />
                                                       </div>
                                                   </div>
                                               </div>
@@ -2032,9 +2034,10 @@ export const JobDetails = () => {
                                                   <Odontogram 
                                                       selectedTeeth={item.selectedTeeth || []}
                                                       onChange={(teeth) => {
-                                                          handleUpdateEditItem(item.id, 'selectedTeeth', teeth);
-                                                          if (teeth.length > 0) handleUpdateEditItem(item.id, 'quantity', teeth.length);
-                                                          else handleUpdateEditItem(item.id, 'quantity', 1);
+                                                          handleUpdateEditItem(item.id, {
+                                                              selectedTeeth: teeth,
+                                                              quantity: teeth.length > 0 ? teeth.length : 1
+                                                          });
                                                       }}
                                                       className="w-full max-w-[260px] h-auto"
                                                   />
@@ -2043,9 +2046,9 @@ export const JobDetails = () => {
                                                   <p className="text-[10px] text-indigo-600 font-bold mt-1">Dentes selecionados: {item.selectedTeeth.sort().join(', ')}</p>
                                               )}
                                               <div className="flex flex-wrap gap-2 mt-2">
-                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, 'nature', 'NORMAL')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>
-                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, 'nature', 'REPETITION')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
-                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, 'nature', 'ADJUSTMENT')} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'NORMAL' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'NORMAL' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Normal</button>
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'REPETITION' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'REPETITION' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Repetição</button>
+                                                  <button type="button" onClick={() => handleUpdateEditItem(item.id, { nature: 'ADJUSTMENT' })} className={`flex-1 py-1.5 px-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors border ${item.nature === 'ADJUSTMENT' ? 'bg-purple-500 text-white border-purple-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Ajuste</button>
                                               </div>
                                               {(() => {
                                                   const type = jobTypes.find(t => t.id === item.jobTypeId);
@@ -2071,7 +2074,7 @@ export const JobDetails = () => {
                                                                                           if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
                                                                                           else newSelected.push(option.id);
                                                                                       }
-                                                                                      handleUpdateEditItem(item.id, 'selectedVariationIds', newSelected);
+                                                                                      handleUpdateEditItem(item.id, { selectedVariationIds: newSelected });
                                                                                   }}
                                                                                   className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-400'}`}
                                                                               >
