@@ -679,6 +679,9 @@ export const DentistsTab = () => {
                                             <div>
                                                 <span className="text-[12px] font-black text-slate-800 uppercase block">Status: {formData.isBlocked ? 'BLOQUEADO' : 'ATIVO'}</span>
                                                 <span className="text-[10px] font-medium text-slate-500 block leading-tight">Clientes bloqueados não podem criar novos trabalhos.</span>
+                                                {(formData as any).blockReason === 'DEBT' && formData.isBlocked && (
+                                                    <span className="text-[9px] font-bold text-red-500 block leading-tight mt-1">Para desbloqueio definitivo, desative ou aumente o Limite de Fatura.</span>
+                                                )}
                                             </div>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
@@ -725,11 +728,19 @@ export const DentistsTab = () => {
                                                 >
                                                     Liberar por 24h
                                                 </button>
-                                                {(formData as any).temporaryUnblockUntil && new Date((formData as any).temporaryUnblockUntil) > new Date() && (
-                                                    <p className="text-[9px] text-amber-600 font-bold mt-1">
-                                                        Liberado até {new Date((formData as any).temporaryUnblockUntil).toLocaleString()}
-                                                    </p>
-                                                )}
+                                                {(() => {
+                                                    const unblock = (formData as any).temporaryUnblockUntil;
+                                                    if (!unblock) return null;
+                                                    const unblockDate = typeof unblock.toDate === 'function' ? unblock.toDate() : new Date(unblock);
+                                                    if (unblockDate > new Date()) {
+                                                        return (
+                                                            <p className="text-[9px] text-amber-600 font-bold mt-1">
+                                                                Liberado até {unblockDate.toLocaleString()}
+                                                            </p>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
                                             </div>
                                         </div>
                                     )}

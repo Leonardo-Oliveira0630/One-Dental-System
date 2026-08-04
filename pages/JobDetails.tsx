@@ -377,6 +377,13 @@ export const JobDetails = () => {
   const revealJobStatus = !isClient || (targetLabOrg?.revealJobStatusToDentist ?? false);
   const canEdit = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:edit'));
   const canManageCommissions = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('commissions:edit'));
+  const canReturn = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:return'));
+  const canFinish = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:finish'));
+  const canAlert = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:alert'));
+  const canPrint = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:print'));
+  const canToggleChat = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:chat_toggle'));
+  const canManageApproval = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:approval'));
+  const canChangeStatus = isAdmin || isManager || (isTech && currentUser?.permissions?.includes('jobs:change_status'));
 
   const [editPatientName, setEditPatientName] = useState('');
   const [editOsNumber, setEditOsNumber] = useState('');
@@ -761,13 +768,13 @@ export const JobDetails = () => {
   };
 
   const handleToggleChat = async () => {
-      if (!isLabStaff) return;
+      if (!canToggleChat) return;
       const newState = !job.chatEnabled;
       await updateJob(job.id, { chatEnabled: newState });
   };
 
   const handleToggleApproval = async () => {
-      if (!isLabStaff) return;
+      if (!canManageApproval) return;
       const newState = !job.approvalEnabled;
       await updateJob(job.id, { approvalEnabled: newState });
   };
@@ -984,8 +991,9 @@ export const JobDetails = () => {
 
   const timeInfo = getSectorTimeInfo(job);
   const isFinished = job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED;
-  const canFinalize = isLabStaff && !isFinished && job.status !== JobStatus.REJECTED && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED;
-  const canCancelOrReturn = (isAdmin || isManager) && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
+  const canFinalize = canFinish && !isFinished && job.status !== JobStatus.REJECTED && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED;
+  const canShowReturn = canReturn && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
+  const canShowCancel = (isAdmin || isManager) && job.status !== JobStatus.CANCELED && job.status !== JobStatus.RETURNED && job.status !== JobStatus.DELIVERED;
   const canReopen = isLabStaff && (job.status === JobStatus.COMPLETED || job.status === JobStatus.DELIVERED || job.status === JobStatus.RETURNED);
 
   const handleCancelJob = async () => {
@@ -1553,6 +1561,7 @@ export const JobDetails = () => {
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Botão de Status */}
+              {canChangeStatus && (
               <div className="relative group/dropdown">
                 <button
                   type="button"
@@ -1578,8 +1587,10 @@ export const JobDetails = () => {
                   ))}
                 </div>
               </div>
+              )}
 
               {/* Botão Finalizar */}
+              {canFinish && (
               <button
                 type="button"
                 onClick={() => handleQuickStatusUpdate(JobStatus.COMPLETED)}
@@ -1593,8 +1604,10 @@ export const JobDetails = () => {
                 <CheckCircle2 size={16} />
                 {job.status === JobStatus.COMPLETED ? 'Finalizado' : 'Finalizar Caso'}
               </button>
+              )}
 
               {/* Botão Logística */}
+              {canChangeStatus && (
               <button
                 type="button"
                 onClick={() => handleQuickStatusUpdate(JobStatus.DELIVERED)}
@@ -1608,6 +1621,7 @@ export const JobDetails = () => {
                 <Truck size={16} />
                 {job.status === JobStatus.DELIVERED ? 'Na Logística' : 'Enviar p/ Logística'}
               </button>
+              )}
             </div>
           </div>
 
@@ -2178,7 +2192,7 @@ export const JobDetails = () => {
                     </button>
                   </>
               )}
-              {!isClient && job.status !== JobStatus.REJECTED && (
+              {canPrint && job.status !== JobStatus.REJECTED && (
                   <>
                       <button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha Interna</button>
                       <button onClick={() => triggerPrint(job, 'INVOICE_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha de Entrega</button>
@@ -2227,15 +2241,15 @@ export const JobDetails = () => {
                     </div>
                     <div className="relative group shrink-0">
                         {revealJobStatus ? (
-                            <button className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm`}>
-                                {getTranslatedStatus(job.status)} {!isClient && <ChevronDown size={10}/>}
+                            <button className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm ${canChangeStatus ? '' : 'cursor-default'}`}>
+                                {getTranslatedStatus(job.status)} {canChangeStatus && <ChevronDown size={10}/>}
                             </button>
                         ) : (
                             <button className="px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 bg-slate-100 text-slate-400 border-slate-200 shadow-sm cursor-not-allowed" title="Andamento ocultado pelo laboratório">
                                 <Lock size={10} /> Indisponível
                             </button>
                         )}
-                        {!isClient && (
+                        {canChangeStatus && (
                             <div className="absolute top-full left-0 mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-2xl z-[60] hidden group-hover:block animate-in fade-in slide-in-from-top-2 overflow-hidden">
                                 <div className="p-1.5 bg-slate-50 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b">Alterar Status</div>
                                 <div className="p-1 space-y-0.5">
@@ -2256,7 +2270,7 @@ export const JobDetails = () => {
                         {job.urgency}
                     </div>
                     
-                    {isLabStaff && (
+                    {canToggleChat && (
                          <button 
                             onClick={handleToggleChat}
                             className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 transition-all shadow-sm ${job.chatEnabled ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-400 border-slate-200'}`}
@@ -2264,8 +2278,7 @@ export const JobDetails = () => {
                             <MessageSquare size={10}/> {job.chatEnabled ? 'CHAT ATIVO' : 'CHAT OFF'}
                         </button>
                     )}
-
-                    {isLabStaff && (
+                    {canManageApproval && (
                          <button 
                             onClick={handleToggleApproval}
                             className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 transition-all shadow-sm ${job.approvalEnabled ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-100 text-slate-400 border-slate-200'}`}
@@ -2303,7 +2316,7 @@ export const JobDetails = () => {
                             <Truck size={16} /> LOGÍSTICA
                         </button>
                     )}
-                    {isLabStaff && (
+                    {canAlert && (
                          <button onClick={() => setShowAlertModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-red-100">
                             <Bell size={16} /> Alerta
                         </button>
@@ -2313,15 +2326,15 @@ export const JobDetails = () => {
                             <Edit size={16} /> Editar
                         </button>
                     )}
-                    {canCancelOrReturn && (
-                        <>
-                            <button onClick={handleReturnJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-orange-100">
-                                {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftCircle size={16} />} Devolver
-                            </button>
-                            <button onClick={handleCancelJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-gray-100">
-                                {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />} Cancelar
-                            </button>
-                        </>
+                    {canShowReturn && (
+                        <button onClick={handleReturnJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-orange-100">
+                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftCircle size={16} />} Devolver
+                        </button>
+                    )}
+                    {canShowCancel && (
+                        <button onClick={handleCancelJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-gray-100">
+                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />} Cancelar
+                        </button>
                     )}
                 </div>
             </div>

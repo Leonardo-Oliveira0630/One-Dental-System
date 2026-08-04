@@ -694,7 +694,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       for (const d of dentists) {
         // Se estiver temporariamente desbloqueado e o prazo não expirou, pula
-        if (d.temporaryUnblockUntil && new Date(d.temporaryUnblockUntil) > now) {
+        let unblockDate = null;
+        if (d.temporaryUnblockUntil) {
+          unblockDate = typeof (d.temporaryUnblockUntil as any).toDate === 'function' 
+            ? (d.temporaryUnblockUntil as any).toDate() 
+            : new Date(d.temporaryUnblockUntil);
+        }
+        if (unblockDate && unblockDate > now) {
           continue;
         }
 

@@ -819,6 +819,9 @@ export const Dentists = () => {
                                                     <div>
                                                         <span className="text-sm font-black text-slate-800 uppercase block">Status: {isBlocked ? 'BLOQUEADO' : 'ATIVO'}</span>
                                                         <span className="text-[10px] font-medium text-slate-500 block leading-tight">Clientes bloqueados não podem criar novos trabalhos.</span>
+                                                        {blockReason === 'DEBT' && isBlocked && (
+                                                            <span className="text-[9px] font-bold text-red-500 block leading-tight mt-1">Para desbloqueio definitivo, desative ou aumente o Limite de Fatura.</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                                 <label className="relative inline-flex items-center cursor-pointer">
@@ -860,11 +863,18 @@ export const Dentists = () => {
                                                         >
                                                             <RefreshCw size={14} /> Liberar por 24h
                                                         </button>
-                                                        {temporaryUnblockUntil && new Date(temporaryUnblockUntil) > new Date() && (
-                                                            <p className="text-[9px] text-amber-600 font-bold mt-1 ml-1 flex items-center gap-1">
-                                                                <Check size={10} /> Liberado até {new Date(temporaryUnblockUntil).toLocaleString()}
-                                                            </p>
-                                                        )}
+                                                        {(() => {
+                                                            if (!temporaryUnblockUntil) return null;
+                                                            const unblockDate = typeof (temporaryUnblockUntil as any).toDate === 'function' ? (temporaryUnblockUntil as any).toDate() : new Date(temporaryUnblockUntil);
+                                                            if (unblockDate > new Date()) {
+                                                                return (
+                                                                    <p className="text-[9px] text-amber-600 font-bold mt-1 ml-1 flex items-center gap-1">
+                                                                        <Check size={10} /> Liberado até {unblockDate.toLocaleString()}
+                                                                    </p>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
                                                     </div>
                                                 </div>
                                             )}

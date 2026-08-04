@@ -241,7 +241,7 @@ export enum UserRole {
 }
 
 export type PermissionKey = 
-  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete'
+  | 'jobs:view' | 'jobs:create' | 'jobs:edit' | 'jobs:delete' | 'jobs:return' | 'jobs:finish' | 'jobs:alert' | 'jobs:print' | 'jobs:chat_toggle' | 'jobs:approval' | 'jobs:change_status'
   | 'finance:view' | 'finance:create' | 'finance:edit' | 'finance:delete'
   | 'catalog:view' | 'catalog:create' | 'catalog:edit' | 'catalog:delete' | 'catalog:prices_view'
   | 'clients:view' | 'clients:create' | 'clients:edit' | 'clients:delete' | 'clients:block_manage' | 'clients:statement_view'
