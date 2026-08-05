@@ -1207,7 +1207,8 @@ export const JobDetails = () => {
               if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
                   const secQty = (item.sectorQuantities && item.sectorQuantities[editingExecution.sector]) ? item.sectorQuantities[editingExecution.sector] : item.quantity;
                   const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                  totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty);
+                  const exec = newExecutions.find((e: any) => e.itemId === item.id && e.sector === editingExecution.sector && e.userId === editingExecution.userId);
+                  totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, editingExecution.sector, exec?.executedStages, exec?.isBaseChecked !== false);
               }
           });
 
@@ -1279,7 +1280,7 @@ export const JobDetails = () => {
                       const secQty = (i.sectorQuantities && i.sectorQuantities[sector]) ? i.sectorQuantities[sector] : i.quantity;
                       const jt = jobTypes.find(t => t.id === i.jobTypeId);
                       const exec = newExecutions.find((e: any) => e.itemId === i.id && e.sector === sector && e.userId === executionToDelete.userId);
-                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty, sector, exec?.executedStages);
+                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false);
                   }
               });
 
@@ -1323,7 +1324,7 @@ export const JobDetails = () => {
                           : item.quantity;
                       const jt = jobTypes.find(t => t.id === item.jobTypeId);
                       const exec = (executionsToUse || []).find((e: any) => e.itemId === item.id && e.sector === sector && e.userId === userId);
-                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, sector, exec?.executedStages);
+                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false);
                   }
               }
           });

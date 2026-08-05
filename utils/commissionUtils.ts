@@ -6,7 +6,8 @@ export const calculateItemCommission = (
     user: any,
     secQty: number,
     sectorName?: string,
-    executedStages?: string[]
+    executedStages?: string[],
+    includeBaseCommission: boolean = true
 ): number => {
     if (!jobType) return 0;
 
@@ -38,8 +39,13 @@ export const calculateItemCommission = (
         }
     }
 
+    let finalCommission = 0;
     if (hasStageCommission) {
-        return stageCommissionTotal * secQty;
+        finalCommission += stageCommissionTotal * secQty;
+    }
+
+    if (!includeBaseCommission) {
+        return finalCommission;
     }
 
     // 2. Check if any selected variation has a user-specific setting
@@ -62,19 +68,19 @@ export const calculateItemCommission = (
 
     // If the user has specific commission settings for the variations, they OVERRIDE the root commission
     if (hasVariationOverride) {
-        return variationOverrideValue * secQty;
+        return finalCommission + (variationOverrideValue * secQty);
     }
 
     // 3. Fallback to root user setting
     if (setting && setting.value !== undefined) {
         if (setting.type === 'FIXED') {
-            return setting.value * secQty;
+            return finalCommission + (setting.value * secQty);
         } else {
-            return (item.price * (setting.value / 100)) * secQty;
+            return finalCommission + ((item.price * (setting.value / 100)) * secQty);
         }
     } 
 
     // 4. Fallback to JobType global baseCommission
     const base = jobType.baseCommission || 0;
-    return base * secQty;
+    return finalCommission + (base * secQty);
 };

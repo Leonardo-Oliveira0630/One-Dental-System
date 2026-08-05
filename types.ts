@@ -442,6 +442,7 @@ export interface JobItemExecution {
   userName: string;
   timestamp: Date;
   executedStages?: string[];
+  isBaseChecked?: boolean;
 }
 
 export interface SectorMovement {

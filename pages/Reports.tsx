@@ -17,6 +17,7 @@ export default function Reports() {
   const [jobTypeId, setJobTypeId] = useState('');
   const [variationFilters, setVariationFilters] = useState<Record<string, string>>({});
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE'>('DATE');
+  const [reportType, setReportType] = useState<'PRODUCTION' | 'DETAILED_ORDERS'>('PRODUCTION');
 
   const selectedJobType = useMemo(() => {
     return jobTypes.find(jt => jt.id === jobTypeId);
@@ -130,11 +131,11 @@ export default function Reports() {
   }, [filteredJobs, groupBy, dateType]);
 
   const generatePDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF(reportType === 'DETAILED_ORDERS' ? 'landscape' : 'portrait');
     const orgName = currentOrg?.name || 'Laboratório';
     
     doc.setFontSize(18);
-    doc.text(`Relatório de Produção - ${orgName}`, 14, 22);
+    doc.text(reportType === 'DETAILED_ORDERS' ? `Relatório Detalhado de Pedidos - ${orgName}` : `Relatório de Produção - ${orgName}`, 14, 22);
     
     doc.setFontSize(11);
     doc.setTextColor(100);
@@ -149,34 +150,77 @@ export default function Reports() {
       doc.text(groupName, 14, yPos);
       yPos += 5;
 
-      const tableData = groupJobs.map(job => [
-        job.osNumber || '-',
-        job.patientName,
-        job.dentistName,
-        new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR'),
-        job.currentSector || 'Recepção',
-        job.status
-      ]);
+      if (reportType === 'DETAILED_ORDERS') {
+        const tableData: any[] = [];
+        groupJobs.forEach(job => {
+          let entryDate = new Date(job.createdAt).toLocaleDateString('pt-BR');
+          let finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString('pt-BR') : '-';
+          
+          let itemsText = job.items.map(item => {
+            const jt = jobTypes.find(t => t.id === item.jobTypeId);
+            return `${item.quantity}x ${jt ? jt.name : item.name}`;
+          }).join('\n');
+          
+          let pricesText = job.items.map(item => {
+            return `R$ ${((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}`;
+          }).join('\n');
 
-      autoTable(doc, {
-        startY: yPos,
-        head: [['OS', 'Paciente', 'Dentista', dateType === 'CREATED' ? 'Entrada' : 'Entrega', 'Setor', 'Status']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [79, 70, 229] },
-        styles: { fontSize: 8 },
-        margin: { top: 10 },
-      });
+          tableData.push([
+            job.osNumber || '-',
+            job.boxNumber || '-',
+            job.dentistName,
+            job.patientName,
+            itemsText,
+            pricesText,
+            `R$ ${job.totalValue.toFixed(2)}`,
+            entryDate,
+            finishDate
+          ]);
+        });
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['OS', 'Caixa', 'Dentista', 'Paciente', 'Serviços', 'Valor Serviço', 'Valor Total', 'Entrada', 'Finalização']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [245, 158, 11] }, // Amber 500
+          styles: { fontSize: 7, cellPadding: 2 },
+          columnStyles: {
+            4: { cellWidth: 40 }, // Serviços
+            5: { cellWidth: 20 }, // Valor Serviço
+          },
+          margin: { top: 10 },
+        });
+      } else {
+        const tableData = groupJobs.map(job => [
+          job.osNumber || '-',
+          job.patientName,
+          job.dentistName,
+          new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR'),
+          job.currentSector || 'Recepção',
+          job.status
+        ]);
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['OS', 'Paciente', 'Dentista', dateType === 'CREATED' ? 'Entrada' : 'Entrega', 'Setor', 'Status']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [79, 70, 229] },
+          styles: { fontSize: 8 },
+          margin: { top: 10 },
+        });
+      }
 
       yPos = (doc as any).lastAutoTable.finalY + 15;
       
-      if (yPos > 270) {
+      if (yPos > (reportType === 'DETAILED_ORDERS' ? 180 : 270)) {
         doc.addPage();
         yPos = 20;
       }
     });
 
-    doc.save(`relatorio-producao-${new Date().getTime()}.pdf`);
+    doc.save(reportType === 'DETAILED_ORDERS' ? `relatorio-detalhado-${new Date().getTime()}.pdf` : `relatorio-producao-${new Date().getTime()}.pdf`);
   };
 
   const clearFilters = () => {
@@ -289,7 +333,15 @@ export default function Reports() {
           ))}
 
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase">Agrupar Por</label>
+            <label className="text-xs font-bold text-slate-500 uppercase">Tipo de Relatório</label>
+            <select value={reportType} onChange={(e) => setReportType(e.target.value as any)} className="w-full p-3 bg-amber-50 border border-amber-200 rounded-xl font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 outline-none">
+              <option value="PRODUCTION">Produção Básica</option>
+              <option value="DETAILED_ORDERS">Pedidos Detalhado</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase">Agrupar Por (Prod. Básica)</label>
             <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as any)} className="w-full p-3 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="DATE">Data</option>
               <option value="JOB_TYPE">Tipo de Trabalho</option>
@@ -317,26 +369,70 @@ export default function Reports() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest font-black">
-                        <th className="p-3 rounded-l-lg">OS #</th>
-                        <th className="p-3">Paciente</th>
-                        <th className="p-3">Dentista</th>
-                        <th className="p-3">Data</th>
-                        <th className="p-3">Setor</th>
-                        <th className="p-3 rounded-r-lg">Status</th>
-                      </tr>
+                      {reportType === 'DETAILED_ORDERS' ? (
+                        <tr className="bg-amber-50 text-amber-700 text-[10px] uppercase tracking-widest font-black">
+                          <th className="p-3 rounded-l-lg">OS #</th>
+                          <th className="p-3">Caixa</th>
+                          <th className="p-3">Dentista</th>
+                          <th className="p-3">Paciente</th>
+                          <th className="p-3">Serviços</th>
+                          <th className="p-3">Valor Serviço</th>
+                          <th className="p-3">Total</th>
+                          <th className="p-3">Entrada</th>
+                          <th className="p-3 rounded-r-lg">Finalização</th>
+                        </tr>
+                      ) : (
+                        <tr className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest font-black">
+                          <th className="p-3 rounded-l-lg">OS #</th>
+                          <th className="p-3">Paciente</th>
+                          <th className="p-3">Dentista</th>
+                          <th className="p-3">Data</th>
+                          <th className="p-3">Setor</th>
+                          <th className="p-3 rounded-r-lg">Status</th>
+                        </tr>
+                      )}
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {groupJobs.map(job => (
-                        <tr key={job.id} className="hover:bg-slate-50">
-                          <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
-                          <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
-                          <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
-                          <td className="p-3 text-sm text-slate-600">{new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR')}</td>
-                          <td className="p-3 text-sm text-slate-600">{job.currentSector || 'Recepção'}</td>
-                          <td className="p-3 text-xs font-bold text-slate-500">{job.status}</td>
-                        </tr>
-                      ))}
+                      {groupJobs.map(job => {
+                        if (reportType === 'DETAILED_ORDERS') {
+                          const finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString('pt-BR') : '-';
+                          return (
+                            <tr key={job.id} className="hover:bg-slate-50">
+                              <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
+                              <td className="p-3 font-bold text-slate-700 text-xs">{job.boxNumber || '-'}</td>
+                              <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
+                              <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
+                              <td className="p-3 text-xs text-slate-600">
+                                {job.items.map((item: any, i: number) => {
+                                  const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                                  return (
+                                    <div key={i}>{item.quantity}x {jt ? jt.name : item.name}</div>
+                                  );
+                                })}
+                              </td>
+                              <td className="p-3 text-xs text-slate-600">
+                                {job.items.map((item: any, i: number) => (
+                                  <div key={i}>R$ {((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}</div>
+                                ))}
+                              </td>
+                              <td className="p-3 font-bold text-slate-800 text-sm">R$ {job.totalValue.toFixed(2)}</td>
+                              <td className="p-3 text-sm text-slate-600">{new Date(job.createdAt).toLocaleDateString('pt-BR')}</td>
+                              <td className="p-3 text-sm text-slate-600">{finishDate}</td>
+                            </tr>
+                          );
+                        } else {
+                          return (
+                            <tr key={job.id} className="hover:bg-slate-50">
+                              <td className="p-3 font-mono font-bold text-slate-700 text-xs">{job.osNumber || '-'}</td>
+                              <td className="p-3 font-bold text-slate-900 text-sm">{job.patientName}</td>
+                              <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
+                              <td className="p-3 text-sm text-slate-600">{new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR')}</td>
+                              <td className="p-3 text-sm text-slate-600">{job.currentSector || 'Recepção'}</td>
+                              <td className="p-3 text-xs font-bold text-slate-500">{job.status}</td>
+                            </tr>
+                          );
+                        }
+                      })}
                     </tbody>
                   </table>
                 </div>

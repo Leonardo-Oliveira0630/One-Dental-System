@@ -207,18 +207,19 @@ export const GlobalScanner: React.FC = () => {
   };
 
   const calculateCommissionForItems = (job: Job, user: any, selectedIds: string[], jobTypes: JobType[], sectorToUse: string, stagesMap?: Record<string, string[]>) => {
-      if (!user || (!selectedIds || selectedIds.length === 0)) return 0;
+      if (!user) return 0;
       const sector = sectorToUse || 'Gestão';
       let totalComm = 0;
       
       job.items.forEach(item => {
-          if (!selectedIds.includes(item.id)) return;
+          const isBaseChecked = selectedIds.includes(item.id);
+          const stagesToUse = stagesMap?.[item.id] || [];
+          if (!isBaseChecked && stagesToUse.length === 0) return;
           if (item.commissionDisabled) return;
           
           const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
           const jt = jobTypes.find(t => t.id === item.jobTypeId);
-          const stagesToUse = stagesMap?.[item.id] || [];
-          totalComm += calculateItemCommission(item, jt, user, secQty, sector, stagesToUse);
+          totalComm += calculateItemCommission(item, jt, user, secQty, sector, stagesToUse, isBaseChecked);
       });
       return totalComm;
   };
@@ -251,13 +252,9 @@ export const GlobalScanner: React.FC = () => {
             if (isLastActionEntryHere && user && detectedSector) {
                 const { eligible, commission } = getEligibleItemsAndComm(job, user, jobTypesRef.current, detectedSector);
                 setEligibleItems(eligible);
-                setSelectedItemIds(eligible.map(e => e.item.id));
-                const initStages: Record<string, string[]> = {};
-                eligible.forEach(({ item, jobType }) => {
-                    initStages[item.id] = item.sectorStages?.[detectedSector] || jobType?.sectorStages?.[detectedSector] || [];
-                });
-                setSelectedStages(initStages);
-                setCommissionEarned(commission);
+                setSelectedItemIds([]);
+                setSelectedStages({});
+                setCommissionEarned(0);
             } else {
                 setEligibleItems([]);
                 setSelectedItemIds([]);
@@ -847,13 +844,9 @@ export const GlobalScanner: React.FC = () => {
                       setSelectedStages(plannedStg);
                       setCommissionEarned(calculateCommissionForItems(job, user, plannedIds, jobTypesRef.current, detectedSector, plannedStg));
                   } else {
-                      setSelectedItemIds(eligible.map(e => e.item.id));
-                      const initStages: Record<string, string[]> = {};
-                      eligible.forEach(({ item, jobType }) => {
-                          initStages[item.id] = item.sectorStages?.[detectedSector] || jobType?.sectorStages?.[detectedSector] || [];
-                      });
-                      setSelectedStages(initStages);
-                      setCommissionEarned(commission);
+                      setSelectedItemIds([]);
+                      setSelectedStages({});
+                      setCommissionEarned(0);
                   }
               } else {
                   setEligibleItems([]);
@@ -1010,10 +1003,13 @@ export const GlobalScanner: React.FC = () => {
             });
         } else if (actionType === 'EXIT') {
             // Register item executions
-            selectedItemIds.forEach(itemId => {
-                const item = currentJob.items.find((i: JobItem) => i.id === itemId);
+            currentJob.items.forEach((item: any) => {
+                const isBaseChecked = selectedItemIds.includes(item.id);
+                const stagesToUse = selectedStages[item.id] || [];
+                if (!isBaseChecked && stagesToUse.length === 0) return;
+                
                 const jt = jobTypesRef.current.find((t: JobType) => t.id === item?.jobTypeId);
-                if (item && jt) {
+                if (jt) {
                     newItemExecutions.push({
                         itemId: item.id,
                         jobTypeId: item.jobTypeId,
@@ -1022,7 +1018,8 @@ export const GlobalScanner: React.FC = () => {
                         userId: user.id,
                         userName: user.name,
                         timestamp: new Date(),
-                        executedStages: selectedStages[item.id] || []
+                        executedStages: stagesToUse,
+                        isBaseChecked: isBaseChecked
                     });
                 }
             });
@@ -1219,8 +1216,9 @@ export const GlobalScanner: React.FC = () => {
                                     // Re-calculate eligible items
                                     const { eligible, commission } = getEligibleItemsAndComm(scannedJob, currentUser, jobTypes, e.target.value);
                                     setEligibleItems(eligible);
-                                    setSelectedItemIds(eligible.map(item => item.item.id));
-                                    setCommissionEarned(commission);
+                                    setSelectedItemIds([]);
+                                    setSelectedStages({});
+                                    setCommissionEarned(0);
                                 }}
                                 className="bg-slate-100 border-none text-slate-700 text-xs font-bold rounded-lg py-1 px-2 cursor-pointer focus:ring-0"
                             >
@@ -1338,76 +1336,58 @@ export const GlobalScanner: React.FC = () => {
 
                         return (
                             <div key={item.id} className="p-3 bg-white rounded-xl shadow-sm border border-slate-200 transition-colors">
-                                {itemSectorStages.length === 0 ? (
-                                    <label className="flex items-center gap-3 cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            className="w-5 h-5 rounded text-orange-500 focus:ring-orange-500 border-slate-300"
-                                            checked={isItemSelected}
-                                            onChange={(e) => {
-                                                const newIds = e.target.checked 
-                                                    ? [...selectedItemIds, item.id] 
-                                                    : selectedItemIds.filter(id => id !== item.id);
-                                                setSelectedItemIds(newIds);
-                                                if (currentUserRef.current) {
-                                                    setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, newIds, jobTypesRef.current, activeUserSector, selectedStages));
-                                                }
-                                            }}
-                                        />
-                                        <div className="flex-1">
-                                            <p className="font-bold text-sm text-slate-800">{jobType?.name || 'Item Desconhecido'}</p>
-                                            <p className="text-xs text-slate-500">Qtd: {
-                                                (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
-                                                    ? item.sectorQuantities[currentUser.sector] 
-                                                    : item.quantity
-                                            }</p>
-                                        </div>
-                                    </label>
-                                ) : (
-                                    <div className="space-y-3">
-                                        <div className="flex-1 pb-2 border-b border-slate-100">
-                                            <p className="font-bold text-sm text-slate-800">{jobType?.name || 'Item Desconhecido'}</p>
-                                            <p className="text-xs text-slate-500">Selecione as etapas executadas (Qtd: {
-                                                (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
-                                                    ? item.sectorQuantities[currentUser.sector] 
-                                                    : item.quantity
-                                            })</p>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {itemSectorStages.map((stageName: string) => {
-                                                const isStageChecked = itemExecutedStages.includes(stageName);
-                                                return (
-                                                    <label key={stageName} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
-                                                        <input 
-                                                            type="checkbox"
-                                                            checked={isStageChecked}
-                                                            onChange={(e) => {
-                                                                const newStages = e.target.checked
-                                                                    ? [...itemExecutedStages, stageName]
-                                                                    : itemExecutedStages.filter(s => s !== stageName);
-                                                                const updatedStagesMap = { ...selectedStages, [item.id]: newStages };
-                                                                setSelectedStages(updatedStagesMap);
-                                                                
-                                                                let nextItemIds = selectedItemIds;
-                                                                if (newStages.length > 0 && !selectedItemIds.includes(item.id)) {
-                                                                    nextItemIds = [...selectedItemIds, item.id];
-                                                                    setSelectedItemIds(nextItemIds);
-                                                                } else if (newStages.length === 0 && selectedItemIds.includes(item.id)) {
-                                                                    nextItemIds = selectedItemIds.filter(id => id !== item.id);
-                                                                    setSelectedItemIds(nextItemIds);
-                                                                }
+                                {/* Base Item Checkbox */}
+                                <label className="flex items-center gap-3 cursor-pointer mb-2">
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-5 h-5 rounded text-orange-500 focus:ring-orange-500 border-slate-300"
+                                        checked={isItemSelected}
+                                        onChange={(e) => {
+                                            const newIds = e.target.checked 
+                                                ? [...selectedItemIds, item.id] 
+                                                : selectedItemIds.filter(id => id !== item.id);
+                                            setSelectedItemIds(newIds);
+                                            if (currentUserRef.current) {
+                                                setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, newIds, jobTypesRef.current, activeUserSector, selectedStages));
+                                            }
+                                        }}
+                                    />
+                                    <div className="flex-1">
+                                        <p className="font-bold text-sm text-slate-800">{jobType?.name || 'Item Desconhecido'}</p>
+                                        <p className="text-xs text-slate-500">Qtd: {
+                                            (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
+                                                ? item.sectorQuantities[currentUser.sector] 
+                                                : item.quantity
+                                        }</p>
+                                    </div>
+                                </label>
 
-                                                                if (currentUserRef.current) {
-                                                                    setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, nextItemIds, jobTypesRef.current, activeUserSector, updatedStagesMap));
-                                                                }
-                                                            }}
-                                                            className="w-5 h-5 rounded text-orange-500 focus:ring-orange-500 border-slate-300"
-                                                        />
-                                                        <span className="font-bold text-sm text-slate-700">{stageName}</span>
-                                                    </label>
-                                                );
-                                            })}
-                                        </div>
+                                {/* Stages Checkboxes */}
+                                {itemSectorStages.length > 0 && (
+                                    <div className="pl-8 space-y-2 border-t border-slate-100 pt-2">
+                                        {itemSectorStages.map((stageName: string) => {
+                                            const isStageChecked = itemExecutedStages.includes(stageName);
+                                            return (
+                                                <label key={stageName} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={isStageChecked}
+                                                        onChange={(e) => {
+                                                            const newStages = e.target.checked
+                                                                ? [...itemExecutedStages, stageName]
+                                                                : itemExecutedStages.filter(s => s !== stageName);
+                                                            const updatedStagesMap = { ...selectedStages, [item.id]: newStages };
+                                                            setSelectedStages(updatedStagesMap);
+                                                            
+                                                            if (currentUserRef.current) {
+                                                                setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, selectedItemIds, jobTypesRef.current, activeUserSector, updatedStagesMap));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <span className="text-sm font-bold text-slate-600">{stageName}</span>
+                                                </label>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
