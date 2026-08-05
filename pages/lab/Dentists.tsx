@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
@@ -7,6 +6,20 @@ import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const translatePaymentMethod = (method: string) => {
+    switch (method) {
+        case 'PIX': return 'PIX';
+        case 'CASH': return 'Dinheiro';
+        case 'CREDIT_CARD': return 'Cartão Crédito';
+        case 'DEBIT_CARD': return 'Cartão Débito';
+        case 'BANK_TRANSFER': return 'Transf. Bancária';
+        case 'BOLETO': return 'Boleto';
+        case 'DISCOUNT': return 'Desconto/Cortesia';
+        case 'CLIENT_CREDIT': return 'Saldo Crédito';
+        default: return method;
+    }
+};
 
 export const Dentists = () => {
     const { 
@@ -246,7 +259,7 @@ export const Dentists = () => {
                 amount: amount,
                 paymentMethod: 'CASH',
                 paymentDate: new Date(),
-                type: manualEntryType === 'MANUAL_DEBIT' ? 'DEBIT_ADJUSTMENT' : 'CREDIT_ADJUSTMENT',
+                type: manualEntryType === 'MANUAL_DEBIT' ? 'MANUAL_DEBIT' : 'MANUAL_CREDIT',
                 notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? 'Ajuste a Débito' : 'Ajuste a Crédito')
             } as any);
             
@@ -342,7 +355,7 @@ export const Dentists = () => {
                 description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
                              p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` :
                              p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` :
-                             `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
+                             `Pagamento: ${translatePaymentMethod(p.paymentMethod)} ${p.notes ? `- ${p.notes}` : ''}`,
                 amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
                         (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) :
                         (Number(p.amount || 0) + Number(p.discount || 0)),
@@ -360,7 +373,7 @@ export const Dentists = () => {
         
         const historyWithBalance = sorted.map(item => {
             if (item.type === 'DEBIT') runningBalance -= item.amount;
-            else runningBalance += item.amount;
+            else if (item.payment?.paymentMethod !== 'CLIENT_CREDIT') runningBalance += item.amount;
             
             const isBefore = new Date(item.date) < sDate;
             if (isBefore) previousBalance = runningBalance;
@@ -1550,6 +1563,7 @@ export const Dentists = () => {
                                                         <option value="BANK_TRANSFER">Transferência Bancária</option>
                                                         <option value="BOLETO">Boleto (Pago)</option>
                                                         <option value="DISCOUNT">Desconto/Cortesia</option>
+                                                        <option value="CLIENT_CREDIT">Saldo de Crédito</option>
                                                     </select>
                                                 </div>
 
@@ -1637,7 +1651,7 @@ export const Dentists = () => {
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
-                                                                    {p.paymentMethod}
+                                                                    {translatePaymentMethod(p.paymentMethod)}
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4 text-xs font-bold text-slate-600 italic">

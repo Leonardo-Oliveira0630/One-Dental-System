@@ -2,21 +2,8 @@ const fs = require('fs');
 let content = fs.readFileSync('types.ts', 'utf8');
 
 content = content.replace(
-`export interface JobType {
-  id: string;
-  name: string;
-  category: string;
-  basePrice: number;
-  baseCommission?: number;
-  variationGroups: VariationGroup[];`,
-`export interface JobType {
-  id: string;
-  name: string;
-  category: string;
-  basePrice: number;
-  baseCommission?: number;
-  variationGroups: VariationGroup[];
-  variations?: any[]; // Legacy variations`
+  "  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER';",
+  "  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'CLIENT_CREDIT';"
 );
 
 fs.writeFileSync('types.ts', content);

@@ -2,21 +2,24 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch, DentistPayment } from '../../types';
 import * as api from '../../services/firebaseService';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, AreaChart, Area, Legend
-} from 'recharts';
-import { 
-  DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, 
-  FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, 
-  CreditCard, Loader2, User, Package, Clock, X, Filter, 
-  FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight,
-  ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle,
-  ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight
-} from 'lucide-react';
-
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
+import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, CreditCard, Loader2, User, Package, Clock, X, Filter, FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle, ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const translatePaymentMethod = (method: string) => {
+    switch (method) {
+        case 'PIX': return 'PIX';
+        case 'CASH': return 'Dinheiro';
+        case 'CREDIT_CARD': return 'Cartão Crédito';
+        case 'DEBIT_CARD': return 'Cartão Débito';
+        case 'BANK_TRANSFER': return 'Transf. Bancária';
+        case 'BOLETO': return 'Boleto';
+        case 'DISCOUNT': return 'Desconto/Cortesia';
+        case 'CLIENT_CREDIT': return 'Saldo Crédito';
+        default: return method;
+    }
+};
 
 export const Finance = () => {
   const { 
@@ -468,7 +471,7 @@ export const Finance = () => {
             id: p.id,
             date: p.paymentDate,
             type: (p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT',
-            description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
+            description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${translatePaymentMethod(p.paymentMethod)} ${p.notes ? `- ${p.notes}` : ''}`,
             amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0)),
             payment: p
         }))
@@ -484,7 +487,7 @@ export const Finance = () => {
     
     const historyWithBalance = sorted.map(item => {
         if (item.type === 'DEBIT') runningBalance -= item.amount;
-        else runningBalance += item.amount;
+        else if (item.payment?.paymentMethod !== 'CLIENT_CREDIT') runningBalance += item.amount;
         
         const isBefore = new Date(item.date) < sDate;
         if (isBefore) previousBalance = runningBalance;
@@ -1824,6 +1827,7 @@ export const Finance = () => {
                                                         <option value="BANK_TRANSFER">Transferência Bancária</option>
                                                         <option value="BOLETO">Boleto (Pago)</option>
                                                         <option value="DISCOUNT">Desconto/Cortesia</option>
+                                                        <option value="CLIENT_CREDIT">Saldo de Crédito</option>
                                                     </select>
                                                 </div>
 
@@ -1987,7 +1991,7 @@ export const Finance = () => {
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
-                                                                    {p.paymentMethod}
+                                                                    {translatePaymentMethod(p.paymentMethod)}
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4 text-xs font-bold text-slate-600 italic">
@@ -2312,6 +2316,7 @@ export const Finance = () => {
                                           <option value="BANK_TRANSFER">Transferência Bancária</option>
                                           <option value="BOLETO">Boleto (Pago)</option>
                                           <option value="DISCOUNT">Desconto/Cortesia</option>
+                                          <option value="CLIENT_CREDIT">Saldo de Crédito</option>
                                       </select>
                                   </div>
                                   <div>
@@ -2501,7 +2506,7 @@ export const Finance = () => {
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Forma de Pagamento</p>
                                       <span className="inline-block mt-0.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase rounded">
-                                          {selectedPaymentForDetail.paymentMethod}
+                                          {translatePaymentMethod(selectedPaymentForDetail.paymentMethod)}
                                       </span>
                                   </div>
                                   <div>
