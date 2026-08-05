@@ -16,6 +16,7 @@ import { ChatSystem } from '../components/ChatSystem';
 import { CaseApprovalSystem } from '../components/CaseApprovalSystem';
 import { AttachmentPreviewModal, handleDownloadFile } from '../components/AttachmentPreviewModal';
 import { calculateItemCommission } from '../utils/commissionUtils';
+import { WebcamModal } from '../components/WebcamModal';
 import { formatTeethRange } from '../utils/toothUtils';
 import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
@@ -40,11 +41,12 @@ export const parseDateSafely = (val: any): Date | null => {
 
 export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => {
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
-    if (!jt || !jt.variationGroups || jt.variationGroups.length === 0) return item.name;
+    if (!jt || ((!jt.variationGroups || jt.variationGroups.length === 0) && (!jt.variations || jt.variations.length === 0))) return item.name;
+    const groups = (jt.variationGroups && jt.variationGroups.length > 0) ? jt.variationGroups : [{ id: 'default', name: 'Opções', options: jt.variations || [] }];
     
     const parts: string[] = [];
     item.selectedVariationIds?.forEach(optId => {
-        for (const group of jt.variationGroups!) {
+        for (const group of groups) {
             const opt = group.options.find((o: any) => o.id === optId);
             if (opt) {
                 if (group.selectionType === 'TEXT' && item.variationValues?.[optId]) {
@@ -64,7 +66,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
+  const { jobs, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -91,7 +93,7 @@ export const JobDetails = () => {
       originalMovement?: SectorMovement | null
   } | null>(null);
 
-  const { commissions, addCommissionRecord, deleteCommissionRecord, updateCommissionRecord, updateJobType } = useApp(); // Wait, let's just get what's missing if not already destructured
+  const { commissions, addCommissionRecord, deleteCommissionRecord, updateCommissionRecord } = useApp();
   const labUsers = useMemo(() => allUsers.filter(u => u.role !== UserRole.CLIENT), [allUsers]);
 
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -113,6 +115,53 @@ export const JobDetails = () => {
     color: string;
   }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Stage Config Modal State
+  const [stageConfigItem, setStageConfigItem] = useState<JobItem | null>(null);
+  const [expandedStageSectors, setExpandedStageSectors] = useState<Record<string, boolean>>({});
+  const [tempItemStages, setTempItemStages] = useState<Record<string, string[]>>({});
+
+  const handleOpenStageConfig = (item: JobItem) => {
+    setStageConfigItem(item);
+    const jt = jobTypes.find(t => t.id === item.jobTypeId);
+    const initialStages = item.sectorStages || jt?.sectorStages || {};
+    setTempItemStages(initialStages);
+    const initialExpanded: Record<string, boolean> = {};
+    sectors.forEach(s => {
+      if ((s.stages && s.stages.length > 0) || (initialStages[s.name] && initialStages[s.name].length > 0)) {
+        initialExpanded[s.name] = true;
+      }
+    });
+    setExpandedStageSectors(initialExpanded);
+  };
+
+  const handleSaveStageConfig = async () => {
+    if (!stageConfigItem || !job) return;
+    setIsUpdatingStatus(true);
+    try {
+      const updatedItems = job.items.map((i: any) => {
+        if (i.id === stageConfigItem.id) {
+          return {
+            ...i,
+            sectorStages: tempItemStages
+          };
+        }
+        return i;
+      });
+
+      const jType = jobTypes.find(t => t.id === stageConfigItem.jobTypeId);
+      if (jType && updateJobType) {
+        await updateJobType(jType.id, { sectorStages: tempItemStages });
+      }
+
+      await updateJob(job.id, { items: updatedItems });
+      setStageConfigItem(null);
+    } catch (err) {
+      alert("Erro ao salvar etapas do serviço.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   // Rejection/Cancellation Modal States
   const [showRejectionModal, setShowRejectionModal] = useState(false);
@@ -230,6 +279,7 @@ export const JobDetails = () => {
   
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const [uploadProgressMsg, setUploadProgressMsg] = useState('');
 
   const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
@@ -620,10 +670,17 @@ export const JobDetails = () => {
         if (option) {
             let modifier = option.priceModifier;
             
-            if (dentist && dentist.priceTableId) {
-                const table = priceTables.find(t => t.id === dentist.priceTableId);
-                if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
-                    modifier = table.prices[jobType.id].variations[option.id];
+            if (dentist) {
+                if (dentist.isCustomPricing) {
+                    const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
+                    if (custom && custom.variations && custom.variations[option.id] !== undefined) {
+                        modifier = custom.variations[option.id];
+                    }
+                } else if (dentist.priceTableId) {
+                    const table = priceTables.find(t => t.id === dentist.priceTableId);
+                    if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
+                        modifier = table.prices[jobType.id].variations[option.id];
+                    }
                 }
             }
 
@@ -1221,7 +1278,8 @@ export const JobDetails = () => {
                   if (userItemsInSector.includes(i.id) && !i.commissionDisabled) {
                       const secQty = (i.sectorQuantities && i.sectorQuantities[sector]) ? i.sectorQuantities[sector] : i.quantity;
                       const jt = jobTypes.find(t => t.id === i.jobTypeId);
-                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty);
+                      const exec = newExecutions.find((e: any) => e.itemId === i.id && e.sector === sector && e.userId === executionToDelete.userId);
+                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty, sector, exec?.executedStages);
                   }
               });
 
@@ -1264,7 +1322,8 @@ export const JobDetails = () => {
                           ? item.sectorQuantities[sector] 
                           : item.quantity;
                       const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty);
+                      const exec = (executionsToUse || []).find((e: any) => e.itemId === item.id && e.sector === sector && e.userId === userId);
+                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, sector, exec?.executedStages);
                   }
               }
           });
@@ -1795,6 +1854,83 @@ export const JobDetails = () => {
           </div>
       )}
 
+      
+      {/* MODAL STAGE CONFIG */}
+      {stageConfigItem && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] animate-in zoom-in duration-200">
+                  <div className="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl shrink-0">
+                      <div>
+                          <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                              <Settings className="text-slate-400" />
+                              Etapas do Serviço
+                          </h3>
+                          <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-widest">{stageConfigItem.name}</p>
+                      </div>
+                      <button onClick={() => setStageConfigItem(null)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-2 rounded-full transition-colors"><X size={24}/></button>
+                  </div>
+                  
+                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                      {sectors.map(sector => (
+                          <div key={sector.id} className="border border-slate-200 rounded-2xl overflow-hidden">
+                              <button
+                                  className="w-full bg-slate-50 hover:bg-slate-100 p-4 flex justify-between items-center transition-colors"
+                                  onClick={() => setExpandedStageSectors(prev => ({ ...prev, [sector.name]: !prev[sector.name] }))}
+                              >
+                                  <span className="font-black text-slate-700 text-sm">{sector.name}</span>
+                                  <ChevronDown size={18} className={`text-slate-400 transition-transform ${expandedStageSectors[sector.name] ? 'rotate-180' : ''}`} />
+                              </button>
+                              
+                              {expandedStageSectors[sector.name] && (
+                                  <div className="p-4 bg-white border-t border-slate-100 space-y-2">
+                                      {(!sector.stages || sector.stages.length === 0) ? (
+                                          <p className="text-xs text-slate-400 font-bold text-center py-2">Nenhuma etapa cadastrada neste setor.</p>
+                                      ) : (
+                                          sector.stages.map((stage, idx) => {
+                                              const isChecked = tempItemStages[sector.name]?.includes(stage) || false;
+                                              return (
+                                                  <label key={idx} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer border border-transparent hover:border-slate-100 transition-colors">
+                                                      <input
+                                                          type="checkbox"
+                                                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                                          checked={isChecked}
+                                                          onChange={(e) => {
+                                                              const current = tempItemStages[sector.name] || [];
+                                                              let next;
+                                                              if (e.target.checked) {
+                                                                  next = [...current, stage];
+                                                              } else {
+                                                                  next = current.filter(s => s !== stage);
+                                                              }
+                                                              setTempItemStages(prev => ({ ...prev, [sector.name]: next }));
+                                                          }}
+                                                      />
+                                                      <span className="text-sm font-bold text-slate-600">{stage}</span>
+                                                  </label>
+                                              );
+                                          })
+                                      )}
+                                  </div>
+                              )}
+                          </div>
+                      ))}
+                  </div>
+
+                  <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3 shrink-0">
+                      <button onClick={() => setStageConfigItem(null)} className="px-6 py-3 font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
+                      <button 
+                          onClick={handleSaveStageConfig}
+                          disabled={isUpdatingStatus}
+                          className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-500/30 flex items-center gap-2 transition-all"
+                      >
+                          {isUpdatingStatus ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                          SALVAR ETAPAS
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* MODAL EXECUTION EDIT */}
       {showExecutionModal && editingExecution && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -2052,14 +2188,15 @@ export const JobDetails = () => {
                                               </div>
                                               {(() => {
                                                   const type = jobTypes.find(t => t.id === item.jobTypeId);
-                                                  if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                                  if (!type || ((!type.variationGroups || type.variationGroups.length === 0) && (!type.variations || type.variations.length === 0))) return null;
+                                                  const groups = (type.variationGroups && type.variationGroups.length > 0) ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }];
                                                   return (
                                                       <div className="grid grid-cols-1 gap-3 mt-2">
-                                                          {type.variationGroups.map(group => (
+                                                          {groups.map((group: any) => (
                                                               <div key={group.id} className="space-y-1">
                                                                   <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{group.name}</h4>
                                                                   <div className="flex flex-wrap gap-1.5">
-                                                                      {group.options.map(option => {
+                                                                      {group.options.map((option: any) => {
                                                                           const isSelected = (item.selectedVariationIds || []).includes(option.id);
                                                                           return (
                                                                               <button
@@ -2068,7 +2205,7 @@ export const JobDetails = () => {
                                                                                   onClick={() => {
                                                                                       let newSelected = [...(item.selectedVariationIds || [])];
                                                                                       if (group.selectionType === 'SINGLE') {
-                                                                                          newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                                          newSelected = newSelected.filter(id => !group.options.find((o: any) => o.id === id));
                                                                                           if (!isSelected) newSelected.push(option.id);
                                                                                       } else {
                                                                                           if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
@@ -2185,14 +2322,15 @@ export const JobDetails = () => {
                                </div>
                                {(() => {
                                    const type = jobTypes.find(t => t.id === newItemTypeId);
-                                   if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                   if (!type || ((!type.variationGroups || type.variationGroups.length === 0) && (!type.variations || type.variations.length === 0))) return null;
+                                   const groups = (type.variationGroups && type.variationGroups.length > 0) ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }];
                                    return (
                                        <div className="grid grid-cols-1 gap-3 mt-2">
-                                           {type.variationGroups.map(group => (
+                                           {groups.map((group: any) => (
                                                <div key={group.id} className="space-y-1">
                                                    <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{group.name}</h4>
                                                    <div className="flex flex-wrap gap-1.5">
-                                                       {group.options.map(option => {
+                                                       {group.options.map((option: any) => {
                                                            const isSelected = newItemVariationIds.includes(option.id);
                                                            return (
                                                                <button 
@@ -2201,7 +2339,7 @@ export const JobDetails = () => {
                                                                    onClick={() => {
                                                                        let newSelected = [...newItemVariationIds];
                                                                        if (group.selectionType === 'SINGLE') {
-                                                                           newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                           newSelected = newSelected.filter(id => !group.options.find((o: any) => o.id === id));
                                                                            if (!isSelected) newSelected.push(option.id);
                                                                        } else {
                                                                            if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
@@ -2638,6 +2776,19 @@ export const JobDetails = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
+                                            {canManageCommissions && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenStageConfig(item);
+                                                    }}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                    title="Configurar Etapas do Serviço"
+                                                >
+                                                    <Settings size={18} />
+                                                </button>
+                                            )}
                                             {item.isInternalStep ? (
                                                 <p className="font-black text-indigo-500 text-[10px] uppercase">NÃO FATURADO</p>
                                             ) : (
@@ -2726,15 +2877,16 @@ export const JobDetails = () => {
                                                     
                                                     {(() => {
                                                         const itemJobType = jobTypes.find(jt => jt.id === item.jobTypeId);
-                                                        if (!itemJobType || !itemJobType.variationGroups || itemJobType.variationGroups.length === 0) return null;
+                                                        if (!itemJobType || ((!itemJobType.variationGroups || itemJobType.variationGroups.length === 0) && (!itemJobType.variations || itemJobType.variations.length === 0))) return null;
+                                                        const groups = (itemJobType.variationGroups && itemJobType.variationGroups.length > 0) ? itemJobType.variationGroups : [{ id: 'default', name: 'Opções', options: itemJobType.variations || [] }];
                                                         
                                                         return (
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200 pt-4 mt-4">
-                                                                {itemJobType.variationGroups.map(group => (
+                                                                {groups.map((group: any) => (
                                                                     <div key={group.id} className="space-y-2">
                                                                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{group.name}</h4>
                                                                         <div className="flex flex-wrap gap-1.5">
-                                                                            {group.options.map(option => {
+                                                                            {group.options.map((option: any) => {
                                                                                 const isSelected = itemEditForm.selectedVariationIds.includes(option.id);
                                                                                 return (
                                                                                     <button 
@@ -2743,7 +2895,7 @@ export const JobDetails = () => {
                                                                                         onClick={() => {
                                                                                             let newSelected = [...itemEditForm.selectedVariationIds];
                                                                                             if (group.selectionType === 'SINGLE') {
-                                                                                                newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                                                newSelected = newSelected.filter(id => !group.options.find((o: any) => o.id === id));
                                                                                                 if (!isSelected) newSelected.push(option.id);
                                                                                             } else {
                                                                                                 if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
@@ -3025,23 +3177,14 @@ export const JobDetails = () => {
                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Anexar Arquivos</span>
                                     </div>
                                 </div>
-                                <div className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 relative overflow-hidden">
-                                    <input 
-                                        type="file" 
-                                        accept="image/*"
-                                        capture="environment"
-                                        onChange={(e) => {
-                                            if (e.target.files && e.target.files.length > 0) {
-                                                setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]);
-                                            }
-                                        }} 
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                        disabled={isUploadingFiles}
-                                        title="Tirar Foto"
-                                    />
+                                <button 
+                                    onClick={() => setIsWebcamOpen(true)}
+                                    disabled={isUploadingFiles}
+                                    className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50"
+                                >
                                     <CameraIcon size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center leading-tight">Tirar Foto</span>
-                                </div>
+                                </button>
                             </div>
 
                             {selectedFiles.length > 0 && (
@@ -3436,6 +3579,17 @@ export const JobDetails = () => {
           </div>
         </div>
       )}
+      
+      {isWebcamOpen && (
+        <WebcamModal 
+          onClose={() => setIsWebcamOpen(false)}
+          onCapture={(file) => {
+            setSelectedFiles(prev => [...prev, file]);
+            setIsWebcamOpen(false);
+          }}
+        />
+      )}
+
        {selectedAttachment && (
            <AttachmentPreviewModal 
                file={selectedAttachment}

@@ -1,37 +1,47 @@
 const fs = require('fs');
-let code = fs.readFileSync('pages/JobDetails.tsx', 'utf8');
 
-const targetStr = '<span className="font-mono font-black text-2xl md:text-3xl text-slate-900 tracking-tight shrink-0">OS #{job.osNumber || \'---\'}</span>';
+let content = fs.readFileSync('pages/JobDetails.tsx', 'utf8');
 
-const newStr = `
-                    <div className="flex items-center gap-3 shrink-0 relative overflow-visible">
-                        <span className="font-mono font-black text-2xl md:text-3xl text-slate-900 tracking-tight shrink-0">OS #{job.osNumber || '---'}</span>
-                        {jobs.filter(j => j.patientName === job.patientName).length > 1 && (
-                            <div className="relative group shrink-0">
-                                <button className="text-[9px] bg-slate-200 text-slate-600 px-2 py-1 rounded-md font-black uppercase tracking-widest hover:bg-slate-300 transition-colors shadow-sm cursor-pointer border border-slate-300">Todos os Casos</button>
-                                <div className="absolute left-0 top-full mt-2 hidden group-hover:block bg-white shadow-2xl border border-slate-200 rounded-xl py-2 w-48 z-[9999]">
-                                    <div className="px-3 pb-2 mb-1 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                        Histórico do Paciente
-                                    </div>
-                                    {jobs.filter(j => j.patientName === job.patientName)
-                                         .sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                                         .map(j => (
-                                        <button 
-                                            key={j.id} 
-                                            onClick={() => navigate(\`/lab/jobs/\${j.id}\`)} 
-                                            className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors text-sm font-mono font-bold text-slate-700 flex items-center justify-between"
-                                        >
-                                            <span>OS {j.osNumber || 'N/A'}</span>
-                                            {j.id === job.id && <span className="w-2 h-2 rounded-full bg-blue-500"></span>}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-`.trim();
+// Line 2190
+content = content.replace(
+`if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                                  return (
+                                                      <div className="grid grid-cols-1 gap-3 mt-2">
+                                                          {type.variationGroups.map(group => (`,
+`if (!type || ((!type.variationGroups || type.variationGroups.length === 0) && (!type.variations || type.variations.length === 0))) return null;
+                                                  const groups = (type.variationGroups && type.variationGroups.length > 0) ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }];
+                                                  return (
+                                                      <div className="grid grid-cols-1 gap-3 mt-2">
+                                                          {groups.map((group: any) => (`
+);
 
-code = code.replace(targetStr, newStr);
+// Line 2323
+content = content.replace(
+`if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                   return (
+                                       <div className="grid grid-cols-1 gap-3 mt-2">
+                                           {type.variationGroups.map(group => (`,
+`if (!type || ((!type.variationGroups || type.variationGroups.length === 0) && (!type.variations || type.variations.length === 0))) return null;
+                                   const groups = (type.variationGroups && type.variationGroups.length > 0) ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }];
+                                   return (
+                                       <div className="grid grid-cols-1 gap-3 mt-2">
+                                           {groups.map((group: any) => (`
+);
 
-fs.writeFileSync('pages/JobDetails.tsx', code);
-console.log("Patched JobDetails.tsx");
+// Line 2877
+content = content.replace(
+`if (!itemJobType || !itemJobType.variationGroups || itemJobType.variationGroups.length === 0) return null;
+                                                        
+                                                        return (
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200 pt-4 mt-4">
+                                                                {itemJobType.variationGroups.map(group => (`,
+`if (!itemJobType || ((!itemJobType.variationGroups || itemJobType.variationGroups.length === 0) && (!itemJobType.variations || itemJobType.variations.length === 0))) return null;
+                                                        const groups = (itemJobType.variationGroups && itemJobType.variationGroups.length > 0) ? itemJobType.variationGroups : [{ id: 'default', name: 'Opções', options: itemJobType.variations || [] }];
+                                                        
+                                                        return (
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200 pt-4 mt-4">
+                                                                {groups.map((group: any) => (`
+);
+
+fs.writeFileSync('pages/JobDetails.tsx', content);
+

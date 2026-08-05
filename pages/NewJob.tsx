@@ -193,6 +193,12 @@ export const NewJob = () => {
     
     // Check for Price Table or Custom Pricing
     if (selectedDentistObj) {
+        if (selectedDentistObj.priceTableId) {
+            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+            if (table && table.prices[activeJobType.id]?.basePrice !== undefined) {
+                basePrice = table.prices[activeJobType.id].basePrice;
+            }
+        }
         if (selectedDentistObj.isCustomPricing) {
             // Priority: Explicit Custom Prices
             const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
@@ -211,12 +217,6 @@ export const NewJob = () => {
                 dentistDiscountRate = selectedDentistObj.globalDiscountPercent / 100;
             }
         }
-        if (selectedDentistObj.priceTableId) {
-            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
-            if (table && table.prices[activeJobType.id]?.basePrice !== undefined) {
-                basePrice = table.prices[activeJobType.id].basePrice;
-            }
-        }
     }
 
     let discountableSum = basePrice;
@@ -229,11 +229,18 @@ export const NewJob = () => {
         if (option) {
             let modifier = option.priceModifier;
             
-            // Check if Price Table has a specific modifier for this variation
-            if (selectedDentistObj && !selectedDentistObj.isCustomPricing && selectedDentistObj.priceTableId) {
-                const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
-                if (table && table.prices[activeJobType.id]?.variations?.[option.id] !== undefined) {
-                    modifier = table.prices[activeJobType.id].variations[option.id];
+            // Check if Custom Price or Price Table has a specific modifier for this variation
+            if (selectedDentistObj) {
+                if (selectedDentistObj.isCustomPricing) {
+                    const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
+                    if (custom && custom.variations && custom.variations[option.id] !== undefined) {
+                        modifier = custom.variations[option.id];
+                    }
+                } else if (selectedDentistObj.priceTableId) {
+                    const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+                    if (table && table.prices[activeJobType.id]?.variations?.[option.id] !== undefined) {
+                        modifier = table.prices[activeJobType.id].variations[option.id];
+                    }
                 }
             }
 
@@ -291,10 +298,17 @@ export const NewJob = () => {
         if (option) {
             let modifier = option.priceModifier;
             
-            if (dentist && dentist.priceTableId) {
-                const table = priceTables.find(t => t.id === dentist.priceTableId);
-                if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
-                    modifier = table.prices[jobType.id].variations[option.id];
+            if (dentist) {
+                if (dentist.isCustomPricing) {
+                    const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
+                    if (custom && custom.variations && custom.variations[option.id] !== undefined) {
+                        modifier = custom.variations[option.id];
+                    }
+                } else if (dentist.priceTableId) {
+                    const table = priceTables.find(t => t.id === dentist.priceTableId);
+                    if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
+                        modifier = table.prices[jobType.id].variations[option.id];
+                    }
                 }
             }
 

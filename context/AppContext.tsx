@@ -167,6 +167,7 @@ interface AppContextType {
   deleteClinicDentist: (id: string) => Promise<void>;
 
   addSector: (name: string) => Promise<void>;
+  updateSector: (id: string, updates: Partial<Sector>) => Promise<void>;
   deleteSector: (id: string) => Promise<void>;
   
   addBoxColor: (color: Omit<BoxColor, 'id'>) => Promise<void>;
@@ -958,6 +959,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if(!orgId) return;
       await api.apiAddSector(orgId, { id: `sector_${Date.now()}`, name });
   }
+  const updateSector = async (id: string, updates: Partial<Sector>) => {
+      const orgId = activeDataId;
+      if (!orgId) return;
+      await api.apiUpdateSector(orgId, id, updates);
+  }
   const deleteSector = async (id: string) => {
       const orgId = activeDataId;
       if(!orgId) return;
@@ -1434,7 +1440,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addClinicService, updateClinicService, deleteClinicService,
     addClinicRoom, updateClinicRoom, deleteClinicRoom,
     addClinicDentist, updateClinicDentist, deleteClinicDentist,
-    addSector, deleteSector, addBoxColor, deleteBoxColor,
+    addSector, updateSector, deleteSector, addBoxColor, deleteBoxColor,
     cart, addToCart: (i: CartItem) => setCart(p => [...p,i]), removeFromCart: (id: string) => setCart(p => p.filter(i => i.cartItemId !== id)), updateCartItemQty: (id: string, qty: number) => setCart(p => p.map(item => item.cartItemId === id ? { ...item, quantity: Math.max(1, qty), finalPrice: item.unitPrice * Math.max(1, qty) } : item)), clearCart: () => setCart([]),
     uploadFile: api.uploadJobFile,
     getOriginalUrl: api.getOriginalUrl,

@@ -366,6 +366,7 @@ export interface JobItem {
   commissionDisabled?: boolean;
   sectorQuantities?: Record<string, number>;
   sectorCommissionDisabled?: Record<string, boolean>;
+  sectorStages?: Record<string, string[]>;
   selectedTeeth?: string[];
   color?: string;
   isInternalStep?: boolean;
@@ -440,6 +441,7 @@ export interface JobItemExecution {
   userId: string;
   userName: string;
   timestamp: Date;
+  executedStages?: string[];
 }
 
 export interface SectorMovement {
@@ -451,6 +453,8 @@ export interface SectorMovement {
   exitTime?: Date;
   exitUserId?: string;
   exitUserName?: string;
+  plannedItems?: string[];
+  plannedStages?: Record<string, string[]>;
 }
 
 export interface Job {
@@ -502,6 +506,7 @@ export interface Job {
 export interface Sector {
   id: string;
   name: string;
+  stages?: string[];
 }
 
 export interface VariationOption {
@@ -527,11 +532,13 @@ export interface JobType {
   basePrice: number;
   baseCommission?: number;
   variationGroups: VariationGroup[];
+  variations?: any[]; // Legacy variations
   isVisibleInStore?: boolean;
   isVisibleInOutsourcing?: boolean;
   isVisibleInternally?: boolean;
   imageUrl?: string;
   allowedSectors?: string[];
+  sectorStages?: Record<string, string[]>;
   isPromotion?: boolean;
   promotionQuantity?: number;
   promotionCallText?: string;
@@ -559,6 +566,7 @@ export interface UserCommissionSetting {
   value?: number;
   type: 'FIXED' | 'PERCENTAGE';
   variationSettings?: Record<string, { value: number; type: 'FIXED' | 'PERCENTAGE' }>;
+  stageSettings?: Record<string, { value: number; type: 'FIXED' | 'PERCENTAGE' }>;
 }
 
 export interface PriceTable {
@@ -842,7 +850,7 @@ export interface DentistPayment {
   paymentDate: Date;
   cardMachineId?: string;
   bankAccountId?: string;
-  type: 'PAYMENT' | 'DISCOUNT';
+  type: 'PAYMENT' | 'DISCOUNT' | 'MANUAL_DEBIT' | 'MANUAL_CREDIT';
   notes?: string;
   batchId?: string;
   createdAt: Date;

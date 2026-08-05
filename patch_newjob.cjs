@@ -1,23 +1,56 @@
 const fs = require('fs');
-let code = fs.readFileSync('pages/NewJob.tsx', 'utf8');
+let content = fs.readFileSync('pages/NewJob.tsx', 'utf-8');
 
-const validationCode = `
-        if (boxNumber.trim()) {
-            const activeJobWithBox = jobs.find(j => 
-                j.boxNumber === boxNumber.trim() && 
-                ![JobStatus.COMPLETED, JobStatus.DELIVERED, JobStatus.CANCELED, JobStatus.REJECTED].includes(j.status)
-            );
-            if (activeJobWithBox) {
-                alert(\`A caixa \${boxNumber.trim()} está em uso pelo trabalho OS \${activeJobWithBox.osNumber}. Finalize-o antes de usar esta caixa.\`);
-                setIsSubmitting(false);
-                return;
+const targetStr = `        if (selectedDentistObj.isCustomPricing) {
+            // Priority: Explicit Custom Prices
+            const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                    basePrice = custom.fixedPrice;
+                    dentistDiscountRate = 0;
+                } else if (custom.discountPercent !== undefined) {
+                    dentistDiscountRate = custom.discountPercent / 100;
+                } else if (custom.price !== undefined) {
+                    basePrice = custom.price;
+                    dentistDiscountRate = 0;
+                }
+            } else if (selectedDentistObj.globalDiscountPercent) {
+                // Fallback to Global Discount if custom pricing is ON but no specific price for this jobType
+                dentistDiscountRate = selectedDentistObj.globalDiscountPercent / 100;
             }
         }
-`;
+        if (selectedDentistObj.priceTableId) {
+            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+            if (table && table.prices[activeJobType.id]?.basePrice !== undefined) {
+                basePrice = table.prices[activeJobType.id].basePrice;
+            }
+        }`;
 
-code = code.replace(
-    'if (!initialSector) {',
-    validationCode + '\n        if (!initialSector) {'
-);
+const replacementStr = `        if (selectedDentistObj.priceTableId) {
+            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+            if (table && table.prices[activeJobType.id]?.basePrice !== undefined) {
+                basePrice = table.prices[activeJobType.id].basePrice;
+            }
+        }
+        if (selectedDentistObj.isCustomPricing) {
+            // Priority: Explicit Custom Prices
+            const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                    basePrice = custom.fixedPrice;
+                    dentistDiscountRate = 0;
+                } else if (custom.discountPercent !== undefined) {
+                    dentistDiscountRate = custom.discountPercent / 100;
+                } else if (custom.price !== undefined) {
+                    basePrice = custom.price;
+                    dentistDiscountRate = 0;
+                }
+            } else if (selectedDentistObj.globalDiscountPercent) {
+                // Fallback to Global Discount if custom pricing is ON but no specific price for this jobType
+                dentistDiscountRate = selectedDentistObj.globalDiscountPercent / 100;
+            }
+        }`;
 
-fs.writeFileSync('pages/NewJob.tsx', code);
+content = content.replace(targetStr, replacementStr);
+fs.writeFileSync('pages/NewJob.tsx', content);
+console.log('Patched pages/NewJob.tsx calculatedBasePrice');

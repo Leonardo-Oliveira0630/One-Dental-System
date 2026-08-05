@@ -555,7 +555,14 @@ export const subscribeSectors = (orgId: string, cb: (sectors: Sector[]) => void)
     }, (error: any) => logger.warn(`[Firestore] Erro em subscribeSectors: ${error.code}`));
 };
 export const apiAddSector = (orgId: string, sector: { id: string, name: string }) => setDoc(doc(db, `organizations/${orgId}/sectors`, sector.id), sector);
-export const apiUpdateSector = (orgId: string, id: string, name: string) => updateDoc(doc(db, `organizations/${orgId}/sectors`, id), { name });
+export interface SectorDataPayload {
+    name?: string;
+    stages?: string[];
+}
+export const apiUpdateSector = (orgId: string, id: string, nameOrUpdates: string | Partial<Sector>) => {
+    const data = typeof nameOrUpdates === 'string' ? { name: nameOrUpdates } : nameOrUpdates;
+    return updateDoc(doc(db, `organizations/${orgId}/sectors`, id), data);
+};
 export const apiDeleteSector = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/sectors`, id));
 
 export const subscribeBoxColors = (orgId: string, cb: (colors: BoxColor[]) => void) => {

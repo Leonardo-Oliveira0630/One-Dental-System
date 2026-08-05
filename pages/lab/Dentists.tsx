@@ -39,6 +39,11 @@ export const Dentists = () => {
     
     // Extrato State
     const [showStatement, setShowStatement] = useState(false);
+    const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+    const [manualEntryType, setManualEntryType] = useState<'MANUAL_DEBIT' | 'MANUAL_CREDIT'>('MANUAL_DEBIT');
+    const [manualEntryAmount, setManualEntryAmount] = useState('');
+    const [manualEntryNotes, setManualEntryNotes] = useState('');
+    const [isAddingManualEntry, setIsAddingManualEntry] = useState(false);
     const [showAsaasError, setShowAsaasError] = useState(false);
     const [statementClient, setStatementClient] = useState<any | null>(null);
     const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
@@ -222,6 +227,41 @@ export const Dentists = () => {
         }
     };
 
+
+    const handleAddManualEntry = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!statementClient) return;
+        
+        const amount = parseFloat(manualEntryAmount);
+        if (isNaN(amount) || amount <= 0) {
+            alert("Digite um valor válido.");
+            return;
+        }
+
+        setIsAddingManualEntry(true);
+        try {
+            await addDentistPayment({
+                dentistId: statementClient.id,
+                dentistName: statementClient.name,
+                amount: amount,
+                paymentMethod: 'CASH',
+                paymentDate: new Date(),
+                type: manualEntryType === 'MANUAL_DEBIT' ? 'DEBIT_ADJUSTMENT' : 'CREDIT_ADJUSTMENT',
+                notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? 'Ajuste a Débito' : 'Ajuste a Crédito')
+            } as any);
+            
+            setShowManualEntryModal(false);
+            setManualEntryAmount('');
+            setManualEntryNotes('');
+            alert('Lançamento manual registrado com sucesso!');
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao registrar lançamento manual.');
+        } finally {
+            setIsAddingManualEntry(false);
+        }
+    };
+
     const handleSavePayment = async () => {
         if (!statementClient || paymentAmount <= 0) return;
         setIsSaving(true);
@@ -298,9 +338,14 @@ export const Dentists = () => {
             ...clientPayments.map(p => ({
                 id: p.id,
                 date: p.paymentDate,
-                type: (p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT',
-                description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
-                amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0)),
+                type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
+                description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
+                             p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` :
+                             p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` :
+                             `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
+                amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
+                        (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) :
+                        (Number(p.amount || 0) + Number(p.discount || 0)),
                 payment: p
             }))
         ];
@@ -442,7 +487,7 @@ export const Dentists = () => {
             { content: `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
         ]);
 
-        chronoHistory.history.forEach((item) => {
+        chronoHistory.history.forEach((item: any) => {
             const isDebit = item.type === 'DEBIT';
             const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
             const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
@@ -1044,7 +1089,9 @@ export const Dentists = () => {
                                                      const finalPrice = cp?.fixedPrice ?? (basePriceForService * (1 - discountValue / 100));
                                                     
                                                     return (
-                                                        <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
+                                                        <div key={type.id} className="flex flex-col p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all gap-4">
+                                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                                                                
                                                             <div className="mb-2 sm:mb-0">
                                                                 <p className="font-bold text-slate-800">{type.name}</p>
                                                                 {(() => {
@@ -1053,7 +1100,7 @@ export const Dentists = () => {
                                                                     const basePriceForService = tablePriceObj?.basePrice !== undefined ? tablePriceObj.basePrice : type.basePrice;
                                                                     return (
                                                                         <p className="text-xs text-slate-400">
-                                                                            {assignedTable ? `Preço Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Preço Padrão: R$ {type.basePrice.toFixed(2)}`}
+                                                                            {assignedTable ? `Preço Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Preço Padrão: R$ ${type.basePrice.toFixed(2)}`}
                                                                         </p>
                                                                     );
                                                                 })()}
@@ -1110,6 +1157,68 @@ export const Dentists = () => {
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                        
+                                                            </div>
+                                                            {((type.variationGroups && type.variationGroups.length > 0) || (type.variations && type.variations.length > 0)) && (
+                                                                <div className="mt-2 pt-4 border-t border-slate-200">
+                                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Variações / Adicionais</p>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                                                                        {(type.variationGroups && type.variationGroups.length > 0 ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }]).map((group: any) => (
+                                                                            <div key={group.id} className="space-y-3">
+                                                                                <p className="text-[10px] font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full inline-block">{group.name}</p>
+                                                                                <div className="space-y-2">
+                                                                                    {group.options.map((opt: any) => {
+                                                                                        const tablePriceObj = priceTables.find(t => t.id === priceTableId)?.prices[type.id];
+                                                                                        const tableVariationPrice = tablePriceObj?.variations?.[opt.id];
+                                                                                        const baseVariationPrice = tableVariationPrice !== undefined ? tableVariationPrice : opt.priceModifier;
+                                                                                        const customVarPrice = cp?.variations?.[opt.id];
+                                                                                        return (
+                                                                                            <div key={opt.id} className="flex items-center justify-between text-xs px-2 group/opt">
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className="text-slate-600 font-bold">{opt.name}</span>
+                                                                                                    <span className="text-[9px] text-slate-400">Padrão: R$ {baseVariationPrice.toFixed(2)}</span>
+                                                                                                </div>
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <span className="text-[9px] text-slate-400 font-bold">R$</span>
+                                                                                                    <input 
+                                                                                                        type="number"
+                                                                                                        value={customVarPrice !== undefined ? customVarPrice : ''}
+                                                                                                        onChange={e => {
+                                                                                                            const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                                                                            const newCustomPrices = [...customPrices];
+                                                                                                            let idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                                                            if (idx === -1) {
+                                                                                                                idx = newCustomPrices.length;
+                                                                                                                newCustomPrices.push({ jobTypeId: type.id, variations: {} });
+                                                                                                            }
+                                                                                                            if (!newCustomPrices[idx].variations) newCustomPrices[idx].variations = {};
+                                                                                                            
+                                                                                                            if (val === undefined) {
+                                                                                                                delete newCustomPrices[idx].variations[opt.id];
+                                                                                                                if (Object.keys(newCustomPrices[idx].variations).length === 0) {
+                                                                                                                    delete newCustomPrices[idx].variations;
+                                                                                                                    if (!newCustomPrices[idx].fixedPrice && !newCustomPrices[idx].discountPercent) {
+                                                                                                                        newCustomPrices.splice(idx, 1);
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                newCustomPrices[idx].variations[opt.id] = val;
+                                                                                                            }
+                                                                                                            setCustomPrices(newCustomPrices);
+                                                                                                        }}
+                                                                                                        className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-md font-bold text-right outline-none focus:border-blue-400 transition-all"
+                                                                                                        placeholder="Fixo"
+                                                                                                    />
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}
@@ -1278,12 +1387,20 @@ export const Dentists = () => {
                                             </div>
                                             <p className="text-[10px] font-bold text-slate-400 max-w-[150px] leading-tight">Mude o período para ver o saldo anterior e fechamentos.</p>
                                         </div>
-                                        <button 
-                                            onClick={generateStatementPDF}
-                                            className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-200"
-                                        >
-                                            <Download size={16} /> Exportar PDF
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setShowManualEntryModal(true)}
+                                                className="px-4 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-500/30"
+                                            >
+                                                <Plus size={16} /> Lançamento Manual
+                                            </button>
+                                            <button 
+                                                onClick={generateStatementPDF}
+                                                className="px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-200"
+                                            >
+                                                <Download size={16} /> PDF
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -1327,9 +1444,9 @@ export const Dentists = () => {
                                                                         </div>
                                                                         <span className="text-xs font-black text-slate-800">{item.description}</span>
                                                                     </div>
-                                                                    {item.type === 'DEBIT' && item.job && (
+                                                                    {item.type === 'DEBIT' && 'job' in item && (item as any).job && (
                                                                         <div className="ml-10 space-y-1">
-                                                                            {item.job.items.map((it:any, iIdx:number) => (
+                                                                            {(item as any).job.items.map((it:any, iIdx:number) => (
                                                                                 <div key={iIdx} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
                                                                                     <span>{it.quantity} x {it.name}</span>
                                                                                     <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
@@ -1749,6 +1866,95 @@ export const Dentists = () => {
                                 Entendido
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MANUAL ENTRY MODAL */}
+            {showManualEntryModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                                <Plus className="text-blue-600" />
+                                Lançamento Manual
+                            </h3>
+                            <button onClick={() => setShowManualEntryModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                                <X size={20} className="text-slate-500" />
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={handleAddManualEntry} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Tipo de Lançamento</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setManualEntryType('MANUAL_DEBIT')}
+                                        className={`py-3 px-4 rounded-xl font-bold text-sm transition-all border ${
+                                            manualEntryType === 'MANUAL_DEBIT' 
+                                            ? 'bg-red-50 border-red-200 text-red-700' 
+                                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        Débito (Dívida)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setManualEntryType('MANUAL_CREDIT')}
+                                        className={`py-3 px-4 rounded-xl font-bold text-sm transition-all border ${
+                                            manualEntryType === 'MANUAL_CREDIT' 
+                                            ? 'bg-green-50 border-green-200 text-green-700' 
+                                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        Crédito (Abatimento)
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-bold mt-2">
+                                    {manualEntryType === 'MANUAL_DEBIT' 
+                                        ? 'Débito aumenta o saldo devedor do dentista (ex: dívida antiga).'
+                                        : 'Crédito diminui o saldo devedor (ex: saldo positivo a favor do dentista).'}
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Valor (R$)</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    value={manualEntryAmount}
+                                    onChange={(e) => {
+                                        let val = e.target.value.replace(/\D/g, '');
+                                        if (val.length > 0) {
+                                            val = (parseInt(val) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                        }
+                                        setManualEntryAmount(val);
+                                    }}
+                                    placeholder="0,00"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Observações / Motivo (Opcional)</label>
+                                <textarea 
+                                    value={manualEntryNotes}
+                                    onChange={(e) => setManualEntryNotes(e.target.value)}
+                                    placeholder="Ex: Dívida referente ao ano passado..."
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-24"
+                                />
+                            </div>
+
+                            <button 
+                                type="submit"
+                                disabled={isAddingManualEntry}
+                                className="w-full mt-2 py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2"
+                            >
+                                {isAddingManualEntry ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                                SALVAR LANÇAMENTO
+                            </button>
+                        </form>
                     </div>
                 </div>
             )}

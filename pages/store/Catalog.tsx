@@ -373,7 +373,7 @@ const ReviewsSection = ({ labId }: { labId: string }) => {
 };
 
 // Variation Configuration Modal (Component with Partner Checking)
-const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobType; selectedLab: import('../../types').Organization; onClose: () => void; }) => {
+const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose }: { product: JobType; selectedLab: import('../../types').Organization; localPriceTables: any[]; onClose: () => void; }) => {
     const { addToCart, currentUser, userConnections, addConnectionByCode } = useApp();
     const [quantity, setQuantity] = useState(1);
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
@@ -385,7 +385,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
     const [isLinking, setIsLinking] = useState(false);
     const [linkError, setLinkError] = useState('');
 
-    // Logic to calculate final price for a product based on user discounts
+        // Logic to calculate final price for a product based on user discounts
     const calculateFinalUnitPrice = (type: JobType, selectedIds: string[]) => {
         if (!currentUser) {
             let total = type.basePrice;
@@ -399,28 +399,58 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
         }
         
         let discountableTotal = type.basePrice;
+        
+        if (currentUser.priceTableId && !currentUser.isCustomPricing) {
+            const table = localPriceTables.find(t => t.id === currentUser.priceTableId);
+            if (table && table.prices[type.id]?.basePrice !== undefined) {
+                discountableTotal = table.prices[type.id].basePrice;
+            }
+        }
+        
         let exemptTotal = 0;
-
+        let discountRate = 0;
+        
+        const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
+        
         selectedIds.forEach(id => {
             type.variationGroups.forEach(g => {
                 const opt = g.options.find(o => o.id === id);
                 if (opt) {
-                    if (opt.isDiscountExempt) exemptTotal += opt.priceModifier;
-                    else discountableTotal += opt.priceModifier;
+                    let modifier = opt.priceModifier;
+                    
+                    if (currentUser.isCustomPricing) {
+                        if (custom && custom.variations && custom.variations[opt.id] !== undefined) {
+                            modifier = custom.variations[opt.id];
+                        }
+                    } else if (currentUser.priceTableId) {
+                        const table = localPriceTables.find(t => t.id === currentUser.priceTableId);
+                        if (table && table.prices[type.id]?.variations?.[opt.id] !== undefined) {
+                            modifier = table.prices[type.id].variations[opt.id];
+                        }
+                    }
+                    
+                    if (opt.isDiscountExempt) exemptTotal += modifier;
+                    else discountableTotal += modifier;
                 }
             });
         });
 
-        let discountRate = 0; 
-        const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
-        if (custom) {
-            if (custom.discountPercent !== undefined) discountRate = custom.discountPercent / 100;
-            else if (custom.price !== undefined) {
-                discountableTotal = custom.price;
-                discountRate = 0; 
+        if (currentUser.isCustomPricing) {
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                    discountableTotal = custom.fixedPrice;
+                    discountRate = 0;
+                } else if (custom.discountPercent !== undefined) {
+                    discountRate = custom.discountPercent / 100;
+                } else if (custom.price !== undefined) {
+                    discountableTotal = custom.price;
+                    discountRate = 0;
+                }
+            } else if (currentUser.globalDiscountPercent) {
+                discountRate = currentUser.globalDiscountPercent / 100;
             }
         } else if (currentUser.globalDiscountPercent) {
-            discountRate = currentUser.globalDiscountPercent / 100;
+             discountRate = currentUser.globalDiscountPercent / 100;
         }
 
         const discountedSum = discountableTotal * (1 - discountRate);
@@ -728,6 +758,7 @@ export const Catalog = () => {
     const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PROMOTIONS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
     const [localJobTypes, setLocalJobTypes] = useState<JobType[]>([]);
+    const [localPriceTables, setLocalPriceTables] = useState<any[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [copiedServiceId, setCopiedServiceId] = useState<string | null>(null);
@@ -793,6 +824,7 @@ export const Catalog = () => {
     useEffect(() => {
         if (!selectedLab?.id) {
             setLocalJobTypes([]);
+            setLocalPriceTables([]);
             setLoadingProducts(false);
             return;
         }
@@ -814,11 +846,17 @@ export const Catalog = () => {
             });
             return unsub;
         } else {
-            const unsub = api.subscribeJobTypes(selectedLab.id, (types) => {
+            let unsubTypes = api.subscribeJobTypes(selectedLab.id, (types) => {
                 setLocalJobTypes(types);
                 setLoadingProducts(false);
             });
-            return unsub;
+            let unsubTables = api.subscribePriceTables(selectedLab.id, (tables) => {
+                setLocalPriceTables(tables);
+            });
+            return () => {
+                unsubTypes();
+                unsubTables();
+            };
         }
     }, [selectedLab?.id, selectedLab?.orgType]);
 
@@ -940,12 +978,31 @@ export const Catalog = () => {
 
     const getPrice = (type: JobType) => {
         if (!currentUser) return { price: type.basePrice, isCustom: false };
-        const custom = currentUser.customPrices?.find(c => c.jobTypeId === type.id);
-        if (custom) {
-            if (custom.price !== undefined) return { price: custom.price, isCustom: true };
-            if (custom.discountPercent !== undefined) return { price: type.basePrice * (1 - custom.discountPercent / 100), isCustom: true };
+        
+        let basePrice = type.basePrice;
+        
+        if (currentUser.priceTableId) {
+            const table = localPriceTables.find(t => t.id === currentUser.priceTableId);
+            if (table && table.prices[type.id]?.basePrice !== undefined) {
+                basePrice = table.prices[type.id].basePrice;
+            }
         }
-        if (currentUser.globalDiscountPercent) return { price: type.basePrice * (1 - currentUser.globalDiscountPercent / 100), isCustom: true };
+        
+        if (currentUser.isCustomPricing) {
+            const custom = currentUser.customPrices?.find(c => c.jobTypeId === type.id);
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) return { price: custom.fixedPrice, isCustom: true };
+                if (custom.price !== undefined) return { price: custom.price, isCustom: true };
+                if (custom.discountPercent !== undefined) return { price: basePrice * (1 - custom.discountPercent / 100), isCustom: true };
+            }
+            if (currentUser.globalDiscountPercent) return { price: basePrice * (1 - currentUser.globalDiscountPercent / 100), isCustom: true };
+        }
+        
+        // If not custom pricing, or custom pricing had no overrides, check if basePrice was changed by table
+        if (basePrice !== type.basePrice) {
+            return { price: basePrice, isCustom: true }; // Consider table price as custom for display purposes
+        }
+        
         return { price: type.basePrice, isCustom: false };
     };
 
@@ -1046,7 +1103,7 @@ export const Catalog = () => {
                     </div>
                 ) : (
                     <div className="flex-1 p-4 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto">
-                {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} onClose={() => setConfiguringProduct(null)} />}
+                {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} localPriceTables={localPriceTables} onClose={() => setConfiguringProduct(null)} />}
             
             {showAuthModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">

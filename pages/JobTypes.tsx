@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -77,6 +77,48 @@ export const JobTypes = () => {
   const [promoVariationOptionId, setPromoVariationOptionId] = useState('');
   const [promoVariationOptionIds, setPromoVariationOptionIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Stage Configuration Modal State
+  const [showStageModal, setShowStageModal] = useState(false);
+  const [selectedTypeForStages, setSelectedTypeForStages] = useState<JobType | null>(null);
+  const [tempSectorStages, setTempSectorStages] = useState<Record<string, string[]>>({});
+  const [expandedSectors, setExpandedSectors] = useState<Record<string, boolean>>({});
+
+  const openStageConfigModal = (type: JobType) => {
+    setSelectedTypeForStages(type);
+    setTempSectorStages(type.sectorStages || {});
+    const initialExpanded: Record<string, boolean> = {};
+    sectors.forEach(s => { initialExpanded[s.name] = true; });
+    setExpandedSectors(initialExpanded);
+    setShowStageModal(true);
+  };
+
+  const toggleSectorExpand = (sectorName: string) => {
+    setExpandedSectors(prev => ({ ...prev, [sectorName]: !prev[sectorName] }));
+  };
+
+  const toggleStageForSector = (sectorName: string, stageName: string) => {
+    setTempSectorStages(prev => {
+      const currentStages = prev[sectorName] || [];
+      const exists = currentStages.includes(stageName);
+      const updatedStages = exists
+        ? currentStages.filter(st => st !== stageName)
+        : [...currentStages, stageName];
+      return { ...prev, [sectorName]: updatedStages };
+    });
+  };
+
+  const handleSaveSectorStages = async () => {
+    if (!selectedTypeForStages) return;
+    try {
+      await updateJobType(selectedTypeForStages.id, { sectorStages: tempSectorStages });
+      setShowStageModal(false);
+      setSelectedTypeForStages(null);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar etapas do serviço.');
+    }
+  };
 
   const resetForm = () => {
     setName('');
@@ -384,6 +426,13 @@ export const JobTypes = () => {
                                         {type.name}
                                     </h3>
                                     <div className="flex items-center gap-1.5 shrink-0">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); openStageConfigModal(type); }}
+                                            className="p-1.5 rounded-lg border bg-slate-50 border-slate-100 hover:border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                                            title="Configuração de Etapas do Serviço (Catraca)"
+                                        >
+                                            <Settings size={13} />
+                                        </button>
                                         <button 
                                             onClick={(e) => handleShare(type, e)}
                                             className={`p-1.5 rounded-lg border transition-all ${
@@ -909,6 +958,129 @@ export const JobTypes = () => {
             </div>
         </div>
       </div>
+
+      {/* MODAL CATRACA DE CONFIGURAÇÃO DE ETAPAS DO SERVIÇO */}
+      {showStageModal && selectedTypeForStages && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-200 border border-slate-100">
+                  {/* Modal Header */}
+                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0">
+                      <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-blue-100 text-blue-600 rounded-2xl">
+                              <Settings size={22} />
+                          </div>
+                          <div>
+                              <h3 className="text-lg font-black text-slate-800 tracking-tight">Configuração de Etapas</h3>
+                              <p className="text-xs text-slate-500 font-medium">Serviço: <span className="font-bold text-blue-600">{selectedTypeForStages.name}</span></p>
+                          </div>
+                      </div>
+                      <button 
+                          onClick={() => setShowStageModal(false)} 
+                          className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                      >
+                          <X size={20} />
+                      </button>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      <p className="text-xs text-slate-500 font-medium bg-blue-50/60 p-3 rounded-xl border border-blue-100/60 text-blue-900 leading-relaxed">
+                        Selecione as <strong>etapas</strong> de cada setor associadas a este serviço. Estas etapas serão exibidas para seleção no registro de saída do setor e permitirão tirar comissão por cada etapa concluída.
+                      </p>
+
+                      {sectors.length === 0 ? (
+                          <div className="text-center py-8 text-slate-400 italic">
+                              Nenhum setor cadastrado no laboratório.
+                          </div>
+                      ) : (
+                          <div className="space-y-3">
+                              {sectors.map(sector => {
+                                  const isExpanded = expandedSectors[sector.name] ?? true;
+                                  const sectorStagesList = sector.stages || [];
+                                  const selectedStagesForSector = tempSectorStages[sector.name] || [];
+
+                                  return (
+                                      <div key={sector.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                                          {/* Sector Header / Dropdown toggle */}
+                                          <button 
+                                              type="button"
+                                              onClick={() => toggleSectorExpand(sector.name)}
+                                              className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/80 flex items-center justify-between transition-colors border-b border-slate-100"
+                                          >
+                                              <div className="flex items-center gap-2">
+                                                  <span className="font-black text-xs uppercase tracking-wider text-slate-700">{sector.name}</span>
+                                                  {selectedStagesForSector.length > 0 && (
+                                                      <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                                                          {selectedStagesForSector.length} selecionada(s)
+                                                      </span>
+                                                  )}
+                                              </div>
+                                              <div className="text-slate-400">
+                                                  {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                              </div>
+                                          </button>
+
+                                          {/* Stages List */}
+                                          {isExpanded && (
+                                              <div className="p-4 bg-white space-y-2">
+                                                  {sectorStagesList.length === 0 ? (
+                                                      <p className="text-xs text-slate-400 italic py-1">
+                                                          Nenhuma etapa cadastrada neste setor. Cadastre etapas na aba Admin &gt; Setores.
+                                                      </p>
+                                                  ) : (
+                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                          {sectorStagesList.map((stageName, sIdx) => {
+                                                              const isChecked = selectedStagesForSector.includes(stageName);
+                                                              return (
+                                                                  <label 
+                                                                      key={sIdx}
+                                                                      className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                                                          isChecked 
+                                                                              ? 'bg-blue-50/80 border-blue-300 text-blue-900 font-bold shadow-xs' 
+                                                                              : 'bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                                                      }`}
+                                                                  >
+                                                                      <input 
+                                                                          type="checkbox"
+                                                                          checked={isChecked}
+                                                                          onChange={() => toggleStageForSector(sector.name, stageName)}
+                                                                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                                      />
+                                                                      <span className="text-xs tracking-tight">{stageName}</span>
+                                                                  </label>
+                                                              );
+                                                          })}
+                                                      </div>
+                                                  )}
+                                              </div>
+                                          )}
+                                      </div>
+                                  );
+                              })}
+                          </div>
+                      )}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 shrink-0">
+                      <button 
+                          type="button"
+                          onClick={() => setShowStageModal(false)}
+                          className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-200/60 rounded-xl transition-colors uppercase tracking-wider"
+                      >
+                          Cancelar
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={handleSaveSectorStages}
+                          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-blue-500/20 transition-all"
+                      >
+                          Salvar Etapas
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
