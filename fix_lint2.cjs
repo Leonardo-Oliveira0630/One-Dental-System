@@ -1,9 +1,11 @@
 const fs = require('fs');
-let content = fs.readFileSync('pages/lab/Dentists.tsx', 'utf8');
+let types = fs.readFileSync('types.ts', 'utf8');
 
-content = content.replace(
-    /const existing = customPrices\.find\(p => p\.jobTypeId === type\.id\);/g,
-    'const existing = customPrices.find((p: any) => p.jobTypeId === type.id);'
-);
+// replace the last occurrence of subDentists in User
+types = types.replace("manualDentistId?: string;\n  subDentists?: { id: string; name: string; cro?: string; }[];", "manualDentistId?: string;");
+fs.writeFileSync('types.ts', types);
 
-fs.writeFileSync('pages/lab/Dentists.tsx', content);
+let jobDetails = fs.readFileSync('pages/JobDetails.tsx', 'utf8');
+jobDetails = jobDetails.replace(/ArrowLeft, Calendar/g, "ArrowLeft, Calendar, Stethoscope");
+fs.writeFileSync('pages/JobDetails.tsx', jobDetails);
+console.log('Fixed linting errors');

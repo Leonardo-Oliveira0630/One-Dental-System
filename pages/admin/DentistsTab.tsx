@@ -25,6 +25,19 @@ export const DentistsTab = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
+    const [isAddingSubDentist, setIsAddingSubDentist] = useState(false);
+  const [editingSubDentistIndex, setEditingSubDentistIndex] = useState<number | null>(null);
+  const defaultSubDentist = {
+      id: '', name: '', email: '', phone: '', cpfCnpj: '', cro: '',
+      birthDate: '', approvalDate: '', cep: '', address: '',
+      number: '', complement: '', neighborhood: '', city: '',
+      state: '', country: 'Brasil', clinicName: '', clientType: 'PESSOA_FISICA' as any, deliveryViaPost: false,
+      priceTableId: '', billingLimit: 0, 
+      isBlocked: false, blockReason: '' as any, temporaryUnblockUntil: null as any,
+      isCustomPricing: false, globalDiscountPercent: 0, customPrices: [] as any[], subDentists: [] as any[]
+  };
+  const [subDentistFormData, setSubDentistFormData] = useState<any>(defaultSubDentist);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -125,6 +138,32 @@ export const DentistsTab = () => {
           const results = await searchLoqateAddress('', item.Id);
           setLoqateSuggestions(results);
       }
+  };
+
+  
+  const handleSubDentistInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setSubDentistFormData((prev: any) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
+  };
+
+  const handleSaveSubDentist = () => {
+      const newSub = { ...subDentistFormData };
+      if (!newSub.id) newSub.id = Math.random().toString(36).substring(2, 9);
+      
+      setFormData(prev => {
+          const subs = [...(prev.subDentists || [])];
+          if (editingSubDentistIndex !== null) {
+              subs[editingSubDentistIndex] = newSub;
+          } else {
+              subs.push(newSub);
+          }
+          return { ...prev, subDentists: subs };
+      });
+      setIsAddingSubDentist(false);
+      setEditingSubDentistIndex(null);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -908,6 +947,58 @@ export const DentistsTab = () => {
                         </div>
                       </div>
 
+
+                      {/* SUB-DENTISTS SECTION */}
+                      {formData.clientType === 'CLINICA' && (
+                          <div className="pt-4 border-t border-slate-100">
+                              <div className="flex items-center justify-between mb-3">
+                                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest">5. Dentistas Associados (Sub-contas)</h4>
+                                  <button type="button" onClick={() => {
+                                      setSubDentistFormData(defaultSubDentist);
+                                      setEditingSubDentistIndex(null);
+                                      setIsAddingSubDentist(true);
+                                  }} className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-blue-200">
+                                      <Plus size={14} /> Adicionar Dentista
+                                  </button>
+                              </div>
+                              
+                              {(!formData.subDentists || formData.subDentists.length === 0) ? (
+                                  <div className="bg-slate-50 p-4 rounded-xl text-center text-slate-400 text-xs italic font-medium border border-slate-200">
+                                      Nenhum dentista associado a esta clínica.
+                                  </div>
+                              ) : (
+                                  <div className="space-y-2">
+                                      {formData.subDentists.map((sd: any, idx: number) => (
+                                          <div key={sd.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                              <div>
+                                                  <p className="font-bold text-slate-800 text-sm">{sd.name}</p>
+                                                  <p className="text-xs text-slate-500">{sd.cro ? `CRO: ${sd.cro}` : 'Sem CRO'} | {sd.cpfCnpj || 'Sem Documento'}</p>
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                  <button type="button" onClick={() => {
+                                                      setSubDentistFormData(sd);
+                                                      setEditingSubDentistIndex(idx);
+                                                      setIsAddingSubDentist(true);
+                                                  }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg">
+                                                      <Edit size={16} />
+                                                  </button>
+                                                  <button type="button" onClick={() => {
+                                                      setFormData(prev => {
+                                                          const subs = [...(prev.subDentists || [])];
+                                                          subs.splice(idx, 1);
+                                                          return { ...prev, subDentists: subs };
+                                                      });
+                                                  }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                                                      <Trash2 size={16} />
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      ))}
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                      
                       <button disabled={editingDentistId ? !canEdit : !canCreate} type="submit" className={`w-full py-4 font-black rounded-2xl shadow-xl transition-all transform active:scale-95 ${editingDentistId ? (canEdit ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed') : (canCreate ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed')}`}>SALVAR FICHA COMPLETA</button>
                   </form>
               </div>

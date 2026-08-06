@@ -37,8 +37,8 @@ const getJobTypeColor = (jobTypeId: string, jobTypeName?: string) => {
   return JOB_COLORS[Math.abs(hash) % JOB_COLORS.length];
 };
 
-export const NewJob = () => {
-  const { addJob, updateJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
+export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
+  const { addJob, updateJob, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -54,6 +54,7 @@ export const NewJob = () => {
   const [selectedDentistId, setSelectedDentistId] = useState(location.state?.dentistId || '');
   const [dentistName, setDentistName] = useState((location.state?.dentistName || '').toUpperCase());
   const [dentistSearchQuery, setDentistSearchQuery] = useState((location.state?.dentistName || '').toUpperCase());
+  const [subDentistName, setSubDentistName] = useState('');
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [jobTypeSearchQuery, setJobTypeSearchQuery] = useState('');
   const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
@@ -782,7 +783,7 @@ export const NewJob = () => {
     }
 
     // VALIDAÇÕES DE PRODUÇÃO
-    if (!finalOsNumber) { alert("O número da OS é obrigatório."); return; }
+    if (!finalOsNumber) { alert(isBudget ? "O número do Orçamento é obrigatório." : "O número da OS é obrigatório."); return; }
     if (!patientName.trim()) { alert("O nome do paciente é obrigatório."); return; }
     if (!selectedDentistId || !dentistName.trim()) { alert("A seleção do dentista é obrigatória."); return; }
 
@@ -819,39 +820,60 @@ export const NewJob = () => {
             ((selectedDentistObj as any).role === 'CLIENT' ? selectedDentistObj.id : '')
           ) : '');
 
-    const newJob: Omit<Job, 'id' | 'organizationId'> = { 
-        osNumber: finalOsNumber, 
-        patientName: patientName.trim().toUpperCase(), 
-        dentistId: selectedDentistId, 
-        dentistName: dentistName.trim().toUpperCase(), 
-        status: JobStatus.PENDING, 
-        paymentStatus: location.state?.paymentStatus || 'PENDING', 
-        urgency, 
-        origin: finalOrigin,
-        dentistUserId: computedDentistUserId,
-        items: addedItems, 
-        products: addedProducts,
-        attachments: location.state?.attachments || [],
-        history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
-        sectorMovements: [{
-            id: Math.random().toString(),
-            sector: initialSector,
-            entryTime: new Date(),
-            entryUserId: currentUser.id,
-            entryUserName: currentUser.name
-        }],
-        createdAt: new Date(), 
-        dueDate: new Date(dueDate), 
-        boxNumber, 
-        boxColor, 
-        currentSector: initialSector, 
-        totalValue, 
-        notes,
-        chatEnabled: false
-    };
-
     setIsSubmitting(true);
     try {
+        if (isBudget) {
+            const newBudget = {
+                budgetNumber: finalOsNumber,
+                patientName: patientName.trim().toUpperCase(),
+                dentistId: selectedDentistId,
+                dentistName: dentistName.trim().toUpperCase(),
+                subDentistName: subDentistName.trim() || undefined,
+                items: addedItems,
+                products: addedProducts,
+                totalValue,
+                notes,
+                status: 'PENDING' as const,
+                createdAt: new Date(),
+            };
+            const bId = await addBudget(newBudget);
+            alert("Orçamento criado com sucesso!");
+            navigate('/budgets');
+            return;
+        }
+
+        const newJob: Omit<Job, 'id' | 'organizationId'> = { 
+            osNumber: finalOsNumber, 
+            patientName: patientName.trim().toUpperCase(), 
+            dentistId: selectedDentistId, 
+            dentistName: dentistName.trim().toUpperCase(),
+                subDentistName: subDentistName.trim() || undefined, 
+            status: JobStatus.PENDING, 
+            paymentStatus: location.state?.paymentStatus || 'PENDING', 
+            urgency, 
+            origin: finalOrigin,
+            dentistUserId: computedDentistUserId,
+            items: addedItems, 
+            products: addedProducts,
+            attachments: location.state?.attachments || [],
+            history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
+            sectorMovements: [{
+                id: Math.random().toString(),
+                sector: initialSector,
+                entryTime: new Date(),
+                entryUserId: currentUser.id,
+                entryUserName: currentUser.name
+            }],
+            createdAt: new Date(), 
+            dueDate: new Date(dueDate), 
+            boxNumber, 
+            boxColor, 
+            currentSector: initialSector, 
+            totalValue, 
+            notes,
+            chatEnabled: false
+        };
+
         if (finalOrigin === 'ONLINE_ORDER' && onlineOrderId) {
             // First approve order via the backend function to handle payment capture/status changes
             await api.apiManageOrderDecision(currentUser.organizationId || '', onlineOrderId, 'APPROVE');
@@ -865,6 +887,7 @@ export const NewJob = () => {
                 patientName: patientName.trim().toUpperCase(),
                 dentistId: selectedDentistId,
                 dentistName: dentistName.trim().toUpperCase(),
+                subDentistName: subDentistName.trim() || undefined,
                 status: JobStatus.PENDING,
                 urgency,
                 items: addedItems,
@@ -908,6 +931,7 @@ export const NewJob = () => {
                 patientName: patientName.trim().toUpperCase(),
                 dentistId: selectedDentistId,
                 dentistName: dentistName.trim().toUpperCase(),
+                subDentistName: subDentistName.trim() || undefined,
                 status: JobStatus.PENDING,
                 id: onlineOrderId,
                 organizationId: currentUser.organizationId || ''
@@ -1011,7 +1035,7 @@ export const NewJob = () => {
                   <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação Obrigatória</h2>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
-                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nº OS <span className="text-slate-400 font-medium normal-case ml-1">(Automático)</span></label>
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{isBudget ? 'Nº Orçamento' : 'Nº OS'} <span className="text-slate-400 font-medium normal-case ml-1">(Automático)</span></label>
                         <input value={osNumber} onChange={e => setOsNumber(e.target.value)} onBlur={handleOsNumberBlur} placeholder="Auto" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300 placeholder:font-normal" />
                     </div>
                     <div className="md:col-span-9">
@@ -1020,7 +1044,7 @@ export const NewJob = () => {
                     </div>
                     
                     <div className="md:col-span-12 relative" ref={dropdownRef}>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Selecionar Dentista ou Clínica <span className="text-red-500">*</span></label>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Cliente <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
                         <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Digite o nome do dentista..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
@@ -1039,6 +1063,23 @@ export const NewJob = () => {
                           </div>
                       )}
                     </div>
+                    {selectedDentistObj?.subDentists && selectedDentistObj.subDentists.length > 0 && (
+                        <div className="md:col-span-12">
+                            <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">
+                                Dentista Solicitante <span className="text-slate-400 font-medium normal-case ml-1">(Opcional)</span>
+                            </label>
+                            <select
+                                value={subDentistName}
+                                onChange={e => setSubDentistName(e.target.value)}
+                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700"
+                            >
+                                <option value="">(Nenhum)</option>
+                                {selectedDentistObj.subDentists.map((sd: any) => (
+                                    <option key={sd.id} value={sd.name}>{sd.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                   </div>
                 </div>
 
@@ -1394,6 +1435,8 @@ export const NewJob = () => {
               <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-4 sm:p-6 space-y-6">
                 <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Box size={18} className="text-blue-500" /> Logística Interna</h2>
 
+                {!isBudget && (
+                <>
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nível de Prioridade</label>
                     <div className="grid grid-cols-2 gap-2">
@@ -1419,7 +1462,6 @@ export const NewJob = () => {
                     <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Previsão de Saída <span className="text-red-500">*</span></label>
                     <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-sm" />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nº Caixa</label>
@@ -1452,6 +1494,8 @@ export const NewJob = () => {
                         </div>
                     </div>
                 </div>
+                </>
+                )}
 
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Observações Técnicas / Histórico acumulado</label>

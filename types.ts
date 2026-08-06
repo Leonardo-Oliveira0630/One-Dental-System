@@ -458,7 +458,23 @@ export interface SectorMovement {
   plannedStages?: Record<string, string[]>;
 }
 
+export interface Budget {
+  id: string;
+  organizationId: string;
+  budgetNumber?: string;
+  patientName: string;
+  dentistId: string;
+  dentistName: string;
+  items: JobItem[];
+  products?: JobProduct[];
+  totalValue: number;
+  notes?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED';
+  createdAt: Date;
+}
+
 export interface Job {
+  subDentistName?: string;
   id: string;
   organizationId: string;
   osNumber?: string;
@@ -628,6 +644,7 @@ export interface User {
   isBlocked?: boolean;
   blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
   temporaryUnblockUntil?: Date;
+  subDentists?: any[];
   croUf?: string;
   croNumero?: string;
   croCategoria?: string;
@@ -912,6 +929,7 @@ export interface ManualDentist {
   isBlocked?: boolean;
   blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
   temporaryUnblockUntil?: Date;
+  subDentists?: any[];
 }
 
 export interface Receipt {

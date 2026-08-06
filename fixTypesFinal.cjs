@@ -7,6 +7,7 @@ typesContent = typesContent.replace(/subDentists\?\: string\[\];/g, "subDentists
 
 // Add subDentistName?: string to Job interface
 typesContent = typesContent.replace(/export interface Job \{/, "export interface Job {\n  subDentistName?: string;");
+typesContent = typesContent.replace(/subDentistId\?\: string;/g, ""); // Just in case
 
 fs.writeFileSync('types.ts', typesContent);
 console.log('types.ts updated');

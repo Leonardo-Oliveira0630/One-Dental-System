@@ -475,9 +475,14 @@ export const Finance = () => {
         ...clientPayments.map(p => ({
             id: p.id,
             date: p.paymentDate,
-            type: (p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT',
-            description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${translatePaymentMethod(p.paymentMethod)} ${p.notes ? `- ${p.notes}` : ''}`,
-            amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0)),
+            type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
+            description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
+                         p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` : 
+                         p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` : 
+                         `Pagamento: ${translatePaymentMethod(p.paymentMethod)} ${p.notes ? `- ${p.notes}` : ''}`,
+            amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
+                    (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) : 
+                    (Number(p.amount || 0) + Number(p.discount || 0)),
             payment: p
         }))
     ];
@@ -534,10 +539,6 @@ export const Finance = () => {
         setManualEntryAmount('');
         setManualEntryNotes('');
         alert('Lançamento manual registrado com sucesso!');
-        // Refresh statement data
-        if (statementClient.id) {
-            handleClientClick(statementClient.id);
-        }
     } catch (error) {
         console.error(error);
         alert('Erro ao registrar lançamento manual.');
@@ -662,10 +663,10 @@ export const Finance = () => {
         const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
         const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
         
-        const hasSubItems = isDebit && item.job && item.job.items && item.job.items.length > 0;
+        const hasSubItems = 'job' in item && item.job && item.job.items && item.job.items.length > 0;
         
         let description = '';
-        if (isDebit) {
+        if ('job' in item) {
             const dentistName = (statementClient.name && statementClient.name.split(' ')[0]) || 'Dr.';
             description = `${item.job?.osNumber || '-'} - Dr(a): ${dentistName.toUpperCase()} - Paciente: ${(item.job?.patientName || '').toUpperCase()}`;
         } else {
@@ -679,9 +680,9 @@ export const Finance = () => {
             { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
         ]);
         
-        if (hasSubItems) {
+        if (hasSubItems && 'job' in item && item.job && item.job.items) {
             item.job.items.forEach((subItem: any, subIndex: number) => {
-                const isLast = subIndex === item.job.items.length - 1;
+                const isLast = subIndex === item.job!.items!.length - 1;
                 tableBody.push([
                     { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                     { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
@@ -1772,9 +1773,9 @@ export const Finance = () => {
                                                                         </div>
                                                                         <span className="text-xs font-black text-slate-800">{item.description}</span>
                                                                     </div>
-                                                                    {item.type === 'DEBIT' && item.job && (
+                                                                    {'job' in item && item.job && (
                                                                         <div className="ml-10 space-y-1">
-                                                                            {item.job.items.map((it:any, iIdx:number) => (
+                                                                            {item.job.items?.map((it:any, iIdx:number) => (
                                                                                 <div key={iIdx} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
                                                                                     <span>{it.quantity} x {it.name}</span>
                                                                                     <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>

@@ -25,7 +25,7 @@ import {
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
-  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile
+  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -408,6 +408,12 @@ export const subscribeJobs = (orgId: string, userId: string | null, isClient: bo
         unsubStore();
     };
 };
+
+export const apiGetBudgets = (orgId: string) => getDocs(collection(db, `organizations/${orgId}/budgets`)).then((snap: any) => snap.docs.map((doc: any) => doc.data() as Budget));
+export const apiAddBudget = (orgId: string, budget: Budget) => setDoc(doc(db, `organizations/${orgId}/budgets`, budget.id), budget);
+export const apiUpdateBudget = (orgId: string, id: string, updates: Partial<Budget>) => updateDoc(doc(db, `organizations/${orgId}/budgets`, id), updates);
+export const apiDeleteBudget = (orgId: string, id: string) => deleteDoc(doc(db, `organizations/${orgId}/budgets`, id));
+export const subscribeBudgets = (orgId: string, callback: (budgets: Budget[]) => void) => onSnapshot(collection(db, `organizations/${orgId}/budgets`), (snap: any) => callback(snap.docs.map((doc: any) => doc.data() as Budget)));
 
 export const apiAddJob = (orgId: string, job: Job) => setDoc(doc(db, `organizations/${orgId}/jobs`, job.id), job);
 export const apiUpdateJob = (orgId: string, id: string, updates: Partial<Job>) => updateDoc(doc(db, `organizations/${orgId}/jobs`, id), updates);

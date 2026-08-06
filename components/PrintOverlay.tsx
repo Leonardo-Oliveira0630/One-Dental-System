@@ -136,8 +136,14 @@ export const PrintOverlay = () => {
                 <div className="flex flex-col gap-2 flex-1">
                     <div className="border border-gray-300 p-2 rounded flex justify-between items-start">
                         <div className="overflow-hidden">
-                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista / Clínica</p>
+                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cliente / Clínica</p>
                             <p className="text-base font-bold leading-tight truncate mt-1">{job.dentistName}</p>
+                            {job.subDentistName && (
+                                <div className="mt-2 pt-1 border-t border-gray-100">
+                                    <p className="text-[9px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista Solicitante</p>
+                                    <p className="text-sm font-bold leading-tight mt-0.5">{job.subDentistName}</p>
+                                </div>
+                            )}
                         </div>
                         <div className="text-right shrink-0 ml-2">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cidade/UF</p>
@@ -251,8 +257,14 @@ export const PrintOverlay = () => {
                 <div className="flex flex-col gap-2 flex-1">
                     <div className="border border-gray-300 p-2 rounded flex flex-col items-start">
                         <div className="w-full mb-1">
-                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista / Clínica</p>
+                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cliente / Clínica</p>
                             <p className="text-base font-bold leading-tight truncate mt-1">{job.dentistName}</p>
+                            {job.subDentistName && (
+                                <div className="mt-2 pt-1 border-t border-gray-100">
+                                    <p className="text-[9px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista Solicitante</p>
+                                    <p className="text-sm font-bold leading-tight mt-0.5">{job.subDentistName}</p>
+                                </div>
+                            )}
                         </div>
                         <div className="w-full mt-1 pt-1 border-t border-gray-200">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Endereço Completo</p>

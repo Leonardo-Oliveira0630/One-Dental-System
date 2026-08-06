@@ -6,7 +6,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct } from '../types';
 import { 
-  ArrowLeft, Calendar, User, Clock, MapPin, Camera as CameraIcon,
+  ArrowLeft, Calendar, Stethoscope, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
   LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package
@@ -78,6 +78,7 @@ export const JobDetails = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editDentistId, setEditDentistId] = useState('');
   const [editDentistName, setEditDentistName] = useState('');
+  const [editSubDentistName, setEditSubDentistName] = useState('');
   const [dentistSearchQuery, setDentistSearchQuery] = useState('');
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [selectedDentistObj, setSelectedDentistObj] = useState<any>(null);
@@ -512,6 +513,7 @@ export const JobDetails = () => {
     setEditDentistId(dentist.id);
     setEditDentistName(dentist.name.toUpperCase());
     setDentistSearchQuery(dentist.name.toUpperCase());
+    setEditSubDentistName('');
     setSelectedDentistObj(dentist.type === 'ONLINE' ? dentist : null);
     setShowDentistSuggestions(false);
   };
@@ -539,6 +541,7 @@ export const JobDetails = () => {
         setEditProducts(job.products || []);
         setEditDentistId(job.dentistId || '');
         setEditDentistName(job.dentistName || '');
+        setEditSubDentistName(job.subDentistName || '');
         setDentistSearchQuery(job.dentistName || '');
         const visibleTypes = jobTypes.filter(t => t.isVisibleInternally !== false);
         if (visibleTypes.length > 0) setNewItemTypeId(visibleTypes[0].id);
@@ -884,6 +887,7 @@ export const JobDetails = () => {
             osNumber: editOsNumber,
             dentistId: editDentistId,
             dentistName: editDentistName,
+            subDentistName: editSubDentistName || undefined,
             boxNumber: editBoxNumber,
             boxColor: selectedBoxColor,
             dueDate: adjustedDate,
@@ -2018,7 +2022,7 @@ export const JobDetails = () => {
                                       value={dentistSearchQuery} 
                                       onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }}
                                       onFocus={() => setShowDentistSuggestions(true)}
-                                      placeholder="Buscar dentista ou clínica..."
+                                      placeholder="Buscar cliente ou clínica..."
                                       className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm transition-all uppercase"
                                   />
                               </div>
@@ -2532,7 +2536,12 @@ export const JobDetails = () => {
                     )}
                 </div>
                 <h1 className="text-xl md:text-2xl font-black text-slate-800 leading-tight uppercase truncate">{job.patientName}</h1>
-                <div className="flex items-center gap-2 text-slate-500 mt-1 font-bold text-xs uppercase truncate"><User size={14} className="text-blue-500 shrink-0" /> Dr(a). {job.dentistName}</div>
+                <div className="flex flex-wrap items-center gap-2 text-slate-500 mt-1 font-bold text-xs uppercase">
+                    <span className="flex items-center gap-1 truncate"><User size={14} className="text-blue-500 shrink-0" /> {job.dentistName}</span>
+                    {job.subDentistName && (
+                        <span className="flex items-center gap-1 border-l border-slate-300 pl-2 truncate"><Stethoscope size={14} className="text-indigo-500 shrink-0" /> Dr(a). {job.subDentistName}</span>
+                    )}
+                </div>
             </div>
             
             <div className="flex flex-col xs:flex-row lg:flex-col lg:items-end gap-3 w-full lg:w-auto mt-2 lg:mt-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-50">
