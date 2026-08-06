@@ -479,13 +479,13 @@ export const DentistsTab = () => {
 
         {/* MODAL: CADASTRO MANUAL */}
         {isAddingDentist && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in duration-200">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                  <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
                       <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cadastro' : 'Ficha de Cliente'}</h3>
                       <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
-                  <form onSubmit={handleSaveManualDentist} className="p-6 space-y-6">
+                  <form onSubmit={handleSaveManualDentist} className="p-4 sm:p-6 space-y-6">
                       <div>
                         <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">1. Identificação e Contato</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -767,7 +767,7 @@ export const DentistsTab = () => {
 
                              {formData.isCustomPricing && (
                                 <div className="space-y-4 animate-in slide-in-from-top-2">
-                                  <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                                  <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
                                       <div className="flex items-center gap-3 mb-4 text-green-800">
                                           <Percent size={24} />
                                           <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
@@ -916,9 +916,9 @@ export const DentistsTab = () => {
 
         {/* MODAL: IMPORTAR EXCEL IA */}
         {isImportModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
             <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Sparkles size={24} /></div>
                   <div>
@@ -929,7 +929,7 @@ export const DentistsTab = () => {
                 <button onClick={() => { setIsImportModalOpen(false); setImportStatus('IDLE'); }} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={28} className="text-slate-400"/></button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
                 {importStatus === 'IDLE' && (
                   <div onClick={() => fileInputRef.current?.click()} className="border-4 border-dashed border-slate-200 rounded-[24px] p-20 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-all cursor-pointer group">
                     <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -1001,7 +1001,7 @@ export const DentistsTab = () => {
                 )}
               </div>
 
-              <div className="p-8 bg-slate-50 border-t flex justify-between items-center">
+              <div className="p-4 sm:p-8 bg-slate-50 border-t flex justify-between items-center">
                  <button onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
                  {(importStatus === 'PREVIEW' || importStatus === 'SAVING') && (
                    <button onClick={saveImportedData} disabled={importStatus === 'SAVING'} className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 transition-all disabled:opacity-50">

@@ -16,7 +16,7 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, icon, color, subtext }: StatCardProps) => (
-  <div className="bg-white p-5 md:p-6 rounded-card shadow-soft border border-slate-100 hover:shadow-premium transition-all duration-300 transform hover:-translate-y-0.5 h-full flex flex-col justify-between overflow-hidden">
+  <div className="bg-white p-5 md:p-4 sm:p-6 rounded-card shadow-soft border border-slate-100 hover:shadow-premium transition-all duration-300 transform hover:-translate-y-0.5 h-full flex flex-col justify-between overflow-hidden">
     <div className="flex justify-between items-start gap-2">
       <div className="min-w-0 flex-1">
         <p className="text-[10px] md:text-xs font-semibold text-[#64748B] uppercase tracking-wider mb-2 truncate">{title}</p>
@@ -83,7 +83,7 @@ export const Dashboard = () => {
               </div>
 
               {!activeOrganization ? (
-                  <div className="bg-orange-50 border-2 border-dashed border-orange-200 p-6 md:p-10 rounded-card flex flex-col md:flex-row items-center justify-between gap-6 transition-all">
+                  <div className="bg-orange-50 border-2 border-dashed border-orange-200 p-6 md:p-10 rounded-card flex flex-col md:flex-row items-center justify-between gap-4 sm:p-6 transition-all">
                       <div className="flex flex-col md:flex-row items-center gap-4 text-center md:text-left min-w-0">
                           <div className="p-4 bg-orange-100 text-orange-600 rounded-card shrink-0"><Handshake size={32} /></div>
                           <div className="min-w-0">
@@ -94,8 +94,8 @@ export const Dashboard = () => {
                       <button onClick={() => navigate('/dentist/partnerships')} className="w-full md:w-auto px-8 py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg shadow-lg shadow-orange-100 uppercase text-xs shrink-0 transition-colors">Conectar agora</button>
                   </div>
               ) : (
-                  <div className="bg-gradient-to-br from-[#0F4C81] to-[#0A365C] text-white p-6 md:p-10 rounded-card shadow-premium flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none transform translate-x-10 translate-y-2"><Building size={160} /></div>
+                  <div className="bg-gradient-to-br from-[#0F4C81] to-[#0A365C] text-white p-6 md:p-10 rounded-card shadow-premium flex flex-col md:flex-row items-center justify-between gap-4 sm:p-6 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10 pointer-events-none transform translate-x-10 translate-y-2"><Building size={160} /></div>
                       <div className="flex-1 relative z-10 text-center md:text-left min-w-0">
                           <div className="flex items-center justify-center md:justify-start gap-2 text-[#00B8D9] font-bold uppercase text-[10px] tracking-widest mb-3 truncate">
                             <div className="w-2.5 h-2.5 bg-[#00B8D9] rounded-full animate-ping shrink-0" />
@@ -111,7 +111,7 @@ export const Dashboard = () => {
                   </div>
               )}
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-4 sm:p-6">
                   <StatCard title="Em Produção" value={totalActive} icon={<Activity size={20} className="text-[#00B8D9]" />} color="bg-[#00B8D9]/10" />
                   <StatCard title="Aguardando Aprovação" value={jobs.filter(j => j.status === JobStatus.WAITING_APPROVAL).length} icon={<Clock size={20} className="text-[#2F80ED]" />} color="bg-[#2F80ED]/10" />
                   <StatCard title="Concluídos" value={jobs.filter(j => j.status === JobStatus.COMPLETED).length} icon={<CheckCircle size={20} className="text-[#10B981]" />} color="bg-[#10B981]/10" />
@@ -132,22 +132,22 @@ export const Dashboard = () => {
       </div>
 
       {aiInsights && (
-        <div className="bg-gradient-to-r from-[#0F4C81]/10 to-[#00B8D9]/5 border border-l-4 border-l-[#0F4C81] border-[#0F4C81]/15 rounded-card p-6 md:p-8 relative overflow-hidden animate-in zoom-in duration-300">
+        <div className="bg-gradient-to-r from-[#0F4C81]/10 to-[#00B8D9]/5 border border-l-4 border-l-[#0F4C81] border-[#0F4C81]/15 rounded-card p-4 sm:p-6 md:p-4 sm:p-8 relative overflow-hidden animate-in zoom-in duration-300">
             <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none"><Sparkles size={160} className="text-[#0F4C81]" /></div>
             <h3 className="text-xs md:text-sm font-bold text-[#0F4C81] mb-3 flex items-center gap-2 uppercase tracking-widest"><Sparkles size={16} className="text-[#00B8D9]" /> Relatório Estratégico AI</h3>
             <div className="text-xs md:text-sm text-[#1E293B] leading-relaxed font-normal whitespace-pre-wrap">{aiInsights}</div>
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-4 sm:p-6">
         <StatCard title="Produção Ativa" value={totalActive} icon={<Activity size={20} className="text-[#00B8D9]" />} color="bg-[#00B8D9]/10" />
         <StatCard title="Prontos Hoje" value={completedToday} icon={<CheckCircle size={20} className="text-[#10B981]" />} color="bg-[#10B981]/10" />
         <StatCard title="VIP/Urgente" value={urgent} icon={<AlertTriangle size={20} className="text-[#F59E0B]" />} color="bg-[#F59E0B]/10" />
         <StatCard title="Atrasados" value={delayed} icon={<Clock size={20} className="text-[#EF4444]" />} color="bg-[#EF4444]/10" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-        <div className="bg-white p-6 md:p-8 rounded-card shadow-soft border border-slate-100 w-full overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:p-6 md:gap-4 sm:p-8">
+        <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-card shadow-soft border border-slate-100 w-full overflow-hidden">
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xs md:text-sm font-semibold text-[#1E293B] uppercase tracking-wider">Distribuição de Status</h3>
                 <span className="text-[10px] bg-slate-50 text-slate-400 font-bold px-2 py-1 rounded-md">Atalhos</span>
@@ -165,7 +165,7 @@ export const Dashboard = () => {
             </div>
         </div>
         
-        <div className="bg-white p-6 md:p-8 rounded-card shadow-soft border border-slate-100 w-full overflow-hidden">
+        <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-card shadow-soft border border-slate-100 w-full overflow-hidden">
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xs md:text-sm font-semibold text-[#1E293B] uppercase tracking-wider">Equilíbrio de Carga</h3>
                 <span className="text-[10px] bg-slate-50 text-slate-400 font-bold px-2 py-1 rounded-md">Porcentagem</span>

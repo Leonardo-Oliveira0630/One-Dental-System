@@ -185,7 +185,7 @@ export const Dentists = () => {
         setIsBlocked(client.isBlocked || false);
         setBillingLimit(client.billingLimit || 0);
         setBlockReason(client.blockReason || '');
-        let parsedDate: Date | null = null;
+        let parsedDate = null;
         if (client.temporaryUnblockUntil) {
             if (typeof client.temporaryUnblockUntil.toDate === 'function') {
                 parsedDate = client.temporaryUnblockUntil.toDate();
@@ -195,7 +195,30 @@ export const Dentists = () => {
             if (parsedDate && isNaN(parsedDate.getTime())) parsedDate = null;
         }
         setTemporaryUnblockUntil(parsedDate);
-        setCustomPrices(client.customPrices || []);
+        
+        // Ensure that if isCustomPricing is true, customPrices is fully populated
+        let loadedCustomPrices = client.customPrices || [];
+        if (client.isCustomPricing) {
+            const assignedTable = priceTables.find(t => t.id === client.priceTableId);
+            loadedCustomPrices = jobTypes.map(type => {
+                const existing = loadedCustomPrices.find((p: any) => p.jobTypeId === type.id);
+                if (existing && existing.fixedPrice !== undefined) return existing;
+                
+                let baseForService = type.basePrice;
+                if (assignedTable && assignedTable.prices[type.id]?.basePrice !== undefined) {
+                    baseForService = assignedTable.prices[type.id].basePrice;
+                }
+                
+                if (existing && existing.discountPercent !== undefined) {
+                    return {
+                        ...existing,
+                        fixedPrice: baseForService * (1 - existing.discountPercent / 100)
+                    };
+                }
+                return { jobTypeId: type.id, fixedPrice: baseForService };
+            });
+        }
+        setCustomPrices(loadedCustomPrices);
     };
 
     const handleSavePricing = async () => {
@@ -759,7 +782,7 @@ export const Dentists = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                 {filtered.map(client => {
                     const clientBatches = billingBatches.filter(b => b.dentistId === client.id);
                     const gBatches = clientBatches.filter(b => b.status === 'PENDING');
@@ -767,7 +790,7 @@ export const Dentists = () => {
                     const pBatches = clientBatches.filter(b => b.status === 'PAID');
                     
                     return (
-                        <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group relative overflow-hidden">
+                        <div key={client.id} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group relative overflow-hidden">
                         {client.deliveryViaPost && (
                           <div className="absolute top-4 right-4 bg-orange-100 text-orange-600 p-2 rounded-lg" title="Entrega via Correios">
                              <Package size={16} />
@@ -868,9 +891,9 @@ export const Dentists = () => {
 
             {/* MODAL DE TABELA DE PREÇOS */}
             {selectedClient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                        <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
                             <div>
                                 <h3 className="text-xl font-black text-slate-800">Tabela de Preços: {selectedClient.name}</h3>
                                 <p className="text-xs text-slate-500 font-bold uppercase">Personalize os descontos para este cliente</p>
@@ -878,7 +901,7 @@ export const Dentists = () => {
                             <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
 
-                            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8">
                                 {hasPerm('clients:block_manage') && (
                                     <div className="space-y-4">
                                         <div className={`p-4 rounded-xl border transition-all ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
@@ -951,7 +974,7 @@ export const Dentists = () => {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                                 {hasPerm('catalog:prices_view') && (
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tabela de Preços Base</label>
@@ -992,7 +1015,35 @@ export const Dentists = () => {
                                                 type="checkbox" 
                                                 className="sr-only peer" 
                                                 checked={isCustomPricing}
-                                                onChange={e => setIsCustomPricing(e.target.checked)}
+                                                onChange={e => {
+                                                    const checked = e.target.checked;
+                                                    setIsCustomPricing(checked);
+                                                    if (checked) {
+                                                        const assignedTable = priceTables.find(t => t.id === priceTableId);
+                                                        const newCustomPrices = jobTypes.map(type => {
+                                                            const existing = customPrices.find((p: any) => p.jobTypeId === type.id);
+                                                            if (existing && existing.fixedPrice !== undefined) return existing;
+                                                            
+                                                            let baseForService = type.basePrice;
+                                                            if (assignedTable && assignedTable.prices[type.id]?.basePrice !== undefined) {
+                                                                baseForService = assignedTable.prices[type.id].basePrice;
+                                                            }
+                                                            
+                                                            if (existing && existing.discountPercent !== undefined) {
+                                                                return {
+                                                                    ...existing,
+                                                                    fixedPrice: baseForService * (1 - existing.discountPercent / 100)
+                                                                };
+                                                            }
+                                                            
+                                                            return {
+                                                                jobTypeId: type.id,
+                                                                fixedPrice: baseForService
+                                                            };
+                                                        });
+                                                        setCustomPrices(newCustomPrices);
+                                                    }
+                                                }}
                                             />
                                             <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                         </label>
@@ -1069,7 +1120,7 @@ export const Dentists = () => {
 
                             {isCustomPricing ? (
                                 <>
-                                    <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                                    <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
                                         <div className="flex items-center gap-3 mb-4 text-green-800">
                                             <Percent size={24} />
                                             <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
@@ -1158,7 +1209,7 @@ export const Dentists = () => {
                                                                                 const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                                 if (idx !== -1) {
                                                                                     newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined };
-                                                                                    if (newFixed === 0 && !newCustomPrices[idx].discountPercent) newCustomPrices.splice(idx, 1);
+                                                                                    // if (newFixed === 0 && !newCustomPrices[idx].discountPercent) newCustomPrices.splice(idx, 1);
                                                                                 } else if (newFixed > 0) {
                                                                                     newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed });
                                                                                 }
@@ -1239,7 +1290,7 @@ export const Dentists = () => {
                                         </div>
                                 </>
                             ) : (
-                                <div className="bg-slate-50 p-8 rounded-3xl border border-dashed border-slate-200 text-center">
+                                <div className="bg-slate-50 p-4 sm:p-8 rounded-3xl border border-dashed border-slate-200 text-center">
                                     <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">
                                         <Table size={32} />
                                     </div>
@@ -1249,7 +1300,7 @@ export const Dentists = () => {
                             )}
                         </div>
 
-                        <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
+                        <div className="p-4 sm:p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
                             <button onClick={() => setSelectedClient(null)} className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">Cancelar</button>
                             <button 
                                 onClick={handleSavePricing}
@@ -1265,11 +1316,11 @@ export const Dentists = () => {
             )}
             {/* MODAL DE EXTRATO (STATEMENT) DASHBOARD FINANCEIRO */}
             {showStatement && statementClient && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
                         
                         {/* HEADER */}
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+                        <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-white">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
                                     <FileSpreadsheet size={24} />
@@ -1287,7 +1338,7 @@ export const Dentists = () => {
                         </div>
 
                         {/* SUMMARY CARDS */}
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 border-b border-slate-100">
+                        <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 border-b border-slate-100">
                             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md group">
                                 <div className="flex items-center gap-2 mb-2 text-red-500">
                                     <MinusCircle size={16} />
@@ -1370,7 +1421,7 @@ export const Dentists = () => {
                         </div>
 
                         {/* TAB CONTENT */}
-                        <div className="flex-1 overflow-y-auto p-6 relative">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 relative">
                             {isLoadingStatement && (
                                 <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
                                     <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
@@ -1507,7 +1558,7 @@ export const Dentists = () => {
                                     </div>
 
                                     {showPaymentForm && (
-                                        <div className="bg-white p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
+                                        <div className="bg-white p-4 sm:p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
                                             <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
@@ -1738,8 +1789,8 @@ export const Dentists = () => {
                         </div>
 
                         {/* FOOTER */}
-                        <div className="p-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-6">
+                        <div className="p-4 sm:p-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-4 sm:p-6">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
                                     <span className={`text-xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -1783,7 +1834,7 @@ export const Dentists = () => {
 
             {showBoletoModal && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                    <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Gerar Boleto de Cobrança</h3>
                             <button onClick={() => setShowBoletoModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -1861,7 +1912,7 @@ export const Dentists = () => {
 
             {showAsaasError && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                    <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                         <div className="flex flex-col items-center text-center gap-4">
                             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
                                 <Info size={40} />
@@ -1886,8 +1937,8 @@ export const Dentists = () => {
 
             {/* MANUAL ENTRY MODAL */}
             {showManualEntryModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                                 <Plus className="text-blue-600" />

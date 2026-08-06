@@ -562,8 +562,8 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
   if (isClient && !activeOrganization) {
     return (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8">
+            <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                     <Building size={32} />
                 </div>
@@ -1018,8 +1018,8 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
       {/* ROUTE MODAL */}
 
       {routeModalJob && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6 border-b pb-4">
                       <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Truck className="text-indigo-600" /> Escalar p/ Entrega</h3>
                       <button onClick={() => setRouteModalJob(null)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>

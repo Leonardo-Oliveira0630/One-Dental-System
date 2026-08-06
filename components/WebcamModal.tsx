@@ -131,7 +131,7 @@ export const WebcamModal: React.FC<WebcamModalProps> = ({ onClose, onCapture }) 
         </div>
 
         {/* Controls */}
-        <div className="p-6 bg-black flex justify-center items-center">
+        <div className="p-4 sm:p-6 bg-black flex justify-center items-center">
             <button 
                 onClick={capturePhoto}
                 disabled={isLoading}

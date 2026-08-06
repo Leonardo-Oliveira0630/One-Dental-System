@@ -382,7 +382,7 @@ export const JobTypes = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-8">
         {/* Left Column: List */}
         <div className="space-y-4 lg:col-span-1 order-2 lg:order-1">
             <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">{mainTab === 'PROMOTIONS' ? 'Promoções' : 'Serviços'} Cadastrados</h3>
@@ -510,7 +510,7 @@ export const JobTypes = () => {
                     </button>
                 </div>
 
-                <form onSubmit={handleSave} className="p-6">
+                <form onSubmit={handleSave} className="p-4 sm:p-6">
                     {activeTab === 'BASIC' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                              <div className="flex justify-between items-center">
@@ -519,7 +519,7 @@ export const JobTypes = () => {
                                 </h2>
                              </div>
                              
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                                 <div className="space-y-4">
                                     {mainTab === 'PROMOTIONS' && (
                                         <>
@@ -964,7 +964,7 @@ export const JobTypes = () => {
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-200 border border-slate-100">
                   {/* Modal Header */}
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0">
+                  <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0">
                       <div className="flex items-center gap-3">
                           <div className="p-2.5 bg-blue-100 text-blue-600 rounded-2xl">
                               <Settings size={22} />
@@ -983,7 +983,7 @@ export const JobTypes = () => {
                   </div>
 
                   {/* Modal Body */}
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                       <p className="text-xs text-slate-500 font-medium bg-blue-50/60 p-3 rounded-xl border border-blue-100/60 text-blue-900 leading-relaxed">
                         Selecione as <strong>etapas</strong> de cada setor associadas a este serviço. Estas etapas serão exibidas para seleção no registro de saída do setor e permitirão tirar comissão por cada etapa concluída.
                       </p>

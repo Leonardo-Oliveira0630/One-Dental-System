@@ -222,7 +222,7 @@ export const RequisitionInvite = () => {
           )}
 
           {success && (
-            <div className="p-6 bg-emerald-50 rounded-2xl text-center flex flex-col items-center gap-3">
+            <div className="p-4 sm:p-6 bg-emerald-50 rounded-2xl text-center flex flex-col items-center gap-3">
               <CheckCircle className="text-emerald-500" size={48} />
               <h3 className="text-lg font-bold text-slate-800">Parabéns, {dentistName}!</h3>
               <p className="text-sm text-slate-600">

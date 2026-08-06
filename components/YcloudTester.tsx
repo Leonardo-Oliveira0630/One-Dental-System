@@ -74,7 +74,7 @@ export const YcloudTester = () => {
 
   return (
     <div className="space-y-6 mt-8">
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-3 bg-purple-100 text-purple-600 rounded-xl">
             <Bug size={24} />
@@ -137,7 +137,7 @@ export const YcloudTester = () => {
         )}
       </div>
 
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-slate-100 text-slate-600 rounded-xl">

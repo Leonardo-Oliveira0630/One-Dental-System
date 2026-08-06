@@ -471,7 +471,7 @@ export const SupplierProducts = () => {
   };
 
   return (
-    <main id="supplier-products" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
+    <main id="supplier-products" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -677,9 +677,9 @@ export const SupplierProducts = () => {
 
       {/* Editor Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl text-slate-900 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/40">
+            <div className="p-4 sm:p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/40">
               <h3 className="font-bold text-lg flex items-center gap-2">
                 <Package className="text-indigo-600" />
                 {editingItemId ? 'Editar Produto / Combo' : 'Cadastrar Novo Produto / Combo'}
@@ -703,9 +703,9 @@ export const SupplierProducts = () => {
               </div>
             </div>
 
-            <form onSubmit={saveItem} className="p-6 overflow-y-auto space-y-6 flex-1">
+            <form onSubmit={saveItem} className="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1">
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                 
                 {/* SECTION A: BASE PRODUCT REGISTRATION */}
                 <div className="space-y-4">

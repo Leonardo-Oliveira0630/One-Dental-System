@@ -94,7 +94,7 @@ export const PriceTables = () => {
     };
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Tabelas de Preços</h1>
@@ -108,9 +108,9 @@ export const PriceTables = () => {
                 </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                 {priceTables.map(table => (
-                    <div key={table.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                    <div key={table.id} className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
                         <div className="flex justify-between items-start mb-4">
                             <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
                                 <Table size={24} />
@@ -154,9 +154,9 @@ export const PriceTables = () => {
             </div>
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <div className="p-4 sm:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50 gap-4">
                             <div>
                                 <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{editingTable ? 'Editar Tabela' : 'Nova Tabela de Preços'}</h3>
                                 <p className="text-xs text-slate-500 font-black uppercase tracking-widest mt-1">Configure o valor base e variações para cada serviço</p>
@@ -166,7 +166,7 @@ export const PriceTables = () => {
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-8">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nome da Tabela</label>
                                 <input 
@@ -178,11 +178,11 @@ export const PriceTables = () => {
                             </div>
 
                             <div className="space-y-6">
-                                <div className="flex items-center justify-between">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                                         <Layers size={18} className="text-blue-500" /> Configuração de Preços
                                     </h4>
-                                    <div className="relative w-64">
+                                    <div className="relative w-full sm:w-64">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                         <input 
                                             placeholder="Filtrar serviços..."
@@ -198,7 +198,7 @@ export const PriceTables = () => {
                                         const tablePrice = prices[jt.id] || { basePrice: jt.basePrice, variations: {} };
                                         return (
                                             <div key={jt.id} className="bg-white border border-slate-100 rounded-[32px] overflow-hidden shadow-sm hover:border-blue-100 transition-all">
-                                                <div className="p-6 bg-slate-50/50 flex justify-between items-center border-b border-slate-50">
+                                                <div className="p-4 sm:p-6 bg-slate-50/50 flex flex-col sm:flex-row justify-between sm:items-center border-b border-slate-50 gap-4">
                                                     <div>
                                                         <p className="font-black text-slate-800 uppercase text-sm tracking-tight">{jt.name}</p>
                                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Preço Original: R$ {jt.basePrice.toFixed(2)}</p>
@@ -218,7 +218,7 @@ export const PriceTables = () => {
                                                 </div>
                                                 
                                                 {((jt.variationGroups && jt.variationGroups.length > 0) || (jt.variations && jt.variations.length > 0)) && (
-                                                    <div className="p-6 bg-white space-y-4">
+                                                    <div className="p-4 sm:p-6 bg-white space-y-4">
                                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Variações / Adicionais</p>
                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                                                             {(jt.variationGroups && jt.variationGroups.length > 0 ? jt.variationGroups : [{ id: 'default', name: 'Opções', options: jt.variations || [] }]).map((group: any) => (
@@ -259,7 +259,7 @@ export const PriceTables = () => {
                             </div>
                         </div>
 
-                        <div className="p-8 border-t bg-slate-50 flex justify-end gap-4">
+                        <div className="p-4 sm:p-8 border-t bg-slate-50 flex justify-end gap-4">
                             <button onClick={() => setIsModalOpen(false)} className="px-8 py-4 font-black text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-2xl transition-all uppercase text-xs">Cancelar</button>
                             <button 
                                 onClick={handleSave}

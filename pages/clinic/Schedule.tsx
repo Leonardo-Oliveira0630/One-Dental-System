@@ -168,10 +168,10 @@ export const Schedule = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-6 flex-1 min-h-0">
         {/* CALENDÁRIO LATERAL */}
         <div className="lg:col-span-3 space-y-6">
-            <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+            <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100">
               <div className="flex justify-between items-center mb-6">
                 <button onClick={() => setSelectedDate(new Date(selectedDate.setMonth(selectedDate.getMonth() - 1)))} className="p-2 hover:bg-slate-100 rounded-xl transition-colors"><ChevronLeft size={20}/></button>
                 <h2 className="font-black text-sm text-slate-800 uppercase tracking-widest text-center">
@@ -202,7 +202,7 @@ export const Schedule = () => {
             </div>
 
             {/* MINI STATS DA AGENDA */}
-            <div className="bg-indigo-900 rounded-[32px] p-6 text-white shadow-xl relative overflow-hidden hidden lg:block">
+            <div className="bg-indigo-900 rounded-[32px] p-4 sm:p-6 text-white shadow-xl relative overflow-hidden hidden lg:block">
                 <div className="absolute top-0 right-0 p-4 opacity-10"><Clock size={80}/></div>
                 <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Carga Horária</p>
                 <h3 className="text-2xl font-black">{filteredAppointments.length} Atendimentos</h3>
@@ -214,7 +214,7 @@ export const Schedule = () => {
         <div className="lg:col-span-9 bg-white rounded-[32px] shadow-sm border border-slate-100 flex flex-col overflow-hidden">
           
           {/* BARRA DE FILTROS REFINADA */}
-          <div className="p-4 md:p-6 border-b border-slate-50 bg-slate-50/50 flex flex-col md:flex-row items-center gap-4">
+          <div className="p-4 md:p-4 sm:p-6 border-b border-slate-50 bg-slate-50/50 flex flex-col md:flex-row items-center gap-4">
             <div className="flex items-center gap-2 text-slate-400 mr-2">
                 <Filter size={18} />
                 <span className="text-xs font-black uppercase tracking-widest">Filtros:</span>
@@ -260,7 +260,7 @@ export const Schedule = () => {
             )}
           </div>
           
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 no-scrollbar">
             <div className="flex items-center justify-between mb-4 px-2">
                 <div className="flex items-center gap-3">
                     <div className="bg-indigo-600 text-white px-3 py-1 rounded-lg text-lg font-black">{selectedDate.getDate()}</div>
@@ -337,7 +337,7 @@ export const Schedule = () => {
       {/* Modal Agendamento */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-xl p-8 animate-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-xl p-4 sm:p-8 animate-in zoom-in duration-200 overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-8 border-b border-slate-100 pb-4">
               <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{selectedAppt ? 'Reagendar / Editar' : 'Marcar Consulta'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>

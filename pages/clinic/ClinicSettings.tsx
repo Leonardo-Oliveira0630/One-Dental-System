@@ -220,7 +220,7 @@ export const ClinicSettings = () => {
       {/* INFO CONTENT */}
       {activeTab === 'INFO' && (
         <div className="animate-in fade-in slide-in-from-left-4 duration-300 space-y-6">
-             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
                  <form onSubmit={handleSaveInfo} className="space-y-6">
                      {/* Seção 1: Dados Gerais */}
                      <div>
@@ -318,8 +318,8 @@ export const ClinicSettings = () => {
 
         {activeTab === 'SUBSCRIPTION' && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-6">
-              <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 opacity-10"><Crown size={120} /></div>
+              <div className="bg-slate-900 rounded-3xl p-4 sm:p-8 text-white shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10"><Crown size={120} /></div>
                   <div className="relative z-10">
                       <p className="text-teal-400 font-bold uppercase text-xs tracking-widest mb-1">Plano Atual</p>
                       <h2 className="text-4xl font-black mb-4">{activePlan?.name || 'Carregando...'}</h2>
@@ -385,9 +385,9 @@ export const ClinicSettings = () => {
               </div>
 
               {/* Módulos Extras */}
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
                  <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Crown className="text-teal-600" /> Módulos Extras</h3>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                      <div className={`p-6 rounded-2xl border-2 transition-all flex flex-col ${hasWhatsappModule ? 'border-green-500 bg-green-50/20' : 'border-slate-100 hover:border-slate-200'}`}>
                         <div className="flex items-start justify-between mb-2">
                             <div className="p-3 rounded-xl bg-green-100 text-green-600">
@@ -422,7 +422,7 @@ export const ClinicSettings = () => {
               </div>
 
               {/* Upgrade list */}
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+              <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
                   <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                       <ArrowUpCircle className="text-teal-600"/> {isFreePlan ? 'Adquirir / Upgrade de Plano' : 'Alterar Assinatura Odontológica'}
                   </h3>
@@ -473,7 +473,7 @@ export const ClinicSettings = () => {
 
               {/* Invoice section for paid plans */}
               {!isFreePlan && (
-                  <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 animate-in fade-in duration-300">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 animate-in fade-in duration-300">
                      <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
                         <Receipt className="text-teal-600" /> Histórico de Faturas e Histórico Financeiro da Assinatura
                      </h3>
@@ -484,7 +484,7 @@ export const ClinicSettings = () => {
                              <p className="text-sm font-bold text-slate-400">Buscando faturas Asaas integradas...</p>
                          </div>
                      ) : invoices.length === 0 ? (
-                         <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                         <div className="p-4 sm:p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                              <p className="text-sm font-bold text-slate-500 mb-1">Nenhuma fatura pendente ou liquidada encontrada</p>
                              <p className="text-xs text-slate-400">As faturas Asaas emitidas para o CNPJ/CPF cadastrado constarão nesta aba automaticamente.</p>
                          </div>
@@ -519,7 +519,7 @@ export const ClinicSettings = () => {
                                              </div>
                                          </div>
                                          
-                                         <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-200 pt-4 md:pt-0">
+                                         <div className="flex items-center justify-between md:justify-end gap-4 sm:p-6 border-t md:border-t-0 border-slate-200 pt-4 md:pt-0">
                                              <div className="text-right">
                                                  <p className="text-[10px] font-black uppercase text-slate-400">Total Líquido</p>
                                                  <p className="font-bold text-slate-800 text-lg">R$ {parseFloat(inv.value).toFixed(2)}</p>

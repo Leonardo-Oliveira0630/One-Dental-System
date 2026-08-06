@@ -48,7 +48,7 @@ class ViewerErrorBoundary extends React.Component<ViewerErrorBoundaryProps, View
     // Accessing this.state inherited from Component
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-full text-white p-8 text-center bg-slate-900">
+        <div className="flex flex-col items-center justify-center h-full text-white p-4 sm:p-8 text-center bg-slate-900">
           <div className="bg-red-500/20 p-4 rounded-full mb-4">
              <AlertTriangle size={48} className="text-red-500" />
           </div>
@@ -230,7 +230,7 @@ export const STLViewer: React.FC<STLViewerProps> = ({ files, onClose }) => {
 
         {/* Warning card overlay for stale (blob:) files */}
         {allStale ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-slate-950/90 z-50">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 sm:p-8 bg-slate-950/90 z-50">
             <div className="bg-amber-500/10 p-5 rounded-full mb-4">
               <AlertTriangle size={48} className="text-amber-500 animate-pulse" />
             </div>

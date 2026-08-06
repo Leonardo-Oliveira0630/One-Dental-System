@@ -224,7 +224,7 @@ export const RoutePlanner = () => {
             </div>
 
             {/* FILTRO DE DATA E TURNO */}
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-6" id="route-filters-card">
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 sm:p-6" id="route-filters-card">
                 <div className="flex-1">
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Data do Roteiro</label>
                     <div className="relative">
@@ -241,7 +241,7 @@ export const RoutePlanner = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-8">
                 {/* LISTA DE PARADAS */}
                 <div className="lg:col-span-8 space-y-4" id="routes-stops-container">
                     {!activeRoute ? (
@@ -263,7 +263,7 @@ export const RoutePlanner = () => {
                         </div>
                     ) : (
                         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden" id="active-route-manager">
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                            <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl"><UserIcon size={20}/></div>
                                     <div>
@@ -408,7 +408,7 @@ export const RoutePlanner = () => {
                 {/* SIDEBAR: CADASTRO E GERENCIAMENTO DE MOTOBOYS */}
                 <div className="lg:col-span-4 space-y-6" id="route-planner-sidebar">
                     {/* GERENCIAMENTO DE MOTOBOYS CARD */}
-                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 space-y-6" id="courier-manager-card">
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-4 sm:p-6 space-y-6" id="courier-manager-card">
                         <div className="flex justify-between items-center pb-2 border-b border-rose-50/50">
                             <div className="flex items-center gap-2">
                                 <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
@@ -540,7 +540,7 @@ export const RoutePlanner = () => {
                         </div>
                     </div>
 
-                    <div className="bg-indigo-950 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden" id="logistics-tips-sidebar">
+                    <div className="bg-indigo-950 rounded-3xl p-4 sm:p-6 text-white shadow-xl relative overflow-hidden" id="logistics-tips-sidebar">
                         <Truck size={80} className="absolute -bottom-4 -right-4 opacity-10" />
                         <h3 className="font-black text-lg mb-4 flex items-center gap-2"><Navigation size={20}/> Dica de Logística</h3>
                         <p className="text-sm text-indigo-100 leading-relaxed font-bold">
@@ -552,8 +552,8 @@ export const RoutePlanner = () => {
 
             {/* MODAL: INICIAR ROTEIRO */}
             {showStartRouteModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="start-route-modal">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="start-route-modal">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-5 border-b pb-4">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                                 <Truck size={18} className="text-blue-600"/> Iniciar Novo Roteiro
@@ -628,8 +628,8 @@ export const RoutePlanner = () => {
 
             {/* MODAL: ADICIONAR COLETA AVULSA */}
             {isAddingPickup && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="add-pickup-modal">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" id="add-pickup-modal">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-4 sm:p-6 animate-in zoom-in-95 duration-200">
                         <div className="flex justify-between items-center mb-6 border-b pb-4">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
                                 <Building size={18} className="text-blue-600"/> Parada Avulsa (Coleta)

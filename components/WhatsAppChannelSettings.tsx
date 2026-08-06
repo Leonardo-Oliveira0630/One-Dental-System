@@ -81,7 +81,7 @@ export function WhatsAppChannelSettings({ orgId, companyId }: { orgId: string, c
   if (loading) return <div className="p-4">Carregando configurações de WhatsApp...</div>;
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
+    <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
       <h3 className="text-lg font-medium text-gray-900 mb-4">Conexão WhatsApp (Omnichannel)</h3>
       <p className="text-sm text-gray-500 mb-4">
         Conecte seu número de WhatsApp Business para enviar mensagens automáticas aos seus clientes.

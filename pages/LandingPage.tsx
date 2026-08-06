@@ -258,9 +258,9 @@ export const LandingPage = () => {
       {/* 1. TOP PREMIUM HEADER */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4 sm:p-8">
             <Logo size="md" variant="colored" />
-            <nav className="hidden lg:flex items-center gap-6 text-xs font-black uppercase tracking-wider text-slate-600">
+            <nav className="hidden lg:flex items-center gap-4 sm:p-6 text-xs font-black uppercase tracking-wider text-slate-600">
               <button 
                 onClick={() => setLandingPageTab('LABORATORIO')} 
                 className={`transition-colors py-2 relative ${landingPageTab === 'LABORATORIO' ? 'text-blue-600 font-black' : 'hover:text-blue-500 font-bold'}`}
@@ -380,7 +380,7 @@ export const LandingPage = () => {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[1600px] h-[600px] bg-gradient-radial from-blue-100/30 via-teal-100/10 to-transparent blur-[120px] pointer-events-none -z-10" />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          <div className="grid lg:grid-cols-12 gap-12 lg:gap-4 sm:p-8 items-center">
             
             {/* Left Copy Panel */}
             <div className="lg:col-span-5 text-center lg:text-left space-y-6 md:space-y-8 relative z-10">
@@ -433,7 +433,7 @@ export const LandingPage = () => {
               <div className="relative mx-auto max-w-[680px]">
                 
                 {/* Visual stacked layers background triggers */}
-                <div className="absolute -top-6 -right-6 w-72 h-72 bg-teal-400/20 rounded-full blur-[80px] pointer-events-none -z-10" />
+                <div className="absolute -top-4 sm:p-6 -right-6 w-72 h-72 bg-teal-400/20 rounded-full blur-[80px] pointer-events-none -z-10" />
                 <div className="absolute -bottom-6 -left-6 w-72 h-72 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none -z-10" />
 
                 {/* Sub title toggles simulating Kiwid depth with nice shadows */}
@@ -637,7 +637,7 @@ export const LandingPage = () => {
                             </div>
 
                             {osSaved ? (
-                              <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center space-y-4 py-8">
+                              <div className="bg-emerald-50 border border-emerald-200 p-4 sm:p-6 rounded-2xl text-center space-y-4 py-8">
                                 <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mx-auto">
                                   <CheckCircle2 size={24} />
                                 </div>
@@ -923,7 +923,7 @@ export const LandingPage = () => {
                   </div>
                 </div>
 
-                <div className="absolute -top-8 -left-4 sm:-left-8 bg-white/70 backdrop-blur-md border border-slate-200/80 rounded-2xl p-3.5 shadow-xl flex items-center gap-2 max-w-[200px] z-20">
+                <div className="absolute -top-4 sm:p-8 -left-4 sm:-left-8 bg-white/70 backdrop-blur-md border border-slate-200/80 rounded-2xl p-3.5 shadow-xl flex items-center gap-2 max-w-[200px] z-20">
                   <div className="w-8 h-8 bg-blue-50 border border-blue-100 rounded-full flex items-center justify-center text-blue-600">
                     <ShieldCheck size={18} />
                   </div>
@@ -945,8 +945,8 @@ export const LandingPage = () => {
       {landingPageTab === 'LOJA_ONLINE' && (
       <section id="loja-online" className="py-20 bg-slate-900 text-white relative overflow-hidden scroll-mt-20">
         {/* Background accent lights */}
-        <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-teal-500/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute top-1/3 left-1/4 w-full sm:w-96 max-w-[calc(100vw-2rem)] h-96 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-1/3 right-1/4 w-full sm:w-96 max-w-[calc(100vw-2rem)] h-96 bg-teal-500/10 rounded-full blur-[100px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           
@@ -1177,7 +1177,7 @@ export const LandingPage = () => {
                     {/* Simulated payment success modal inside browser workspace */}
                     {simulatedCheckoutSuccess && (
                       <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 z-40 rounded-r-2xl animate-in fade-in duration-300">
-                        <div className="bg-white rounded-3xl p-6 max-w-sm text-center space-y-4 border border-slate-200 shadow-2xl">
+                        <div className="bg-white rounded-3xl p-4 sm:p-6 max-w-sm text-center space-y-4 border border-slate-200 shadow-2xl">
                           <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-600 font-bold text-2xl">
                             🎉
                           </div>
@@ -1458,7 +1458,7 @@ export const LandingPage = () => {
                       <div className="space-y-4 animate-in fade-in duration-300 flex-1 flex flex-col justify-between">
                         
                         {storeCart.length === 0 ? (
-                          <div className="py-12 bg-white rounded-3xl border border-slate-200 text-center flex flex-col items-center justify-center p-6 space-y-3">
+                          <div className="py-12 bg-white rounded-3xl border border-slate-200 text-center flex flex-col items-center justify-center p-4 sm:p-6 space-y-3">
                             <span className="text-3xl">🛒</span>
                             <h4 className="text-xs font-black text-slate-800 uppercase">Seu carrinho está vazio</h4>
                             <p className="text-[9.5px] text-slate-500 leading-normal max-w-xs mx-auto">
@@ -1777,7 +1777,7 @@ export const LandingPage = () => {
           </div>
 
           {/* Core Advantages of the Online Store */}
-          <div className="mt-20 grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="mt-20 grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:p-8">
             {[
               {
                 icon: <Check className="text-teal-400" />,
@@ -1802,7 +1802,7 @@ export const LandingPage = () => {
             ].map((item, idx) => (
               <div 
                 key={idx}
-                className="bg-slate-800/40 border border-slate-800 p-6 rounded-2xl space-y-3.5 text-left shadow-inner"
+                className="bg-slate-800/40 border border-slate-800 p-4 sm:p-6 rounded-2xl space-y-3.5 text-left shadow-inner"
               >
                 <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-400 flex items-center justify-center">
                   {item.icon}
@@ -1832,7 +1832,7 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6 sm:gap-4 sm:p-8">
             {[
               {
                 icon: <FilePlus2 className="text-blue-600" />,
@@ -1883,7 +1883,7 @@ export const LandingPage = () => {
               <motion.div 
                 key={idx}
                 whileHover={{ y: -4 }}
-                className="bg-slate-50 border border-slate-200/80 p-6 sm:p-7 rounded-2xl text-left space-y-4 shadow-soft hover:shadow-md hover:border-slate-300 transition-all duration-300"
+                className="bg-slate-50 border border-slate-200/80 p-4 sm:p-6 sm:p-7 rounded-2xl text-left space-y-4 shadow-soft hover:shadow-md hover:border-slate-300 transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center shadow-sm">
                   {item.icon}
@@ -2162,7 +2162,7 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:p-6">
             {[
               {
                 num: "01",
@@ -2185,7 +2185,7 @@ export const LandingPage = () => {
                 desc: "Gráficos limpos analísticos mostram produtividade por técnico responsável. Nossa IA sugere remanejamento de pessoal para evitar perdas de faturamento."
               }
             ].map((item, id) => (
-              <div key={id} className="bg-white border border-slate-200/80 p-6 rounded-2xl text-left space-y-4 hover:border-blue-300 transition-colors shadow-soft">
+              <div key={id} className="bg-white border border-slate-200/80 p-4 sm:p-6 rounded-2xl text-left space-y-4 hover:border-blue-300 transition-colors shadow-soft">
                 <span className="text-2xl font-black text-blue-600 bg-blue-50/50 w-12 h-12 flex items-center justify-center rounded-xl">{item.num}</span>
                 <h3 className="text-sm sm:text-base font-black text-slate-900 leading-tight">{item.title}</h3>
                 <p className="text-xs text-slate-500 font-semibold leading-relaxed">{item.desc}</p>
@@ -2220,7 +2220,7 @@ export const LandingPage = () => {
               <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Gestão Protética Completa</span>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-8 justify-center items-stretch">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-4 sm:p-8 justify-center items-stretch">
               {allPlans && allPlans.filter(p => p.isPublic && p.active && p.targetAudience !== 'CLINIC').length > 0 ? (
                 allPlans.filter(p => p.isPublic && p.active && p.targetAudience !== 'CLINIC').map((plan) => {
                   const isRecommended = plan.price > 150 && plan.price < 400; // Highlight intermediate plans
@@ -2310,7 +2310,7 @@ export const LandingPage = () => {
               ) : (
                 <>
                   {/* Fallback Lab Essencial */}
-                  <div className="bg-white border border-slate-200 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-soft hover:border-blue-400">
+                  <div className="bg-white border border-slate-200 p-4 sm:p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-soft hover:border-blue-400">
                     <div className="space-y-4">
                       <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-wider">Essencial</span>
                       <h3 className="text-lg font-black text-[#0F172A] leading-tight">Laboratório Essencial</h3>
@@ -2343,7 +2343,7 @@ export const LandingPage = () => {
                   </div>
 
                   {/* Fallback Lab Completo */}
-                  <div className="bg-blue-900 border border-blue-950 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-2xl relative text-white">
+                  <div className="bg-blue-900 border border-blue-950 p-4 sm:p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-2xl relative text-white">
                     <span className="absolute -top-3.5 left-8 px-4 py-1 bg-teal-400 rounded-full text-blue-950 font-black text-[9px] uppercase tracking-wider shadow-md">RECOMENDADO</span>
                     <div className="space-y-4">
                       <span className="px-3 py-1 bg-blue-800 text-blue-300 rounded-full text-[9px] font-black uppercase tracking-wider">Completo</span>
@@ -2388,7 +2388,7 @@ export const LandingPage = () => {
               <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Clínica Digital Conectada</span>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-8 justify-center items-stretch">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-4 sm:p-8 justify-center items-stretch">
               {allPlans && allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').length > 0 ? (
                 allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').map((plan) => {
                   const isRecommended = plan.price > 120; // Highlight premium clinic plan
@@ -2472,7 +2472,7 @@ export const LandingPage = () => {
               ) : (
                 <>
                   {/* Fallback Clinic Básico */}
-                  <div className="bg-teal-50/40 border border-teal-100 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-soft hover:border-teal-400 text-slate-800">
+                  <div className="bg-teal-50/40 border border-teal-100 p-4 sm:p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-soft hover:border-teal-400 text-slate-800">
                     <div className="space-y-4">
                       <span className="px-3 py-1 bg-teal-50 text-teal-700 font-bold border border-teal-100 rounded-full text-[9px] uppercase tracking-wider">Clínica Light</span>
                       <h3 className="text-lg font-black text-slate-900 leading-tight font-display">Clínica Essencial</h3>
@@ -2501,7 +2501,7 @@ export const LandingPage = () => {
                   </div>
 
                   {/* Fallback Clinic Premium */}
-                  <div className="bg-teal-950 border border-teal-900 p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-2xl relative text-white">
+                  <div className="bg-teal-950 border border-teal-900 p-4 sm:p-8 rounded-3xl text-left flex flex-col justify-between space-y-8 shadow-2xl relative text-white">
                     <span className="absolute -top-3.5 left-8 px-4 py-1 bg-emerald-400 rounded-full text-teal-950 font-black text-[9px] uppercase tracking-wider shadow-md">MAIS PROCURADO</span>
                     <div className="space-y-4">
                       <span className="px-3 py-1 bg-teal-900 text-teal-300 rounded-full text-[9px] font-black uppercase tracking-wider">Clínica Pro</span>
@@ -2558,7 +2558,7 @@ export const LandingPage = () => {
             </p>
           </div>
 
-          <div className="max-w-3xl mx-auto bg-white border border-slate-200/80 p-8 md:p-10 rounded-[32px] shadow-premium text-left space-y-8 relative">
+          <div className="max-w-3xl mx-auto bg-white border border-slate-200/80 p-4 sm:p-8 md:p-10 rounded-[32px] shadow-premium text-left space-y-8 relative">
             <span className="text-6xl text-slate-200 font-serif absolute -top-4 -left-2 select-none">“</span>
             
             <p className="text-sm sm:text-base text-slate-700 italic font-semibold leading-relaxed relative z-10">
@@ -3567,7 +3567,7 @@ export const LandingPage = () => {
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-8">
                 {[
                   {
                     icon: <CheckCircle2 className="text-teal-500" />,
@@ -3600,7 +3600,7 @@ export const LandingPage = () => {
                     desc: "Acompanhe orçamentos fechados, taxas de conversão de exames e comissões automáticas devidas a dentistas associados no final do mês."
                   }
                 ].map((f, i) => (
-                  <div key={i} className="p-6 bg-slate-50 rounded-2xl border border-slate-200/50 hover:border-slate-200 transition-colors space-y-3 shadow-soft hover:shadow-md text-left">
+                  <div key={i} className="p-4 sm:p-6 bg-slate-50 rounded-2xl border border-slate-200/50 hover:border-slate-200 transition-colors space-y-3 shadow-soft hover:shadow-md text-left">
                     <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
                       {f.icon}
                     </div>
@@ -3631,7 +3631,7 @@ export const LandingPage = () => {
       {/* 10. RODAPÉ */}
       <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-16 text-xs text-left">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:p-8 mb-12">
             
             {/* Column 1: Brand details */}
             <div className="space-y-4">
@@ -3693,12 +3693,12 @@ export const LandingPage = () => {
       {/* 11. DEMONSTRATION BOOKING MODAL */}
       <AnimatePresence>
         {showDemoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white p-6 sm:p-8 rounded-card max-w-md w-full shadow-2xl relative text-left border border-slate-200"
+              className="bg-white p-4 sm:p-6 sm:p-4 sm:p-8 rounded-card max-w-md w-full shadow-2xl relative text-left border border-slate-200"
             >
               <button 
                 onClick={() => setShowDemoModal(false)}

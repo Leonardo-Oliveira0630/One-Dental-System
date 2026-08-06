@@ -214,16 +214,16 @@ export const Commissions = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
             <p className="text-sm font-bold text-slate-500 mb-1 uppercase">A Receber</p>
             <h3 className="text-3xl font-black text-orange-600">R$ {stats.pending.toFixed(2)}</h3>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
             <p className="text-sm font-bold text-slate-500 mb-1 uppercase">Pago (Acumulado)</p>
             <h3 className="text-3xl font-black text-green-600">R$ {stats.paid.toFixed(2)}</h3>
         </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
             <p className="text-sm font-bold text-slate-500 mb-1 uppercase">Total Período</p>
             <h3 className="text-3xl font-black text-blue-600">R$ {stats.total.toFixed(2)}</h3>
         </div>

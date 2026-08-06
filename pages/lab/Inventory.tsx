@@ -440,8 +440,8 @@ export const Inventory = () => {
     }, [dentistSearch, clients]);
 
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 pb-32">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="p-4 sm:p-6 md:p-4 sm:p-8 max-w-7xl mx-auto space-y-8 pb-32">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tight">
                         <Package className="text-indigo-600" /> CONTROLE DE ESTOQUE E INVENTÁRIO
@@ -556,9 +556,9 @@ export const Inventory = () => {
             )}
 
             {activeTab === 'CATEGORIES' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                     {filteredCategories.map(cat => (
-                        <div key={cat.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md transition-all">
+                        <div key={cat.id} className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md transition-all">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="p-3 bg-indigo-50 rounded-xl">
                                     <Layers className="text-indigo-600" size={24} />
@@ -585,9 +585,9 @@ export const Inventory = () => {
             {activeTab === 'ITEMS' && (
                 <>
                     {activeOwnerGroup === null ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:p-6">
                             {ownerOptions.map(owner => (
-                                <div key={owner.id} onClick={() => setActiveOwnerGroup(owner.id)} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer">
+                                <div key={owner.id} onClick={() => setActiveOwnerGroup(owner.id)} className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className={`p-4 rounded-2xl ${owner.id === 'LAB' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
                                             {owner.id === 'LAB' ? <Box size={32} /> : <UserIcon size={32} />}
@@ -685,9 +685,9 @@ export const Inventory = () => {
 
             {/* Catalog Modal */}
             {isCatalogModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    <form onSubmit={saveCatalogItem} className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative my-auto">
-                        <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+                    <form onSubmit={saveCatalogItem} className="bg-white rounded-3xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl relative my-auto">
+                        <button type="button" onClick={() => setIsCatalogModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatalogId ? 'Editar Produto Base' : 'Novo Produto Base'}</h2>
@@ -749,9 +749,9 @@ export const Inventory = () => {
 
             {/* Category Modal */}
             {isCatModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <form onSubmit={saveCat} className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
-                        <button type="button" onClick={() => setIsCatModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <form onSubmit={saveCat} className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl relative">
+                        <button type="button" onClick={() => setIsCatModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-6">{editingCatId ? 'Editar Categoria' : 'Nova Categoria'}</h2>
@@ -784,14 +784,14 @@ export const Inventory = () => {
 
             {/* Item Modal */}
             {isItemModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <form onSubmit={saveItem} className="bg-white rounded-3xl p-8 max-w-3xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                        <button type="button" onClick={() => setIsItemModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+                    <form onSubmit={saveItem} className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                        <button type="button" onClick={() => setIsItemModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full">
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-6">{editingItemId ? 'Editar Produto' : 'Novo Produto'}</h2>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                             <div className="md:col-span-2 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="md:col-span-2 relative">
@@ -952,9 +952,9 @@ export const Inventory = () => {
             )}
             {/* Bulk Import Modal */}
             {isBulkModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-white rounded-3xl p-8 max-w-3xl w-full shadow-2xl relative my-auto">
-                        <button type="button" onClick={() => setIsBulkModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl relative my-auto">
+                        <button type="button" onClick={() => setIsBulkModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
                             <X size={20}/>
                         </button>
                         <h2 className="text-2xl font-black text-slate-900 mb-1 flex items-center gap-2">
@@ -998,7 +998,7 @@ export const Inventory = () => {
                         <div 
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={handleFileDrop}
-                            className="border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-slate-50/50 hover:bg-emerald-50/10 rounded-2xl p-8 text-center cursor-pointer transition-all mb-6 relative group"
+                            className="border-2 border-dashed border-slate-200 hover:border-emerald-500 bg-slate-50/50 hover:bg-emerald-50/10 rounded-2xl p-4 sm:p-8 text-center cursor-pointer transition-all mb-6 relative group"
                             onClick={() => document.getElementById('bulk-file-input')?.click()}
                         >
                             <input 

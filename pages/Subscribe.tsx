@@ -156,7 +156,7 @@ export const Subscribe = () => {
 
                 {/* SELEÇÃO DE PLANOS */}
                 {!generatedLink && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6 mb-8">
                         {displayPlans.length === 0 ? (
                             <div className="col-span-3 text-center py-12 text-slate-400 border-2 border-dashed rounded-[32px] bg-white">
                                 Nenhum plano disponível para este perfil no momento.
@@ -185,7 +185,7 @@ export const Subscribe = () => {
                     </div>
                 )}
 
-                <div className="bg-white p-8 rounded-[40px] shadow-2xl border border-slate-200 max-w-lg mx-auto overflow-hidden relative">
+                <div className="bg-white p-4 sm:p-8 rounded-[40px] shadow-2xl border border-slate-200 max-w-lg mx-auto overflow-hidden relative">
                     
                     {/* ESTADO: LINK GERADO (SUCESSO) */}
                     {generatedLink ? (

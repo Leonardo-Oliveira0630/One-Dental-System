@@ -203,7 +203,7 @@ export const NewJob = () => {
             // Priority: Explicit Custom Prices
             const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
             if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice >= 0) {
                     basePrice = custom.fixedPrice;
                     dentistDiscountRate = 0;
                 } else if (custom.discountPercent !== undefined) {
@@ -274,7 +274,7 @@ export const NewJob = () => {
         if (dentist.isCustomPricing) {
             const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
             if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice >= 0) {
                     basePrice = custom.fixedPrice;
                     dentistDiscountRate = 0;
                 } else if (custom.discountPercent !== undefined) {
@@ -910,7 +910,7 @@ export const NewJob = () => {
     <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 pb-20 animate-in fade-in duration-500">
         {showOsConflictPopup && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-300">
+            <div className="bg-white rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-300">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={32} className="text-red-600" />
               </div>
@@ -944,7 +944,7 @@ export const NewJob = () => {
         )}
         {lastCreatedJob && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
+              <div className="bg-white rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={40} className="text-green-600" /></div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">Caso Cadastrado!</h2>
                 <p className="text-sm text-slate-500 mb-8">A Ordem de Serviço foi gerada com sucesso e está pronta para produção.</p>
@@ -967,10 +967,10 @@ export const NewJob = () => {
             </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-4 sm:p-8">
             <div className="lg:col-span-8 space-y-4 md:space-y-6">
                 
-                <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                   <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação Obrigatória</h2>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
@@ -1005,9 +1005,9 @@ export const NewJob = () => {
                   </div>
                 </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                     <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> Configurar Itens da OS <span className="text-red-500">*</span></h2>
-                    <div className="bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-200 space-y-6">
+                    <div className="bg-slate-50 p-4 md:p-4 sm:p-6 rounded-2xl border border-slate-200 space-y-6">
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -1270,7 +1270,7 @@ export const NewJob = () => {
                     )}
                 </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Package size={18} className="text-blue-500" /> Venda de Implantes/Componentes</h2>
                         <button type="button" onClick={() => setIsAddingProduct(!isAddingProduct)} className={`text-xs font-black px-3 py-1.5 rounded-lg transition-colors ${isAddingProduct ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
@@ -1350,7 +1350,7 @@ export const NewJob = () => {
             </div>
             
             <div className="lg:col-span-4 space-y-4 md:space-y-6">
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-6 space-y-6">
+              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-4 sm:p-6 space-y-6">
                 <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Box size={18} className="text-blue-500" /> Logística Interna</h2>
 
                 <div>

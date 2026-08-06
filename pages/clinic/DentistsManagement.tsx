@@ -65,7 +65,7 @@ export const DentistsManagement = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-8">
                 {/* LISTA DE DENTISTAS */}
                 <div className="lg:col-span-7 space-y-4">
                     <div className="grid gap-4">
@@ -101,8 +101,8 @@ export const DentistsManagement = () => {
 
                 {/* FORMULÁRIO */}
                 <div className="lg:col-span-5">
-                    <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden sticky top-6">
-                        <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+                    <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden sticky top-4 sm:p-6">
+                        <div className="p-4 sm:p-6 bg-slate-900 text-white flex justify-between items-center">
                             <h3 className="font-bold flex items-center gap-2">
                                 {isEditing ? <Edit2 size={18} className="text-teal-400" /> : <Plus size={18} className="text-teal-400" />}
                                 {isEditing ? 'Editar Profissional' : 'Novo Dentista'}
@@ -110,7 +110,7 @@ export const DentistsManagement = () => {
                             {isEditing && <button onClick={resetForm} className="text-slate-400 hover:text-white"><X size={20}/></button>}
                         </div>
 
-                        <form onSubmit={handleSave} className="p-6 space-y-5">
+                        <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-5">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
                                 <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold" />

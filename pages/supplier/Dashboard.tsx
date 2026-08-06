@@ -50,9 +50,9 @@ export const SupplierDashboard = () => {
   };
 
   return (
-    <main id="supplier-dashboard" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
+    <main id="supplier-dashboard" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
       {/* Welcome Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white border border-slate-200 rounded-2xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:p-6 bg-white border border-slate-200 rounded-2xl">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Painel do Fornecedor</h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -69,7 +69,7 @@ export const SupplierDashboard = () => {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
+        <div className="p-4 sm:p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
             <DollarSign className="w-6 h-6" />
           </div>
@@ -81,7 +81,7 @@ export const SupplierDashboard = () => {
           </div>
         </div>
 
-        <div className="p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
+        <div className="p-4 sm:p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-yellow-100 border border-yellow-500/20 flex items-center justify-center text-yellow-600">
             <Clock className="w-6 h-6 animate-pulse" />
           </div>
@@ -91,7 +91,7 @@ export const SupplierDashboard = () => {
           </div>
         </div>
 
-        <div className="p-6 bg-white border border-slate-200 rounded-xl flex items-center gap-4">
+        <div className="p-4 sm:p-6 bg-white border border-slate-200 rounded-xl flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-500/20 flex items-center justify-center text-indigo-600">
             <Truck className="w-6 h-6" />
           </div>
@@ -101,7 +101,7 @@ export const SupplierDashboard = () => {
           </div>
         </div>
 
-        <div className="p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
+        <div className="p-4 sm:p-6 bg-white border border-slate-200 rounded-2xl flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-500/20 flex items-center justify-center text-blue-600">
             <CheckCircle2 className="w-6 h-6" />
           </div>
@@ -115,7 +115,7 @@ export const SupplierDashboard = () => {
       {/* Main Section */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
         {/* Section Header */}
-        <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold">Pedidos Recebidos</h2>
             <p className="text-slate-500 text-xs mt-0.5">Visualize e despache os pedidos efetuados pelos clientes.</p>
@@ -214,10 +214,10 @@ export const SupplierDashboard = () => {
 
       {/* Details Side-Drawer/Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-end animate-fade-in">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-end animate-fade-in">
           <div className="bg-white border-l border-slate-200 w-full max-w-xl h-full flex flex-col text-slate-900 shadow-2xl relative">
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+            <div className="p-4 sm:p-6 border-b border-slate-200 flex items-center justify-between">
               <div>
                 <span className="text-xs font-mono text-slate-500 uppercase tracking-widest">DETALHES DO PEDIDO</span>
                 <h3 className="text-lg font-bold font-mono text-indigo-600">
@@ -233,7 +233,7 @@ export const SupplierDashboard = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
               {/* Status Action Header */}
               <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                 <div className="flex justify-between items-center">

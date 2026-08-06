@@ -390,7 +390,7 @@ export const RegisterOrganization = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-white w-full max-w-4xl p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 space-y-6">
+      <div className="bg-white w-full max-w-4xl p-4 sm:p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 space-y-6">
         
         <div className="space-y-6">
             <div className="text-left mb-6">

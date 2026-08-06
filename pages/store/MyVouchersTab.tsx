@@ -77,8 +77,8 @@ export function MyVouchersTab() {
     });
 
     return (
-        <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+        <div className="p-4 md:p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
                 <div>
                     <h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                         <Ticket className="text-indigo-600" size={28} /> Meus Vouchers de Serviço
@@ -157,7 +157,7 @@ export function MyVouchersTab() {
                     )}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                     {filteredVouchers.map((v) => {
                         const isExhausted = v.remainingQuantity <= 0 || v.status === 'EXHAUSTED';
                         const progressPercent = Math.min(100, Math.max(0, (v.remainingQuantity / v.initialQuantity) * 100));
@@ -178,7 +178,7 @@ export function MyVouchersTab() {
                                 <div className="absolute top-1/2 -left-3 w-6 h-6 rounded-full bg-slate-50 border-r border-slate-100 -translate-y-1/2 z-10" />
                                 <div className="absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-slate-50 border-l border-slate-100 -translate-y-1/2 z-10" />
 
-                                <div className="p-6 space-y-4">
+                                <div className="p-4 sm:p-6 space-y-4">
                                     <div className="flex justify-between items-start gap-2">
                                         <div className="space-y-1">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Combo / Campanha</span>
@@ -249,7 +249,7 @@ export function MyVouchersTab() {
                                 </div>
 
                                 {/* Bottom quantity bar */}
-                                <div className="border-t border-dashed border-slate-150 p-6 bg-slate-50/50 space-y-3">
+                                <div className="border-t border-dashed border-slate-150 p-4 sm:p-6 bg-slate-50/50 space-y-3">
                                     <div className="flex justify-between text-xs font-bold">
                                         <span className="text-slate-500">Quantidade de Serviços</span>
                                         <span className="text-slate-800">

@@ -1126,7 +1126,7 @@ export const GlobalScanner: React.FC = () => {
   if (isCameraActive) {
       return (
           <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
-              <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center text-white z-[120] bg-gradient-to-b from-black/60 to-transparent">
+              <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 flex justify-between items-center text-white z-[120] bg-gradient-to-b from-black/60 to-transparent">
                   <div>
                       <h3 className="font-bold text-xl tracking-tight">Leitor LABPROX</h3>
                       <p className="text-xs opacity-70">Aponte para o código de barras da OS</p>
@@ -1233,7 +1233,7 @@ export const GlobalScanner: React.FC = () => {
             <button onClick={() => setScannedJob(null)} className="text-slate-400 hover:text-slate-600 p-2"><X size={24} /></button>
         </div>
 
-        <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6 space-y-3">
+        <div className="bg-slate-50 rounded-2xl p-4 sm:p-6 border border-slate-100 mb-6 space-y-3">
             <div className="flex justify-between items-center border-b border-slate-200 pb-2 overflow-visible">
                 <span className="text-slate-500 text-xs font-bold uppercase shrink-0 mr-2">OS</span>
                 <div className="flex items-center gap-2 relative">

@@ -193,7 +193,7 @@ export const WhatsAppTemplates = () => {
       )}
 
       {editingId && (
-        <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-lg animate-in zoom-in-95 duration-200">
+        <div className="bg-white rounded-3xl p-4 sm:p-8 border border-slate-100 shadow-lg animate-in zoom-in-95 duration-200">
           <div className="flex justify-between items-center pb-6 border-b border-slate-100 mb-6">
             <h3 className="text-xl font-black text-slate-800 flex items-center gap-2 uppercase tracking-tight">
               <MessageSquare className="text-blue-600" size={20} />
@@ -205,7 +205,7 @@ export const WhatsAppTemplates = () => {
           </div>
 
           <form onSubmit={handleSave} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
               <div>
                 <label className="block mb-2 text-xs font-black text-slate-500 uppercase tracking-widest">Ação do Sistema</label>
                 <select
@@ -316,7 +316,7 @@ export const WhatsAppTemplates = () => {
       {/* Templates List */}
 
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h3 className="text-lg font-bold text-slate-800">Modelos Globais Ativos</h3>
             <p className="text-xs text-slate-400">Modelos cadastrados para notificações automáticas do sistema.</p>
@@ -403,12 +403,12 @@ export const WhatsAppTemplates = () => {
           </div>
         </div>
 
-        <div className="p-6">
-          <div className="grid grid-cols-1 gap-6">
+        <div className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 gap-4 sm:p-6">
             {templatesList.map((tpl) => {
               const config = actionsConfig[tpl.action];
               return (
-                <div key={tpl.id} className="border border-slate-100 rounded-2xl p-6 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col md:flex-row justify-between gap-6">
+                <div key={tpl.id} className="border border-slate-100 rounded-2xl p-6 bg-slate-50/50 hover:bg-slate-50 transition-all flex flex-col md:flex-row justify-between gap-4 sm:p-6">
                   <div className="space-y-3 flex-1">
                     <div className="flex items-center flex-wrap gap-2">
                       <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg">

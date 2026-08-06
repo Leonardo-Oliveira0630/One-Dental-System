@@ -452,7 +452,7 @@ export const SupportChatWidget = () => {
     <div className={`fixed z-50 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:flex sm:flex-col sm:items-end' : 'bottom-6 right-6 flex flex-col items-end'}`}>
       {/* Expanded Chat Drawer */}
       {isOpen && (
-        <div className="w-full sm:w-96 h-[100dvh] sm:h-[500px] max-h-screen bg-white sm:rounded-3xl rounded-none sm:shadow-2xl shadow-none border sm:border-slate-100 border-none flex flex-col overflow-hidden sm:mb-4 mb-0 animate-in slide-in-from-bottom duration-300">
+        <div className="w-full sm:w-full sm:w-96 max-w-[calc(100vw-2rem)] h-[100dvh] sm:h-[500px] max-h-screen bg-white sm:rounded-3xl rounded-none sm:shadow-2xl shadow-none border sm:border-slate-100 border-none flex flex-col overflow-hidden sm:mb-4 mb-0 animate-in slide-in-from-bottom duration-300">
           
           {/* Header */}
           <div className="bg-slate-950 text-white p-4 flex justify-between items-center border-b border-slate-800">

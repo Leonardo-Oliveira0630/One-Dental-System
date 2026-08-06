@@ -6,7 +6,7 @@ export const TermsOfUse = () => {
     const navigate = useNavigate();
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-10 font-sans">
-            <div className="max-w-4xl mx-auto bg-white p-6 md:p-12 rounded-3xl shadow-sm border border-slate-100 space-y-8">
+            <div className="max-w-4xl mx-auto bg-white p-4 sm:p-6 md:p-12 rounded-3xl shadow-sm border border-slate-100 space-y-8">
                 <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors">
                     <ArrowLeft size={20} />
                     <span className="font-bold text-sm uppercase tracking-widest">Voltar para o Início</span>

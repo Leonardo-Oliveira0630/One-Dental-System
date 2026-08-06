@@ -39,7 +39,7 @@ export const MarketplaceBanner = () => {
       />
       
       {/* Overlay to ensure text readability if needed, or just standard content */}
-      <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center text-center p-6 transition-opacity duration-700">
+      <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center text-center p-4 sm:p-6 transition-opacity duration-700">
         {currentBanner.text && (
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6 drop-shadow-lg max-w-4xl tracking-tight">
             {currentBanner.text}

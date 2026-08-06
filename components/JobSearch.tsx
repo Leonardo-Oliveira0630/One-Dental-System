@@ -264,7 +264,7 @@ export const JobSearch = () => {
                 ))}
               </div>
             ) : (
-              <div className="p-8 text-center">
+              <div className="p-4 sm:p-8 text-center">
                 <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Search size={20} className="text-slate-400" />
                 </div>

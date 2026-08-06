@@ -110,7 +110,7 @@ export const MarketplaceCategoriesAdmin = () => {
                 </button>
             </div>
 
-            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
+            <div className="bg-slate-50 p-4 sm:p-6 rounded-3xl border border-slate-200">
                 <div className="mb-6 flex justify-between items-center">
                     <h3 className="font-bold text-slate-800">Estrutura de Categorias</h3>
                     <button onClick={handleAddRoot} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 font-bold rounded-xl shadow-sm hover:bg-slate-100 transition-all flex items-center gap-2 text-sm">

@@ -36,7 +36,7 @@ export const AdminLayout = () => {
   return (
     <div className="space-y-4 md:space-y-6 pb-12 animate-in fade-in duration-500 max-w-full overflow-x-hidden">
       {/* HEADER ID */}
-      <div className="bg-slate-900 text-white p-4 md:p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl mx-2 md:mx-0">
+      <div className="bg-slate-900 text-white p-4 md:p-4 sm:p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl mx-2 md:mx-0">
         <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
           {currentOrg?.logoUrl ? (
             <div className="w-12 h-12 md:w-16 md:h-16 bg-white rounded-xl flex items-center justify-center overflow-hidden border-2 border-white/20 shrink-0">

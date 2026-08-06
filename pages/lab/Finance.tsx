@@ -992,22 +992,22 @@ export const Finance = () => {
 
         {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
             <h3 className="text-2xl font-black text-green-600">R$ {paidSum.toFixed(2)}</h3>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Pendente</p>
             <h3 className="text-2xl font-black text-orange-600">R$ {pendingSum.toFixed(2)}</h3>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total de Pedidos no Período</p>
             <h3 className="text-2xl font-black text-blue-600">{periodJobs.length}</h3>
           </div>
         </div>
 
         {/* FILTERS */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Filter size={16} className="text-slate-500" /> Filtrar por Período
           </h2>
@@ -1103,8 +1103,8 @@ export const Finance = () => {
 
       {/* ASAAS WALLET QUICK INFO (Sempre Visível) */}
       {currentOrg?.financialSettings?.asaasWalletId && (
-          <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><ShieldCheck size={120} /></div>
+          <div className="bg-slate-900 rounded-3xl p-4 sm:p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-4 sm:p-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10 pointer-events-none"><ShieldCheck size={120} /></div>
               <div className="flex-1 text-center md:text-left relative z-10">
                   <div className="flex items-center justify-center md:justify-start gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest mb-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div> Conta Digital Ativa (Split ProTrack)
@@ -1146,19 +1146,19 @@ export const Finance = () => {
       {activeTab === 'DASHBOARD' && (
           <div className="space-y-8 animate-in fade-in duration-300">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
                       <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
                   </div>
-                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">Faturado Pendente (Boletos)</p>
                       <h3 className="text-2xl font-black text-orange-600">R$ {stats.inBatchesPending.toFixed(2)}</h3>
                   </div>
-                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">A Faturar (Concluídos)</p>
                       <h3 className="text-2xl font-black text-blue-600">R$ {stats.pendingRevenue.toFixed(2)}</h3>
                   </div>
-                   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Despesas Pagas</p>
                       <h3 className="text-2xl font-black text-red-500">R$ {stats.totalExpenses.toFixed(2)}</h3>
                   </div>
@@ -1168,7 +1168,7 @@ export const Finance = () => {
 
       {activeTab === 'RECEIVABLES' && (
           <div className="space-y-6 animate-in slide-in-from-right-2">
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
                       <div>
                         <h2 className="text-xl font-bold text-slate-800">Prontos para Cobrança</h2>
@@ -1231,7 +1231,7 @@ export const Finance = () => {
 
       {activeTab === 'BATCHES' && (
           <div className="space-y-6 animate-in slide-in-from-right-2">
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                   <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2"><Receipt className="text-blue-600"/> Histórico de Faturas e Boletos</h3>
                   
                   <div className="overflow-x-auto">
@@ -1295,7 +1295,7 @@ export const Finance = () => {
                   </button>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                   <table className="w-full text-left">
                       <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
                           <tr>
@@ -1329,7 +1329,7 @@ export const Finance = () => {
       {activeTab === 'REPORTS' && (
           <div className="space-y-6 animate-in slide-in-from-right-2">
               {/* Filters Panel */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                       <div>
                           <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
@@ -1510,9 +1510,9 @@ export const Finance = () => {
 
       {/* MODAL: SELEÇÃO DE TRABALHOS P/ FATURAMENTO */}
       {activeTab === 'SETTINGS' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-right-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-8 animate-in slide-in-from-right-2">
               {/* Maquinas de Cartão */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
                   <div className="flex justify-between items-center">
                       <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><CreditCard className="text-blue-600"/> Máquinas de Cartão</h3>
                       <button 
@@ -1539,7 +1539,7 @@ export const Finance = () => {
               </div>
 
               {/* Contas Bancárias */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
                   <div className="flex justify-between items-center">
                       <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><Building className="text-blue-600"/> Contas Bancárias</h3>
                       <button 
@@ -1568,8 +1568,8 @@ export const Finance = () => {
       )}
       {/* MODAL: NOVA DESPESA */}
       {showExpenseModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6 border-b pb-4">
                       <h3 className="text-xl font-black text-slate-800">Lançar Nova Despesa</h3>
                       <button onClick={() => setShowExpenseModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
@@ -1599,11 +1599,11 @@ export const Finance = () => {
 
       {/* MODAL: EXTRATO COMPLETO (SINC COM DENTISTS.TSX) */}
       {showStatement && statementClient && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
                     <div className="bg-slate-50 rounded-[40px] shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col animate-in zoom-in duration-300 overflow-hidden border border-white">
                         {/* HEADER */}
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-start bg-white relative">
-                            <div className="flex items-center gap-6">
+                        <div className="p-4 sm:p-8 border-b border-slate-100 flex justify-between items-start bg-white relative">
+                            <div className="flex items-center gap-4 sm:p-6">
                                 <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-blue-200">
                                     <History size={32} />
                                 </div>
@@ -1644,7 +1644,7 @@ export const Finance = () => {
                         </div>
 
                         {/* CONTENT */}
-                        <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 relative">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50/50 relative">
                             {isLoadingStatement && (
                                 <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center">
                                     <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
@@ -1654,7 +1654,7 @@ export const Finance = () => {
 
                             {activeSubTab === 'EXTRATO' && (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="flex justify-between items-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                                    <div className="flex justify-between items-center bg-white p-4 sm:p-6 rounded-[32px] border border-slate-100 shadow-sm">
                                         <div className="flex items-center gap-4">
                                             <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
                                                 <input 
@@ -1771,7 +1771,7 @@ export const Finance = () => {
                                     </div>
 
                                     {showPaymentForm && (
-                                        <div className="bg-white p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
+                                        <div className="bg-white p-4 sm:p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
                                             <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
@@ -2087,8 +2087,8 @@ export const Finance = () => {
                         </div>
 
                         {/* FOOTER */}
-                        <div className="p-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-6">
+                        <div className="p-4 sm:p-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-4 sm:p-6">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
                                     <span className={`text-xl font-black ${chronoHistory.history.length > 0 && chronoHistory.history[chronoHistory.history.length-1].balanceAfter < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -2133,7 +2133,7 @@ export const Finance = () => {
 
       {showBoletoModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Gerar Boleto de Cobrança</h3>
                       <button onClick={() => setShowBoletoModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -2216,7 +2216,7 @@ export const Finance = () => {
 
       {showAsaasError && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                   <div className="flex flex-col items-center text-center gap-4">
                       <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
                           <AlertTriangle size={40} />
@@ -2261,7 +2261,7 @@ export const Finance = () => {
                       </button>
                   </div>
 
-                  <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                  <div className="p-4 sm:p-6 space-y-6 max-h-[80vh] overflow-y-auto">
                       {isEditingDetailPayment ? (
                           /* EDIT MODE FORM */
                           <div className="space-y-4">
@@ -2582,7 +2582,7 @@ export const Finance = () => {
                                           </div>
                                       </div>
                                   ) : (
-                                      <div className="flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-center">
+                                      <div className="flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-center">
                                           <FileText size={32} className="text-slate-300 mb-2" />
                                           <p className="text-xs font-bold text-slate-500">Nenhum comprovante anexado neste recebimento</p>
                                           <p className="text-[10px] text-slate-400 mt-1 mb-4">Selecione ou clique abaixo para anexar um documento agora.</p>

@@ -347,7 +347,7 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({ 
           )}
 
           {fileType === 'other' && (
-            <div className="text-center py-16 max-w-md bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl mx-4">
+            <div className="text-center py-16 max-w-md bg-slate-900 border border-slate-800 p-4 sm:p-8 rounded-3xl shadow-2xl mx-4">
               <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-slate-700/50">
                 <FileText size={40} className="text-slate-400" />
               </div>

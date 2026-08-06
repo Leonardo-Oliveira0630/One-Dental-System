@@ -52,7 +52,7 @@ export const SectorsTab = () => {
 
   return (
     <div className="space-y-6 animate-in slide-in-from-left-4">
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
         <h3 className="font-bold text-slate-800 mb-4">Novo Setor de Produção</h3>
         <form onSubmit={handleAddSector} className="flex gap-2">
           <input 

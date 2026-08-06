@@ -135,8 +135,8 @@ export const ClinicInventory = () => {
     }, [dentistSearch, clinicDentists]);
 
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 pb-32 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="p-4 sm:p-6 md:p-4 sm:p-8 max-w-7xl mx-auto space-y-8 pb-32 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2 tracking-tight">
                         <Package className="text-teal-600" /> GESTÃO DE ESTOQUE E INSUMOS
@@ -184,9 +184,9 @@ export const ClinicInventory = () => {
             </div>
 
             {activeTab === 'CATEGORIES' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                     {filteredCategories.map(cat => (
-                        <div key={cat.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md transition-all">
+                        <div key={cat.id} className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md transition-all">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="p-3 bg-teal-50 rounded-2xl">
                                     <Layers className="text-teal-600" size={24} />
@@ -213,9 +213,9 @@ export const ClinicInventory = () => {
             {activeTab === 'ITEMS' && (
                 <>
                     {activeOwnerGroup === null ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:p-6">
                             {ownerOptions.map(owner => (
-                                <div key={owner.id} onClick={() => setActiveOwnerGroup(owner.id)} className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col group hover:shadow-md hover:border-teal-200 transition-all cursor-pointer">
+                                <div key={owner.id} onClick={() => setActiveOwnerGroup(owner.id)} className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col group hover:shadow-md hover:border-teal-200 transition-all cursor-pointer">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className={`p-4 rounded-2xl ${owner.id === 'CLINIC' ? 'bg-teal-50 text-teal-600' : 'bg-orange-50 text-orange-600'}`}>
                                             {owner.id === 'CLINIC' ? <Box size={32} /> : <UserIcon size={32} />}
@@ -255,11 +255,11 @@ export const ClinicInventory = () => {
                                 <table className="w-full text-left border-collapse min-w-[800px]">
                                     <thead>
                                         <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                            <th className="p-6">Insumo / Especialidade</th>
-                                            <th className="p-6">Categoria</th>
-                                            <th className="p-6 text-right">Estoque</th>
-                                            <th className="p-6 text-right">Preço de Custo</th>
-                                            <th className="p-6 text-right">Ações</th>
+                                            <th className="p-4 sm:p-6">Insumo / Especialidade</th>
+                                            <th className="p-4 sm:p-6">Categoria</th>
+                                            <th className="p-4 sm:p-6 text-right">Estoque</th>
+                                            <th className="p-4 sm:p-6 text-right">Preço de Custo</th>
+                                            <th className="p-4 sm:p-6 text-right">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
@@ -268,7 +268,7 @@ export const ClinicInventory = () => {
                                             const isLowStock = item.currentStock <= item.minStock;
                                             return (
                                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                                                    <td className="p-6">
+                                                    <td className="p-4 sm:p-6">
                                                         <div className="flex items-center gap-2">
                                                             <div className="font-bold text-slate-800 text-sm leading-tight">{item.name}</div>
                                                             {item.code && <span className="text-[9px] font-black bg-slate-100 text-slate-500 py-0.5 px-2 rounded uppercase tracking-wider">{item.code}</span>}
@@ -276,20 +276,20 @@ export const ClinicInventory = () => {
                                                         {item.description && <div className="text-xs text-slate-400 mt-1 truncate max-w-[250px]">{item.description}</div>}
                                                         <div className="text-[9px] font-black bg-slate-100 text-slate-500 inline-block px-2 py-0.5 rounded mt-1.5 uppercase tracking-wide">{item.type}</div>
                                                     </td>
-                                                    <td className="p-6 font-bold text-xs text-slate-500 uppercase">{cat?.name || 'Geral'}</td>
-                                                    <td className="p-6 text-right">
+                                                    <td className="p-4 sm:p-6 font-bold text-xs text-slate-500 uppercase">{cat?.name || 'Geral'}</td>
+                                                    <td className="p-4 sm:p-6 text-right">
                                                         <div className={`inline-flex items-center px-3 py-1 rounded-full font-black text-xs ${isLowStock ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-teal-50 text-teal-700 border border-teal-100'}`}>
                                                             {item.currentStock} {isLowStock && '(FALTA)'}
                                                         </div>
                                                     </td>
-                                                    <td className="p-6 text-right font-black text-slate-800">
+                                                    <td className="p-4 sm:p-6 text-right font-black text-slate-800">
                                                         {item.costPrice > 0 ? (
                                                             new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.costPrice)
                                                         ) : (
                                                             <span className="text-slate-400 font-normal">--</span>
                                                         )}
                                                     </td>
-                                                    <td className="p-6 text-right">
+                                                    <td className="p-4 sm:p-6 text-right">
                                                         <div className="flex justify-end gap-2">
                                                             {canManageInstance && <button onClick={() => openItemModal(item)} className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"><Edit2 size={18}/></button>}
                                                             {canManageInstance && <button onClick={() => deleteInventoryItem(item.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18}/></button>}
@@ -316,8 +316,8 @@ export const ClinicInventory = () => {
             {/* Category Modal */}
             {isCatModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <form onSubmit={saveCat} className="bg-white rounded-[32px] p-8 max-w-md w-full shadow-2xl relative animate-in zoom-in-95 duration-200">
-                        <button type="button" onClick={() => setIsCatModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
+                    <form onSubmit={saveCat} className="bg-white rounded-[32px] p-4 sm:p-8 max-w-md w-full shadow-2xl relative animate-in zoom-in-95 duration-200">
+                        <button type="button" onClick={() => setIsCatModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
                             <X size={20}/>
                         </button>
                         <h2 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tight">{editingCatId ? 'Editar Categoria' : 'Nova Categoria'}</h2>
@@ -351,13 +351,13 @@ export const ClinicInventory = () => {
             {/* Item Modal */}
             {isItemModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-                    <form onSubmit={saveItem} className="bg-white rounded-[32px] p-8 max-w-3xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-                        <button type="button" onClick={() => setIsItemModalOpen(false)} className="absolute top-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
+                    <form onSubmit={saveItem} className="bg-white rounded-[32px] p-4 sm:p-8 max-w-3xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+                        <button type="button" onClick={() => setIsItemModalOpen(false)} className="absolute top-4 sm:p-6 right-6 p-2 bg-slate-100 text-slate-500 hover:text-slate-800 rounded-full transition-colors">
                             <X size={20}/>
                         </button>
                         <h2 className="text-xl font-black text-slate-800 mb-6 uppercase tracking-tight">{editingItemId ? 'Editar Item' : 'Cadastrar novo Item'}</h2>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                             <div className="md:col-span-2 space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="md:col-span-2">

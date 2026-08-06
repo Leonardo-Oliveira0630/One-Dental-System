@@ -24,7 +24,7 @@ const redactOptions = {
 };
 
 // Helper for safe JSON stringify handling circular references
-const getCircularReplacer = () => {
+export const getCircularReplacer = () => {
   const seen = new WeakSet();
   return (key: string, value: any) => {
     if (typeof value === "object" && value !== null) {
@@ -53,7 +53,7 @@ const logger = pino({
   },
   base: {
     env: process.env.NODE_ENV,
-    appName: 'smileprox'
+    appName: 'Labprox'
   }
 });
 

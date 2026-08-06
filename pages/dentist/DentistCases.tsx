@@ -442,9 +442,9 @@ export const DentistCases = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50/50 p-4 md:p-8 space-y-6">
+    <div className="flex flex-col min-h-screen bg-slate-50/50 p-4 md:p-4 sm:p-8 space-y-6">
       {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-md shadow-blue-500/20">
@@ -533,10 +533,10 @@ export const DentistCases = () => {
       </div>
 
       {/* FILTERS & SEARCH BAR */}
-      <div className="bg-white p-4 md:p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+      <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* SEARCH INPUT */}
-          <div className="relative w-full md:w-96">
+          <div className="relative w-full md:w-full sm:w-96 max-w-[calc(100vw-2rem)]">
             <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -776,7 +776,7 @@ export const DentistCases = () => {
       {/* QUICK VIEW MODAL */}
       {selectedCase && (
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-6 relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-100 space-y-6 relative animate-in zoom-in-95 duration-200">
             {/* CLOSE BUTTON */}
             <button
               onClick={() => setSelectedCase(null)}

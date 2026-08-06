@@ -58,8 +58,8 @@ export const SuperAdminDashboard = () => {
             </div>
             
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:p-6">
+                <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
                             <Building size={24} />
@@ -74,7 +74,7 @@ export const SuperAdminDashboard = () => {
                     </div>
                 </div>
                 
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl">
                             <Crown size={24} />
@@ -85,7 +85,7 @@ export const SuperAdminDashboard = () => {
                     <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase">Planos de Assinatura</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-green-50 text-green-600 rounded-2xl">
                             <Users size={24} />
@@ -96,7 +96,7 @@ export const SuperAdminDashboard = () => {
                     <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase">Contas Ativas</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
                             <Ticket size={24} />
@@ -110,14 +110,14 @@ export const SuperAdminDashboard = () => {
 
             {/* Global Settings Section */}
             <div className="bg-white rounded-3xl shadow-lg border-2 border-blue-50 overflow-hidden">
-                <div className="p-6 bg-blue-50/50 border-b border-blue-100 flex items-center justify-between">
+                <div className="p-4 sm:p-6 bg-blue-50/50 border-b border-blue-100 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Settings className="text-blue-600" />
                         <h2 className="font-black text-slate-800 text-lg uppercase tracking-tight">Configurações Globais da Plataforma</h2>
                     </div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase">Aplica-se a todos os laboratórios</div>
                 </div>
-                <div className="p-8">
+                <div className="p-4 sm:p-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                         <div className="space-y-4">
                             <label className="block">
@@ -170,7 +170,7 @@ export const SuperAdminDashboard = () => {
                             </p>
                         </div>
 
-                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-3">
+                        <div className="bg-amber-50 p-4 sm:p-6 rounded-2xl border border-amber-100 space-y-3">
                             <h4 className="font-bold text-amber-800 flex items-center gap-2 text-sm uppercase">
                                 <Info size={16}/> Configuração de Webhooks (Asaas)
                             </h4>
@@ -196,7 +196,7 @@ export const SuperAdminDashboard = () => {
 
             {/* Subscribers Table */}
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center">
                     <h3 className="text-lg font-bold text-slate-800">Organizações Assinantes</h3>
                     <div className="text-[10px] font-bold text-slate-400 uppercase">Lista em Tempo Real</div>
                 </div>

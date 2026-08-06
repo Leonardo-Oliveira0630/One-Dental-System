@@ -100,7 +100,7 @@ export const Coupons = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
         <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Gestão de Cupons</h1>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-8">
             {/* List */}
             <div className="lg:col-span-2 space-y-4">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -154,7 +154,7 @@ export const Coupons = () => {
             </div>
 
             {/* Form */}
-            <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-100 h-fit sticky top-6">
+            <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-100 h-fit sticky top-4 sm:p-6">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
                         {isEditing ? <Edit2 size={20}/> : <Plus size={20}/>}

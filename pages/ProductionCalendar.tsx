@@ -248,7 +248,7 @@ export const ProductionCalendar = () => {
       {activeDayView !== null && (
           <div className="fixed inset-0 z-[80] flex items-center justify-end bg-black/40 backdrop-blur-sm animate-in fade-in">
               <div className="bg-white w-full md:w-[500px] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-                  <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                  <div className="p-4 md:p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                       <div>
                           <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Cronograma Diário</p>
                           <h2 className="text-lg md:text-xl font-black text-slate-800 uppercase tracking-tighter">
@@ -261,7 +261,7 @@ export const ProductionCalendar = () => {
                       <button onClick={() => setActiveDayView(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar">
+                  <div className="flex-1 overflow-y-auto p-4 md:p-4 sm:p-6 space-y-6 no-scrollbar">
                       {/* Trabalhos sem hora marcada */}
                       {getJobsForDay(activeDayView).filter(j => !j.dueTime).length > 0 && (
                         <div className="space-y-3">
@@ -361,7 +361,7 @@ export const ProductionCalendar = () => {
       {/* MODAL DE EDIÇÃO RÁPIDA */}
       {selectedJob && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-[32px] shadow-2xl p-6 md:p-8 w-full max-w-md animate-in zoom-in duration-200">
+            <div className="bg-white rounded-[32px] shadow-2xl p-4 sm:p-6 md:p-4 sm:p-8 w-full max-w-md animate-in zoom-in duration-200">
                 <div className="flex justify-between items-start mb-6">
                     <div className="min-w-0">
                         <div className="flex items-center gap-2 mb-1">

@@ -53,11 +53,11 @@ export const PrintOverlay = () => {
     window.print();
   };
 
-  const labName = currentOrg?.name || 'SMILEPROX SYSTEM';
+  const labName = currentOrg?.name || 'Labprox SYSTEM';
   const labLogo = currentOrg?.logoUrl;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
       <style>
         {`
           @media print {
@@ -99,7 +99,7 @@ export const PrintOverlay = () => {
         </div>
       </div>
 
-      <div className="flex-1 w-full overflow-y-auto p-4 md:p-8 flex justify-center print:p-0 print:overflow-visible print:block">
+      <div className="flex-1 w-full overflow-y-auto p-4 md:p-4 sm:p-8 flex justify-center print:p-0 print:overflow-visible print:block">
         <div id="printable-content" className={`bg-white text-black shadow-2xl mx-auto print:shadow-none print:m-0 break-inside-avoid ${
             printData.mode === 'SHEET' ? 'w-[210mm] min-h-[148.5mm] p-6 print:w-[210mm] print:min-h-[148.5mm] print:h-auto' : 
             printData.mode === 'INVOICE_SHEET' ? 'w-[210mm] min-h-[297mm] p-10 print:w-[210mm] print:min-h-[297mm] print:h-auto' : 

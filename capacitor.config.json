@@ -1,7 +1,7 @@
 
 {
-  "appId": "com.smileprox.app",
-  "appName": "SmileProX",
+  "appId": "com.Labprox.app",
+  "appName": "Labprox",
   "webDir": "dist",
   "server": {
     "androidScheme": "https",

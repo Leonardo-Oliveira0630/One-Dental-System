@@ -157,10 +157,10 @@ export const Profile = () => {
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-12">
       <h1 className="text-2xl font-bold text-slate-900">Meu Perfil</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-6">
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 p-6 border-b border-slate-100 flex flex-col md:flex-row items-center gap-6">
+            <div className="bg-slate-50 p-6 border-b border-slate-100 flex flex-col md:flex-row items-center gap-4 sm:p-6">
               <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-4xl font-bold text-slate-300 border-4 border-white shadow-sm">
                 {currentUser.name.charAt(0)}
               </div>
@@ -173,8 +173,8 @@ export const Profile = () => {
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">Email</label>
                   <div className="flex items-center gap-2 text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-200 font-medium">
@@ -223,11 +223,11 @@ export const Profile = () => {
           </div>
 
           {/* PAINEL DE NOTIFICAÇÕES */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
               <Bell size={18} className="text-blue-500" /> Notificações Push
             </h3>
-            <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="flex flex-col md:flex-row items-center gap-4 sm:p-6">
               <div className={`p-4 rounded-full ${notificationStatus === 'granted' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
                 {notificationStatus === 'granted' ? <Bell size={32} /> : <BellOff size={32} />}
               </div>
@@ -258,7 +258,7 @@ export const Profile = () => {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
             <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Key size={18} className="text-blue-500" /> Segurança</h3>
             {resetRequested ? (
               <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-center">
@@ -275,7 +275,7 @@ export const Profile = () => {
       </div>
 
       {/* ZONA DE PERIGO - EXCLUSÃO DE CONTA E SISTEMA (LGPD) */}
-      <div className="bg-rose-50/70 border border-rose-200/80 rounded-3xl p-6 md:p-8 space-y-4 shadow-sm">
+      <div className="bg-rose-50/70 border border-rose-200/80 rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 space-y-4 shadow-sm">
         <div className="flex items-start gap-4">
           <div className="p-3.5 bg-rose-600 text-white rounded-2xl shadow-md shrink-0">
             <Trash2 size={24} />
@@ -323,7 +323,7 @@ export const Profile = () => {
       {/* MODAL DE CONFIRMAÇÃO POR E-MAIL & EXCLUSÃO */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black/70 z-[120] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-slate-100 space-y-6 relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 md:p-4 sm:p-8 shadow-2xl border border-slate-100 space-y-6 relative animate-in zoom-in-95 duration-200">
             {/* CLOSE BUTTON */}
             {!isDeleting && (
               <button

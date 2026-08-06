@@ -546,7 +546,7 @@ export const JobDetails = () => {
     }
   }, [job, jobTypes]);
 
-  if (!job) return <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6"><h2 className="text-xl font-bold text-slate-800">Trabalho não encontrado</h2><button onClick={() => navigate('/jobs')} className="mt-4 text-blue-600 font-bold hover:underline">Voltar para lista</button></div>;
+  if (!job) return <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-6"><h2 className="text-xl font-bold text-slate-800">Trabalho não encontrado</h2><button onClick={() => navigate('/jobs')} className="mt-4 text-blue-600 font-bold hover:underline">Voltar para lista</button></div>;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) {
@@ -1503,7 +1503,7 @@ export const JobDetails = () => {
         </div>
 
         {/* OS Details Card */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden p-6 md:p-8 space-y-6">
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden p-4 sm:p-6 md:p-4 sm:p-8 space-y-6">
           
           {/* Header OS details */}
           <div className="flex justify-between items-start border-b border-slate-100 pb-4">
@@ -1522,7 +1522,7 @@ export const JobDetails = () => {
           </div>
 
           {/* Core Info Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:p-6">
             <div>
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Dentista Solicitante</span>
               <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
@@ -1708,7 +1708,7 @@ export const JobDetails = () => {
     <div className="w-full space-y-4 md:space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-x-hidden">
       
       {job.isPseudo && job.status === 'REJECTED_REQUISITION' && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-4 sm:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
           <div className="flex gap-3">
             <XCircle className="text-red-500 shrink-0 mt-0.5 md:mt-0 animate-bounce" size={24} />
             <div>
@@ -1734,7 +1734,7 @@ export const JobDetails = () => {
       )}
 
       {!job.isPseudo && job.status === JobStatus.REJECTED && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-4 sm:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
           <div className="flex gap-3">
             <XCircle className="text-red-500 shrink-0 mt-0.5 md:mt-0 animate-bounce" size={24} />
             <div>
@@ -1760,7 +1760,7 @@ export const JobDetails = () => {
       )}
 
       {job.isPseudo && job.status === 'PENDING_REQUISITION' && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-3xl p-4 md:p-4 sm:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
           <div className="flex gap-3">
             <Clock className="text-amber-500 shrink-0 mt-0.5 md:mt-0" size={24} />
             <div>
@@ -1809,7 +1809,7 @@ export const JobDetails = () => {
       {/* MODAL RETORNO */}
       {showReturnModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
+              <div className="bg-white rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
                   <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <RefreshCw size={32} className="text-indigo-600" />
                   </div>
@@ -1860,7 +1860,7 @@ export const JobDetails = () => {
       {stageConfigItem && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] animate-in zoom-in duration-200">
-                  <div className="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl shrink-0">
+                  <div className="p-4 sm:p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl shrink-0">
                       <div>
                           <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                               <Settings className="text-slate-400" />
@@ -1871,7 +1871,7 @@ export const JobDetails = () => {
                       <button onClick={() => setStageConfigItem(null)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-2 rounded-full transition-colors"><X size={24}/></button>
                   </div>
                   
-                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                  <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
                       {sectors.map(sector => (
                           <div key={sector.id} className="border border-slate-200 rounded-2xl overflow-hidden">
                               <button
@@ -1917,7 +1917,7 @@ export const JobDetails = () => {
                       ))}
                   </div>
 
-                  <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3 shrink-0">
+                  <div className="p-4 sm:p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3 shrink-0">
                       <button onClick={() => setStageConfigItem(null)} className="px-6 py-3 font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
                       <button 
                           onClick={handleSaveStageConfig}
@@ -1935,7 +1935,7 @@ export const JobDetails = () => {
       {/* MODAL EXECUTION EDIT */}
       {showExecutionModal && editingExecution && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md animate-in zoom-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl p-4 sm:p-6 w-full max-w-md animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                           <Settings className="text-slate-400" />
@@ -2001,11 +2001,11 @@ export const JobDetails = () => {
       {showEditModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
               <div className="bg-white rounded-[24px] md:rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in duration-200">
-                  <div className="p-4 md:p-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
+                  <div className="p-4 md:p-4 sm:p-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
                       <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Ordem</h3>
                       <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={24}/></button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar">
+                  <div className="flex-1 overflow-y-auto p-4 md:p-4 sm:p-6 space-y-6 no-scrollbar">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="md:col-span-2 relative" ref={dropdownRef}>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Dentista / Clínica</label>
@@ -2412,7 +2412,7 @@ export const JobDetails = () => {
                           <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" placeholder="Novas instruções..."></textarea>
                       </div>
                   </div>
-                  <div className="p-4 md:p-6 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
+                  <div className="p-4 md:p-4 sm:p-6 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
                       <button onClick={() => setShowEditModal(false)} className="px-5 py-2 font-black text-xs text-slate-400 uppercase tracking-widest">Cancelar</button>
                       <button onClick={handleSaveChanges} disabled={isUpdatingStatus} className="px-6 py-3 bg-blue-600 text-white font-black text-xs rounded-xl shadow-xl shadow-blue-100 hover:bg-blue-700 flex items-center gap-2 uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50">
                           {isUpdatingStatus ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> Salvar</>}
@@ -2448,9 +2448,9 @@ export const JobDetails = () => {
       </div>
 
       {/* CARD PRINCIPAL INFO - Mobile Resilient */}
-      <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8 relative overflow-visible shrink-0">
+      <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8 relative overflow-visible shrink-0">
          <div className={`absolute top-0 left-0 w-1.5 md:w-2 h-full rounded-l-[32px] ${job.urgency === UrgencyLevel.VIP ? 'bg-orange-500' : 'bg-blue-600'}`} />
-         <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
+         <div className="flex flex-col lg:flex-row justify-between items-start gap-4 sm:p-6">
             <div className="w-full min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                     <div className="flex items-center gap-3 shrink-0 relative overflow-visible">
@@ -2623,7 +2623,7 @@ export const JobDetails = () => {
 
       <div className="flex-1 min-h-0 w-full overflow-hidden">
         {activeTab === 'SUMMARY' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full pb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-4 sm:p-8 animate-in fade-in duration-300 w-full pb-8">
                 {/* KPI BOXES - Responsive Layout */}
                 <div className={`lg:col-span-3 grid grid-cols-1 ${isClient ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3 md:gap-4`}>
                     {!isClient && (
@@ -2692,7 +2692,7 @@ export const JobDetails = () => {
                                      routeInfo.status === 'IN_TRANSIT' ? '🛵 Em Trânsito' : '📦 Agendado'}
                                 </span>
                             </div>
-                            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
                                 <div className="flex items-center gap-3.5 min-w-0">
                                     <div className={`p-3 rounded-xl shadow-sm border shrink-0 ${
                                         routeInfo.status === 'COMPLETED' ? 'bg-emerald-100/40 text-emerald-600 border-emerald-100' : 'bg-slate-100/50 text-slate-500 border-slate-100'
@@ -2743,7 +2743,7 @@ export const JobDetails = () => {
                         </div>
                     )}
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8">
                         <h3 className="text-base md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileText size={20} className="text-blue-500 shrink-0" /> Serviços do Pedido</h3>
                         <div className="divide-y divide-slate-100">
                             {job.items.map((item: any, idx: number) => {
@@ -3078,7 +3078,7 @@ export const JobDetails = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8">
                         <h3 className="text-base md:text-lg font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileIcon size={20} className="text-blue-500 shrink-0" /> Observações</h3>
                         <div className="bg-slate-50 p-4 rounded-2xl text-slate-600 text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap min-h-[100px] border border-slate-100">
                             {job.notes || "Sem instruções adicionais registradas."}
@@ -3089,7 +3089,7 @@ export const JobDetails = () => {
                     {(!job.isPseudo && (job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION' || job.approvalEnabled || isLabStaff)) && (
                         <div className="mt-4 md:mt-6">
                             {isClient && !job.approvalEnabled ? (
-                                <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-6 text-center text-slate-500">
+                                <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-4 sm:p-6 text-center text-slate-500">
                                     <Lock size={32} className="text-slate-300 mx-auto mb-2" />
                                     <p className="font-extrabold text-xs uppercase text-slate-700">Área de Aprovação de Caso</p>
                                     <p className="text-[10px] mt-1 text-slate-400 font-bold">Aguardando ativação do laboratório para este caso.</p>
@@ -3103,7 +3103,7 @@ export const JobDetails = () => {
 
                 <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0 pb-8">
                     {/* Linha do Tempo de Prazos */}
-                    <div id="lifecycle-timeline-card" className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6">
+                    <div id="lifecycle-timeline-card" className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-6">
                         <h3 className="text-sm md:text-base font-black text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-tighter truncate">
                             <Clock size={20} className="text-blue-600 shrink-0" />
                             Prazos do Caso
@@ -3163,7 +3163,7 @@ export const JobDetails = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6 overflow-hidden">
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-6 overflow-hidden">
                         <div className="flex justify-between items-center mb-6 shrink-0">
                             <h3 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter truncate"><FileIcon size={20} className="text-blue-600 shrink-0" /> Documentos</h3>
                             <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded shrink-0">{job.attachments?.length || 0}</span>
@@ -3251,13 +3251,13 @@ export const JobDetails = () => {
 
         {activeTab === 'HISTORY' && (
             revealJobStatus ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-4 sm:p-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
                     <div className="lg:col-span-2 min-w-0">
-                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
+                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8">
                             <h3 className="text-base md:text-lg font-black text-slate-800 mb-8 flex items-center gap-2 uppercase tracking-tighter"><ListChecks size={20} className="text-blue-500 shrink-0" /> Linha do Tempo</h3>
                             <div className="space-y-8 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-50">
                                 {sortedHistory.map((h, idx) => (
-                                    <div key={idx} className="flex gap-4 md:gap-6 relative min-w-0">
+                                    <div key={idx} className="flex gap-4 md:gap-4 sm:p-6 relative min-w-0">
                                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm ${idx === 0 ? 'bg-blue-600 text-white shadow-blue-100' : 'bg-slate-100 text-slate-300'}`}>
                                             {h.action.toLowerCase().includes('concluído') ? <Check size={16} className="shrink-0" /> : idx === 0 ? <Clock size={16} className="shrink-0" /> : <div className="w-2 h-2 bg-slate-300 rounded-full shrink-0" />}
                                         </div>
@@ -3415,7 +3415,7 @@ export const JobDetails = () => {
                         );
                     })}
 
-                    <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
+                    <div className="bg-white rounded-[24px] p-4 sm:p-6 shadow-sm border border-slate-100">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <Clock size={16} /> Fluxo de Logística do Caso
                         </h3>
@@ -3466,8 +3466,8 @@ export const JobDetails = () => {
         )}
 
       {showRouteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6 border-b pb-4">
                       <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter"><Truck className="text-indigo-600" /> Confirmar Logística</h3>
                       <button onClick={() => setShowRouteModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
@@ -3527,7 +3527,7 @@ export const JobDetails = () => {
       )}
       {showRejectionModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" id="jobRejectionModal">
-          <div className="bg-white rounded-[32px] p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
+          <div className="bg-white rounded-[32px] p-4 sm:p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                 <AlertTriangle size={20} className="text-red-500" />

@@ -91,7 +91,7 @@ const Finance: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Financeiro SaaS</h1>
@@ -107,8 +107,8 @@ const Finance: React.FC = () => {
       </div>
 
       {/* Cards de Métricas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:p-6">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-blue-50 rounded-lg">
               <DollarSign className="w-6 h-6 text-blue-600" />
@@ -124,7 +124,7 @@ const Finance: React.FC = () => {
           </h2>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-purple-50 rounded-lg">
               <TrendingUp className="w-6 h-6 text-purple-600" />
@@ -136,7 +136,7 @@ const Finance: React.FC = () => {
           </h2>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-green-50 rounded-lg">
               <Users className="w-6 h-6 text-green-600" />
@@ -146,7 +146,7 @@ const Finance: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mt-1">{metrics.activeSubscriptions}</h2>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="p-2 bg-amber-50 rounded-lg">
               <CreditCard className="w-6 h-6 text-amber-600" />
@@ -160,8 +160,8 @@ const Finance: React.FC = () => {
       </div>
 
       {/* Projeções */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-2xl text-white shadow-lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
+        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-4 sm:p-6 rounded-2xl text-white shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
               <BarChart3 className="w-6 h-6" />
@@ -178,7 +178,7 @@ const Finance: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 rounded-2xl text-white shadow-lg">
+        <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-4 sm:p-6 rounded-2xl text-white shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
               <TrendingUp className="w-6 h-6" />
@@ -196,9 +196,9 @@ const Finance: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-8">
         {/* Gráfico de Receita */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="lg:col-span-2 bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-gray-900">Evolução da Receita</h3>
             <select 
@@ -234,7 +234,7 @@ const Finance: React.FC = () => {
         </div>
 
         {/* Distribuição de Planos */}
-        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
           <h3 className="text-lg font-bold text-gray-900 mb-6">Distribuição por Plano</h3>
           <div className="space-y-6">
             {allPlans.map(plan => {
@@ -261,7 +261,7 @@ const Finance: React.FC = () => {
 
       {/* Histórico de Pagamentos */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center justify-between">
           <h3 className="text-lg font-bold text-gray-900">Histórico de Pagamentos</h3>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />

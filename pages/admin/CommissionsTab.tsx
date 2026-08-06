@@ -102,7 +102,7 @@ export const CommissionsTab = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
           <h3 className="text-lg font-bold text-slate-800 mb-2">Ganhos por Técnico</h3>
           <p className="text-sm text-slate-500 mb-6">Configure quanto o técnico recebe por cada serviço finalizado e por etapas concluídas.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -124,16 +124,16 @@ export const CommissionsTab = () => {
       </div>
 
       {configUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                  <div className="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                  <div className="p-4 sm:p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl">
                       <div>
                           <h3 className="text-xl font-black text-slate-800">Tabela: {configUser.name}</h3>
                           <p className="text-xs text-slate-500 font-bold uppercase">Deixe em branco para usar a comissão base do serviço</p>
                       </div>
                       <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24}/></button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                       {jobTypes.map(type => {
                           const setting = tempCommissions.find(s => s.jobTypeId === type.id);
                           return (
@@ -243,7 +243,7 @@ export const CommissionsTab = () => {
                           </div>
                       )}
                   </div>
-                  <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
+                  <div className="p-4 sm:p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
                       <button onClick={() => setConfigUser(null)} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
                       <button onClick={saveCommissions} disabled={isSubmitting} className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-lg flex items-center gap-2">
                         {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={18}/> SALVAR</>}

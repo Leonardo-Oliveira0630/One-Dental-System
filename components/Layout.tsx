@@ -167,7 +167,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     }
     return isViewingLabContext && activeOrganization 
       ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
-      : { name: currentOrg?.name || 'SMILEPROX', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Laboratório Terceirizado' : 'SMILEPROX SYSTEM' };
+      : { name: currentOrg?.name || 'Labprox', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Laboratório Terceirizado' : 'Labprox SYSTEM' };
   }, [isViewingLabContext, activeOrganization, currentOrg, isClient, storeSlug, storeOrg]);
 
   if (location.pathname === '/helpdesk') {
@@ -201,7 +201,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <aside className={`fixed inset-y-0 left-0 z-[70] w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       }`}>
-        <div className="p-6 h-full flex flex-col overflow-hidden">
+        <div className="p-4 sm:p-6 h-full flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-8 shrink-0">
             <div className="flex items-center gap-3 overflow-hidden">
               {displayBrand.logo ? (
@@ -209,7 +209,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   <img src={displayBrand.logo} alt="Logo" className="w-full h-full object-contain" />
                 </div>
               ) : (
-                displayBrand.name.toUpperCase() === 'SMILEPROX' ? (
+                displayBrand.name.toUpperCase() === 'Labprox' ? (
                   <LogoIcon size={40} className="shrink-0" />
                 ) : (
                   <div className="w-10 h-10 bg-[#0F4C81] rounded-xl flex items-center justify-center shrink-0 shadow-lg font-black text-white text-xl">
@@ -218,7 +218,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 )
               )}
               <div className="flex flex-col min-w-0">
-                {displayBrand.name.toUpperCase() === 'SMILEPROX' ? (
+                {displayBrand.name.toUpperCase() === 'Labprox' ? (
                   <span className="text-sm font-black tracking-tight leading-none truncate uppercase text-white">
                     Smile<span className="text-[#00B8D9]">ProX</span>
                   </span>
@@ -571,7 +571,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
         <div className={`${isStoreRoute ? "mt-[104px] md:mt-16 px-0 max-w-full" : "mt-[56px] md:mt-16 p-4 md:p-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
           {isClinicPendingApproval() ? (
             <div className="flex-1 flex items-center justify-center py-12 px-4">
-              <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">
                 <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md shadow-teal-500/10">
                   <ShieldCheck size={32} />
                 </div>
@@ -642,7 +642,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   />
                   {showOverduePopup && (
                     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                       <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center border border-red-100 animate-in zoom-in">
+                       <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl text-center border border-red-100 animate-in zoom-in">
                           <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                              <AlertTriangle size={32} />
                           </div>
