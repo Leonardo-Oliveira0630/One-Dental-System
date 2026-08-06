@@ -702,6 +702,43 @@ export const NewJob = () => {
     setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL'); setIsInternalStep(false);
   };
 
+  const handleEditItem = (item: JobItem) => {
+    // Populate form with item details
+    setSelectedTypeId(item.jobTypeId);
+    setQuantity(item.quantity);
+    setItemNature(item.nature || 'NORMAL');
+    setIsInternalStep(item.isInternalStep || false);
+    setManualPrice(item.basePriceBeforeDiscount || null);
+    setDiscountPercent(item.appliedDiscount || 0);
+    setItemColor(item.color || '');
+    setItemSelectedTeeth(item.selectedTeeth || []);
+    setCommissionDisabled(item.commissionDisabled || false);
+    
+    const activeType = jobTypes.find(t => t.id === item.jobTypeId);
+    if (activeType && activeType.variationGroups) {
+      const selections: Record<string, string | string[]> = {};
+      activeType.variationGroups.forEach(group => {
+        const selectedForGroup = item.selectedVariationIds?.filter(id => group.options.some(o => o.id === id)) || [];
+        if (selectedForGroup.length > 0) {
+          if (group.selectionType === 'SINGLE') {
+            selections[group.id] = selectedForGroup[0];
+          } else {
+            selections[group.id] = selectedForGroup;
+          }
+        }
+      });
+      setSelectedVariations(selections);
+    }
+    
+    if (item.variationValues) setVariationTextValues(item.variationValues);
+
+    // Remove from added items
+    setAddedItems(addedItems.filter(i => i.id !== item.id));
+
+    // Scroll to the top to see the form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (activeJobsWithSameBox.length > 0) {
@@ -1018,18 +1055,6 @@ export const NewJob = () => {
                                         <button type="button" onClick={() => { setItemNature('ADJUSTMENT'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Definir como Etapa</label>
-                                    <div className="flex gap-2">
-                                        <button 
-                                            type="button" 
-                                            onClick={() => setIsInternalStep(!isInternalStep)} 
-                                            className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center justify-center gap-2 ${isInternalStep ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-400'}`}
-                                        >
-                                            {isInternalStep ? '✅ SIM (Não Faturado)' : 'NÃO (Item Normal)'}
-                                        </button>
-                                    </div>
-                                </div>
                                 <div className="relative" ref={jobTypeDropdownRef}>
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Tipo de Prótese</label>
                                     <div className="relative">
@@ -1262,7 +1287,23 @@ export const NewJob = () => {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <span className="font-black text-slate-700 text-sm">R$ {(item.price * item.quantity).toFixed(2)}</span>
-                                    <button type="button" onClick={() => setAddedItems(addedItems.filter(i => i.id !== item.id))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                                    <div className="flex gap-1">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleEditItem(item)} 
+                                            title="Editar Serviço"
+                                            className="p-2 text-slate-300 hover:text-blue-500 transition-colors"
+                                        >
+                                            <Edit3 size={18}/>
+                                        </button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setAddedItems(addedItems.filter(i => i.id !== item.id))} 
+                                            className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 size={18}/>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))}

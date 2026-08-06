@@ -62,6 +62,11 @@ export const Finance = () => {
   const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
   const [isLoadingStatement, setIsLoadingStatement] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'EXTRATO' | 'RECEBIMENTOS' | 'FATURAS'>('EXTRATO');
+  const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+  const [manualEntryType, setManualEntryType] = useState<'MANUAL_DEBIT' | 'MANUAL_CREDIT'>('MANUAL_DEBIT');
+  const [manualEntryAmount, setManualEntryAmount] = useState('');
+  const [manualEntryNotes, setManualEntryNotes] = useState('');
+  const [isAddingManualEntry, setIsAddingManualEntry] = useState(false);
   const [showAsaasError, setShowAsaasError] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState(() => {
       const d = new Date();
@@ -502,6 +507,44 @@ export const Finance = () => {
 
     return { history: filteredHistory, previousBalance };
   }, [statementClient, dentistJobs, dentistPayments, filterStartDate, filterEndDate]);
+
+  const handleAddManualEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statementClient || !currentOrg) return;
+
+    const amount = parseFloat(manualEntryAmount);
+    if (isNaN(amount) || amount <= 0) {
+        alert("Digite um valor válido.");
+        return;
+    }
+
+    setIsAddingManualEntry(true);
+    try {
+        await addDentistPayment({
+            dentistId: statementClient.id,
+            dentistName: statementClient.name,
+            amount: amount,
+            paymentMethod: 'CASH',
+            paymentDate: new Date(),
+            type: manualEntryType === 'MANUAL_DEBIT' ? 'MANUAL_DEBIT' : 'MANUAL_CREDIT',
+            notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? 'Ajuste a Débito' : 'Ajuste a Crédito')
+        } as any);
+        
+        setShowManualEntryModal(false);
+        setManualEntryAmount('');
+        setManualEntryNotes('');
+        alert('Lançamento manual registrado com sucesso!');
+        // Refresh statement data
+        if (statementClient.id) {
+            handleClientClick(statementClient.id);
+        }
+    } catch (error) {
+        console.error(error);
+        alert('Erro ao registrar lançamento manual.');
+    } finally {
+        setIsAddingManualEntry(false);
+    }
+  };
 
   const generateStatementPDF = async () => {
     if (!statementClient || !currentOrg) return;
@@ -1672,12 +1715,20 @@ export const Finance = () => {
                                                 />
                                             </div>
                                         </div>
-                                        <button 
-                                            onClick={generateStatementPDF}
-                                            className="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl shadow-slate-200"
-                                        >
-                                            <Download size={16} /> Exportar PDF
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setShowManualEntryModal(true)}
+                                                className="px-4 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-xl shadow-blue-500/30"
+                                            >
+                                                <Plus size={16} /> Lançamento Manual
+                                            </button>
+                                            <button 
+                                                onClick={generateStatementPDF}
+                                                className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl shadow-slate-200"
+                                            >
+                                                <Download size={16} /> Exportar PDF
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
@@ -2235,6 +2286,76 @@ export const Finance = () => {
                           Entendido
                       </button>
                   </div>
+              </div>
+          </div>
+      )}
+
+      {showManualEntryModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                          <Plus className="text-blue-600" />
+                          Lançamento Manual
+                      </h3>
+                      <button onClick={() => setShowManualEntryModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                          <X size={20} className="text-slate-500" />
+                      </button>
+                  </div>
+                  
+                  <form onSubmit={handleAddManualEntry} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Tipo</label>
+                          <div className="flex gap-2">
+                              <button 
+                                  type="button"
+                                  onClick={() => setManualEntryType('MANUAL_DEBIT')}
+                                  className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${manualEntryType === 'MANUAL_DEBIT' ? 'bg-red-50 text-red-600 border-2 border-red-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent'}`}
+                              >
+                                  Débito
+                              </button>
+                              <button 
+                                  type="button"
+                                  onClick={() => setManualEntryType('MANUAL_CREDIT')}
+                                  className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${manualEntryType === 'MANUAL_CREDIT' ? 'bg-green-50 text-green-600 border-2 border-green-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent'}`}
+                              >
+                                  Crédito
+                              </button>
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Valor (R$)</label>
+                          <input 
+                              type="number"
+                              step="0.01"
+                              value={manualEntryAmount}
+                              onChange={e => setManualEntryAmount(e.target.value)}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                              placeholder="0.00"
+                              required
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Observação (Opcional)</label>
+                          <textarea 
+                              value={manualEntryNotes}
+                              onChange={e => setManualEntryNotes(e.target.value)}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder={manualEntryType === 'MANUAL_DEBIT' ? 'Ex: Ajuste de saldo, Retrabalho...' : 'Ex: Pagamento extra, Desconto...'}
+                              rows={2}
+                          ></textarea>
+                      </div>
+
+                      <button 
+                          type="submit" 
+                          disabled={isAddingManualEntry}
+                          className="w-full py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2 mt-4"
+                      >
+                          {isAddingManualEntry ? <Loader2 size={20} className="animate-spin" /> : 'Registrar Lançamento'}
+                      </button>
+                  </form>
               </div>
           </div>
       )}

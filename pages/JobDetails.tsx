@@ -2862,20 +2862,6 @@ export const JobDetails = () => {
                                                     </div>
                                                     
                                                     {/* Variations Editing */}
-                                                    <div className="mt-4 pt-4 border-t border-slate-200">
-                                                        <label className="flex items-center gap-2 cursor-pointer p-3 bg-indigo-50 border border-indigo-100 rounded-xl w-fit">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={itemEditForm.isInternalStep}
-                                                                onChange={(e) => setItemEditForm({...itemEditForm, isInternalStep: e.target.checked})}
-                                                                className="h-4 w-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-600"
-                                                            />
-                                                            <span className="text-xs font-black text-indigo-900 uppercase tracking-widest">
-                                                                Definir como Etapa (Não Faturado)
-                                                            </span>
-                                                        </label>
-                                                    </div>
-                                                    
                                                     {(() => {
                                                         const itemJobType = jobTypes.find(jt => jt.id === item.jobTypeId);
                                                         if (!itemJobType || ((!itemJobType.variationGroups || itemJobType.variationGroups.length === 0) && (!itemJobType.variations || itemJobType.variations.length === 0))) return null;
