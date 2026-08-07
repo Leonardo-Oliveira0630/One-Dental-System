@@ -66,7 +66,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
+  const { jobs, budgets, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -329,8 +329,12 @@ export const JobDetails = () => {
         } as any;
       }
     }
-    return jobs.find(j => j.id === id);
-  }, [id, isPseudo, jobs, onlineRequisitions]);
+    const foundJob = jobs.find(j => j.id === id);
+    if (foundJob) return foundJob;
+    const foundBudget = budgets?.find(b => b.id === id);
+    if (foundBudget) return { ...foundBudget, isBudget: true, status: foundBudget.status || 'PENDING', osNumber: foundBudget.budgetNumber };
+    return undefined;
+  }, [id, isPseudo, jobs, budgets, onlineRequisitions]);
 
   const job = resolvedJob;
 
@@ -358,7 +362,8 @@ export const JobDetails = () => {
         navigate('/new-job', {
             state: {
                 entryType: 'CONTINUATION',
-                patientName: job.patientName,
+                fromBudget: job,
+        patientName: job.patientName,
                 dentistId: job.dentistId,
                 dentistName: job.dentistName,
                 osNumber: nextOsNumber,
@@ -2442,8 +2447,15 @@ export const JobDetails = () => {
               )}
               {canPrint && job.status !== JobStatus.REJECTED && (
                   <>
-                      <button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha Interna</button>
-                      <button onClick={() => triggerPrint(job, 'INVOICE_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha de Entrega</button>
+                      {!job.isBudget && (
+                        <>
+                          <button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha Interna</button>
+                          <button onClick={() => triggerPrint(job, 'INVOICE_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha de Entrega</button>
+                        </>
+                      )}
+                      {job.isBudget && (
+                          <button onClick={() => triggerPrint(job, 'BUDGET_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Imprimir Orçamento</button>
+                      )}
                       <button onClick={() => triggerPrint(job, 'LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Etiquetas</button>
                       <button onClick={() => triggerPrint(job, 'ADDRESS_LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><MapPin size={12} /> Endereço</button>
                   </>
@@ -2995,7 +3007,7 @@ export const JobDetails = () => {
                                             
                                             {canManageCommissions && editingItemId !== item.id && (
                                                 <div className="border-t border-slate-200 pt-4">
-                                                    <h4 className="text-[10px] font-black text-slate-600 uppercase mb-3 flex items-center gap-1"><Briefcase size={12} /> Setores Permitidos e Comissão</h4>
+                                                    {!job.isBudget && <h4 className="text-[10px] font-black text-slate-600 uppercase mb-3 flex items-center gap-1"><Briefcase size={12} /> Setores Permitidos e Comissão</h4>}
                                                     {allowedSecs.length === 0 ? (
                                                         <p className="text-xs text-slate-500 italic">Este serviço não tem setores específicos definidos. Permitido em todos.</p>
                                                     ) : (

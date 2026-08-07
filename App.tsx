@@ -149,6 +149,8 @@ const AppContent = () => {
       
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
+      <Route path="/budgets" element={<ProtectedRoute><JobsList isBudgetMode={true} /></ProtectedRoute>} />
+      <Route path="/new-budget" element={<ProtectedRoute><NewJob isBudget={true} /></ProtectedRoute>} />
       <Route path="/jobs" element={<ProtectedRoute><JobsList /></ProtectedRoute>} />
       <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
       <Route path="/nfc" element={<ProtectedRoute><NFCReader /></ProtectedRoute>} />

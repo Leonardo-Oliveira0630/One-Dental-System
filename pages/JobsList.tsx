@@ -3,7 +3,7 @@ import logger from "../utils/logger";
 import React, { useState, useMemo, memo } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
@@ -306,8 +306,8 @@ export const getSectorTimeInfo = (job: any) => {
     return { hours, isAttention: hours >= 18, label }
 }
 
-export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) => {
-  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
+export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: boolean; isBudgetMode?: boolean } = {}) => {
+  const { jobs, budgets, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
   const navigate = useNavigate();
   
   const [filterText, setFilterText] = useState('');
@@ -420,7 +420,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
       } as any));
 
     return [...nonAcceptedReqs, ...jobs];
-  }, [jobs, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId]);
+  }, [jobs, budgets, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId]);
 
   const filteredJobs = useMemo(() => {
     return combinedJobs.filter(job => {
@@ -507,7 +507,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
         return true;
       });
-  }, [jobs, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
+  }, [jobs, budgets, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
 
   const handleFinalizeJob = async (job: Job) => {
       const dentist = allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId);
@@ -771,9 +771,19 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
        <div className={`space-y-4 md:space-y-6 pb-20 ${isClient ? 'p-4 md:p-8 flex-1 overflow-y-auto' : ''}`}>
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{isClient ? 'Meus Pedidos' : 'Lista de Trabalhos'}</h1>
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{isClient ? 'Meus Pedidos' : (isBudgetMode ? 'Lista de Orçamentos' : 'Lista de Trabalhos')}</h1>
           <p className="text-xs md:text-sm text-slate-500">Mostrando {filteredJobs.length} registros encontrados.</p>
         </div>
+        {!isClient && isBudgetMode && (
+           <button onClick={() => navigate('/new-budget')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform">
+              <PlusCircle size={20} /> Novo Orçamento
+           </button>
+        )}
+        {!isClient && !isBudgetMode && (
+           <button onClick={() => navigate('/new-job')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform">
+              <PlusCircle size={20} /> Novo Caso
+           </button>
+        )}
       </div>
 
       {isClient && (

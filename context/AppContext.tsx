@@ -185,8 +185,8 @@ interface AppContextType {
   uploadFile: (file: File) => Promise<string>;
   getOriginalUrl: (url: string) => Promise<string>;
 
-  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE' | 'ADDRESS_LABEL' | 'INVOICE_SHEET', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
-  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET') => void;
+  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
+  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET') => void;
   triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => void;
   clearPrint: () => void;
   
@@ -1474,7 +1474,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     cart, addToCart: (i: CartItem) => setCart(p => [...p,i]), removeFromCart: (id: string) => setCart(p => p.filter(i => i.cartItemId !== id)), updateCartItemQty: (id: string, qty: number) => setCart(p => p.map(item => item.cartItemId === id ? { ...item, quantity: Math.max(1, qty), finalPrice: item.unitPrice * Math.max(1, qty) } : item)), clearCart: () => setCart([]),
     uploadFile: api.uploadJobFile,
     getOriginalUrl: api.getOriginalUrl,
-    printData, triggerPrint: (j: Job,m: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET') => setPrintData({job:j, mode:m}), 
+    printData, triggerPrint: (j: Job,m: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET') => setPrintData({job:j, mode:m}), 
     triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
     clearPrint: () => setPrintData(null),
     activeOrganization, switchActiveOrganization, userConnections,

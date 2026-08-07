@@ -52,7 +52,7 @@ export const DentistsTab = () => {
     complement: '',
     neighborhood: '',
     city: '',
-    state: '',
+    state: '', subDentists: [] as any[],
     country: 'Brasil',
     clinicName: '',
     clientType: 'CLINICA' as any,
@@ -213,7 +213,7 @@ export const DentistsTab = () => {
       name: '', email: '', phone: '', cpfCnpj: '', cro: '',
       birthDate: '', approvalDate: '', cep: '', address: '',
       number: '', complement: '', neighborhood: '', city: '',
-      state: '', country: 'Brasil', clinicName: '', clientType: 'CLINICA' as any, deliveryViaPost: false,
+      state: '', subDentists: [] as any[], country: 'Brasil', clinicName: '', clientType: 'CLINICA' as any, deliveryViaPost: false,
       priceTableId: priceTables.find(t => t.isDefault)?.id || '', billingLimit: 0, 
       isBlocked: false, blockReason: '' as any, temporaryUnblockUntil: null as any,
       isCustomPricing: false, globalDiscountPercent: 0, customPrices: [] as any[]

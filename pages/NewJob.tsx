@@ -7,7 +7,7 @@ import { getContrastColor } from '../services/mockData';
 import { formatTeethRange } from '../utils/toothUtils';
 // Added Crown to the lucide-react imports to fix line 404 error
 import { Odontogram } from "../components/Odontogram";
-import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package } from 'lucide-react';
+import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package, MapPin } from 'lucide-react';
 
 import * as api from '../services/firebaseService';
 
@@ -38,7 +38,7 @@ const getJobTypeColor = (jobTypeId: string, jobTypeName?: string) => {
 };
 
 export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
-  const { addJob, updateJob, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
+  const { addJob, updateJob, updateBudget, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -399,15 +399,17 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   }, [disabledOptions, selectedVariations, variationTextValues]);
 
   const generateNextNewOs = () => {
-    for (let i = 0; i < jobs.length; i++) {
-      const osStr = String(jobs[i].osNumber || '');
+    let max = 0;
+    const all = [...jobs, ...(budgets || []).map(b => ({ osNumber: b.budgetNumber }))];
+    for (let i = 0; i < all.length; i++) {
+      const osStr = String(all[i].osNumber || '');
       const basePart = osStr.split('-')[0].replace(/\D/g, '');
       const num = parseInt(basePart, 10);
-      if (!isNaN(num) && num > 0) {
-        return (num + 1).toString().padStart(4, '0');
+      if (!isNaN(num) && num > max) {
+        max = num;
       }
     }
-    return '0001';
+    return (max + 1).toString().padStart(4, '0');
   };
 
   const initialMountRef = useRef(true);
@@ -938,6 +940,11 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             } as Job);
 
         } else {
+            if (location.state?.fromBudget) {
+                try {
+                    await updateBudget(location.state.fromBudget.id, { status: 'APPROVED', notes: (location.state.fromBudget.notes || '') + '\n\n[AUTOMÁTICO] Orçamento aprovado e convertido na OS #' + finalOsNumber });
+                } catch(e) {}
+            }
             const jobId = await addJob(newJob); 
             
             // Deduct stock for each added product
@@ -1063,6 +1070,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                           </div>
                       )}
                     </div>
+                    {isBudget && selectedDentistObj && (selectedDentistObj.address || selectedDentistObj.city) && (
+                        <div className="md:col-span-12 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1"><MapPin size={12} className="inline mr-1"/> Endereço do Cliente</p>
+                            <p className="text-xs text-slate-700 font-bold uppercase">{selectedDentistObj.address}, {selectedDentistObj.number} - {selectedDentistObj.neighborhood}, {selectedDentistObj.city}/{selectedDentistObj.state}</p>
+                            {selectedDentistObj.cep && <p className="text-[10px] text-slate-500 font-bold mt-0.5">CEP: {selectedDentistObj.cep}</p>}
+                        </div>
+                    )}
                     {selectedDentistObj?.subDentists && selectedDentistObj.subDentists.length > 0 && (
                         <div className="md:col-span-12">
                             <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">
