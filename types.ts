@@ -461,7 +461,7 @@ export interface SectorMovement {
 export interface Budget {
   id: string;
   organizationId: string;
-  budgetNumber?: string;
+  osNumber?: string;
   patientName: string;
   dentistId: string;
   dentistName: string;
@@ -481,6 +481,7 @@ export interface Job {
   patientName: string;
   dentistId: string;
   dentistName: string;
+  clientOrigin?: 'DENTIST' | 'LABORATORY';
   status: JobStatus;
   urgency: UrgencyLevel;
   items: JobItem[];
@@ -553,6 +554,7 @@ export interface JobType {
   isVisibleInStore?: boolean;
   isVisibleInOutsourcing?: boolean;
   isVisibleInternally?: boolean;
+  isVisibleInternallyLabs?: boolean;
   imageUrl?: string;
   allowedSectors?: string[];
   sectorStages?: Record<string, string[]>;

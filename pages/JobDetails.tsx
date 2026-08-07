@@ -332,7 +332,23 @@ export const JobDetails = () => {
     const foundJob = jobs.find(j => j.id === id);
     if (foundJob) return foundJob;
     const foundBudget = budgets?.find(b => b.id === id);
-    if (foundBudget) return { ...foundBudget, isBudget: true, status: foundBudget.status || 'PENDING', osNumber: foundBudget.budgetNumber };
+    if (foundBudget) {
+        let parsedDate = foundBudget.createdAt ? (foundBudget.createdAt instanceof Date ? foundBudget.createdAt : new Date((foundBudget.createdAt.seconds || 0) * 1000 || foundBudget.createdAt)) : new Date();
+        if (isNaN(parsedDate.getTime())) parsedDate = new Date();
+        return { 
+            ...foundBudget, 
+            isBudget: true, 
+            status: foundBudget.status || 'PENDING', 
+            osNumber: foundBudget.osNumber || (foundBudget as any).budgetNumber,
+            urgency: 'NORMAL',
+            history: [],
+            sectorMovements: [],
+            items: foundBudget.items || [],
+            products: foundBudget.products || [],
+            createdAt: parsedDate,
+            dueDate: parsedDate,
+        } as any;
+    }
     return undefined;
   }, [id, isPseudo, jobs, budgets, onlineRequisitions]);
 
@@ -356,7 +372,7 @@ export const JobDetails = () => {
             if (nextSeq === 1) nextSeq = 2;
         }
     });
-    const nextOsNumber = `${baseOs}-${nextSeq}`;
+    const nextOsNumber = job.isBudget ? job.osNumber : `${baseOs}-${nextSeq}`;
 
     if (action === 'PROSSEGUIMENTO') {
         navigate('/new-job', {
@@ -537,7 +553,7 @@ export const JobDetails = () => {
         setEditOsNumber(job.osNumber || '');
         setEditBoxNumber(job.boxNumber || '');
         setEditBoxColorId(job.boxColor?.id || '');
-        setEditDueDate(new Date(job.dueDate).toISOString().split('T')[0]);
+        if (job.dueDate) setEditDueDate(new Date(job.dueDate).toISOString().split("T")[0]);
         setEditDueTime(job.dueTime || '');
         setEditTotalValue(job.totalValue || 0);
         setEditUrgency(job.urgency);
@@ -548,7 +564,7 @@ export const JobDetails = () => {
         setEditDentistName(job.dentistName || '');
         setEditSubDentistName(job.subDentistName || '');
         setDentistSearchQuery(job.dentistName || '');
-        const visibleTypes = jobTypes.filter(t => t.isVisibleInternally !== false);
+        const visibleTypes = jobTypes.filter(t => job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false);
         if (visibleTypes.length > 0) setNewItemTypeId(visibleTypes[0].id);
         else if (jobTypes.length > 0) setNewItemTypeId(jobTypes[0].id);
     }
@@ -877,7 +893,7 @@ export const JobDetails = () => {
             changes.push(`- Cor da Caixa: ${job.boxColor?.name || 'Sem cor'} -> ${selectedBoxColor?.name || 'Sem cor'}`);
         }
         
-        const oldDate = new Date(job.dueDate).toISOString().split('T')[0];
+        const oldDate = job.dueDate ? new Date(job.dueDate).toISOString().split("T")[0] : "";
         if (editDueDate !== oldDate) changes.push(`- Vencimento: ${oldDate} -> ${editDueDate}`);
         
         if (editUrgency !== job.urgency) changes.push(`- Urgência: ${job.urgency} -> ${editUrgency}`);
@@ -1552,7 +1568,7 @@ export const JobDetails = () => {
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Data de Finalização</span>
               <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
                 <Calendar size={16} className="text-green-500 font-bold" />
-                <span>{new Date(job.dueDate).toLocaleDateString('pt-BR')}</span>
+                <span>{(job.dueDate ? new Date(job.dueDate).toLocaleDateString("pt-BR") : "-")}</span>
               </div>
             </div>
 
@@ -2162,7 +2178,7 @@ export const JobDetails = () => {
                                                   <div>
                                                       <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Tipo de Serviço</label>
                                                       <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, { jobTypeId: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
-                                                          {jobTypes.filter(t => t.isVisibleInternally !== false || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                          {jobTypes.filter(t => (job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false) || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                       </select>
                                                   </div>
                                                   <div className="flex gap-2 items-end">
@@ -2294,7 +2310,7 @@ export const JobDetails = () => {
                                    <div>
                                        <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Tipo de Serviço</label>
                                        <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
-                                           {jobTypes.filter(t => t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                           {jobTypes.filter(t => job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                        </select>
                                    </div>
                                    <div className="flex gap-2 items-end">
@@ -2435,7 +2451,12 @@ export const JobDetails = () => {
       <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 shrink-0">
           <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors"><ArrowLeft size={16} /> Lista</button>
           <div className="flex flex-wrap gap-2 w-full xs:w-auto">
-              {canReopen && (
+              {job.isBudget && job.status === 'PENDING' && (
+                  <button onClick={() => handleReturnAction('PROSSEGUIMENTO')} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-green-50 border border-green-100 text-green-600 rounded-lg hover:bg-green-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
+                      <CheckCircle2 size={12} /> APROVAR E GERAR OS
+                  </button>
+              )}
+              {canReopen && !job.isBudget && (
                   <>
                     <button onClick={() => setShowReturnModal(true)} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
                         <Plus size={12} /> CADASTRAR RETORNO
@@ -2482,7 +2503,11 @@ export const JobDetails = () => {
                                                 Histórico do Paciente
                                             </div>
                                             {jobs.filter(j => j.patientName === job.patientName)
-                                                 .sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                                                 .sort((a,b) => {
+                                                    const dateA = a.createdAt instanceof Date ? a.createdAt : new Date((a.createdAt?.seconds || 0) * 1000 || a.createdAt);
+                                                    const dateB = b.createdAt instanceof Date ? b.createdAt : new Date((b.createdAt?.seconds || 0) * 1000 || b.createdAt);
+                                                    return dateA.getTime() - dateB.getTime();
+                                                 })
                                                  .map(j => (
                                                 <button 
                                                     key={j.id} 
@@ -2559,7 +2584,7 @@ export const JobDetails = () => {
             <div className="flex flex-col xs:flex-row lg:flex-col lg:items-end gap-3 w-full lg:w-auto mt-2 lg:mt-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-50">
                 <div className="lg:text-right shrink-0">
                     <p className="text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Previsão de Saída</p>
-                    <div className="flex items-center lg:justify-end gap-1.5 text-sm md:text-lg font-black text-slate-800"><Calendar size={18} className="text-blue-600 shrink-0" /> {new Date(job.dueDate).toLocaleDateString()}</div>
+                    <div className="flex items-center lg:justify-end gap-1.5 text-sm md:text-lg font-black text-slate-800"><Calendar size={18} className="text-blue-600 shrink-0" /> {(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</div>
                 </div>
                 
                 <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1 lg:justify-end w-full">
@@ -3373,7 +3398,7 @@ export const JobDetails = () => {
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-3 text-center">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{new Date(job.dueDate).toLocaleDateString([], { day: '2-digit', month: '2-digit' })}</span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{(job.dueDate ? new Date(job.dueDate).toLocaleDateString([], { day: '2-digit', month: '2-digit' }) : "-")}</span>
                                                     </td>
                                                     <td className="px-5 py-3 text-center">
                                                         {latestMov ? (

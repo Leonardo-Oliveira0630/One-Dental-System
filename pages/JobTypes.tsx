@@ -62,6 +62,7 @@ export const JobTypes = () => {
   const [isVisibleInStore, setIsVisibleInStore] = useState(true);
   const [isVisibleInOutsourcing, setIsVisibleInOutsourcing] = useState(true);
   const [isVisibleInternally, setIsVisibleInternally] = useState(true);
+  const [isVisibleInternallyLabs, setIsVisibleInternallyLabs] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -156,6 +157,7 @@ export const JobTypes = () => {
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
     setIsVisibleInOutsourcing(type.isVisibleInOutsourcing !== false); // Default true if undefined
     setIsVisibleInternally(isFreeLab ? false : (type.isVisibleInternally !== false));
+    setIsVisibleInternallyLabs(isFreeLab ? false : (type.isVisibleInternallyLabs === true));
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
     setAllowedSectors(type.allowedSectors || []);
@@ -238,6 +240,7 @@ export const JobTypes = () => {
           isVisibleInStore, 
           isVisibleInOutsourcing, 
           isVisibleInternally, 
+          isVisibleInternallyLabs,
           imageUrl: finalImageUrl, 
           allowedSectors,
           isPromotion: isPromoToSave,
@@ -473,8 +476,13 @@ export const JobTypes = () => {
                                     </span>
                                 )}
                                 {type.isVisibleInternally === false && (
-                                    <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                        <EyeOff size={10} /> Oculto Interno
+                                    <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1" title="Oculto para Dentistas">
+                                        <EyeOff size={10} /> Oculto (Dentistas)
+                                    </span>
+                                )}
+                                {type.isVisibleInternallyLabs === false && (
+                                    <span className="text-[10px] bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded flex items-center gap-1" title="Oculto para Laboratórios">
+                                        <EyeOff size={10} /> Oculto (Labs)
                                     </span>
                                 )}
                             </div>
@@ -721,21 +729,36 @@ export const JobTypes = () => {
                                             <span className="text-[10px] text-slate-400">Exibir no catálogo para laboratórios parceiros contratantes</span>
                                         </div>
 
-                                        <div className={`flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200 ${isFreeLab ? 'hidden' : 'flex'}`}>
+                                        <div className={`flex flex-col gap-3 bg-white p-3 rounded-lg border border-slate-200 ${isFreeLab ? 'hidden' : 'flex'}`}>
                                             {!isFreeLab && (
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-slate-800">Trabalhos Internos</span>
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => setIsVisibleInternally(!isVisibleInternally)}
-                                                        className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternally ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                                                    >
-                                                        <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternally ? 'translate-x-5' : 'translate-x-0'}`} />
-                                                    </button>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-slate-800">Trabalhos Internos (Dentistas)</span>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setIsVisibleInternally(!isVisibleInternally)}
+                                                            className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternally ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                        >
+                                                            <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternally ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-400">Visível para dentistas no cadastro manual.</span>
                                                 </div>
                                             )}
                                             {!isFreeLab && (
-                                                <span className="text-[10px] text-slate-400">Ativar visibilidade para trabalhos manuais ou ordens internas criadas no laboratório</span>
+                                                <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-slate-800">Trabalhos Internos (Laboratórios)</span>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setIsVisibleInternallyLabs(!isVisibleInternallyLabs)}
+                                                            className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternallyLabs ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                        >
+                                                            <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternallyLabs ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-400">Visível para laboratórios parceiros no cadastro manual.</span>
+                                                </div>
                                             )}
                                         </div>
                                     </div>

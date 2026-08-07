@@ -50,6 +50,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   // --- Global States ---
   const [entryType, setEntryType] = useState<EntryType>((location.state?.entryType as EntryType) || 'NEW');
   const [patientName, setPatientName] = useState((location.state?.patientName || '').toUpperCase());
+  const [clientOrigin, setClientOrigin] = useState<'DENTIST' | 'LABORATORY'>('DENTIST');
   const [selectedDentistObj, setSelectedDentistObj] = useState<any | null>(null);
   const [selectedDentistId, setSelectedDentistId] = useState(location.state?.dentistId || '');
   const [dentistName, setDentistName] = useState((location.state?.dentistName || '').toUpperCase());
@@ -178,11 +179,16 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   }, [dentistSearchQuery, connectedDentists, manualDentists]);
 
   const filteredJobTypes = useMemo(() => {
-    const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
+    let visible = jobTypes;
+    if (clientOrigin === 'DENTIST') {
+        visible = jobTypes.filter(t => t.isVisibleInternally !== false);
+    } else {
+        visible = jobTypes.filter(t => t.isVisibleInternallyLabs === true);
+    }
     if (!jobTypeSearchQuery) return visible.slice(0, 10);
     const query = jobTypeSearchQuery.toLowerCase();
     return visible.filter(t => t.name.toLowerCase().includes(query)).slice(0, 10);
-  }, [jobTypeSearchQuery, jobTypes]);
+  }, [jobTypeSearchQuery, jobTypes, clientOrigin]);
 
   const calculatedBasePrice = useMemo(() => {
     if (!activeJobType) return 0;
@@ -400,7 +406,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
   const generateNextNewOs = () => {
     let max = 0;
-    const all = [...jobs, ...(budgets || []).map(b => ({ osNumber: b.budgetNumber }))];
+    const all = [...jobs, ...(budgets || []).map(b => ({ osNumber: b.osNumber }))];
     for (let i = 0; i < all.length; i++) {
       const osStr = String(all[i].osNumber || '');
       const basePart = osStr.split('-')[0].replace(/\D/g, '');
@@ -419,13 +425,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
       initialMountRef.current = false;
       const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
       if (entryType === 'NEW' && !location.state?.osNumber) {
-        setOsNumber('');
+        setOsNumber(generateNextNewOs());
       }
       return;
     }
 
     if (entryType === 'NEW') {
-        if (!location.state?.osNumber) setOsNumber('');
+        if (!location.state?.osNumber) setOsNumber(generateNextNewOs());
         setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
         setLastJobFound(null);
         loadedJobIdRef.current = null;
@@ -826,7 +832,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     try {
         if (isBudget) {
             const newBudget = {
-                budgetNumber: finalOsNumber,
+                osNumber: finalOsNumber,
                 patientName: patientName.trim().toUpperCase(),
                 dentistId: selectedDentistId,
                 dentistName: dentistName.trim().toUpperCase(),
@@ -849,7 +855,8 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             patientName: patientName.trim().toUpperCase(), 
             dentistId: selectedDentistId, 
             dentistName: dentistName.trim().toUpperCase(),
-                subDentistName: subDentistName.trim() || undefined, 
+            clientOrigin,
+            subDentistName: subDentistName.trim() || undefined, 
             status: JobStatus.PENDING, 
             paymentStatus: location.state?.paymentStatus || 'PENDING', 
             urgency, 
@@ -1050,7 +1057,24 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                          <input value={patientName} onChange={e => setPatientName(e.target.value.toUpperCase())} required placeholder="Ex: MARIA DAS DORES" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold uppercase" />
                     </div>
                     
-                    <div className="md:col-span-12 relative" ref={dropdownRef}>
+                    <div className="md:col-span-3">
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Origem do Caso</label>
+                        <select
+                            value={clientOrigin}
+                            onChange={e => {
+                                setClientOrigin(e.target.value as 'DENTIST' | 'LABORATORY');
+                                // clear job type search if origin changes to avoid invalid selections
+                                setSelectedTypeId('');
+                                setJobTypeSearchQuery('');
+                            }}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700"
+                        >
+                            <option value="DENTIST">Dentista</option>
+                            <option value="LABORATORY">Laboratório</option>
+                        </select>
+                    </div>
+
+                    <div className="md:col-span-9 relative" ref={dropdownRef}>
                       <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Cliente <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
