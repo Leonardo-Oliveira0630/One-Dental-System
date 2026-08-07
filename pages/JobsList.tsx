@@ -487,6 +487,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
         const searchLower = normalizeText(filterText);
         const matchText = 
           normalizeText(job.osNumber || '').includes(searchLower) ||
+          normalizeText(job.boxNumber || '').includes(searchLower) ||
           normalizeText(job.patientName).includes(searchLower) ||
           normalizeText(job.dentistName).includes(searchLower);
         if (!matchText) return false;
@@ -902,7 +903,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                 <Search className="absolute left-3 top-3 text-slate-400" size={20} />
                 <input 
                     type="text" 
-                    placeholder="Buscar OS, Paciente, Dentista..." 
+                    placeholder="Buscar OS, Caixa, Paciente, Dentista..." 
                     value={filterText}
 
                     onChange={(e) => setFilterText(e.target.value)}
