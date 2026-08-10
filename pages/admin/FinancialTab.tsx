@@ -163,7 +163,7 @@ export const FinancialTab = () => {
                                   <Key size={24} />
                               </div>
                               <h4 className="font-bold text-lg text-slate-800">Já possuo conta Asaas</h4>
-                              <p className="text-sm text-slate-500 mt-2">Vincule sua API Key existente para gerenciar o split manualmente.</p>
+                              <p className="text-sm text-slate-500 mt-2">Vincule seu Wallet ID existente para gerenciar o split e recebimentos.</p>
                           </button>
                       </div>
                   )}
@@ -174,16 +174,16 @@ export const FinancialTab = () => {
                               <Info className="text-indigo-600 shrink-0 mt-1" size={20} />
                               <div className="text-xs text-indigo-800 leading-relaxed">
                                   <p className="font-bold mb-1 uppercase">Como obter sua chave:</p>
-                                  Acesse seu painel Asaas, vá em <strong>Configurações da Conta &gt; Integrações</strong> e gere uma nova Chave de API.
+                                  Acesse seu painel Asaas, vá em <strong>Minha Conta</strong> ou <strong>Integrações</strong> e copie o seu <strong>Wallet ID (ID da Carteira)</strong>.
                               </div>
                           </div>
                           
                           <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Sua API Key do Asaas (Wallet ID)</label>
+                              <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Seu ID da Carteira Asaas (Wallet ID)</label>
                               <input 
                                 value={manualAsaasKey}
                                 onChange={e => setManualAsaasKey(e.target.value)}
-                                placeholder="Ex: $a.as.xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                placeholder="Ex: 5f83... (ID da Carteira)"
                                 className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
                               />
                           </div>
@@ -292,7 +292,7 @@ export const FinancialTab = () => {
                       O sistema já está apto a processar pagamentos e realizar o split automático da comissão.
                   </p>
                   <div className="bg-white px-6 py-4 rounded-2xl border border-slate-200 w-full max-w-lg text-left relative group">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">API Key / ID da Carteira (Confidencial):</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">ID da Carteira (Wallet ID):</p>
                       <p className="font-mono text-sm font-bold text-slate-700 break-all pr-12">
                           {asaasWalletId.substring(0, 10)}**********************************
                       </p>
