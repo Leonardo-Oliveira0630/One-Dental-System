@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
@@ -7,6 +6,20 @@ import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const translatePaymentMethod = (method: string) => {
+    switch (method) {
+        case 'PIX': return 'PIX';
+        case 'CASH': return 'Dinheiro';
+        case 'CREDIT_CARD': return 'Cartão Crédito';
+        case 'DEBIT_CARD': return 'Cartão Débito';
+        case 'BANK_TRANSFER': return 'Transf. Bancária';
+        case 'BOLETO': return 'Boleto';
+        case 'DISCOUNT': return 'Desconto/Cortesia';
+        case 'CLIENT_CREDIT': return 'Saldo Crédito';
+        default: return method;
+    }
+};
 
 export const Dentists = () => {
     const { 
@@ -36,9 +49,15 @@ export const Dentists = () => {
     const [blockReason, setBlockReason] = useState<'DEBT' | 'FINANCIAL_APPROVAL' | ''>('');
     const [temporaryUnblockUntil, setTemporaryUnblockUntil] = useState<Date | null>(null);
     const [customPrices, setCustomPrices] = useState<any[]>([]);
+    const [subDentists, setSubDentists] = useState<{ id: string; name: string; cro?: string; }[]>([]);
     
     // Extrato State
     const [showStatement, setShowStatement] = useState(false);
+    const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+    const [manualEntryType, setManualEntryType] = useState<'MANUAL_DEBIT' | 'MANUAL_CREDIT'>('MANUAL_DEBIT');
+    const [manualEntryAmount, setManualEntryAmount] = useState('');
+    const [manualEntryNotes, setManualEntryNotes] = useState('');
+    const [isAddingManualEntry, setIsAddingManualEntry] = useState(false);
     const [showAsaasError, setShowAsaasError] = useState(false);
     const [statementClient, setStatementClient] = useState<any | null>(null);
     const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
@@ -167,7 +186,7 @@ export const Dentists = () => {
         setIsBlocked(client.isBlocked || false);
         setBillingLimit(client.billingLimit || 0);
         setBlockReason(client.blockReason || '');
-        let parsedDate: Date | null = null;
+        let parsedDate = null;
         if (client.temporaryUnblockUntil) {
             if (typeof client.temporaryUnblockUntil.toDate === 'function') {
                 parsedDate = client.temporaryUnblockUntil.toDate();
@@ -177,7 +196,38 @@ export const Dentists = () => {
             if (parsedDate && isNaN(parsedDate.getTime())) parsedDate = null;
         }
         setTemporaryUnblockUntil(parsedDate);
-        setCustomPrices(client.customPrices || []);
+        
+        // Ensure that if isCustomPricing is true, customPrices is fully populated
+        let loadedCustomPrices = client.customPrices || [];
+        if (client.isCustomPricing) {
+            const assignedTable = priceTables.find(t => t.id === client.priceTableId);
+            loadedCustomPrices = jobTypes.map(type => {
+                const existing = loadedCustomPrices.find((p: any) => p.jobTypeId === type.id);
+                if (existing && existing.fixedPrice !== undefined) return existing;
+                
+                let baseForService = type.basePrice;
+                let variations = {};
+                
+                if (assignedTable && assignedTable.prices[type.id]) {
+                    if (assignedTable.prices[type.id].basePrice !== undefined) {
+                        baseForService = assignedTable.prices[type.id].basePrice;
+                    }
+                    if (assignedTable.prices[type.id].variations) {
+                        variations = { ...assignedTable.prices[type.id].variations };
+                    }
+                }
+                
+                if (existing && existing.discountPercent !== undefined) {
+                    return {
+                        ...existing,
+                        fixedPrice: baseForService * (1 - existing.discountPercent / 100),
+                        variations
+                    };
+                }
+                return { jobTypeId: type.id, fixedPrice: baseForService, variations };
+            });
+        }
+        setCustomPrices(loadedCustomPrices);
     };
 
     const handleSavePricing = async () => {
@@ -219,6 +269,41 @@ export const Dentists = () => {
             alert("Erro ao salvar preços. Verifique suas permissões.");
         } finally {
             setIsSaving(false);
+        }
+    };
+
+
+    const handleAddManualEntry = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!statementClient) return;
+        
+        const amount = parseFloat(manualEntryAmount);
+        if (isNaN(amount) || amount <= 0) {
+            alert("Digite um valor válido.");
+            return;
+        }
+
+        setIsAddingManualEntry(true);
+        try {
+            await addDentistPayment({
+                dentistId: statementClient.id,
+                dentistName: statementClient.name,
+                amount: amount,
+                paymentMethod: 'CASH',
+                paymentDate: new Date(),
+                type: manualEntryType === 'MANUAL_DEBIT' ? 'MANUAL_DEBIT' : 'MANUAL_CREDIT',
+                notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? 'Ajuste a Débito' : 'Ajuste a Crédito')
+            } as any);
+            
+            setShowManualEntryModal(false);
+            setManualEntryAmount('');
+            setManualEntryNotes('');
+            alert('Lançamento manual registrado com sucesso!');
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao registrar lançamento manual.');
+        } finally {
+            setIsAddingManualEntry(false);
         }
     };
 
@@ -298,9 +383,14 @@ export const Dentists = () => {
             ...clientPayments.map(p => ({
                 id: p.id,
                 date: p.paymentDate,
-                type: (p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT',
-                description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
-                amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0)),
+                type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
+                description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
+                             p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` :
+                             p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` :
+                             `Pagamento: ${translatePaymentMethod(p.paymentMethod)} ${p.notes ? `- ${p.notes}` : ''}`,
+                amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
+                        (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) :
+                        (Number(p.amount || 0) + Number(p.discount || 0)),
                 payment: p
             }))
         ];
@@ -315,7 +405,7 @@ export const Dentists = () => {
         
         const historyWithBalance = sorted.map(item => {
             if (item.type === 'DEBIT') runningBalance -= item.amount;
-            else runningBalance += item.amount;
+            else if (item.payment?.paymentMethod !== 'CLIENT_CREDIT') runningBalance += item.amount;
             
             const isBefore = new Date(item.date) < sDate;
             if (isBefore) previousBalance = runningBalance;
@@ -442,7 +532,7 @@ export const Dentists = () => {
             { content: `R$ ${chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', fontStyle: 'normal', lineWidth: { bottom: 0.1 } as any, lineColor: [220,220,220] } }
         ]);
 
-        chronoHistory.history.forEach((item) => {
+        chronoHistory.history.forEach((item: any) => {
             const isDebit = item.type === 'DEBIT';
             const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
             const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
@@ -701,7 +791,7 @@ export const Dentists = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                 {filtered.map(client => {
                     const clientBatches = billingBatches.filter(b => b.dentistId === client.id);
                     const gBatches = clientBatches.filter(b => b.status === 'PENDING');
@@ -709,7 +799,7 @@ export const Dentists = () => {
                     const pBatches = clientBatches.filter(b => b.status === 'PAID');
                     
                     return (
-                        <div key={client.id} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group relative overflow-hidden">
+                        <div key={client.id} className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition-all group relative overflow-hidden">
                         {client.deliveryViaPost && (
                           <div className="absolute top-4 right-4 bg-orange-100 text-orange-600 p-2 rounded-lg" title="Entrega via Correios">
                              <Package size={16} />
@@ -810,9 +900,9 @@ export const Dentists = () => {
 
             {/* MODAL DE TABELA DE PREÇOS */}
             {selectedClient && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
                             <div>
                                 <h3 className="text-xl font-black text-slate-800">Tabela de Preços: {selectedClient.name}</h3>
                                 <p className="text-xs text-slate-500 font-bold uppercase">Personalize os descontos para este cliente</p>
@@ -820,7 +910,7 @@ export const Dentists = () => {
                             <button onClick={() => setSelectedClient(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
 
-                            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8">
                                 {hasPerm('clients:block_manage') && (
                                     <div className="space-y-4">
                                         <div className={`p-4 rounded-xl border transition-all ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
@@ -893,7 +983,7 @@ export const Dentists = () => {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                                 {hasPerm('catalog:prices_view') && (
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Tabela de Preços Base</label>
@@ -922,6 +1012,62 @@ export const Dentists = () => {
                                         <option value="LABORATORIO">Laboratório</option>
                                     </select>
                                 </div>
+                                
+                                {clientType === 'CLINICA' && (
+                                    <div className="space-y-3 col-span-1 md:col-span-2">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Dentistas Associados (Sub-contas)</label>
+                                            <button 
+                                                onClick={() => setSubDentists([...subDentists, { id: Math.random().toString(36).substring(2, 9), name: '', cro: '' }])}
+                                                className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200 flex items-center gap-1"
+                                            >
+                                                <Plus size={12} /> Adicionar Dentista
+                                            </button>
+                                        </div>
+                                        {subDentists.length === 0 ? (
+                                            <p className="text-xs text-slate-400 italic px-1">Nenhum dentista cadastrado para esta clínica.</p>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {subDentists.map((sd, idx) => (
+                                                    <div key={sd.id || idx} className="flex gap-2 items-center bg-slate-50 p-2 rounded-lg border border-slate-200">
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Nome do Dentista" 
+                                                            value={sd.name}
+                                                            onChange={e => {
+                                                                const newArr = [...subDentists];
+                                                                newArr[idx].name = e.target.value;
+                                                                setSubDentists(newArr);
+                                                            }}
+                                                            className="flex-1 px-3 py-1.5 text-sm rounded bg-white border border-slate-200"
+                                                        />
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="CRO (opcional)" 
+                                                            value={sd.cro || ''}
+                                                            onChange={e => {
+                                                                const newArr = [...subDentists];
+                                                                newArr[idx].cro = e.target.value;
+                                                                setSubDentists(newArr);
+                                                            }}
+                                                            className="w-32 px-3 py-1.5 text-sm rounded bg-white border border-slate-200"
+                                                        />
+                                                        <button 
+                                                            onClick={() => {
+                                                                const newArr = [...subDentists];
+                                                                newArr.splice(idx, 1);
+                                                                setSubDentists(newArr);
+                                                            }}
+                                                            className="p-1.5 text-red-500 hover:bg-red-50 rounded"
+                                                        >
+                                                            <MinusCircle size={16} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 <div className="space-y-4">
                                      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
@@ -934,7 +1080,44 @@ export const Dentists = () => {
                                                 type="checkbox" 
                                                 className="sr-only peer" 
                                                 checked={isCustomPricing}
-                                                onChange={e => setIsCustomPricing(e.target.checked)}
+                                                onChange={e => {
+                                                    const checked = e.target.checked;
+                                                    setIsCustomPricing(checked);
+                                                    if (checked) {
+                                                        const assignedTable = priceTables.find(t => t.id === priceTableId);
+                                                        const newCustomPrices = jobTypes.map(type => {
+                                                            const existing = customPrices.find((p: any) => p.jobTypeId === type.id);
+                                                            if (existing && existing.fixedPrice !== undefined) return existing;
+                                                            
+                                                            let baseForService = type.basePrice;
+                                                            let variations = {};
+                                                            
+                                                            if (assignedTable && assignedTable.prices[type.id]) {
+                                                                if (assignedTable.prices[type.id].basePrice !== undefined) {
+                                                                    baseForService = assignedTable.prices[type.id].basePrice;
+                                                                }
+                                                                if (assignedTable.prices[type.id].variations) {
+                                                                    variations = { ...assignedTable.prices[type.id].variations };
+                                                                }
+                                                            }
+                                                            
+                                                            if (existing && existing.discountPercent !== undefined) {
+                                                                return {
+                                                                    ...existing,
+                                                                    fixedPrice: baseForService * (1 - existing.discountPercent / 100),
+                                                                    variations
+                                                                };
+                                                            }
+                                                            
+                                                            return {
+                                                                jobTypeId: type.id,
+                                                                fixedPrice: baseForService,
+                                                                variations
+                                                            };
+                                                        });
+                                                        setCustomPrices(newCustomPrices);
+                                                    }
+                                                }}
                                             />
                                             <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                         </label>
@@ -1011,7 +1194,7 @@ export const Dentists = () => {
 
                             {isCustomPricing ? (
                                 <>
-                                    <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                                    <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
                                         <div className="flex items-center gap-3 mb-4 text-green-800">
                                             <Percent size={24} />
                                             <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
@@ -1044,7 +1227,9 @@ export const Dentists = () => {
                                                      const finalPrice = cp?.fixedPrice ?? (basePriceForService * (1 - discountValue / 100));
                                                     
                                                     return (
-                                                        <div key={type.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all">
+                                                        <div key={type.id} className="flex flex-col p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all gap-4">
+                                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between">
+                                                                
                                                             <div className="mb-2 sm:mb-0">
                                                                 <p className="font-bold text-slate-800">{type.name}</p>
                                                                 {(() => {
@@ -1053,7 +1238,7 @@ export const Dentists = () => {
                                                                     const basePriceForService = tablePriceObj?.basePrice !== undefined ? tablePriceObj.basePrice : type.basePrice;
                                                                     return (
                                                                         <p className="text-xs text-slate-400">
-                                                                            {assignedTable ? `Preço Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Preço Padrão: R$ {type.basePrice.toFixed(2)}`}
+                                                                            {assignedTable ? `Preço Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Preço Padrão: R$ ${type.basePrice.toFixed(2)}`}
                                                                         </p>
                                                                     );
                                                                 })()}
@@ -1098,7 +1283,7 @@ export const Dentists = () => {
                                                                                 const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                                 if (idx !== -1) {
                                                                                     newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined };
-                                                                                    if (newFixed === 0 && !newCustomPrices[idx].discountPercent) newCustomPrices.splice(idx, 1);
+                                                                                    // if (newFixed === 0 && !newCustomPrices[idx].discountPercent) newCustomPrices.splice(idx, 1);
                                                                                 } else if (newFixed > 0) {
                                                                                     newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed });
                                                                                 }
@@ -1110,6 +1295,68 @@ export const Dentists = () => {
                                                                     </div>
                                                                 </div>
                                                             </div>
+                                                        
+                                                            </div>
+                                                            {((type.variationGroups && type.variationGroups.length > 0) || (type.variations && type.variations.length > 0)) && (
+                                                                <div className="mt-2 pt-4 border-t border-slate-200">
+                                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Variações / Adicionais</p>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                                                                        {(type.variationGroups && type.variationGroups.length > 0 ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }]).map((group: any) => (
+                                                                            <div key={group.id} className="space-y-3">
+                                                                                <p className="text-[10px] font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full inline-block">{group.name}</p>
+                                                                                <div className="space-y-2">
+                                                                                    {group.options.map((opt: any) => {
+                                                                                        const tablePriceObj = priceTables.find(t => t.id === priceTableId)?.prices[type.id];
+                                                                                        const tableVariationPrice = tablePriceObj?.variations?.[opt.id];
+                                                                                        const baseVariationPrice = tableVariationPrice !== undefined ? tableVariationPrice : opt.priceModifier;
+                                                                                        const customVarPrice = cp?.variations?.[opt.id];
+                                                                                        return (
+                                                                                            <div key={opt.id} className="flex items-center justify-between text-xs px-2 group/opt">
+                                                                                                <div className="flex flex-col">
+                                                                                                    <span className="text-slate-600 font-bold">{opt.name}</span>
+                                                                                                    <span className="text-[9px] text-slate-400">Padrão: R$ {baseVariationPrice.toFixed(2)}</span>
+                                                                                                </div>
+                                                                                                <div className="flex items-center gap-2">
+                                                                                                    <span className="text-[9px] text-slate-400 font-bold">R$</span>
+                                                                                                    <input 
+                                                                                                        type="number"
+                                                                                                        value={customVarPrice !== undefined ? customVarPrice : ''}
+                                                                                                        onChange={e => {
+                                                                                                            const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                                                                            const newCustomPrices = [...customPrices];
+                                                                                                            let idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                                                            if (idx === -1) {
+                                                                                                                idx = newCustomPrices.length;
+                                                                                                                newCustomPrices.push({ jobTypeId: type.id, variations: {} });
+                                                                                                            }
+                                                                                                            if (!newCustomPrices[idx].variations) newCustomPrices[idx].variations = {};
+                                                                                                            
+                                                                                                            if (val === undefined) {
+                                                                                                                delete newCustomPrices[idx].variations[opt.id];
+                                                                                                                if (Object.keys(newCustomPrices[idx].variations).length === 0) {
+                                                                                                                    delete newCustomPrices[idx].variations;
+                                                                                                                    if (!newCustomPrices[idx].fixedPrice && !newCustomPrices[idx].discountPercent) {
+                                                                                                                        newCustomPrices.splice(idx, 1);
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                newCustomPrices[idx].variations[opt.id] = val;
+                                                                                                            }
+                                                                                                            setCustomPrices(newCustomPrices);
+                                                                                                        }}
+                                                                                                        className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-md font-bold text-right outline-none focus:border-blue-400 transition-all"
+                                                                                                        placeholder="Fixo"
+                                                                                                    />
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}
@@ -1117,7 +1364,7 @@ export const Dentists = () => {
                                         </div>
                                 </>
                             ) : (
-                                <div className="bg-slate-50 p-8 rounded-3xl border border-dashed border-slate-200 text-center">
+                                <div className="bg-slate-50 p-4 sm:p-8 rounded-3xl border border-dashed border-slate-200 text-center">
                                     <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">
                                         <Table size={32} />
                                     </div>
@@ -1127,7 +1374,7 @@ export const Dentists = () => {
                             )}
                         </div>
 
-                        <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
                             <button onClick={() => setSelectedClient(null)} className="px-6 py-3 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-all">Cancelar</button>
                             <button 
                                 onClick={handleSavePricing}
@@ -1143,11 +1390,11 @@ export const Dentists = () => {
             )}
             {/* MODAL DE EXTRATO (STATEMENT) DASHBOARD FINANCEIRO */}
             {showStatement && statementClient && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-slate-50 rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
                         
                         {/* HEADER */}
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-white">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-blue-100 text-blue-600 rounded-2xl">
                                     <FileSpreadsheet size={24} />
@@ -1165,7 +1412,7 @@ export const Dentists = () => {
                         </div>
 
                         {/* SUMMARY CARDS */}
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 border-b border-slate-100">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 border-b border-slate-100">
                             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md group">
                                 <div className="flex items-center gap-2 mb-2 text-red-500">
                                     <MinusCircle size={16} />
@@ -1248,7 +1495,7 @@ export const Dentists = () => {
                         </div>
 
                         {/* TAB CONTENT */}
-                        <div className="flex-1 overflow-y-auto p-6 relative">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 relative">
                             {isLoadingStatement && (
                                 <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
                                     <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
@@ -1278,12 +1525,20 @@ export const Dentists = () => {
                                             </div>
                                             <p className="text-[10px] font-bold text-slate-400 max-w-[150px] leading-tight">Mude o período para ver o saldo anterior e fechamentos.</p>
                                         </div>
-                                        <button 
-                                            onClick={generateStatementPDF}
-                                            className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-200"
-                                        >
-                                            <Download size={16} /> Exportar PDF
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setShowManualEntryModal(true)}
+                                                className="px-4 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-lg shadow-blue-500/30"
+                                            >
+                                                <Plus size={16} /> Lançamento Manual
+                                            </button>
+                                            <button 
+                                                onClick={generateStatementPDF}
+                                                className="px-4 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-200"
+                                            >
+                                                <Download size={16} /> PDF
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -1327,9 +1582,9 @@ export const Dentists = () => {
                                                                         </div>
                                                                         <span className="text-xs font-black text-slate-800">{item.description}</span>
                                                                     </div>
-                                                                    {item.type === 'DEBIT' && item.job && (
+                                                                    {item.type === 'DEBIT' && 'job' in item && (item as any).job && (
                                                                         <div className="ml-10 space-y-1">
-                                                                            {item.job.items.map((it:any, iIdx:number) => (
+                                                                            {(item as any).job.items.map((it:any, iIdx:number) => (
                                                                                 <div key={iIdx} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
                                                                                     <span>{it.quantity} x {it.name}</span>
                                                                                     <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
@@ -1377,7 +1632,7 @@ export const Dentists = () => {
                                     </div>
 
                                     {showPaymentForm && (
-                                        <div className="bg-white p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
+                                        <div className="bg-white p-4 sm:p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
                                             <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
@@ -1433,6 +1688,7 @@ export const Dentists = () => {
                                                         <option value="BANK_TRANSFER">Transferência Bancária</option>
                                                         <option value="BOLETO">Boleto (Pago)</option>
                                                         <option value="DISCOUNT">Desconto/Cortesia</option>
+                                                        <option value="CLIENT_CREDIT">Saldo de Crédito</option>
                                                     </select>
                                                 </div>
 
@@ -1520,7 +1776,7 @@ export const Dentists = () => {
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
-                                                                    {p.paymentMethod}
+                                                                    {translatePaymentMethod(p.paymentMethod)}
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4 text-xs font-bold text-slate-600 italic">
@@ -1607,8 +1863,8 @@ export const Dentists = () => {
                         </div>
 
                         {/* FOOTER */}
-                        <div className="p-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-6">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-4 sm:p-6">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
                                     <span className={`text-xl font-black ${totals.currentBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -1652,7 +1908,7 @@ export const Dentists = () => {
 
             {showBoletoModal && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                    <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Gerar Boleto de Cobrança</h3>
                             <button onClick={() => setShowBoletoModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -1730,7 +1986,7 @@ export const Dentists = () => {
 
             {showAsaasError && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+                    <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                         <div className="flex flex-col items-center text-center gap-4">
                             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
                                 <Info size={40} />
@@ -1749,6 +2005,95 @@ export const Dentists = () => {
                                 Entendido
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MANUAL ENTRY MODAL */}
+            {showManualEntryModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                                <Plus className="text-blue-600" />
+                                Lançamento Manual
+                            </h3>
+                            <button onClick={() => setShowManualEntryModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                                <X size={20} className="text-slate-500" />
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={handleAddManualEntry} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Tipo de Lançamento</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setManualEntryType('MANUAL_DEBIT')}
+                                        className={`py-3 px-4 rounded-xl font-bold text-sm transition-all border ${
+                                            manualEntryType === 'MANUAL_DEBIT' 
+                                            ? 'bg-red-50 border-red-200 text-red-700' 
+                                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        Débito (Dívida)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setManualEntryType('MANUAL_CREDIT')}
+                                        className={`py-3 px-4 rounded-xl font-bold text-sm transition-all border ${
+                                            manualEntryType === 'MANUAL_CREDIT' 
+                                            ? 'bg-green-50 border-green-200 text-green-700' 
+                                            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        Crédito (Abatimento)
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-slate-400 font-bold mt-2">
+                                    {manualEntryType === 'MANUAL_DEBIT' 
+                                        ? 'Débito aumenta o saldo devedor do dentista (ex: dívida antiga).'
+                                        : 'Crédito diminui o saldo devedor (ex: saldo positivo a favor do dentista).'}
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Valor (R$)</label>
+                                <input 
+                                    type="text" 
+                                    required
+                                    value={manualEntryAmount}
+                                    onChange={(e) => {
+                                        let val = e.target.value.replace(/\D/g, '');
+                                        if (val.length > 0) {
+                                            val = (parseInt(val) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                        }
+                                        setManualEntryAmount(val);
+                                    }}
+                                    placeholder="0,00"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+                            
+                            <div>
+                                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Observações / Motivo (Opcional)</label>
+                                <textarea 
+                                    value={manualEntryNotes}
+                                    onChange={(e) => setManualEntryNotes(e.target.value)}
+                                    placeholder="Ex: Dívida referente ao ano passado..."
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none h-24"
+                                />
+                            </div>
+
+                            <button 
+                                type="submit"
+                                disabled={isAddingManualEntry}
+                                className="w-full mt-2 py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2"
+                            >
+                                {isAddingManualEntry ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                                SALVAR LANÇAMENTO
+                            </button>
+                        </form>
                     </div>
                 </div>
             )}

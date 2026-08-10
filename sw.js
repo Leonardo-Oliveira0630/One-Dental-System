@@ -1,5 +1,5 @@
-// SmileProX PWA Service Worker
-const CACHE_NAME = 'smileprox-v2';
+// Labprox PWA Service Worker
+const CACHE_NAME = 'Labprox-v2';
 const ASSETS = [
   '/',
   '/index.html',

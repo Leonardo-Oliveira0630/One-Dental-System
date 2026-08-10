@@ -5,7 +5,7 @@ import {
   User, Job, JobType, CartItem, UserRole, Sector, JobAlert, Attachment,
   ClinicPatient, Appointment, Organization, SubscriptionPlan, OrganizationConnection, Coupon, LabCoupon, CommissionRecord, CommissionStatus, ManualDentist, GlobalSettings, DeliveryRoute, RouteItem, BoxColor, ClinicService, ClinicRoom, ClinicDentist, PermissionKey, PaymentRecord, PriceTable, BillingBatch, DentistPayment, Courier,
   CardMachine, BankAccount,
-  JobStatus, UrgencyLevel, OnlineRequisition
+  JobStatus, UrgencyLevel, OnlineRequisition, Budget
 } from '../types';
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
@@ -92,6 +92,7 @@ interface AppContextType {
   
   allUsers: User[]; 
   jobs: Job[];
+  budgets: Budget[];
   jobTypes: JobType[];
   clinicServices: ClinicService[];
   clinicRooms: ClinicRoom[];
@@ -144,6 +145,9 @@ interface AppContextType {
   
   addJob: (job: Omit<Job, 'id' | 'organizationId'>) => Promise<string>;
   updateJob: (id: string, updates: Partial<Job>) => Promise<void>;
+  addBudget: (budget: Omit<Budget, 'id' | 'organizationId'>) => Promise<string>;
+  updateBudget: (id: string, updates: Partial<Budget>) => Promise<void>;
+  deleteBudget: (id: string) => Promise<void>;
   
   addCommissionRecord: (rec: Omit<CommissionRecord, 'id' | 'organizationId'>) => Promise<void>;
   updateCommissionStatus: (id: string, status: CommissionStatus) => Promise<void>;
@@ -167,6 +171,7 @@ interface AppContextType {
   deleteClinicDentist: (id: string) => Promise<void>;
 
   addSector: (name: string) => Promise<void>;
+  updateSector: (id: string, updates: Partial<Sector>) => Promise<void>;
   deleteSector: (id: string) => Promise<void>;
   
   addBoxColor: (color: Omit<BoxColor, 'id'>) => Promise<void>;
@@ -180,8 +185,8 @@ interface AppContextType {
   uploadFile: (file: File) => Promise<string>;
   getOriginalUrl: (url: string) => Promise<string>;
 
-  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE' | 'ADDRESS_LABEL' | 'INVOICE_SHEET', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
-  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET') => void;
+  printData: { job?: Job, mode: 'SHEET' | 'LABEL' | 'ROUTE' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET', routeItems?: RouteItem[], driver?: string, shift?: string, date?: string } | null;
+  triggerPrint: (job: Job, mode: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET') => void;
   triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => void;
   clearPrint: () => void;
   
@@ -284,6 +289,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [jobTypes, setJobTypes] = useState<JobType[]>([]);
   const [clinicServices, setClinicServices] = useState<ClinicService[]>([]);
   const [clinicRooms, setClinicRooms] = useState<ClinicRoom[]>([]);
@@ -520,6 +526,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if (activeDataId) {
         const isClient = currentUser.role === UserRole.CLIENT || activeDataId !== currentUser.organizationId;
         unsubs.push(api.subscribeJobs(activeDataId, currentUser.id, isClient, setJobs, activeManualDentistId || (currentUser as any).manualDentistId));
+        unsubs.push(api.subscribeBudgets(activeDataId, setBudgets));
         unsubs.push(api.subscribeJobTypes(activeDataId, setJobTypes));
         
         // Colaboradores: Super Admin ou qualquer membro da própria organização
@@ -776,6 +783,30 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       } as Job);
       return jobId;
   };
+
+  const addBudget = async (b: Omit<Budget, 'id'|'organizationId'>) => {
+      const orgId = activeDataId;
+      if (!orgId) throw new Error("Nenhum laboratório ativo.");
+      const budgetId = `bud_${Date.now()}`;
+      await api.apiAddBudget(orgId, { 
+          ...b, 
+          id: budgetId, 
+          organizationId: orgId
+      } as Budget);
+      return budgetId;
+  };
+
+  const updateBudget = async (id: string, updates: Partial<Budget>) => {
+      const orgId = activeDataId;
+      if (!orgId) return;
+      await api.apiUpdateBudget(orgId, id, updates);
+  };
+
+  const deleteBudget = async (id: string) => {
+      const orgId = activeDataId;
+      if (!orgId) return;
+      await api.apiDeleteBudget(orgId, id);
+  };
   const updateJob = async (id: string, u: Partial<Job>) => {
       const orgId = activeDataId;
       if (!orgId) return;
@@ -957,6 +988,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orgId = activeDataId;
       if(!orgId) return;
       await api.apiAddSector(orgId, { id: `sector_${Date.now()}`, name });
+  }
+  const updateSector = async (id: string, updates: Partial<Sector>) => {
+      const orgId = activeDataId;
+      if (!orgId) return;
+      await api.apiUpdateSector(orgId, id, updates);
   }
   const deleteSector = async (id: string) => {
       const orgId = activeDataId;
@@ -1419,7 +1455,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const contextValue = useMemo(() => ({
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
-    allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
+    allUsers, jobs, budgets, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
     allOrganizations, allLaboratories, allPlans, coupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, 
     patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems, productCatalogItems,
@@ -1427,18 +1463,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     allPayments,
     nfcBoxes,
     login, logout, updateUser, addUser, deleteUser,
-    addJob, updateJob, addCommissionRecord, updateCommissionStatus, updateCommissionRecord, deleteCommissionRecord,
+    addJob, updateJob, addBudget, updateBudget, deleteBudget, addCommissionRecord, updateCommissionStatus, updateCommissionRecord, deleteCommissionRecord,
     addInventoryCategory, updateInventoryCategory, deleteInventoryCategory, addInventoryItem, updateInventoryItem, deleteInventoryItem,
     addProductCatalogItem, updateProductCatalogItem, deleteProductCatalogItem,
     addJobType, updateJobType, deleteJobType,
     addClinicService, updateClinicService, deleteClinicService,
     addClinicRoom, updateClinicRoom, deleteClinicRoom,
     addClinicDentist, updateClinicDentist, deleteClinicDentist,
-    addSector, deleteSector, addBoxColor, deleteBoxColor,
+    addSector, updateSector, deleteSector, addBoxColor, deleteBoxColor,
     cart, addToCart: (i: CartItem) => setCart(p => [...p,i]), removeFromCart: (id: string) => setCart(p => p.filter(i => i.cartItemId !== id)), updateCartItemQty: (id: string, qty: number) => setCart(p => p.map(item => item.cartItemId === id ? { ...item, quantity: Math.max(1, qty), finalPrice: item.unitPrice * Math.max(1, qty) } : item)), clearCart: () => setCart([]),
     uploadFile: api.uploadJobFile,
     getOriginalUrl: api.getOriginalUrl,
-    printData, triggerPrint: (j: Job,m: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET') => setPrintData({job:j, mode:m}), 
+    printData, triggerPrint: (j: Job,m: 'SHEET' | 'LABEL' | 'ADDRESS_LABEL' | 'INVOICE_SHEET' | 'BUDGET_SHEET') => setPrintData({job:j, mode:m}), 
     triggerRoutePrint: (items: RouteItem[], driver: string, shift: string, date: string) => setPrintData({ mode: 'ROUTE', routeItems: items, driver, shift, date }),
     clearPrint: () => setPrintData(null),
     activeOrganization, switchActiveOrganization, userConnections,
@@ -1460,7 +1496,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     couriers, addCourier, updateCourier, deleteCourier
   }), [
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
-    allUsers, jobs, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
+    allUsers, jobs, budgets, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
     allOrganizations, allLaboratories, allPlans, coupons, labCoupons, patients, appointments, manualDentists, priceTables, billingBatches, dentistPayments, activeAlert,
     patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,

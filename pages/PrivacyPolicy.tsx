@@ -6,7 +6,7 @@ export const PrivacyPolicy = () => {
     const navigate = useNavigate();
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-10 font-sans">
-            <div className="max-w-4xl mx-auto bg-white p-6 md:p-12 rounded-3xl shadow-sm border border-slate-100 space-y-8">
+            <div className="max-w-4xl mx-auto bg-white p-4 sm:p-6 md:p-12 rounded-3xl shadow-sm border border-slate-100 space-y-8">
                 <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors">
                     <ArrowLeft size={20} />
                     <span className="font-bold text-sm uppercase tracking-widest">Voltar para o Início</span>
@@ -27,7 +27,7 @@ export const PrivacyPolicy = () => {
                 <div className="prose prose-slate max-w-none prose-headings:font-black prose-headings:text-slate-900 prose-p:text-slate-600 prose-li:text-slate-600 text-sm md:text-base leading-relaxed space-y-6">
                     
                     {/* RESUMO EXECUTIVO LGPD */}
-                    <div className="p-4 md:p-6 bg-blue-50/60 border border-blue-100 rounded-2xl space-y-3 not-prose">
+                    <div className="p-4 md:p-4 sm:p-6 bg-blue-50/60 border border-blue-100 rounded-2xl space-y-3 not-prose">
                         <div className="flex items-center gap-2 text-blue-900 font-bold text-base">
                             <UserCheck size={20} className="text-blue-600" />
                             <span>Resumo de Compromisso LGPD</span>
@@ -168,7 +168,7 @@ export const PrivacyPolicy = () => {
                                 <span>Canal Oficial de Privacidade e DPO</span>
                             </div>
                             <p className="text-xs text-slate-300">
-                                <strong>E-mail do DPO:</strong> dpo@smileprox.com.br / leooliveira0630@gmail.com
+                                <strong>E-mail do DPO:</strong> dpo@Labprox.com.br / leooliveira0630@gmail.com
                             </p>
                             <p className="text-xs text-slate-400">
                                 Prazo de resposta para requisições de titulares: Até 15 dias úteis, conforme regulamentação da ANPD.

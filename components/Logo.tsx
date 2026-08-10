@@ -6,7 +6,7 @@ import logoLocal from '../icone-com-texto.svg';
 const { ref, getDownloadURL } = storagePkg as any;
 
 // ==========================================
-// CONFIGURAÇÃO DA LOGO DO SMILEPROX
+// CONFIGURAÇÃO DA LOGO DO Labprox
 // ==========================================
 
 // ALTERNATIVA 1: CAMINHO RELATIVO LOCAL (ALTAMENTE RECOMENDADO)
@@ -24,12 +24,12 @@ export const LOGO_SVG_RAW: string = '';
 export const LOGO_BASE64: string = '';
 
 // ALTERNATIVA 4: LINKS DE ARMAZENAMENTO NUVEM (Requer permissões públicas de leitura configuradas no console do Firebase)
-// 1. Se você fez o upload da imagem da LOGO COMPLETA (que já contém o dente E o texto "SmileProX" juntos),
+// 1. Se você fez o upload da imagem da LOGO COMPLETA (que já contém o dente E o texto "Labprox" juntos),
 //    substitua as aspas simples de LOGO_COMPLETO_URL pelo seu link. Exemplo: 'https://sua-url-do-firebase.svg'
 export const LOGO_COMPLETO_URL: string = ''; 
 
 // 2. Se você fez o upload APENAS do ícone do dente separado e quer ue o sistema continue escrevendo
-//    o texto "SmileProX" ao lado via código, cole o seu link em LOGO_ICONE_URL abaixo:
+//    o texto "Labprox" ao lado via código, cole o seu link em LOGO_ICONE_URL abaixo:
 export const LOGO_ICONE_URL: string = ''; 
 // ==========================================
 
@@ -215,7 +215,7 @@ export const LogoIcon: React.FC<LogoProps> = ({
     return (
       <img 
         src={LOGO_LOCAL_PATH} 
-        alt="SmileProX Icon" 
+        alt="Labprox Icon" 
         style={{ width: dimensions, height: dimensions }}
         className={`object-contain shrink-0 ${className}`} 
       />
@@ -227,7 +227,7 @@ export const LogoIcon: React.FC<LogoProps> = ({
     return (
       <img 
         src={finalIconUrl} 
-        alt="SmileProX Icon" 
+        alt="Labprox Icon" 
         style={{ width: dimensions, height: dimensions }}
         className={`object-contain shrink-0 ${className}`} 
       />
@@ -242,7 +242,7 @@ export const LogoIcon: React.FC<LogoProps> = ({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={`shrink-0 ${className}`}
-      aria-label="SmileProX Logo"
+      aria-label="Labprox Logo"
       {...props}
     >
       <defs>
@@ -384,7 +384,7 @@ export const Logo: React.FC<LogoProps> = ({
       <div className={`flex items-center justify-center shrink-0 overflow-hidden ${className}`}>
         <img 
           src={finalCompletoUrl} 
-          alt="SmileProX Logo" 
+          alt="Labprox Logo" 
           style={{ height: wrapperHeight, width: 'auto' }}
           className="object-contain max-w-full shrink-0"
         />

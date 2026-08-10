@@ -1,0 +1,38 @@
+--- pages/admin/DentistsTab.tsx
++++ pages/admin/DentistsTab.tsx
+@@ -798,7 +798,34 @@
+                                         type="checkbox" 
+                                         className="sr-only peer" 
+                                         checked={formData.isCustomPricing}
+-                                        onChange={e => setFormData(prev => ({ ...prev, isCustomPricing: e.target.checked }))}
++                                        onChange={e => {
++                                            const isChecked = e.target.checked;
++                                            setFormData(prev => {
++                                                const newState = { ...prev, isCustomPricing: isChecked };
++                                                if (isChecked) {
++                                                    const assignedTable = priceTables.find(t => t.id === prev.priceTableId);
++                                                    const newCustomPrices = jobTypes.map((type: any) => {
++                                                        const existing = (prev.customPrices || []).find((p: any) => p.jobTypeId === type.id);
++                                                        if (existing && existing.fixedPrice !== undefined) return existing;
++                                                        
++                                                        let baseForService = type.basePrice;
++                                                        let variations = {};
++                                                        if (assignedTable && assignedTable.prices[type.id]) {
++                                                            if (assignedTable.prices[type.id].basePrice !== undefined) baseForService = assignedTable.prices[type.id].basePrice;
++                                                            if (assignedTable.prices[type.id].variations) variations = { ...assignedTable.prices[type.id].variations };
++                                                        }
++                                                        if (existing && existing.discountPercent !== undefined) {
++                                                            return { ...existing, fixedPrice: baseForService * (1 - existing.discountPercent / 100), variations };
++                                                        }
++                                                        return { jobTypeId: type.id, fixedPrice: baseForService, variations };
++                                                    });
++                                                    newState.customPrices = newCustomPrices;
++                                                } else {
++                                                    newState.customPrices = [];
++                                                }
++                                                return newState;
++                                            });
++                                        }}
+                                     />
+                                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                 </label>

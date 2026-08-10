@@ -30,6 +30,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isLabSelectorOpen, setIsLabSelectorOpen] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -167,7 +168,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
     }
     return isViewingLabContext && activeOrganization 
       ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
-      : { name: currentOrg?.name || 'SMILEPROX', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Laboratório Terceirizado' : 'SMILEPROX SYSTEM' };
+      : { name: currentOrg?.name || 'Labprox', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Laboratório Terceirizado' : 'Labprox SYSTEM' };
   }, [isViewingLabContext, activeOrganization, currentOrg, isClient, storeSlug, storeOrg]);
 
   if (location.pathname === '/helpdesk') {
@@ -198,10 +199,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       {isMobileMenuOpen && <div className="fixed inset-0 bg-black/50 z-[60] md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />}
 
-      <aside className={`fixed inset-y-0 left-0 z-[70] w-64 ${bgClass} text-white transform transition-transform duration-300 ease-in-out print:hidden ${
-        isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-      }`}>
-        <div className="p-6 h-full flex flex-col overflow-hidden">
+      <aside 
+        onMouseEnter={() => setIsSidebarHovered(true)}
+        onMouseLeave={() => setIsSidebarHovered(false)}
+        className={`fixed inset-y-0 left-0 z-[70] ${bgClass} text-white transform transition-all duration-300 ease-in-out print:hidden ${
+        isMobileMenuOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0 w-64'
+      } ${isSidebarHovered ? 'md:w-64' : 'md:w-20'} overflow-x-hidden group/sidebar`}>
+        <div className="p-4 h-full flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar w-64">
           <div className="flex items-center justify-between mb-8 shrink-0">
             <div className="flex items-center gap-3 overflow-hidden">
               {displayBrand.logo ? (
@@ -209,7 +213,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   <img src={displayBrand.logo} alt="Logo" className="w-full h-full object-contain" />
                 </div>
               ) : (
-                displayBrand.name.toUpperCase() === 'SMILEPROX' ? (
+                displayBrand.name.toUpperCase() === 'Labprox' ? (
                   <LogoIcon size={40} className="shrink-0" />
                 ) : (
                   <div className="w-10 h-10 bg-[#0F4C81] rounded-xl flex items-center justify-center shrink-0 shadow-lg font-black text-white text-xl">
@@ -217,8 +221,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   </div>
                 )
               )}
-              <div className="flex flex-col min-w-0">
-                {displayBrand.name.toUpperCase() === 'SMILEPROX' ? (
+              <div className="flex flex-col min-w-0 opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">
+                {displayBrand.name.toUpperCase() === 'Labprox' ? (
                   <span className="text-sm font-black tracking-tight leading-none truncate uppercase text-white">
                     Smile<span className="text-[#00B8D9]">ProX</span>
                   </span>
@@ -232,7 +236,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
 
           {isBuyer && (
-             <div className="mb-6 px-2 relative shrink-0">
+             <div className="mb-6 px-2 relative shrink-0 opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">
                 <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2 truncate">Laboratório Ativo</p>
                 <button 
                    onClick={() => setIsLabSelectorOpen(!isLabSelectorOpen)}
@@ -325,9 +329,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                             {hasPerm('logistics:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
                             
                             <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate">Produção</p>
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">Produção</p>
                             {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
                             {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
+                            {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-budget" icon={<PlusCircle size={20} />} label="Novo Orçamento" active={location.pathname === '/new-budget'} />}
+                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/budgets" icon={<FileText size={20} />} label="Orçamentos" active={location.pathname === '/budgets'} />}
                             {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
                             {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
                             {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
@@ -355,7 +361,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                         {currentOrg?.orgType === 'CLINIC' && (
                           <>
                             <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
-                            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2 truncate">Minha Clínica</p>
+                            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">Minha Clínica</p>
                             
                             {(!currentPlan || currentPlan.features.hasClinicModule) && (
                               <>
@@ -398,7 +404,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               </>
             ) : (
               <>
-                <p className="text-[9px] font-black text-[#00B8D9] uppercase tracking-widest px-4 mb-2 truncate">Menu do Visitante</p>
+                <p className="text-[9px] font-black text-[#00B8D9] uppercase tracking-widest px-4 mb-2 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">Menu do Visitante</p>
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={location.pathname} icon={<ShoppingBag size={20} />} label="Catálogo" active={true} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} icon={<UserCircle size={20} />} label="Fazer Login" active={false} />
                 <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={`/register-lab?redirect=${encodeURIComponent(location.pathname + location.search)}`} icon={<PlusCircle size={20} />} label="Criar Conta" active={false} />
@@ -409,7 +415,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           {currentUser && (
             <div className="mt-auto pt-4 shrink-0">
                <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 text-red-300 hover:bg-white/5 rounded-xl transition-colors">
-                <LogOut size={20} /><span>Sair</span>
+                <LogOut size={20} className="shrink-0" /><span className="opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">Sair</span>
               </button>
             </div>
           )}
@@ -543,7 +549,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
       </nav>
 
-      <main className="flex-1 md:ml-64 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative">
+      <main className={`flex-1 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
         <header className={`${isStoreRoute ? "hidden" : "hidden md:flex"} bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0`}>
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <Logo size="sm" variant="colored" />
@@ -568,10 +574,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className={`${isStoreRoute ? "mt-[104px] md:mt-16 px-0 max-w-full" : "mt-[56px] md:mt-16 p-4 md:p-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
+        <div className={`${isStoreRoute ? "mt-[104px] md:mt-[104px] px-0 max-w-full" : "mt-[104px] md:mt-[40px] px-4 pb-4 md:px-8 md:pb-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
           {isClinicPendingApproval() ? (
             <div className="flex-1 flex items-center justify-center py-12 px-4">
-              <div className="bg-white rounded-3xl p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">
                 <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md shadow-teal-500/10">
                   <ShieldCheck size={32} />
                 </div>
@@ -642,7 +648,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                   />
                   {showOverduePopup && (
                     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                       <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center border border-red-100 animate-in zoom-in">
+                       <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl text-center border border-red-100 animate-in zoom-in">
                           <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                              <AlertTriangle size={32} />
                           </div>
@@ -681,11 +687,11 @@ interface SidebarItemProps {
 }
 
 const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon, label, active, onClick, badge }) => (
-  <Link to={to} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group ${ active ? 'bg-gradient-to-r from-[#00B8D9]/15 to-[#00B8D9]/5 text-[#00B8D9] font-semibold border-l-4 border-[#00B8D9] pl-3' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }`} >
+  <Link to={to} onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 relative group ${ active ? 'bg-gradient-to-r from-[#00B8D9]/15 to-[#00B8D9]/5 text-[#00B8D9] font-semibold border-l-4 border-[#00B8D9] pl-3' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200' }`} title={label}>
     <span className={`shrink-0 transition-colors ${active ? 'text-[#00B8D9]' : 'text-slate-400 group-hover:text-slate-200'}`}>{icon}</span>
-    <span className="text-sm truncate">{label}</span>
+    <span className="text-sm truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">{label}</span>
     {badge !== undefined && badge > 0 && (
-      <span className="absolute right-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black shadow-lg animate-pulse">{badge}</span>
+      <span className="absolute right-4 bg-emerald-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black shadow-lg animate-pulse opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">{badge}</span>
     )}
   </Link>
 );

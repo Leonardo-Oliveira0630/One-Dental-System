@@ -102,7 +102,7 @@ export const Patients = () => {
             </button>
         </div>
 
-                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-4 sm:p-6">
                     <div className="relative mb-6">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                         <input 
@@ -113,9 +113,9 @@ export const Patients = () => {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                         {filteredPatients.map(patient => (
-                            <div key={patient.id} onClick={() => setSelectedPatient(patient)} className="p-6 border border-slate-100 rounded-[32px] hover:shadow-xl hover:border-indigo-200 transition-all bg-white cursor-pointer group relative overflow-hidden">
+                            <div key={patient.id} onClick={() => setSelectedPatient(patient)} className="px-4 pb-4 sm:px-6 sm:pb-6 border border-slate-100 rounded-[32px] hover:shadow-xl hover:border-indigo-200 transition-all bg-white cursor-pointer group relative overflow-hidden">
                                 <div className="flex items-start gap-4 mb-4">
                                     <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                                         {patient.name.charAt(0)}
@@ -161,13 +161,13 @@ export const Patients = () => {
                 {isModalOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                         <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200 overflow-hidden">
-                            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                                 <h3 className="font-black text-lg text-slate-800 uppercase tracking-tight">
                                     {editingId ? 'Editar Cadastro' : 'Ficha de Cadastro'}
                                 </h3>
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24} /></button>
                             </div>
-                            <form onSubmit={handleSave} className="p-8 space-y-5">
+                            <form onSubmit={handleSave} className="p-4 sm:p-8 space-y-5">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
                                     <input required value={name} onChange={e => setName(e.target.value)} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 font-bold" />

@@ -85,7 +85,7 @@ export const MarketplaceBannersAdmin = () => {
 
     return (
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
-            <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+            <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <ImageIcon className="text-slate-600" />
                     <h2 className="font-black text-slate-800 text-lg uppercase tracking-tight">Banners e Lojas Oficiais (Marketplace)</h2>
@@ -100,7 +100,7 @@ export const MarketplaceBannersAdmin = () => {
                 </button>
             </div>
             
-            <div className="p-6 space-y-12">
+            <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-12">
                 {/* Lojas Oficiais Section */}
                 <div className="space-y-4">
                     <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2">Lojas Oficiais (Destaque)</h3>
@@ -138,7 +138,7 @@ export const MarketplaceBannersAdmin = () => {
                         </button>
                     </div>
                     {banners.map((banner, index) => (
-                    <div key={banner.id} className="p-6 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-4">
+                    <div key={banner.id} className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-4">
                         <div className="flex justify-between items-center">
                             <h4 className="font-bold text-slate-700">Banner #{index + 1}</h4>
                             <button onClick={() => handleRemoveBanner(banner.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg">

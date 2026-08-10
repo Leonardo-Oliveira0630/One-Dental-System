@@ -45,7 +45,7 @@ export const IncomingRequisitions = () => {
   const isAuthorized = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.SUPER_ADMIN;
 
   if (!isAuthorized) {
-    return <div className="p-8 text-center text-slate-500 font-bold uppercase tracking-widest">Acesso Negado</div>;
+    return <div className="p-4 sm:p-8 text-center text-slate-500 font-bold uppercase tracking-widest">Acesso Negado</div>;
   }
 
   // Get filtered requisitions list
@@ -138,7 +138,7 @@ export const IncomingRequisitions = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="px-4 pb-4 sm:px-6 sm:pb-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -376,8 +376,8 @@ export const IncomingRequisitions = () => {
 
       {/* Modal de Justificativa de Recusa */}
       {rejectingReq && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" id="rejectionModal">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-up">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" id="rejectionModal">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-up">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                 <X className="text-red-500" size={20} /> Recusar Requisição

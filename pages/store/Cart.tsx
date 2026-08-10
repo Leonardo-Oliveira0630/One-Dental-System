@@ -253,8 +253,8 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
 
   if (!activeOrganization) {
     return (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8">
+            <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                     <Building size={32} />
                 </div>
@@ -511,7 +511,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
       return (
           <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
               <StoreTopMenu />
-              <div className="flex-1 p-4 md:p-8 flex flex-col items-center justify-center min-h-[60vh] text-center animate-in zoom-in duration-300">
+              <div className="flex-1 p-4 md:p-4 sm:p-8 flex flex-col items-center justify-center min-h-[60vh] text-center animate-in zoom-in duration-300">
                   <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6"><CheckCircle size={40} className="text-green-600" /></div>
               <h2 className="text-2xl font-bold text-slate-900 mb-2">
                   {isVoucherPaidOrder ? "Pedido Realizado com Sucesso!" : "Pedido Enviado com Sucesso!"}
@@ -535,7 +535,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
               )}
 
               {paymentMethod === 'PIX' && successData.pixCopyPaste && (
-                  <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 max-w-sm w-full mb-8">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-slate-200 max-w-sm w-full mb-8">
                       <h3 className="font-bold text-slate-800 mb-4">Pagamento via PIX</h3>
                       {successData.pixQrCode && (
                           <div className="flex justify-center mb-4"><img src={`data:image/png;base64,${successData.pixQrCode}`} alt="QR Code PIX" className="w-48 h-48 border rounded-lg" /></div>
@@ -582,8 +582,8 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
     return (
         <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
             <StoreTopMenu />
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 md:p-8">
-                <div className="p-6 bg-indigo-50 rounded-full mb-4 text-indigo-300"><ArrowRight size={48} /></div>
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 md:p-4 sm:p-8">
+                <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-indigo-50 rounded-full mb-4 text-indigo-300"><ArrowRight size={48} /></div>
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Seu carrinho está vazio</h2>
                 <button 
                     onClick={handleReturnToCatalog} 
@@ -599,8 +599,8 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
   return (
     <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
       <StoreTopMenu />
-      <div className="flex-1 p-4 md:p-8 overflow-y-auto">
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-12">
+      <div className="flex-1 p-4 md:p-4 sm:p-8 overflow-y-auto">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-8 pb-12">
       <div className="lg:col-span-2 space-y-6">
         <div>
             <h2 className="text-xl font-bold text-slate-800 mb-4">Itens do Pedido ({cart.length})</h2>
@@ -636,7 +636,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
                                     )}
                                 </div>
                             </div>
-                            <div className="flex items-center justify-between sm:justify-end gap-6">
+                            <div className="flex items-center justify-between sm:justify-end gap-4 sm:p-6">
                                 {/* Controller de Quantidade */}
                                 <div className={`flex items-center gap-1.5 border border-slate-200 rounded-lg p-1 bg-slate-50 ${item.selectedTeeth && item.selectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <button 
@@ -698,7 +698,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
             </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 animate-in fade-in duration-300">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 animate-in fade-in duration-300">
             <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
                 {finalTotal === 0 ? (
                     <><ShieldCheck className="text-green-600"/> Pedido Coberto por Voucher</>
@@ -729,7 +729,7 @@ export const Cart = ({ onBackToStore }: CartProps = {}) => {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-lg border border-indigo-100 h-fit sticky top-6">
+      <div className="bg-white p-6 rounded-2xl shadow-lg border border-indigo-100 h-fit sticky top-4 sm:p-6">
         <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">Detalhes do Envio</h2>
         <form onSubmit={handleCheckout} className="space-y-4">
             <div className="space-y-2">

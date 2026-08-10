@@ -384,7 +384,7 @@ export const NfcKitsAdmin: React.FC = () => {
     <div className="max-w-7xl mx-auto space-y-6 pb-24" id="nfc-kits-admin-page">
       
       {/* Header Panel */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200" id="nfc-header-panel">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-slate-200" id="nfc-header-panel">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -408,10 +408,10 @@ export const NfcKitsAdmin: React.FC = () => {
 
       {scanModeActive && activeScanKit ? (
         /* SCREEN 2: SCANNING / READING MODE SCREEN (CONTINUOUS FABRICATION) */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" id="scanning-dashboard">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-6" id="scanning-dashboard">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-              <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+              <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
                 <div>
                   <span className="text-[10px] bg-indigo-500/30 text-indigo-300 font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                     Modo Fabricação Ativo
@@ -458,7 +458,7 @@ export const NfcKitsAdmin: React.FC = () => {
               </div>
 
               {/* Central Dynamic Screen */}
-              <div className="p-8 flex flex-col items-center justify-center min-h-[350px] text-center border-b border-slate-100">
+              <div className="p-4 sm:p-8 flex flex-col items-center justify-center min-h-[350px] text-center border-b border-slate-100">
                 {scanMethod === 'SEQUENTIAL' ? (
                   <div className="space-y-6 w-full max-w-md">
                     <div>
@@ -468,7 +468,7 @@ export const NfcKitsAdmin: React.FC = () => {
                       </h3>
                     </div>
 
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 relative overflow-hidden flex flex-col items-center justify-center animate-pulse">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-6 relative overflow-hidden flex flex-col items-center justify-center animate-pulse">
                       <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3">
                         <Cpu size={24} className="animate-spin" />
                       </div>
@@ -525,7 +525,7 @@ export const NfcKitsAdmin: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 flex flex-col items-center justify-center">
+                    <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center">
                       <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-2">
                         <Cpu size={20} />
                       </div>
@@ -581,7 +581,7 @@ export const NfcKitsAdmin: React.FC = () => {
           </div>
 
           {/* Quick List of Kit status on the right */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4 shadow-sm" id="quick-view-boxes">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 space-y-4 shadow-sm" id="quick-view-boxes">
             <h3 className="font-black text-slate-800 text-base">Progresso das Caixas</h3>
             <p className="text-xs text-slate-500">Abaixo listamos a situação das caixas vinculadas neste kit.</p>
             
@@ -622,7 +622,7 @@ export const NfcKitsAdmin: React.FC = () => {
         </div>
       ) : (
         /* SCREEN 1: KITS MAIN HUB & LISTING */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="kits-admin-main-hub">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-6" id="kits-admin-main-hub">
           {/* Left panel: Kits list */}
           <div className="lg:col-span-7 space-y-4">
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -721,7 +721,7 @@ export const NfcKitsAdmin: React.FC = () => {
           {/* Right panel: Details of selected kit */}
           <div className="lg:col-span-5 space-y-4">
             {selectedKit ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6" id="kit-details-panel">
+              <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-sm space-y-6" id="kit-details-panel">
                 <div className="flex items-start justify-between border-b border-slate-100 pb-4">
                   <div>
                     <span className="font-mono text-xs font-black text-indigo-600 block mb-0.5">{selectedKit.codigoKit}</span>
@@ -872,7 +872,7 @@ export const NfcKitsAdmin: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[350px]">
+              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-4 sm:p-8 text-center flex flex-col items-center justify-center min-h-[350px]">
                 <Cpu size={32} className="text-slate-300 mb-2" />
                 <h4 className="font-bold text-slate-600 text-sm">Nenhum Kit Selecionado</h4>
                 <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
@@ -886,15 +886,15 @@ export const NfcKitsAdmin: React.FC = () => {
 
       {/* CREATE KIT MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" id="create-kit-modal">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4" id="create-kit-modal">
           <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100">
-            <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+            <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-900 text-white flex justify-between items-center">
               <h3 className="font-black text-lg">Criar Novo Kit Comercial</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white transition-all">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleCreateKit} className="p-6 space-y-4">
+            <form onSubmit={handleCreateKit} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Nome do Kit</label>
                 <input

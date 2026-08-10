@@ -562,7 +562,7 @@ export const DentistRequisitions = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-4 sm:p-8">
         <Loader2 className="h-10 w-10 text-indigo-600 animate-spin mb-4" />
         <p className="text-slate-500 font-medium">Carregando portal de requisições...</p>
       </div>
@@ -570,7 +570,7 @@ export const DentistRequisitions = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="px-4 pb-4 sm:px-6 sm:pb-6 max-w-7xl mx-auto space-y-8">
       {/* Overview Header */}
       <div>
         <h2 className="text-2xl font-black text-slate-800 flex items-center gap-2">
@@ -582,9 +582,9 @@ export const DentistRequisitions = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-8">
         {/* Left Side: Submit Panel */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-6">
+        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-6 space-y-6">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
             <Send className="text-indigo-600" size={20} />
             <h3 className="font-extrabold text-slate-800">Nova Requisição Online</h3>
@@ -605,7 +605,7 @@ export const DentistRequisitions = () => {
           )}
 
           {labs.length === 0 ? (
-            <div className="p-8 text-center bg-amber-50/50 rounded-2xl border border-amber-100 flex flex-col items-center gap-2">
+            <div className="p-4 sm:p-8 text-center bg-amber-50/50 rounded-2xl border border-amber-100 flex flex-col items-center gap-2">
               <Building className="text-amber-500" size={32} />
               <p className="text-xs font-bold text-slate-700">Nenhum Laboratório Vinculado</p>
               <p className="text-[11px] text-slate-500 max-w-xs">
@@ -929,7 +929,7 @@ export const DentistRequisitions = () => {
         </div>
 
         {/* Right Side: Requisition History Tracker */}
-        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-6 flex flex-col h-fit">
+        <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-100 shadow-sm p-4 sm:p-6 space-y-6 flex flex-col h-fit">
           <div className="flex flex-col gap-4 border-b border-slate-100 pb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1458,7 +1458,7 @@ export const DentistRequisitions = () => {
               </div>
 
               {/* Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
                 {/* Paciente and Basic info */}
                 <div className="bg-indigo-50/10 border border-indigo-50/30 rounded-2xl p-4 space-y-3">
                   <div className="flex justify-between items-start">

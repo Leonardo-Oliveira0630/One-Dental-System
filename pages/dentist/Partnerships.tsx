@@ -68,7 +68,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
     return (
         <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
             <StoreTopMenu />
-        <div className="flex-1 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500 w-full p-4 md:p-8" id="partnerships-main-container">
+        <div className="flex-1 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500 w-full p-4 md:p-4 sm:p-8" id="partnerships-main-container">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">Rede de Parcerias</h1>
@@ -96,9 +96,9 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
 
             {/* TAB CONTENT: MY PARTNERS */}
             {activeTab === 'MY_PARTNERS' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-8">
                     <div className="md:col-span-1 space-y-6">
-                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 h-fit">
+                        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 h-fit">
                             <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-slate-800">
                                 <LinkIcon className="text-blue-600" size={20}/> Conexão Direta
                             </h3>
@@ -123,7 +123,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                     </div>
 
                     <div className="md:col-span-2">
-                        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[400px]">
+                        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[400px]">
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-slate-800">
                                 <Handshake className="text-teal-600" size={20}/> Parceiros Ativos ({userConnections.length})
                             </h3>
@@ -194,7 +194,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
             {/* TAB CONTENT: EXPLORE */}
             {activeTab === 'EXPLORE' && (
                 <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-                    <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 items-center">
+                    <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 items-center">
                         <div className="relative flex-1 w-full">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                             <input 
@@ -206,7 +206,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                         {exploreLabs.map(lab => {
                             const isLinked = userConnections.some(c => c.organizationId === lab.id);
                             return (
@@ -220,7 +220,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                             navigate('/store');
                                         }
                                     }}
-                                    className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col cursor-pointer"
+                                    className="bg-white rounded-[32px] p-4 sm:p-6 shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all group flex flex-col cursor-pointer"
                                     id={`explore-card-${lab.id}`}
                                 >
                                     <div className="flex items-start justify-between mb-4">
@@ -301,9 +301,9 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
 
             {/* MODAL: REVIEWS DETAIL */}
             {viewingReviewsLab && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col animate-in zoom-in duration-200 overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-blue-600 text-white rounded-xl overflow-hidden flex items-center justify-center">
                                     {viewingReviewsLab.logoUrl ? (
@@ -322,7 +322,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                             <button onClick={() => setViewingReviewsLab(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                             {loadingReviews ? (
                                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                     <Loader2 className="animate-spin mb-2" />

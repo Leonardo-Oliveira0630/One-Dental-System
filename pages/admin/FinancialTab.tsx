@@ -124,7 +124,7 @@ export const FinancialTab = () => {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* CONTA DIGITAL ASAAS */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
+      <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
               <div>
                   <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
@@ -143,10 +143,10 @@ export const FinancialTab = () => {
           {!asaasWalletId ? (
               <div className="animate-in fade-in duration-300">
                   {setupMode === 'CHOICE' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                           <button 
                             onClick={() => setSetupMode('CREATE')}
-                            className="p-8 border-2 border-slate-100 rounded-3xl hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group"
+                            className="p-4 sm:p-8 border-2 border-slate-100 rounded-3xl hover:border-blue-500 hover:bg-blue-50/50 transition-all text-left group"
                           >
                               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                   <Plus size={24} />
@@ -157,7 +157,7 @@ export const FinancialTab = () => {
 
                           <button 
                             onClick={() => setSetupMode('MANUAL')}
-                            className="p-8 border-2 border-slate-100 rounded-3xl hover:border-indigo-500 hover:bg-indigo-50/50 transition-all text-left group"
+                            className="p-4 sm:p-8 border-2 border-slate-100 rounded-3xl hover:border-indigo-500 hover:bg-indigo-50/50 transition-all text-left group"
                           >
                               <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                   <Key size={24} />
@@ -211,7 +211,7 @@ export const FinancialTab = () => {
                               </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
                               <div className="md:col-span-2">
                                   <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Razão Social / Nome Completo</label>
                                   <div className="relative">
@@ -283,7 +283,7 @@ export const FinancialTab = () => {
                   )}
               </div>
           ) : (
-              <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 flex flex-col items-center text-center">
+              <div className="bg-slate-50 p-4 sm:p-8 rounded-3xl border border-slate-100 flex flex-col items-center text-center">
                   <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
                       <ShieldCheck size={40} />
                   </div>
@@ -312,7 +312,7 @@ export const FinancialTab = () => {
       </div>
 
       {/* RECEBIMENTOS MANUAIS (OFFLINE) */}
-      <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
+      <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
           <div className="mb-8">
               <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                 <Wallet className="text-green-600" /> Recebimentos Diretos (Offline)
@@ -320,7 +320,7 @@ export const FinancialTab = () => {
               <p className="text-sm text-slate-500">Dados exibidos apenas como instrução no faturamento manual.</p>
           </div>
           <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                   <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">Sua Chave PIX Principal</label>
                       <input value={pixKey} onChange={e => setPixKey(e.target.value)} placeholder="E-mail, celular ou chave aleatória" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none" />

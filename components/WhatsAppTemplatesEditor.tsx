@@ -67,7 +67,7 @@ export function WhatsAppTemplatesEditor({ currentOrg, onUpdate }: WhatsAppTempla
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h3 className="text-lg font-bold text-slate-800">Modelos de Mensagem (WhatsApp)</h3>

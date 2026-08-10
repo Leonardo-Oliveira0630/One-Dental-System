@@ -24,7 +24,7 @@ export const TermsPopup = () => {
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative animate-in zoom-in duration-200">
+            <div className="bg-white rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 max-w-lg w-full shadow-2xl relative animate-in zoom-in duration-200">
                 <div className="flex justify-center mb-6">
                     <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
                         <FileText size={32} />

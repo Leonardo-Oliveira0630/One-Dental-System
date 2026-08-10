@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { User, UserRole, UserCommissionSetting } from '../../types';
-import { Edit, DollarSign, X, Loader2, Save } from 'lucide-react';
+import { Edit, DollarSign, X, Loader2, Save, Settings } from 'lucide-react';
 
 export const CommissionsTab = () => {
   const { allUsers, jobTypes, updateUser } = useApp();
@@ -44,8 +43,7 @@ export const CommissionsTab = () => {
               if (jobSetting.variationSettings) {
                   delete jobSetting.variationSettings[variationId];
               }
-              // If no root value and no variation settings, remove entirely
-              if (jobSetting.value === undefined && (!jobSetting.variationSettings || Object.keys(jobSetting.variationSettings).length === 0)) {
+              if (jobSetting.value === undefined && (!jobSetting.variationSettings || Object.keys(jobSetting.variationSettings).length === 0) && (!jobSetting.stageSettings || Object.keys(jobSetting.stageSettings).length === 0)) {
                   return prev.filter(p => p.jobTypeId !== jobTypeId);
               }
           } else {
@@ -61,13 +59,40 @@ export const CommissionsTab = () => {
       });
   };
 
+  const handleStageCommChange = (jobTypeId: string, stageKey: string, value: string, type: 'FIXED' | 'PERCENTAGE') => {
+      setTempCommissions(prev => {
+          let jobSetting = prev.find(p => p.jobTypeId === jobTypeId);
+          
+          if (!jobSetting) {
+              jobSetting = { jobTypeId, type: 'FIXED', stageSettings: {} };
+          } else {
+              jobSetting = { ...jobSetting, stageSettings: { ...(jobSetting.stageSettings || {}) } };
+          }
+          
+          if (value === '') {
+              if (jobSetting.stageSettings) {
+                  delete jobSetting.stageSettings[stageKey];
+              }
+              if (jobSetting.value === undefined && (!jobSetting.variationSettings || Object.keys(jobSetting.variationSettings).length === 0) && (!jobSetting.stageSettings || Object.keys(jobSetting.stageSettings).length === 0)) {
+                  return prev.filter(p => p.jobTypeId !== jobTypeId);
+              }
+          } else {
+              const val = parseFloat(value) || 0;
+              if (!jobSetting.stageSettings) jobSetting.stageSettings = {};
+              jobSetting.stageSettings[stageKey] = { value: val, type };
+          }
+          
+          if (!prev.find(p => p.jobTypeId === jobTypeId)) {
+              return [...prev, jobSetting];
+          }
+          return prev.map(p => p.jobTypeId === jobTypeId ? jobSetting : p);
+      });
+  };
+
   const saveCommissions = async () => {
       if (configUser) {
           setIsSubmitting(true);
           try {
-            // This will use direct update if the current user is an admin of the same org,
-            // ensuring that the 'type' field (FIXED/PERCENTAGE) is saved correctly without
-            // being stripped by the cloud function.
             await updateUser(configUser.id, { commissionSettings: tempCommissions });
             setConfigUser(null);
             alert("Comissões salvas!");
@@ -77,9 +102,9 @@ export const CommissionsTab = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
           <h3 className="text-lg font-bold text-slate-800 mb-2">Ganhos por Técnico</h3>
-          <p className="text-sm text-slate-500 mb-6">Configure quanto o técnico recebe por cada serviço finalizado.</p>
+          <p className="text-sm text-slate-500 mb-6">Configure quanto o técnico recebe por cada serviço finalizado e por etapas concluídas.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {allUsers.filter(u => u.role !== UserRole.CLIENT).map(user => (
                   <div key={user.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-500 transition-all bg-slate-50 group">
@@ -99,16 +124,16 @@ export const CommissionsTab = () => {
       </div>
 
       {configUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in zoom-in duration-200">
-                  <div className="p-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl">
                       <div>
                           <h3 className="text-xl font-black text-slate-800">Tabela: {configUser.name}</h3>
                           <p className="text-xs text-slate-500 font-bold uppercase">Deixe em branco para usar a comissão base do serviço</p>
                       </div>
                       <button onClick={() => setConfigUser(null)} className="p-2 hover:bg-slate-200 rounded-full"><X size={24}/></button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                       {jobTypes.map(type => {
                           const setting = tempCommissions.find(s => s.jobTypeId === type.id);
                           return (
@@ -159,8 +184,66 @@ export const CommissionsTab = () => {
                               </div>
                           );
                       })}
+
+                      {jobTypes.some(type => type.sectorStages && Object.keys(type.sectorStages).some(sectorName => (type.sectorStages?.[sectorName] || []).length > 0)) && (
+                          <div className="mt-8 pt-6 border-t border-slate-200">
+                              <h4 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+                                  <Settings size={18} className="text-slate-400" />
+                                  Comissão por Etapas de Serviço
+                              </h4>
+                              <div className="space-y-4">
+                                  {jobTypes.map(type => {
+                                      if (!type.sectorStages || !Object.keys(type.sectorStages).some(sectorName => (type.sectorStages?.[sectorName] || []).length > 0)) return null;
+                                      const setting = tempCommissions.find(s => s.jobTypeId === type.id);
+                                      return (
+                                          <div key={`stage-comm-${type.id}`} className="p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100 space-y-3">
+                                              <p className="font-bold text-indigo-900">{type.name}</p>
+                                              
+                                              {Object.entries(type.sectorStages).map(([sectorName, stagesList]) => {
+                                                  if (!stagesList || stagesList.length === 0) return null;
+                                                  return (
+                                                      <div key={sectorName} className="space-y-2">
+                                                          <p className="text-[11px] font-black text-indigo-500 uppercase tracking-wider">{sectorName}</p>
+                                                          <div className="grid grid-cols-1 gap-2">
+                                                              {stagesList.map(stageName => {
+                                                                  const stageKey = `${sectorName}:${stageName}`;
+                                                                  const stSetting = setting?.stageSettings?.[stageKey];
+                                                                  return (
+                                                                      <div key={stageName} className="flex items-center justify-between py-2 bg-white px-3 rounded-xl border border-indigo-100/50 shadow-sm">
+                                                                          <span className="text-xs font-bold text-slate-700">{stageName}</span>
+                                                                          <div className="flex items-center gap-2">
+                                                                              <input 
+                                                                                  type="number" 
+                                                                                  step="0.01" 
+                                                                                  value={stSetting?.value === undefined ? '' : stSetting.value} 
+                                                                                  onChange={e => handleStageCommChange(type.id, stageKey, e.target.value, stSetting?.type || 'FIXED')} 
+                                                                                  placeholder="0" 
+                                                                                  className="w-20 px-2 py-1 border rounded font-bold text-center text-xs focus:ring-indigo-500 focus:border-indigo-500" 
+                                                                              />
+                                                                              <select 
+                                                                                  value={stSetting?.type || 'FIXED'} 
+                                                                                  onChange={e => handleStageCommChange(type.id, stageKey, stSetting?.value?.toString() || '', e.target.value as any)} 
+                                                                                  className="bg-slate-50 border rounded px-1 py-1 text-[10px] font-bold focus:ring-indigo-500 focus:border-indigo-500"
+                                                                              >
+                                                                                  <option value="PERCENTAGE">%</option>
+                                                                                  <option value="FIXED">R$</option>
+                                                                              </select>
+                                                                          </div>
+                                                                      </div>
+                                                                  );
+                                                              })}
+                                                          </div>
+                                                      </div>
+                                                  );
+                                              })}
+                                          </div>
+                                      );
+                                  })}
+                              </div>
+                          </div>
+                      )}
                   </div>
-                  <div className="p-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3">
                       <button onClick={() => setConfigUser(null)} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
                       <button onClick={saveCommissions} disabled={isSubmitting} className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-lg flex items-center gap-2">
                         {isSubmitting ? <Loader2 className="animate-spin" /> : <><Save size={18}/> SALVAR</>}

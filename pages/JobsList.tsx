@@ -3,7 +3,7 @@ import logger from "../utils/logger";
 import React, { useState, useMemo, memo } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
@@ -34,7 +34,8 @@ export const getJobOriginInfo = (job: any) => {
 // Componente de Linha Memoizado para evitar re-renders desnecessários
 const JobRow = memo(({ isJobOverdue, 
     job, 
-    isClient, 
+    isClient,
+    isBudgetMode, 
     isLabStaff, 
     navigate, 
     handleFinalizeJob, 
@@ -48,6 +49,7 @@ const JobRow = memo(({ isJobOverdue,
     isJobOverdue?: any,
     job: Job, 
     isClient: boolean, 
+    isBudgetMode?: boolean,
     isLabStaff: boolean, 
     navigate: any, 
     handleFinalizeJob: any, 
@@ -69,93 +71,128 @@ const JobRow = memo(({ isJobOverdue,
             <td className="p-4 font-mono font-bold text-sm">
                 <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 hover:text-blue-800 hover:underline text-left">
                     {job.osNumber || '---'}
-
                 </button>
             </td>
-            {!isClient && (
+            {!isClient && !isBudgetMode && (
                 <td className="p-4">
                     {job.boxNumber ? (
                         <div 
                             className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs shadow-sm border border-black/10"
                             style={{ backgroundColor: job.boxColor?.hex || '#f1f5f9', color: job.boxColor ? getContrastColor(job.boxColor.hex) : '#64748b' }}
-
                         >
                             {job.boxNumber}
-
                         </div>
                     ) : <span className="text-slate-300">-</span>}
-
                 </td>
             )}
-
-            <td className="p-4">
-                <div className="font-bold text-slate-900 text-sm">{job.patientName}</div>
-                {(job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
-                    <div className="mt-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1 max-w-xs">
-                        <span className="font-black text-[9px] uppercase tracking-wider block text-red-700">Motivo da Recusa:</span>
-                        {job.rejectionReason}
-
-                    </div>
-                )}
-
-            </td>
-            <td className="p-4 text-xs font-bold">
-                {(() => {
-                    const originInfo = getJobOriginInfo(job);
-                    return (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${originInfo.color}`}>
-                            {originInfo.label}
-
-                        </span>
-                    );
-                })()}
-
-            </td>
-            <td className="p-4">
-                <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
-            </td>
-            <td className="p-4">
-                {revealJobStatus ? (
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
-                        {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
-
-                    </span>
-                ) : (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200" title="Função de andamento indisponível no momento">
-                        Indisponível
-                    </span>
-                )}
-
-            </td>
-            <td className="p-4">
-                <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
-
-                    </span>
-                    {revealJobStatus && !isClient && (
-                        <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
-                            <Clock size={12} /> {timeInfo.label}
-
-                            {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
-
+            
+            {!isBudgetMode && (
+                <td className="p-4">
+                    <div className="font-bold text-slate-900 text-sm">{job.patientName}</div>
+                    {(job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
+                        <div className="mt-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1 max-w-xs">
+                            <span className="font-black text-[9px] uppercase tracking-wider block text-red-700">Motivo da Recusa:</span>
+                            {job.rejectionReason}
                         </div>
                     )}
-
-                </div>
-            </td>
-            <td className="p-4 text-slate-600 text-xs font-bold">{new Date(job.dueDate).toLocaleDateString()}</td>
-            <td className="p-4 text-right">
-                <div className="flex justify-end gap-1">
-                    {canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 hover:bg-green-100 rounded-lg"><CheckCircle2 size={18} /></button>}
-
-                    {canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg"><RotateCcw size={18} /></button>}
-
-                    {canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg"><Truck size={18} /></button>}
-
-                    <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Eye size={18} /></button>
-                </div>
-            </td>
+                </td>
+            )}
+            {isBudgetMode && (
+                <td className="p-4">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
+                </td>
+            )}
+            
+            {!isBudgetMode && (
+                <td className="p-4 text-xs font-bold">
+                    {(() => {
+                        const originInfo = getJobOriginInfo(job);
+                        return (
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${originInfo.color}`}>
+                                {originInfo.label}
+                            </span>
+                        );
+                    })()}
+                </td>
+            )}
+            
+            {!isBudgetMode && (
+                <td className="p-4">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
+                </td>
+            )}
+            {isBudgetMode && (
+                <td className="p-4">
+                    <div className="font-bold text-slate-900 text-sm">{job.patientName}</div>
+                </td>
+            )}
+            
+            {!isBudgetMode && (
+                <td className="p-4">
+                    {revealJobStatus ? (
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
+                            {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
+                        </span>
+                    ) : (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200" title="Função de andamento indisponível no momento">
+                            Indisponível
+                        </span>
+                    )}
+                </td>
+            )}
+            {!isBudgetMode && (
+                <td className="p-4">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
+                        </span>
+                        {revealJobStatus && !isClient && (
+                            <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
+                                <Clock size={12} /> {timeInfo.label}
+                                {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
+                            </div>
+                        )}
+                    </div>
+                </td>
+            )}
+            
+            {isBudgetMode && (
+                <td className="p-4 text-slate-600 text-xs font-bold">
+                    {job.createdAt ? (
+                        job.createdAt instanceof Date 
+                            ? job.createdAt.toLocaleDateString()
+                            : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString()
+                    ) : '-'}
+                </td>
+            )}
+            {!isBudgetMode && (
+                <td className="p-4 text-slate-600 text-xs font-bold">{(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</td>
+            )}
+            
+            {!isBudgetMode && (
+                <td className="p-4 text-right">
+                    <div className="flex justify-end gap-1">
+                        {canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 hover:bg-green-100 rounded-lg"><CheckCircle2 size={18} /></button>}
+                        {canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg"><RotateCcw size={18} /></button>}
+                        {canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg"><Truck size={18} /></button>}
+                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Eye size={18} /></button>
+                    </div>
+                </td>
+            )}
+            {isBudgetMode && (
+                <td className="p-4 text-right font-bold text-xs text-slate-800">
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(job.totalValue || 0)}
+                </td>
+            )}
+            {isBudgetMode && (
+                <td className="p-4 text-right">
+                    <div className="flex justify-end gap-1">
+                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg" title="Ver Orçamento">
+                            <Eye size={18} />
+                        </button>
+                    </div>
+                </td>
+            )}
         </tr>
     );
 });
@@ -168,6 +205,7 @@ const JobCard = memo(({ isJobOverdue,
     getTranslatedStatus, 
     getSectorTimeInfo, 
     isClient,
+    isBudgetMode,
     revealJobStatus
 }: { 
     isJobOverdue?: any,
@@ -177,6 +215,7 @@ const JobCard = memo(({ isJobOverdue,
     getTranslatedStatus: any, 
     getSectorTimeInfo: any, 
     isClient: boolean,
+    isBudgetMode?: boolean,
     revealJobStatus: boolean
 }) => {
     const timeInfo = getSectorTimeInfo(job);
@@ -191,65 +230,75 @@ const JobCard = memo(({ isJobOverdue,
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
                     <span className="font-mono font-black text-blue-600 text-base">#{job.osNumber || '---'}</span>
-                    {revealJobStatus ? (
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
-                            {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
-
-                        </span>
-                    ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200">
-                            Indisponível
-                        </span>
+                    {!isBudgetMode && (
+                        revealJobStatus ? (
+                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
+                                {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
+                            </span>
+                        ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200">
+                                Indisponível
+                            </span>
+                        )
                     )}
-
                 </div>
                 <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Entrega</p>
-                    <p className="text-xs font-bold text-slate-800">{new Date(job.dueDate).toLocaleDateString()}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase leading-none">{isBudgetMode ? 'Criado em' : 'Entrega'}</p>
+                    <p className="text-xs font-bold text-slate-800">
+                        {isBudgetMode 
+                            ? (job.createdAt ? (job.createdAt instanceof Date ? job.createdAt.toLocaleDateString() : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString()) : '-')
+                            : (job.dueDate ? new Date(job.dueDate).toLocaleDateString() : '-')
+                        }
+                    </p>
                 </div>
             </div>
 
             <div className="space-y-1 mb-4">
+                {isBudgetMode && (
+                    <div className="mb-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none block mb-1">Valor Final</span>
+                        <span className="font-bold text-slate-800 text-sm">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(job.totalValue || 0)}
+                        </span>
+                    </div>
+                )}
                 <h3 className="font-black text-slate-900 text-lg leading-tight">{job.patientName}</h3>
                 <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
                     <User size={12} className="text-blue-500" />
                     <span className="uppercase truncate">Dr(a). {job.dentistName}</span>
                 </div>
-                {(job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
+                {!isBudgetMode && (job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
                     <div className="mt-2 text-xs font-medium text-red-700 bg-red-50 border border-red-100 rounded-xl p-2.5">
                         <span className="font-black text-[9px] uppercase tracking-wider block mb-0.5 text-red-800">Motivo da Recusa:</span>
                         {job.rejectionReason}
-
                     </div>
                 )}
-
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                 <div className="flex flex-wrap items-center gap-2">
-                   {!isClient && job.boxNumber && (
+                   {!isClient && !isBudgetMode && job.boxNumber && (
                        <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
                            <Box size={14} className="text-slate-400" />
                            <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
                        </div>
                    )}
 
-                   <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (showAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700') : 'bg-slate-100 text-slate-400'}`}>
-                       <MapPin size={14} className={revealJobStatus ? (showAttention ? 'text-amber-500' : 'text-blue-400') : 'text-slate-400'} />
-                       <span className="text-xs font-bold truncate max-w-[100px]">{revealJobStatus ? (job.currentSector || 'Recepção') : 'Indisponível'}</span>
-                       {revealJobStatus && !isClient && <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>}
-
-                   </div>
-                   {(() => {
+                   {!isBudgetMode && (
+                       <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (showAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700') : 'bg-slate-100 text-slate-400'}`}>
+                           <MapPin size={14} className={revealJobStatus ? (showAttention ? 'text-amber-500' : 'text-blue-400') : 'text-slate-400'} />
+                           <span className="text-xs font-bold truncate max-w-[100px]">{revealJobStatus ? (job.currentSector || 'Recepção') : 'Indisponível'}</span>
+                           {revealJobStatus && !isClient && <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>}
+                       </div>
+                   )}
+                   {!isBudgetMode && (() => {
                         const originInfo = getJobOriginInfo(job);
                         return (
                             <span className={`px-2 py-1 rounded-lg text-xs font-bold border ${originInfo.color}`}>
                                 {originInfo.label}
-
                             </span>
                         );
                    })()}
-
                 </div>
                 <ChevronRight className="text-slate-300 flex-shrink-0" size={20} />
             </div>
@@ -261,6 +310,7 @@ const JobCard = memo(({ isJobOverdue,
 export const getStatusColor = (status: any, isOverdue = false) => {
     if (isOverdue) return 'bg-red-500 text-white border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.5)] animate-pulse';
     switch(status) {
+        case 'APPROVED': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
         case 'PENDING_REQUISITION': return 'bg-amber-100 text-amber-700 border border-amber-200';
         case 'REJECTED_REQUISITION': return 'bg-red-100 text-red-700 border border-red-200';
         case 'COMPLETED': return 'bg-green-100 text-green-700 border border-green-200';
@@ -279,6 +329,7 @@ export const getStatusColor = (status: any, isOverdue = false) => {
 export const getTranslatedStatus = (status: any, isOverdue = false) => {
     if (isOverdue) return 'Atrasado';
     switch(status) {
+        case 'APPROVED': return 'Aprovado';
         case 'PENDING_REQUISITION': return 'Req. Pendente';
         case 'REJECTED_REQUISITION': return 'Req. Recusada';
         case 'WAITING_APPROVAL': return 'Aguardando';
@@ -306,8 +357,8 @@ export const getSectorTimeInfo = (job: any) => {
     return { hours, isAttention: hours >= 18, label }
 }
 
-export const JobsList = ({ isStoreContext }: { isStoreContext?: boolean } = {}) => {
-  const { jobs, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
+export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: boolean; isBudgetMode?: boolean } = {}) => {
+  const { jobs, budgets, currentUser, updateJob, sectors, activeOrganization, addJobToRoute, allUsers, manualDentists, couriers, onlineRequisitions, activeManualDentistId, currentPlan, currentOrg } = useApp();
   const navigate = useNavigate();
   
   const [filterText, setFilterText] = useState('');
@@ -387,6 +438,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
   ].sort((a, b) => a.label.localeCompare(b.label)), []);
 
   const combinedJobs = useMemo(() => {
+    if (isBudgetMode) return budgets || [];
     if (!isClient) return jobs;
 
     // Filter pending/rejected requisitions made by this dentist that are not yet accepted as active jobs
@@ -420,7 +472,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
       } as any));
 
     return [...nonAcceptedReqs, ...jobs];
-  }, [jobs, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId]);
+  }, [jobs, budgets, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId]);
 
   const filteredJobs = useMemo(() => {
     return combinedJobs.filter(job => {
@@ -435,6 +487,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
         const searchLower = normalizeText(filterText);
         const matchText = 
           normalizeText(job.osNumber || '').includes(searchLower) ||
+          normalizeText(job.boxNumber || '').includes(searchLower) ||
           normalizeText(job.patientName).includes(searchLower) ||
           normalizeText(job.dentistName).includes(searchLower);
         if (!matchText) return false;
@@ -507,7 +560,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
         return true;
       });
-  }, [jobs, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
+  }, [jobs, budgets, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
 
   const handleFinalizeJob = async (job: Job) => {
       const dentist = allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId);
@@ -562,8 +615,8 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
   if (isClient && !activeOrganization) {
     return (
-        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
+        <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8">
+            <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-200 max-w-md w-full flex flex-col items-center">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
                     <Building size={32} />
                 </div>
@@ -771,9 +824,19 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
        <div className={`space-y-4 md:space-y-6 pb-20 ${isClient ? 'p-4 md:p-8 flex-1 overflow-y-auto' : ''}`}>
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{isClient ? 'Meus Pedidos' : 'Lista de Trabalhos'}</h1>
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{isClient ? 'Meus Pedidos' : (isBudgetMode ? 'Lista de Orçamentos' : 'Lista de Trabalhos')}</h1>
           <p className="text-xs md:text-sm text-slate-500">Mostrando {filteredJobs.length} registros encontrados.</p>
         </div>
+        {!isClient && isBudgetMode && (
+           <button onClick={() => navigate('/new-budget')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform">
+              <PlusCircle size={20} /> Novo Orçamento
+           </button>
+        )}
+        {!isClient && !isBudgetMode && (
+           <button onClick={() => navigate('/new-job')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform">
+              <PlusCircle size={20} /> Novo Caso
+           </button>
+        )}
       </div>
 
       {isClient && (
@@ -840,7 +903,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                 <Search className="absolute left-3 top-3 text-slate-400" size={20} />
                 <input 
                     type="text" 
-                    placeholder="Buscar OS, Paciente, Dentista..." 
+                    placeholder="Buscar OS, Caixa, Paciente, Dentista..." 
                     value={filterText}
 
                     onChange={(e) => setFilterText(e.target.value)}
@@ -923,16 +986,24 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
             <table className="w-full text-left border-collapse">
                 <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-[10px] uppercase tracking-widest font-black">
-                        <th className="p-4">OS #</th>
-                        {!isClient && <th className="p-4">Caixa</th>}
+                        <th className="p-4">{isBudgetMode ? 'Orçamento #' : 'OS #'}</th>
+                        {!isClient && !isBudgetMode && <th className="p-4">Caixa</th>}
+                        
+                        {!isBudgetMode && <th className="p-4">Paciente</th>}
+                        {isBudgetMode && <th className="p-4">Dentista</th>}
+                        
+                        {!isBudgetMode && <th className="p-4">Origem</th>}
+                        
+                        {!isBudgetMode && <th className="p-4">Dentista</th>}
+                        {isBudgetMode && <th className="p-4">Paciente</th>}
 
-                        <th className="p-4">Paciente</th>
-                        <th className="p-4">Origem</th>
-                        <th className="p-4">Dentista</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4">{isClient ? 'Setor' : 'Setor/Tempo'}</th>
-                        <th className="p-4">Entrega</th>
-                        <th className="p-4 text-right">Ações</th>
+                        {!isBudgetMode && <th className="p-4">Status</th>}
+                        {!isBudgetMode && <th className="p-4">{isClient ? 'Setor' : 'Setor/Tempo'}</th>}
+                        
+                        <th className="p-4">{isBudgetMode ? 'Data de Criação' : 'Entrega'}</th>
+                        {isBudgetMode && <th className="p-4 text-right">Valor Final</th>}
+                        {!isBudgetMode && <th className="p-4 text-right">Ações</th>}
+                        {isBudgetMode && <th className="p-4 text-right">Ações</th>}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -941,6 +1012,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                             key={job.id} 
                             job={job} 
                             isClient={isClient}
+                            isBudgetMode={isBudgetMode}
 
                             isLabStaff={isLabStaff}
 
@@ -998,6 +1070,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                     getTranslatedStatus={getTranslatedStatus}
                     getSectorTimeInfo={getSectorTimeInfo}
                     isClient={isClient}
+                            isBudgetMode={isBudgetMode}
                     revealJobStatus={revealJobStatus}
                 />
             ))
@@ -1018,8 +1091,8 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
       {/* ROUTE MODAL */}
 
       {routeModalJob && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6 border-b pb-4">
                       <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Truck className="text-indigo-600" /> Escalar p/ Entrega</h3>
                       <button onClick={() => setRouteModalJob(null)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>

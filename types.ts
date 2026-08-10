@@ -366,6 +366,7 @@ export interface JobItem {
   commissionDisabled?: boolean;
   sectorQuantities?: Record<string, number>;
   sectorCommissionDisabled?: Record<string, boolean>;
+  sectorStages?: Record<string, string[]>;
   selectedTeeth?: string[];
   color?: string;
   isInternalStep?: boolean;
@@ -440,6 +441,8 @@ export interface JobItemExecution {
   userId: string;
   userName: string;
   timestamp: Date;
+  executedStages?: string[];
+  isBaseChecked?: boolean;
 }
 
 export interface SectorMovement {
@@ -451,15 +454,34 @@ export interface SectorMovement {
   exitTime?: Date;
   exitUserId?: string;
   exitUserName?: string;
+  plannedItems?: string[];
+  plannedStages?: Record<string, string[]>;
 }
 
-export interface Job {
+export interface Budget {
   id: string;
   organizationId: string;
   osNumber?: string;
   patientName: string;
   dentistId: string;
   dentistName: string;
+  items: JobItem[];
+  products?: JobProduct[];
+  totalValue: number;
+  notes?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CONVERTED';
+  createdAt: Date;
+}
+
+export interface Job {
+  subDentistName?: string;
+  id: string;
+  organizationId: string;
+  osNumber?: string;
+  patientName: string;
+  dentistId: string;
+  dentistName: string;
+  clientOrigin?: 'DENTIST' | 'LABORATORY';
   status: JobStatus;
   urgency: UrgencyLevel;
   items: JobItem[];
@@ -502,6 +524,7 @@ export interface Job {
 export interface Sector {
   id: string;
   name: string;
+  stages?: string[];
 }
 
 export interface VariationOption {
@@ -527,11 +550,14 @@ export interface JobType {
   basePrice: number;
   baseCommission?: number;
   variationGroups: VariationGroup[];
+  variations?: any[]; // Legacy variations
   isVisibleInStore?: boolean;
   isVisibleInOutsourcing?: boolean;
   isVisibleInternally?: boolean;
+  isVisibleInternallyLabs?: boolean;
   imageUrl?: string;
   allowedSectors?: string[];
+  sectorStages?: Record<string, string[]>;
   isPromotion?: boolean;
   promotionQuantity?: number;
   promotionCallText?: string;
@@ -559,6 +585,7 @@ export interface UserCommissionSetting {
   value?: number;
   type: 'FIXED' | 'PERCENTAGE';
   variationSettings?: Record<string, { value: number; type: 'FIXED' | 'PERCENTAGE' }>;
+  stageSettings?: Record<string, { value: number; type: 'FIXED' | 'PERCENTAGE' }>;
 }
 
 export interface PriceTable {
@@ -619,6 +646,7 @@ export interface User {
   isBlocked?: boolean;
   blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
   temporaryUnblockUntil?: Date;
+  subDentists?: any[];
   croUf?: string;
   croNumero?: string;
   croCategoria?: string;
@@ -838,11 +866,11 @@ export interface DentistPayment {
   interest?: number; // Juros
   fees?: number;     // Taxas
   discount?: number; // Desconto no ato do pagamento
-  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER';
+  paymentMethod: 'PIX' | 'BOLETO' | 'CARD' | 'CASH' | 'TRANSFER' | 'DISCOUNT' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BANK_TRANSFER' | 'CLIENT_CREDIT';
   paymentDate: Date;
   cardMachineId?: string;
   bankAccountId?: string;
-  type: 'PAYMENT' | 'DISCOUNT';
+  type: 'PAYMENT' | 'DISCOUNT' | 'MANUAL_DEBIT' | 'MANUAL_CREDIT';
   notes?: string;
   batchId?: string;
   createdAt: Date;
@@ -903,6 +931,7 @@ export interface ManualDentist {
   isBlocked?: boolean;
   blockReason?: 'DEBT' | 'FINANCIAL_APPROVAL';
   temporaryUnblockUntil?: Date;
+  subDentists?: any[];
 }
 
 export interface Receipt {

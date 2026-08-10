@@ -25,6 +25,19 @@ export const DentistsTab = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
+    const [isAddingSubDentist, setIsAddingSubDentist] = useState(false);
+  const [editingSubDentistIndex, setEditingSubDentistIndex] = useState<number | null>(null);
+  const defaultSubDentist = {
+      id: '', name: '', email: '', phone: '', cpfCnpj: '', cro: '',
+      birthDate: '', approvalDate: '', cep: '', address: '',
+      number: '', complement: '', neighborhood: '', city: '',
+      state: '', country: 'Brasil', clinicName: '', clientType: 'PESSOA_FISICA' as any, deliveryViaPost: false,
+      priceTableId: '', billingLimit: 0, 
+      isBlocked: false, blockReason: '' as any, temporaryUnblockUntil: null as any,
+      isCustomPricing: false, globalDiscountPercent: 0, customPrices: [] as any[], subDentists: [] as any[]
+  };
+  const [subDentistFormData, setSubDentistFormData] = useState<any>(defaultSubDentist);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -39,7 +52,7 @@ export const DentistsTab = () => {
     complement: '',
     neighborhood: '',
     city: '',
-    state: '',
+    state: '', subDentists: [] as any[],
     country: 'Brasil',
     clinicName: '',
     clientType: 'CLINICA' as any,
@@ -127,6 +140,32 @@ export const DentistsTab = () => {
       }
   };
 
+  
+  const handleSubDentistInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setSubDentistFormData((prev: any) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
+  };
+
+  const handleSaveSubDentist = () => {
+      const newSub = { ...subDentistFormData };
+      if (!newSub.id) newSub.id = Math.random().toString(36).substring(2, 9);
+      
+      setFormData(prev => {
+          const subs = [...(prev.subDentists || [])];
+          if (editingSubDentistIndex !== null) {
+              subs[editingSubDentistIndex] = newSub;
+          } else {
+              subs.push(newSub);
+          }
+          return { ...prev, subDentists: subs };
+      });
+      setIsAddingSubDentist(false);
+      setEditingSubDentistIndex(null);
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target as HTMLInputElement;
     const val = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value;
@@ -174,7 +213,7 @@ export const DentistsTab = () => {
       name: '', email: '', phone: '', cpfCnpj: '', cro: '',
       birthDate: '', approvalDate: '', cep: '', address: '',
       number: '', complement: '', neighborhood: '', city: '',
-      state: '', country: 'Brasil', clinicName: '', clientType: 'CLINICA' as any, deliveryViaPost: false,
+      state: '', subDentists: [] as any[], country: 'Brasil', clinicName: '', clientType: 'CLINICA' as any, deliveryViaPost: false,
       priceTableId: priceTables.find(t => t.isDefault)?.id || '', billingLimit: 0, 
       isBlocked: false, blockReason: '' as any, temporaryUnblockUntil: null as any,
       isCustomPricing: false, globalDiscountPercent: 0, customPrices: [] as any[]
@@ -479,13 +518,13 @@ export const DentistsTab = () => {
 
         {/* MODAL: CADASTRO MANUAL */}
         {isAddingDentist && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in duration-200">
-                  <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
                       <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cadastro' : 'Ficha de Cliente'}</h3>
                       <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
-                  <form onSubmit={handleSaveManualDentist} className="p-6 space-y-6">
+                  <form onSubmit={handleSaveManualDentist} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6">
                       <div>
                         <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">1. Identificação e Contato</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -759,7 +798,34 @@ export const DentistsTab = () => {
                                         type="checkbox" 
                                         className="sr-only peer" 
                                         checked={formData.isCustomPricing}
-                                        onChange={e => setFormData(prev => ({ ...prev, isCustomPricing: e.target.checked }))}
+                                        onChange={e => {
+                                            const isChecked = e.target.checked;
+                                            setFormData(prev => {
+                                                const newState = { ...prev, isCustomPricing: isChecked };
+                                                if (isChecked) {
+                                                    const assignedTable = priceTables.find(t => t.id === prev.priceTableId);
+                                                    const newCustomPrices = jobTypes.map((type: any) => {
+                                                        const existing = (prev.customPrices || []).find((p: any) => p.jobTypeId === type.id);
+                                                        if (existing && existing.fixedPrice !== undefined) return existing;
+                                                        
+                                                        let baseForService = type.basePrice;
+                                                        let variations = {};
+                                                        if (assignedTable && assignedTable.prices[type.id]) {
+                                                            if (assignedTable.prices[type.id].basePrice !== undefined) baseForService = assignedTable.prices[type.id].basePrice;
+                                                            if (assignedTable.prices[type.id].variations) variations = { ...assignedTable.prices[type.id].variations };
+                                                        }
+                                                        if (existing && existing.discountPercent !== undefined) {
+                                                            return { ...existing, fixedPrice: baseForService * (1 - existing.discountPercent / 100), variations };
+                                                        }
+                                                        return { jobTypeId: type.id, fixedPrice: baseForService, variations };
+                                                    });
+                                                    newState.customPrices = newCustomPrices;
+                                                } else {
+                                                    newState.customPrices = [];
+                                                }
+                                                return newState;
+                                            });
+                                        }}
                                     />
                                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                 </label>
@@ -767,7 +833,7 @@ export const DentistsTab = () => {
 
                              {formData.isCustomPricing && (
                                 <div className="space-y-4 animate-in slide-in-from-top-2">
-                                  <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
+                                  <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
                                       <div className="flex items-center gap-3 mb-4 text-green-800">
                                           <Percent size={24} />
                                           <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
@@ -790,7 +856,9 @@ export const DentistsTab = () => {
                                           const cp = formData.customPrices?.find((p: any) => p.jobTypeId === type.id);
                                           const val = cp?.discountPercent || 0;
                                           return (
-                                              <div key={type.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+                                              <div key={type.id} className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl gap-3">
+                                                  <div className="flex items-center justify-between">
+                                                      
                                                   <div className="min-w-0 flex-1">
                                                       <p className="text-xs font-bold text-slate-700 truncate">{type.name}</p>
                                                       <p className="text-[10px] text-slate-400">R$ {type.basePrice.toFixed(2)}</p>
@@ -840,6 +908,62 @@ export const DentistsTab = () => {
                                                           />
                                                       </div>
                                                   </div>
+                                              
+                                                  </div>
+                                                  {((type.variationGroups && type.variationGroups.length > 0) || (type.variations && type.variations.length > 0)) && (
+                                                      <div className="pt-3 border-t border-slate-100">
+                                                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Variações</p>
+                                                          <div className="space-y-2">
+                                                              {(type.variationGroups && type.variationGroups.length > 0 ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }]).map((group: any) => (
+                                                                  <div key={group.id} className="pl-2 border-l-2 border-slate-100">
+                                                                      <p className="text-[9px] font-bold text-slate-500 mb-1">{group.name}</p>
+                                                                      <div className="space-y-1">
+                                                                          {group.options.map((opt: any) => {
+                                                                              const customVarPrice = cp?.variations?.[opt.id];
+                                                                              return (
+                                                                                  <div key={opt.id} className="flex items-center justify-between">
+                                                                                      <span className="text-[10px] text-slate-600 truncate max-w-[120px]">{opt.name}</span>
+                                                                                      <div className="flex items-center">
+                                                                                          <span className="text-[9px] text-slate-400 pr-1">R$</span>
+                                                                                          <input
+                                                                                              type="number"
+                                                                                              value={customVarPrice !== undefined ? customVarPrice : ''}
+                                                                                              onChange={e => {
+                                                                                                  const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                                                                  const newCustomPrices = [...(formData.customPrices || [])];
+                                                                                                  let idx = newCustomPrices.findIndex((p: any) => p.jobTypeId === type.id);
+                                                                                                  if (idx === -1) {
+                                                                                                      idx = newCustomPrices.length;
+                                                                                                      newCustomPrices.push({ jobTypeId: type.id, variations: {} } as any);
+                                                                                                  }
+                                                                                                  if (!(newCustomPrices[idx] as any).variations) (newCustomPrices[idx] as any).variations = {};
+                                                                                                  
+                                                                                                  if (val === undefined) {
+                                                                                                      delete (newCustomPrices[idx] as any).variations[opt.id];
+                                                                                                      if (Object.keys((newCustomPrices[idx] as any).variations).length === 0) {
+                                                                                                          delete (newCustomPrices[idx] as any).variations;
+                                                                                                          if (!(newCustomPrices[idx] as any).fixedPrice && !(newCustomPrices[idx] as any).discountPercent) {
+                                                                                                              newCustomPrices.splice(idx, 1);
+                                                                                                          }
+                                                                                                      }
+                                                                                                  } else {
+                                                                                                      (newCustomPrices[idx] as any).variations[opt.id] = val;
+                                                                                                  }
+                                                                                                  setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
+                                                                                              }}
+                                                                                              className="w-14 px-1 py-1 text-[10px] bg-slate-50 border border-slate-200 rounded text-right outline-none focus:border-blue-400"
+                                                                                              placeholder="Fixo"
+                                                                                          />
+                                                                                      </div>
+                                                                                  </div>
+                                                                              );
+                                                                          })}
+                                                                      </div>
+                                                                  </div>
+                                                              ))}
+                                                          </div>
+                                                      </div>
+                                                  )}
                                               </div>
                                           );
                                       })}
@@ -850,6 +974,58 @@ export const DentistsTab = () => {
                         </div>
                       </div>
 
+
+                      {/* SUB-DENTISTS SECTION */}
+                      {formData.clientType === 'CLINICA' && (
+                          <div className="pt-4 border-t border-slate-100">
+                              <div className="flex items-center justify-between mb-3">
+                                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest">5. Dentistas Associados (Sub-contas)</h4>
+                                  <button type="button" onClick={() => {
+                                      setSubDentistFormData(defaultSubDentist);
+                                      setEditingSubDentistIndex(null);
+                                      setIsAddingSubDentist(true);
+                                  }} className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-blue-200">
+                                      <Plus size={14} /> Adicionar Dentista
+                                  </button>
+                              </div>
+                              
+                              {(!formData.subDentists || formData.subDentists.length === 0) ? (
+                                  <div className="bg-slate-50 p-4 rounded-xl text-center text-slate-400 text-xs italic font-medium border border-slate-200">
+                                      Nenhum dentista associado a esta clínica.
+                                  </div>
+                              ) : (
+                                  <div className="space-y-2">
+                                      {formData.subDentists.map((sd: any, idx: number) => (
+                                          <div key={sd.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                                              <div>
+                                                  <p className="font-bold text-slate-800 text-sm">{sd.name}</p>
+                                                  <p className="text-xs text-slate-500">{sd.cro ? `CRO: ${sd.cro}` : 'Sem CRO'} | {sd.cpfCnpj || 'Sem Documento'}</p>
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                  <button type="button" onClick={() => {
+                                                      setSubDentistFormData(sd);
+                                                      setEditingSubDentistIndex(idx);
+                                                      setIsAddingSubDentist(true);
+                                                  }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg">
+                                                      <Edit size={16} />
+                                                  </button>
+                                                  <button type="button" onClick={() => {
+                                                      setFormData(prev => {
+                                                          const subs = [...(prev.subDentists || [])];
+                                                          subs.splice(idx, 1);
+                                                          return { ...prev, subDentists: subs };
+                                                      });
+                                                  }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                                                      <Trash2 size={16} />
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      ))}
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                      
                       <button disabled={editingDentistId ? !canEdit : !canCreate} type="submit" className={`w-full py-4 font-black rounded-2xl shadow-xl transition-all transform active:scale-95 ${editingDentistId ? (canEdit ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed') : (canCreate ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed')}`}>SALVAR FICHA COMPLETA</button>
                   </form>
               </div>
@@ -858,9 +1034,9 @@ export const DentistsTab = () => {
 
         {/* MODAL: IMPORTAR EXCEL IA */}
         {isImportModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
             <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-300">
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg"><Sparkles size={24} /></div>
                   <div>
@@ -871,7 +1047,7 @@ export const DentistsTab = () => {
                 <button onClick={() => { setIsImportModalOpen(false); setImportStatus('IDLE'); }} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={28} className="text-slate-400"/></button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8">
                 {importStatus === 'IDLE' && (
                   <div onClick={() => fileInputRef.current?.click()} className="border-4 border-dashed border-slate-200 rounded-[24px] p-20 text-center hover:border-indigo-400 hover:bg-indigo-50 transition-all cursor-pointer group">
                     <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
@@ -943,7 +1119,7 @@ export const DentistsTab = () => {
                 )}
               </div>
 
-              <div className="p-8 bg-slate-50 border-t flex justify-between items-center">
+              <div className="p-4 sm:p-8 bg-slate-50 border-t flex justify-between items-center">
                  <button onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
                  {(importStatus === 'PREVIEW' || importStatus === 'SAVING') && (
                    <button onClick={saveImportedData} disabled={importStatus === 'SAVING'} className="px-10 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 transition-all disabled:opacity-50">

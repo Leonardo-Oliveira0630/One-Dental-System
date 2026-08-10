@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { getCircularReplacer } from '../../utils/logger';
 import { useApp } from '../../context/AppContext';
 import { Receipt, User, ManualDentist, PermissionKey, UserRole } from '../../types';
 import { 
@@ -66,8 +67,8 @@ export const Receipts: React.FC = () => {
             operationType,
             path
         };
-        console.error('Firestore Error: ', JSON.stringify(errInfo));
-        throw new Error(JSON.stringify(errInfo));
+        console.error('Firestore Error: ', JSON.stringify(errInfo, getCircularReplacer()));
+        throw new Error(JSON.stringify(errInfo, getCircularReplacer()));
     };
 
     const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -601,7 +602,7 @@ export const Receipts: React.FC = () => {
             </div>
 
             {showSettings && (
-                <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in slide-in-from-top-4 p-6 space-y-6">
+                <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in slide-in-from-top-4 p-4 sm:p-6 space-y-6">
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100">
                         <div>
                             <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
@@ -612,7 +613,7 @@ export const Receipts: React.FC = () => {
                         <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"><X size={24}/></button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                         {/* Referente a Presets */}
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
                             <h3 className="text-xs font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
@@ -699,7 +700,7 @@ export const Receipts: React.FC = () => {
                         <button onClick={() => { setShowForm(false); setEditingReceipt(null); }} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="p-6 space-y-8">
+                    <form onSubmit={handleSubmit} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-8">
                         {/* Seção Dados do Recibo */}
                         <div className="space-y-4">
                             <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -1012,7 +1013,7 @@ export const Receipts: React.FC = () => {
                 </div>
             ) : (
                 <>
-                    <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
+                    <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4">
                         <div className="flex-1 relative">
                             <div className="absolute left-4 top-3.5 text-slate-400"><Search size={22}/></div>
                             <input 

@@ -30,7 +30,7 @@ export const FeatureLocked: React.FC<FeatureLockedProps> = ({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-[70vh] p-6 text-center animate-in fade-in zoom-in duration-300">
+    <div className="flex flex-col items-center justify-center h-[70vh] p-4 sm:p-6 text-center animate-in fade-in zoom-in duration-300">
       <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 relative">
         <Lock size={48} className="text-slate-400" />
         <div className="absolute -top-1 -right-1 bg-orange-500 text-white p-2 rounded-full shadow-lg border-4 border-white">

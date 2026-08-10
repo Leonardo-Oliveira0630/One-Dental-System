@@ -32,7 +32,7 @@ export const IncomingOrders = () => {
 
   // Redirect if not manager/admin/super
   if (currentUser?.role !== UserRole.MANAGER && currentUser?.role !== UserRole.ADMIN && !isSuperAdmin) {
-      return <div className="p-8 text-center text-slate-500 font-bold uppercase tracking-widest">Acesso Negado</div>;
+      return <div className="p-4 sm:p-8 text-center text-slate-500 font-bold uppercase tracking-widest">Acesso Negado</div>;
   }
 
   const incoming = jobs.filter(j => 
@@ -191,7 +191,7 @@ export const IncomingOrders = () => {
                 <div key={job.id} className="bg-white p-0 rounded-3xl shadow-sm border border-purple-100 overflow-hidden flex flex-col md:flex-row">
                     <div className="w-full md:w-2 bg-purple-500"></div>
                     
-                    <div className="p-6 flex-1 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div className="p-6 flex-1 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:p-6">
                         <div className="flex-1 space-y-4">
                             <div>
                                 <div className="flex flex-wrap items-center gap-3 mb-2">
@@ -326,8 +326,8 @@ export const IncomingOrders = () => {
 
       {/* Modal de Justificativa de Recusa para Pedidos */}
       {rejectingOrderJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-up">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-3xl p-4 sm:p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-up">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                 <X className="text-red-500" size={20} /> Recusar Pedido

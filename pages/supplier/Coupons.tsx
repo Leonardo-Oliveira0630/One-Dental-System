@@ -146,8 +146,8 @@ export const SupplierCoupons = () => {
   };
 
   return (
-    <div className="flex-1 p-6 space-y-6 bg-slate-50 text-slate-900 min-h-screen overflow-y-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
+    <div className="flex-1 p-4 sm:p-6 space-y-6 bg-slate-50 text-slate-900 min-h-screen overflow-y-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-800">Meus Cupons</h1>
           <p className="text-slate-500 text-sm mt-1">Crie e gerencie cupons de desconto para sua loja e produtos específicos</p>
@@ -160,7 +160,7 @@ export const SupplierCoupons = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
         {loading ? (
           <p className="text-slate-500 col-span-full">Carregando cupons...</p>
         ) : coupons.length === 0 ? (
@@ -176,7 +176,7 @@ export const SupplierCoupons = () => {
               .filter(Boolean);
 
             return (
-              <div key={coupon.id} className="bg-white border border-slate-200 rounded-2xl p-6 relative group shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+              <div key={coupon.id} className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 relative group shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
                 <div>
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-2">
@@ -254,9 +254,9 @@ export const SupplierCoupons = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50">
               <h2 className="text-xl font-bold text-slate-800">
                 {editingCoupon ? 'Editar Cupom' : 'Novo Cupom de Desconto'}
               </h2>
@@ -265,7 +265,7 @@ export const SupplierCoupons = () => {
               </button>
             </div>
             
-            <form onSubmit={handleSave} className="p-6 space-y-5 overflow-y-auto flex-1">
+            <form onSubmit={handleSave} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-5 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Código do Cupom *</label>
                 <input

@@ -132,7 +132,7 @@ export const PromisedJobs = () => {
           </div>
        </div>
 
-       <div className="flex gap-6 min-w-[1000px]">
+       <div className="flex gap-4 sm:p-6 min-w-[1000px]">
            {/* Column: Delayed */}
            <div className="flex-1 min-w-[280px]">
                 <div className="bg-red-50 p-3 rounded-t-xl border-b-2 border-red-200 flex justify-between items-center">

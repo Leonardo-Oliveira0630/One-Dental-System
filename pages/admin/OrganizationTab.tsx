@@ -238,7 +238,7 @@ export const OrganizationTab = () => {
   return (
     <div className="max-w-4xl space-y-8 animate-in slide-in-from-left-4 pb-20">
       {/* IDENTIDADE VISUAL */}
-      <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100">
+      <div className="bg-white p-5 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
         <h3 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
           <Building2 className="text-blue-600" size={24} /> Identidade Visual
         </h3>
@@ -255,7 +255,7 @@ export const OrganizationTab = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Responsável Técnico</label>
               <input 
@@ -276,7 +276,7 @@ export const OrganizationTab = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
             <div>
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">CRO Número</label>
               <input 
@@ -299,7 +299,7 @@ export const OrganizationTab = () => {
 
           <div className="space-y-4">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Logomarca Personalizada</label>
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-4 sm:p-6 md:gap-4 sm:p-8">
               <div className="relative group shrink-0">
                 <div className="w-32 h-32 md:w-36 md:h-36 bg-slate-100 rounded-3xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden transition-all group-hover:border-blue-400 group-hover:bg-blue-50 shadow-inner">
                   {logoPreview ? (
@@ -331,12 +331,12 @@ export const OrganizationTab = () => {
       </div>
 
       {/* CONTATO E LOCALIZAÇÃO */}
-      <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+      <div className="bg-white p-5 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-6">
         <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
           <MapPin className="text-teal-600" size={24} /> Contato e Localização
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Telefone de Contato</label>
             <input 
@@ -358,7 +358,7 @@ export const OrganizationTab = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
           <div className="md:col-span-1">
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">CEP</label>
             <input 
@@ -379,7 +379,7 @@ export const OrganizationTab = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:p-6">
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Número</label>
             <input 
@@ -431,12 +431,12 @@ export const OrganizationTab = () => {
       </div>
 
       {/* CONFIGURAÇÕES DE ACESSO E LINK DA LOJA */}
-      <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-indigo-100 transition-all space-y-6">
+      <div className="bg-white p-5 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-indigo-100 transition-all space-y-6">
         <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
           <ExternalLink className="text-indigo-600" size={24} /> Link e Privacidade da Loja
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
           <div>
             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">URL Personalizada (Slug)</label>
             <div className="flex bg-slate-50 border border-slate-200 rounded-2xl p-1 focus-within:ring-2 focus-within:ring-indigo-500">
@@ -573,7 +573,7 @@ export const OrganizationTab = () => {
       </div>
 
       {/* PORTAL DO CLIENTE */}
-      <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-blue-100 transition-all space-y-6">
+      <div className="bg-white p-5 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-blue-100 transition-all space-y-6">
         <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
           <Shield className="text-blue-600" size={24} /> Portal do Cliente (Dentista)
         </h3>
@@ -603,7 +603,7 @@ export const OrganizationTab = () => {
 
       {/* WHATSAPP / TWILIO SETTINGS */}
       {currentOrg?.hasWhatsappModule && (
-          <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-green-100 transition-all space-y-6">
+          <div className="bg-white p-5 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100 hover:border-green-100 transition-all space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                 <div className="p-3 bg-green-100 text-green-600 rounded-xl">
                     <MessageSquare size={24} />
@@ -622,7 +622,7 @@ export const OrganizationTab = () => {
       )}
 
       {/* CONFIGURAÇÕES DA LOJA VIRTUAL */}
-      <div className="bg-white p-5 md:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-8">
+      <div className="bg-white p-5 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-8">
         <div className="flex justify-between items-center border-b border-slate-100 pb-4">
           <h3 className="text-lg md:text-xl font-black text-slate-800 flex items-center gap-2">
             <ImageIcon className="text-indigo-600" size={24} /> Store Designer
@@ -665,7 +665,7 @@ export const OrganizationTab = () => {
                 <Info size={14}/> Resolução recomendada: 1920 x 822 pixels (Formato Paisagem 21:9)
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
             {(storeSettings.banners || []).map((banner, i) => (
               <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4 relative group hover:border-indigo-300 transition-all shadow-sm flex flex-col">
                  <div className="relative aspect-[21/9] bg-slate-100 rounded-xl overflow-hidden border border-slate-200 shrink-0">
@@ -804,7 +804,7 @@ export const OrganizationTab = () => {
         </div>
       </div>
 
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 right-6 z-[100]">
         <button 
           onClick={handleSave} 
           disabled={isSaving}

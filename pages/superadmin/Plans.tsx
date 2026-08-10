@@ -127,7 +127,7 @@ export const Plans = () => {
             )}
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:p-8">
             {/* LISTA DE PLANOS EXISTENTES */}
             <div className="xl:col-span-7 space-y-4">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Planos Ativos</h3>
@@ -195,7 +195,7 @@ export const Plans = () => {
 
             {/* FORMULÁRIO DE CUSTOMIZAÇÃO */}
             <div className="xl:col-span-5">
-                <div className="bg-white p-8 rounded-[40px] shadow-2xl border border-slate-100 sticky top-6">
+                <div className="bg-white p-4 sm:p-8 rounded-[40px] shadow-2xl border border-slate-100 sticky top-4 sm:p-6">
                     <div className="flex items-center gap-3 mb-8">
                         <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-100">
                             <Settings2 size={24} />
@@ -260,7 +260,7 @@ export const Plans = () => {
                         </div>
 
                         {/* SEÇÃO DE LIMITES - CUSTOMIZAÇÃO REQUERIDA */}
-                        <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 space-y-5">
+                        <div className="bg-slate-50 p-4 sm:p-6 rounded-[32px] border border-slate-100 space-y-5">
                             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                 <Gauge size={14} className="text-blue-600"/> Capacidade & Infraestrutura
                             </h4>

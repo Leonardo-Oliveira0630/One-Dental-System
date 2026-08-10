@@ -2,21 +2,24 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch, DentistPayment } from '../../types';
 import * as api from '../../services/firebaseService';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  PieChart, Pie, Cell, AreaChart, Area, Legend
-} from 'recharts';
-import { 
-  DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, 
-  FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, 
-  CreditCard, Loader2, User, Package, Clock, X, Filter, 
-  FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight,
-  ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle,
-  ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight
-} from 'lucide-react';
-
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
+import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, CreditCard, Loader2, User, Package, Clock, X, Filter, FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle, ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const translatePaymentMethod = (method: string) => {
+    switch (method) {
+        case 'PIX': return 'PIX';
+        case 'CASH': return 'Dinheiro';
+        case 'CREDIT_CARD': return 'Cartão Crédito';
+        case 'DEBIT_CARD': return 'Cartão Débito';
+        case 'BANK_TRANSFER': return 'Transf. Bancária';
+        case 'BOLETO': return 'Boleto';
+        case 'DISCOUNT': return 'Desconto/Cortesia';
+        case 'CLIENT_CREDIT': return 'Saldo Crédito';
+        default: return method;
+    }
+};
 
 export const Finance = () => {
   const { 
@@ -59,6 +62,11 @@ export const Finance = () => {
   const [dentistJobs, setDentistJobs] = useState<Job[]>([]);
   const [isLoadingStatement, setIsLoadingStatement] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'EXTRATO' | 'RECEBIMENTOS' | 'FATURAS'>('EXTRATO');
+  const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+  const [manualEntryType, setManualEntryType] = useState<'MANUAL_DEBIT' | 'MANUAL_CREDIT'>('MANUAL_DEBIT');
+  const [manualEntryAmount, setManualEntryAmount] = useState('');
+  const [manualEntryNotes, setManualEntryNotes] = useState('');
+  const [isAddingManualEntry, setIsAddingManualEntry] = useState(false);
   const [showAsaasError, setShowAsaasError] = useState(false);
   const [filterStartDate, setFilterStartDate] = useState(() => {
       const d = new Date();
@@ -467,9 +475,14 @@ export const Finance = () => {
         ...clientPayments.map(p => ({
             id: p.id,
             date: p.paymentDate,
-            type: (p.type === 'DISCOUNT' ? 'CREDIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT',
-            description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : `Pagamento: ${p.paymentMethod} ${p.notes ? `- ${p.notes}` : ''}`,
-            amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : (Number(p.amount || 0) + Number(p.discount || 0)),
+            type: (p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' ? 'CREDIT' : p.type === 'MANUAL_DEBIT' ? 'DEBIT' : 'PAYMENT') as 'CREDIT' | 'PAYMENT' | 'DEBIT',
+            description: p.type === 'DISCOUNT' ? `Desconto: ${p.notes || ''}` : 
+                         p.type === 'MANUAL_DEBIT' ? `Débito Manual${p.notes ? ': ' + p.notes : ''}` : 
+                         p.type === 'MANUAL_CREDIT' ? `Crédito Manual${p.notes ? ': ' + p.notes : ''}` : 
+                         `Pagamento: ${translatePaymentMethod(p.paymentMethod)} ${p.notes ? `- ${p.notes}` : ''}`,
+            amount: p.type === 'DISCOUNT' ? Number(p.amount || 0) : 
+                    (p.type === 'MANUAL_DEBIT' || p.type === 'MANUAL_CREDIT') ? Number(p.amount || 0) : 
+                    (Number(p.amount || 0) + Number(p.discount || 0)),
             payment: p
         }))
     ];
@@ -484,7 +497,7 @@ export const Finance = () => {
     
     const historyWithBalance = sorted.map(item => {
         if (item.type === 'DEBIT') runningBalance -= item.amount;
-        else runningBalance += item.amount;
+        else if (item.payment?.paymentMethod !== 'CLIENT_CREDIT') runningBalance += item.amount;
         
         const isBefore = new Date(item.date) < sDate;
         if (isBefore) previousBalance = runningBalance;
@@ -499,6 +512,40 @@ export const Finance = () => {
 
     return { history: filteredHistory, previousBalance };
   }, [statementClient, dentistJobs, dentistPayments, filterStartDate, filterEndDate]);
+
+  const handleAddManualEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!statementClient || !currentOrg) return;
+
+    const amount = parseFloat(manualEntryAmount);
+    if (isNaN(amount) || amount <= 0) {
+        alert("Digite um valor válido.");
+        return;
+    }
+
+    setIsAddingManualEntry(true);
+    try {
+        await addDentistPayment({
+            dentistId: statementClient.id,
+            dentistName: statementClient.name,
+            amount: amount,
+            paymentMethod: 'CASH',
+            paymentDate: new Date(),
+            type: manualEntryType === 'MANUAL_DEBIT' ? 'MANUAL_DEBIT' : 'MANUAL_CREDIT',
+            notes: manualEntryNotes || (manualEntryType === 'MANUAL_DEBIT' ? 'Ajuste a Débito' : 'Ajuste a Crédito')
+        } as any);
+        
+        setShowManualEntryModal(false);
+        setManualEntryAmount('');
+        setManualEntryNotes('');
+        alert('Lançamento manual registrado com sucesso!');
+    } catch (error) {
+        console.error(error);
+        alert('Erro ao registrar lançamento manual.');
+    } finally {
+        setIsAddingManualEntry(false);
+    }
+  };
 
   const generateStatementPDF = async () => {
     if (!statementClient || !currentOrg) return;
@@ -616,10 +663,10 @@ export const Finance = () => {
         const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
         const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
         
-        const hasSubItems = isDebit && item.job && item.job.items && item.job.items.length > 0;
+        const hasSubItems = 'job' in item && item.job && item.job.items && item.job.items.length > 0;
         
         let description = '';
-        if (isDebit) {
+        if ('job' in item) {
             const dentistName = (statementClient.name && statementClient.name.split(' ')[0]) || 'Dr.';
             description = `${item.job?.osNumber || '-'} - Dr(a): ${dentistName.toUpperCase()} - Paciente: ${(item.job?.patientName || '').toUpperCase()}`;
         } else {
@@ -633,9 +680,9 @@ export const Finance = () => {
             { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
         ]);
         
-        if (hasSubItems) {
+        if (hasSubItems && 'job' in item && item.job && item.job.items) {
             item.job.items.forEach((subItem: any, subIndex: number) => {
-                const isLast = subIndex === item.job.items.length - 1;
+                const isLast = subIndex === item.job!.items!.length - 1;
                 tableBody.push([
                     { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                     { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
@@ -989,22 +1036,22 @@ export const Finance = () => {
 
         {/* STATS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
             <h3 className="text-2xl font-black text-green-600">R$ {paidSum.toFixed(2)}</h3>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Pendente</p>
             <h3 className="text-2xl font-black text-orange-600">R$ {pendingSum.toFixed(2)}</h3>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+          <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
             <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total de Pedidos no Período</p>
             <h3 className="text-2xl font-black text-blue-600">{periodJobs.length}</h3>
           </div>
         </div>
 
         {/* FILTERS */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+        <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Filter size={16} className="text-slate-500" /> Filtrar por Período
           </h2>
@@ -1100,8 +1147,8 @@ export const Finance = () => {
 
       {/* ASAAS WALLET QUICK INFO (Sempre Visível) */}
       {currentOrg?.financialSettings?.asaasWalletId && (
-          <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-8 relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><ShieldCheck size={120} /></div>
+          <div className="bg-slate-900 rounded-3xl p-4 sm:p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-4 sm:p-8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10 pointer-events-none"><ShieldCheck size={120} /></div>
               <div className="flex-1 text-center md:text-left relative z-10">
                   <div className="flex items-center justify-center md:justify-start gap-2 text-blue-400 font-black text-[10px] uppercase tracking-widest mb-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div> Conta Digital Ativa (Split ProTrack)
@@ -1143,19 +1190,19 @@ export const Finance = () => {
       {activeTab === 'DASHBOARD' && (
           <div className="space-y-8 animate-in fade-in duration-300">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">Receita Realizada (Paga)</p>
                       <h3 className="text-2xl font-black text-green-600">R$ {stats.paidRevenue.toFixed(2)}</h3>
                   </div>
-                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">Faturado Pendente (Boletos)</p>
                       <h3 className="text-2xl font-black text-orange-600">R$ {stats.inBatchesPending.toFixed(2)}</h3>
                   </div>
-                  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                  <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">A Faturar (Concluídos)</p>
                       <h3 className="text-2xl font-black text-blue-600">R$ {stats.pendingRevenue.toFixed(2)}</h3>
                   </div>
-                   <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                   <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-xs font-bold text-slate-400 uppercase mb-1">Total Despesas Pagas</p>
                       <h3 className="text-2xl font-black text-red-500">R$ {stats.totalExpenses.toFixed(2)}</h3>
                   </div>
@@ -1165,7 +1212,7 @@ export const Finance = () => {
 
       {activeTab === 'RECEIVABLES' && (
           <div className="space-y-6 animate-in slide-in-from-right-2">
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
                   <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-8">
                       <div>
                         <h2 className="text-xl font-bold text-slate-800">Prontos para Cobrança</h2>
@@ -1228,7 +1275,7 @@ export const Finance = () => {
 
       {activeTab === 'BATCHES' && (
           <div className="space-y-6 animate-in slide-in-from-right-2">
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                   <h3 className="text-lg font-black text-slate-800 mb-6 flex items-center gap-2"><Receipt className="text-blue-600"/> Histórico de Faturas e Boletos</h3>
                   
                   <div className="overflow-x-auto">
@@ -1292,7 +1339,7 @@ export const Finance = () => {
                   </button>
               </div>
 
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
                   <table className="w-full text-left">
                       <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase border-b">
                           <tr>
@@ -1326,7 +1373,7 @@ export const Finance = () => {
       {activeTab === 'REPORTS' && (
           <div className="space-y-6 animate-in slide-in-from-right-2">
               {/* Filters Panel */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-4">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                       <div>
                           <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
@@ -1507,9 +1554,9 @@ export const Finance = () => {
 
       {/* MODAL: SELEÇÃO DE TRABALHOS P/ FATURAMENTO */}
       {activeTab === 'SETTINGS' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-right-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-8 animate-in slide-in-from-right-2">
               {/* Maquinas de Cartão */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
                   <div className="flex justify-between items-center">
                       <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><CreditCard className="text-blue-600"/> Máquinas de Cartão</h3>
                       <button 
@@ -1536,7 +1583,7 @@ export const Finance = () => {
               </div>
 
               {/* Contas Bancárias */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+              <div className="bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm space-y-6">
                   <div className="flex justify-between items-center">
                       <h3 className="text-lg font-black text-slate-800 flex items-center gap-2"><Building className="text-blue-600"/> Contas Bancárias</h3>
                       <button 
@@ -1565,8 +1612,8 @@ export const Finance = () => {
       )}
       {/* MODAL: NOVA DESPESA */}
       {showExpenseModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6 border-b pb-4">
                       <h3 className="text-xl font-black text-slate-800">Lançar Nova Despesa</h3>
                       <button onClick={() => setShowExpenseModal(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
@@ -1596,11 +1643,11 @@ export const Finance = () => {
 
       {/* MODAL: EXTRATO COMPLETO (SINC COM DENTISTS.TSX) */}
       {showStatement && statementClient && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
                     <div className="bg-slate-50 rounded-[40px] shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col animate-in zoom-in duration-300 overflow-hidden border border-white">
                         {/* HEADER */}
-                        <div className="p-8 border-b border-slate-100 flex justify-between items-start bg-white relative">
-                            <div className="flex items-center gap-6">
+                        <div className="p-4 sm:p-8 border-b border-slate-100 flex justify-between items-start bg-white relative">
+                            <div className="flex items-center gap-4 sm:p-6">
                                 <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-blue-200">
                                     <History size={32} />
                                 </div>
@@ -1641,7 +1688,7 @@ export const Finance = () => {
                         </div>
 
                         {/* CONTENT */}
-                        <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 relative">
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50/50 relative">
                             {isLoadingStatement && (
                                 <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center">
                                     <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
@@ -1651,7 +1698,7 @@ export const Finance = () => {
 
                             {activeSubTab === 'EXTRATO' && (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="flex justify-between items-center bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+                                    <div className="flex justify-between items-center bg-white p-4 sm:p-6 rounded-[32px] border border-slate-100 shadow-sm">
                                         <div className="flex items-center gap-4">
                                             <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
                                                 <input 
@@ -1669,12 +1716,20 @@ export const Finance = () => {
                                                 />
                                             </div>
                                         </div>
-                                        <button 
-                                            onClick={generateStatementPDF}
-                                            className="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl shadow-slate-200"
-                                        >
-                                            <Download size={16} /> Exportar PDF
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setShowManualEntryModal(true)}
+                                                className="px-4 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-xl shadow-blue-500/30"
+                                            >
+                                                <Plus size={16} /> Lançamento Manual
+                                            </button>
+                                            <button 
+                                                onClick={generateStatementPDF}
+                                                className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl shadow-slate-200"
+                                            >
+                                                <Download size={16} /> Exportar PDF
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
@@ -1718,9 +1773,9 @@ export const Finance = () => {
                                                                         </div>
                                                                         <span className="text-xs font-black text-slate-800">{item.description}</span>
                                                                     </div>
-                                                                    {item.type === 'DEBIT' && item.job && (
+                                                                    {'job' in item && item.job && (
                                                                         <div className="ml-10 space-y-1">
-                                                                            {item.job.items.map((it:any, iIdx:number) => (
+                                                                            {item.job.items?.map((it:any, iIdx:number) => (
                                                                                 <div key={iIdx} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
                                                                                     <span>{it.quantity} x {it.name}</span>
                                                                                     <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
@@ -1768,7 +1823,7 @@ export const Finance = () => {
                                     </div>
 
                                     {showPaymentForm && (
-                                        <div className="bg-white p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
+                                        <div className="bg-white p-4 sm:p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
                                             <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
@@ -1824,6 +1879,7 @@ export const Finance = () => {
                                                         <option value="BANK_TRANSFER">Transferência Bancária</option>
                                                         <option value="BOLETO">Boleto (Pago)</option>
                                                         <option value="DISCOUNT">Desconto/Cortesia</option>
+                                                        <option value="CLIENT_CREDIT">Saldo de Crédito</option>
                                                     </select>
                                                 </div>
 
@@ -1987,7 +2043,7 @@ export const Finance = () => {
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
-                                                                    {p.paymentMethod}
+                                                                    {translatePaymentMethod(p.paymentMethod)}
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4 text-xs font-bold text-slate-600 italic">
@@ -2083,8 +2139,8 @@ export const Finance = () => {
                         </div>
 
                         {/* FOOTER */}
-                        <div className="p-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-6">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-4 sm:p-6">
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
                                     <span className={`text-xl font-black ${chronoHistory.history.length > 0 && chronoHistory.history[chronoHistory.history.length-1].balanceAfter < 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -2129,7 +2185,7 @@ export const Finance = () => {
 
       {showBoletoModal && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Gerar Boleto de Cobrança</h3>
                       <button onClick={() => setShowBoletoModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
@@ -2212,7 +2268,7 @@ export const Finance = () => {
 
       {showAsaasError && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in fade-in zoom-in duration-300">
                   <div className="flex flex-col items-center text-center gap-4">
                       <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
                           <AlertTriangle size={40} />
@@ -2231,6 +2287,76 @@ export const Finance = () => {
                           Entendido
                       </button>
                   </div>
+              </div>
+          </div>
+      )}
+
+      {showManualEntryModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                          <Plus className="text-blue-600" />
+                          Lançamento Manual
+                      </h3>
+                      <button onClick={() => setShowManualEntryModal(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
+                          <X size={20} className="text-slate-500" />
+                      </button>
+                  </div>
+                  
+                  <form onSubmit={handleAddManualEntry} className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Tipo</label>
+                          <div className="flex gap-2">
+                              <button 
+                                  type="button"
+                                  onClick={() => setManualEntryType('MANUAL_DEBIT')}
+                                  className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${manualEntryType === 'MANUAL_DEBIT' ? 'bg-red-50 text-red-600 border-2 border-red-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent'}`}
+                              >
+                                  Débito
+                              </button>
+                              <button 
+                                  type="button"
+                                  onClick={() => setManualEntryType('MANUAL_CREDIT')}
+                                  className={`flex-1 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${manualEntryType === 'MANUAL_CREDIT' ? 'bg-green-50 text-green-600 border-2 border-green-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent'}`}
+                              >
+                                  Crédito
+                              </button>
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Valor (R$)</label>
+                          <input 
+                              type="number"
+                              step="0.01"
+                              value={manualEntryAmount}
+                              onChange={e => setManualEntryAmount(e.target.value)}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                              placeholder="0.00"
+                              required
+                          />
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-black text-slate-500 mb-1 uppercase tracking-wider">Observação (Opcional)</label>
+                          <textarea 
+                              value={manualEntryNotes}
+                              onChange={e => setManualEntryNotes(e.target.value)}
+                              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder={manualEntryType === 'MANUAL_DEBIT' ? 'Ex: Ajuste de saldo, Retrabalho...' : 'Ex: Pagamento extra, Desconto...'}
+                              rows={2}
+                          ></textarea>
+                      </div>
+
+                      <button 
+                          type="submit" 
+                          disabled={isAddingManualEntry}
+                          className="w-full py-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2 mt-4"
+                      >
+                          {isAddingManualEntry ? <Loader2 size={20} className="animate-spin" /> : 'Registrar Lançamento'}
+                      </button>
+                  </form>
               </div>
           </div>
       )}
@@ -2257,7 +2383,7 @@ export const Finance = () => {
                       </button>
                   </div>
 
-                  <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6 max-h-[80vh] overflow-y-auto">
                       {isEditingDetailPayment ? (
                           /* EDIT MODE FORM */
                           <div className="space-y-4">
@@ -2312,6 +2438,7 @@ export const Finance = () => {
                                           <option value="BANK_TRANSFER">Transferência Bancária</option>
                                           <option value="BOLETO">Boleto (Pago)</option>
                                           <option value="DISCOUNT">Desconto/Cortesia</option>
+                                          <option value="CLIENT_CREDIT">Saldo de Crédito</option>
                                       </select>
                                   </div>
                                   <div>
@@ -2501,7 +2628,7 @@ export const Finance = () => {
                                   <div>
                                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Forma de Pagamento</p>
                                       <span className="inline-block mt-0.5 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-black uppercase rounded">
-                                          {selectedPaymentForDetail.paymentMethod}
+                                          {translatePaymentMethod(selectedPaymentForDetail.paymentMethod)}
                                       </span>
                                   </div>
                                   <div>
@@ -2577,7 +2704,7 @@ export const Finance = () => {
                                           </div>
                                       </div>
                                   ) : (
-                                      <div className="flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-center">
+                                      <div className="flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl text-center">
                                           <FileText size={32} className="text-slate-300 mb-2" />
                                           <p className="text-xs font-bold text-slate-500">Nenhum comprovante anexado neste recebimento</p>
                                           <p className="text-[10px] text-slate-400 mt-1 mb-4">Selecione ou clique abaixo para anexar um documento agora.</p>

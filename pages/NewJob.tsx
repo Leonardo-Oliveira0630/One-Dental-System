@@ -7,7 +7,7 @@ import { getContrastColor } from '../services/mockData';
 import { formatTeethRange } from '../utils/toothUtils';
 // Added Crown to the lucide-react imports to fix line 404 error
 import { Odontogram } from "../components/Odontogram";
-import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package } from 'lucide-react';
+import { Plus, Trash2, Save, User as UserIcon, Box, FileText, CheckCircle, Search, RefreshCw, ArrowRight, Printer, X, FileCheck, DollarSign, Check, Calendar, AlertTriangle, Stethoscope, ChevronDown, Layers, Percent, Edit3, ShieldAlert, SearchIcon, Tag, AlertCircle, Crown, Package, MapPin } from 'lucide-react';
 
 import * as api from '../services/firebaseService';
 
@@ -37,8 +37,8 @@ const getJobTypeColor = (jobTypeId: string, jobTypeName?: string) => {
   return JOB_COLORS[Math.abs(hash) % JOB_COLORS.length];
 };
 
-export const NewJob = () => {
-  const { addJob, updateJob, jobs, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
+export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
+  const { addJob, updateJob, updateBudget, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -50,10 +50,12 @@ export const NewJob = () => {
   // --- Global States ---
   const [entryType, setEntryType] = useState<EntryType>((location.state?.entryType as EntryType) || 'NEW');
   const [patientName, setPatientName] = useState((location.state?.patientName || '').toUpperCase());
+  const [clientOrigin, setClientOrigin] = useState<'DENTIST' | 'LABORATORY'>('DENTIST');
   const [selectedDentistObj, setSelectedDentistObj] = useState<any | null>(null);
   const [selectedDentistId, setSelectedDentistId] = useState(location.state?.dentistId || '');
   const [dentistName, setDentistName] = useState((location.state?.dentistName || '').toUpperCase());
   const [dentistSearchQuery, setDentistSearchQuery] = useState((location.state?.dentistName || '').toUpperCase());
+  const [subDentistName, setSubDentistName] = useState('');
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [jobTypeSearchQuery, setJobTypeSearchQuery] = useState('');
   const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
@@ -177,11 +179,16 @@ export const NewJob = () => {
   }, [dentistSearchQuery, connectedDentists, manualDentists]);
 
   const filteredJobTypes = useMemo(() => {
-    const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
+    let visible = jobTypes;
+    if (clientOrigin === 'DENTIST') {
+        visible = jobTypes.filter(t => t.isVisibleInternally !== false);
+    } else {
+        visible = jobTypes.filter(t => t.isVisibleInternallyLabs === true);
+    }
     if (!jobTypeSearchQuery) return visible.slice(0, 10);
     const query = jobTypeSearchQuery.toLowerCase();
     return visible.filter(t => t.name.toLowerCase().includes(query)).slice(0, 10);
-  }, [jobTypeSearchQuery, jobTypes]);
+  }, [jobTypeSearchQuery, jobTypes, clientOrigin]);
 
   const calculatedBasePrice = useMemo(() => {
     if (!activeJobType) return 0;
@@ -193,11 +200,17 @@ export const NewJob = () => {
     
     // Check for Price Table or Custom Pricing
     if (selectedDentistObj) {
+        if (selectedDentistObj.priceTableId) {
+            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+            if (table && table.prices[activeJobType.id]?.basePrice !== undefined) {
+                basePrice = table.prices[activeJobType.id].basePrice;
+            }
+        }
         if (selectedDentistObj.isCustomPricing) {
             // Priority: Explicit Custom Prices
             const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
             if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice >= 0) {
                     basePrice = custom.fixedPrice;
                     dentistDiscountRate = 0;
                 } else if (custom.discountPercent !== undefined) {
@@ -209,12 +222,6 @@ export const NewJob = () => {
             } else if (selectedDentistObj.globalDiscountPercent) {
                 // Fallback to Global Discount if custom pricing is ON but no specific price for this jobType
                 dentistDiscountRate = selectedDentistObj.globalDiscountPercent / 100;
-            }
-        }
-        if (selectedDentistObj.priceTableId) {
-            const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
-            if (table && table.prices[activeJobType.id]?.basePrice !== undefined) {
-                basePrice = table.prices[activeJobType.id].basePrice;
             }
         }
     }
@@ -229,11 +236,18 @@ export const NewJob = () => {
         if (option) {
             let modifier = option.priceModifier;
             
-            // Check if Price Table has a specific modifier for this variation
-            if (selectedDentistObj && !selectedDentistObj.isCustomPricing && selectedDentistObj.priceTableId) {
-                const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
-                if (table && table.prices[activeJobType.id]?.variations?.[option.id] !== undefined) {
-                    modifier = table.prices[activeJobType.id].variations[option.id];
+            // Check if Custom Price or Price Table has a specific modifier for this variation
+            if (selectedDentistObj) {
+                if (selectedDentistObj.isCustomPricing) {
+                    const custom = selectedDentistObj.customPrices?.find((p: any) => p.jobTypeId === activeJobType.id);
+                    if (custom && custom.variations && custom.variations[option.id] !== undefined) {
+                        modifier = custom.variations[option.id];
+                    }
+                } else if (selectedDentistObj.priceTableId) {
+                    const table = priceTables.find(t => t.id === selectedDentistObj.priceTableId);
+                    if (table && table.prices[activeJobType.id]?.variations?.[option.id] !== undefined) {
+                        modifier = table.prices[activeJobType.id].variations[option.id];
+                    }
                 }
             }
 
@@ -267,7 +281,7 @@ export const NewJob = () => {
         if (dentist.isCustomPricing) {
             const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
             if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice >= 0) {
                     basePrice = custom.fixedPrice;
                     dentistDiscountRate = 0;
                 } else if (custom.discountPercent !== undefined) {
@@ -291,10 +305,17 @@ export const NewJob = () => {
         if (option) {
             let modifier = option.priceModifier;
             
-            if (dentist && dentist.priceTableId) {
-                const table = priceTables.find(t => t.id === dentist.priceTableId);
-                if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
-                    modifier = table.prices[jobType.id].variations[option.id];
+            if (dentist) {
+                if (dentist.isCustomPricing) {
+                    const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
+                    if (custom && custom.variations && custom.variations[option.id] !== undefined) {
+                        modifier = custom.variations[option.id];
+                    }
+                } else if (dentist.priceTableId) {
+                    const table = priceTables.find(t => t.id === dentist.priceTableId);
+                    if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
+                        modifier = table.prices[jobType.id].variations[option.id];
+                    }
                 }
             }
 
@@ -384,15 +405,17 @@ export const NewJob = () => {
   }, [disabledOptions, selectedVariations, variationTextValues]);
 
   const generateNextNewOs = () => {
-    for (let i = 0; i < jobs.length; i++) {
-      const osStr = String(jobs[i].osNumber || '');
+    let max = 0;
+    const all = [...jobs, ...(budgets || []).map(b => ({ osNumber: b.osNumber }))];
+    for (let i = 0; i < all.length; i++) {
+      const osStr = String(all[i].osNumber || '');
       const basePart = osStr.split('-')[0].replace(/\D/g, '');
       const num = parseInt(basePart, 10);
-      if (!isNaN(num) && num > 0) {
-        return (num + 1).toString().padStart(4, '0');
+      if (!isNaN(num) && num > max) {
+        max = num;
       }
     }
-    return '0001';
+    return (max + 1).toString().padStart(4, '0');
   };
 
   const initialMountRef = useRef(true);
@@ -402,13 +425,13 @@ export const NewJob = () => {
       initialMountRef.current = false;
       const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
       if (entryType === 'NEW' && !location.state?.osNumber) {
-        setOsNumber('');
+        setOsNumber(generateNextNewOs());
       }
       return;
     }
 
     if (entryType === 'NEW') {
-        if (!location.state?.osNumber) setOsNumber('');
+        if (!location.state?.osNumber) setOsNumber(generateNextNewOs());
         setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
         setLastJobFound(null);
         loadedJobIdRef.current = null;
@@ -688,6 +711,43 @@ export const NewJob = () => {
     setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL'); setIsInternalStep(false);
   };
 
+  const handleEditItem = (item: JobItem) => {
+    // Populate form with item details
+    setSelectedTypeId(item.jobTypeId);
+    setQuantity(item.quantity);
+    setItemNature(item.nature || 'NORMAL');
+    setIsInternalStep(item.isInternalStep || false);
+    setManualPrice(item.basePriceBeforeDiscount || null);
+    setDiscountPercent(item.appliedDiscount || 0);
+    setItemColor(item.color || '');
+    setItemSelectedTeeth(item.selectedTeeth || []);
+    setCommissionDisabled(item.commissionDisabled || false);
+    
+    const activeType = jobTypes.find(t => t.id === item.jobTypeId);
+    if (activeType && activeType.variationGroups) {
+      const selections: Record<string, string | string[]> = {};
+      activeType.variationGroups.forEach(group => {
+        const selectedForGroup = item.selectedVariationIds?.filter(id => group.options.some(o => o.id === id)) || [];
+        if (selectedForGroup.length > 0) {
+          if (group.selectionType === 'SINGLE') {
+            selections[group.id] = selectedForGroup[0];
+          } else {
+            selections[group.id] = selectedForGroup;
+          }
+        }
+      });
+      setSelectedVariations(selections);
+    }
+    
+    if (item.variationValues) setVariationTextValues(item.variationValues);
+
+    // Remove from added items
+    setAddedItems(addedItems.filter(i => i.id !== item.id));
+
+    // Scroll to the top to see the form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (activeJobsWithSameBox.length > 0) {
@@ -731,7 +791,7 @@ export const NewJob = () => {
     }
 
     // VALIDAÇÕES DE PRODUÇÃO
-    if (!finalOsNumber) { alert("O número da OS é obrigatório."); return; }
+    if (!finalOsNumber) { alert(isBudget ? "O número do Orçamento é obrigatório." : "O número da OS é obrigatório."); return; }
     if (!patientName.trim()) { alert("O nome do paciente é obrigatório."); return; }
     if (!selectedDentistId || !dentistName.trim()) { alert("A seleção do dentista é obrigatória."); return; }
 
@@ -768,39 +828,61 @@ export const NewJob = () => {
             ((selectedDentistObj as any).role === 'CLIENT' ? selectedDentistObj.id : '')
           ) : '');
 
-    const newJob: Omit<Job, 'id' | 'organizationId'> = { 
-        osNumber: finalOsNumber, 
-        patientName: patientName.trim().toUpperCase(), 
-        dentistId: selectedDentistId, 
-        dentistName: dentistName.trim().toUpperCase(), 
-        status: JobStatus.PENDING, 
-        paymentStatus: location.state?.paymentStatus || 'PENDING', 
-        urgency, 
-        origin: finalOrigin,
-        dentistUserId: computedDentistUserId,
-        items: addedItems, 
-        products: addedProducts,
-        attachments: location.state?.attachments || [],
-        history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
-        sectorMovements: [{
-            id: Math.random().toString(),
-            sector: initialSector,
-            entryTime: new Date(),
-            entryUserId: currentUser.id,
-            entryUserName: currentUser.name
-        }],
-        createdAt: new Date(), 
-        dueDate: new Date(dueDate), 
-        boxNumber, 
-        boxColor, 
-        currentSector: initialSector, 
-        totalValue, 
-        notes,
-        chatEnabled: false
-    };
-
     setIsSubmitting(true);
     try {
+        if (isBudget) {
+            const newBudget = {
+                osNumber: finalOsNumber,
+                patientName: patientName.trim().toUpperCase(),
+                dentistId: selectedDentistId,
+                dentistName: dentistName.trim().toUpperCase(),
+                subDentistName: subDentistName.trim() || undefined,
+                items: addedItems,
+                products: addedProducts,
+                totalValue,
+                notes,
+                status: 'PENDING' as const,
+                createdAt: new Date(),
+            };
+            const bId = await addBudget(newBudget);
+            alert("Orçamento criado com sucesso!");
+            navigate('/budgets');
+            return;
+        }
+
+        const newJob: Omit<Job, 'id' | 'organizationId'> = { 
+            osNumber: finalOsNumber, 
+            patientName: patientName.trim().toUpperCase(), 
+            dentistId: selectedDentistId, 
+            dentistName: dentistName.trim().toUpperCase(),
+            clientOrigin,
+            subDentistName: subDentistName.trim() || undefined, 
+            status: JobStatus.PENDING, 
+            paymentStatus: location.state?.paymentStatus || 'PENDING', 
+            urgency, 
+            origin: finalOrigin,
+            dentistUserId: computedDentistUserId,
+            items: addedItems, 
+            products: addedProducts,
+            attachments: location.state?.attachments || [],
+            history: [{ id: Math.random().toString(), timestamp: new Date(), action: historyAction, userId: currentUser.id, userName: currentUser.name, sector: initialSector }], 
+            sectorMovements: [{
+                id: Math.random().toString(),
+                sector: initialSector,
+                entryTime: new Date(),
+                entryUserId: currentUser.id,
+                entryUserName: currentUser.name
+            }],
+            createdAt: new Date(), 
+            dueDate: new Date(dueDate), 
+            boxNumber, 
+            boxColor, 
+            currentSector: initialSector, 
+            totalValue, 
+            notes,
+            chatEnabled: false
+        };
+
         if (finalOrigin === 'ONLINE_ORDER' && onlineOrderId) {
             // First approve order via the backend function to handle payment capture/status changes
             await api.apiManageOrderDecision(currentUser.organizationId || '', onlineOrderId, 'APPROVE');
@@ -814,6 +896,7 @@ export const NewJob = () => {
                 patientName: patientName.trim().toUpperCase(),
                 dentistId: selectedDentistId,
                 dentistName: dentistName.trim().toUpperCase(),
+                subDentistName: subDentistName.trim() || undefined,
                 status: JobStatus.PENDING,
                 urgency,
                 items: addedItems,
@@ -857,12 +940,18 @@ export const NewJob = () => {
                 patientName: patientName.trim().toUpperCase(),
                 dentistId: selectedDentistId,
                 dentistName: dentistName.trim().toUpperCase(),
+                subDentistName: subDentistName.trim() || undefined,
                 status: JobStatus.PENDING,
                 id: onlineOrderId,
                 organizationId: currentUser.organizationId || ''
             } as Job);
 
         } else {
+            if (location.state?.fromBudget) {
+                try {
+                    await updateBudget(location.state.fromBudget.id, { status: 'APPROVED', notes: (location.state.fromBudget.notes || '') + '\n\n[AUTOMÁTICO] Orçamento aprovado e convertido na OS #' + finalOsNumber });
+                } catch(e) {}
+            }
             const jobId = await addJob(newJob); 
             
             // Deduct stock for each added product
@@ -893,10 +982,10 @@ export const NewJob = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4 md:space-y-6 pb-20 animate-in fade-in duration-500">
+    <div className="w-full max-w-[1600px] px-4 lg:px-8 mx-auto space-y-4 md:space-y-6 pb-20 animate-in fade-in duration-500">
         {showOsConflictPopup && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-300">
+            <div className="bg-white rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-300">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={32} className="text-red-600" />
               </div>
@@ -930,7 +1019,7 @@ export const NewJob = () => {
         )}
         {lastCreatedJob && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
+              <div className="bg-white rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={40} className="text-green-600" /></div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">Caso Cadastrado!</h2>
                 <p className="text-sm text-slate-500 mb-8">A Ordem de Serviço foi gerada com sucesso e está pronta para produção.</p>
@@ -953,14 +1042,14 @@ export const NewJob = () => {
             </div>
         </div>
         
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-8">
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-4 sm:p-8">
             <div className="lg:col-span-8 space-y-4 md:space-y-6">
                 
-                <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                   <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação Obrigatória</h2>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
-                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nº OS <span className="text-slate-400 font-medium normal-case ml-1">(Automático)</span></label>
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{isBudget ? 'Nº Orçamento' : 'Nº OS'} <span className="text-slate-400 font-medium normal-case ml-1">(Automático)</span></label>
                         <input value={osNumber} onChange={e => setOsNumber(e.target.value)} onBlur={handleOsNumberBlur} placeholder="Auto" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300 placeholder:font-normal" />
                     </div>
                     <div className="md:col-span-9">
@@ -968,8 +1057,25 @@ export const NewJob = () => {
                          <input value={patientName} onChange={e => setPatientName(e.target.value.toUpperCase())} required placeholder="Ex: MARIA DAS DORES" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold uppercase" />
                     </div>
                     
-                    <div className="md:col-span-12 relative" ref={dropdownRef}>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Selecionar Dentista ou Clínica <span className="text-red-500">*</span></label>
+                    <div className="md:col-span-3">
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Origem do Caso</label>
+                        <select
+                            value={clientOrigin}
+                            onChange={e => {
+                                setClientOrigin(e.target.value as 'DENTIST' | 'LABORATORY');
+                                // clear job type search if origin changes to avoid invalid selections
+                                setSelectedTypeId('');
+                                setJobTypeSearchQuery('');
+                            }}
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700"
+                        >
+                            <option value="DENTIST">Dentista</option>
+                            <option value="LABORATORY">Laboratório</option>
+                        </select>
+                    </div>
+
+                    <div className="md:col-span-9 relative" ref={dropdownRef}>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Cliente <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
                         <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Digite o nome do dentista..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
@@ -988,13 +1094,39 @@ export const NewJob = () => {
                           </div>
                       )}
                     </div>
+                    {isBudget && selectedDentistObj && (selectedDentistObj.address || selectedDentistObj.city) && (
+                        <div className="md:col-span-12 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1"><MapPin size={12} className="inline mr-1"/> Endereço do Cliente</p>
+                            <p className="text-xs text-slate-700 font-bold uppercase">{selectedDentistObj.address}, {selectedDentistObj.number} - {selectedDentistObj.neighborhood}, {selectedDentistObj.city}/{selectedDentistObj.state}</p>
+                            {selectedDentistObj.cep && <p className="text-[10px] text-slate-500 font-bold mt-0.5">CEP: {selectedDentistObj.cep}</p>}
+                        </div>
+                    )}
+                    {selectedDentistObj?.subDentists && selectedDentistObj.subDentists.length > 0 && (
+                        <div className="md:col-span-12">
+                            <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">
+                                Dentista Solicitante <span className="text-slate-400 font-medium normal-case ml-1">(Opcional)</span>
+                            </label>
+                            <select
+                                value={subDentistName}
+                                onChange={e => setSubDentistName(e.target.value)}
+                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700"
+                            >
+                                <option value="">(Nenhum)</option>
+                                {selectedDentistObj.subDentists.map((sd: any) => (
+                                    <option key={sd.id} value={sd.name}>{sd.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                     <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><Layers size={18} className="text-blue-500" /> Configurar Itens da OS <span className="text-red-500">*</span></h2>
-                    <div className="bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-200 space-y-6">
-                        <div className="space-y-4">
+                    <div className="bg-slate-50 p-4 md:p-4 sm:p-6 rounded-2xl border border-slate-200">
+                        <div className="flex flex-col xl:flex-row gap-6">
+                            <div className="flex-1 space-y-6">
+                                <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Natureza do Item</label>
@@ -1002,18 +1134,6 @@ export const NewJob = () => {
                                         <button type="button" onClick={() => { setItemNature('NORMAL'); setCommissionDisabled(false); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'NORMAL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-400'}`}>Normal</button>
                                         <button type="button" onClick={() => { setItemNature('REPETITION'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'REPETITION' ? 'border-red-600 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-400'}`}>Repetição</button>
                                         <button type="button" onClick={() => { setItemNature('ADJUSTMENT'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Definir como Etapa</label>
-                                    <div className="flex gap-2">
-                                        <button 
-                                            type="button" 
-                                            onClick={() => setIsInternalStep(!isInternalStep)} 
-                                            className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all flex items-center justify-center gap-2 ${isInternalStep ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-400'}`}
-                                        >
-                                            {isInternalStep ? '✅ SIM (Não Faturado)' : 'NÃO (Item Normal)'}
-                                        </button>
                                     </div>
                                 </div>
                                 <div className="relative" ref={jobTypeDropdownRef}>
@@ -1122,32 +1242,6 @@ export const NewJob = () => {
                             </div>
                         )}
 
-                        {activeJobType && (
-                            <div className="pt-4 border-t border-slate-200 space-y-2">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dentes Relacionados (Opcional)</h4>
-                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex justify-center items-center overflow-hidden">
-                                    <Odontogram 
-    selectedTeeth={itemSelectedTeeth} 
-    onChange={(teeth) => {
-        setItemSelectedTeeth(teeth);
-        if (teeth.length > 0) {
-            setQuantity(teeth.length);
-        } else {
-            setQuantity(1);
-        }
-    }}
-    toothColors={odontogramProps.colors}
-    disabledTeeth={odontogramProps.disabled}
-    selectionColor={activeJobType ? getJobTypeColor(activeJobType.id, activeJobType.name) : undefined}
-    className="w-full max-w-[260px] sm:max-w-[320px] md:max-w-[400px] h-auto"
-  />
-                                </div>
-                                {itemSelectedTeeth.length > 0 && (
-                                    <p className="text-xs text-indigo-600 font-bold">Dentes selecionados: {itemSelectedTeeth.sort().join(', ')}</p>
-                                )}
-                            </div>
-                        )}
-
                         <div className="pt-4 border-t border-slate-200 space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
@@ -1188,6 +1282,36 @@ export const NewJob = () => {
                             <Plus size={20} /> ADICIONAR AO CASO
                         </button>
                     </div>
+
+                    {activeJobType && (
+                        <div className="w-full xl:w-[350px] shrink-0 xl:border-l border-slate-200 xl:pl-6 pt-6 xl:pt-0">
+                            <div className="space-y-2">
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Dentes Relacionados (Opcional)</h4>
+                                <div className="bg-transparent flex justify-center items-center overflow-hidden">
+                                    <Odontogram 
+                                        selectedTeeth={itemSelectedTeeth} 
+                                        onChange={(teeth) => {
+                                            setItemSelectedTeeth(teeth);
+                                            if (teeth.length > 0) {
+                                                setQuantity(teeth.length);
+                                            } else {
+                                                setQuantity(1);
+                                            }
+                                        }}
+                                        toothColors={odontogramProps.colors}
+                                        disabledTeeth={odontogramProps.disabled}
+                                        selectionColor={activeJobType ? getJobTypeColor(activeJobType.id, activeJobType.name) : undefined}
+                                        className="w-full max-w-[260px] sm:max-w-[320px] md:max-w-[400px] h-auto"
+                                    />
+                                </div>
+                                {itemSelectedTeeth.length > 0 && (
+                                    <p className="text-xs text-indigo-600 font-bold text-center">Dentes selecionados: {itemSelectedTeeth.sort().join(', ')}</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
 
                     {addedItems.length > 0 && (
                       <div className="mt-4 space-y-2">
@@ -1248,7 +1372,23 @@ export const NewJob = () => {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <span className="font-black text-slate-700 text-sm">R$ {(item.price * item.quantity).toFixed(2)}</span>
-                                    <button type="button" onClick={() => setAddedItems(addedItems.filter(i => i.id !== item.id))} className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                                    <div className="flex gap-1">
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleEditItem(item)} 
+                                            title="Editar Serviço"
+                                            className="p-2 text-slate-300 hover:text-blue-500 transition-colors"
+                                        >
+                                            <Edit3 size={18}/>
+                                        </button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setAddedItems(addedItems.filter(i => i.id !== item.id))} 
+                                            className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 size={18}/>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -1256,7 +1396,7 @@ export const NewJob = () => {
                     )}
                 </div>
 
-                <div className="bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-slate-200">
+                <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Package size={18} className="text-blue-500" /> Venda de Implantes/Componentes</h2>
                         <button type="button" onClick={() => setIsAddingProduct(!isAddingProduct)} className={`text-xs font-black px-3 py-1.5 rounded-lg transition-colors ${isAddingProduct ? 'bg-slate-100 text-slate-500 hover:bg-slate-200' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}>
@@ -1275,7 +1415,7 @@ export const NewJob = () => {
                                         if (prod) setProductManualPrice(prod.sellPrice);
                                     }} className="w-full p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                                         <option value="">Selecione um item no estoque...</option>
-                                        {inventoryItems.map(item => (
+                                        {inventoryItems.filter(item => !item.dentistOwnerId || item.dentistOwnerId === selectedDentistId).map(item => (
                                             <option key={item.id} value={item.id} disabled={item.currentStock <= 0}>
                                                 {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : 'Sem Estoque'}) {item.dentistOwnerId ? '- ESTOQUE DO CLIENTE' : ''}
                                             </option>
@@ -1336,9 +1476,11 @@ export const NewJob = () => {
             </div>
             
             <div className="lg:col-span-4 space-y-4 md:space-y-6">
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-6 space-y-6">
+              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 sticky top-4 sm:p-6 space-y-6">
                 <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-widest"><Box size={18} className="text-blue-500" /> Logística Interna</h2>
 
+                {!isBudget && (
+                <>
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nível de Prioridade</label>
                     <div className="grid grid-cols-2 gap-2">
@@ -1364,7 +1506,6 @@ export const NewJob = () => {
                     <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Previsão de Saída <span className="text-red-500">*</span></label>
                     <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-black text-sm" />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nº Caixa</label>
@@ -1397,6 +1538,8 @@ export const NewJob = () => {
                         </div>
                     </div>
                 </div>
+                </>
+                )}
 
                 <div>
                     <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Observações Técnicas / Histórico acumulado</label>

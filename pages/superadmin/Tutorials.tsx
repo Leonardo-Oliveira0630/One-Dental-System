@@ -254,9 +254,9 @@ export const Tutorials = () => {
       </div>
 
       {/* Tutorials Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
         {filtered.map((t) => (
-          <div key={t.id} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+          <div key={t.id} className="bg-white rounded-3xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-start mb-3">
                 <span className="bg-slate-50 text-slate-500 px-3 py-1 rounded-full text-[10px] font-black uppercase">
@@ -311,9 +311,9 @@ export const Tutorials = () => {
 
       {/* Editor Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/60 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in scale-in duration-300">
-            <div className="bg-slate-900 text-white p-6 flex justify-between items-center">
+            <div className="bg-slate-900 text-white p-4 sm:p-6 flex justify-between items-center">
               <div>
                 <h3 className="font-black text-lg tracking-tight">
                   {editingTutorial ? 'EDITAR TUTORIAL' : 'CRIAR NOVO TUTORIAL'}
@@ -328,8 +328,8 @@ export const Tutorials = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                 <div>
                   <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Título do Tutorial</label>
                   <input
@@ -365,7 +365,7 @@ export const Tutorials = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                 <div>
                   <label className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Posição de Ordenação</label>
                   <input
@@ -410,7 +410,7 @@ export const Tutorials = () => {
               </div>
 
               {/* Slider Carousels (Steps) Section */}
-              <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-3xl border border-slate-100 space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-200 pb-3">
                   <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
                     <ImageIcon size={16} className="text-blue-500" /> Slides do Carrossel de Imagens ({steps.length})

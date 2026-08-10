@@ -281,9 +281,9 @@ export const SupplierSettings = () => {
   };
 
   return (
-    <main id="supplier-settings" className="flex-1 p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
+    <main id="supplier-settings" className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto bg-slate-50 text-slate-900 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white border border-slate-200 rounded-2xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 sm:p-6 bg-white border border-slate-200 rounded-2xl">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Configurações de Fornecedor</h1>
           <p className="text-slate-500 text-sm mt-1">
@@ -335,12 +335,12 @@ export const SupplierSettings = () => {
         
         {/* TAB 1: CONFIGURE STORE */}
         {activeTab === 'store' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-6 animate-in fade-in duration-300">
             {/* Customize Store settings panel */}
             <div className="lg:col-span-2 space-y-6">
               
               {/* Theme Settings */}
-              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <Sparkles className="text-indigo-400" />
                   Tema Personalizado da Vitrine
@@ -376,7 +376,7 @@ export const SupplierSettings = () => {
               </div>
 
               {/* Banner Carousel customizer */}
-              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <ImageIcon className="text-indigo-400" />
                   Banners Deslizantes da Loja
@@ -506,7 +506,7 @@ export const SupplierSettings = () => {
               </div>
 
               {/* Profile Photo */}
-              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <ImageIcon className="text-indigo-400" />
                   Foto de Perfil da Loja
@@ -540,7 +540,7 @@ export const SupplierSettings = () => {
 
               
               {/* Category Images for Store Explore */}
-              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <ImageIcon className="text-indigo-400" />
                   Imagens das Categorias
@@ -606,7 +606,7 @@ export const SupplierSettings = () => {
               </div>
 
               {/* Layout arrangements and blocks */}
-              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
                 <div className="flex justify-between items-center border-b border-slate-200 pb-3">
                   <div>
                     <h3 className="font-bold text-md flex items-center gap-2">
@@ -703,7 +703,7 @@ export const SupplierSettings = () => {
               
               {/* BLOCK CONFIG EDIT MODAL/DRAWER (renders inline for better UX in sidebar) */}
               {editingBlockId && (
-                <div className="bg-white border-2 border-indigo-500/40 rounded-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+                <div className="bg-white border-2 border-indigo-500/40 rounded-2xl p-4 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200">
                   <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                     <h4 className="font-bold text-sm text-indigo-400">Configurar Bloco de Produtos</h4>
                     <button onClick={() => setEditingBlockId(null)} className="text-slate-500 hover:text-indigo-600">✕</button>
@@ -797,7 +797,7 @@ export const SupplierSettings = () => {
               )}
 
               {/* Informative Help Center Panel */}
-              <div className="bg-white border border-slate-200 p-6 rounded-2xl space-y-4">
+              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
                 <h3 className="font-bold text-md flex items-center gap-2">
                   <HelpCircle className="text-indigo-400" />
                   Como funcionam as Lojas Autorais?
@@ -824,8 +824,8 @@ export const SupplierSettings = () => {
         {/* TAB 2: PLANS & UPGRADES */}
         {activeTab === 'plans' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="bg-white border border-slate-200 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-8 opacity-10"><Crown size={120} /></div>
+            <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-8 text-white shadow-xl relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10"><Crown size={120} /></div>
                <div className="relative z-10">
                   <p className="text-indigo-400 font-bold uppercase text-xs tracking-widest mb-1">Seu Plano Atual de Fornecedor</p>
                   <h2 className="text-4xl font-black mb-4">{currentPlan?.name || 'Fornecedor Standard'}</h2>
@@ -857,7 +857,7 @@ export const SupplierSettings = () => {
             </div>
 
             {/* Application of Promo Coupon keys */}
-            <div className="bg-white border border-slate-200 p-6 rounded-3xl">
+            <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-3xl">
                <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                  <Tag className="text-indigo-400" /> Resgatar Cupom de Parceria Fornecedora
                </h3>
@@ -885,7 +885,7 @@ export const SupplierSettings = () => {
             </div>
 
             {/* Invoices summary */}
-            <div className="bg-white border border-slate-200 p-6 rounded-3xl space-y-4">
+            <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-3xl space-y-4">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <DollarSign className="text-indigo-400" /> Histórico de Recibos/Mensalidades
               </h3>
@@ -917,7 +917,7 @@ export const SupplierSettings = () => {
 
         {/* TAB 3: ASAAS SUB-ACCOUNT CREDENTIALS */}
         {activeTab === 'asaas' && (
-          <div className="bg-white border border-slate-200/80 p-6 rounded-2xl space-y-6 animate-in fade-in duration-300 max-w-3xl">
+          <div className="bg-white border border-slate-200/80 p-4 sm:p-6 rounded-2xl space-y-6 animate-in fade-in duration-300 max-w-3xl">
             <h3 className="font-bold text-md flex items-center gap-2 border-b border-slate-200 pb-3">
               <Wallet className="text-indigo-400" />
               Credenciamento e Split do Asaas

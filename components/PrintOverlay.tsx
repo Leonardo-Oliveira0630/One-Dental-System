@@ -3,7 +3,7 @@ import React from 'react';
 import Barcode from 'react-barcode';
 import { useApp } from '../context/AppContext';
 import { UrgencyLevel } from '../types';
-import { Printer, X, MapPin, User, Package, Truck, Clock } from 'lucide-react';
+import { Printer, X, MapPin, User, Package, Truck, Clock, FileText } from 'lucide-react';
 import { formatItemNameWithVariations } from '../pages/JobDetails';
 import { formatTeethRange } from '../utils/toothUtils';
 
@@ -53,11 +53,11 @@ export const PrintOverlay = () => {
     window.print();
   };
 
-  const labName = currentOrg?.name || 'SMILEPROX SYSTEM';
+  const labName = currentOrg?.name || 'Labprox SYSTEM';
   const labLogo = currentOrg?.logoUrl;
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
+    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4 print:bg-white print:static print:block print:p-0">
       <style>
         {`
           @media print {
@@ -86,7 +86,7 @@ export const PrintOverlay = () => {
         <div>
             <h2 className="text-xl font-bold">Pré-visualização de Impressão</h2>
             <p className="text-sm opacity-80">
-              Modo: {printData.mode === 'SHEET' ? 'Ficha Interna (A4 Meia Folha)' : printData.mode === 'INVOICE_SHEET' ? 'Ficha de Entrega (A4 Inteira)' : printData.mode === 'LABEL' ? 'Etiqueta Térmica' : printData.mode === 'ADDRESS_LABEL' ? 'Etiqueta de Endereço' : 'Roteiro de Rota'}
+              Modo: {printData.mode === 'SHEET' ? 'Ficha Interna (A4 Meia Folha)' : printData.mode === 'INVOICE_SHEET' ? 'Ficha de Entrega (A4 Inteira)' : printData.mode === 'BUDGET_SHEET' ? 'Orçamento (A4)' : printData.mode === 'LABEL' ? 'Etiqueta Térmica' : printData.mode === 'ADDRESS_LABEL' ? 'Etiqueta de Endereço' : 'Roteiro de Rota'}
             </p>
         </div>
         <div className="flex gap-3">
@@ -99,10 +99,10 @@ export const PrintOverlay = () => {
         </div>
       </div>
 
-      <div className="flex-1 w-full overflow-y-auto p-4 md:p-8 flex justify-center print:p-0 print:overflow-visible print:block">
+      <div className="flex-1 w-full overflow-y-auto p-4 md:p-4 sm:p-8 flex justify-center print:p-0 print:overflow-visible print:block">
         <div id="printable-content" className={`bg-white text-black shadow-2xl mx-auto print:shadow-none print:m-0 break-inside-avoid ${
             printData.mode === 'SHEET' ? 'w-[210mm] min-h-[148.5mm] p-6 print:w-[210mm] print:min-h-[148.5mm] print:h-auto' : 
-            printData.mode === 'INVOICE_SHEET' ? 'w-[210mm] min-h-[297mm] p-10 print:w-[210mm] print:min-h-[297mm] print:h-auto' : 
+            printData.mode === 'INVOICE_SHEET' || printData.mode === 'BUDGET_SHEET' ? 'w-[210mm] min-h-[297mm] p-10 print:w-[210mm] print:min-h-[297mm] print:h-auto' : 
             printData.mode === 'ROUTE' ? 'w-[210mm] min-h-[297mm] p-12 print:w-[210mm] print:h-auto' : 
             'w-[50mm] h-[28mm] print:w-[50mm] print:h-[28mm] print:overflow-hidden relative print:m-0 print:p-0'
         }`}>
@@ -136,8 +136,14 @@ export const PrintOverlay = () => {
                 <div className="flex flex-col gap-2 flex-1">
                     <div className="border border-gray-300 p-2 rounded flex justify-between items-start">
                         <div className="overflow-hidden">
-                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista / Clínica</p>
+                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cliente / Clínica</p>
                             <p className="text-base font-bold leading-tight truncate mt-1">{job.dentistName}</p>
+                            {job.subDentistName && (
+                                <div className="mt-2 pt-1 border-t border-gray-100">
+                                    <p className="text-[9px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista Solicitante</p>
+                                    <p className="text-sm font-bold leading-tight mt-0.5">{job.subDentistName}</p>
+                                </div>
+                            )}
                         </div>
                         <div className="text-right shrink-0 ml-2">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cidade/UF</p>
@@ -251,8 +257,14 @@ export const PrintOverlay = () => {
                 <div className="flex flex-col gap-2 flex-1">
                     <div className="border border-gray-300 p-2 rounded flex flex-col items-start">
                         <div className="w-full mb-1">
-                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista / Clínica</p>
+                            <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cliente / Clínica</p>
                             <p className="text-base font-bold leading-tight truncate mt-1">{job.dentistName}</p>
+                            {job.subDentistName && (
+                                <div className="mt-2 pt-1 border-t border-gray-100">
+                                    <p className="text-[9px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista Solicitante</p>
+                                    <p className="text-sm font-bold leading-tight mt-0.5">{job.subDentistName}</p>
+                                </div>
+                            )}
                         </div>
                         <div className="w-full mt-1 pt-1 border-t border-gray-200">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Endereço Completo</p>
@@ -368,6 +380,93 @@ export const PrintOverlay = () => {
             `}</style>
           )}
 
+
+          {printData.mode === 'BUDGET_SHEET' && job && (
+             <div className="space-y-6">
+                <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
+                   <div className="flex items-center gap-4">
+                      {currentOrg?.logoUrl ? <img src={currentOrg.logoUrl} alt="Logo" className="w-16 h-16 object-contain" /> : <div className="w-16 h-16 bg-slate-100 flex items-center justify-center rounded-lg text-slate-400"><FileText size={24}/></div>}
+                      <div>
+                         <h1 className="text-2xl font-black uppercase text-slate-900">{currentOrg?.name || 'Laboratório'}</h1>
+                         <p className="text-xs text-slate-600 font-medium">Orçamento Formal de Serviços</p>
+                         <p className="text-[10px] text-slate-500">{new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</p>
+                      </div>
+                   </div>
+                   <div className="text-right">
+                      <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-1">Nº Orçamento</p>
+                      <p className="text-3xl font-black text-slate-900 font-mono tracking-tighter">{job.osNumber}</p>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6 border-b border-slate-200 pb-6">
+                   <div>
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cliente</p>
+                       <p className="font-bold text-slate-900 uppercase">{job.dentistName}</p>
+                       {job.subDentistName && <p className="text-xs text-slate-600 uppercase">A/C: {job.subDentistName}</p>}
+                       <p className="text-xs text-slate-500 uppercase mt-2">Paciente: <span className="font-bold text-slate-800">{job.patientName}</span></p>
+                   </div>
+                </div>
+
+                <div>
+                   <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-3">Serviços Orçados</h3>
+                   <table className="w-full text-left text-xs mb-4">
+                      <thead>
+                         <tr className="border-b-2 border-slate-900 text-slate-500">
+                            <th className="py-2 font-black uppercase">Item / Dente(s)</th>
+                            <th className="py-2 font-black uppercase text-center w-16">Qtd</th>
+                            <th className="py-2 font-black uppercase text-right w-24">Valor Un.</th>
+                            <th className="py-2 font-black uppercase text-right w-24">Total</th>
+                         </tr>
+                      </thead>
+                      <tbody>
+                         {job.items?.map((item: any) => (
+                             <tr key={item.id} className="border-b border-slate-100">
+                                 <td className="py-3">
+                                     <div className="font-bold text-slate-800">{item.name}</div>
+                                     <div className="text-[10px] text-slate-500">{item.selectedTeeth?.join(', ')}</div>
+                                 </td>
+                                 <td className="py-3 text-center font-bold text-slate-700">{item.selectedTeeth?.length || 1}</td>
+                                 <td className="py-3 text-right text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.price || 0) / (item.selectedTeeth?.length || 1))}</td>
+                                 <td className="py-3 text-right font-bold text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)}</td>
+                             </tr>
+                         ))}
+                         {job.products?.map((prod: any) => (
+                             <tr key={prod.id} className="border-b border-slate-100">
+                                 <td className="py-3">
+                                     <div className="font-bold text-slate-800">{prod.name}</div>
+                                 </td>
+                                 <td className="py-3 text-center font-bold text-slate-700">{prod.quantity}</td>
+                                 <td className="py-3 text-right text-slate-600">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.unitPrice)}</td>
+                                 <td className="py-3 text-right font-bold text-slate-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prod.unitPrice * prod.quantity)}</td>
+                             </tr>
+                         ))}
+                      </tbody>
+                   </table>
+                   <div className="flex justify-end pt-4">
+                       <div className="text-right">
+                           <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total do Orçamento</p>
+                           <p className="text-3xl font-black text-slate-900 tracking-tighter">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(job.totalValue || 0)}</p>
+                       </div>
+                   </div>
+                </div>
+
+                <div className="mt-12 pt-8 border-t border-slate-200">
+                   <p className="text-[10px] text-slate-400 font-bold uppercase text-center mb-6">Este documento é uma estimativa de custos e não tem valor fiscal.</p>
+                   <div className="flex justify-center gap-16">
+                       <div className="text-center w-64">
+                           <div className="border-t border-slate-400 pt-2 mt-12">
+                               <p className="text-xs font-bold text-slate-800 uppercase">{currentOrg?.name || 'Laboratório'}</p>
+                           </div>
+                       </div>
+                       <div className="text-center w-64">
+                           <div className="border-t border-slate-400 pt-2 mt-12">
+                               <p className="text-xs font-bold text-slate-800 uppercase">De Acordo (Cliente)</p>
+                           </div>
+                       </div>
+                   </div>
+                </div>
+             </div>
+          )}
           {printData.mode === 'LABEL' && job && (
             <div 
               id="slp-mrl-print"

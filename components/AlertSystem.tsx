@@ -56,7 +56,7 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in duration-200 overflow-hidden">
                 <div className="bg-red-50 p-4 border-b border-red-100 flex justify-between items-center">
                     <h3 className="text-lg font-bold text-red-800 flex items-center gap-2">
@@ -65,7 +65,7 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ job, onClose
                     <button onClick={onClose} className="text-red-300 hover:text-red-500"><X size={20}/></button>
                 </div>
                 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-1">Mensagem</label>
                         <textarea 
@@ -272,7 +272,7 @@ export const AlertPopup = () => {
 
     return (
         <div className="fixed top-0 left-0 right-0 z-[200] flex justify-center p-4 animate-in slide-in-from-top-4 duration-300 print:hidden">
-            <div className="bg-red-600 text-white rounded-2xl shadow-2xl p-6 max-w-md w-full border-4 border-red-400/50 flex flex-col gap-4">
+            <div className="bg-red-600 text-white rounded-2xl shadow-2xl p-4 sm:p-6 max-w-md w-full border-4 border-red-400/50 flex flex-col gap-4">
                 <div className="flex items-start gap-4">
                     <div className="bg-white/20 p-3 rounded-full shrink-0 animate-pulse">
                         <AlertOctagon size={32} />

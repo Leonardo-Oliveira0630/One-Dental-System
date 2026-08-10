@@ -549,7 +549,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
     };
 
     return (
-        <div className="fixed inset-0 md:left-64 print:left-0 z-[60] overflow-y-auto bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-0 sm:p-4 text-slate-800" id="patient-chart-modal">
+        <div className="fixed inset-0 md:left-64 print:left-0 z-[100] overflow-y-auto bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-0 sm:p-4 text-slate-800" id="patient-chart-modal">
             
             {/* PRINT WATERMARK PRESCRIPTION SCREEN */}
             {printingPrescription && (
@@ -675,7 +675,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                 </div>
 
                 {/* MODAL MAIN CONTENT PANEL */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 md:p-4 sm:p-8 space-y-6">
                     <AnimatePresence mode="wait">
                         
                         {/* TAB: SOBRE PANEL */}
@@ -684,7 +684,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                 <div className={`grid grid-cols-1 ${isLimited ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-6`}>
                                     
                                     {/* DADOS CADASTRAIS CARD */}
-                                    <div className="bg-white p-6 md:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6 relative overflow-hidden">
+                                    <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6 relative overflow-hidden">
                                         <div className="flex justify-between items-center">
                                             <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><User size={18}/> Ficha Cadastral</h3>
                                             <button 
@@ -742,7 +742,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
 
                                     {/* ALERTA CLINICO AUTOMATICO CARD */}
                                     {!isLimited && (
-                                        <div className="bg-white p-6 md:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6">
+                                        <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6">
                                             <div>
                                                 <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><AlertTriangle className="text-amber-500" size={18}/> Alertas Clínicos Automáticos</h3>
                                                 <p className="text-slate-400 text-xs font-bold mt-1">Marque ou desmarque comorbidades e alertas críticos para esse paciente, ou adicione outros detalhes personalizados (alergias, comorbidades).</p>
@@ -835,7 +835,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                 </div>
 
                                 {showAddAppointment && (
-                                    <form onSubmit={handleScheduleAppointment} className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-bold">
+                                    <form onSubmit={handleScheduleAppointment} className="bg-white p-4 sm:p-6 rounded-2xl border border-indigo-100 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-bold">
                                         <div>
                                             <label className="text-[10px] text-slate-400 uppercase mb-1 block">Dentista</label>
                                             <select required value={appDentistId} onChange={e => setAppDentistId(e.target.value)} className="w-full p-2.5 bg-slate-50 border rounded-lg">
@@ -964,7 +964,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                 </div>
 
                                 {showAddFinance && (
-                                    <form onSubmit={handleAddFinanceEntry} className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-bold">
+                                    <form onSubmit={handleAddFinanceEntry} className="bg-white p-4 sm:p-6 rounded-2xl border border-indigo-100 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 text-xs font-bold">
                                         <div>
                                             <label className="text-[10px] text-slate-400 uppercase mb-1 block">Descrição da Transação</label>
                                             <input required value={finDesc} onChange={e => setFinDesc(e.target.value)} placeholder="Ex: Entrada Implante Prótese" className="w-full p-2 bg-slate-50 border rounded-lg" />
@@ -1081,7 +1081,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                 </div>
 
                                 {showAddBudget && (
-                                    <form onSubmit={handleSaveBudget} className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4 text-xs font-bold">
+                                    <form onSubmit={handleSaveBudget} className="bg-white p-4 sm:p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4 text-xs font-bold">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] text-slate-400 uppercase mb-1 block">Título do Orçamento</label>
@@ -1202,7 +1202,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                 </div>
 
                                 {showAddClinicalCard && (
-                                    <form onSubmit={handleSaveClinicalCard} className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4 text-xs font-bold">
+                                    <form onSubmit={handleSaveClinicalCard} className="bg-white p-4 sm:p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4 text-xs font-bold">
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                             <div>
                                                 <label className="text-[10px] text-slate-400 uppercase mb-1 block">Título do Procedimento</label>
@@ -1236,7 +1236,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                             <div className="w-14 h-14 bg-indigo-50 border-4 border-white text-indigo-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm z-10">
                                                 <Notebook size={20}/>
                                             </div>
-                                            <div className="flex-1 bg-white p-6 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition relative group">
+                                            <div className="flex-1 bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition relative group">
                                                 <div className="flex justify-between items-start mb-3 border-b pb-3 border-slate-50">
                                                     <div>
                                                         <h4 className="font-black text-slate-800 text-sm uppercase flex items-center gap-2">
@@ -1348,7 +1348,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                                 </div>
 
                                 {showAddPrescription && (
-                                    <form onSubmit={handleSavePrescription} className="bg-white p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4 text-xs font-bold">
+                                    <form onSubmit={handleSavePrescription} className="bg-white p-4 sm:p-6 rounded-2xl border border-indigo-100 shadow-sm space-y-4 text-xs font-bold">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] text-slate-400 uppercase mb-1 block">Profissional Prescritor</label>
@@ -1433,7 +1433,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
                         {/* TAB: ANAMNESE PANEL */}
                         {activeTab === 'ANAMNESE' && (
                             <motion.div key="anamnese" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
-                                <form onSubmit={handleSaveAnamnesis} className="bg-white p-6 md:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6 text-xs font-bold leading-none">
+                                <form onSubmit={handleSaveAnamnesis} className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[28px] border border-slate-100 shadow-sm space-y-6 text-xs font-bold leading-none">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4 border-slate-50 leading-tight">
                                         <div>
                                             <h3 className="text-sm font-black uppercase text-slate-400 tracking-widest flex items-center gap-2"><Notebook size={18}/> Ficha de Triagem de Anamnese</h3>
@@ -1551,7 +1551,7 @@ export const PatientChartModal: React.FC<PatientChartModalProps> = ({ patient, o
 
                                 <div className="space-y-4">
                                     {patientHistory.filter(h => h.type === 'PROSTHESIS').map((record) => (
-                                        <div key={record.id} className="bg-white p-6 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition relative group">
+                                        <div key={record.id} className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:shadow-md transition relative group">
                                             <div className="flex justify-between items-start mb-3 border-b pb-3 border-slate-50">
                                                 <div>
                                                     <h4 className="font-black text-indigo-700 text-sm uppercase flex items-center gap-1.5">

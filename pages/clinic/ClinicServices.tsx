@@ -100,7 +100,7 @@ export const ClinicServices = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-8">
         {/* LISTA DE SERVIÇOS */}
         <div className="lg:col-span-7 space-y-4">
             <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 mb-6">
@@ -167,15 +167,15 @@ export const ClinicServices = () => {
 
         {/* EDITOR FORM */}
         <div className="lg:col-span-5">
-            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden sticky top-6">
-                <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden sticky top-4 sm:p-6">
+                <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-900 text-white flex justify-between items-center">
                     <h3 className="font-bold flex items-center gap-2">
                         {isEditing ? <Edit2 size={18} className="text-teal-400" /> : <Plus size={18} className="text-teal-400" />}
                         {isEditing ? 'Editar Procedimento' : 'Novo Procedimento Clínico'}
                     </h3>
                 </div>
 
-                <form onSubmit={handleSave} className="p-6 space-y-5">
+                <form onSubmit={handleSave} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-5">
                     <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex gap-3 mb-2">
                         <Info size={18} className="text-blue-500 shrink-0 mt-0.5" />
                         <p className="text-[10px] text-blue-700 font-bold leading-relaxed uppercase">

@@ -1,8 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight } from 'lucide-react';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -62,6 +63,7 @@ export const JobTypes = () => {
   const [isVisibleInStore, setIsVisibleInStore] = useState(true);
   const [isVisibleInOutsourcing, setIsVisibleInOutsourcing] = useState(true);
   const [isVisibleInternally, setIsVisibleInternally] = useState(true);
+  const [isVisibleInternallyLabs, setIsVisibleInternallyLabs] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -77,6 +79,158 @@ export const JobTypes = () => {
   const [promoVariationOptionId, setPromoVariationOptionId] = useState('');
   const [promoVariationOptionIds, setPromoVariationOptionIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Import State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<'IDLE' | 'ANALYZING' | 'PREVIEW'>('IDLE');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [importPreview, setImportPreview] = useState<any[]>([]);
+
+  const analyzeColumnsWithoutAI = (sampleData: any[]) => {
+    const keys = Object.keys(sampleData[0] || {});
+    const findExact = (targets: string[]) => keys.find(k => targets.some(t => k.trim().toLowerCase() === t.toLowerCase()));
+
+    return {
+        name: findExact(['nome', 'name', 'serviço', 'servico', 'descrição', 'descricao', 'produto']),
+        category: findExact(['categoria', 'category', 'tipo', 'grupo']),
+        basePrice: findExact(['preço', 'preco', 'valor', 'price', 'preço base', 'valor base']),
+    };
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportStatus('ANALYZING');
+    setIsAnalyzing(true);
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary', cellDates: true, raw: true });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+        if (data.length === 0) {
+          alert("O arquivo parece estar vazio.");
+          setImportStatus('IDLE');
+          return;
+        }
+
+        const mapping = analyzeColumnsWithoutAI(data);
+        
+        const processedData = data.map((row: any) => {
+            const getVal = (key: string) => {
+                const colName = (mapping as any)[key];
+                if (!colName) return '';
+                const val = row[colName];
+                return val !== undefined && val !== null ? String(val).trim() : '';
+            };
+
+            let basePrice = 0;
+            const priceStr = getVal('basePrice').replace(/[^0-9.,]/g, '').replace(',', '.');
+            if (priceStr) {
+                basePrice = parseFloat(priceStr);
+            }
+
+            return {
+                name: getVal('name'),
+                category: getVal('category'),
+                basePrice: isNaN(basePrice) ? 0 : basePrice,
+                isValid: !!getVal('name')
+            };
+        }).filter(item => item.name);
+
+        setImportPreview(processedData);
+        setImportStatus('PREVIEW');
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao processar arquivo.");
+        setImportStatus('IDLE');
+      } finally {
+        setIsAnalyzing(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleSaveImport = async () => {
+    const validItems = importPreview.filter(i => i.isValid);
+    if (validItems.length === 0) {
+      alert("Nenhum item válido para importar.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      for (const item of validItems) {
+        await addJobType({
+          name: item.name,
+          category: item.category || 'Geral',
+          basePrice: item.basePrice || 0,
+          isVisibleInStore: true,
+          isVisibleInOutsourcing: true,
+          isVisibleInternally: true,
+          isVisibleInternallyLabs: false,
+          isPromotion: false,
+          variationGroups: []
+        });
+      }
+      alert(`${validItems.length} serviços importados com sucesso!`);
+      setImportStatus('IDLE');
+      setImportPreview([]);
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar itens.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Stage Configuration Modal State
+  const [showStageModal, setShowStageModal] = useState(false);
+  const [selectedTypeForStages, setSelectedTypeForStages] = useState<JobType | null>(null);
+  const [tempSectorStages, setTempSectorStages] = useState<Record<string, string[]>>({});
+  const [expandedSectors, setExpandedSectors] = useState<Record<string, boolean>>({});
+
+  const openStageConfigModal = (type: JobType) => {
+    setSelectedTypeForStages(type);
+    setTempSectorStages(type.sectorStages || {});
+    const initialExpanded: Record<string, boolean> = {};
+    sectors.forEach(s => { initialExpanded[s.name] = true; });
+    setExpandedSectors(initialExpanded);
+    setShowStageModal(true);
+  };
+
+  const toggleSectorExpand = (sectorName: string) => {
+    setExpandedSectors(prev => ({ ...prev, [sectorName]: !prev[sectorName] }));
+  };
+
+  const toggleStageForSector = (sectorName: string, stageName: string) => {
+    setTempSectorStages(prev => {
+      const currentStages = prev[sectorName] || [];
+      const exists = currentStages.includes(stageName);
+      const updatedStages = exists
+        ? currentStages.filter(st => st !== stageName)
+        : [...currentStages, stageName];
+      return { ...prev, [sectorName]: updatedStages };
+    });
+  };
+
+  const handleSaveSectorStages = async () => {
+    if (!selectedTypeForStages) return;
+    try {
+      await updateJobType(selectedTypeForStages.id, { sectorStages: tempSectorStages });
+      setShowStageModal(false);
+      setSelectedTypeForStages(null);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar etapas do serviço.');
+    }
+  };
 
   const resetForm = () => {
     setName('');
@@ -114,6 +268,7 @@ export const JobTypes = () => {
     setIsVisibleInStore(type.isVisibleInStore !== false); // Default true if undefined
     setIsVisibleInOutsourcing(type.isVisibleInOutsourcing !== false); // Default true if undefined
     setIsVisibleInternally(isFreeLab ? false : (type.isVisibleInternally !== false));
+    setIsVisibleInternallyLabs(isFreeLab ? false : (type.isVisibleInternallyLabs === true));
     setImageUrl(type.imageUrl || '');
     setPreviewUrl(type.imageUrl || '');
     setAllowedSectors(type.allowedSectors || []);
@@ -196,6 +351,7 @@ export const JobTypes = () => {
           isVisibleInStore, 
           isVisibleInOutsourcing, 
           isVisibleInternally, 
+          isVisibleInternallyLabs,
           imageUrl: finalImageUrl, 
           allowedSectors,
           isPromotion: isPromoToSave,
@@ -329,18 +485,35 @@ export const JobTypes = () => {
                     Promoções
                 </button>
             </div>
-            {isEditing && canCreate && (
-                <button 
-                    onClick={resetForm}
-                    className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 flex items-center gap-2 whitespace-nowrap"
-                >
-                    <Plus size={18} /> {mainTab === 'PROMOTIONS' ? 'Nova Promoção' : 'Novo Serviço'}
-                </button>
+            {canCreate && (
+                <div className="flex items-center gap-2">
+                    {mainTab === 'SERVICES' && (
+                        <>
+                            <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isAnalyzing}
+                                className="px-4 py-2 border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold rounded-lg flex items-center gap-2 whitespace-nowrap transition-colors"
+                                title="Importar de Planilha"
+                            >
+                                <UploadCloud size={18} /> {isAnalyzing ? 'Analisando...' : 'Importar em Lote'}
+                            </button>
+                        </>
+                    )}
+                    {isEditing && (
+                        <button 
+                            onClick={resetForm}
+                            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-slate-600 flex items-center gap-2 whitespace-nowrap font-bold transition-colors"
+                        >
+                            <Plus size={18} /> {mainTab === 'PROMOTIONS' ? 'Nova Promoção' : 'Novo Serviço'}
+                        </button>
+                    )}
+                </div>
             )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-8">
         {/* Left Column: List */}
         <div className="space-y-4 lg:col-span-1 order-2 lg:order-1">
             <h3 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-2">{mainTab === 'PROMOTIONS' ? 'Promoções' : 'Serviços'} Cadastrados</h3>
@@ -385,6 +558,13 @@ export const JobTypes = () => {
                                     </h3>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         <button 
+                                            onClick={(e) => { e.stopPropagation(); openStageConfigModal(type); }}
+                                            className="p-1.5 rounded-lg border bg-slate-50 border-slate-100 hover:border-slate-200 text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                                            title="Configuração de Etapas do Serviço (Catraca)"
+                                        >
+                                            <Settings size={13} />
+                                        </button>
+                                        <button 
                                             onClick={(e) => handleShare(type, e)}
                                             className={`p-1.5 rounded-lg border transition-all ${
                                                 copiedId === type.id 
@@ -424,8 +604,13 @@ export const JobTypes = () => {
                                     </span>
                                 )}
                                 {type.isVisibleInternally === false && (
-                                    <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                        <EyeOff size={10} /> Oculto Interno
+                                    <span className="text-[10px] bg-amber-50 text-amber-600 border border-amber-100 px-1.5 py-0.5 rounded flex items-center gap-1" title="Oculto para Dentistas">
+                                        <EyeOff size={10} /> Oculto (Dentistas)
+                                    </span>
+                                )}
+                                {type.isVisibleInternallyLabs === false && (
+                                    <span className="text-[10px] bg-red-50 text-red-600 border border-red-100 px-1.5 py-0.5 rounded flex items-center gap-1" title="Oculto para Laboratórios">
+                                        <EyeOff size={10} /> Oculto (Labs)
                                     </span>
                                 )}
                             </div>
@@ -461,7 +646,7 @@ export const JobTypes = () => {
                     </button>
                 </div>
 
-                <form onSubmit={handleSave} className="p-6">
+                <form onSubmit={handleSave} className="px-4 pb-4 sm:px-6 sm:pb-6">
                     {activeTab === 'BASIC' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
                              <div className="flex justify-between items-center">
@@ -470,7 +655,7 @@ export const JobTypes = () => {
                                 </h2>
                              </div>
                              
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                                 <div className="space-y-4">
                                     {mainTab === 'PROMOTIONS' && (
                                         <>
@@ -672,21 +857,36 @@ export const JobTypes = () => {
                                             <span className="text-[10px] text-slate-400">Exibir no catálogo para laboratórios parceiros contratantes</span>
                                         </div>
 
-                                        <div className={`flex flex-col gap-1 bg-white p-3 rounded-lg border border-slate-200 ${isFreeLab ? 'hidden' : 'flex'}`}>
+                                        <div className={`flex flex-col gap-3 bg-white p-3 rounded-lg border border-slate-200 ${isFreeLab ? 'hidden' : 'flex'}`}>
                                             {!isFreeLab && (
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-slate-800">Trabalhos Internos</span>
-                                                    <button 
-                                                        type="button" 
-                                                        onClick={() => setIsVisibleInternally(!isVisibleInternally)}
-                                                        className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternally ? 'bg-indigo-600' : 'bg-slate-300'}`}
-                                                    >
-                                                        <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternally ? 'translate-x-5' : 'translate-x-0'}`} />
-                                                    </button>
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-slate-800">Trabalhos Internos (Dentistas)</span>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setIsVisibleInternally(!isVisibleInternally)}
+                                                            className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternally ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                        >
+                                                            <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternally ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-400">Visível para dentistas no cadastro manual.</span>
                                                 </div>
                                             )}
                                             {!isFreeLab && (
-                                                <span className="text-[10px] text-slate-400">Ativar visibilidade para trabalhos manuais ou ordens internas criadas no laboratório</span>
+                                                <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-bold text-slate-800">Trabalhos Internos (Laboratórios)</span>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => setIsVisibleInternallyLabs(!isVisibleInternallyLabs)}
+                                                            className={`relative w-10 h-5 rounded-full transition-colors duration-200 ease-in-out shrink-0 ${isVisibleInternallyLabs ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                                                        >
+                                                            <span className={`block w-3 h-3 bg-white rounded-full shadow transform transition-transform duration-200 ease-in-out mt-1 ml-1 ${isVisibleInternallyLabs ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                        </button>
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-400">Visível para laboratórios parceiros no cadastro manual.</span>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -909,6 +1109,186 @@ export const JobTypes = () => {
             </div>
         </div>
       </div>
+
+      {/* MODAL CATRACA DE CONFIGURAÇÃO DE ETAPAS DO SERVIÇO */}
+      {showStageModal && selectedTypeForStages && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in duration-200 border border-slate-100">
+                  {/* Modal Header */}
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 shrink-0">
+                      <div className="flex items-center gap-3">
+                          <div className="p-2.5 bg-blue-100 text-blue-600 rounded-2xl">
+                              <Settings size={22} />
+                          </div>
+                          <div>
+                              <h3 className="text-lg font-black text-slate-800 tracking-tight">Configuração de Etapas</h3>
+                              <p className="text-xs text-slate-500 font-medium">Serviço: <span className="font-bold text-blue-600">{selectedTypeForStages.name}</span></p>
+                          </div>
+                      </div>
+                      <button 
+                          onClick={() => setShowStageModal(false)} 
+                          className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors"
+                      >
+                          <X size={20} />
+                      </button>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                      <p className="text-xs text-slate-500 font-medium bg-blue-50/60 p-3 rounded-xl border border-blue-100/60 text-blue-900 leading-relaxed">
+                        Selecione as <strong>etapas</strong> de cada setor associadas a este serviço. Estas etapas serão exibidas para seleção no registro de saída do setor e permitirão tirar comissão por cada etapa concluída.
+                      </p>
+
+                      {sectors.length === 0 ? (
+                          <div className="text-center py-8 text-slate-400 italic">
+                              Nenhum setor cadastrado no laboratório.
+                          </div>
+                      ) : (
+                          <div className="space-y-3">
+                              {sectors.map(sector => {
+                                  const isExpanded = expandedSectors[sector.name] ?? true;
+                                  const sectorStagesList = sector.stages || [];
+                                  const selectedStagesForSector = tempSectorStages[sector.name] || [];
+
+                                  return (
+                                      <div key={sector.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                                          {/* Sector Header / Dropdown toggle */}
+                                          <button 
+                                              type="button"
+                                              onClick={() => toggleSectorExpand(sector.name)}
+                                              className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100/80 flex items-center justify-between transition-colors border-b border-slate-100"
+                                          >
+                                              <div className="flex items-center gap-2">
+                                                  <span className="font-black text-xs uppercase tracking-wider text-slate-700">{sector.name}</span>
+                                                  {selectedStagesForSector.length > 0 && (
+                                                      <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                                                          {selectedStagesForSector.length} selecionada(s)
+                                                      </span>
+                                                  )}
+                                              </div>
+                                              <div className="text-slate-400">
+                                                  {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                              </div>
+                                          </button>
+
+                                          {/* Stages List */}
+                                          {isExpanded && (
+                                              <div className="p-4 bg-white space-y-2">
+                                                  {sectorStagesList.length === 0 ? (
+                                                      <p className="text-xs text-slate-400 italic py-1">
+                                                          Nenhuma etapa cadastrada neste setor. Cadastre etapas na aba Admin &gt; Setores.
+                                                      </p>
+                                                  ) : (
+                                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                          {sectorStagesList.map((stageName, sIdx) => {
+                                                              const isChecked = selectedStagesForSector.includes(stageName);
+                                                              return (
+                                                                  <label 
+                                                                      key={sIdx}
+                                                                      className={`flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                                                          isChecked 
+                                                                              ? 'bg-blue-50/80 border-blue-300 text-blue-900 font-bold shadow-xs' 
+                                                                              : 'bg-slate-50/50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                                                      }`}
+                                                                  >
+                                                                      <input 
+                                                                          type="checkbox"
+                                                                          checked={isChecked}
+                                                                          onChange={() => toggleStageForSector(sector.name, stageName)}
+                                                                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                                      />
+                                                                      <span className="text-xs tracking-tight">{stageName}</span>
+                                                                  </label>
+                                                              );
+                                                          })}
+                                                      </div>
+                                                  )}
+                                              </div>
+                                          )}
+                                      </div>
+                                  );
+                              })}
+                          </div>
+                      )}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 shrink-0">
+                      <button 
+                          type="button"
+                          onClick={() => setShowStageModal(false)}
+                          className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:bg-slate-200/60 rounded-xl transition-colors uppercase tracking-wider"
+                      >
+                          Cancelar
+                      </button>
+                      <button 
+                          type="button"
+                          onClick={handleSaveSectorStages}
+                          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-blue-500/20 transition-all"
+                      >
+                          Salvar Etapas
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Import Preview Modal */}
+      {importStatus === 'PREVIEW' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center mb-6 shrink-0">
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-800">Visualizar Importação</h2>
+                        <p className="text-sm font-bold text-slate-500 mt-1">
+                            {importPreview.filter(i => i.isValid).length} serviços encontrados e prontos para importar.
+                        </p>
+                    </div>
+                    <button onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }} className="p-2 bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200 transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto min-h-0 border border-slate-200 rounded-2xl">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-50 sticky top-0 z-10">
+                            <tr>
+                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Serviço</th>
+                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Categoria</th>
+                                <th className="p-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Preço Base</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {importPreview.map((item, idx) => (
+                                <tr key={idx} className={item.isValid ? '' : 'bg-red-50'}>
+                                    <td className="p-3 font-bold text-slate-700 text-xs">{item.name || <span className="text-red-500 italic">Inválido</span>}</td>
+                                    <td className="p-3 text-slate-600 text-xs">{item.category || 'Geral'}</td>
+                                    <td className="p-3 text-blue-600 font-bold text-xs">R$ {item.basePrice.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="flex justify-end gap-3 mt-6 shrink-0 pt-4 border-t border-slate-100">
+                    <button 
+                        onClick={() => { setImportStatus('IDLE'); setImportPreview([]); }}
+                        className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-xl transition-colors"
+                    >
+                        CANCELAR
+                    </button>
+                    <button 
+                        onClick={handleSaveImport}
+                        disabled={isSaving || importPreview.filter(i => i.isValid).length === 0}
+                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl transition-all active:scale-95 flex items-center gap-2 shadow-xl shadow-blue-500/20 disabled:opacity-50"
+                    >
+                        {isSaving ? 'SALVANDO...' : 'CONFIRMAR IMPORTAÇÃO'}
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

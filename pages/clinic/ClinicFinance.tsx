@@ -401,7 +401,7 @@ export const ClinicFinance = () => {
                 dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
                 status: 'PENDING',
                 paymentLink: finalPaymentLink,
-                pixCopyPaste: `00020126360014BR.GOV.BCB.PIX0114clinicanas${selectedPatientId.substring(0,4)}5204000053039865405${billForm.amount.toFixed(2)}5802BR5915SmileproxClin6009SaoPaulo62070503***6304A1B2`,
+                pixCopyPaste: `00020126360014BR.GOV.BCB.PIX0114clinicanas${selectedPatientId.substring(0,4)}5204000053039865405${billForm.amount.toFixed(2)}5802BR5915LabproxClin6009SaoPaulo62070503***6304A1B2`,
                 bankSlipUrl: finalPaymentLink
             });
 
@@ -462,8 +462,8 @@ export const ClinicFinance = () => {
             </div>
 
             {/* KPI CARDS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-150 relative overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
+                <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-150 relative overflow-hidden">
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-teal-50 text-teal-600 rounded-2xl"><ArrowUpRight size={24}/></div>
                         <span className="text-[10px] font-black text-teal-500 bg-teal-50 px-2 py-1 rounded-full uppercase tracking-widest">Procedimentos Prontos</span>
@@ -475,7 +475,7 @@ export const ClinicFinance = () => {
                     <div className="absolute -bottom-4 -right-4 opacity-5 text-teal-600"><TrendingUp size={100}/></div>
                 </div>
 
-                <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-150 relative overflow-hidden">
+                <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-150 relative overflow-hidden">
                     <div className="flex justify-between items-start mb-4">
                         <div className="p-3 bg-red-50 text-red-600 rounded-2xl"><ArrowDownRight size={24}/></div>
                         <span className="text-[10px] font-black text-red-500 bg-red-50 px-2 py-1 rounded-full uppercase tracking-widest">Saídas & Custos</span>
@@ -512,8 +512,8 @@ export const ClinicFinance = () => {
 
             {/* ABA: VISÃO GERAL */}
             {activeTab === 'DASHBOARD' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-300">
-                    <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:p-8 animate-in fade-in duration-300">
+                    <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100">
                         <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Comparativo Financeiro</h3>
                         <div className="h-[280px]">
                             <ResponsiveContainer width="100%" height="100%">
@@ -534,7 +534,7 @@ export const ClinicFinance = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div className="bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 flex flex-col justify-between">
                         <div>
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Educação e Alerts Clínicos</h3>
                             <div className="space-y-4">
@@ -557,7 +557,7 @@ export const ClinicFinance = () => {
 
                         <div className="mt-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-500">Cobrança Direta por Telefone/PIX ativa</span>
-                            <div className="text-xs font-black text-teal-600">SMILEPROX PLATINUM</div>
+                            <div className="text-xs font-black text-teal-600">Labprox PLATINUM</div>
                         </div>
                     </div>
                 </div>
@@ -570,22 +570,22 @@ export const ClinicFinance = () => {
                         <table className="w-full text-left">
                             <thead>
                                 <tr className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                                    <th className="p-6">Data</th>
-                                    <th className="p-6">Descrição</th>
-                                    <th className="p-6">Categoria</th>
-                                    <th className="p-6 text-right">Valor</th>
-                                    <th className="p-6">Tipo</th>
-                                    <th className="p-6 text-right">Ações</th>
+                                    <th className="px-4 pb-4 sm:px-6 sm:pb-6">Data</th>
+                                    <th className="px-4 pb-4 sm:px-6 sm:pb-6">Descrição</th>
+                                    <th className="px-4 pb-4 sm:px-6 sm:pb-6">Categoria</th>
+                                    <th className="px-4 pb-4 sm:px-6 sm:pb-6 text-right">Valor</th>
+                                    <th className="px-4 pb-4 sm:px-6 sm:pb-6">Tipo</th>
+                                    <th className="px-4 pb-4 sm:px-6 sm:pb-6 text-right">Ações</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {cashFlow.map((item, idx) => (
                                     <tr key={item.id || idx} className="hover:bg-slate-50/50 transition-colors group">
-                                        <td className="p-6 text-xs font-bold text-slate-500">{new Date(item.date).toLocaleDateString()}</td>
-                                        <td className="p-6">
+                                        <td className="px-4 pb-4 sm:px-6 sm:pb-6 text-xs font-bold text-slate-500">{new Date(item.date).toLocaleDateString()}</td>
+                                        <td className="px-4 pb-4 sm:px-6 sm:pb-6">
                                             <p className="text-sm font-black text-slate-800 leading-tight">{item.description}</p>
                                         </td>
-                                        <td className="p-6">
+                                        <td className="px-4 pb-4 sm:px-6 sm:pb-6">
                                             <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full uppercase tracking-tighter">
                                                 {item.category}
                                             </span>
@@ -593,13 +593,13 @@ export const ClinicFinance = () => {
                                         <td className={`p-6 text-right font-black text-sm ${item.type === 'INCOME' ? 'text-teal-600' : 'text-red-500'}`}>
                                             {item.type === 'INCOME' ? '+' : '-'} R$ {Math.abs(item.amount).toFixed(2)}
                                         </td>
-                                        <td className="p-6">
+                                        <td className="px-4 pb-4 sm:px-6 sm:pb-6">
                                             <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${item.type === 'INCOME' ? 'bg-teal-50 text-teal-600 border-teal-100' : 'bg-red-50 text-red-600 border-red-100'}`}>
                                                 {item.type === 'INCOME' ? <ArrowUpRight size={10}/> : <ArrowDownRight size={10}/>}
                                                 {item.type === 'INCOME' ? 'Entrada' : 'Saída'}
                                             </div>
                                         </td>
-                                        <td className="p-6 text-right">
+                                        <td className="px-4 pb-4 sm:px-6 sm:pb-6 text-right">
                                             {item.id?.startsWith('trans_') && (
                                                 <button onClick={() => currentOrg && api.apiDeleteExpense(currentOrg.id, item.id)} className="p-2 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={18}/></button>
                                             )}
@@ -617,9 +617,9 @@ export const ClinicFinance = () => {
 
             {/* ABA: FATURAMENTO DE PACIENTES */}
             {activeTab === 'PATIENT_BILLS' && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-right-4 duration-300">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-8 animate-in slide-in-from-right-4 duration-300">
                     {/* Lista esquerda: Pacientes */}
-                    <div className="lg:col-span-4 bg-white p-6 rounded-[32px] border border-slate-150 flex flex-col gap-4">
+                    <div className="lg:col-span-4 bg-white p-4 sm:p-6 rounded-[32px] border border-slate-150 flex flex-col gap-4">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                             <input 
@@ -664,9 +664,9 @@ export const ClinicFinance = () => {
                     </div>
 
                     {/* Detalhes à direita: Paciente Selecionado */}
-                    <div className="lg:col-span-8 flex flex-col gap-6">
+                    <div className="lg:col-span-8 flex flex-col gap-4 sm:p-6">
                         {selectedPatient ? (
-                            <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-150 space-y-6">
+                            <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-150 space-y-6">
                                 <div className="border-b border-slate-100 pb-6">
                                     <h2 className="text-xl font-black text-slate-800">{selectedPatient.name}</h2>
                                     <div className="flex items-center gap-2 mt-1 text-xs font-bold text-slate-500">
@@ -677,7 +677,7 @@ export const ClinicFinance = () => {
                                 </div>
 
                                 {/* Patient KPI balance */}
-                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-50 p-4 sm:p-6 rounded-3xl border border-slate-100">
                                     <div className="md:col-span-5 flex flex-col justify-between gap-4">
                                         <div>
                                             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-3">Histórico Consolidado</h3>
@@ -811,7 +811,7 @@ export const ClinicFinance = () => {
 
             {/* ABA: CONFIGURAÇÃO DO ASAAS CLIENTE (WALLET) */}
             {activeTab === 'ASAAS_SETUP' && (
-                <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-150 space-y-8 animate-in slide-in-from-right-4 duration-300">
+                <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-150 space-y-8 animate-in slide-in-from-right-4 duration-300">
                     <div className="flex justify-between items-start flex-wrap gap-4 border-b border-slate-100 pb-6">
                         <div>
                             <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
@@ -829,21 +829,21 @@ export const ClinicFinance = () => {
                     {!asaasWalletId ? (
                         <div>
                             {setupMode === 'CHOICE' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                                     <button 
                                         onClick={() => setSetupMode('CREATE')}
-                                        className="p-8 border-2 border-slate-100 rounded-[24px] hover:border-teal-500 hover:bg-teal-50/30 transition-all text-left group"
+                                        className="p-4 sm:p-8 border-2 border-slate-100 rounded-[24px] hover:border-teal-500 hover:bg-teal-50/30 transition-all text-left group"
                                     >
                                         <div className="w-12 h-12 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                             <Plus size={24} />
                                         </div>
                                         <h4 className="font-bold text-lg text-slate-800">Solicitar abertura de Wallet</h4>
-                                        <p className="text-xs text-slate-500 mt-2">Desejo criar minha conta virtual gratuitamente através da Smileprox para faturar diretamente.</p>
+                                        <p className="text-xs text-slate-500 mt-2">Desejo criar minha conta virtual gratuitamente através da Labprox para faturar diretamente.</p>
                                     </button>
 
                                     <button 
                                         onClick={() => setSetupMode('MANUAL')}
-                                        className="p-8 border-2 border-slate-100 rounded-[24px] hover:border-indigo-500 hover:bg-indigo-50/30 transition-all text-left group"
+                                        className="p-4 sm:p-8 border-2 border-slate-100 rounded-[24px] hover:border-indigo-500 hover:bg-indigo-50/30 transition-all text-left group"
                                     >
                                         <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                             <Key size={24} />
@@ -926,7 +926,7 @@ export const ClinicFinance = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                        <div className="bg-slate-50 border border-slate-200/60 p-6 rounded-3xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:p-6">
                             <div>
                                 <p className="text-xs font-bold text-slate-400">Wallet ID de Transação Integrada:</p>
                                 <p className="font-mono text-sm font-bold text-slate-700 mt-1">{asaasWalletId}</p>
@@ -949,13 +949,13 @@ export const ClinicFinance = () => {
             {showEntryModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
                             <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
                                 {entryType === 'INCOME' ? 'Lançar Receita extra' : 'Lançar Despesa extra'}
                             </h3>
                             <button onClick={() => setShowEntryModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
-                        <form onSubmit={handleAddEntry} className="p-8 space-y-5">
+                        <form onSubmit={handleAddEntry} className="p-4 sm:p-8 space-y-5">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Descrição</label>
                                 <input value={description} onChange={e => setDescription(e.target.value)} required className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-teal-500 font-bold" placeholder="Ex: Conta de Luz" />
@@ -995,13 +995,13 @@ export const ClinicFinance = () => {
             {showPaymentModal && selectedPatient && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
                             <h3 className="text-base font-black text-slate-800 uppercase tracking-tight">
                                 Registrar Recebimento Manual - {selectedPatient.name}
                             </h3>
                             <button onClick={() => setShowPaymentModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
-                        <form onSubmit={handleAddPatientPaymentSubmit} className="p-8 space-y-4">
+                        <form onSubmit={handleAddPatientPaymentSubmit} className="p-4 sm:p-8 space-y-4">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Valor do Pagamento (R$)</label>
                                 <input 
@@ -1073,13 +1073,13 @@ export const ClinicFinance = () => {
             {showBillingModal && selectedPatient && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">
                                 Emitir Fatura Online - {selectedPatient.name}
                             </h3>
                             <button onClick={() => setShowBillingModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
-                        <form onSubmit={handleAddBillingBatchSubmit} className="p-8 space-y-5">
+                        <form onSubmit={handleAddBillingBatchSubmit} className="p-4 sm:p-8 space-y-5">
                             <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl flex gap-2 text-xs text-amber-900 leading-relaxed font-medium">
                                 <Info size={16} className="shrink-0 text-amber-600" />
                                 <div>
@@ -1122,15 +1122,15 @@ export const ClinicFinance = () => {
 
             {/* MODAL: INTEGRAÇÃO COM ASAAS REQUERIDA (WARNING OVERLAY) */}
             {showAsaasWarningModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-300">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200 overflow-hidden border border-slate-100">
-                        <div className="p-6 border-b border-rose-50 flex gap-3 items-center bg-rose-50 rounded-t-[32px] text-rose-800">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-rose-50 flex gap-3 items-center bg-rose-50 rounded-t-[32px] text-rose-800">
                             <AlertCircle className="text-rose-600 animate-pulse" size={24} />
                             <h3 className="text-sm font-black uppercase tracking-tight">
                                 Conta Asaas Requerida
                             </h3>
                         </div>
-                        <div className="p-8 space-y-6">
+                        <div className="p-4 sm:p-8 space-y-6">
                             <p className="text-slate-600 font-medium text-sm leading-relaxed">
                                 Você tentou emitir uma cobrança pelo Asaas, mas a sua clínica ainda não possui uma Wallet ID vinculada ou conta Asaas criada.
                             </p>
@@ -1169,17 +1169,17 @@ export const ClinicFinance = () => {
                     <div className="bg-white rounded-[36px] shadow-2xl w-full max-w-xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
                         
                         {/* Header do Checkout */}
-                        <div className="bg-slate-900 text-white p-6 relative">
+                        <div className="bg-slate-900 text-white p-4 sm:p-6 relative">
                             <button 
                                 onClick={() => setCheckoutInvoice(null)}
-                                className="absolute top-6 right-6 p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+                                className="absolute top-4 sm:p-6 right-6 p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
                             >
                                 <X size={18}/>
                             </button>
                             <span className="text-[9px] font-black uppercase text-teal-400 px-2 py-0.5 bg-teal-950/40 border border-teal-800 rounded">Portal de Pagamento Asaas</span>
                             <div className="mt-4 flex justify-between items-end gap-2 flex-wrap">
                                 <div>
-                                    <h3 className="text-lg font-black tracking-tight">{currentOrg?.name || 'Smileprox Clinic'}</h3>
+                                    <h3 className="text-lg font-black tracking-tight">{currentOrg?.name || 'Labprox Clinic'}</h3>
                                     <p className="text-xs text-slate-400 font-medium">Boleto e cobranças online integradas</p>
                                 </div>
                                 <div className="text-right">
@@ -1190,7 +1190,7 @@ export const ClinicFinance = () => {
                         </div>
 
                         {/* Corpo do Checkout */}
-                        <div className="p-8 space-y-6 overflow-y-auto flex-1">
+                        <div className="p-4 sm:p-8 space-y-6 overflow-y-auto flex-1">
                             <div className="flex gap-4 border-b border-slate-100 pb-4">
                                 <div className="w-full text-xs font-bold space-y-2">
                                     <div className="flex justify-between"><span className="text-slate-400">Paciente:</span> <span className="text-slate-700">{selectedPatient?.name}</span></div>
@@ -1202,7 +1202,7 @@ export const ClinicFinance = () => {
 
                             {/* Pix/Boleto interactive section */}
                             <div className="space-y-6">
-                                <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-150 rounded-3xl bg-slate-50/50">
+                                <div className="flex flex-col items-center justify-center p-4 sm:p-6 border-2 border-dashed border-slate-150 rounded-3xl bg-slate-50/50">
                                     <QrCode size={140} className="text-slate-800" />
                                     <p className="text-xs font-bold text-slate-500 mt-4 text-center">Escaneie o QR Code acima usando seu aplicativo de banco para pagar via PIX imediatamente.</p>
                                     

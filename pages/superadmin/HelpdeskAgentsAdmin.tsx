@@ -193,10 +193,10 @@ export const HelpdeskAgentsAdmin = () => {
         <p className="text-slate-500">Gerencie os atendentes e operadores de helpdesk do ecossistema.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-8">
         
         {/* Left Column: Register Form */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-6 h-fit">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 sm:p-6 h-fit">
           <div>
             <h3 className="font-bold text-slate-800 text-lg uppercase tracking-tight">Cadastrar Novo Agente</h3>
             <p className="text-xs text-slate-400 mt-1">Insira os dados do atendente. Ele poderá logar no sistema utilizando estes dados e será redirecionado para a mesa de suporte completo.</p>
@@ -305,7 +305,7 @@ export const HelpdeskAgentsAdmin = () => {
         </div>
 
         {/* Right Column: Agents List */}
-        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-6 lg:col-span-2">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 sm:p-6 lg:col-span-2">
           <div className="flex justify-between items-center">
             <div>
               <h3 className="font-bold text-slate-800 text-lg uppercase tracking-tight">Agentes Ativos</h3>
@@ -380,7 +380,7 @@ export const HelpdeskAgentsAdmin = () => {
       </div>
 
       {/* Metrics Section */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-6">
+      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 sm:p-6">
         <div>
           <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2 uppercase">
             <BarChart3 className="text-blue-600" size={22} />
@@ -389,7 +389,7 @@ export const HelpdeskAgentsAdmin = () => {
           <p className="text-slate-500 text-xs">Acompanhe as notas de avaliação, chamados concluídos e feedbacks enviados pelos clientes para cada agente de helpdesk.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:p-6">
           {agents.map((agent) => {
             const metrics = getAgentMetrics(agent.id);
             return (
@@ -484,7 +484,7 @@ export const HelpdeskAgentsAdmin = () => {
           })}
 
           {agents.length === 0 && (
-            <div className="col-span-full p-8 text-center text-slate-400 italic bg-slate-50 rounded-2xl border border-slate-100">
+            <div className="col-span-full p-4 sm:p-8 text-center text-slate-400 italic bg-slate-50 rounded-2xl border border-slate-100">
               Cadastre agentes de atendimento acima para começar a monitorar as métricas de performance.
             </div>
           )}

@@ -70,8 +70,8 @@ export const TutorialsView = () => {
       {/* Header section */}
       {!selectedTutorial ? (
         <>
-          <div className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl shadow-slate-100">
-            <div className="absolute top-0 right-0 p-8 opacity-10">
+          <div className="bg-slate-900 rounded-3xl p-4 sm:p-8 text-white relative overflow-hidden shadow-2xl shadow-slate-100">
+            <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10">
               <BookOpen size={200} />
             </div>
             <div className="relative z-10 max-w-2xl">
@@ -99,7 +99,7 @@ export const TutorialsView = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:p-8">
             {/* Category Sidebar Filters */}
             <div className="lg:col-span-1 space-y-2">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider px-3 mb-4">
@@ -123,12 +123,12 @@ export const TutorialsView = () => {
 
             {/* Tutorials List Grid */}
             <div className="lg:col-span-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                 {filteredTutorials.map((t) => (
                   <div 
                     key={t.id} 
                     onClick={() => handleSelectTutorial(t)}
-                    className="group bg-white rounded-3xl p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all cursor-pointer flex flex-col justify-between"
+                    className="group bg-white rounded-3xl p-4 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-100 transition-all cursor-pointer flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex justify-between items-start mb-3">
@@ -183,7 +183,7 @@ export const TutorialsView = () => {
             <ArrowLeft size={16} /> Voltar para os Guias
           </button>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-8">
             
             {/* Left/Middle: Image sliders & Videos and Written documentation */}
             <div className="lg:col-span-8 space-y-6">
@@ -191,7 +191,7 @@ export const TutorialsView = () => {
               {/* Carousel Steps Area */}
               {selectedTutorial.steps && selectedTutorial.steps.length > 0 && (
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                  <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                     <div>
                       <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
                         <ImageIcon className="text-emerald-500" size={16} /> Carrossel de Imagens do Sistema (Passo a Passo)
@@ -215,7 +215,7 @@ export const TutorialsView = () => {
                     />
                     
                     {/* Dark gradient for title spacing */}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 text-white text-sm">
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 sm:p-6 text-white text-sm">
                       <h4 className="font-extrabold text-white text-base mb-1">
                         {selectedTutorial.steps[currentSlide].title}
                       </h4>
@@ -259,7 +259,7 @@ export const TutorialsView = () => {
 
               {/* Video Tutorial Area */}
               {selectedTutorial.videoUrl && (
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden p-6 space-y-4">
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden p-4 sm:p-6 space-y-4">
                   <div className="flex items-center gap-2 border-b border-slate-50 pb-3">
                     <Video className="text-blue-500" size={18} />
                     <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">Vídeo Explicativo Integrado</h3>
@@ -312,7 +312,7 @@ export const TutorialsView = () => {
               )}
 
               {/* Comprehensive Written Guide */}
-              <div className="bg-white rounded-3xl border border-slate-100 p-8 shadow-sm">
+              <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-8 shadow-sm">
                 <h3 className="text-lg font-black text-slate-800 mb-4 border-b border-slate-100 pb-3 uppercase tracking-tight">
                   Guia Escrito Prático
                 </h3>
@@ -326,7 +326,7 @@ export const TutorialsView = () => {
             {/* Right: Tutorial Metadata panel */}
             <div className="lg:col-span-4 space-y-6">
               
-              <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm space-y-4">
+              <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 shadow-sm space-y-4">
                 <div>
                   <span className="bg-blue-50 text-blue-700 border border-blue-100 px-3 py-1 rounded-full text-[10px] font-black uppercase">
                     {selectedTutorial.category}
@@ -369,7 +369,7 @@ export const TutorialsView = () => {
               </div>
 
               {/* Side panel index guides list */}
-              <div className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm">
+              <div className="bg-white rounded-3xl border border-slate-100 p-4 sm:p-6 shadow-sm">
                 <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider mb-4">Outros tutoriais desta categoria</h4>
                 <div className="space-y-3">
                   {audienceTutorials

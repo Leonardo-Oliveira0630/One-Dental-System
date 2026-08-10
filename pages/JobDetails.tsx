@@ -6,7 +6,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct } from '../types';
 import { 
-  ArrowLeft, Calendar, User, Clock, MapPin, Camera as CameraIcon,
+  ArrowLeft, Calendar, Stethoscope, User, Clock, MapPin, Camera as CameraIcon,
   FileText, DollarSign, CheckCircle, AlertTriangle, 
   Printer, Box, Layers, ListChecks, Bell, Edit, Save, X, Plus, Trash2, Settings,
   LogIn, LogOut, Flag, CheckSquare, File as FileIcon, Download, Loader2, CreditCard, ExternalLink, Copy, Check, Star, UploadCloud, ChevronDown, CheckCircle2, Truck, Navigation, RotateCcw, MessageCircle, MessageSquare, Lock, Crown, FileCode, FileSpreadsheet, FileWarning, XCircle, ArrowLeftCircle, ScanBarcode, Briefcase, Search, ArrowRightCircle, RefreshCw, Edit3, Package
@@ -16,6 +16,7 @@ import { ChatSystem } from '../components/ChatSystem';
 import { CaseApprovalSystem } from '../components/CaseApprovalSystem';
 import { AttachmentPreviewModal, handleDownloadFile } from '../components/AttachmentPreviewModal';
 import { calculateItemCommission } from '../utils/commissionUtils';
+import { WebcamModal } from '../components/WebcamModal';
 import { formatTeethRange } from '../utils/toothUtils';
 import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
@@ -40,11 +41,12 @@ export const parseDateSafely = (val: any): Date | null => {
 
 export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => {
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
-    if (!jt || !jt.variationGroups || jt.variationGroups.length === 0) return item.name;
+    if (!jt || ((!jt.variationGroups || jt.variationGroups.length === 0) && (!jt.variations || jt.variations.length === 0))) return item.name;
+    const groups = (jt.variationGroups && jt.variationGroups.length > 0) ? jt.variationGroups : [{ id: 'default', name: 'Opções', options: jt.variations || [] }];
     
     const parts: string[] = [];
     item.selectedVariationIds?.forEach(optId => {
-        for (const group of jt.variationGroups!) {
+        for (const group of groups) {
             const opt = group.options.find((o: any) => o.id === optId);
             if (opt) {
                 if (group.selectionType === 'TEXT' && item.variationValues?.[optId]) {
@@ -64,7 +66,7 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
 
 export const JobDetails = () => {
   const { id } = useParams();
-  const { jobs, updateJob, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
+  const { jobs, budgets, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -76,6 +78,7 @@ export const JobDetails = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editDentistId, setEditDentistId] = useState('');
   const [editDentistName, setEditDentistName] = useState('');
+  const [editSubDentistName, setEditSubDentistName] = useState('');
   const [dentistSearchQuery, setDentistSearchQuery] = useState('');
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [selectedDentistObj, setSelectedDentistObj] = useState<any>(null);
@@ -91,7 +94,7 @@ export const JobDetails = () => {
       originalMovement?: SectorMovement | null
   } | null>(null);
 
-  const { commissions, addCommissionRecord, deleteCommissionRecord, updateCommissionRecord, updateJobType } = useApp(); // Wait, let's just get what's missing if not already destructured
+  const { commissions, addCommissionRecord, deleteCommissionRecord, updateCommissionRecord } = useApp();
   const labUsers = useMemo(() => allUsers.filter(u => u.role !== UserRole.CLIENT), [allUsers]);
 
   const [showRouteModal, setShowRouteModal] = useState(false);
@@ -113,6 +116,53 @@ export const JobDetails = () => {
     color: string;
   }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  // Stage Config Modal State
+  const [stageConfigItem, setStageConfigItem] = useState<JobItem | null>(null);
+  const [expandedStageSectors, setExpandedStageSectors] = useState<Record<string, boolean>>({});
+  const [tempItemStages, setTempItemStages] = useState<Record<string, string[]>>({});
+
+  const handleOpenStageConfig = (item: JobItem) => {
+    setStageConfigItem(item);
+    const jt = jobTypes.find(t => t.id === item.jobTypeId);
+    const initialStages = item.sectorStages || jt?.sectorStages || {};
+    setTempItemStages(initialStages);
+    const initialExpanded: Record<string, boolean> = {};
+    sectors.forEach(s => {
+      if ((s.stages && s.stages.length > 0) || (initialStages[s.name] && initialStages[s.name].length > 0)) {
+        initialExpanded[s.name] = true;
+      }
+    });
+    setExpandedStageSectors(initialExpanded);
+  };
+
+  const handleSaveStageConfig = async () => {
+    if (!stageConfigItem || !job) return;
+    setIsUpdatingStatus(true);
+    try {
+      const updatedItems = job.items.map((i: any) => {
+        if (i.id === stageConfigItem.id) {
+          return {
+            ...i,
+            sectorStages: tempItemStages
+          };
+        }
+        return i;
+      });
+
+      const jType = jobTypes.find(t => t.id === stageConfigItem.jobTypeId);
+      if (jType && updateJobType) {
+        await updateJobType(jType.id, { sectorStages: tempItemStages });
+      }
+
+      await updateJob(job.id, { items: updatedItems });
+      setStageConfigItem(null);
+    } catch (err) {
+      alert("Erro ao salvar etapas do serviço.");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   // Rejection/Cancellation Modal States
   const [showRejectionModal, setShowRejectionModal] = useState(false);
@@ -230,6 +280,7 @@ export const JobDetails = () => {
   
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const [uploadProgressMsg, setUploadProgressMsg] = useState('');
 
   const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
@@ -278,8 +329,28 @@ export const JobDetails = () => {
         } as any;
       }
     }
-    return jobs.find(j => j.id === id);
-  }, [id, isPseudo, jobs, onlineRequisitions]);
+    const foundJob = jobs.find(j => j.id === id);
+    if (foundJob) return foundJob;
+    const foundBudget = budgets?.find(b => b.id === id);
+    if (foundBudget) {
+        let parsedDate = foundBudget.createdAt ? (foundBudget.createdAt instanceof Date ? foundBudget.createdAt : new Date(((foundBudget.createdAt as any).seconds || 0) * 1000 || foundBudget.createdAt)) : new Date();
+        if (isNaN(parsedDate.getTime())) parsedDate = new Date();
+        return { 
+            ...foundBudget, 
+            isBudget: true, 
+            status: foundBudget.status || 'PENDING', 
+            osNumber: foundBudget.osNumber || (foundBudget as any).budgetNumber,
+            urgency: 'NORMAL',
+            history: [],
+            sectorMovements: [],
+            items: foundBudget.items || [],
+            products: foundBudget.products || [],
+            createdAt: parsedDate,
+            dueDate: parsedDate,
+        } as any;
+    }
+    return undefined;
+  }, [id, isPseudo, jobs, budgets, onlineRequisitions]);
 
   const job = resolvedJob;
 
@@ -301,13 +372,14 @@ export const JobDetails = () => {
             if (nextSeq === 1) nextSeq = 2;
         }
     });
-    const nextOsNumber = `${baseOs}-${nextSeq}`;
+    const nextOsNumber = job.isBudget ? job.osNumber : `${baseOs}-${nextSeq}`;
 
     if (action === 'PROSSEGUIMENTO') {
         navigate('/new-job', {
             state: {
                 entryType: 'CONTINUATION',
-                patientName: job.patientName,
+                fromBudget: job,
+        patientName: job.patientName,
                 dentistId: job.dentistId,
                 dentistName: job.dentistName,
                 osNumber: nextOsNumber,
@@ -462,6 +534,7 @@ export const JobDetails = () => {
     setEditDentistId(dentist.id);
     setEditDentistName(dentist.name.toUpperCase());
     setDentistSearchQuery(dentist.name.toUpperCase());
+    setEditSubDentistName('');
     setSelectedDentistObj(dentist.type === 'ONLINE' ? dentist : null);
     setShowDentistSuggestions(false);
   };
@@ -480,7 +553,7 @@ export const JobDetails = () => {
         setEditOsNumber(job.osNumber || '');
         setEditBoxNumber(job.boxNumber || '');
         setEditBoxColorId(job.boxColor?.id || '');
-        setEditDueDate(new Date(job.dueDate).toISOString().split('T')[0]);
+        if (job.dueDate) setEditDueDate(new Date(job.dueDate).toISOString().split("T")[0]);
         setEditDueTime(job.dueTime || '');
         setEditTotalValue(job.totalValue || 0);
         setEditUrgency(job.urgency);
@@ -489,14 +562,15 @@ export const JobDetails = () => {
         setEditProducts(job.products || []);
         setEditDentistId(job.dentistId || '');
         setEditDentistName(job.dentistName || '');
+        setEditSubDentistName(job.subDentistName || '');
         setDentistSearchQuery(job.dentistName || '');
-        const visibleTypes = jobTypes.filter(t => t.isVisibleInternally !== false);
+        const visibleTypes = jobTypes.filter(t => job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false);
         if (visibleTypes.length > 0) setNewItemTypeId(visibleTypes[0].id);
         else if (jobTypes.length > 0) setNewItemTypeId(jobTypes[0].id);
     }
   }, [job, jobTypes]);
 
-  if (!job) return <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6"><h2 className="text-xl font-bold text-slate-800">Trabalho não encontrado</h2><button onClick={() => navigate('/jobs')} className="mt-4 text-blue-600 font-bold hover:underline">Voltar para lista</button></div>;
+  if (!job) return <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-6"><h2 className="text-xl font-bold text-slate-800">Trabalho não encontrado</h2><button onClick={() => navigate('/jobs')} className="mt-4 text-blue-600 font-bold hover:underline">Voltar para lista</button></div>;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) {
@@ -620,10 +694,17 @@ export const JobDetails = () => {
         if (option) {
             let modifier = option.priceModifier;
             
-            if (dentist && dentist.priceTableId) {
-                const table = priceTables.find(t => t.id === dentist.priceTableId);
-                if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
-                    modifier = table.prices[jobType.id].variations[option.id];
+            if (dentist) {
+                if (dentist.isCustomPricing) {
+                    const custom = dentist.customPrices?.find((p: any) => p.jobTypeId === jobType.id);
+                    if (custom && custom.variations && custom.variations[option.id] !== undefined) {
+                        modifier = custom.variations[option.id];
+                    }
+                } else if (dentist.priceTableId) {
+                    const table = priceTables.find(t => t.id === dentist.priceTableId);
+                    if (table && table.prices[jobType.id]?.variations?.[option.id] !== undefined) {
+                        modifier = table.prices[jobType.id].variations[option.id];
+                    }
                 }
             }
 
@@ -812,7 +893,7 @@ export const JobDetails = () => {
             changes.push(`- Cor da Caixa: ${job.boxColor?.name || 'Sem cor'} -> ${selectedBoxColor?.name || 'Sem cor'}`);
         }
         
-        const oldDate = new Date(job.dueDate).toISOString().split('T')[0];
+        const oldDate = job.dueDate ? new Date(job.dueDate).toISOString().split("T")[0] : "";
         if (editDueDate !== oldDate) changes.push(`- Vencimento: ${oldDate} -> ${editDueDate}`);
         
         if (editUrgency !== job.urgency) changes.push(`- Urgência: ${job.urgency} -> ${editUrgency}`);
@@ -827,6 +908,7 @@ export const JobDetails = () => {
             osNumber: editOsNumber,
             dentistId: editDentistId,
             dentistName: editDentistName,
+            subDentistName: editSubDentistName || undefined,
             boxNumber: editBoxNumber,
             boxColor: selectedBoxColor,
             dueDate: adjustedDate,
@@ -1150,7 +1232,8 @@ export const JobDetails = () => {
               if (userItemsInSector.includes(item.id) && !item.commissionDisabled) {
                   const secQty = (item.sectorQuantities && item.sectorQuantities[editingExecution.sector]) ? item.sectorQuantities[editingExecution.sector] : item.quantity;
                   const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                  totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty);
+                  const exec = newExecutions.find((e: any) => e.itemId === item.id && e.sector === editingExecution.sector && e.userId === editingExecution.userId);
+                  totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, editingExecution.sector, exec?.executedStages, exec?.isBaseChecked !== false);
               }
           });
 
@@ -1221,7 +1304,8 @@ export const JobDetails = () => {
                   if (userItemsInSector.includes(i.id) && !i.commissionDisabled) {
                       const secQty = (i.sectorQuantities && i.sectorQuantities[sector]) ? i.sectorQuantities[sector] : i.quantity;
                       const jt = jobTypes.find(t => t.id === i.jobTypeId);
-                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty);
+                      const exec = newExecutions.find((e: any) => e.itemId === i.id && e.sector === sector && e.userId === executionToDelete.userId);
+                      totalUserComm += calculateItemCommission(i, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false);
                   }
               });
 
@@ -1264,7 +1348,8 @@ export const JobDetails = () => {
                           ? item.sectorQuantities[sector] 
                           : item.quantity;
                       const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty);
+                      const exec = (executionsToUse || []).find((e: any) => e.itemId === item.id && e.sector === sector && e.userId === userId);
+                      totalUserComm += calculateItemCommission(item, jt, selectedUser, secQty, sector, exec?.executedStages, exec?.isBaseChecked !== false);
                   }
               }
           });
@@ -1443,7 +1528,7 @@ export const JobDetails = () => {
         </div>
 
         {/* OS Details Card */}
-        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden p-6 md:p-8 space-y-6">
+        <div className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden p-4 sm:p-6 md:p-4 sm:p-8 space-y-6">
           
           {/* Header OS details */}
           <div className="flex justify-between items-start border-b border-slate-100 pb-4">
@@ -1462,7 +1547,7 @@ export const JobDetails = () => {
           </div>
 
           {/* Core Info Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:p-6">
             <div>
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Dentista Solicitante</span>
               <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
@@ -1483,7 +1568,7 @@ export const JobDetails = () => {
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Data de Finalização</span>
               <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
                 <Calendar size={16} className="text-green-500 font-bold" />
-                <span>{new Date(job.dueDate).toLocaleDateString('pt-BR')}</span>
+                <span>{(job.dueDate ? new Date(job.dueDate).toLocaleDateString("pt-BR") : "-")}</span>
               </div>
             </div>
 
@@ -1648,7 +1733,7 @@ export const JobDetails = () => {
     <div className="w-full space-y-4 md:space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-x-hidden">
       
       {job.isPseudo && job.status === 'REJECTED_REQUISITION' && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-4 sm:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
           <div className="flex gap-3">
             <XCircle className="text-red-500 shrink-0 mt-0.5 md:mt-0 animate-bounce" size={24} />
             <div>
@@ -1674,7 +1759,7 @@ export const JobDetails = () => {
       )}
 
       {!job.isPseudo && job.status === JobStatus.REJECTED && (
-        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-3xl p-4 md:p-4 sm:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
           <div className="flex gap-3">
             <XCircle className="text-red-500 shrink-0 mt-0.5 md:mt-0 animate-bounce" size={24} />
             <div>
@@ -1700,7 +1785,7 @@ export const JobDetails = () => {
       )}
 
       {job.isPseudo && job.status === 'PENDING_REQUISITION' && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-3xl p-4 md:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-3xl p-4 md:p-4 sm:p-6 mb-4 flex flex-col md:flex-row md:items-center p-5 justify-between gap-4 shadow-sm animate-in fade-in duration-300">
           <div className="flex gap-3">
             <Clock className="text-amber-500 shrink-0 mt-0.5 md:mt-0" size={24} />
             <div>
@@ -1749,7 +1834,7 @@ export const JobDetails = () => {
       {/* MODAL RETORNO */}
       {showReturnModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
+              <div className="bg-white rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
                   <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
                       <RefreshCw size={32} className="text-indigo-600" />
                   </div>
@@ -1795,10 +1880,87 @@ export const JobDetails = () => {
           </div>
       )}
 
+      
+      {/* MODAL STAGE CONFIG */}
+      {stageConfigItem && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] animate-in zoom-in duration-200">
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b flex justify-between items-center bg-slate-50 rounded-t-3xl shrink-0">
+                      <div>
+                          <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                              <Settings className="text-slate-400" />
+                              Etapas do Serviço
+                          </h3>
+                          <p className="text-xs text-slate-500 font-bold uppercase mt-1 tracking-widest">{stageConfigItem.name}</p>
+                      </div>
+                      <button onClick={() => setStageConfigItem(null)} className="text-slate-400 hover:text-slate-600 hover:bg-slate-200 p-2 rounded-full transition-colors"><X size={24}/></button>
+                  </div>
+                  
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 overflow-y-auto flex-1 space-y-4">
+                      {sectors.map(sector => (
+                          <div key={sector.id} className="border border-slate-200 rounded-2xl overflow-hidden">
+                              <button
+                                  className="w-full bg-slate-50 hover:bg-slate-100 p-4 flex justify-between items-center transition-colors"
+                                  onClick={() => setExpandedStageSectors(prev => ({ ...prev, [sector.name]: !prev[sector.name] }))}
+                              >
+                                  <span className="font-black text-slate-700 text-sm">{sector.name}</span>
+                                  <ChevronDown size={18} className={`text-slate-400 transition-transform ${expandedStageSectors[sector.name] ? 'rotate-180' : ''}`} />
+                              </button>
+                              
+                              {expandedStageSectors[sector.name] && (
+                                  <div className="p-4 bg-white border-t border-slate-100 space-y-2">
+                                      {(!sector.stages || sector.stages.length === 0) ? (
+                                          <p className="text-xs text-slate-400 font-bold text-center py-2">Nenhuma etapa cadastrada neste setor.</p>
+                                      ) : (
+                                          sector.stages.map((stage, idx) => {
+                                              const isChecked = tempItemStages[sector.name]?.includes(stage) || false;
+                                              return (
+                                                  <label key={idx} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer border border-transparent hover:border-slate-100 transition-colors">
+                                                      <input
+                                                          type="checkbox"
+                                                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                                          checked={isChecked}
+                                                          onChange={(e) => {
+                                                              const current = tempItemStages[sector.name] || [];
+                                                              let next;
+                                                              if (e.target.checked) {
+                                                                  next = [...current, stage];
+                                                              } else {
+                                                                  next = current.filter(s => s !== stage);
+                                                              }
+                                                              setTempItemStages(prev => ({ ...prev, [sector.name]: next }));
+                                                          }}
+                                                      />
+                                                      <span className="text-sm font-bold text-slate-600">{stage}</span>
+                                                  </label>
+                                              );
+                                          })
+                                      )}
+                                  </div>
+                              )}
+                          </div>
+                      ))}
+                  </div>
+
+                  <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t bg-slate-50 rounded-b-3xl flex justify-end gap-3 shrink-0">
+                      <button onClick={() => setStageConfigItem(null)} className="px-6 py-3 font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
+                      <button 
+                          onClick={handleSaveStageConfig}
+                          disabled={isUpdatingStatus}
+                          className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-500/30 flex items-center gap-2 transition-all"
+                      >
+                          {isUpdatingStatus ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                          SALVAR ETAPAS
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
       {/* MODAL EXECUTION EDIT */}
       {showExecutionModal && editingExecution && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md animate-in zoom-in duration-200">
+              <div className="bg-white rounded-3xl shadow-2xl p-4 sm:p-6 w-full max-w-md animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                           <Settings className="text-slate-400" />
@@ -1864,11 +2026,11 @@ export const JobDetails = () => {
       {showEditModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-2 sm:p-4">
               <div className="bg-white rounded-[24px] md:rounded-[32px] shadow-2xl w-full max-w-2xl max-h-[95vh] flex flex-col overflow-hidden animate-in zoom-in duration-200">
-                  <div className="p-4 md:p-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
+                  <div className="p-4 md:p-4 sm:p-6 border-b flex justify-between items-center bg-slate-50 shrink-0">
                       <h3 className="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2"><Edit className="text-blue-600" /> Editar Ordem</h3>
                       <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 p-1"><X size={24}/></button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 no-scrollbar">
+                  <div className="flex-1 overflow-y-auto p-4 md:p-4 sm:p-6 space-y-6 no-scrollbar">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="md:col-span-2 relative" ref={dropdownRef}>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Dentista / Clínica</label>
@@ -1881,7 +2043,7 @@ export const JobDetails = () => {
                                       value={dentistSearchQuery} 
                                       onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }}
                                       onFocus={() => setShowDentistSuggestions(true)}
-                                      placeholder="Buscar dentista ou clínica..."
+                                      placeholder="Buscar cliente ou clínica..."
                                       className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm transition-all uppercase"
                                   />
                               </div>
@@ -2016,7 +2178,7 @@ export const JobDetails = () => {
                                                   <div>
                                                       <label className="block text-[9px] font-black text-slate-500 uppercase mb-1">Tipo de Serviço</label>
                                                       <select value={item.jobTypeId} onChange={e => handleUpdateEditItem(item.id, { jobTypeId: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
-                                                          {jobTypes.filter(t => t.isVisibleInternally !== false || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                          {jobTypes.filter(t => (job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false) || t.id === item.jobTypeId).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                                       </select>
                                                   </div>
                                                   <div className="flex gap-2 items-end">
@@ -2052,14 +2214,15 @@ export const JobDetails = () => {
                                               </div>
                                               {(() => {
                                                   const type = jobTypes.find(t => t.id === item.jobTypeId);
-                                                  if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                                  if (!type || ((!type.variationGroups || type.variationGroups.length === 0) && (!type.variations || type.variations.length === 0))) return null;
+                                                  const groups = (type.variationGroups && type.variationGroups.length > 0) ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }];
                                                   return (
                                                       <div className="grid grid-cols-1 gap-3 mt-2">
-                                                          {type.variationGroups.map(group => (
+                                                          {groups.map((group: any) => (
                                                               <div key={group.id} className="space-y-1">
                                                                   <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{group.name}</h4>
                                                                   <div className="flex flex-wrap gap-1.5">
-                                                                      {group.options.map(option => {
+                                                                      {group.options.map((option: any) => {
                                                                           const isSelected = (item.selectedVariationIds || []).includes(option.id);
                                                                           return (
                                                                               <button
@@ -2068,7 +2231,7 @@ export const JobDetails = () => {
                                                                                   onClick={() => {
                                                                                       let newSelected = [...(item.selectedVariationIds || [])];
                                                                                       if (group.selectionType === 'SINGLE') {
-                                                                                          newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                                          newSelected = newSelected.filter(id => !group.options.find((o: any) => o.id === id));
                                                                                           if (!isSelected) newSelected.push(option.id);
                                                                                       } else {
                                                                                           if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
@@ -2147,7 +2310,7 @@ export const JobDetails = () => {
                                    <div>
                                        <label className="block text-[9px] font-black text-slate-400 uppercase mb-1">Tipo de Serviço</label>
                                        <select value={newItemTypeId} onChange={e => setNewItemTypeId(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none">
-                                           {jobTypes.filter(t => t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                           {jobTypes.filter(t => job.clientOrigin === 'LABORATORY' ? t.isVisibleInternallyLabs === true : t.isVisibleInternally !== false).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                                        </select>
                                    </div>
                                    <div className="flex gap-2 items-end">
@@ -2185,14 +2348,15 @@ export const JobDetails = () => {
                                </div>
                                {(() => {
                                    const type = jobTypes.find(t => t.id === newItemTypeId);
-                                   if (!type || !type.variationGroups || type.variationGroups.length === 0) return null;
+                                   if (!type || ((!type.variationGroups || type.variationGroups.length === 0) && (!type.variations || type.variations.length === 0))) return null;
+                                   const groups = (type.variationGroups && type.variationGroups.length > 0) ? type.variationGroups : [{ id: 'default', name: 'Opções', options: type.variations || [] }];
                                    return (
                                        <div className="grid grid-cols-1 gap-3 mt-2">
-                                           {type.variationGroups.map(group => (
+                                           {groups.map((group: any) => (
                                                <div key={group.id} className="space-y-1">
                                                    <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{group.name}</h4>
                                                    <div className="flex flex-wrap gap-1.5">
-                                                       {group.options.map(option => {
+                                                       {group.options.map((option: any) => {
                                                            const isSelected = newItemVariationIds.includes(option.id);
                                                            return (
                                                                <button 
@@ -2201,7 +2365,7 @@ export const JobDetails = () => {
                                                                    onClick={() => {
                                                                        let newSelected = [...newItemVariationIds];
                                                                        if (group.selectionType === 'SINGLE') {
-                                                                           newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                           newSelected = newSelected.filter(id => !group.options.find((o: any) => o.id === id));
                                                                            if (!isSelected) newSelected.push(option.id);
                                                                        } else {
                                                                            if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
@@ -2239,9 +2403,9 @@ export const JobDetails = () => {
                                               if (prod) setProductManualPrice(prod.sellPrice);
                                           }} className="w-full p-2 text-xs font-bold rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                                               <option value="">Selecione um item no estoque...</option>
-                                              {inventoryItems.map(item => (
+                                              {inventoryItems.filter(item => !item.dentistOwnerId || item.dentistOwnerId === job.clientId).map(item => (
                                                   <option key={item.id} value={item.id} disabled={item.currentStock <= 0}>
-                                                      {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : 'Sem Estoque'})
+                                                      {item.name} ({item.currentStock > 0 ? `${item.currentStock} un.` : 'Sem Estoque'}) {item.dentistOwnerId ? '- ESTOQUE DO CLIENTE' : ''}
                                                   </option>
                                               ))}
                                           </select>
@@ -2273,7 +2437,7 @@ export const JobDetails = () => {
                           <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" placeholder="Novas instruções..."></textarea>
                       </div>
                   </div>
-                  <div className="p-4 md:p-6 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
+                  <div className="p-4 md:p-4 sm:p-6 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
                       <button onClick={() => setShowEditModal(false)} className="px-5 py-2 font-black text-xs text-slate-400 uppercase tracking-widest">Cancelar</button>
                       <button onClick={handleSaveChanges} disabled={isUpdatingStatus} className="px-6 py-3 bg-blue-600 text-white font-black text-xs rounded-xl shadow-xl shadow-blue-100 hover:bg-blue-700 flex items-center gap-2 uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50">
                           {isUpdatingStatus ? <Loader2 className="animate-spin" size={16} /> : <><Save size={16} /> Salvar</>}
@@ -2287,7 +2451,12 @@ export const JobDetails = () => {
       <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 shrink-0">
           <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors"><ArrowLeft size={16} /> Lista</button>
           <div className="flex flex-wrap gap-2 w-full xs:w-auto">
-              {canReopen && (
+              {job.isBudget && job.status === 'PENDING' && (
+                  <button onClick={() => handleReturnAction('PROSSEGUIMENTO')} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-green-50 border border-green-100 text-green-600 rounded-lg hover:bg-green-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
+                      <CheckCircle2 size={12} /> APROVAR E GERAR OS
+                  </button>
+              )}
+              {canReopen && !job.isBudget && (
                   <>
                     <button onClick={() => setShowReturnModal(true)} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
                         <Plus size={12} /> CADASTRAR RETORNO
@@ -2299,8 +2468,15 @@ export const JobDetails = () => {
               )}
               {canPrint && job.status !== JobStatus.REJECTED && (
                   <>
-                      <button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha Interna</button>
-                      <button onClick={() => triggerPrint(job, 'INVOICE_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha de Entrega</button>
+                      {!job.isBudget && (
+                        <>
+                          <button onClick={() => triggerPrint(job, 'SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha Interna</button>
+                          <button onClick={() => triggerPrint(job, 'INVOICE_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Ficha de Entrega</button>
+                        </>
+                      )}
+                      {job.isBudget && (
+                          <button onClick={() => triggerPrint(job, 'BUDGET_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Imprimir Orçamento</button>
+                      )}
                       <button onClick={() => triggerPrint(job, 'LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Etiquetas</button>
                       <button onClick={() => triggerPrint(job, 'ADDRESS_LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><MapPin size={12} /> Endereço</button>
                   </>
@@ -2309,9 +2485,9 @@ export const JobDetails = () => {
       </div>
 
       {/* CARD PRINCIPAL INFO - Mobile Resilient */}
-      <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8 relative overflow-visible shrink-0">
+      <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8 relative overflow-visible shrink-0">
          <div className={`absolute top-0 left-0 w-1.5 md:w-2 h-full rounded-l-[32px] ${job.urgency === UrgencyLevel.VIP ? 'bg-orange-500' : 'bg-blue-600'}`} />
-         <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
+         <div className="flex flex-col lg:flex-row justify-between items-start gap-4 sm:p-6">
             <div className="w-full min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                     <div className="flex items-center gap-3 shrink-0 relative overflow-visible">
@@ -2327,7 +2503,11 @@ export const JobDetails = () => {
                                                 Histórico do Paciente
                                             </div>
                                             {jobs.filter(j => j.patientName === job.patientName)
-                                                 .sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                                                 .sort((a,b) => {
+                                                    const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(((a.createdAt as any)?.seconds || 0) * 1000 || a.createdAt);
+                                                    const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(((b.createdAt as any)?.seconds || 0) * 1000 || b.createdAt);
+                                                    return dateA.getTime() - dateB.getTime();
+                                                 })
                                                  .map(j => (
                                                 <button 
                                                     key={j.id} 
@@ -2393,13 +2573,18 @@ export const JobDetails = () => {
                     )}
                 </div>
                 <h1 className="text-xl md:text-2xl font-black text-slate-800 leading-tight uppercase truncate">{job.patientName}</h1>
-                <div className="flex items-center gap-2 text-slate-500 mt-1 font-bold text-xs uppercase truncate"><User size={14} className="text-blue-500 shrink-0" /> Dr(a). {job.dentistName}</div>
+                <div className="flex flex-wrap items-center gap-2 text-slate-500 mt-1 font-bold text-xs uppercase">
+                    <span className="flex items-center gap-1 truncate"><User size={14} className="text-blue-500 shrink-0" /> {job.dentistName}</span>
+                    {job.subDentistName && (
+                        <span className="flex items-center gap-1 border-l border-slate-300 pl-2 truncate"><Stethoscope size={14} className="text-indigo-500 shrink-0" /> Dr(a). {job.subDentistName}</span>
+                    )}
+                </div>
             </div>
             
             <div className="flex flex-col xs:flex-row lg:flex-col lg:items-end gap-3 w-full lg:w-auto mt-2 lg:mt-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-50">
                 <div className="lg:text-right shrink-0">
                     <p className="text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Previsão de Saída</p>
-                    <div className="flex items-center lg:justify-end gap-1.5 text-sm md:text-lg font-black text-slate-800"><Calendar size={18} className="text-blue-600 shrink-0" /> {new Date(job.dueDate).toLocaleDateString()}</div>
+                    <div className="flex items-center lg:justify-end gap-1.5 text-sm md:text-lg font-black text-slate-800"><Calendar size={18} className="text-blue-600 shrink-0" /> {(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</div>
                 </div>
                 
                 <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1 lg:justify-end w-full">
@@ -2484,7 +2669,7 @@ export const JobDetails = () => {
 
       <div className="flex-1 min-h-0 w-full overflow-hidden">
         {activeTab === 'SUMMARY' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full pb-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-4 sm:p-8 animate-in fade-in duration-300 w-full pb-8">
                 {/* KPI BOXES - Responsive Layout */}
                 <div className={`lg:col-span-3 grid grid-cols-1 ${isClient ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3 md:gap-4`}>
                     {!isClient && (
@@ -2553,7 +2738,7 @@ export const JobDetails = () => {
                                      routeInfo.status === 'IN_TRANSIT' ? '🛵 Em Trânsito' : '📦 Agendado'}
                                 </span>
                             </div>
-                            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
                                 <div className="flex items-center gap-3.5 min-w-0">
                                     <div className={`p-3 rounded-xl shadow-sm border shrink-0 ${
                                         routeInfo.status === 'COMPLETED' ? 'bg-emerald-100/40 text-emerald-600 border-emerald-100' : 'bg-slate-100/50 text-slate-500 border-slate-100'
@@ -2604,7 +2789,7 @@ export const JobDetails = () => {
                         </div>
                     )}
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8">
                         <h3 className="text-base md:text-lg font-black text-slate-800 mb-6 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileText size={20} className="text-blue-500 shrink-0" /> Serviços do Pedido</h3>
                         <div className="divide-y divide-slate-100">
                             {job.items.map((item: any, idx: number) => {
@@ -2638,6 +2823,19 @@ export const JobDetails = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 shrink-0">
+                                            {canManageCommissions && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenStageConfig(item);
+                                                    }}
+                                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                    title="Configurar Etapas do Serviço"
+                                                >
+                                                    <Settings size={18} />
+                                                </button>
+                                            )}
                                             {item.isInternalStep ? (
                                                 <p className="font-black text-indigo-500 text-[10px] uppercase">NÃO FATURADO</p>
                                             ) : (
@@ -2710,31 +2908,18 @@ export const JobDetails = () => {
                                                     </div>
                                                     
                                                     {/* Variations Editing */}
-                                                    <div className="mt-4 pt-4 border-t border-slate-200">
-                                                        <label className="flex items-center gap-2 cursor-pointer p-3 bg-indigo-50 border border-indigo-100 rounded-xl w-fit">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={itemEditForm.isInternalStep}
-                                                                onChange={(e) => setItemEditForm({...itemEditForm, isInternalStep: e.target.checked})}
-                                                                className="h-4 w-4 text-indigo-600 border-indigo-300 rounded focus:ring-indigo-600"
-                                                            />
-                                                            <span className="text-xs font-black text-indigo-900 uppercase tracking-widest">
-                                                                Definir como Etapa (Não Faturado)
-                                                            </span>
-                                                        </label>
-                                                    </div>
-                                                    
                                                     {(() => {
                                                         const itemJobType = jobTypes.find(jt => jt.id === item.jobTypeId);
-                                                        if (!itemJobType || !itemJobType.variationGroups || itemJobType.variationGroups.length === 0) return null;
+                                                        if (!itemJobType || ((!itemJobType.variationGroups || itemJobType.variationGroups.length === 0) && (!itemJobType.variations || itemJobType.variations.length === 0))) return null;
+                                                        const groups = (itemJobType.variationGroups && itemJobType.variationGroups.length > 0) ? itemJobType.variationGroups : [{ id: 'default', name: 'Opções', options: itemJobType.variations || [] }];
                                                         
                                                         return (
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-slate-200 pt-4 mt-4">
-                                                                {itemJobType.variationGroups.map(group => (
+                                                                {groups.map((group: any) => (
                                                                     <div key={group.id} className="space-y-2">
                                                                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{group.name}</h4>
                                                                         <div className="flex flex-wrap gap-1.5">
-                                                                            {group.options.map(option => {
+                                                                            {group.options.map((option: any) => {
                                                                                 const isSelected = itemEditForm.selectedVariationIds.includes(option.id);
                                                                                 return (
                                                                                     <button 
@@ -2743,7 +2928,7 @@ export const JobDetails = () => {
                                                                                         onClick={() => {
                                                                                             let newSelected = [...itemEditForm.selectedVariationIds];
                                                                                             if (group.selectionType === 'SINGLE') {
-                                                                                                newSelected = newSelected.filter(id => !group.options.find(o => o.id === id));
+                                                                                                newSelected = newSelected.filter(id => !group.options.find((o: any) => o.id === id));
                                                                                                 if (!isSelected) newSelected.push(option.id);
                                                                                             } else {
                                                                                                 if (isSelected) newSelected = newSelected.filter(id => id !== option.id);
@@ -2847,7 +3032,7 @@ export const JobDetails = () => {
                                             
                                             {canManageCommissions && editingItemId !== item.id && (
                                                 <div className="border-t border-slate-200 pt-4">
-                                                    <h4 className="text-[10px] font-black text-slate-600 uppercase mb-3 flex items-center gap-1"><Briefcase size={12} /> Setores Permitidos e Comissão</h4>
+                                                    {!job.isBudget && <h4 className="text-[10px] font-black text-slate-600 uppercase mb-3 flex items-center gap-1"><Briefcase size={12} /> Setores Permitidos e Comissão</h4>}
                                                     {allowedSecs.length === 0 ? (
                                                         <p className="text-xs text-slate-500 italic">Este serviço não tem setores específicos definidos. Permitido em todos.</p>
                                                     ) : (
@@ -2925,7 +3110,7 @@ export const JobDetails = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8">
                         <h3 className="text-base md:text-lg font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-tighter shrink-0"><FileIcon size={20} className="text-blue-500 shrink-0" /> Observações</h3>
                         <div className="bg-slate-50 p-4 rounded-2xl text-slate-600 text-xs md:text-sm font-medium leading-relaxed whitespace-pre-wrap min-h-[100px] border border-slate-100">
                             {job.notes || "Sem instruções adicionais registradas."}
@@ -2936,7 +3121,7 @@ export const JobDetails = () => {
                     {(!job.isPseudo && (job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION' || job.approvalEnabled || isLabStaff)) && (
                         <div className="mt-4 md:mt-6">
                             {isClient && !job.approvalEnabled ? (
-                                <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-6 text-center text-slate-500">
+                                <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-4 sm:p-6 text-center text-slate-500">
                                     <Lock size={32} className="text-slate-300 mx-auto mb-2" />
                                     <p className="font-extrabold text-xs uppercase text-slate-700">Área de Aprovação de Caso</p>
                                     <p className="text-[10px] mt-1 text-slate-400 font-bold">Aguardando ativação do laboratório para este caso.</p>
@@ -2950,7 +3135,7 @@ export const JobDetails = () => {
 
                 <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0 pb-8">
                     {/* Linha do Tempo de Prazos */}
-                    <div id="lifecycle-timeline-card" className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6">
+                    <div id="lifecycle-timeline-card" className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-6">
                         <h3 className="text-sm md:text-base font-black text-slate-800 mb-5 flex items-center gap-2 uppercase tracking-tighter truncate">
                             <Clock size={20} className="text-blue-600 shrink-0" />
                             Prazos do Caso
@@ -3010,7 +3195,7 @@ export const JobDetails = () => {
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-6 overflow-hidden">
+                    <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-6 overflow-hidden">
                         <div className="flex justify-between items-center mb-6 shrink-0">
                             <h3 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter truncate"><FileIcon size={20} className="text-blue-600 shrink-0" /> Documentos</h3>
                             <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-50 px-2 py-0.5 rounded shrink-0">{job.attachments?.length || 0}</span>
@@ -3025,23 +3210,14 @@ export const JobDetails = () => {
                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Anexar Arquivos</span>
                                     </div>
                                 </div>
-                                <div className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 relative overflow-hidden">
-                                    <input 
-                                        type="file" 
-                                        accept="image/*"
-                                        capture="environment"
-                                        onChange={(e) => {
-                                            if (e.target.files && e.target.files.length > 0) {
-                                                setSelectedFiles(prev => [...prev, ...Array.from(e.target.files as FileList)]);
-                                            }
-                                        }} 
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                        disabled={isUploadingFiles}
-                                        title="Tirar Foto"
-                                    />
+                                <button 
+                                    onClick={() => setIsWebcamOpen(true)}
+                                    disabled={isUploadingFiles}
+                                    className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50"
+                                >
                                     <CameraIcon size={28} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center leading-tight">Tirar Foto</span>
-                                </div>
+                                </button>
                             </div>
 
                             {selectedFiles.length > 0 && (
@@ -3107,13 +3283,13 @@ export const JobDetails = () => {
 
         {activeTab === 'HISTORY' && (
             revealJobStatus ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-4 sm:p-8 animate-in fade-in duration-300 w-full overflow-hidden pb-8">
                     <div className="lg:col-span-2 min-w-0">
-                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-8">
+                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-8">
                             <h3 className="text-base md:text-lg font-black text-slate-800 mb-8 flex items-center gap-2 uppercase tracking-tighter"><ListChecks size={20} className="text-blue-500 shrink-0" /> Linha do Tempo</h3>
                             <div className="space-y-8 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-50">
                                 {sortedHistory.map((h, idx) => (
-                                    <div key={idx} className="flex gap-4 md:gap-6 relative min-w-0">
+                                    <div key={idx} className="flex gap-4 md:gap-4 sm:p-6 relative min-w-0">
                                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm ${idx === 0 ? 'bg-blue-600 text-white shadow-blue-100' : 'bg-slate-100 text-slate-300'}`}>
                                             {h.action.toLowerCase().includes('concluído') ? <Check size={16} className="shrink-0" /> : idx === 0 ? <Clock size={16} className="shrink-0" /> : <div className="w-2 h-2 bg-slate-300 rounded-full shrink-0" />}
                                         </div>
@@ -3222,7 +3398,7 @@ export const JobDetails = () => {
                                                         )}
                                                     </td>
                                                     <td className="px-5 py-3 text-center">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{new Date(job.dueDate).toLocaleDateString([], { day: '2-digit', month: '2-digit' })}</span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{(job.dueDate ? new Date(job.dueDate).toLocaleDateString([], { day: '2-digit', month: '2-digit' }) : "-")}</span>
                                                     </td>
                                                     <td className="px-5 py-3 text-center">
                                                         {latestMov ? (
@@ -3271,7 +3447,7 @@ export const JobDetails = () => {
                         );
                     })}
 
-                    <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100">
+                    <div className="bg-white rounded-[24px] p-4 sm:p-6 shadow-sm border border-slate-100">
                         <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <Clock size={16} /> Fluxo de Logística do Caso
                         </h3>
@@ -3322,8 +3498,8 @@ export const JobDetails = () => {
         )}
 
       {showRouteModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-md p-6 animate-in zoom-in duration-200">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
                   <div className="flex justify-between items-center mb-6 border-b pb-4">
                       <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter"><Truck className="text-indigo-600" /> Confirmar Logística</h3>
                       <button onClick={() => setShowRouteModal(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
@@ -3383,7 +3559,7 @@ export const JobDetails = () => {
       )}
       {showRejectionModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" id="jobRejectionModal">
-          <div className="bg-white rounded-[32px] p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
+          <div className="bg-white rounded-[32px] p-4 sm:p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
                 <AlertTriangle size={20} className="text-red-500" />
@@ -3436,6 +3612,17 @@ export const JobDetails = () => {
           </div>
         </div>
       )}
+      
+      {isWebcamOpen && (
+        <WebcamModal 
+          onClose={() => setIsWebcamOpen(false)}
+          onCapture={(file) => {
+            setSelectedFiles(prev => [...prev, file]);
+            setIsWebcamOpen(false);
+          }}
+        />
+      )}
+
        {selectedAttachment && (
            <AttachmentPreviewModal 
                file={selectedAttachment}

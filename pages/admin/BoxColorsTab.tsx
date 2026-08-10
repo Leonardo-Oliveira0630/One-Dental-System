@@ -149,7 +149,7 @@ export const BoxColorsTab = () => {
           </div>
 
           {isAddingColor && (
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 animate-in zoom-in duration-200" id="add-color-form-panel">
+            <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-200 animate-in zoom-in duration-200" id="add-color-form-panel">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="font-bold text-slate-700 uppercase text-xs tracking-widest">Configurar Nova Cor</h4>
                 <button onClick={() => setIsAddingColor(false)} className="text-slate-400 hover:text-red-500"><X size={18}/></button>
@@ -224,11 +224,11 @@ export const BoxColorsTab = () => {
         /* TAB 2: NFC KITS AND ACTIVATION */
         <div className="space-y-6 animate-in fade-in" id="nfc-kits-view">
           
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:p-6">
             
             {/* Activation form */}
             <div className="lg:col-span-5 space-y-4">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4" id="activation-card">
+              <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4" id="activation-card">
                 <div>
                   <h3 className="font-bold text-slate-800 text-base">Ativar Lote de Caixas NFC</h3>
                   <p className="text-xs text-slate-400 mt-1">
@@ -334,7 +334,7 @@ export const BoxColorsTab = () => {
 
             {/* List of active mapped boxes */}
             <div className="lg:col-span-7 space-y-4">
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4" id="active-boxes-list-card">
+              <div className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4" id="active-boxes-list-card">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h3 className="font-bold text-slate-800 text-base">Caixas Ativas</h3>

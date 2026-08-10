@@ -36,7 +36,7 @@ const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
 
     if (!images || images.length === 0) {
         return (
-            <div className="w-full aspect-[21/9] md:aspect-[25/7] bg-gradient-to-r from-[#0F4C81] to-[#00B8D9] rounded-card p-8 flex items-center justify-between text-white overflow-hidden relative shadow-premium">
+            <div className="w-full aspect-[21/9] md:aspect-[25/7] bg-gradient-to-r from-[#0F4C81] to-[#00B8D9] rounded-card p-4 sm:p-8 flex items-center justify-between text-white overflow-hidden relative shadow-premium">
                 <div className="z-10 animate-in slide-in-from-left duration-700">
                     <h1 className="text-3xl md:text-5xl font-black mb-4 tracking-tighter col-span-1 border-none outline-none">Catálogo Digital</h1>
                     <p className="text-slate-100 text-lg font-medium max-w-md opacity-90">Qualidade e precisão para seus casos clínicos.</p>
@@ -100,7 +100,7 @@ const BannerCarousel = ({ images }: { images: BannerConfig[] }) => {
             </AnimatePresence>
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
             
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 md:p-12 text-white z-10">
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 text-white z-10">
                 {hasAnyText && (
                     <motion.div 
                         key={index}
@@ -215,7 +215,7 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
 
     return (
         <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in zoom-in duration-500">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-8 animate-in fade-in zoom-in duration-500">
                 {portfolio.map((item, i) => (
                     <motion.div 
                         key={item.id} 
@@ -231,7 +231,7 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
                                  <ExternalLink className="text-white animate-in zoom-in-50 duration-300" size={32} />
                             </div>
                         </div>
-                        <div className="p-6">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
                             <h4 className="font-black text-slate-800 text-lg mb-2">{item.title}</h4>
                             <p className="text-slate-500 text-sm leading-relaxed">{item.description}</p>
                         </div>
@@ -247,10 +247,10 @@ const PortfolioSection = ({ portfolio }: { portfolio: any[] }) => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={() => setSelectedIdx(null)}
-                        className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 md:p-8 select-none"
+                        className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 md:p-4 sm:p-8 select-none"
                     >
                         {/* Top action bar */}
-                        <div className="absolute top-6 left-6 right-6 flex items-center justify-between text-white z-10">
+                        <div className="absolute top-4 sm:p-6 left-6 right-6 flex items-center justify-between text-white z-10">
                             <span className="font-mono text-xs bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
                                 {selectedIdx + 1} de {portfolio.length}
                             </span>
@@ -350,7 +350,7 @@ const ReviewsSection = ({ labId }: { labId: string }) => {
     return (
         <div className="space-y-6">
             {reviews.map((row) => (
-                <div key={row.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex gap-6">
+                <div key={row.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex gap-4 sm:p-6">
                     <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center shrink-0 text-indigo-600 font-bold">
                         {row.dentistName.charAt(0)}
                     </div>
@@ -373,7 +373,7 @@ const ReviewsSection = ({ labId }: { labId: string }) => {
 };
 
 // Variation Configuration Modal (Component with Partner Checking)
-const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobType; selectedLab: import('../../types').Organization; onClose: () => void; }) => {
+const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose }: { product: JobType; selectedLab: import('../../types').Organization; localPriceTables: any[]; onClose: () => void; }) => {
     const { addToCart, currentUser, userConnections, addConnectionByCode } = useApp();
     const [quantity, setQuantity] = useState(1);
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
@@ -385,7 +385,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
     const [isLinking, setIsLinking] = useState(false);
     const [linkError, setLinkError] = useState('');
 
-    // Logic to calculate final price for a product based on user discounts
+        // Logic to calculate final price for a product based on user discounts
     const calculateFinalUnitPrice = (type: JobType, selectedIds: string[]) => {
         if (!currentUser) {
             let total = type.basePrice;
@@ -399,28 +399,58 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
         }
         
         let discountableTotal = type.basePrice;
+        
+        if (currentUser.priceTableId && !currentUser.isCustomPricing) {
+            const table = localPriceTables.find(t => t.id === currentUser.priceTableId);
+            if (table && table.prices[type.id]?.basePrice !== undefined) {
+                discountableTotal = table.prices[type.id].basePrice;
+            }
+        }
+        
         let exemptTotal = 0;
-
+        let discountRate = 0;
+        
+        const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
+        
         selectedIds.forEach(id => {
             type.variationGroups.forEach(g => {
                 const opt = g.options.find(o => o.id === id);
                 if (opt) {
-                    if (opt.isDiscountExempt) exemptTotal += opt.priceModifier;
-                    else discountableTotal += opt.priceModifier;
+                    let modifier = opt.priceModifier;
+                    
+                    if (currentUser.isCustomPricing) {
+                        if (custom && custom.variations && custom.variations[opt.id] !== undefined) {
+                            modifier = custom.variations[opt.id];
+                        }
+                    } else if (currentUser.priceTableId) {
+                        const table = localPriceTables.find(t => t.id === currentUser.priceTableId);
+                        if (table && table.prices[type.id]?.variations?.[opt.id] !== undefined) {
+                            modifier = table.prices[type.id].variations[opt.id];
+                        }
+                    }
+                    
+                    if (opt.isDiscountExempt) exemptTotal += modifier;
+                    else discountableTotal += modifier;
                 }
             });
         });
 
-        let discountRate = 0; 
-        const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
-        if (custom) {
-            if (custom.discountPercent !== undefined) discountRate = custom.discountPercent / 100;
-            else if (custom.price !== undefined) {
-                discountableTotal = custom.price;
-                discountRate = 0; 
+        if (currentUser.isCustomPricing) {
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
+                    discountableTotal = custom.fixedPrice;
+                    discountRate = 0;
+                } else if (custom.discountPercent !== undefined) {
+                    discountRate = custom.discountPercent / 100;
+                } else if (custom.price !== undefined) {
+                    discountableTotal = custom.price;
+                    discountRate = 0;
+                }
+            } else if (currentUser.globalDiscountPercent) {
+                discountRate = currentUser.globalDiscountPercent / 100;
             }
         } else if (currentUser.globalDiscountPercent) {
-            discountRate = currentUser.globalDiscountPercent / 100;
+             discountRate = currentUser.globalDiscountPercent / 100;
         }
 
         const discountedSum = discountableTotal * (1 - discountRate);
@@ -550,7 +580,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
             <motion.div 
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -559,8 +589,8 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
             >
                 {/* PARTNERSHIP PROMPT OVERLAY */}
                 {showPartnerModal && (
-                    <div className="absolute inset-0 z-50 bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300">
-                        <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95 duration-200">
+                    <div className="absolute inset-0 z-50 bg-slate-900/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
+                        <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-md w-full shadow-2xl text-center space-y-6 animate-in zoom-in-95 duration-200">
                             <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto">
                                 <Handshake size={32} />
                             </div>
@@ -597,14 +627,14 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                     </div>
                 )}
 
-                <div className="flex justify-between items-center p-6 border-b border-slate-100">
+                <div className="flex justify-between items-center p-4 sm:p-6 border-b border-slate-100">
                     <div>
                         <h3 className="font-black text-2xl text-slate-900 tracking-tighter">{product.name}</h3>
                         <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Configuração Personalizada</p>
                     </div>
                     <button onClick={onClose} className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-full transition-colors"><X size={24} /></button>
                 </div>
-                <div className="p-6 md:p-8 overflow-y-auto space-y-6 bg-slate-50/30">
+                <div className="px-4 pb-4 sm:px-6 sm:pb-6 md:p-4 sm:p-8 overflow-y-auto space-y-6 bg-slate-50/30">
                     {product.variationGroups.map(group => (
                         <div key={group.id} className="p-5 rounded-3xl border bg-white border-slate-100 shadow-sm">
                             <div className="flex justify-between items-center mb-4">
@@ -652,7 +682,7 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                     
                     <div className="pt-2 pb-4">
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 block">Dentes Relacionados (Opcional)</label>
-                        <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 flex justify-center items-center overflow-hidden">
+                        <div className="bg-slate-50 border border-slate-100 rounded-3xl p-4 sm:p-6 flex justify-center items-center overflow-hidden">
                             <Odontogram 
                                 selectedTeeth={selectedTeeth}
                                 onChange={(teeth) => {
@@ -673,8 +703,8 @@ const VariationConfigModal = ({ product, selectedLab, onClose }: { product: JobT
                         )}
                     </div>
                 </div>
-                <div className="p-8 bg-white border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <div className="flex items-center gap-6 w-full md:w-auto">
+                <div className="p-4 sm:p-8 bg-white border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 sm:p-6">
+                    <div className="flex items-center gap-4 sm:p-6 w-full md:w-auto">
                         <div className="flex items-center gap-3">
                             <label className="text-xs font-black uppercase tracking-widest text-slate-400">Qtd:</label>
                             <div className={`flex bg-slate-100 p-1 rounded-xl ${selectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -728,6 +758,7 @@ export const Catalog = () => {
     const [configuringProduct, setConfiguringProduct] = useState<JobType | null>(null);
     const [activeTab, setActiveTab] = useState<'PRODUCTS' | 'PROMOTIONS' | 'PORTFOLIO' | 'REVIEWS' | 'ABOUT'>('PRODUCTS');
     const [localJobTypes, setLocalJobTypes] = useState<JobType[]>([]);
+    const [localPriceTables, setLocalPriceTables] = useState<any[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [copiedServiceId, setCopiedServiceId] = useState<string | null>(null);
@@ -793,6 +824,7 @@ export const Catalog = () => {
     useEffect(() => {
         if (!selectedLab?.id) {
             setLocalJobTypes([]);
+            setLocalPriceTables([]);
             setLoadingProducts(false);
             return;
         }
@@ -814,11 +846,17 @@ export const Catalog = () => {
             });
             return unsub;
         } else {
-            const unsub = api.subscribeJobTypes(selectedLab.id, (types) => {
+            let unsubTypes = api.subscribeJobTypes(selectedLab.id, (types) => {
                 setLocalJobTypes(types);
                 setLoadingProducts(false);
             });
-            return unsub;
+            let unsubTables = api.subscribePriceTables(selectedLab.id, (tables) => {
+                setLocalPriceTables(tables);
+            });
+            return () => {
+                unsubTypes();
+                unsubTables();
+            };
         }
     }, [selectedLab?.id, selectedLab?.orgType]);
 
@@ -862,7 +900,7 @@ export const Catalog = () => {
 
     if (isLoadingLab) {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8">
                 <Loader2 className="animate-spin text-indigo-600 mb-4" size={48} />
                 <p className="text-slate-500 font-bold text-sm">Carregando loja do laboratório...</p>
             </div>
@@ -871,7 +909,7 @@ export const Catalog = () => {
 
     if (slug && !selectedLab) {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-8">
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8">
                 <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
                         <Building size={40} />
@@ -940,12 +978,31 @@ export const Catalog = () => {
 
     const getPrice = (type: JobType) => {
         if (!currentUser) return { price: type.basePrice, isCustom: false };
-        const custom = currentUser.customPrices?.find(c => c.jobTypeId === type.id);
-        if (custom) {
-            if (custom.price !== undefined) return { price: custom.price, isCustom: true };
-            if (custom.discountPercent !== undefined) return { price: type.basePrice * (1 - custom.discountPercent / 100), isCustom: true };
+        
+        let basePrice = type.basePrice;
+        
+        if (currentUser.priceTableId) {
+            const table = localPriceTables.find(t => t.id === currentUser.priceTableId);
+            if (table && table.prices[type.id]?.basePrice !== undefined) {
+                basePrice = table.prices[type.id].basePrice;
+            }
         }
-        if (currentUser.globalDiscountPercent) return { price: type.basePrice * (1 - currentUser.globalDiscountPercent / 100), isCustom: true };
+        
+        if (currentUser.isCustomPricing) {
+            const custom = currentUser.customPrices?.find(c => c.jobTypeId === type.id);
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) return { price: custom.fixedPrice, isCustom: true };
+                if (custom.price !== undefined) return { price: custom.price, isCustom: true };
+                if (custom.discountPercent !== undefined) return { price: basePrice * (1 - custom.discountPercent / 100), isCustom: true };
+            }
+            if (currentUser.globalDiscountPercent) return { price: basePrice * (1 - currentUser.globalDiscountPercent / 100), isCustom: true };
+        }
+        
+        // If not custom pricing, or custom pricing had no overrides, check if basePrice was changed by table
+        if (basePrice !== type.basePrice) {
+            return { price: basePrice, isCustom: true }; // Consider table price as custom for display purposes
+        }
+        
         return { price: type.basePrice, isCustom: false };
     };
 
@@ -963,7 +1020,7 @@ export const Catalog = () => {
         <div className="flex flex-col h-full bg-slate-50 relative">
             <div className="flex items-center md:justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
                 <div className="hidden md:block w-auto md:w-32 flex-shrink-0"></div>
-                <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-6 whitespace-nowrap md:flex-1">
+                <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-4 sm:p-6 whitespace-nowrap md:flex-1">
                     <button
                         onClick={() => setMainTab('STORE')}
                         className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'STORE' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
@@ -1022,14 +1079,14 @@ export const Catalog = () => {
             )}
 
             {mainTab === 'CART' && (
-                <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50 animate-in fade-in">
+                <div className="flex-1 p-4 md:p-4 sm:p-8 overflow-y-auto bg-slate-50 animate-in fade-in">
                     <Cart onBackToStore={() => setMainTab('STORE')} />
                 </div>
             )}
 
             {mainTab === 'STORE' && (
                 !selectedLab ? (
-                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-8 bg-slate-50 animate-in fade-in duration-500">
+                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8 bg-slate-50 animate-in fade-in duration-500">
                         <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
                                 <Building size={40} />
@@ -1045,12 +1102,12 @@ export const Catalog = () => {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex-1 p-4 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto">
-                {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} onClose={() => setConfiguringProduct(null)} />}
+                    <div className="flex-1 p-4 md:p-4 sm:p-8 space-y-8 pb-20 animate-in fade-in duration-500 overflow-y-auto">
+                {configuringProduct && <VariationConfigModal product={configuringProduct} selectedLab={selectedLab} localPriceTables={localPriceTables} onClose={() => setConfiguringProduct(null)} />}
             
             {showAuthModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-[32px] max-w-md w-full shadow-2xl text-center space-y-6">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-4 sm:p-8 rounded-[32px] max-w-md w-full shadow-2xl text-center space-y-6">
                         <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
                             <Shield size={32} />
                         </div>
@@ -1087,7 +1144,7 @@ export const Catalog = () => {
             {/* Back to Partnerships Link removed as requested */}
 
             {/* Marketplace Laboratory Showcase Header */}
-            <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6" id="marketplace-profile-header">
+            <div className="bg-white p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:p-6" id="marketplace-profile-header">
                 <div className="flex items-center gap-5">
                     <div className="w-20 h-20 bg-slate-50 border border-slate-100 rounded-3xl flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                         {selectedLab.logoUrl ? (
@@ -1182,7 +1239,7 @@ export const Catalog = () => {
                         className="space-y-8"
                     >
                         {/* Filters */}
-                        <div className="flex flex-col md:flex-row gap-6 items-center bg-white p-6 rounded-[32px] shadow-sm border border-slate-100">
+                        <div className="flex flex-col md:flex-row gap-6 items-center bg-white p-4 sm:p-6 rounded-[32px] shadow-sm border border-slate-100">
                             <div className="relative flex-1 w-full flex flex-col gap-3">
                                 <div className="relative">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={24} />
@@ -1239,7 +1296,7 @@ export const Catalog = () => {
                                     if (storeSettings.layoutType === 'LIST') {
                                         return (
                                             <div key={product.id} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
-                                                <div className="flex items-center gap-6">
+                                                <div className="flex items-center gap-4 sm:p-6">
                                                     <div className="w-20 h-20 bg-slate-50 rounded-2xl overflow-hidden shrink-0 border border-slate-100">
                                                         {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <Package size={32} className="m-auto mt-6 text-slate-300 pointer-events-none" />}
                                                     </div>
@@ -1292,7 +1349,7 @@ export const Catalog = () => {
                                                 <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-black text-slate-600 uppercase tracking-widest z-20 border border-white/50">{product.category}</div>
                                                 <div className="absolute inset-0 bg-indigo-900/0 group-hover:bg-indigo-900/10 transition-colors duration-300 pointer-events-none" />
                                             </div>
-                                            <div className="p-8 flex flex-col flex-1">
+                                            <div className="p-4 sm:p-8 flex flex-col flex-1">
                                                 <div className="mb-6 flex-1 text-center md:text-left">
                                                     <h3 className="font-black text-slate-900 text-xl tracking-tight leading-tight group-hover:text-indigo-600 transition-colors">{product.name}</h3>
                                                 </div>
@@ -1341,8 +1398,8 @@ export const Catalog = () => {
                 )}
 
                 {activeTab === 'PROMOTIONS' && (
-                    <motion.div key="promotions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <motion.div key="promotions" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="px-4 pb-4 sm:px-6 sm:pb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                             {visiblePromos.map(promo => {
                                 const originalProduct = localJobTypes.find(jt => jt.id === promo.originalJobTypeId);
                                 return (
@@ -1449,10 +1506,10 @@ export const Catalog = () => {
                         initial={{ opacity: 0, y: 20 }} 
                         animate={{ opacity: 1, y: 0 }} 
                         exit={{ opacity: 0, y: -20 }}
-                        className="grid grid-cols-1 md:grid-cols-2 gap-8"
+                        className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-8"
                     >
                         {/* Location Details */}
-                        <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                        <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
                             <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                                 <MapPin className="text-indigo-600" size={24} /> Localização & Endereço
                             </h3>
@@ -1485,7 +1542,7 @@ export const Catalog = () => {
                         </div>
 
                         {/* Contacts & General Info */}
-                        <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
+                        <div className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 rounded-[32px] border border-slate-100 shadow-sm space-y-6">
                             <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
                                 <Info className="text-teal-600" size={24} /> Contato & Responsável
                             </h3>

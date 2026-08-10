@@ -63,7 +63,7 @@ export const RoomsManagement = () => {
             </div>
 
             {/* PLANTA BAIXA VISUAL */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:p-6">
                 {clinicRooms.length === 0 ? (
                     <div className="col-span-full py-20 text-center text-slate-400 bg-white rounded-[32px] border-2 border-dashed border-slate-100 flex flex-col items-center">
                         <LayoutGrid size={48} className="mb-4 opacity-10" />
@@ -151,11 +151,11 @@ export const RoomsManagement = () => {
             {isAdding && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md animate-in zoom-in duration-200">
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
+                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-[32px]">
                             <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Novo Consultório</h3>
                             <button onClick={() => setIsAdding(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors"><X size={24}/></button>
                         </div>
-                        <form onSubmit={handleAdd} className="p-8 space-y-5">
+                        <form onSubmit={handleAdd} className="p-4 sm:p-8 space-y-5">
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Identificação da Sala</label>
                                 <input value={name} onChange={e => setName(e.target.value)} required className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" placeholder="Ex: Sala 01 - Ortodontia" />

@@ -14,14 +14,14 @@ interface OfficialStoresProps {
 
 export const OfficialStores = ({ suppliers, onStoreClick }: OfficialStoresProps) => {
   return (
-    <section className="bg-white p-6 md:p-8 space-y-6">
+    <section className="bg-white p-4 sm:p-6 md:p-4 sm:p-8 space-y-6">
       <div className="text-center space-y-2">
         <h2 className="text-sm md:text-base font-extrabold tracking-widest text-slate-800 uppercase flex items-center justify-center gap-1.5">
           <span className="text-orange-500 text-lg">✧</span> LOJAS OFICIAIS <span className="text-orange-500 text-lg">✧</span>
         </h2>
       </div>
 
-      <div className="flex gap-4 sm:gap-6 overflow-x-auto py-2 w-full px-2 items-center justify-start sm:justify-center">
+      <div className="flex gap-4 sm:gap-4 sm:p-6 overflow-x-auto py-2 w-full px-2 items-center justify-start sm:justify-center">
         {suppliers.map((supplier) => (
           <button 
             key={supplier.id} 

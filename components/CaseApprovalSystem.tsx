@@ -221,7 +221,7 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
   };
 
   return (
-    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden p-6 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
+    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden p-4 sm:p-6 md:p-4 sm:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-300">
       
       {/* Header section with overall status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-6">
@@ -278,7 +278,7 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
               const senderDisplayName = isItemSenderLab ? `LAB • ${item.senderName}` : `DR(A). • ${item.senderName}`;
 
               return (
-                <div key={item.id} className="bg-slate-50/50 hover:bg-slate-50/80 transition-colors border border-slate-100 rounded-[24px] p-5 md:p-6 space-y-4 shadow-sm relative overflow-hidden">
+                <div key={item.id} className="bg-slate-50/50 hover:bg-slate-50/80 transition-colors border border-slate-100 rounded-[24px] p-5 md:p-4 sm:p-6 space-y-4 shadow-sm relative overflow-hidden">
                   
                   {/* Badge indicating resolved status for this item */}
                   {item.status === 'APPROVED' && (
@@ -496,7 +496,7 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
       </div>
 
       {/* Post New Case Approval Item Form */}
-      <form onSubmit={handlePostApprovalItem} className="bg-slate-50 rounded-[24px] p-5 md:p-6 border border-slate-100 space-y-4">
+      <form onSubmit={handlePostApprovalItem} className="bg-slate-50 rounded-[24px] p-5 md:p-4 sm:p-6 border border-slate-100 space-y-4">
         <h4 className="text-xs md:text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
           <Plus size={16} className="text-indigo-500" /> Enviar Novo Arquivo para Aprovação / Verificação
         </h4>
@@ -570,8 +570,8 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
 
       {/* Rejection / Adjustment Requested Reason Dialog Modal */}
       {rejectingItemId && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[32px] max-w-md w-full border border-slate-100 shadow-2xl p-6 md:p-8 space-y-4 animate-in zoom-in-95 duration-250">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-[100] animate-in fade-in duration-200">
+          <div className="bg-white rounded-[32px] max-w-md w-full border border-slate-100 shadow-2xl p-4 sm:p-6 md:p-4 sm:p-8 space-y-4 animate-in zoom-in-95 duration-250">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-red-50 text-red-600 rounded-xl">

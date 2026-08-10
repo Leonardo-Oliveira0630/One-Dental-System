@@ -72,7 +72,7 @@ export const CouponsTab = () => {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 sm:p-6 rounded-3xl border border-slate-100 shadow-sm">
                 <div>
                     <h3 className="text-xl font-black text-slate-900 tracking-tighter flex items-center gap-2">
                         <Ticket size={24} className="text-indigo-600" /> Cupons de Desconto
@@ -89,7 +89,7 @@ export const CouponsTab = () => {
 
             {/* List block */}
             {labCoupons.length === 0 ? (
-                <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center p-8">
+                <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center p-4 sm:p-8">
                     <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4 border border-slate-100/50">
                         <Ticket size={32} />
                     </div>
@@ -99,7 +99,7 @@ export const CouponsTab = () => {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
                     {labCoupons.map((coupon) => (
                         <div 
                             key={coupon.id} 
@@ -169,12 +169,12 @@ export const CouponsTab = () => {
             {/* Delete Confirmation Popup */}
             <AnimatePresence>
                 {deletingId && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
                         <motion.div 
                             initial={{ scale: 0.95, opacity: 0 }} 
                             animate={{ scale: 1, opacity: 1 }} 
                             exit={{ scale: 0.95, opacity: 0 }} 
-                            className="bg-white p-8 rounded-[32px] max-w-sm w-full shadow-2xl text-center space-y-6"
+                            className="bg-white p-4 sm:p-8 rounded-[32px] max-w-sm w-full shadow-2xl text-center space-y-6"
                         >
                             <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
                                 <ShieldAlert size={32} />
@@ -207,14 +207,14 @@ export const CouponsTab = () => {
             {/* Create Coupon Drawer */}
             <AnimatePresence>
                 {showCreateModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-300">
                         <motion.div 
                             initial={{ scale: 0.9, opacity: 0 }} 
                             animate={{ scale: 1, opacity: 1 }} 
                             exit={{ scale: 0.9, opacity: 0 }} 
                             className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden flex flex-col"
                         >
-                            <div className="p-6 bg-slate-900 text-white flex justify-between items-center rounded-t-[32px]">
+                            <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-900 text-white flex justify-between items-center rounded-t-[32px]">
                                 <div className="flex items-center gap-2">
                                     <Ticket size={20} className="text-indigo-400" />
                                     <h3 className="font-black text-lg tracking-tight">Novo Cupom de Desconto</h3>
@@ -222,7 +222,7 @@ export const CouponsTab = () => {
                                 <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white transition-colors text-xs font-bold font-mono">FECHAR</button>
                             </div>
                             
-                            <form onSubmit={handleCreateCoupon} className="p-6 space-y-4">
+                            <form onSubmit={handleCreateCoupon} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-4">
                                 {errorMsg && (
                                     <p className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-xl border border-red-100 flex items-center gap-2">
                                         <AlertCircle size={14} /> {errorMsg}

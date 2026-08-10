@@ -104,8 +104,8 @@ export const SubscriptionTab = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-      <div className="bg-slate-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-         <div className="absolute top-0 right-0 p-8 opacity-10"><Crown size={120} /></div>
+      <div className="bg-slate-900 rounded-3xl p-4 sm:p-8 text-white shadow-xl relative overflow-hidden">
+         <div className="absolute top-0 right-0 p-4 sm:p-8 opacity-10"><Crown size={120} /></div>
          <div className="relative z-10">
             <p className="text-blue-400 font-bold uppercase text-xs tracking-widest mb-1">Plano Atual</p>
             <h2 className="text-4xl font-black mb-4">{currentPlan?.name || 'Carregando...'}</h2>
@@ -157,7 +157,7 @@ export const SubscriptionTab = () => {
          </div>
       </div>
 
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Tag className="text-blue-600" /> Aplicar Cupom</h3>
          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
             <input 
@@ -182,9 +182,9 @@ export const SubscriptionTab = () => {
          )}
       </div>
       
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Puzzle className="text-blue-600" /> Módulos Extras</h3>
-         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
              <div className={`p-6 rounded-2xl border-2 transition-all flex flex-col ${hasWhatsappModule ? 'border-green-500 bg-green-50/20' : 'border-slate-100 hover:border-slate-200'}`}>
                 <div className="flex items-start justify-between mb-2">
                     <div className="p-3 rounded-xl bg-green-100 text-green-600">
@@ -218,7 +218,7 @@ export const SubscriptionTab = () => {
          </div>
       </div>
       
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600" /> Upgrade de Plano</h3>
          <PricingSection 
             plans={allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'LAB')}
@@ -234,7 +234,7 @@ export const SubscriptionTab = () => {
           />
         </div>
 
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+      <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
             <Receipt className="text-blue-600" /> Histórico de Pagamentos e Faturas
          </h3>
@@ -242,7 +242,7 @@ export const SubscriptionTab = () => {
          {loadingInvoices ? (
              <p className="text-sm font-bold text-slate-400">Carregando faturas...</p>
          ) : invoices.length === 0 ? (
-             <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+             <div className="p-4 sm:p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                  <p className="text-sm font-bold text-slate-500 mb-1">Nenhuma fatura encontrada</p>
                  <p className="text-xs text-slate-400">As faturas da sua assinatura aparecerão aqui.</p>
              </div>
@@ -277,7 +277,7 @@ export const SubscriptionTab = () => {
                                  </div>
                              </div>
                              
-                             <div className="flex items-center justify-between md:justify-end gap-6 border-t md:border-t-0 border-slate-200 pt-4 md:pt-0">
+                             <div className="flex items-center justify-between md:justify-end gap-4 sm:p-6 border-t md:border-t-0 border-slate-200 pt-4 md:pt-0">
                                  <div className="text-right">
                                      <p className="text-[10px] font-black uppercase text-slate-400">Valor</p>
                                      <p className="font-bold text-slate-800 text-lg">R$ {parseFloat(inv.value).toFixed(2)}</p>

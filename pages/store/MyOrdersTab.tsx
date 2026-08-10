@@ -16,7 +16,7 @@ export function MyOrdersTab() {
   }, [currentOrg]);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-8">
+    <div className="max-w-6xl mx-auto p-4 md:p-4 sm:p-8 space-y-8">
       <h2 className="text-3xl font-black text-[#15263f]">Meus Pedidos</h2>
       {orders.length === 0 ? (
         <div className="text-center text-slate-500 py-10">Nenhum pedido encontrado.</div>
@@ -41,7 +41,7 @@ function OrderItemCard({ order }: { order: SupplierOrder }) {
   }, [order.id]);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
       <div className="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
         <div>
           <h3 className="font-bold text-lg text-slate-800">Pedido #{order.id.substring(0, 8)}</h3>
