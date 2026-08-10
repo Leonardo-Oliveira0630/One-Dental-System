@@ -1,29 +1,63 @@
 const fs = require('fs');
-let code = fs.readFileSync('components/Scanner.tsx', 'utf8');
 
-const targetUI = `<div className="flex items-center gap-2">
-                    <button 
-                        onClick={toggleTorch}`;
+let content = fs.readFileSync('components/Scanner.tsx', 'utf8');
 
-const replacementUI = `<div className="flex items-center gap-2">
-                    {cameras.length > 1 && (
-                      <select 
-                        className="bg-black/40 border border-white/20 text-white text-[10px] rounded-lg px-2 py-1 outline-none mr-2 max-w-[120px] truncate"
-                        value={selectedCameraId || ''}
-                        onChange={(e) => setSelectedCameraId(e.target.value)}
-                      >
-                        {cameras.map(cam => (
-                          <option key={cam.deviceId} value={cam.deviceId} className="text-black">{cam.label}</option>
-                        ))}
-                      </select>
-                    )}
-                    <button 
-                        onClick={toggleTorch}`;
+content = content.replace(
+/\{itemSectorStages\.length === 0 \? \([\s\S]*?\) : \(\s*<div className="space-y-3">\s*<div className="flex-1 pb-2 border-b border-slate-100">\s*<p className="font-bold text-sm text-slate-800">\{jobType\?\.name \|\| 'Item Desconhecido'\}<\/p>\s*<p className="text-xs text-slate-500">Selecione as etapas executadas[\s\S]*?<\/p>\s*<\/div>\s*<div className="space-y-2">\s*\{itemSectorStages\.map\(\(stageName: string\) => \{[\s\S]*?return \([\s\S]*?<\/label>\s*\);\s*\}\)\}\s*<\/div>\s*<\/div>\s*\)/g,
+`{/* Base Item Checkbox */}
+                                <label className="flex items-center gap-3 cursor-pointer mb-2">
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-5 h-5 rounded text-orange-500 focus:ring-orange-500 border-slate-300"
+                                        checked={isItemSelected}
+                                        onChange={(e) => {
+                                            const newIds = e.target.checked 
+                                                ? [...selectedItemIds, item.id] 
+                                                : selectedItemIds.filter(id => id !== item.id);
+                                            setSelectedItemIds(newIds);
+                                            if (currentUserRef.current) {
+                                                setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, newIds, jobTypesRef.current, activeUserSector, selectedStages));
+                                            }
+                                        }}
+                                    />
+                                    <div className="flex-1">
+                                        <p className="font-bold text-sm text-slate-800">{jobType?.name || 'Item Desconhecido'}</p>
+                                        <p className="text-xs text-slate-500">Qtd: {
+                                            (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
+                                                ? item.sectorQuantities[currentUser.sector] 
+                                                : item.quantity
+                                        }</p>
+                                    </div>
+                                </label>
 
-if (code.includes(targetUI)) {
-    code = code.replace(targetUI, replacementUI);
-    fs.writeFileSync('components/Scanner.tsx', code);
-    console.log("Patched Scanner.tsx UI with camera selection");
-} else {
-    console.log("Could not find the target text in Scanner.");
-}
+                                {/* Stages Checkboxes */}
+                                {itemSectorStages.length > 0 && (
+                                    <div className="pl-8 space-y-2 border-t border-slate-100 pt-2">
+                                        {itemSectorStages.map((stageName: string) => {
+                                            const isStageChecked = itemExecutedStages.includes(stageName);
+                                            return (
+                                                <label key={stageName} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
+                                                    <input 
+                                                        type="checkbox"
+                                                        checked={isStageChecked}
+                                                        onChange={(e) => {
+                                                            const newStages = e.target.checked
+                                                                ? [...itemExecutedStages, stageName]
+                                                                : itemExecutedStages.filter(s => s !== stageName);
+                                                            const updatedStagesMap = { ...selectedStages, [item.id]: newStages };
+                                                            setSelectedStages(updatedStagesMap);
+                                                            
+                                                            if (currentUserRef.current) {
+                                                                setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, selectedItemIds, jobTypesRef.current, activeUserSector, updatedStagesMap));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <span className="text-sm font-bold text-slate-600">{stageName}</span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                )}`
+);
+
+fs.writeFileSync('components/Scanner.tsx', content);

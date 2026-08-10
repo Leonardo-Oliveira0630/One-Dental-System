@@ -1,17 +1,12 @@
-import fs from 'fs';
-import path from 'path';
+const fs = require('fs');
 
-const filePath = path.join(process.cwd(), 'types.ts');
-let content = fs.readFileSync(filePath, 'utf8');
+let typesContent = fs.readFileSync('types.ts', 'utf8');
 
-// Fix ProductCatalogItem duplicates
-content = content.replace(
-  "  isPromotion?: boolean;\n  promotionalPrice?: number;\n  promotionalPrice?: number;\n  isPromotion?: boolean;",
-  "  isPromotion?: boolean;\n  promotionalPrice?: number;"
-);
+// Replace string[] with object array for subDentists
+typesContent = typesContent.replace(/subDentists\?\: string\[\];/g, "subDentists?: { id: string; name: string; cro?: string; }[];");
 
-// Add to InventoryItem
-const invRegex = /(export interface InventoryItem \{[\s\S]*?sellPrice: number;)/;
-content = content.replace(invRegex, "$1\n  isPromotion?: boolean;\n  promotionalPrice?: number;");
+// Add subDentistName?: string to Job interface
+typesContent = typesContent.replace(/export interface Job \{/, "export interface Job {\n  subDentistName?: string;");
 
-fs.writeFileSync(filePath, content);
+fs.writeFileSync('types.ts', typesContent);
+console.log('types.ts updated');

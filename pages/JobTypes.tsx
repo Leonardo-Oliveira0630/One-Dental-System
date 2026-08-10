@@ -3,7 +3,9 @@ import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
 import { JobType, VariationGroup, VariationOption } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Layers, Package, Tag, AlertCircle, Folder, ToggleLeft, ToggleRight, List, Type, Image as ImageIcon, UploadCloud, Store, Eye, EyeOff, PercentCircle, Briefcase, Share2, Check, Search, Settings, ChevronDown, ChevronRight, Download, FileCode } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import { autoTable } from 'jspdf-autotable';
 
 type Tab = 'BASIC' | 'VARIATIONS';
 
@@ -22,6 +24,96 @@ export const JobTypes = () => {
   const [activeTab, setActiveTab] = useState<Tab>('BASIC');
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    const orgName = currentOrg?.name || 'Laboratório';
+    doc.setFontSize(18);
+    doc.text(`Catálogo de Serviços - ${orgName}`, 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 30);
+
+    const tableData: any[] = [];
+    
+    jobTypes.filter(jt => !isPromo(jt)).forEach(jt => {
+      // Basic info
+      tableData.push([
+        { content: jt.name, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+        { content: jt.category, styles: { fillColor: [240, 240, 240] } },
+        { content: `R$ ${jt.basePrice.toFixed(2)}`, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+      ]);
+      
+      // Variations
+      if (jt.variationGroups && jt.variationGroups.length > 0) {
+        jt.variationGroups.forEach(group => {
+            const options = group.options || [];
+            options.forEach(opt => {
+                tableData.push([
+                    `  ↳ ${group.name} - ${opt.name}`,
+                    '',
+                    opt.priceImpact > 0 ? `+ R$ ${opt.priceImpact.toFixed(2)}` : '-'
+                ]);
+            });
+        });
+      }
+    });
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Serviço / Variação', 'Categoria', 'Valor Base / Adicional']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] },
+      styles: { fontSize: 9, cellPadding: 3 },
+    });
+
+    doc.save(`catalogo-servicos-${new Date().getTime()}.pdf`);
+  };
+
+  const exportToXML = () => {
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<services>\n';
+    
+    jobTypes.filter(jt => !isPromo(jt)).forEach(jt => {
+        xml += `  <service id="${jt.id}">\n`;
+        xml += `    <name><![CDATA[${jt.name}]]></name>\n`;
+        xml += `    <category><![CDATA[${jt.category}]]></category>\n`;
+        xml += `    <basePrice>${jt.basePrice}</basePrice>\n`;
+        
+        if (jt.variationGroups && jt.variationGroups.length > 0) {
+            xml += `    <variations>\n`;
+            jt.variationGroups.forEach(group => {
+                xml += `      <group id="${group.id}">\n`;
+                xml += `        <name><![CDATA[${group.name}]]></name>\n`;
+                xml += `        <options>\n`;
+                (group.options || []).forEach(opt => {
+                    xml += `          <option id="${opt.id}">\n`;
+                    xml += `            <name><![CDATA[${opt.name}]]></name>\n`;
+                    xml += `            <priceImpact>${opt.priceImpact || 0}</priceImpact>\n`;
+                    xml += `          </option>\n`;
+                });
+                xml += `        </options>\n`;
+                xml += `      </group>\n`;
+            });
+            xml += `    </variations>\n`;
+        }
+        xml += `  </service>\n`;
+    });
+    
+    xml += '</services>';
+    
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `catalogo-servicos-${new Date().getTime()}.xml`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handleShare = (type: JobType, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -497,6 +589,20 @@ export const JobTypes = () => {
                                 title="Importar de Planilha"
                             >
                                 <UploadCloud size={18} /> {isAnalyzing ? 'Analisando...' : 'Importar em Lote'}
+                            </button>
+                            <button 
+                                onClick={exportToPDF}
+                                className="px-4 py-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg flex items-center gap-2 whitespace-nowrap transition-colors"
+                                title="Exportar PDF"
+                            >
+                                <Download size={18} /> PDF
+                            </button>
+                            <button 
+                                onClick={exportToXML}
+                                className="px-4 py-2 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg flex items-center gap-2 whitespace-nowrap transition-colors"
+                                title="Exportar XML"
+                            >
+                                <FileCode size={18} /> XML
                             </button>
                         </>
                     )}
