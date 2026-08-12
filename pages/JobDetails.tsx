@@ -170,6 +170,7 @@ export const JobDetails = () => {
       }
 
       await updateJob(job.id, { items: updatedItems });
+      await recalculateAllCommissions(updatedItems, job.itemExecutions || []);
       setStageConfigItem(null);
     } catch (err) {
       alert("Erro ao salvar etapas do serviço.");

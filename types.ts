@@ -834,6 +834,10 @@ export enum CommissionStatus {
 }
 
 export interface CommissionRecord {
+  itemId?: string;
+  itemName?: string;
+  stageName?: string;
+  quantity?: number;
   id: string;
   userId: string;
   userName: string;

@@ -35,8 +35,47 @@ export const Commissions = () => {
   const enrichedCommissions: EnrichedCommission[] = useMemo(() => {
     return commissions.map(comm => {
       const job = jobs.find(j => j.id === comm.jobId);
-      const quantity = job?.items.reduce((acc, item) => acc + item.quantity, 0) || 0;
-      const serviceTypes = job?.items.map(item => item.name).join(', ') || 'N/A';
+      let quantity = 0;
+      let serviceTypes = 'N/A';
+      
+      if (job && job.itemExecutions) {
+          const userExecutions = job.itemExecutions.filter((e: any) => e.userId === comm.userId && e.sector === comm.sector);
+          const details: string[] = [];
+          
+          userExecutions.forEach((exec: any) => {
+              const item = job.items.find((i: any) => i.id === exec.itemId);
+              if (item) {
+                  // Get sector quantity, fallback to item quantity
+                  const secQty = item.sectorQuantities?.[comm.sector] ?? item.quantity;
+                          
+                  let executedDesc = [];
+                  
+                  if (exec.isBaseChecked !== false) {
+                     executedDesc.push(`${item.name} (${secQty}x)`);
+                     quantity += secQty;
+                  }
+                  
+                  if (exec.executedStages && exec.executedStages.length > 0) {
+                      exec.executedStages.forEach((stage: string) => {
+                          let stageQty = secQty;
+                          if (item.stageQuantities?.[comm.sector]?.[stage] !== undefined) {
+                              stageQty = item.stageQuantities[comm.sector][stage];
+                          }
+                          executedDesc.push(`${stage} (${stageQty}x)`);
+                          quantity += stageQty;
+                      });
+                  }
+                  
+                  if (executedDesc.length > 0) {
+                      details.push(executedDesc.join(', '));
+                  }
+              }
+          });
+          
+          if (details.length > 0) {
+              serviceTypes = details.join(' | ');
+          }
+      }
       
       return {
         ...comm,
