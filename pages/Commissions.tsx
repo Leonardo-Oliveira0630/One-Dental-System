@@ -50,20 +50,20 @@ export const Commissions = () => {
                           
                   let executedDesc = [];
                   
-                  if (exec.isBaseChecked !== false) {
-                     executedDesc.push(`${item.name} (${secQty}x)`);
-                     quantity += secQty;
-                  }
-                  
+                  // If they executed specific stages, we only list those stages as requested
                   if (exec.executedStages && exec.executedStages.length > 0) {
                       exec.executedStages.forEach((stage: string) => {
                           let stageQty = secQty;
                           if (item.stageQuantities?.[comm.sector]?.[stage] !== undefined) {
                               stageQty = item.stageQuantities[comm.sector][stage];
                           }
-                          executedDesc.push(`${stage} (${stageQty}x)`);
+                          executedDesc.push(stage);
                           quantity += stageQty;
                       });
+                  } else if (exec.isBaseChecked !== false) {
+                      // If no stages, but base is checked, use the item name
+                     executedDesc.push(item.name);
+                     quantity += secQty;
                   }
                   
                   if (executedDesc.length > 0) {
@@ -338,7 +338,7 @@ export const Commissions = () => {
                             <td className="p-4">
                                 <div className="flex flex-col">
                                   <span className="text-xs font-medium text-slate-700 line-clamp-1" title={rec.serviceTypes}>{rec.serviceTypes}</span>
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase">{rec.quantity} Elementos</span>
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">Qtd: {rec.quantity}</span>
                                 </div>
                             </td>
                             <td className="p-4">
