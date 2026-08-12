@@ -1,0 +1,51 @@
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        );
+                                                    })()}
+
+                                                    {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && canManageCommissions && (
+                                                        <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 mt-2">
+                                                            <div className="relative flex items-start">
+                                                                <div className="flex h-6 items-center">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!itemEditForm.commissionDisabled}
+                                                                        onChange={(e) => setItemEditForm({...itemEditForm, commissionDisabled: !e.target.checked})}
+                                                                        className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-600/20"
+                                                                    />
+                                                                </div>
+                                                                <div className="ml-3 text-sm leading-6">
+                                                                    <label className="font-black text-slate-800 uppercase tracking-tight text-[11px]">
+                                                                        Ativar Comissão para este item
+                                                                    </label>
+                                                                    <p className="text-[10px] text-slate-500 font-bold">Por padrão, ajustes e repetições não geram comissão.</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 flex-1">
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Dentes</p>
+                                                                <p className="text-sm font-bold text-indigo-600">{formatTeethRange(item.selectedTeeth)}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Quant. Original</p>
+                                                                <p className="text-sm font-bold text-slate-700">{item.quantity}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Valor Unitário</p>
+                                                                <p className="text-sm font-bold text-slate-700">R$ {(item.basePriceBeforeDiscount ?? item.price).toFixed(2)}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Desconto</p>
+                                                                <p className="text-sm font-bold text-slate-700">{item.appliedDiscount ? `${item.appliedDiscount.toFixed(1)}%` : 'Nenhum'}</p>
+                                                            </div>
+                                                            <div>

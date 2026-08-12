@@ -64,6 +64,16 @@ export const formatItemNameWithVariations = (item: JobItem, jobTypes: any[]) => 
     return item.name;
 };
 
+const parseSafeDate = (d: any) => {
+    if (!d) return null;
+    if (d instanceof Date && !isNaN(d.getTime())) return d;
+    if (typeof d === 'object' && typeof d.toDate === 'function') return d.toDate();
+    if (typeof d === 'object' && d.seconds !== undefined) return new Date(d.seconds * 1000);
+    const parsed = new Date(d);
+    if (!isNaN(parsed.getTime())) return parsed;
+    return null;
+};
+
 export const JobDetails = () => {
   const { id } = useParams();
   const { jobs, budgets, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
@@ -121,12 +131,15 @@ export const JobDetails = () => {
   const [stageConfigItem, setStageConfigItem] = useState<JobItem | null>(null);
   const [expandedStageSectors, setExpandedStageSectors] = useState<Record<string, boolean>>({});
   const [tempItemStages, setTempItemStages] = useState<Record<string, string[]>>({});
+  const [tempStageQuantities, setTempStageQuantities] = useState<Record<string, Record<string, number>>>({});
 
   const handleOpenStageConfig = (item: JobItem) => {
     setStageConfigItem(item);
     const jt = jobTypes.find(t => t.id === item.jobTypeId);
     const initialStages = item.sectorStages || jt?.sectorStages || {};
+    const initialQuantities = item.stageQuantities || jt?.stageQuantities || {};
     setTempItemStages(initialStages);
+    setTempStageQuantities(initialQuantities);
     const initialExpanded: Record<string, boolean> = {};
     sectors.forEach(s => {
       if ((s.stages && s.stages.length > 0) || (initialStages[s.name] && initialStages[s.name].length > 0)) {
@@ -144,7 +157,8 @@ export const JobDetails = () => {
         if (i.id === stageConfigItem.id) {
           return {
             ...i,
-            sectorStages: tempItemStages
+            sectorStages: tempItemStages,
+            stageQuantities: tempStageQuantities
           };
         }
         return i;
@@ -152,7 +166,7 @@ export const JobDetails = () => {
 
       const jType = jobTypes.find(t => t.id === stageConfigItem.jobTypeId);
       if (jType && updateJobType) {
-        await updateJobType(jType.id, { sectorStages: tempItemStages });
+        await updateJobType(jType.id, { sectorStages: tempItemStages, stageQuantities: tempStageQuantities });
       }
 
       await updateJob(job.id, { items: updatedItems });
@@ -1915,24 +1929,58 @@ export const JobDetails = () => {
                                           sector.stages.map((stage, idx) => {
                                               const isChecked = tempItemStages[sector.name]?.includes(stage) || false;
                                               return (
-                                                  <label key={idx} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl cursor-pointer border border-transparent hover:border-slate-100 transition-colors">
-                                                      <input
-                                                          type="checkbox"
-                                                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-                                                          checked={isChecked}
-                                                          onChange={(e) => {
-                                                              const current = tempItemStages[sector.name] || [];
-                                                              let next;
-                                                              if (e.target.checked) {
-                                                                  next = [...current, stage];
-                                                              } else {
-                                                                  next = current.filter(s => s !== stage);
-                                                              }
-                                                              setTempItemStages(prev => ({ ...prev, [sector.name]: next }));
-                                                          }}
-                                                      />
-                                                      <span className="text-sm font-bold text-slate-600">{stage}</span>
-                                                  </label>
+                                                  <div key={idx} className="flex items-center justify-between gap-3 p-2 hover:bg-slate-50 rounded-xl border border-transparent hover:border-slate-100 transition-colors">
+                                                      <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                                          <input
+                                                              type="checkbox"
+                                                              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                                              checked={isChecked}
+                                                              onChange={(e) => {
+                                                                  const current = tempItemStages[sector.name] || [];
+                                                                  let next;
+                                                                  if (e.target.checked) {
+                                                                      next = [...current, stage];
+                                                                  } else {
+                                                                      next = current.filter(s => s !== stage);
+                                                                      // Remove qty when unchecked
+                                                                      if (tempStageQuantities[sector.name] && tempStageQuantities[sector.name][stage]) {
+                                                                          setTempStageQuantities(prev => {
+                                                                              const newQts = {...prev};
+                                                                              if (newQts[sector.name]) {
+                                                                                  delete newQts[sector.name][stage];
+                                                                              }
+                                                                              return newQts;
+                                                                          });
+                                                                      }
+                                                                  }
+                                                                  setTempItemStages(prev => ({ ...prev, [sector.name]: next }));
+                                                              }}
+                                                          />
+                                                          <span className="text-sm font-bold text-slate-600">{stage}</span>
+                                                      </label>
+                                                      
+                                                      {isChecked && (
+                                                          <div className="flex items-center gap-2">
+                                                              <span className="text-xs text-slate-400 font-bold">Qtd:</span>
+                                                              <input 
+                                                                  type="number"
+                                                                  min="1"
+                                                                  className="w-16 h-8 text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent px-2"
+                                                                  value={tempStageQuantities[sector.name]?.[stage] || stageConfigItem?.quantity || 1}
+                                                                  onChange={(e) => {
+                                                                      const val = parseInt(e.target.value) || 1;
+                                                                      setTempStageQuantities(prev => ({
+                                                                          ...prev,
+                                                                          [sector.name]: {
+                                                                              ...(prev[sector.name] || {}),
+                                                                              [stage]: val
+                                                                          }
+                                                                      }));
+                                                                  }}
+                                                              />
+                                                          </div>
+                                                      )}
+                                                  </div>
                                               );
                                           })
                                       )}
@@ -2794,7 +2842,7 @@ export const JobDetails = () => {
                         <div className="divide-y divide-slate-100">
                             {job.items.map((item: any, idx: number) => {
                                 const jType = jobTypes.find(jt => jt.id === item.jobTypeId);
-                                const allowedSecs = jType?.allowedSectors || [];
+                                const allowedSecs = (jType?.allowedSectors && jType.allowedSectors.length > 0) ? jType.allowedSectors : sectors.map(s => s.name);
                                 const isExpanded = expandedItemIdx === idx;
                                 
                                 return (
@@ -3033,10 +3081,10 @@ export const JobDetails = () => {
                                             {canManageCommissions && editingItemId !== item.id && (
                                                 <div className="border-t border-slate-200 pt-4">
                                                     {!job.isBudget && <h4 className="text-[10px] font-black text-slate-600 uppercase mb-3 flex items-center gap-1"><Briefcase size={12} /> Setores Permitidos e Comissão</h4>}
-                                                    {allowedSecs.length === 0 ? (
-                                                        <p className="text-xs text-slate-500 italic">Este serviço não tem setores específicos definidos. Permitido em todos.</p>
-                                                    ) : (
-                                                        <div className="space-y-3">
+                                                    <div className="space-y-3">
+                                                            {jType?.allowedSectors?.length === 0 && (
+                                                                <p className="text-xs text-slate-500 italic mb-2">Este serviço é permitido em todos os setores. Abaixo você pode configurar a comissão individualmente para cada um deles.</p>
+                                                            )}
                                                             <p className="text-[10px] text-slate-500 leading-tight">Defina a quantidade de unidades para fins de comissão em cada setor (padrão é igual à quantidade original da OS).</p>
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                                 {allowedSecs.map(secName => {
@@ -3070,7 +3118,6 @@ export const JobDetails = () => {
                                                                 })}
                                                             </div>
                                                         </div>
-                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -3344,9 +3391,16 @@ export const JobDetails = () => {
                 <div className="min-w-[800px] max-w-6xl mx-auto space-y-6">
                     {job.items.map((item: any) => {
                         const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                        const sectorsToRender = jt?.allowedSectors && jt.allowedSectors.length > 0 
-                            ? jt.allowedSectors 
+                        let sectorsToRender = jt?.allowedSectors && jt.allowedSectors.length > 0 
+                            ? [...jt.allowedSectors] 
                             : sectors.map(s => s.name);
+                            
+                        const itemSectorStagesConfig = item.sectorStages || jt?.sectorStages || {};
+                        Object.keys(itemSectorStagesConfig).forEach(sec => {
+                            if (itemSectorStagesConfig[sec]?.length > 0 && !sectorsToRender.includes(sec)) {
+                                sectorsToRender.push(sec);
+                            }
+                        });
 
                         return (
                             <div key={item.id} className="bg-white rounded-[24px] overflow-hidden border border-slate-100 shadow-sm">
@@ -3367,81 +3421,111 @@ export const JobDetails = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {sectorsToRender.map(sector => {
-                                            const execution = (job.itemExecutions || []).find((e: any) => e.itemId === item.id && e.sector === sector);
-                                            const movements = (job.sectorMovements || []).filter((m: any) => m.sector === sector);
-                                            const latestMov = movements.length > 0 
-                                                ? movements.sort((a: any, b: any) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0]
-                                                : null;
+    {sectorsToRender.flatMap(sector => {
+        const itemSectorStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector] || [];
+        const stagesToRender = itemSectorStages.length > 0 ? itemSectorStages : ['BASE'];
+        
+        return stagesToRender.map((stageName: string, stageIdx: number) => {
+            const execution = (job.itemExecutions || []).find((e: any) => e.itemId === item.id && e.sector === sector);
+            const stageData = execution?.stageTimes?.[stageName] || null;
+            
+            const isStarted = !!stageData?.entryTime;
+            const isFinished = !!stageData?.exitTime;
+            
+            const entryTime = parseSafeDate(stageData?.entryTime);
+            const exitTime = parseSafeDate(stageData?.exitTime);
+            
+            // If it's BASE and no stageData, we can fallback to checking execution
+            let finalStarted = isStarted;
+            let finalFinished = isFinished;
+            if (stageName === 'BASE' && execution) {
+                // For legacy data, if execution exists, maybe it was finished
+                if (execution.timestamp) finalFinished = true;
+                finalStarted = true; // execution means it was at least started
+            }
 
-                                            return (
-                                                <tr key={sector} className="hover:bg-slate-50/50 transition-colors group">
-                                                    <td className="px-5 py-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-1.5 h-6 rounded-full ${execution ? 'bg-green-500' : latestMov && !latestMov.exitTime ? 'bg-blue-500 animate-pulse' : 'bg-slate-200'}`} />
-                                                            <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{sector}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-5 py-3 text-center">
-                                                        <span className="text-xs font-black text-slate-800">{item.quantity}</span>
-                                                    </td>
-                                                    <td className="px-5 py-3">
-                                                        {execution ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-black text-[9px] uppercase shadow-sm">
-                                                                    {execution.userName.charAt(0)}
-                                                                </div>
-                                                                <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{execution.userName}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-[10px] font-bold text-slate-300 italic group-hover:text-blue-400 transition-colors">Definir funcionário</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-5 py-3 text-center">
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{(job.dueDate ? new Date(job.dueDate).toLocaleDateString([], { day: '2-digit', month: '2-digit' }) : "-")}</span>
-                                                    </td>
-                                                    <td className="px-5 py-3 text-center">
-                                                        {latestMov ? (
-                                                            <div className="flex items-center justify-center gap-1.5 text-blue-600">
-                                                                <Calendar size={12} className="opacity-50" />
-                                                                <span className="text-[10px] font-black">{new Date(latestMov.entryTime).toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {new Date(latestMov.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                            </div>
-                                                        ) : <span className="text-slate-200">—</span>}
-                                                    </td>
-                                                    <td className="px-5 py-3 text-center">
-                                                        {execution ? (
-                                                            <div className="flex items-center justify-center gap-1.5 text-emerald-600">
-                                                                <Calendar size={12} className="opacity-50" />
-                                                                <span className="text-[10px] font-black">{new Date(execution.timestamp).toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {new Date(execution.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                            </div>
-                                                        ) : <span className="text-slate-200">—</span>}
-                                                    </td>
-                                                    {isLabStaff && (
-                                                        <td className="px-5 py-3 text-right">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => handleOpenEditExecution(item, sector, execution, latestMov)}
-                                                                    title="Editar ou registrar manualmente no setor"
-                                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                                >
-                                                                    <Edit3 size={14} />
-                                                                </button>
-                                                                {execution && (
-                                                                    <button
-                                                                        onClick={() => handleDeleteExecution(item, sector)}
-                                                                        title="Excluir execução deste funcionário"
-                                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                                    >
-                                                                        <Trash2 size={14} />
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    )}
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
+            // Find users from stageData
+            let entryUserName = stageData?.entryUserId ? labUsers.find(u => u.id === stageData.entryUserId)?.name : null;
+            let exitUserName = stageData?.exitUserId ? labUsers.find(u => u.id === stageData.exitUserId)?.name : null;
+            
+            if (stageName === 'BASE' && execution && !entryUserName && !exitUserName) {
+                entryUserName = execution.userName;
+                exitUserName = execution.userName;
+            }
+
+            const displayName = stageName === 'BASE' ? sector : `${sector} - ${stageName}`;
+            const activeUser = exitUserName || entryUserName;
+            
+            return (
+                <tr key={`${sector}-${stageName}`} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-1.5 h-6 rounded-full ${finalFinished ? 'bg-green-500' : finalStarted ? 'bg-blue-500 animate-pulse' : 'bg-slate-200'}`} />
+                            <span className="text-xs font-bold text-slate-600 uppercase tracking-tight">{displayName}</span>
+                        </div>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                        <span className="text-xs font-black text-slate-800">{stageIdx === 0 ? item.quantity : ''}</span>
+                    </td>
+                    <td className="px-5 py-3">
+                        {activeUser ? (
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-black text-[9px] uppercase shadow-sm">
+                                    {activeUser.charAt(0)}
+                                </div>
+                                <span className="text-[11px] font-black text-slate-700 uppercase tracking-tight">{activeUser}</span>
+                            </div>
+                        ) : (
+                            <span className="text-[10px] font-bold text-slate-300 italic group-hover:text-blue-400 transition-colors">Aguardando</span>
+                        )}
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{(job.dueDate ? new Date(job.dueDate).toLocaleDateString([], { day: '2-digit', month: '2-digit' }) : "-")}</span>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                        {entryTime ? (
+                            <div className="flex items-center justify-center gap-1.5 text-blue-600">
+                                <Calendar size={12} className="opacity-50" />
+                                <span className="text-[10px] font-black">{entryTime.toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        ) : (stageName === 'BASE' && parseSafeDate(execution?.entryTime)) ? (
+                            <div className="flex items-center justify-center gap-1.5 text-blue-600">
+                                <Calendar size={12} className="opacity-50" />
+                                <span className="text-[10px] font-black">{(parseSafeDate(execution.entryTime) as Date).toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {(parseSafeDate(execution.entryTime) as Date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        ) : <span className="text-slate-200">—</span>}
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                        {exitTime ? (
+                            <div className="flex items-center justify-center gap-1.5 text-emerald-600">
+                                <Calendar size={12} className="opacity-50" />
+                                <span className="text-[10px] font-black">{exitTime.toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {exitTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        ) : (stageName === 'BASE' && parseSafeDate(execution?.timestamp)) ? (
+                            <div className="flex items-center justify-center gap-1.5 text-emerald-600">
+                                <Calendar size={12} className="opacity-50" />
+                                <span className="text-[10px] font-black">{(parseSafeDate(execution.timestamp) as Date).toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {(parseSafeDate(execution.timestamp) as Date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                        ) : <span className="text-slate-200">—</span>}
+                    </td>
+                    {isLabStaff && (
+                        <td className="px-5 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                                <button
+                                    onClick={() => handleOpenEditExecution(item, sector, execution, null)}
+                                    title="Editar ou registrar manualmente no setor"
+                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                >
+                                    <Edit size={14} />
+                                </button>
+                            </div>
+                        </td>
+                    )}
+                </tr>
+            );
+        });
+    })}
+</tbody>
                                 </table>
                             </div>
                         );

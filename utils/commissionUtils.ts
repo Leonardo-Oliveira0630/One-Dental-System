@@ -27,12 +27,19 @@ export const calculateItemCommission = (
             stagesToCheck.forEach((stageName: string) => {
                 const stageKey = `${sectorName}:${stageName}`;
                 const stSetting = setting.stageSettings[stageKey];
+                
+                // Get stage quantity if defined, otherwise use sector quantity
+                let stageQty = secQty;
+                if (item.stageQuantities && item.stageQuantities[sectorName] && item.stageQuantities[sectorName][stageName] !== undefined) {
+                    stageQty = item.stageQuantities[sectorName][stageName];
+                }
+                
                 if (stSetting && stSetting.value !== undefined) {
                     hasStageCommission = true;
                     if (stSetting.type === 'FIXED') {
-                        stageCommissionTotal += stSetting.value;
+                        stageCommissionTotal += stSetting.value * stageQty;
                     } else {
-                        stageCommissionTotal += (item.price * (stSetting.value / 100));
+                        stageCommissionTotal += (item.price * (stSetting.value / 100)) * stageQty;
                     }
                 }
             });
@@ -41,7 +48,7 @@ export const calculateItemCommission = (
 
     let finalCommission = 0;
     if (hasStageCommission) {
-        finalCommission += stageCommissionTotal * secQty;
+        finalCommission += stageCommissionTotal; // multiplied per-stage above
     }
 
     if (!includeBaseCommission) {

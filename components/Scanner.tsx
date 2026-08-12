@@ -23,6 +23,32 @@ const playNativeHaptic = async (isSuccess: boolean) => {
     }
 };
 
+
+const formatItemNameWithVariations = (item: JobItem, jobTypes: JobType[]) => {
+    const jt = jobTypes.find(t => t.id === item.jobTypeId);
+    if (!jt || ((!jt.variationGroups || jt.variationGroups.length === 0) && (!jt.variations || jt.variations.length === 0))) return item.name;
+    const groups = (jt.variationGroups && jt.variationGroups.length > 0) ? jt.variationGroups : [{ id: 'default', name: 'Opções', options: jt.variations || [] }];
+    
+    const parts: string[] = [];
+    item.selectedVariationIds?.forEach(optId => {
+        for (const group of groups as any[]) {
+            const opt = group.options.find((o: any) => o.id === optId);
+            if (opt) {
+                if (group.selectionType === 'TEXT' && item.variationValues?.[optId]) {
+                    parts.push(`${group.name}: ${item.variationValues[optId]}`);
+                } else {
+                    parts.push(opt.name);
+                }
+            }
+        }
+    });
+    
+    if (parts.length > 0) {
+        return `${item.name} - ${parts.join(' - ')}`;
+    }
+    return item.name;
+};
+
 export const GlobalScanner: React.FC = () => {
   const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes } = useApp();
   const navigate = useNavigate();
@@ -31,7 +57,11 @@ export const GlobalScanner: React.FC = () => {
   
   const [scannedJob, setScannedJob] = useState<Job | null>(null);
   const [scanAction, setScanAction] = useState<'ENTRY' | 'EXIT'>('ENTRY');
+  
   const [activeUserSector, setActiveUserSector] = useState<string>('');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{item: JobItem, stageName?: string, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE', blockedMessage?: string} | null>(null);
+
   const activeUserSectorRef = useRef(activeUserSector);
   useEffect(() => { activeUserSectorRef.current = activeUserSector; }, [activeUserSector]);
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
@@ -747,7 +777,6 @@ export const GlobalScanner: React.FC = () => {
 
                 await playNativeHaptic(true);
                 playBeep(true);
-                await handleMoveJob(nextSectorRef.current);
                 return;
             }
         }
@@ -874,226 +903,145 @@ export const GlobalScanner: React.FC = () => {
     }
   }, [playBeep]);
 
-  const handleMoveJob = async (nextSector?: string) => {
+  
+  
+  const executePendingAction = async () => {
+    if (!pendingAction) return;
+    const { item, stageName, status: currentStatus } = pendingAction;
+    setPendingAction(null);
+
     if (isUploadingRef.current) return;
-    
     const currentJob = scannedJobRef.current;
     const user = currentUserRef.current;
-    const actionType = scanActionRef.current;
-
     if (!currentJob || !user) return;
-    setIsUploading(true); // Usar como loading genérico
-    
+
+    const isEntering = currentStatus === 'NOT_STARTED';
+    const isExiting = currentStatus === 'IN_PROGRESS';
+    if (!isEntering && !isExiting) return;
+
+    const actionText = isEntering ? 'ENTRADA' : 'SAÍDA';
+    const targetName = stageName ? `${item.name} - ${stageName}` : item.name;
+
+    setIsUploading(true);
     try {
-        let newStatus = currentJob.status;
         let sector = activeUserSectorRef.current || user.sector || currentJob.currentSector || 'Gestão';
         
-        // --- VALIDAÇÃO DE SETORES PERMITIDOS ---
-        const isSectorAllowed = (targetSector: string) => {
-            let hasRestrictions = false;
-            const allowedForAll: Set<string> = new Set();
+        let newExecutions = [...(currentJob.itemExecutions || [])];
+        let executionIndex = newExecutions.findIndex(e => e.itemId === item.id && e.sector === sector);
+        
+        if (executionIndex === -1) {
+            newExecutions.push({
+                itemId: item.id,
+                jobTypeId: item.jobTypeId,
+                jobTypeName: jobTypesRef.current.find((t: JobType) => t.id === item.jobTypeId)?.name || '',
+                sector: sector,
+                userId: user.id,
+                userName: user.name,
+                timestamp: new Date(),
+                stageTimes: {}
+            });
+            executionIndex = newExecutions.length - 1;
+        }
+        
+        const exec = { ...newExecutions[executionIndex] };
+        if (!exec.stageTimes) exec.stageTimes = {};
+        
+        const stageKey = stageName || 'BASE';
+        const currentStageTime = exec.stageTimes[stageKey] || {};
+        
+        let commissionEarned = 0;
+
+        if (isEntering) {
+            exec.stageTimes[stageKey] = { ...currentStageTime, entryTime: new Date(), entryUserId: user.id };
+            // Optional: also update the execution's timestamp so the PRODUCTION tab knows there's activity
+            exec.timestamp = new Date();
+        } else if (isExiting) {
+            exec.stageTimes[stageKey] = { ...currentStageTime, exitTime: new Date(), exitUserId: user.id };
+            exec.timestamp = new Date();
             
-            for (const item of currentJob.items) {
-                const jType = jobTypes.find(jt => jt.id === item.jobTypeId);
-                if (jType?.allowedSectors && jType.allowedSectors.length > 0) {
-                    hasRestrictions = true;
-                    jType.allowedSectors.forEach(s => allowedForAll.add(s));
+            if (stageName) {
+                exec.executedStages = [...(exec.executedStages || [])];
+                if (!exec.executedStages.includes(stageName)) {
+                    exec.executedStages.push(stageName);
                 }
-            }
-            
-            if (!hasRestrictions) return true;
-            return allowedForAll.has(targetSector);
-        };
-
-        if (actionType === 'ENTRY' && !isSectorAllowed(sector)) {
-            alert(`Ops! Este trabalho não foi destinado para o setor "${sector}". Verifique os serviços solicitados nesta OS.`);
-            await playNativeHaptic(false);
-            playBeep(false);
-            return;
-        }
-
-        if (actionType === 'EXIT' && nextSector && !isSectorAllowed(nextSector)) {
-            alert(`Ops! Este trabalho não foi destinado para o setor "${nextSector}". Verifique os serviços solicitados nesta OS.`);
-            await playNativeHaptic(false);
-            playBeep(false);
-            return;
-        }
-        // ----------------------------------------
-
-        let action = actionType === 'ENTRY' ? `Entrada no setor ${sector}` : `Saída do setor ${sector}`;
-
-        if (actionType === 'ENTRY' && (currentJob.status === JobStatus.PENDING || currentJob.status === JobStatus.WAITING_APPROVAL)) {
-            newStatus = JobStatus.IN_PROGRESS;
-        }
-
-        if (actionType === 'EXIT') {
-            if (nextSector) {
-                action += ` (Encaminhado para ${nextSector})`;
             } else {
-                newStatus = JobStatus.SECTOR_TRANSITION;
+                exec.isBaseChecked = true;
             }
 
-            // Calcular comissão em tempo de execução
-            const calculatedCommission = calculateCommissionForItems(currentJob, user, selectedItemIds, jobTypesRef.current, sector, selectedStages);
-            
-            // Atualizar o state para o UI
-            setCommissionEarned(calculatedCommission);
-
-            if (calculatedCommission > 0) {
-                try {
-                    await addCommissionRecord({
-                        userId: user.id,
-                        userName: user.name,
-                        jobId: currentJob.id,
-                        osNumber: currentJob.osNumber || 'N/A',
-                        patientName: currentJob.patientName,
-                        amount: calculatedCommission,
-                        status: CommissionStatus.PENDING,
-                        createdAt: new Date(),
-                        sector: sector
-                    });
-                } catch (commErr: any) {
-                    console.error("Erro ao registrar comissão:", commErr);
-                    // Se for erro de permissão, avisar mas talvez permitir continuar a movimentação?
-                    // No ProTrack, a comissão é vital, então vamos avisar.
-                    if (commErr.message?.includes('permission-denied') || commErr.code === 'permission-denied' || commErr.message?.includes('Missing or insufficient permissions')) {
-                        alert("Erro de permissão ao registrar comissão. Contate o administrador para verificar suas permissões de escrita.");
-                    } else {
-                        alert("Erro ao registrar comissão: " + (commErr.message || "Erro desconhecido"));
-                    }
-                }
+            // Calculate commission for this stage/item
+            const jt = jobTypesRef.current.find((t: JobType) => t.id === item.jobTypeId);
+            if (jt && !item.commissionDisabled) {
+                const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
+                commissionEarned = calculateItemCommission(item, jt, user, secQty, sector, stageName ? [stageName] : [], !stageName);
             }
         }
+        
+        newExecutions[executionIndex] = exec;
 
         const newHistory = [...(currentJob.history || []).filter(Boolean), {
             id: Math.random().toString(),
             timestamp: new Date(),
-            action: action,
+            action: `${actionText} - ${targetName} no setor ${sector}`,
             userId: user.id,
             userName: user.name,
             sector: sector
         }];
 
+        // We DO NOT update sectorMovements here anymore, to avoid treating the whole job as started
+        // Actually, we can update sectorMovements so the OS appears in this sector overall.
+        // Let's keep it but NOT rely on it in JobDetails for the individual items!
         let newSectorMovements = [...(currentJob.sectorMovements || []).filter(Boolean)];
-        const currentOpenMovements = newSectorMovements.filter(m => !m.exitTime);
-        let newItemExecutions = [...(currentJob.itemExecutions || [])];
-
-        if (actionType === 'ENTRY') {
-            // Fechar qualquer movimento em aberto antes de entrar em um novo
-            currentOpenMovements.forEach(m => {
-                const idx = newSectorMovements.findIndex(sm => sm.id === m.id);
-                if (idx !== -1) {
-                    newSectorMovements[idx] = {
-                        ...newSectorMovements[idx],
-                        exitTime: new Date(),
-                        exitUserId: user.id,
-                        exitUserName: user.name
-                    };
-                }
-            });
-
+        let openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);
+        if (openMovementIndex === -1) {
             newSectorMovements.push({
                 id: Math.random().toString(),
                 sector: sector,
                 entryTime: new Date(),
                 entryUserId: user.id,
-                entryUserName: user.name,
-                plannedItems: selectedItemIds,
-                plannedStages: selectedStages
-            });
-        } else if (actionType === 'EXIT') {
-            // Register item executions
-            currentJob.items.forEach((item: any) => {
-                const isBaseChecked = selectedItemIds.includes(item.id);
-                const stagesToUse = selectedStages[item.id] || [];
-                if (!isBaseChecked && stagesToUse.length === 0) return;
-                
-                const jt = jobTypesRef.current.find((t: JobType) => t.id === item?.jobTypeId);
-                if (jt) {
-                    newItemExecutions.push({
-                        itemId: item.id,
-                        jobTypeId: item.jobTypeId,
-                        jobTypeName: jt.name,
-                        sector: sector,
-                        userId: user.id,
-                        userName: user.name,
-                        timestamp: new Date(),
-                        executedStages: stagesToUse,
-                        isBaseChecked: isBaseChecked
-                    });
-                }
-            });
-
-            // Find the open movement for this sector
-            const openMovementIndex = newSectorMovements.findIndex(m => m.sector === sector && !m.exitTime);
-            if (openMovementIndex !== -1) {
-                newSectorMovements[openMovementIndex] = {
-                    ...newSectorMovements[openMovementIndex],
-                    exitTime: new Date(),
-                    exitUserId: user.id,
-                    exitUserName: user.name
-                };
-            } else if (currentOpenMovements.length > 0) {
-                // Se não achou no setor atual mas tem outro aberto, fecha o outro
-                const latestOpen = [...currentOpenMovements].sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime())[0];
-                const idx = newSectorMovements.findIndex(sm => sm.id === latestOpen.id);
-                if (idx !== -1) {
-                    newSectorMovements[idx] = {
-                        ...newSectorMovements[idx],
-                        exitTime: new Date(),
-                        exitUserId: user.id,
-                        exitUserName: user.name
-                    };
-                }
-            }
-        }
-
-        if (actionType === 'EXIT' && nextSector) {
-            newHistory.push({
-                id: Math.random().toString(),
-                timestamp: new Date(),
-                action: `Entrada no setor ${nextSector}`,
-                userId: user.id,
-                userName: user.name,
-                sector: nextSector
-            });
-            newSectorMovements.push({
-                id: Math.random().toString(),
-                sector: nextSector,
-                entryTime: new Date(),
-                entryUserId: user.id,
                 entryUserName: user.name
             });
-            sector = nextSector;
         }
 
-        // Determine the current sector based on the latest open movement
-        const latestOpenMovements = newSectorMovements.filter(m => !m.exitTime);
-        if (latestOpenMovements.length > 0) {
-            // Sort by entryTime descending to get the latest
-            latestOpenMovements.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
-            sector = latestOpenMovements[0].sector;
-        }
+        const newStatus = (currentJob.status === JobStatus.PENDING || currentJob.status === JobStatus.WAITING_APPROVAL) 
+            ? JobStatus.IN_PROGRESS 
+            : currentJob.status;
 
-        await updateJob(currentJob.id, {
+        const updatedJob = {
+            ...currentJob,
             status: newStatus,
             currentSector: sector,
             history: newHistory,
             sectorMovements: newSectorMovements,
-            itemExecutions: newItemExecutions
-        });
-        
+            itemExecutions: newExecutions,
+            updatedAt: new Date()
+        };
+
+        await updateJob(currentJob.id, updatedJob);
+
+        if (commissionEarned > 0) {
+            try {
+                await addCommissionRecord({
+                    userId: user.id,
+                    userName: user.name,
+                    jobId: currentJob.id,
+                    osNumber: currentJob.osNumber || 'N/A',
+                    patientName: currentJob.patientName,
+                    amount: commissionEarned,
+                    status: CommissionStatus.PENDING,
+                    createdAt: new Date(),
+                    sector: sector
+                });
+            } catch (commErr: any) {
+                console.error("Erro ao registrar comissão:", commErr);
+            }
+        }
+
         await playNativeHaptic(true);
         playBeep(true);
-        setScannedJob(null);
-        setNextSector('');
-    } catch (error: any) {
-        console.error("Erro ao movimentar trabalho:", error);
-        if (error.message?.includes('permission-denied') || error.code === 'permission-denied' || error.message?.includes('Missing or insufficient permissions')) {
-            alert("Erro de permissão: Você não tem autorização para movimentar este trabalho ou o laboratório atingiu o limite de uso.");
-        } else {
-            alert("Ocorreu um erro ao processar a movimentação: " + (error.message || "Erro desconhecido"));
-        }
+        setScannedJob(updatedJob);
+    } catch (err: any) {
+        console.error("Erro ao registrar ação:", err);
+        setActionError(err.message);
         await playNativeHaptic(false);
         playBeep(false);
     } finally {
@@ -1101,124 +1049,99 @@ export const GlobalScanner: React.FC = () => {
     }
   };
 
-  if (!scannedJob && !isCameraActive && currentUser?.role !== UserRole.CLIENT) {
-      return (
-          <div className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[60] flex flex-col gap-3 items-center md:hidden print:hidden">
-              {isNfcSupported && nfcStatus !== 'scanning' && (
-                 <button 
-                   onClick={() => (window as any).triggerNfcStart?.()}
-                   className="w-12 h-12 bg-slate-800 text-white rounded-full shadow-xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
-                   title="Ativar NFC"
-                 >
-                     <span className="font-black text-[10px]">NFC</span>
-                 </button>
-              )}
-              <button 
-                onClick={() => setIsCameraActive(true)}
-                className="w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
-              >
-                  <Camera size={28} />
-              </button>
-          </div>
-      );
-  }
+  
+  const handleStageAction = (item: JobItem, stageName: string | undefined, currentStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE') => {
+      // 1. Check if it's the BASE service and the sector is not allowed
+      if (!stageName) {
+          const user = currentUserRef.current;
+          let sector = activeUserSectorRef.current || user?.sector || 'Gestão';
+          const jt = jobTypesRef.current.find(t => t.id === item.jobTypeId);
+          
+          if (jt?.allowedSectors && jt.allowedSectors.length > 0 && !jt.allowedSectors.includes(sector)) {
+              // Block the action and show friendly error modal
+              setPendingAction({ item, stageName, status: currentStatus, blockedMessage: `O serviço "${jt.name}" não está habilitado para o setor "${sector}". Você só pode registrar etapas específicas.` });
+              return;
+          }
+      }
+      
+      setPendingAction({ item, stageName, status: currentStatus });
+  };
 
-  if (isCameraActive) {
-      return (
-          <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
-              <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 flex justify-between items-center text-white z-[120] bg-gradient-to-b from-black/60 to-transparent">
-                  <div>
-                      <h3 className="font-bold text-xl tracking-tight">Leitor LABPROX</h3>
-                      <p className="text-xs opacity-70">Aponte para o código de barras da OS</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {cameras.length > 1 && (
-                      <select 
-                        className="bg-black/40 border border-white/20 text-white text-[10px] rounded-lg px-2 py-1 outline-none mr-2 max-w-[120px] truncate"
-                        value={selectedCameraId || ''}
-                        onChange={(e) => setSelectedCameraId(e.target.value)}
-                      >
-                        {cameras.map(cam => (
-                          <option key={cam.deviceId} value={cam.deviceId} className="text-black">{cam.label}</option>
-                        ))}
-                      </select>
-                    )}
-                    <button 
-                        onClick={toggleTorch}
-                        className={`p-3 rounded-full transition-all ${isTorchOn ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-200' : 'bg-white/10 text-white'}`}
-                    >
-                        <Volume2 size={24} className={isTorchOn ? 'animate-pulse' : ''} />
-                    </button>
-                    <button onClick={() => { setIsCameraActive(false); setIsTorchOn(false); }} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition-all">
-                        <X size={24}/>
-                    </button>
-                  </div>
-              </div>
-              
-              <video ref={videoRef} className="w-full h-full object-cover"></video>
-              
-              {/* Scanner Overlay UI Re-engineered */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4 z-[110]">
-                  {/* Scan Frame */}
-                  <div className={`relative w-72 h-44 md:w-96 md:h-56 border-2 transition-all duration-300 ${scanSuccess ? 'border-green-400 scale-95' : 'border-white/30'}`}>
-                      {/* Corners */}
-                      <div className="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-xl" />
-                      <div className="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-xl" />
-                      <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-xl" />
-                      <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-xl" />
-                      
-                      {/* Scanning Line Animation */}
-                      <motion.div 
-                          animate={{ top: ['0%', '100%', '0%'] }}
-                          transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                          className="absolute left-0 right-0 h-0.5 bg-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.8)] z-10"
-                      />
 
-                      {/* Success Flash */}
-                      {scanSuccess && (
-                          <motion.div 
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: [0, 0.4, 0] }}
-                              className="absolute inset-0 bg-white"
-                          />
-                      )}
-                  </div>
 
-                  <div className="mt-12 text-center space-y-2">
-                      <p className="text-white/80 text-[10px] uppercase font-black tracking-[0.2em] bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">Scanner de Fluxo Digital</p>
-                      <p className="text-blue-400 text-[11px] font-bold">Posicione o código de barras no quadro</p>
-                  </div>
-              </div>
-          </div>
-      );
-  }
 
   if (!scannedJob) return null;
 
-  const isEntry = scanAction === 'ENTRY';
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className={`bg-white rounded-3xl shadow-2xl p-6 w-full max-w-md max-h-[95vh] overflow-y-auto overscroll-contain border-t-[12px] ${isEntry ? 'border-blue-600' : 'border-orange-500'} animate-in zoom-in duration-200`}>
+      <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-lg max-h-[95vh] overflow-y-auto overscroll-contain border-t-[12px] border-blue-600 animate-in zoom-in duration-200 relative">
+    {pendingAction && (
+        <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/60 rounded-3xl backdrop-blur-sm p-6 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-xl w-full p-6 text-center animate-in zoom-in-95 duration-200">
+                {pendingAction.blockedMessage ? (
+                    <>
+                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 mb-2">Ação Não Permitida</h3>
+                        <p className="text-sm font-bold text-slate-500 mb-6">
+                            {pendingAction.blockedMessage}
+                        </p>
+                        <div className="flex justify-center">
+                            <button 
+                                onClick={() => setPendingAction(null)}
+                                className="w-full py-3 bg-slate-100 text-slate-600 font-black rounded-xl uppercase tracking-widest text-xs"
+                            >
+                                Entendi
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 mb-2">Confirmar Ação</h3>
+                        <p className="text-sm font-bold text-slate-500 mb-6">
+                            Deseja registrar a <strong>{pendingAction.status === 'NOT_STARTED' ? 'ENTRADA' : 'SAÍDA'}</strong> em <br/>
+                            <span className="text-blue-600">{pendingAction.stageName ? `${pendingAction.item.name} - ${pendingAction.stageName}` : pendingAction.item.name}</span>?
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setPendingAction(null)}
+                                className="flex-1 py-3 bg-slate-100 text-slate-600 font-black rounded-xl uppercase tracking-widest text-xs"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={executePendingAction}
+                                className="flex-1 py-3 bg-blue-600 text-white font-black rounded-xl uppercase tracking-widest text-xs shadow-md"
+                            >
+                                Confirmar
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    )}
+
         <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-2xl ${isEntry ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'}`}>
-                    {isEntry ? <LogIn size={32} /> : <LogOut size={32} />}
+                <div className="p-3 rounded-2xl bg-blue-100 text-blue-600">
+                    <CheckCircle size={32} />
                 </div>
                 <div>
-                    <h3 className="text-2xl font-black text-slate-800">{isEntry ? 'Entrada' : 'Saída'}</h3>
-                    {currentUser?.sectors && currentUser.sectors.length > 1 && isEntry ? (
+                    <h3 className="text-2xl font-black text-slate-800">Controle de Setor</h3>
+                    {currentUser?.sectors && currentUser.sectors.length > 1 ? (
                         <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Setor:</span>
                             <select 
                                 value={activeUserSector} 
                                 onChange={e => {
                                     setActiveUserSector(e.target.value);
-                                    // Re-calculate eligible items
-                                    const { eligible, commission } = getEligibleItemsAndComm(scannedJob, currentUser, jobTypes, e.target.value);
+                                    const { eligible } = getEligibleItemsAndComm(scannedJob, currentUser, jobTypes, e.target.value);
                                     setEligibleItems(eligible);
-                                    setSelectedItemIds([]);
-                                    setSelectedStages({});
-                                    setCommissionEarned(0);
                                 }}
                                 className="bg-slate-100 border-none text-slate-700 text-xs font-bold rounded-lg py-1 px-2 cursor-pointer focus:ring-0"
                             >
@@ -1230,42 +1153,23 @@ export const GlobalScanner: React.FC = () => {
                     )}
                 </div>
             </div>
-            <button onClick={() => setScannedJob(null)} className="text-slate-400 hover:text-slate-600 p-2"><X size={24} /></button>
+            <button onClick={() => { setScannedJob(null); setActionError(null); setPendingAction(null); }} className="text-slate-400 hover:text-slate-600 p-2"><X size={24} /></button>
         </div>
+
+        
+        {actionError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2">
+                <AlertTriangle className="text-red-500 shrink-0" size={20} />
+                <p className="text-sm text-red-700 font-bold">{actionError}</p>
+            </div>
+        )}
 
         <div className="bg-slate-50 rounded-2xl p-4 sm:p-6 border border-slate-100 mb-6 space-y-3">
             <div className="flex justify-between items-center border-b border-slate-200 pb-2 overflow-visible">
                 <span className="text-slate-500 text-xs font-bold uppercase shrink-0 mr-2">OS</span>
                 <div className="flex items-center gap-2 relative">
-                    {jobs.filter(j => j.patientName === scannedJob.patientName).length > 1 && (
-                        <div className="relative">
-                            <button onClick={() => setIsCasesDropdownOpen(!isCasesDropdownOpen)} className="text-[9px] bg-slate-200 text-slate-600 px-2 py-1 rounded font-black uppercase tracking-widest hover:bg-slate-300 transition-colors shadow-sm">Todos os Casos</button>
-                            {isCasesDropdownOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-[9998]" onClick={() => setIsCasesDropdownOpen(false)}></div>
-                                    <div className="absolute right-0 top-full mt-2 bg-white shadow-2xl border border-slate-200 rounded-xl py-2 w-48 z-[9999]">
-                                        <div className="px-3 pb-2 mb-1 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-left">
-                                            Histórico do Paciente
-                                        </div>
-                                        {jobs.filter(j => j.patientName === scannedJob.patientName)
-                                             .sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-                                             .map(j => (
-                                            <button 
-                                                key={j.id} 
-                                                onClick={() => { setIsCasesDropdownOpen(false); setScannedJob(null); navigate(`/jobs/${j.id}`); }} 
-                                                className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors text-sm font-mono font-bold text-slate-700 flex items-center justify-between"
-                                            >
-                                                <span>OS {j.osNumber || 'N/A'}</span>
-                                                {j.id === scannedJob.id && <span className="w-2 h-2 rounded-full bg-blue-500"></span>}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
                     <button 
-                        onClick={() => { setScannedJob(null); navigate(`/jobs/${scannedJob.id}`); }} 
+                        onClick={() => { setScannedJob(null); setActionError(null); setPendingAction(null); navigate(`/jobs/${scannedJob.id}`); }} 
                         className="font-mono font-black text-2xl text-blue-600 hover:text-blue-800 transition-colors hover:underline cursor-pointer text-right"
                     >
                         {scannedJob.osNumber || "N/A"}
@@ -1275,164 +1179,96 @@ export const GlobalScanner: React.FC = () => {
             <div className="flex justify-between items-center"><span className="text-slate-500 text-xs font-bold uppercase">Paciente</span><span className="font-black text-slate-800">{scannedJob.patientName}</span></div>
         </div>
 
-        {/* Histórico Recente */}
-        <div className="mb-6">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Últimas Movimentações</h4>
-            <div className="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
-                {(scannedJob.history || []).slice(-3).reverse().map((h, i) => (
-                    <div key={i} className={`px-3 py-2 flex items-center gap-3 ${i !== 0 ? 'border-t border-slate-100' : ''}`}>
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
-                        <div className="flex-1">
-                            <p className="text-[11px] font-bold text-slate-700 leading-tight">{h.action}</p>
-                            <p className="text-[9px] text-slate-400 uppercase font-medium">Por: {h.userName} • {h.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+        <div className="mb-6 space-y-2">
+            <label className="block text-sm font-bold text-slate-700 mb-2">Serviços e Etapas</label>
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-2 rounded-xl border border-slate-100 p-2 bg-slate-50">
+                {scannedJob.items.map((item) => {
+                    const jt = jobTypes.find(t => t.id === item.jobTypeId);
+                    const sector = activeUserSector || 'Gestão';
+                    const itemSectorStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector] || [];
+                    
+                    const execution = scannedJob.itemExecutions?.find(e => e.itemId === item.id && e.sector === sector);
+                    const stageTimes = execution?.stageTimes || {};
+
+                    return (
+                        <div key={item.id} className="p-3 bg-white rounded-xl shadow-sm border border-slate-200">
+                            <div className="flex justify-between items-center mb-2">
+                                <div className="flex-1">
+                                    <p className="font-bold text-sm text-slate-800">{formatItemNameWithVariations(item, jobTypes)}</p>
+                                    <p className="text-xs text-slate-500">Qtd: {
+                                        (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
+                                            ? item.sectorQuantities[currentUser.sector] 
+                                            : item.quantity
+                                    }</p>
+                                </div>
+                                {(() => {
+                                    const baseTimes = stageTimes['BASE'] || {};
+                                    let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' = 'NOT_STARTED';
+                                    if (baseTimes.exitTime) status = 'DONE';
+                                    else if (baseTimes.entryTime) status = 'IN_PROGRESS';
+
+                                    return (
+                                        <button
+                                            disabled={status === 'DONE' || isUploading}
+                                            onClick={() => handleStageAction(item, undefined, status)}
+                                            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                                status === 'DONE' ? 'bg-green-100 text-green-700' :
+                                                status === 'IN_PROGRESS' ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md' :
+                                                'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
+                                            }`}
+                                        >
+                                            {status === 'DONE' ? 'Concluído' : status === 'IN_PROGRESS' ? 'Saída' : 'Entrada'}
+                                        </button>
+                                    );
+                                })()}
+                            </div>
+
+                            {itemSectorStages.length > 0 && (
+                                <div className="pl-4 space-y-2 border-t border-slate-100 pt-2 mt-2">
+                                    {itemSectorStages.map((stageName: string) => {
+                                        const sTime = stageTimes[stageName] || {};
+                                        let status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' = 'NOT_STARTED';
+                                        if (sTime.exitTime) status = 'DONE';
+                                        else if (sTime.entryTime) status = 'IN_PROGRESS';
+
+                                        return (
+                                            <div key={stageName} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg">
+                                                <span className="text-sm font-bold text-slate-600 flex-1">{stageName}</span>
+                                                <button
+                                                    disabled={status === 'DONE' || isUploading}
+                                                    onClick={() => handleStageAction(item, stageName, status)}
+                                                    className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                                                        status === 'DONE' ? 'bg-green-100 text-green-700' :
+                                                        status === 'IN_PROGRESS' ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm' :
+                                                        'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                                                    }`}
+                                                >
+                                                    {status === 'DONE' ? 'Concluído' : status === 'IN_PROGRESS' ? 'Saída' : 'Entrada'}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
-                    </div>
-                ))}
-                {(!scannedJob.history || scannedJob.history.length === 0) && (
-                    <p className="p-3 text-[10px] text-slate-400 text-center italic">Nenhum histórico registrado</p>
+                    );
+                })}
+                {scannedJob.items.length === 0 && (
+                    <p className="text-sm text-slate-400 text-center py-4 italic">Nenhum serviço neste trabalho.</p>
                 )}
             </div>
         </div>
-
-        {/* Ações Rápidas (Mobile) */}
-        <div className="flex gap-3 mb-6 md:hidden">
-            <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment" 
-                className="hidden" 
-                id="scanner-camera-upload" 
-                onChange={handleFileUpload} 
-            />
-            <button 
-                onClick={() => document.getElementById('scanner-camera-upload')?.click()}
-                disabled={isUploading}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-            >
-                {isUploading ? <Loader2 size={18} className="animate-spin" /> : <ImagePlus size={18} />}
-                <span>Foto</span>
-            </button>
-            <button 
-                onClick={() => {
-                    const jobId = scannedJob.id;
-                    setScannedJob(null);
-                    navigate(`/jobs/${jobId}`);
-                }}
-                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-                <MessageCircle size={18} />
-                <span>Chat</span>
-            </button>
-        </div>
-
-        {eligibleItems.length > 0 && (
-            <div className="mb-6 space-y-2">
-                <label className="block text-sm font-bold text-slate-700 mb-2">{isEntry ? 'Trabalhos a Executar' : 'Trabalhos Executados'}</label>
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-2 rounded-xl border border-slate-100 p-2 bg-slate-50">
-                    {eligibleItems.map(({ item, jobType }) => {
-                        const itemSectorStages = item.sectorStages?.[activeUserSector] || jobType?.sectorStages?.[activeUserSector] || [];
-                        const isItemSelected = selectedItemIds.includes(item.id);
-                        const itemExecutedStages = selectedStages[item.id] || [];
-
-                        return (
-                            <div key={item.id} className="p-3 bg-white rounded-xl shadow-sm border border-slate-200 transition-colors">
-                                {/* Base Item Checkbox */}
-                                <label className="flex items-center gap-3 cursor-pointer mb-2">
-                                    <input 
-                                        type="checkbox" 
-                                        className="w-5 h-5 rounded text-orange-500 focus:ring-orange-500 border-slate-300"
-                                        checked={isItemSelected}
-                                        onChange={(e) => {
-                                            const newIds = e.target.checked 
-                                                ? [...selectedItemIds, item.id] 
-                                                : selectedItemIds.filter(id => id !== item.id);
-                                            setSelectedItemIds(newIds);
-                                            if (currentUserRef.current) {
-                                                setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, newIds, jobTypesRef.current, activeUserSector, selectedStages));
-                                            }
-                                        }}
-                                    />
-                                    <div className="flex-1">
-                                        <p className="font-bold text-sm text-slate-800">{jobType?.name || 'Item Desconhecido'}</p>
-                                        <p className="text-xs text-slate-500">Qtd: {
-                                            (currentUser?.sector && item.sectorQuantities && item.sectorQuantities[currentUser.sector]) 
-                                                ? item.sectorQuantities[currentUser.sector] 
-                                                : item.quantity
-                                        }</p>
-                                    </div>
-                                </label>
-
-                                {/* Stages Checkboxes */}
-                                {itemSectorStages.length > 0 && (
-                                    <div className="pl-8 space-y-2 border-t border-slate-100 pt-2">
-                                        {itemSectorStages.map((stageName: string) => {
-                                            const isStageChecked = itemExecutedStages.includes(stageName);
-                                            return (
-                                                <label key={stageName} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-slate-50 rounded-lg">
-                                                    <input 
-                                                        type="checkbox"
-                                                        checked={isStageChecked}
-                                                        onChange={(e) => {
-                                                            const newStages = e.target.checked
-                                                                ? [...itemExecutedStages, stageName]
-                                                                : itemExecutedStages.filter(s => s !== stageName);
-                                                            const updatedStagesMap = { ...selectedStages, [item.id]: newStages };
-                                                            setSelectedStages(updatedStagesMap);
-                                                            
-                                                            if (currentUserRef.current) {
-                                                                setCommissionEarned(calculateCommissionForItems(scannedJob, currentUserRef.current, selectedItemIds, jobTypesRef.current, activeUserSector, updatedStagesMap));
-                                                            }
-                                                        }}
-                                                    />
-                                                    <span className="text-sm font-bold text-slate-600">{stageName}</span>
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        )}
-
-        {!isEntry && (
-            <div className="mb-6">
-                <label className="block text-sm font-bold text-slate-700 mb-2">Próximo Setor (Opcional)</label>
-                <select
-                    value={nextSector}
-                    onChange={(e) => setNextSector(e.target.value)}
-                    className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all"
-                >
-                    <option value="">Nenhum (Transição de Setor)</option>
-                    {sectors.map(s => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
-                    ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-2">
-                    Se informado, o trabalho já dará entrada automaticamente no setor selecionado.
-                </p>
-            </div>
-        )}
 
         <div className="flex gap-3">
-            <button disabled={isUploading} onClick={() => { setScannedJob(null); setNextSector(''); }} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all disabled:opacity-50">Cancelar</button>
-            <button disabled={isUploading} onClick={() => handleMoveJob(nextSector)} autoFocus className={`flex-[2] py-4 text-white font-black rounded-2xl shadow-xl transition-all transform active:scale-95 flex flex-col items-center justify-center leading-tight disabled:opacity-50 disabled:scale-100 ${isEntry ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-200'}`}>
-                {isUploading ? (
-                    <Loader2 size={24} className="animate-spin" />
-                ) : (
-                    <>
-                        <span>{isEntry ? 'CONFIRMAR ENTRADA' : 'CONFIRMAR SAÍDA'}</span>
-                        <span className="text-[10px] font-medium opacity-80 mt-1">ou bipe novamente</span>
-                    </>
-                )}
+            <button disabled={isUploading} onClick={() => setScannedJob(null)} className="w-full py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest text-sm disabled:opacity-50">
+                Fechar
             </button>
         </div>
       </div>
     </div>
   );
 };
+
 
 
 export const ManualScannerInput: React.FC = () => {

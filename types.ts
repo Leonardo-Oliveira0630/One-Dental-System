@@ -367,6 +367,7 @@ export interface JobItem {
   sectorQuantities?: Record<string, number>;
   sectorCommissionDisabled?: Record<string, boolean>;
   sectorStages?: Record<string, string[]>;
+  stageQuantities?: Record<string, Record<string, number>>;
   selectedTeeth?: string[];
   color?: string;
   isInternalStep?: boolean;
@@ -443,6 +444,8 @@ export interface JobItemExecution {
   timestamp: Date;
   executedStages?: string[];
   isBaseChecked?: boolean;
+  entryTime?: Date;
+  stageTimes?: Record<string, { entryTime?: Date, exitTime?: Date, entryUserId?: string, exitUserId?: string }>;
 }
 
 export interface SectorMovement {
@@ -558,6 +561,7 @@ export interface JobType {
   imageUrl?: string;
   allowedSectors?: string[];
   sectorStages?: Record<string, string[]>;
+  stageQuantities?: Record<string, Record<string, number>>;
   isPromotion?: boolean;
   promotionQuantity?: number;
   promotionCallText?: string;

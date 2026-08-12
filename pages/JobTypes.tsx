@@ -53,7 +53,7 @@ export const JobTypes = () => {
                 tableData.push([
                     `  ↳ ${group.name} - ${opt.name}`,
                     '',
-                    opt.priceImpact > 0 ? `+ R$ ${opt.priceImpact.toFixed(2)}` : '-'
+                    opt.priceModifier > 0 ? `+ R$ ${opt.priceModifier.toFixed(2)}` : '-'
                 ]);
             });
         });
@@ -91,7 +91,7 @@ export const JobTypes = () => {
                 (group.options || []).forEach(opt => {
                     xml += `          <option id="${opt.id}">\n`;
                     xml += `            <name><![CDATA[${opt.name}]]></name>\n`;
-                    xml += `            <priceImpact>${opt.priceImpact || 0}</priceImpact>\n`;
+                    xml += `            <priceImpact>${opt.priceModifier || 0}</priceImpact>\n`;
                     xml += `          </option>\n`;
                 });
                 xml += `        </options>\n`;

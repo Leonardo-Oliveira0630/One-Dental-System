@@ -1,0 +1,121 @@
+                                                                </div>
+                                                                <div className="ml-3 text-sm leading-6">
+                                                                    <label className="font-black text-slate-800 uppercase tracking-tight text-[11px]">
+                                                                        Ativar Comissão para este item
+                                                                    </label>
+                                                                    <p className="text-[10px] text-slate-500 font-bold">Por padrão, ajustes e repetições não geram comissão.</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 flex-1">
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Dentes</p>
+                                                                <p className="text-sm font-bold text-indigo-600">{formatTeethRange(item.selectedTeeth)}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Quant. Original</p>
+                                                                <p className="text-sm font-bold text-slate-700">{item.quantity}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Valor Unitário</p>
+                                                                <p className="text-sm font-bold text-slate-700">R$ {(item.basePriceBeforeDiscount ?? item.price).toFixed(2)}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Desconto</p>
+                                                                <p className="text-sm font-bold text-slate-700">{item.appliedDiscount ? `${item.appliedDiscount.toFixed(1)}%` : 'Nenhum'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Tabela Usada</p>
+                                                                <p className="text-sm font-bold text-slate-700 truncate" title={item.appliedPriceTable || 'Padrão'}>{item.appliedPriceTable || 'Padrão'}</p>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[9px] font-black text-slate-400 uppercase">Preço Total</p>
+                                                                {item.isInternalStep ? (
+                                                                    <p className="text-[10px] font-black text-indigo-500 mt-1 uppercase">Não Faturado</p>
+                                                                ) : (
+                                                                    <p className="text-sm font-bold text-slate-700">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {isLabStaff && (
+                                                            <div className="flex flex-col gap-2 shrink-0 ml-4 items-end">
+                                                                <button 
+                                                                    onClick={() => startEditingItem(item)}
+                                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors shrink-0"
+                                                                    title="Editar este item"
+                                                                >
+                                                                    <Edit size={18} />
+                                                                </button>
+                                                                {(item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT') && canManageCommissions && (
+                                                                    <button 
+                                                                        type="button" 
+                                                                        onClick={async () => {
+                                                                            const updatedItems = job.items.map((i: any) => i.id === item.id ? { ...i, commissionDisabled: !i.commissionDisabled } : i);
+                                                                            await updateJob(job.id, { items: updatedItems });
+                                                                        }}
+                                                                        className={`text-[9px] font-black uppercase px-2 py-1 rounded-md transition-all flex items-center gap-1 hover:scale-105 active:scale-95 shadow-sm ${!item.commissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
+                                                                    >
+                                                                        {!item.commissionDisabled ? '✅ COMISSÃO ATIVA' : '🚫 COMISSÃO INATIVA'}
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                            
+                                            {canManageCommissions && editingItemId !== item.id && (
+                                                <div className="border-t border-slate-200 pt-4">
+                                                    {!job.isBudget && <h4 className="text-[10px] font-black text-slate-600 uppercase mb-3 flex items-center gap-1"><Briefcase size={12} /> Setores Permitidos e Comissão</h4>}
+                                                    <div className="space-y-3">
+                                                            {jType?.allowedSectors?.length === 0 && (
+                                                                <p className="text-xs text-slate-500 italic mb-2">Este serviço é permitido em todos os setores. Abaixo você pode configurar a comissão individualmente para cada um deles.</p>
+                                                            )}
+                                                            <p className="text-[10px] text-slate-500 leading-tight">Defina a quantidade de unidades para fins de comissão em cada setor (padrão é igual à quantidade original da OS).</p>
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                {allowedSecs.map(secName => {
+                                                                    const secQty = item.sectorQuantities?.[secName] ?? item.quantity;
+                                                                    const isSectorCommissionDisabled = item.sectorCommissionDisabled?.[secName] ?? (item.nature === 'REPETITION' || item.nature === 'ADJUSTMENT');
+                                                                    return (
+                                                                        <div key={secName} className="flex flex-col gap-2 bg-white p-2 md:p-3 rounded-xl border border-slate-200">
+                                                                            <div className="flex items-center justify-between">
+                                                                                <span className="text-xs font-bold text-slate-700 truncate mr-2">{secName}</span>
+                                                                                <div className="flex items-center gap-2 shrink-0">
+                                                                                    <span className="text-[9px] font-black text-slate-400 uppercase">Qtd:</span>
+                                                                                    <input 
+                                                                                        type="number" 
+                                                                                        min={0.1} 
+                                                                                        step={0.1}
+                                                                                        value={secQty}
+                                                                                        onChange={(e) => handleSectorQuantityChange(item.id, secName, parseFloat(e.target.value) || item.quantity)}
+                                                                                        className="w-16 p-1 text-center text-xs font-bold border border-slate-300 bg-slate-50 focus:bg-white rounded outline-none focus:border-blue-500"
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                            <button 
+                                                                                type="button" 
+                                                                                onClick={() => handleSectorCommissionToggle(item.id, secName, !isSectorCommissionDisabled)}
+                                                                                className={`text-[8px] font-black uppercase px-2 py-1.5 rounded-md transition-all flex items-center justify-center gap-1 hover:scale-[1.02] active:scale-95 shadow-sm ${!isSectorCommissionDisabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}
+                                                                            >
+                                                                                {!isSectorCommissionDisabled ? '✅ COMISSÃO ATIVA' : '🚫 COMISSÃO INATIVA'}
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                                );
+                            })}
+                        </div>
+
+                        {job.products && job.products.length > 0 && (
