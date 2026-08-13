@@ -27,9 +27,11 @@ export const Commissions = () => {
   const { commissions, currentUser, updateCommissionStatus, allUsers, jobs, activeOrganization } = useApp();
   const [filterUser, setFilterUser] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
-  const isManager = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isManager = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER || currentUser?.role === UserRole.SUPER_ADMIN || !!currentUser?.permissions?.includes('commissions:view');
 
   // Enriquecer dados com informações do Job
   const enrichedCommissions: EnrichedCommission[] = useMemo(() => {
@@ -93,9 +95,20 @@ export const Commissions = () => {
       if (!isManager && c.userId !== currentUser?.id) return false;
       if (statusFilter !== 'ALL' && c.status !== statusFilter) return false;
       if (filterUser && c.userId !== filterUser) return false;
+      
+      if (dateFrom) {
+          const from = new Date(dateFrom);
+          from.setHours(0, 0, 0, 0);
+          if (c.createdAt < from) return false;
+      }
+      if (dateTo) {
+          const to = new Date(dateTo);
+          to.setHours(23, 59, 59, 999);
+          if (c.createdAt > to) return false;
+      }
       return true;
     }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }, [enrichedCommissions, isManager, currentUser, statusFilter, filterUser]);
+  }, [enrichedCommissions, isManager, currentUser, statusFilter, filterUser, dateFrom, dateTo]);
 
   const stats = {
     pending: filteredCommissions.filter(c => c.status === CommissionStatus.PENDING).reduce((acc, curr) => acc + curr.amount, 0),
@@ -288,7 +301,7 @@ export const Commissions = () => {
                   </select>
               </div>
           )}
-          <div className="relative min-w-[200px]">
+                    <div className="relative min-w-[200px]">
             <Filter className="absolute left-3 top-3 text-slate-400" size={18} />
             <select 
               className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg bg-white outline-none font-medium appearance-none"
@@ -299,6 +312,20 @@ export const Commissions = () => {
                 <option value={CommissionStatus.PENDING}>Pendente</option>
                 <option value={CommissionStatus.PAID}>Pago</option>
             </select>
+          </div>
+          <div className="flex gap-2">
+            <input 
+                type="date" 
+                value={dateFrom} 
+                onChange={e => setDateFrom(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-lg outline-none bg-white font-medium text-slate-600 text-sm w-full md:w-auto"
+            />
+            <input 
+                type="date" 
+                value={dateTo} 
+                onChange={e => setDateTo(e.target.value)}
+                className="px-3 py-2 border border-slate-200 rounded-lg outline-none bg-white font-medium text-slate-600 text-sm w-full md:w-auto"
+            />
           </div>
       </div>
 
