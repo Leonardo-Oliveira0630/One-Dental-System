@@ -3436,10 +3436,12 @@ export const JobDetails = () => {
             const entryTime = parseSafeDate(stageData?.entryTime);
             const exitTime = parseSafeDate(stageData?.exitTime);
             
+            const isLegacyExecution = execution && (!execution.stageTimes || Object.keys(execution.stageTimes).length === 0);
+
             // If it's BASE and no stageData, we can fallback to checking execution
             let finalStarted = isStarted;
             let finalFinished = isFinished;
-            if (stageName === 'BASE' && execution) {
+            if (stageName === 'BASE' && isLegacyExecution) {
                 // For legacy data, if execution exists, maybe it was finished
                 if (execution.timestamp) finalFinished = true;
                 finalStarted = true; // execution means it was at least started
@@ -3449,7 +3451,7 @@ export const JobDetails = () => {
             let entryUserName = stageData?.entryUserId ? labUsers.find(u => u.id === stageData.entryUserId)?.name : null;
             let exitUserName = stageData?.exitUserId ? labUsers.find(u => u.id === stageData.exitUserId)?.name : null;
             
-            if (stageName === 'BASE' && execution && !entryUserName && !exitUserName) {
+            if (stageName === 'BASE' && isLegacyExecution && !entryUserName && !exitUserName) {
                 entryUserName = execution.userName;
                 exitUserName = execution.userName;
             }
@@ -3489,7 +3491,7 @@ export const JobDetails = () => {
                                 <Calendar size={12} className="opacity-50" />
                                 <span className="text-[10px] font-black">{entryTime.toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {entryTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                        ) : (stageName === 'BASE' && parseSafeDate(execution?.entryTime)) ? (
+                        ) : (stageName === 'BASE' && isLegacyExecution && parseSafeDate(execution?.entryTime)) ? (
                             <div className="flex items-center justify-center gap-1.5 text-blue-600">
                                 <Calendar size={12} className="opacity-50" />
                                 <span className="text-[10px] font-black">{(parseSafeDate(execution.entryTime) as Date).toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {(parseSafeDate(execution.entryTime) as Date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -3502,7 +3504,7 @@ export const JobDetails = () => {
                                 <Calendar size={12} className="opacity-50" />
                                 <span className="text-[10px] font-black">{exitTime.toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {exitTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                        ) : (stageName === 'BASE' && parseSafeDate(execution?.timestamp)) ? (
+                        ) : (stageName === 'BASE' && isLegacyExecution && parseSafeDate(execution?.timestamp)) ? (
                             <div className="flex items-center justify-center gap-1.5 text-emerald-600">
                                 <Calendar size={12} className="opacity-50" />
                                 <span className="text-[10px] font-black">{(parseSafeDate(execution.timestamp) as Date).toLocaleDateString([], { day: '2-digit', month: '2-digit' })} {(parseSafeDate(execution.timestamp) as Date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>

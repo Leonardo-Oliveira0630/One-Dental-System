@@ -129,10 +129,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
   const [itemNature, setItemNature] = useState<JobNature>('NORMAL');
   const [isInternalStep, setIsInternalStep] = useState(false);
-  const [selectedTypeId, setSelectedTypeId] = useState(() => {
-    const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
-    return visible[0]?.id || jobTypes[0]?.id || '';
-  });
+  const [selectedTypeId, setSelectedTypeId] = useState('');
   const [hasSetInitialType, setHasSetInitialType] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [itemColor, setItemColor] = useState('');
@@ -146,13 +143,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
   const activeJobType = useMemo(() => jobTypes.find(t => t.id === selectedTypeId), [selectedTypeId, jobTypes]);
 
-  useEffect(() => {
-    if (!hasSetInitialType && jobTypes.length > 0) {
-      const visible = jobTypes.filter(t => t.isVisibleInternally !== false);
-      setSelectedTypeId(visible[0]?.id || jobTypes[0]?.id || '');
-      setHasSetInitialType(true);
-    }
-  }, [jobTypes, hasSetInitialType]);
+  
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
