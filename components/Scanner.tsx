@@ -223,8 +223,27 @@ export const GlobalScanner: React.FC = () => {
       job.items.forEach(item => {
           const jt = jobTypes.find(t => t.id === item.jobTypeId);
           if (jt?.allowedSectors && jt.allowedSectors.length > 0 && !jt.allowedSectors.includes(sector)) return;
-          const alreadyExecuted = job.itemExecutions?.some(e => e.itemId === item.id && e.sector === sector);
-          if (alreadyExecuted) return;
+          
+          const execution = job.itemExecutions?.find(e => e.itemId === item.id && e.sector === sector);
+          const itemSectorStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector] || [];
+          
+          let isCompletelyExecuted = false;
+          if (execution) {
+              const pendingStages = itemSectorStages.filter(stage => {
+                  const st = execution.stageTimes?.[stage];
+                  return !st || !st.exitTime;
+              });
+              const isLegacyComplete = execution.timestamp && (!execution.stageTimes || Object.keys(execution.stageTimes).length === 0);
+              const isBaseComplete = execution.isBaseChecked || isLegacyComplete;
+              
+              if (isBaseComplete && pendingStages.length === 0 && itemSectorStages.length > 0) {
+                   isCompletelyExecuted = true;
+              } else if (isBaseComplete && itemSectorStages.length === 0) {
+                   isCompletelyExecuted = true;
+              }
+          }
+          
+          if (isCompletelyExecuted) return;
           
           availableItems.push({ item, jobType: jt });
 
@@ -1139,9 +1158,21 @@ export const GlobalScanner: React.FC = () => {
                             <select 
                                 value={activeUserSector} 
                                 onChange={e => {
-                                    setActiveUserSector(e.target.value);
-                                    const { eligible } = getEligibleItemsAndComm(scannedJob, currentUser, jobTypes, e.target.value);
-                                    setEligibleItems(eligible);
+                                    const newSector = e.target.value;
+                                    setActiveUserSector(newSector);
+                                    
+                                    const isLastActionEntryHere = newSector ? scannedJob.sectorMovements?.some(m => m.sector === newSector && !m.exitTime) : false;
+                                    setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
+
+                                    if (isLastActionEntryHere) {
+                                        const { eligible } = getEligibleItemsAndComm(scannedJob, currentUser, jobTypes, newSector);
+                                        setEligibleItems(eligible);
+                                    } else {
+                                        setEligibleItems([]);
+                                    }
+                                    setSelectedItemIds([]);
+                                    setSelectedStages({});
+                                    setCommissionEarned(0);
                                 }}
                                 className="bg-slate-100 border-none text-slate-700 text-xs font-bold rounded-lg py-1 px-2 cursor-pointer focus:ring-0"
                             >
