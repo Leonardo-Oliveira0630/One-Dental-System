@@ -293,7 +293,7 @@ export const Commissions = () => {
                   >
                     <option value="">Todos os Colaboradores</option>
                     {allUsers
-                      .filter(u => u.role !== UserRole.CLIENT && u.organizationId === (activeOrganization?.id || currentUser?.organizationId))
+                      .filter(u => u.role !== UserRole.CLIENT)
                       .map(user => (
                         <option key={user.id} value={user.id}>{user.name}</option>
                       ))

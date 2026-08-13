@@ -407,7 +407,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
   const dentistOptions = useMemo(() => [
     ...manualDentists.map(d => ({ value: d.id, label: d.name })),
-    ...allUsers.filter(u => u.role === UserRole.CLIENT && u.organizationId === currentOrgId).map(u => ({ value: u.id, label: u.name }))
+    ...allUsers.filter(u => u.role === UserRole.CLIENT).map(u => ({ value: u.id, label: u.name }))
   ].sort((a, b) => a.label.localeCompare(b.label)), [manualDentists, allUsers, currentOrgId]);
 
   const collaboratorOptions = useMemo(() => allUsers
