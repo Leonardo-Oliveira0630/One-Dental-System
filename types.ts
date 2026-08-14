@@ -139,6 +139,7 @@ export interface Organization {
   revealJobStatusToDentist?: boolean;
   targetAudience?: 'CLINIC' | 'LAB' | 'SUPPLIER';
   hasWhatsappModule?: boolean;
+  receivedMaterialOptions?: string[];
   ycloudPhoneNumber?: string;
   ycloudApiKey?: string;
   whatsappTemplates?: {
@@ -497,6 +498,7 @@ export interface Job {
   dueTime?: string;
   boxNumber?: string;
   boxColor?: BoxColor;
+  receivedMaterials?: string[];
   currentSector?: string;
   sectorEntryTime?: Date;
   totalValue: number;

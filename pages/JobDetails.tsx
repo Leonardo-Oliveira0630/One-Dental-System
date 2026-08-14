@@ -392,12 +392,16 @@ export const JobDetails = () => {
     if (action === 'PROSSEGUIMENTO') {
         navigate('/new-job', {
             state: {
-                entryType: 'CONTINUATION',
-                fromBudget: job,
-        patientName: job.patientName,
+                entryType: job.isBudget ? 'NEW' : 'CONTINUATION',
+                fromBudget: job.isBudget ? job : undefined,
+                patientName: job.patientName,
                 dentistId: job.dentistId,
                 dentistName: job.dentistName,
+                subDentistName: job.subDentistName,
                 osNumber: nextOsNumber,
+                items: job.isBudget ? job.items : undefined,
+                products: job.isBudget ? job.products : undefined,
+                attachments: job.isBudget ? job.attachments : undefined,
                 notes: job.notes
             }
         });
@@ -415,6 +419,7 @@ export const JobDetails = () => {
                 patientName: job.patientName,
                 dentistId: job.dentistId,
                 dentistName: job.dentistName,
+                subDentistName: job.subDentistName,
                 osNumber: nextOsNumber,
                 items: newItems,
                 notes: job.notes
@@ -489,6 +494,7 @@ export const JobDetails = () => {
   const [editTotalValue, setEditTotalValue] = useState<number>(0);
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
+  const [editReceivedMaterials, setEditReceivedMaterials] = useState<string[]>([]);
   const [editItems, setEditItems] = useState<JobItem[]>([]);
   const [editProducts, setEditProducts] = useState<JobProduct[]>([]);
   const [editingModalItemId, setEditingModalItemId] = useState<string | null>(null);
@@ -573,6 +579,7 @@ export const JobDetails = () => {
         setEditTotalValue(job.totalValue || 0);
         setEditUrgency(job.urgency);
         setEditNotes(job.notes || '');
+          setEditReceivedMaterials(job.receivedMaterials || []);
         setEditItems(job.items);
         setEditProducts(job.products || []);
         setEditDentistId(job.dentistId || '');
@@ -930,6 +937,7 @@ export const JobDetails = () => {
             dueTime: editDueTime,
             urgency: editUrgency,
             notes: editNotes,
+            receivedMaterials: editReceivedMaterials,
             items: editItems,
             products: editProducts,
             totalValue: editTotalValue,
@@ -2142,6 +2150,8 @@ export const JobDetails = () => {
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nº OS</label>
                               <input type="text" value={editOsNumber} onChange={e => setEditOsNumber(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
                           </div>
+                          {!job.isBudget && (
+                          <>
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Caixa</label>
                               <input type="text" value={editBoxNumber} onChange={e => setEditBoxNumber(e.target.value)} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold" />
@@ -2188,6 +2198,8 @@ export const JobDetails = () => {
                                       </button>
                                   </div>
                               </div>
+                          )}
+                          </>
                           )}
                           <div>
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Valor Total (R$)</label>
@@ -2481,7 +2493,41 @@ export const JobDetails = () => {
                           </div>
                       </div>
 
-                      <div>
+                  {/* Materiais Recebidos */}
+                  {(currentOrg?.receivedMaterialOptions && currentOrg.receivedMaterialOptions.length > 0) && (
+                      <div className="pt-4 mt-4 border-t border-slate-100">
+                          <label className="block text-[10px] font-black text-slate-400 mb-4 uppercase tracking-widest flex items-center gap-2">
+                              <Box size={14} className="text-slate-400" /> Materiais Enviados pelo Dentista
+                          </label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {Array.isArray(currentOrg.receivedMaterialOptions) && currentOrg.receivedMaterialOptions.map(mat => {
+                                  const isChecked = Array.isArray(editReceivedMaterials) && editReceivedMaterials.includes(mat);
+                                  return (
+                                      <label key={mat} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${isChecked ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700' : 'border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
+                                          <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
+                                              {isChecked && <Check size={14} className="text-white" />}
+                                          </div>
+                                          <span className="text-xs font-bold">{mat}</span>
+                                          <input 
+                                              type="checkbox"
+                                              className="hidden"
+                                              checked={isChecked}
+                                              onChange={(e) => {
+                                                  if (e.target.checked) {
+                                                      setEditReceivedMaterials(prev => [...prev, mat]);
+                                                  } else {
+                                                      setEditReceivedMaterials(prev => prev.filter(m => m !== mat));
+                                                  }
+                                              }}
+                                          />
+                                      </label>
+                                  );
+                              })}
+                          </div>
+                      </div>
+                  )}
+
+                      <div className="pt-6">
                           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Observações Técnicas</label>
                           <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" placeholder="Novas instruções..."></textarea>
                       </div>
@@ -2526,8 +2572,12 @@ export const JobDetails = () => {
                       {job.isBudget && (
                           <button onClick={() => triggerPrint(job, 'BUDGET_SHEET')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Imprimir Orçamento</button>
                       )}
-                      <button onClick={() => triggerPrint(job, 'LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Etiquetas</button>
-                      <button onClick={() => triggerPrint(job, 'ADDRESS_LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><MapPin size={12} /> Endereço</button>
+                      {!job.isBudget && (
+                      <>
+                        <button onClick={() => triggerPrint(job, 'LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><Printer size={12} /> Etiquetas</button>
+                        <button onClick={() => triggerPrint(job, 'ADDRESS_LABEL')} className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest shadow-sm"><MapPin size={12} /> Endereço</button>
+                      </>
+                      )}
                   </>
               )}
           </div>
@@ -2573,6 +2623,7 @@ export const JobDetails = () => {
                             </div>
                         )}
                     </div>
+                    {!job.isBudget && (
                     <div className="relative group shrink-0">
                         {revealJobStatus ? (
                             <button className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 ${getStatusColor(job.status)} shadow-sm ${canChangeStatus ? '' : 'cursor-default'}`}>
@@ -2594,6 +2645,7 @@ export const JobDetails = () => {
                             </div>
                         )}
                     </div>
+                    )}
 
                     <div className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 shadow-sm ${
                         job.urgency === UrgencyLevel.VIP ? 'bg-orange-100 text-orange-700 border-orange-200' :
@@ -2604,7 +2656,7 @@ export const JobDetails = () => {
                         {job.urgency}
                     </div>
                     
-                    {canToggleChat && (
+                    {!job.isBudget && canToggleChat && (
                          <button 
                             onClick={handleToggleChat}
                             className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 transition-all shadow-sm ${job.chatEnabled ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-400 border-slate-200'}`}
@@ -2612,7 +2664,7 @@ export const JobDetails = () => {
                             <MessageSquare size={10}/> {job.chatEnabled ? 'CHAT ATIVO' : 'CHAT OFF'}
                         </button>
                     )}
-                    {canManageApproval && (
+                    {!job.isBudget && canManageApproval && (
                          <button 
                             onClick={handleToggleApproval}
                             className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 transition-all shadow-sm ${job.approvalEnabled ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-100 text-slate-400 border-slate-200'}`}
@@ -2637,7 +2689,7 @@ export const JobDetails = () => {
                 </div>
                 
                 <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1 lg:justify-end w-full">
-                    {isLabStaff && !isFinished && (
+                    {isLabStaff && !isFinished && !job.isBudget && (
                         <button 
                             onClick={() => window.dispatchEvent(new CustomEvent('open-job-scanner-popup', { detail: { jobId: job.id } }))} 
                             className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 text-white font-black text-[10px] rounded-xl hover:bg-slate-900 shadow-xl shadow-slate-200 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95"
@@ -2645,7 +2697,7 @@ export const JobDetails = () => {
                             <ScanBarcode size={16} /> LER CÓDIGO
                         </button>
                     )}
-                    {canFinalize && (
+                    {canFinalize && !job.isBudget && (
                          <button onClick={handleFinalizeJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-green-600 text-white font-black text-[10px] rounded-xl hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95">
                             {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} FINALIZAR
                         </button>
@@ -2655,7 +2707,7 @@ export const JobDetails = () => {
                             <Truck size={16} /> LOGÍSTICA
                         </button>
                     )}
-                    {canAlert && (
+                    {canAlert && !job.isBudget && (
                          <button onClick={() => setShowAlertModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-red-100">
                             <Bell size={16} /> Alerta
                         </button>
@@ -2665,7 +2717,7 @@ export const JobDetails = () => {
                             <Edit size={16} /> Editar
                         </button>
                     )}
-                    {canShowReturn && (
+                    {canShowReturn && !job.isBudget && (
                         <button onClick={handleReturnJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-orange-100">
                             {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftCircle size={16} />} Devolver
                         </button>
@@ -2686,13 +2738,13 @@ export const JobDetails = () => {
          
          {!isClient && (
            <>
-             {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
+             {!job.isBudget && (!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
                 <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> Produção</button>
-             ) : (
+             ) : !job.isBudget ? (
                 <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Controle de produção indisponível para este trabalho">
                   <Lock size={14} className="text-slate-300" /> Produção <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
                 </button>
-             )}
+             ) : null}
 
              {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
                 <button onClick={() => setActiveTab('HISTORY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'HISTORY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Clock size={16} /> Histórico</button>
@@ -2704,16 +2756,16 @@ export const JobDetails = () => {
            </>
          )}
 
-         {(!job.isPseudo && (isLabStaff || job.chatEnabled)) ? (
+         {!job.isBudget && (!job.isPseudo && (isLabStaff || job.chatEnabled)) ? (
             <button onClick={() => setActiveTab('CHAT')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'CHAT' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
                 <MessageCircle size={16} /> Chat
                 {job.chatEnabled && isLabStaff && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0"></div>}
             </button>
-         ) : (
+         ) : !job.isBudget ? (
             <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Chat desativado pelo laboratório">
               <Lock size={14} className="text-slate-300" /> Chat <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
             </button>
-         )}
+         ) : null}
       </div>
 
       <div className="flex-1 min-h-0 w-full overflow-hidden">
@@ -2721,7 +2773,7 @@ export const JobDetails = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-4 sm:p-8 animate-in fade-in duration-300 w-full pb-8">
                 {/* KPI BOXES - Responsive Layout */}
                 <div className={`lg:col-span-3 grid grid-cols-1 ${isClient ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3 md:gap-4`}>
-                    {!isClient && (
+                    {!job.isBudget && !isClient && (
                         <div className="bg-white p-4 md:p-5 rounded-2xl md:rounded-[32px] shadow-sm border border-slate-100 flex items-center gap-4">
                             <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0"><Box size={24} /></div>
                             <div className="min-w-0">
@@ -3164,9 +3216,26 @@ export const JobDetails = () => {
                             {job.notes || "Sem instruções adicionais registradas."}
                         </div>
                     </div>
+                    
+                    {/* Materiais Enviados View */}
+                    {(Array.isArray(job.receivedMaterials) && job.receivedMaterials.length > 0) && (
+                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-6 md:p-8 mt-4 md:mt-6 overflow-hidden relative">
+                            <h3 className="text-base md:text-lg font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-tighter shrink-0">
+                                <Box size={20} className="text-indigo-500 shrink-0" /> Materiais Recebidos
+                            </h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                {job.receivedMaterials.map((mat: string) => (
+                                    <div key={mat} className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl">
+                                        <CheckCircle size={16} className="text-indigo-500 shrink-0" />
+                                        <span className="text-[11px] font-bold leading-tight">{mat}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Case Approval System Section */}
-                    {(!job.isPseudo && (job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION' || job.approvalEnabled || isLabStaff)) && (
+                    {(!job.isBudget && !job.isPseudo && (job.origin === 'ONLINE_ORDER' || job.origin === 'ONLINE_REQUISITION' || job.approvalEnabled || isLabStaff)) && (
                         <div className="mt-4 md:mt-6">
                             {isClient && !job.approvalEnabled ? (
                                 <div className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-4 sm:p-6 text-center text-slate-500">
@@ -3181,6 +3250,7 @@ export const JobDetails = () => {
                     )}
                 </div>
 
+                {!job.isBudget && (
                 <div className="lg:col-span-1 space-y-4 md:space-y-6 min-w-0 pb-8">
                     {/* Linha do Tempo de Prazos */}
                     <div id="lifecycle-timeline-card" className="bg-white rounded-[32px] shadow-sm border border-slate-100 p-5 md:p-4 sm:p-6">
@@ -3326,6 +3396,7 @@ export const JobDetails = () => {
                         </div>
                     </div>
                 </div>
+                )}
             </div>
         )}
 

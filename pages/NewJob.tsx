@@ -38,7 +38,7 @@ const getJobTypeColor = (jobTypeId: string, jobTypeName?: string) => {
 };
 
 export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
-  const { addJob, updateJob, updateBudget, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition } = useApp();
+  const { addJob, updateJob, updateBudget, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition, currentOrg, updateOrganization } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,12 +55,12 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [selectedDentistId, setSelectedDentistId] = useState(location.state?.dentistId || '');
   const [dentistName, setDentistName] = useState((location.state?.dentistName || '').toUpperCase());
   const [dentistSearchQuery, setDentistSearchQuery] = useState((location.state?.dentistName || '').toUpperCase());
-  const [subDentistName, setSubDentistName] = useState('');
+  const [subDentistName, setSubDentistName] = useState((location.state?.subDentistName || '').toUpperCase());
   const [showDentistSuggestions, setShowDentistSuggestions] = useState(false);
   const [jobTypeSearchQuery, setJobTypeSearchQuery] = useState('');
   const [showJobTypeSuggestions, setShowJobTypeSuggestions] = useState(false);
   const [isSearchingJobType, setIsSearchingJobType] = useState(false);
-  const [osNumber, setOsNumber] = useState(location.state?.osNumber || '');
+  const [osNumber, setOsNumber] = useState<string>(String(location.state?.osNumber || ''));
   const [dueDate, setDueDate] = useState('');
   const [boxNumber, setBoxNumber] = useState('');
   
@@ -74,6 +74,26 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [selectedColorId, setSelectedColorId] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [notes, setNotes] = useState(location.state?.notes || '');
+  const [receivedMaterials, setReceivedMaterials] = useState<string[]>([]);
+  const [isAddingMaterial, setIsAddingMaterial] = useState(false);
+  const [newMaterialName, setNewMaterialName] = useState('');
+
+  const handleAddMaterial = async () => {
+      if (!currentOrg || !newMaterialName.trim()) return;
+      const mat = newMaterialName.trim();
+      if (Array.isArray(currentOrg.receivedMaterialOptions) && !currentOrg.receivedMaterialOptions.includes(mat)) {
+          const newOptions = [...(currentOrg.receivedMaterialOptions || []), mat];
+          await updateOrganization(currentOrg.id, { receivedMaterialOptions: newOptions });
+          setReceivedMaterials(prev => [...prev, mat]);
+      } else {
+          if (!receivedMaterials.includes(mat)) {
+              setReceivedMaterials(prev => [...prev, mat]);
+          }
+      }
+      setNewMaterialName('');
+      setIsAddingMaterial(false);
+  };
+
   const [lastJobFound, setLastJobFound] = useState<Job | null>(null);
   const loadedJobIdRef = useRef<string | null>(null);
   const [addedItems, setAddedItems] = useState<JobItem[]>(location.state?.items || []);
@@ -103,9 +123,29 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [productManualPrice, setProductManualPrice] = useState<number | null>(null);
   const [productDiscountPercent, setProductDiscountPercent] = useState<number>(0);
 
+  const locationKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
-    // If state passed a dentistId, we need to find it and populate names
-    if (location.state?.dentistId) {
+    if (!location.state) return;
+    if (location.key === locationKeyRef.current) return;
+    
+    // Only apply if users are loaded, or if we don't have a dentistId to look up anyway
+    if (location.state.dentistId && allUsers.length === 0 && manualDentists.length === 0) {
+        // Wait for users to load
+        return;
+    }
+
+    locationKeyRef.current = location.key;
+
+    if (location.state.patientName) setPatientName(location.state.patientName.toUpperCase());
+    if (location.state.notes) setNotes(location.state.notes);
+    if (location.state.subDentistName) setSubDentistName(location.state.subDentistName.toUpperCase());
+    if (location.state.items) setAddedItems(location.state.items);
+    if (location.state.products) setAddedProducts(location.state.products);
+    if (location.state.entryType) setEntryType(location.state.entryType as EntryType);
+    if (location.state.osNumber) setOsNumber(location.state.osNumber);
+
+    if (location.state.dentistId) {
       const dentist = allUsers.find(u => u.id === location.state.dentistId) || 
                       manualDentists.find(d => d.id === location.state.dentistId || (d as any).userId === location.state.dentistId);
       if (dentist) {
@@ -113,13 +153,15 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         setSelectedDentistObj(dentist);
         setDentistName(dentist.name.toUpperCase());
         setDentistSearchQuery(dentist.name.toUpperCase());
-      } else if (location.state?.dentistName) {
-        // Fallback for manual entry
+      } else if (location.state.dentistName) {
         setDentistName(location.state.dentistName.toUpperCase());
         setDentistSearchQuery(location.state.dentistName.toUpperCase());
       }
+    } else if (location.state.dentistName) {
+        setDentistName(location.state.dentistName.toUpperCase());
+        setDentistSearchQuery(location.state.dentistName.toUpperCase());
     }
-  }, [location.state, allUsers, manualDentists]);
+  }, [location, allUsers, manualDentists]);
 
   useEffect(() => {
     if (boxColors.length > 0 && !selectedColorId) {
@@ -330,6 +372,10 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
           };
         }
         
+        if (location.state?.fromBudget && item.price !== undefined) {
+            return item;
+        }
+        
         const jobType = jobTypes.find(t => t.id === item.jobTypeId);
         const correctPrice = calculateItemPriceWithDentist(
           jobType,
@@ -409,43 +455,40 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     return (max + 1).toString().padStart(4, '0');
   };
 
-  const initialMountRef = useRef(true);
-
   useEffect(() => {
-    if (initialMountRef.current) {
-      initialMountRef.current = false;
-      const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
-      if (entryType === 'NEW' && !location.state?.osNumber) {
-        setOsNumber(generateNextNewOs());
-      }
-      return;
+    const d = new Date(); d.setDate(d.getDate() + 3); setDueDate(d.toISOString().split('T')[0]);
+    if (entryType === 'NEW' && !location.state?.osNumber) {
+      setOsNumber(generateNextNewOs());
     }
+  }, []);
 
-    if (entryType === 'NEW') {
-        if (!location.state?.osNumber) setOsNumber(generateNextNewOs());
-        setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
-        setLastJobFound(null);
-        loadedJobIdRef.current = null;
-    } else {
-        // CONTINUATION - allow loading from previous sheet/card
-        setOsNumber('');
-        setPatientName('');
-        setDentistName('');
-        setSelectedDentistId('');
-        setSelectedDentistObj(null);
-        setDentistSearchQuery('');
-        setNotes('');
-        setLastJobFound(null);
-        loadedJobIdRef.current = null;
-    }
-  }, [entryType]); 
+  const handleEntryTypeChange = (type: EntryType) => {
+      setEntryType(type);
+      if (type === 'NEW') {
+          setOsNumber(generateNextNewOs());
+          setPatientName(''); setDentistName(''); setSelectedDentistId(''); setSelectedDentistObj(null); setDentistSearchQuery(''); setNotes('');
+          setLastJobFound(null);
+          loadedJobIdRef.current = null;
+      } else {
+          setOsNumber('');
+          setPatientName('');
+          setDentistName('');
+          setSelectedDentistId('');
+          setSelectedDentistObj(null);
+          setDentistSearchQuery('');
+          setNotes('');
+          setLastJobFound(null);
+          loadedJobIdRef.current = null;
+      }
+  };
+  
 // Removed 'jobs' from dependency array to prevent form clearing
 
   // Removed useEffect that auto-updates OS number on jobs load
 
   const handleOsNumberBlur = () => {
       if (!osNumber) return;
-      if (osNumber.includes('-')) {
+      if (String(osNumber).includes('-')) {
           const exists = jobs.find(j => j.osNumber === osNumber);
           if (exists) {
               const baseOs = osNumber.split('-')[0];
@@ -748,11 +791,11 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     e.preventDefault();
     
     // Check conflicts before submitting
-    let finalOsNumber = osNumber.trim();
+    let finalOsNumber = String(osNumber).trim();
     if (!finalOsNumber) {
         finalOsNumber = generateNextNewOs();
         setOsNumber(finalOsNumber);
-    } else if (finalOsNumber.includes('-')) {
+    } else if (String(finalOsNumber).includes('-')) {
         const exists = jobs.find(j => j.osNumber === finalOsNumber);
         if (exists) {
             const baseOs = finalOsNumber.split('-')[0];
@@ -871,6 +914,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             currentSector: initialSector, 
             totalValue, 
             notes,
+            receivedMaterials,
             chatEnabled: false
         };
 
@@ -893,6 +937,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 items: addedItems,
                 products: addedProducts,
                 notes,
+                receivedMaterials,
                 dueDate: new Date(dueDate),
                 boxNumber,
                 boxColor,
@@ -1024,13 +1069,15 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h1 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter"><Plus className="text-blue-600" /> Nova OS de Bancada</h1>
-                <p className="text-xs md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60">Entrada física de trabalhos no Laboratório</p>
+                <h1 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter"><Plus className="text-blue-600" /> {isBudget ? 'Novo Orçamento' : 'Nova OS de Bancada'}</h1>
+                <p className="text-xs md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60">{isBudget ? 'Criação de novo orçamento' : 'Entrada física de trabalhos no Laboratório'}</p>
             </div>
+            {!isBudget && (
             <div className="flex bg-slate-200 p-1 rounded-xl w-full md:w-auto">
-                <button type="button" onClick={() => setEntryType('NEW')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'NEW' ? 'bg-white text-blue-600 shadow' : 'text-slate-50'}`}>Novo Caso</button>
-                <button type="button" onClick={() => setEntryType('CONTINUATION')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'CONTINUATION' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Retorno / Ajuste</button>
+                <button type="button" onClick={() => handleEntryTypeChange('NEW')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'NEW' ? 'bg-white text-blue-600 shadow' : 'text-slate-50'}`}>Novo Caso</button>
+                <button type="button" onClick={() => handleEntryTypeChange('CONTINUATION')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'CONTINUATION' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Retorno / Ajuste</button>
             </div>
+            )}
         </div>
         
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-4 sm:p-8">
@@ -1118,7 +1165,8 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                         <div className="flex flex-col xl:flex-row gap-6">
                             <div className="flex-1 space-y-6">
                                 <div className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className={`grid grid-cols-1 ${isBudget ? '' : 'md:grid-cols-2'} gap-4`}>
+                                {!isBudget && (
                                 <div className="space-y-2">
                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Natureza do Item</label>
                                     <div className="flex gap-2">
@@ -1127,6 +1175,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                         <button type="button" onClick={() => { setItemNature('ADJUSTMENT'); setCommissionDisabled(true); }} className={`flex-1 py-2.5 rounded-xl border-2 font-black text-[10px] uppercase transition-all ${itemNature === 'ADJUSTMENT' ? 'border-orange-600 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-400'}`}>Ajuste</button>
                                     </div>
                                 </div>
+                                )}
                                 <div className="relative" ref={jobTypeDropdownRef}>
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Tipo de Prótese</label>
                                     <div className="relative">
@@ -1464,6 +1513,80 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                       </div>
                     )}
                 </div>
+
+                {/* Materiais Enviados */}
+                {!isBudget && (
+                <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <Box size={14} className="text-slate-400" /> Materiais Enviados pelo Dentista
+                        </label>
+                        <button 
+                            type="button" 
+                            onClick={() => setIsAddingMaterial(!isAddingMaterial)}
+                            className="text-[10px] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1 uppercase"
+                        >
+                            {isAddingMaterial ? <X size={14} /> : <Plus size={14} />} 
+                            {isAddingMaterial ? 'Cancelar' : 'Novo Material'}
+                        </button>
+                    </div>
+
+                    {isAddingMaterial && (
+                        <div className="mb-4 flex gap-2 animate-in fade-in slide-in-from-top-2">
+                            <input 
+                                type="text"
+                                value={newMaterialName}
+                                onChange={e => setNewMaterialName(e.target.value)}
+                                placeholder="Nome do material (ex: Molde de Gesso)"
+                                className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddMaterial();
+                                    }
+                                }}
+                            />
+                            <button 
+                                type="button"
+                                onClick={handleAddMaterial}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-black hover:bg-indigo-700"
+                            >
+                                Adicionar
+                            </button>
+                        </div>
+                    )}
+
+                    {(currentOrg?.receivedMaterialOptions && currentOrg.receivedMaterialOptions.length > 0) ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {Array.isArray(currentOrg.receivedMaterialOptions) && currentOrg.receivedMaterialOptions.map(mat => {
+                                const isChecked = Array.isArray(receivedMaterials) && receivedMaterials.includes(mat);
+                                return (
+                                    <label key={mat} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${isChecked ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700' : 'border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
+                                        <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
+                                            {isChecked && <Check size={14} className="text-white" />}
+                                        </div>
+                                        <span className="text-xs font-bold">{mat}</span>
+                                        <input 
+                                            type="checkbox"
+                                            className="hidden"
+                                            checked={isChecked}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setReceivedMaterials(prev => [...prev, mat]);
+                                                } else {
+                                                    setReceivedMaterials(prev => prev.filter(m => m !== mat));
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <p className="text-xs font-medium text-slate-500 italic bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">Nenhum material cadastrado. Clique em "Novo Material" para adicionar opções.</p>
+                    )}
+                </div>
+                )}
             </div>
             
             <div className="lg:col-span-4 space-y-4 md:space-y-6">

@@ -225,6 +225,20 @@ export const PrintOverlay = () => {
                 <p className="whitespace-pre-wrap text-xs leading-relaxed">{job.notes || "Sem observações."}</p>
               </div>
               
+              {job.receivedMaterials && job.receivedMaterials.length > 0 && (
+                <div className="border border-gray-400 p-2 rounded shrink-0">
+                  <h3 className="font-bold text-[10px] uppercase text-gray-500 mb-1">Materiais Enviados pelo Dentista</h3>
+                  <div className="grid grid-cols-3 gap-1">
+                    {job.receivedMaterials.map((mat, i) => (
+                      <div key={i} className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-black shrink-0"></div>
+                        <span className="text-[10px] leading-tight truncate">{mat}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className="text-center mt-auto pt-2 border-t border-dashed border-gray-400 shrink-0"><p className="text-[10px] text-gray-500">Documento de Uso Interno - Gerado via LABPROX</p></div>
             </div>
           )}
