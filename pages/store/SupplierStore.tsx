@@ -774,10 +774,10 @@ const isPromo = (jt: any) => {
     <main id="supplier-store-container" className="h-full w-full overflow-y-auto bg-white text-[#15263f] relative block">
       
       {/* ALWAYS SHOW MARKETPLACE TOP MENU */}
-      <div className="flex items-center md:justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
+      <div className="flex items-center md:justify-between px-4 py-0 mt-0 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
         <div className="hidden md:block w-auto md:w-32 flex-shrink-0"></div>
         
-        <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-4 sm:p-6 whitespace-nowrap md:flex-1">
+        <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-4 sm:px-6 sm:py-0 pl-6 py-0 ml-0 mt-0 whitespace-nowrap md:flex-1">
           <button 
             onClick={() => { setSelectedSupplierId('ALL'); setActiveTab('STORE'); }}
             className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'STORE' && selectedSupplierId === 'ALL' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
@@ -790,7 +790,7 @@ const isPromo = (jt: any) => {
           >
             Meus Pedidos
           </button>
-          <div className="hidden md:flex gap-2 md:gap-4 sm:p-6">
+          <div className="hidden md:flex gap-2 md:gap-4 sm:px-6 sm:py-0 py-0">
             <div 
               className="relative"
               onMouseEnter={() => setIsCategoriesDropdownOpen(true)}

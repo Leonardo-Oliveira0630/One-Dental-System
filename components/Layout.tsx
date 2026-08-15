@@ -464,7 +464,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       {/* Store Header */}
       {isStoreRoute && (
-         <header className={`fixed top-0 right-0 bg-white border-b border-slate-200 min-h-16 flex flex-col md:flex-row md:items-center justify-between z-[50] left-0 md:left-64 print:hidden transition-all duration-300`}>
+         <header className={`fixed top-0 right-0 bg-white border-b border-white min-h-16 px-0 pb-0 mb-0 mr-0 flex flex-col md:flex-row md:items-center justify-between z-[50] left-0 md:left-64 print:hidden transition-all duration-300`}>
            <div className="flex items-center justify-between px-4 h-14 md:h-16 shrink-0 w-full md:w-auto border-b border-slate-100 md:border-none">
                <div className="flex items-center gap-2 shrink-0">
                    {!isMobileMenuOpen && (
@@ -549,7 +549,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
       </nav>
 
-      <main className={`flex-1 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
+      <main className={`flex-1 bg-white transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
         <header className={`${isStoreRoute ? "hidden" : "hidden md:flex"} bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0`}>
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <Logo size="sm" variant="colored" />

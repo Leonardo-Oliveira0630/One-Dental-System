@@ -1025,10 +1025,10 @@ export const Catalog = () => {
     const isLinked = selectedLab ? userConnections.some(c => c.organizationId === selectedLab.id) : false;
 
     return (
-        <div className="flex flex-col h-full bg-slate-50 relative">
-            <div className="flex items-center md:justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
+        <div className="flex flex-col h-full bg-white relative">
+            <div className="flex items-center md:justify-between px-4 py-0 mt-0 bg-white border-b border-white sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
                 <div className="hidden md:block w-auto md:w-32 flex-shrink-0"></div>
-                <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-4 sm:p-6 whitespace-nowrap md:flex-1">
+                <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-4 sm:px-6 sm:py-0 pl-6 py-0 ml-0 mt-0 whitespace-nowrap md:flex-1">
                     <button
                         onClick={() => setMainTab('STORE')}
                         className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'STORE' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
@@ -1066,7 +1066,7 @@ export const Catalog = () => {
             </div>
 
             {mainTab === 'PARTNERSHIPS' && (
-                <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
+                <div className="flex-1 overflow-y-auto bg-white animate-in fade-in">
                     <Partnerships onSelectLab={(labId) => {
                         switchActiveOrganization(labId);
                         setMainTab('STORE');
@@ -1075,28 +1075,28 @@ export const Catalog = () => {
             )}
 
             {mainTab === 'MY_ORDERS' && (
-                <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
+                <div className="flex-1 overflow-y-auto bg-white animate-in fade-in">
                     <JobsList isStoreContext={true} />
                 </div>
             )}
 
             {mainTab === 'VOUCHERS' && (
-                <div className="flex-1 overflow-y-auto bg-slate-50 animate-in fade-in">
+                <div className="flex-1 overflow-y-auto bg-white animate-in fade-in">
                     <MyVouchersTab />
                 </div>
             )}
 
             {mainTab === 'CART' && (
-                <div className="flex-1 p-4 md:p-4 sm:p-8 overflow-y-auto bg-slate-50 animate-in fade-in">
+                <div className="flex-1 p-4 md:p-4 sm:p-8 overflow-y-auto bg-white animate-in fade-in">
                     <Cart onBackToStore={() => setMainTab('STORE')} />
                 </div>
             )}
 
             {mainTab === 'STORE' && (
                 !selectedLab ? (
-                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8 bg-slate-50 animate-in fade-in duration-500">
+                    <div className="flex-1 flex flex-col items-center justify-center h-[60vh] text-center p-4 sm:p-8 bg-white animate-in fade-in duration-500">
                         <div className="bg-white p-10 rounded-[32px] shadow-sm border border-slate-100 max-w-md w-full flex flex-col items-center">
-                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 text-slate-300">
+                            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 text-slate-300">
                                 <Building size={40} />
                             </div>
                             <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tighter">Ops! Laboratório ausente.</h2>
