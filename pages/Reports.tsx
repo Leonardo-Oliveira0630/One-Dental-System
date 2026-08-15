@@ -5,6 +5,18 @@ import { jsPDF } from 'jspdf';
 import { autoTable } from 'jspdf-autotable';
 import { JobStatus } from '../types';
 
+const STATUS_TRANSLATION: Record<string, string> = {
+  PENDING: 'Pendente',
+  IN_PROGRESS: 'Em Produção',
+  WAITING_APPROVAL: 'Aguardando Aprovação',
+  COMPLETED: 'Finalizado',
+  DELIVERED: 'Entregue',
+  REJECTED: 'Rejeitado',
+  CANCELED: 'Cancelado',
+  RETURNED: 'Devolvido',
+  SECTOR_TRANSITION: 'Em Transição'
+};
+
 export default function Reports() {
   const { jobs, allUsers, manualDentists, sectors, jobTypes, currentOrg, activeOrganization, currentUser } = useApp();
   
@@ -16,8 +28,10 @@ export default function Reports() {
   const [sector, setSector] = useState('');
   const [jobTypeId, setJobTypeId] = useState('');
   const [variationFilters, setVariationFilters] = useState<Record<string, string>>({});
+  const [statusFilter, setStatusFilter] = useState('');
+  const [urgencyFilter, setUrgencyFilter] = useState('');
   const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE'>('DATE');
-  const [reportType, setReportType] = useState<'PRODUCTION' | 'DETAILED_ORDERS' | 'CLIENTS' | 'COLLABORATOR_COMPLETED' | 'SECTOR_DETAILED'>('PRODUCTION');
+  const [reportType, setReportType] = useState<'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES'>('PRODUCTION');
 
   const selectedJobType = useMemo(() => {
     return jobTypes.find(jt => jt.id === jobTypeId);
@@ -73,9 +87,29 @@ export default function Reports() {
         if (!hasMatchingItem) return false;
       }
 
+      // Status filter
+      if (statusFilter) {
+        if (statusFilter === 'PENDING' && job.status !== 'PENDING') return false;
+        if (statusFilter === 'IN_PROGRESS' && job.status !== 'IN_PROGRESS' && job.status !== 'SECTOR_TRANSITION') return false;
+        if (statusFilter === 'DELAYED') {
+          if (job.status === 'COMPLETED' || job.status === 'DELIVERED' || job.status === 'CANCELED') return false;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const due = new Date(job.dueDate);
+          due.setHours(0, 0, 0, 0);
+          if (due >= today) return false;
+        }
+      }
+
+      // Urgency filter
+      if (urgencyFilter) {
+        if (urgencyFilter === 'URGENT' && job.urgency !== 'HIGH' && job.urgency !== 'VIP') return false;
+        if (urgencyFilter === 'NORMAL' && job.urgency !== 'NORMAL' && job.urgency !== 'LOW') return false;
+      }
+
       return true;
     });
-  }, [jobs, startDate, endDate, dateType, dentistId, collaboratorId, sector, jobTypeId, variationFilters]);
+  }, [jobs, startDate, endDate, dateType, dentistId, collaboratorId, sector, jobTypeId, variationFilters, statusFilter, urgencyFilter]);
 
   // Group jobs
   const groupedJobs = useMemo(() => {
@@ -83,13 +117,7 @@ export default function Reports() {
     
     filteredJobs.forEach(job => {
       let key = '';
-      if (reportType === 'COLLABORATOR_COMPLETED') {
-        if (job.status !== 'COMPLETED' && job.status !== 'DELIVERED') return;
-        const completedHistory = job.history?.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === 'COMPLETED');
-        key = completedHistory ? completedHistory.userName : 'Desconhecido';
-      } else if (reportType === 'SECTOR_DETAILED') {
-        key = job.currentSector || 'Recepção';
-      } else if (groupBy === 'DATE') {
+      if (groupBy === 'DATE') {
         key = new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR');
       } else if (groupBy === 'JOB_TYPE') {
         key = job.items.length > 0 ? job.items[0].name : 'Sem tipo';
@@ -134,77 +162,59 @@ export default function Reports() {
     return sortedGroups;
   }, [filteredJobs, groupBy, dateType]);
 
+  const serviceStats = useMemo(() => {
+    if (reportType !== 'SERVICE_TYPES') return null;
+    const stats: Record<string, { quantity: number; totalValue: number }> = {};
+    filteredJobs.forEach(job => {
+      job.items.forEach((item: any) => {
+        const typeId = item.jobTypeId || item.name;
+        const typeName = jobTypes.find(t => t.id === typeId)?.name || item.name;
+        if (!stats[typeName]) {
+          stats[typeName] = { quantity: 0, totalValue: 0 };
+        }
+        stats[typeName].quantity += item.quantity || 1;
+        stats[typeName].totalValue += (item.price * (item.quantity || 1)) - (item.appliedDiscount || 0);
+      });
+    });
+    return stats;
+  }, [filteredJobs, reportType, jobTypes]);
+
   const generatePDF = () => {
-    const isLandscape = reportType === 'DETAILED_ORDERS' || reportType === 'CLIENTS' || reportType === 'COLLABORATOR_COMPLETED' || reportType === 'SECTOR_DETAILED';
+    const isLandscape = reportType === 'DETAILED_ORDERS';
     const doc = new jsPDF(isLandscape ? 'landscape' : 'portrait');
     const orgName = currentOrg?.name || 'Laboratório';
     
     doc.setFontSize(18);
     let title = `Relatório de Produção - ${orgName}`;
     if (reportType === 'DETAILED_ORDERS') title = `Relatório Detalhado de Pedidos - ${orgName}`;
-    if (reportType === 'CLIENTS') title = `Relatório de Clientes - ${orgName}`;
-    if (reportType === 'COLLABORATOR_COMPLETED') title = `Pedidos Completos por Colaborador - ${orgName}`;
-    if (reportType === 'SECTOR_DETAILED') title = `Pedidos Detalhados por Setor - ${orgName}`;
+    if (reportType === 'SERVICE_TYPES') title = `Relatório de Tipos de Serviço - ${orgName}`;
     doc.text(title, 14, 22);
     
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 30);
     
-    if (reportType === 'CLIENTS') {
-        let clientsToReport = manualDentists;
-        if (startDate) {
-            const start = new Date(startDate);
-            start.setMinutes(start.getMinutes() + start.getTimezoneOffset());
-            start.setHours(0, 0, 0, 0);
-            clientsToReport = clientsToReport.filter(c => new Date(c.createdAt) >= start);
-        }
-        if (endDate) {
-            const end = new Date(endDate);
-            end.setMinutes(end.getMinutes() + end.getTimezoneOffset());
-            end.setHours(23, 59, 59, 999);
-            clientsToReport = clientsToReport.filter(c => new Date(c.createdAt) <= end);
-        }
-
-        doc.text(`Total de clientes: ${clientsToReport.length}`, 14, 36);
+    if (reportType === 'SERVICE_TYPES' && serviceStats) {
+        doc.text(`Total de trabalhos: ${filteredJobs.length}`, 14, 36);
         
-        const tableData = clientsToReport.map(client => {
-            const addressParts = [
-                client.address,
-                client.number || 'S/N',
-                client.complement ? ` - ${client.complement}` : '',
-                client.neighborhood,
-                client.city ? `${client.city} - ${client.state || ''}` : '',
-                client.cep,
-                client.country
-            ].filter(Boolean).join(', ').replace(/,  - /g, ' - ');
-            
-            return [
-                client.name || '-',
-                client.cpfCnpj || '-',
-                client.email || '-',
-                client.cro || '-',
-                addressParts || '-'
-            ];
-        });
+        const tableData = Object.entries(serviceStats)
+          .sort((a, b) => b[1].quantity - a[1].quantity)
+          .map(([name, stats]) => [
+            name,
+            stats.quantity.toString(),
+            `R$ ${stats.totalValue.toFixed(2)}`
+        ]);
 
         autoTable(doc, {
           startY: 45,
-          head: [['Nome', 'CPF/CNPJ', 'E-mail', 'CRO', 'Endereço Completo']],
+          head: [['Tipo de Serviço', 'Quantidade Produzida', 'Valor Total Produzido']],
           body: tableData,
           theme: 'grid',
-          headStyles: { fillColor: [16, 185, 129] },
-          styles: { fontSize: 8, cellPadding: 3 },
-          columnStyles: {
-            0: { cellWidth: 45 },
-            1: { cellWidth: 35 },
-            2: { cellWidth: 45 },
-            3: { cellWidth: 25 },
-            4: { cellWidth: 'auto' },
-          },
+          headStyles: { fillColor: [79, 70, 229] },
+          styles: { fontSize: 10, cellPadding: 4 },
         });
         
-        doc.save(`relatorio-clientes-${new Date().getTime()}.pdf`);
+        doc.save(`relatorio-tipos-servico-${new Date().getTime()}.pdf`);
         return;
     }
 
@@ -218,7 +228,7 @@ export default function Reports() {
       doc.text(groupName, 14, yPos);
       yPos += 5;
 
-      if (reportType === 'DETAILED_ORDERS' || reportType === 'COLLABORATOR_COMPLETED' || reportType === 'SECTOR_DETAILED') {
+      if (reportType === 'DETAILED_ORDERS') {
         const tableData: any[] = [];
         groupJobs.forEach(job => {
           let entryDate = new Date(job.createdAt).toLocaleDateString('pt-BR');
@@ -266,7 +276,7 @@ export default function Reports() {
           job.dentistName,
           new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR'),
           job.currentSector || 'Recepção',
-          job.status
+          STATUS_TRANSLATION[job.status] || job.status
         ]);
 
         autoTable(doc, {
@@ -282,13 +292,13 @@ export default function Reports() {
 
       yPos = (doc as any).lastAutoTable.finalY + 15;
       
-      if (yPos > ((reportType === 'DETAILED_ORDERS' || reportType === 'COLLABORATOR_COMPLETED' || reportType === 'SECTOR_DETAILED') ? 180 : 270)) {
+      if (yPos > (reportType === 'DETAILED_ORDERS' ? 180 : 270)) {
         doc.addPage();
         yPos = 20;
       }
     });
 
-    doc.save((reportType === 'DETAILED_ORDERS' || reportType === 'COLLABORATOR_COMPLETED' || reportType === 'SECTOR_DETAILED') ? `relatorio-detalhado-${new Date().getTime()}.pdf` : `relatorio-producao-${new Date().getTime()}.pdf`);
+    doc.save(reportType === 'DETAILED_ORDERS' ? `relatorio-detalhado-${new Date().getTime()}.pdf` : `relatorio-producao-${new Date().getTime()}.pdf`);
   };
 
   const clearFilters = () => {
@@ -299,6 +309,8 @@ export default function Reports() {
     setSector('');
     setJobTypeId('');
     setVariationFilters({});
+    setStatusFilter('');
+    setUrgencyFilter('');
   };
 
   return (
@@ -313,7 +325,7 @@ export default function Reports() {
         </div>
         <button 
           onClick={generatePDF}
-          disabled={reportType !== 'CLIENTS' && filteredJobs.length === 0}
+          disabled={filteredJobs.length === 0}
           className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download size={20} />
@@ -334,7 +346,6 @@ export default function Reports() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {reportType !== 'CLIENTS' && (
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase">Data Base</label>
             <select value={dateType} onChange={(e) => setDateType(e.target.value as any)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
@@ -342,7 +353,6 @@ export default function Reports() {
               <option value="DUE">Data de Entrega</option>
             </select>
           </div>
-          )}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase">Data Inicial</label>
             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none" />
@@ -352,15 +362,13 @@ export default function Reports() {
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none" />
           </div>
 
-          {reportType !== 'CLIENTS' && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase">Dentista</label>
-                <select value={dentistId} onChange={(e) => setDentistId(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
-                  <option value="">Todos os Dentistas</option>
-                  {manualDentists.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase">Dentista</label>
+            <select value={dentistId} onChange={(e) => setDentistId(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
+              <option value="">Todos os Dentistas</option>
+              {manualDentists.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase">Colaborador</label>
@@ -375,6 +383,25 @@ export default function Reports() {
                 <select value={sector} onChange={(e) => setSector(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
                   <option value="">Todos os Setores</option>
                   {sectors.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase">Status do Pedido</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
+                  <option value="">Todos os Status</option>
+                  <option value="PENDING">Pendente</option>
+                  <option value="IN_PROGRESS">Em Produção</option>
+                  <option value="DELAYED">Atrasado</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase">Grau de Importância</label>
+                <select value={urgencyFilter} onChange={(e) => setUrgencyFilter(e.target.value)} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none">
+                  <option value="">Todas as Prioridades</option>
+                  <option value="NORMAL">Normal / Baixa</option>
+                  <option value="URGENT">Urgente / VIP</option>
                 </select>
               </div>
 
@@ -399,23 +426,19 @@ export default function Reports() {
                   </select>
                 </div>
               ))}
-            </>
-          )}
 
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-slate-500 uppercase">Tipo de Relatório</label>
             <select value={reportType} onChange={(e) => setReportType(e.target.value as any)} className="w-full p-3 bg-amber-50 border border-amber-200 rounded-xl font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 outline-none">
               <option value="PRODUCTION">Produção Básica</option>
               <option value="DETAILED_ORDERS">Pedidos Detalhado</option>
-              <option value="CLIENTS">Clientes (Detalhado)</option>
-              <option value="COLLABORATOR_COMPLETED">Pedidos Completos por Colaborador</option>
-              <option value="SECTOR_DETAILED">Pedidos Detalhados por Setor</option>
+              <option value="SERVICE_TYPES">Tipos de Serviço Detalhado</option>
             </select>
           </div>
 
-          {reportType !== 'CLIENTS' && (
+          {reportType !== 'SERVICE_TYPES' && (
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 uppercase">Agrupar Por (Prod. Básica)</label>
+            <label className="text-xs font-bold text-slate-500 uppercase">Agrupar Por</label>
             <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as any)} className="w-full p-3 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="DATE">Data</option>
               <option value="JOB_TYPE">Tipo de Trabalho</option>
@@ -431,8 +454,29 @@ export default function Reports() {
           <h3 className="font-bold text-slate-800">Resultados ({filteredJobs.length} trabalhos)</h3>
         </div>
         
-        <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-8">
-          {Object.entries(groupedJobs).length === 0 ? (
+        <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-8 mt-4">
+          {reportType === 'SERVICE_TYPES' && serviceStats ? (
+             <div className="overflow-x-auto">
+               <table className="w-full text-left border-collapse">
+                 <thead>
+                   <tr className="bg-indigo-50 text-indigo-700 text-[10px] uppercase tracking-widest font-black">
+                     <th className="p-3 rounded-l-lg">Tipo de Serviço</th>
+                     <th className="p-3">Quantidade Produzida</th>
+                     <th className="p-3 rounded-r-lg">Valor Total Produzido</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-100">
+                   {Object.entries(serviceStats).sort((a,b) => b[1].quantity - a[1].quantity).map(([name, stats]) => (
+                     <tr key={name} className="hover:bg-slate-50">
+                       <td className="p-3 font-bold text-slate-700">{name}</td>
+                       <td className="p-3 text-slate-600">{stats.quantity}</td>
+                       <td className="p-3 font-bold text-green-600">R$ {stats.totalValue.toFixed(2)}</td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+          ) : Object.entries(groupedJobs).length === 0 ? (
             <div className="text-center py-12 text-slate-500">
               <Search size={48} className="mx-auto mb-4 opacity-20" />
               <p className="font-bold">Nenhum trabalho encontrado com os filtros atuais.</p>
@@ -444,7 +488,7 @@ export default function Reports() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      {(reportType === 'DETAILED_ORDERS' || reportType === 'COLLABORATOR_COMPLETED' || reportType === 'SECTOR_DETAILED') ? (
+                      {reportType === 'DETAILED_ORDERS' ? (
                         <tr className="bg-amber-50 text-amber-700 text-[10px] uppercase tracking-widest font-black">
                           <th className="p-3 rounded-l-lg">OS #</th>
                           <th className="p-3">Caixa</th>
@@ -469,7 +513,7 @@ export default function Reports() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {groupJobs.map(job => {
-                        if (reportType === 'DETAILED_ORDERS' || reportType === 'COLLABORATOR_COMPLETED' || reportType === 'SECTOR_DETAILED') {
+                        if (reportType === 'DETAILED_ORDERS') {
                           const finishDate = job.status === JobStatus.COMPLETED && job.history ? new Date(job.history.slice().reverse().find((h: any) => h.action === 'COMPLETED' || h.statusTo === JobStatus.COMPLETED)?.timestamp || new Date()).toLocaleDateString('pt-BR') : '-';
                           return (
                             <tr key={job.id} className="hover:bg-slate-50">
@@ -503,7 +547,7 @@ export default function Reports() {
                               <td className="p-3 text-sm text-slate-600">{job.dentistName}</td>
                               <td className="p-3 text-sm text-slate-600">{new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR')}</td>
                               <td className="p-3 text-sm text-slate-600">{job.currentSector || 'Recepção'}</td>
-                              <td className="p-3 text-xs font-bold text-slate-500">{job.status}</td>
+                              <td className="p-3 text-xs font-bold text-slate-500">{STATUS_TRANSLATION[job.status] || job.status}</td>
                             </tr>
                           );
                         }

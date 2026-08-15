@@ -345,9 +345,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     };
   }, []);
 
-  // Subscrição de Produtos de Fornecedores (depende dos fornecedores carregados)
+  // Subscrição de Produtos de Fornecedores (depende dos fornecedores carregados e do usuário estar autenticado)
   useEffect(() => {
-    if (!db || allSuppliers.length === 0) {
+    if (!db || allSuppliers.length === 0 || !currentUser) {
       setAllSupplierProducts([]);
       return;
     }
@@ -356,7 +356,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return () => {
       unsubSupplierProducts();
     };
-  }, [allSuppliers]);
+  }, [allSuppliers, currentUser]);
 
   // Monitoramento de Auth e Perfil
   useEffect(() => {
