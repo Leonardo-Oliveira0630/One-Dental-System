@@ -374,8 +374,9 @@ const ReviewsSection = ({ labId }: { labId: string }) => {
 
 // Variation Configuration Modal (Component with Partner Checking)
 const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose }: { product: JobType; selectedLab: import('../../types').Organization; localPriceTables: any[]; onClose: () => void; }) => {
-    const { addToCart, currentUser, userConnections, addConnectionByCode } = useApp();
+    const { addToCart, currentUser, currentOrg, userConnections, addConnectionByCode } = useApp();
     const [quantity, setQuantity] = useState(1);
+    const isOwnStore = selectedLab?.id === currentOrg?.id;
     const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({});
     const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
     const [selectedTeeth, setSelectedTeeth] = useState<string[]>([]);
@@ -530,6 +531,11 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
     };
 
     const handleAddToCart = () => {
+        if (isOwnStore) {
+            alert('Você não pode adicionar serviços da sua própria loja ao carrinho.');
+            return;
+        }
+
         // Guard check: is the dentist partnered with the lab?
         const isConnected = userConnections.some(c => c.organizationId === selectedLab.id);
         if (!isConnected) {
@@ -720,8 +726,9 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
                         </div>
                     </div>
                     <button onClick={handleAddToCart}
-                        className="w-full md:w-auto px-10 py-5 bg-indigo-600 text-white font-black rounded-[20px] hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95 text-lg">
-                        Adicionar ao Carrinho
+                        disabled={isOwnStore}
+                        className={`w-full md:w-auto px-10 py-5 text-white font-black rounded-[20px] shadow-xl transition-all active:scale-95 text-lg ${isOwnStore ? 'bg-slate-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'}`}>
+                        {isOwnStore ? 'Minha Loja' : 'Adicionar ao Carrinho'}
                     </button>
                 </div>
             </motion.div>
@@ -1014,6 +1021,7 @@ export const Catalog = () => {
         }
     };
 
+    const isOwnStore = selectedLab?.id === currentOrg?.id;
     const isLinked = selectedLab ? userConnections.some(c => c.organizationId === selectedLab.id) : false;
 
     return (
@@ -1156,7 +1164,11 @@ export const Catalog = () => {
                     <div>
                         <div className="flex items-center gap-2.5 flex-wrap">
                             <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-tight">{selectedLab.name}</h1>
-                            {isLinked ? (
+                            {isOwnStore ? (
+                                <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 font-black px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span> Minha Loja
+                                </span>
+                            ) : isLinked ? (
                                 <span className="text-[10px] bg-green-50 text-green-600 border border-green-200 font-black px-2.5 py-1 rounded-full uppercase tracking-widest flex items-center gap-1">
                                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Parceiro Vinculado
                                 </span>
@@ -1180,7 +1192,7 @@ export const Catalog = () => {
                     </div>
                 </div>
 
-                {!isLinked && (
+                {!isLinked && !isOwnStore && (
                     <div className="w-full md:w-auto relative" id="linking-action-button-area">
                         {connectionMsg && (
                             <div className="absolute bottom-full mb-2 right-0 bg-green-50 border border-green-200 text-green-700 text-xs py-2 px-4 rounded-xl font-medium shadow flex items-center gap-1 w-max">

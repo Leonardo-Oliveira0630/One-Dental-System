@@ -487,6 +487,11 @@ const isPromo = (jt: any) => {
   };
 
   const addToCart = (product: InventoryItem, customVar?: any, selectedOptions?: any[]) => {
+    if (product.organizationId === currentOrg?.id) {
+      alert('Você não pode comprar produtos da sua própria loja.');
+      return;
+    }
+
     // Generate unique ID for cart item (product id + variation suffix if any)
     let cartItemId = product.id;
     if (customVar) cartItemId += `_var_${customVar.id}`;

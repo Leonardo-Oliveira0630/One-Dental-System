@@ -454,12 +454,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                                         const createdAtVal = data.createdAt;
                                         const createdAtDate = createdAtVal?.toDate ? createdAtVal.toDate() : (createdAtVal ? new Date(createdAtVal) : new Date());
                                         const labObj = { id: snap.id, ...data, createdAt: createdAtDate } as Organization;
-                                        setAllLaboratories(prev => {
-                                            if (prev.some(l => l.id === labObj.id)) {
-                                                return prev.map(l => l.id === labObj.id ? labObj : l);
-                                            }
-                                            return [...prev, labObj];
-                                        });
+                                        
+                                        if (labObj.orgType === 'LAB' || labObj.orgType === 'LAB_OUTSOURCED' || (!labObj.orgType)) {
+                                            setAllLaboratories(prev => {
+                                                if (prev.some(l => l.id === labObj.id)) {
+                                                    return prev.map(l => l.id === labObj.id ? labObj : l);
+                                                }
+                                                return [...prev, labObj];
+                                            });
+                                        }
                                     }
                                 });
                             });
