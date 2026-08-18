@@ -118,12 +118,19 @@ export default function Reports() {
     filteredJobs.forEach(job => {
       if (groupBy === 'COLLABORATOR') {
         const collabIds = [...new Set(job.history.map(h => h.userId).filter(Boolean))];
-        if (collabIds.length === 0) {
+        let targetCollabIds = collabIds;
+        
+        // Se há um colaborador selecionado no filtro, agrupa APENAS nele
+        if (collaboratorId) {
+          targetCollabIds = collabIds.filter(id => id === collaboratorId);
+        }
+
+        if (targetCollabIds.length === 0) {
           const key = 'Sem Colaborador';
           if (!groups[key]) groups[key] = [];
           groups[key].push(job);
         } else {
-          collabIds.forEach(cId => {
+          targetCollabIds.forEach(cId => {
             const collab = allUsers.find(u => u.id === cId);
             if (collab && collab.role !== 'CLIENT') {
               const key = collab.name;
@@ -144,7 +151,11 @@ export default function Reports() {
         if (groupBy === 'DATE') {
           key = new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR');
         } else if (groupBy === 'JOB_TYPE') {
-          key = job.items.length > 0 ? job.items[0].name : 'Sem tipo';
+          if (jobTypeId && selectedJobType) {
+            key = selectedJobType.name;
+          } else {
+            key = job.items.length > 0 ? job.items[0].name : 'Sem tipo';
+          }
         } else if (groupBy === 'LIST') {
           key = 'Lista Geral';
         }
@@ -267,7 +278,7 @@ export default function Reports() {
           }).join('\n');
           
           let pricesText = job.items.map(item => {
-            return `R$ $(((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2))`;
+            return `R$ ${((item.price * item.quantity) - (item.appliedDiscount || 0)).toFixed(2)}`;
           }).join('\n');
 
           tableData.push([

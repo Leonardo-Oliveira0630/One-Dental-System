@@ -15,7 +15,7 @@ const generateFirestoreId = (prefix: string) => {
 };
 
 export const JobTypes = () => {
-  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser, currentOrg, currentPlan } = useApp();
+  const { jobTypes, addJobType, updateJobType, deleteJobType, uploadFile, sectors, currentUser, currentOrg, currentPlan, priceTables } = useApp();
   
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
 
@@ -1053,6 +1053,52 @@ export const JobTypes = () => {
                                      ))}
                                  </div>
                              </div>
+
+                             {/* Valores em Tabelas */}
+                             <div className="bg-white p-4 rounded-xl border border-slate-200 mt-6 shadow-sm">
+                                 <h3 className="font-bold text-slate-700 flex items-center gap-2 border-b border-slate-200 pb-2 mb-3">
+                                     <Store size={18} className="text-blue-500" /> Valores em Tabelas
+                                 </h3>
+                                 <div className="space-y-4">
+                                     {priceTables?.map(table => {
+                                         const tablePrice = table.prices?.[editingId || '']?.basePrice || 0;
+                                         return (
+                                             <div key={table.id} className="p-3 bg-slate-50 border border-slate-100 rounded-lg">
+                                                <div className="flex justify-between items-center font-bold text-slate-700">
+                                                    <span>{table.name} {table.isDefault && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full uppercase">Padrão</span>}</span>
+                                                    <span className="text-blue-600 text-sm">R$ {tablePrice.toFixed(2)}</span>
+                                                </div>
+                                                
+                                                {variationGroups.map(group => {
+                                                    const options = group.options || [];
+                                                    return (
+                                                        <div key={group.id} className="mt-3 pl-3 border-l-2 border-slate-200">
+                                                            <div className="text-xs font-bold text-slate-500 mb-1.5">{group.name}</div>
+                                                            <div className="space-y-1">
+                                                                {options.map(opt => {
+                                                                    const optPrice = table.prices?.[editingId || '']?.variations?.[opt.id] || 0;
+                                                                    return (
+                                                                        <div key={opt.id} className="flex justify-between items-center text-xs">
+                                                                            <span className="text-slate-600">↳ {opt.name}</span>
+                                                                            <span className="font-medium text-slate-600">+ R$ {optPrice.toFixed(2)}</span>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                             </div>
+                                         );
+                                     })}
+                                     {(!priceTables || priceTables.length === 0) && (
+                                         <div className="text-sm text-slate-500 text-center py-4 bg-slate-50 rounded-lg border border-slate-100">
+                                             Nenhuma tabela de preço configurada.
+                                         </div>
+                                     )}
+                                 </div>
+                             </div>
+
                         </div>
                     )}
                     
