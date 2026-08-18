@@ -49,8 +49,6 @@ export const OrganizationTab = () => {
   const [croNumero, setCroNumero] = useState(currentOrg?.croNumero || '');
   const [croUf, setCroUf] = useState(currentOrg?.croUf || '');
   const [revealJobStatusToDentist, setRevealJobStatusToDentist] = useState(currentOrg?.revealJobStatusToDentist || false);
-  const [receivedMaterialOptions, setReceivedMaterialOptions] = useState<string[]>(currentOrg?.receivedMaterialOptions || []);
-  const [newMaterial, setNewMaterial] = useState('');
     
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(currentOrg?.storeSettings || {
     banners: [],
@@ -86,7 +84,6 @@ export const OrganizationTab = () => {
       setCroNumero(currentOrg.croNumero || '');
       setCroUf(currentOrg.croUf || '');
       setRevealJobStatusToDentist(currentOrg.revealJobStatusToDentist || false);
-      setReceivedMaterialOptions(currentOrg.receivedMaterialOptions || []);
             if (currentOrg.storeSettings) {
         setStoreSettings(currentOrg.storeSettings);
       }
@@ -624,54 +621,7 @@ export const OrganizationTab = () => {
           </div>
       )}
 
-            <div className="bg-white p-5 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100">
-        <h3 className="text-lg md:text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
-          <List className="text-blue-600" size={24} /> Materiais de Entrada
-        </h3>
-        <p className="text-sm font-bold text-slate-500 mb-6">Cadastre as opções de materiais que o dentista pode enviar junto com o trabalho (ex: Molde total superior, Transfer).</p>
-        
-        <div className="space-y-4">
-            <div className="flex gap-2">
-                <input 
-                    type="text" 
-                    value={newMaterial}
-                    onChange={e => setNewMaterial(e.target.value)}
-                    placeholder="Ex: Molde de Gesso"
-                    className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700"
-                    onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            if (newMaterial.trim() && !receivedMaterialOptions.includes(newMaterial.trim())) {
-                                setReceivedMaterialOptions(prev => [...prev, newMaterial.trim()]);
-                                setNewMaterial('');
-                            }
-                        }
-                    }}
-                />
-                <button 
-                    type="button"
-                    onClick={() => {
-                        if (newMaterial.trim() && !receivedMaterialOptions.includes(newMaterial.trim())) {
-                            setReceivedMaterialOptions(prev => [...prev, newMaterial.trim()]);
-                            setNewMaterial('');
-                        }
-                    }}
-                    className="px-6 py-3 bg-indigo-600 text-white font-black rounded-xl hover:bg-indigo-700"
-                >
-                    Adicionar
-                </button>
-            </div>
-            
-            <div className="flex flex-wrap gap-2 mt-4">
-                {receivedMaterialOptions.map(mat => (
-                    <div key={mat} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg">
-                        <span className="text-sm font-bold text-slate-700">{mat}</span>
-                        <button type="button" onClick={() => setReceivedMaterialOptions(prev => prev.filter(m => m !== mat))} className="text-red-500 hover:text-red-700 p-0.5"><X size={14}/></button>
-                    </div>
-                ))}
-            </div>
-        </div>
-      </div>
+
       
       {/* CONFIGURAÇÕES DA LOJA VIRTUAL */}
       <div className="bg-white p-5 md:p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100 space-y-8">

@@ -499,6 +499,7 @@ export interface Job {
   boxNumber?: string;
   boxColor?: BoxColor;
   receivedMaterials?: string[];
+  receivedMaterialQuantities?: Record<string, number>;
   currentSector?: string;
   sectorEntryTime?: Date;
   totalValue: number;

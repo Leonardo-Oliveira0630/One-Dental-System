@@ -18,6 +18,27 @@ export const Inventory = () => {
     const [dentistSearch, setDentistSearch] = useState('');
     const [showDentistDropdown, setShowDentistDropdown] = useState(false);
     
+    // New Stock & Bulk Operations State
+    const [emptyStocks, setEmptyStocks] = useState<string[]>([]);
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedItems, setSelectedItems] = useState<string[]>([]);
+    
+    const [showMoveModal, setShowMoveModal] = useState(false);
+    const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+    const [moveToOwnerId, setMoveToOwnerId] = useState('');
+    const [showMoveDentistDropdown, setShowMoveDentistDropdown] = useState(false);
+    const [moveDentistSearch, setMoveDentistSearch] = useState('');
+    
+    const [showCreateStockModal, setShowCreateStockModal] = useState(false);
+    const [newStockOwnerId, setNewStockOwnerId] = useState('');
+    const [showNewStockDentistDropdown, setShowNewStockDentistDropdown] = useState(false);
+    const [newStockDentistSearch, setNewStockDentistSearch] = useState('');
+
+    React.useEffect(() => {
+        setIsSelectionMode(false);
+        setSelectedItems([]);
+    }, [activeOwnerGroup, activeTab]);
+    
     // Auth & Permissions
     const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
     const canCreate = isAdmin || currentUser?.permissions?.includes('inventory:create');
@@ -330,13 +351,18 @@ export const Inventory = () => {
         return d ? (d.clinicName || d.name) : 'Desconhecido';
     };
 
-    const ownerOptions = Object.keys(itemGroups).map(key => {
-        return {
-            id: key,
-            name: getDentistName(key === 'LAB' ? null : key),
-            itemCount: itemGroups[key].length
-        };
-    }).filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    const ownerOptions = React.useMemo(() => {
+        const keys = Array.from(new Set([...Object.keys(itemGroups), ...emptyStocks]));
+        if (!keys.includes('LAB')) keys.unshift('LAB');
+        
+        return keys.map(key => {
+            return {
+                id: key,
+                name: getDentistName(key === 'LAB' ? null : key),
+                itemCount: itemGroups[key]?.length || 0
+            };
+        }).filter(opt => opt.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [itemGroups, emptyStocks, searchQuery, clients]);
 
     // Catalog Item Modal
     const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
@@ -439,6 +465,50 @@ export const Inventory = () => {
         return clients.filter(c => c.name.toLowerCase().includes(term) || (c.clinicName && c.clinicName.toLowerCase().includes(term))).slice(0, 10);
     }, [dentistSearch, clients]);
 
+    const handleBulkMove = async () => {
+        if (!moveToOwnerId || selectedItems.length === 0) return;
+        const targetOwner = moveToOwnerId === 'LAB' ? null : moveToOwnerId;
+        
+        for (const itemId of selectedItems) {
+            const item = inventoryItems.find(i => i.id === itemId);
+            if (item) {
+                await updateInventoryItem(itemId, { ...item, dentistOwnerId: targetOwner } as any);
+            }
+        }
+        
+        if (targetOwner && !itemGroups[targetOwner] && !emptyStocks.includes(targetOwner)) {
+            setEmptyStocks(prev => [...prev, targetOwner]);
+        } else if (moveToOwnerId === 'LAB' && !emptyStocks.includes('LAB')) {
+            setEmptyStocks(prev => [...prev, 'LAB']);
+        }
+        
+        setShowMoveModal(false);
+        setIsSelectionMode(false);
+        setSelectedItems([]);
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedItems.length === 0) return;
+        for (const itemId of selectedItems) {
+            await deleteInventoryItem(itemId);
+        }
+        setShowDeleteConfirmModal(false);
+        setIsSelectionMode(false);
+        setSelectedItems([]);
+    };
+
+    const handleCreateStock = () => {
+        if (!newStockOwnerId) return;
+        const targetOwner = newStockOwnerId === 'LAB' ? 'LAB' : newStockOwnerId;
+        if (!emptyStocks.includes(targetOwner) && !itemGroups[targetOwner]) {
+            setEmptyStocks(prev => [...prev, targetOwner]);
+        }
+        setShowCreateStockModal(false);
+        setNewStockOwnerId('');
+        setNewStockDentistSearch('');
+        setActiveOwnerGroup(targetOwner);
+    };
+
     return (
         <div className="px-4 pb-4 sm:px-6 sm:pb-6 md:p-4 sm:p-8 max-w-7xl mx-auto space-y-8 pb-32">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -485,6 +555,11 @@ export const Inventory = () => {
                 {(activeTab === 'ITEMS' || activeTab === 'CATALOG') && canCreate && (
                     <button onClick={() => setIsBulkModalOpen(true)} className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 shadow-md flex items-center gap-2 whitespace-nowrap">
                         <Sparkles size={20} /> Importação Inteligente
+                    </button>
+                )}
+                {activeTab === 'ITEMS' && canCreate && activeOwnerGroup === null && (
+                    <button onClick={() => setShowCreateStockModal(true)} className="px-6 py-3 bg-amber-600 text-white font-bold rounded-xl hover:bg-amber-700 shadow-md flex items-center gap-2 whitespace-nowrap">
+                        <Layers size={20} /> Criar Estoque
                     </button>
                 )}
                 {activeTab === 'ITEMS' && canCreate && (
@@ -619,13 +694,53 @@ export const Inventory = () => {
                                         {getDentistName(activeOwnerGroup === 'LAB' ? null : activeOwnerGroup)}
                                     </h2>
                                 </div>
-                                <div className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                                    {filteredItems.length} Produtos
+                                <div className="flex items-center gap-2">
+                                    <div className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 hidden sm:block">
+                                        {filteredItems.length} Produtos
+                                    </div>
+                                    {isSelectionMode && selectedItems.length > 0 && (
+                                        <>
+                                            <button 
+                                                onClick={() => setShowMoveModal(true)}
+                                                className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg shadow hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                            >
+                                                Mover ({selectedItems.length})
+                                            </button>
+                                            <button 
+                                                onClick={() => setShowDeleteConfirmModal(true)}
+                                                className="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg shadow hover:bg-red-700 transition-colors flex items-center gap-2"
+                                            >
+                                                <Trash2 size={14} /> Excluir ({selectedItems.length})
+                                            </button>
+                                        </>
+                                    )}
+                                    <button 
+                                        onClick={() => {
+                                            setIsSelectionMode(!isSelectionMode);
+                                            if (isSelectionMode) setSelectedItems([]);
+                                        }}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors flex items-center gap-2 ${isSelectionMode ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                                    >
+                                        <Check size={14} /> {isSelectionMode ? 'Cancelar Seleção' : 'Selecionar'}
+                                    </button>
                                 </div>
                             </div>
                             <table className="w-full text-left border-collapse min-w-[800px]">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-200">
+                                        {isSelectionMode && (
+                                            <th className="p-4 w-12">
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={selectedItems.length === filteredItems.length && filteredItems.length > 0}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) setSelectedItems(filteredItems.map(i => i.id));
+                                                        else setSelectedItems([]);
+                                                    }}
+                                                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                            </th>
+                                        )}
                                         <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Produto</th>
                                         <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest">Categoria</th>
                                         <th className="p-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Estoque</th>
@@ -638,7 +753,20 @@ export const Inventory = () => {
                                         const cat = inventoryCategories.find(c => c.id === item.categoryId);
                                         const isLowStock = item.currentStock <= item.minStock;
                                         return (
-                                            <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                            <tr key={item.id} className={`hover:bg-slate-50 transition-colors ${selectedItems.includes(item.id) ? 'bg-indigo-50/30' : ''}`}>
+                                                {isSelectionMode && (
+                                                    <td className="p-4">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={selectedItems.includes(item.id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) setSelectedItems(prev => [...prev, item.id]);
+                                                                else setSelectedItems(prev => prev.filter(id => id !== item.id));
+                                                            }}
+                                                            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                                                        />
+                                                    </td>
+                                                )}
                                                 <td className="p-4">
                                                     <div className="flex items-center gap-2">
                                                         <div className="font-bold text-slate-800">{item.name}</div>
@@ -1095,6 +1223,165 @@ export const Inventory = () => {
                                     </>
                                 )}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Move Modal */}
+            {showMoveModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-blue-50/50">
+                            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <ArrowLeft className="text-blue-600" /> Mover Itens
+                            </h2>
+                            <button onClick={() => setShowMoveModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm font-medium text-slate-600">
+                                Para qual estoque deseja mover os <strong>{selectedItems.length}</strong> itens selecionados?
+                            </p>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Destino</label>
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        value={moveDentistSearch}
+                                        onChange={(e) => {
+                                            setMoveDentistSearch(e.target.value);
+                                            setShowMoveDentistDropdown(true);
+                                            if (!e.target.value) setMoveToOwnerId('');
+                                        }}
+                                        onFocus={() => setShowMoveDentistDropdown(true)}
+                                        placeholder="Digite para buscar estoque/cliente..."
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    />
+                                    {showMoveDentistDropdown && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                            <div 
+                                                className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 font-bold text-blue-700 flex items-center gap-2"
+                                                onClick={() => {
+                                                    setMoveToOwnerId('LAB');
+                                                    setMoveDentistSearch('Laboratório (Geral)');
+                                                    setShowMoveDentistDropdown(false);
+                                                }}
+                                            >
+                                                <Box size={16} /> Laboratório (Geral)
+                                            </div>
+                                            {clients.filter(c => c.name.toLowerCase().includes(moveDentistSearch.toLowerCase()) || (c.clinicName && c.clinicName.toLowerCase().includes(moveDentistSearch.toLowerCase()))).slice(0, 10).map(client => (
+                                                <div 
+                                                    key={client.id}
+                                                    className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
+                                                    onClick={() => {
+                                                        setMoveToOwnerId(client.id);
+                                                        setMoveDentistSearch(client.clinicName || client.name);
+                                                        setShowMoveDentistDropdown(false);
+                                                    }}
+                                                >
+                                                    <div className="font-bold text-slate-800">{client.clinicName || client.name}</div>
+                                                    {client.clinicName && <div className="text-xs text-slate-500">{client.name}</div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                            <button onClick={() => setShowMoveModal(false)} className="px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
+                            <button onClick={handleBulkMove} disabled={!moveToOwnerId} className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all disabled:opacity-50">Mover Itens</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Delete Confirm Modal */}
+            {showDeleteConfirmModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
+                        <div className="p-6 text-center space-y-4">
+                            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                                <Trash2 size={32} />
+                            </div>
+                            <h2 className="text-xl font-black text-slate-800">Confirmar Exclusão</h2>
+                            <p className="text-slate-600 font-medium">Tem certeza que deseja excluir os <strong>{selectedItems.length}</strong> itens selecionados? Esta ação não pode ser desfeita.</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                            <button onClick={() => setShowDeleteConfirmModal(false)} className="flex-1 px-5 py-3 font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancelar</button>
+                            <button onClick={handleBulkDelete} className="flex-1 px-5 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 transition-all">Excluir Tudo</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Create Stock Modal */}
+            {showCreateStockModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-amber-50/50">
+                            <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                                <Layers className="text-amber-600" /> Criar Novo Estoque
+                            </h2>
+                            <button onClick={() => setShowCreateStockModal(false)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-sm font-medium text-slate-600">
+                                Selecione de quem será este estoque (Geral do laboratório ou de um cliente específico).
+                            </p>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Proprietário do Estoque</label>
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        value={newStockDentistSearch}
+                                        onChange={(e) => {
+                                            setNewStockDentistSearch(e.target.value);
+                                            setShowNewStockDentistDropdown(true);
+                                            if (!e.target.value) setNewStockOwnerId('');
+                                        }}
+                                        onFocus={() => setShowNewStockDentistDropdown(true)}
+                                        placeholder="Buscar..."
+                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all"
+                                    />
+                                    {showNewStockDentistDropdown && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                            <div 
+                                                className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 font-bold text-indigo-700 flex items-center gap-2"
+                                                onClick={() => {
+                                                    setNewStockOwnerId('LAB');
+                                                    setNewStockDentistSearch('Laboratório (Geral)');
+                                                    setShowNewStockDentistDropdown(false);
+                                                }}
+                                            >
+                                                <Box size={16} /> Laboratório (Geral)
+                                            </div>
+                                            {clients.filter(c => c.name.toLowerCase().includes(newStockDentistSearch.toLowerCase()) || (c.clinicName && c.clinicName.toLowerCase().includes(newStockDentistSearch.toLowerCase()))).slice(0, 10).map(client => (
+                                                <div 
+                                                    key={client.id}
+                                                    className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
+                                                    onClick={() => {
+                                                        setNewStockOwnerId(client.id);
+                                                        setNewStockDentistSearch(client.clinicName || client.name);
+                                                        setShowNewStockDentistDropdown(false);
+                                                    }}
+                                                >
+                                                    <div className="font-bold text-slate-800">{client.clinicName || client.name}</div>
+                                                    {client.clinicName && <div className="text-xs text-slate-500">{client.name}</div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                            <button onClick={() => setShowCreateStockModal(false)} className="px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
+                            <button onClick={handleCreateStock} disabled={!newStockOwnerId} className="px-5 py-2.5 bg-amber-600 text-white font-bold rounded-xl shadow-lg hover:bg-amber-700 transition-all disabled:opacity-50">Criar Estoque</button>
                         </div>
                     </div>
                 </div>

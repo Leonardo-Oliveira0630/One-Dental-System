@@ -75,14 +75,16 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [urgency, setUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [notes, setNotes] = useState(location.state?.notes || '');
   const [receivedMaterials, setReceivedMaterials] = useState<string[]>([]);
+  const [materialQuantities, setMaterialQuantities] = useState<Record<string, number>>({});
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
   const [newMaterialName, setNewMaterialName] = useState('');
 
   const handleAddMaterial = async () => {
       if (!currentOrg || !newMaterialName.trim()) return;
       const mat = newMaterialName.trim();
-      if (Array.isArray(currentOrg.receivedMaterialOptions) && !currentOrg.receivedMaterialOptions.includes(mat)) {
-          const newOptions = [...(currentOrg.receivedMaterialOptions || []), mat];
+      const currentOptions = Array.isArray(currentOrg.receivedMaterialOptions) ? currentOrg.receivedMaterialOptions : [];
+      if (!currentOptions.includes(mat)) {
+          const newOptions = [...currentOptions, mat];
           await updateOrganization(currentOrg.id, { receivedMaterialOptions: newOptions });
           setReceivedMaterials(prev => [...prev, mat]);
       } else {
@@ -92,6 +94,18 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
       }
       setNewMaterialName('');
       setIsAddingMaterial(false);
+  };
+
+  const handleDeleteMaterial = async (matToDelete: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!currentOrg) return;
+      
+      const currentOptions = Array.isArray(currentOrg.receivedMaterialOptions) ? currentOrg.receivedMaterialOptions : [];
+      const newOptions = currentOptions.filter(m => m !== matToDelete);
+      
+      await updateOrganization(currentOrg.id, { receivedMaterialOptions: newOptions });
+      setReceivedMaterials(prev => prev.filter(m => m !== matToDelete));
   };
 
   const [lastJobFound, setLastJobFound] = useState<Job | null>(null);
@@ -915,6 +929,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             totalValue, 
             notes,
             receivedMaterials,
+            receivedMaterialQuantities: materialQuantities,
             chatEnabled: false
         };
 
@@ -938,6 +953,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                 products: addedProducts,
                 notes,
                 receivedMaterials,
+                receivedMaterialQuantities: materialQuantities,
                 dueDate: new Date(dueDate),
                 boxNumber,
                 boxColor,
@@ -1561,24 +1577,53 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             {Array.isArray(currentOrg.receivedMaterialOptions) && currentOrg.receivedMaterialOptions.map(mat => {
                                 const isChecked = Array.isArray(receivedMaterials) && receivedMaterials.includes(mat);
                                 return (
-                                    <label key={mat} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${isChecked ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700' : 'border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
-                                        <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
-                                            {isChecked && <Check size={14} className="text-white" />}
+                                    <div key={mat} className={`flex flex-col gap-2 p-3 rounded-xl border-2 transition-all ${isChecked ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 bg-slate-50'}`}>
+                                        <div className="flex items-center justify-between">
+                                            <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                                <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
+                                                    {isChecked && <Check size={14} className="text-white" />}
+                                                </div>
+                                                <span className={`text-xs font-bold ${isChecked ? 'text-indigo-700' : 'text-slate-600'}`}>{mat}</span>
+                                                <input 
+                                                    type="checkbox"
+                                                    className="hidden"
+                                                    checked={isChecked}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setReceivedMaterials(prev => [...prev, mat]);
+                                                            setMaterialQuantities(prev => ({...prev, [mat]: prev[mat] || 1}));
+                                                        } else {
+                                                            setReceivedMaterials(prev => prev.filter(m => m !== mat));
+                                                            setMaterialQuantities(prev => {
+                                                                const newQ = {...prev};
+                                                                delete newQ[mat];
+                                                                return newQ;
+                                                            });
+                                                        }
+                                                    }}
+                                                />
+                                            </label>
+                                            <button 
+                                                type="button" 
+                                                onClick={(e) => handleDeleteMaterial(mat, e)}
+                                                className="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors shrink-0 z-10"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
                                         </div>
-                                        <span className="text-xs font-bold">{mat}</span>
-                                        <input 
-                                            type="checkbox"
-                                            className="hidden"
-                                            checked={isChecked}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setReceivedMaterials(prev => [...prev, mat]);
-                                                } else {
-                                                    setReceivedMaterials(prev => prev.filter(m => m !== mat));
-                                                }
-                                            }}
-                                        />
-                                    </label>
+                                        {isChecked && (
+                                            <div className="flex items-center gap-2 pl-8">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase">Qtd:</span>
+                                                <input 
+                                                    type="number"
+                                                    min="1"
+                                                    value={materialQuantities[mat] || 1}
+                                                    onChange={(e) => setMaterialQuantities(prev => ({...prev, [mat]: parseInt(e.target.value) || 1}))}
+                                                    className="w-16 p-1 text-xs border border-slate-200 rounded outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 );
                             })}
                         </div>

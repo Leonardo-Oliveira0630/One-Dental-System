@@ -229,12 +229,16 @@ export const PrintOverlay = () => {
                 <div className="border border-gray-400 p-2 rounded shrink-0">
                   <h3 className="font-bold text-[10px] uppercase text-gray-500 mb-1">Materiais Enviados pelo Dentista</h3>
                   <div className="grid grid-cols-3 gap-1">
-                    {job.receivedMaterials.map((mat, i) => (
-                      <div key={i} className="flex items-center gap-1">
-                        <div className="w-2 h-2 bg-black shrink-0"></div>
-                        <span className="text-[10px] leading-tight truncate">{mat}</span>
-                      </div>
-                    ))}
+                    {job.receivedMaterials.map((mat, i) => {
+                      const qty = job.receivedMaterialQuantities?.[mat];
+                      const displayName = qty ? `${qty}x ${mat}` : mat;
+                      return (
+                        <div key={i} className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-black shrink-0"></div>
+                          <span className="text-[10px] leading-tight truncate">{displayName}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

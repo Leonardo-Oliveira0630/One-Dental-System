@@ -495,6 +495,7 @@ export const JobDetails = () => {
   const [editUrgency, setEditUrgency] = useState<UrgencyLevel>(UrgencyLevel.NORMAL);
   const [editNotes, setEditNotes] = useState('');
   const [editReceivedMaterials, setEditReceivedMaterials] = useState<string[]>([]);
+  const [editReceivedMaterialQuantities, setEditReceivedMaterialQuantities] = useState<Record<string, number>>({});
   const [editItems, setEditItems] = useState<JobItem[]>([]);
   const [editProducts, setEditProducts] = useState<JobProduct[]>([]);
   const [editingModalItemId, setEditingModalItemId] = useState<string | null>(null);
@@ -580,6 +581,7 @@ export const JobDetails = () => {
         setEditUrgency(job.urgency);
         setEditNotes(job.notes || '');
           setEditReceivedMaterials(job.receivedMaterials || []);
+          setEditReceivedMaterialQuantities(job.receivedMaterialQuantities || {});
         setEditItems(job.items);
         setEditProducts(job.products || []);
         setEditDentistId(job.dentistId || '');
@@ -938,6 +940,7 @@ export const JobDetails = () => {
             urgency: editUrgency,
             notes: editNotes,
             receivedMaterials: editReceivedMaterials,
+            receivedMaterialQuantities: editReceivedMaterialQuantities,
             items: editItems,
             products: editProducts,
             totalValue: editTotalValue,
@@ -2493,9 +2496,14 @@ export const JobDetails = () => {
                           </div>
                       </div>
 
+                      <div className="pt-6">
+                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Observações Técnicas</label>
+                          <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" placeholder="Novas instruções..."></textarea>
+                      </div>
+
                   {/* Materiais Recebidos */}
                   {(currentOrg?.receivedMaterialOptions && currentOrg.receivedMaterialOptions.length > 0) && (
-                      <div className="pt-4 mt-4 border-t border-slate-100">
+                      <div className="pt-6 mt-6 border-t border-slate-100">
                           <label className="block text-[10px] font-black text-slate-400 mb-4 uppercase tracking-widest flex items-center gap-2">
                               <Box size={14} className="text-slate-400" /> Materiais Enviados pelo Dentista
                           </label>
@@ -2503,34 +2511,50 @@ export const JobDetails = () => {
                               {Array.isArray(currentOrg.receivedMaterialOptions) && currentOrg.receivedMaterialOptions.map(mat => {
                                   const isChecked = Array.isArray(editReceivedMaterials) && editReceivedMaterials.includes(mat);
                                   return (
-                                      <label key={mat} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${isChecked ? 'border-indigo-600 bg-indigo-50/50 text-indigo-700' : 'border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
-                                          <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
-                                              {isChecked && <Check size={14} className="text-white" />}
-                                          </div>
-                                          <span className="text-xs font-bold">{mat}</span>
-                                          <input 
-                                              type="checkbox"
-                                              className="hidden"
-                                              checked={isChecked}
-                                              onChange={(e) => {
-                                                  if (e.target.checked) {
-                                                      setEditReceivedMaterials(prev => [...prev, mat]);
-                                                  } else {
-                                                      setEditReceivedMaterials(prev => prev.filter(m => m !== mat));
-                                                  }
-                                              }}
-                                          />
-                                      </label>
+                                      <div key={mat} className={`flex flex-col gap-2 p-3 rounded-xl border-2 transition-all ${isChecked ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 bg-slate-50'}`}>
+                                          <label className="flex items-center gap-3 cursor-pointer flex-1">
+                                              <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 transition-all ${isChecked ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300'}`}>
+                                                  {isChecked && <Check size={14} className="text-white" />}
+                                              </div>
+                                              <span className={`text-xs font-bold ${isChecked ? 'text-indigo-700' : 'text-slate-600'}`}>{mat}</span>
+                                              <input 
+                                                  type="checkbox"
+                                                  className="hidden"
+                                                  checked={isChecked}
+                                                  onChange={(e) => {
+                                                      if (e.target.checked) {
+                                                          setEditReceivedMaterials(prev => [...prev, mat]);
+                                                          setEditReceivedMaterialQuantities(prev => ({...prev, [mat]: prev[mat] || 1}));
+                                                      } else {
+                                                          setEditReceivedMaterials(prev => prev.filter(m => m !== mat));
+                                                          setEditReceivedMaterialQuantities(prev => {
+                                                              const newQ = {...prev};
+                                                              delete newQ[mat];
+                                                              return newQ;
+                                                          });
+                                                      }
+                                                  }}
+                                              />
+                                          </label>
+                                          {isChecked && (
+                                              <div className="flex items-center gap-2 pl-8">
+                                                  <span className="text-[10px] font-bold text-slate-500 uppercase">Qtd:</span>
+                                                  <input 
+                                                      type="number"
+                                                      min="1"
+                                                      value={editReceivedMaterialQuantities[mat] || 1}
+                                                      onChange={(e) => setEditReceivedMaterialQuantities(prev => ({...prev, [mat]: parseInt(e.target.value) || 1}))}
+                                                      className="w-16 p-1 text-xs border border-slate-200 rounded outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                  />
+                                              </div>
+                                          )}
+                                      </div>
                                   );
                               })}
                           </div>
                       </div>
                   )}
 
-                      <div className="pt-6">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Observações Técnicas</label>
-                          <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl resize-none outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" placeholder="Novas instruções..."></textarea>
-                      </div>
                   </div>
                   <div className="p-4 md:p-4 sm:p-6 border-t bg-slate-50 flex justify-end gap-3 shrink-0">
                       <button onClick={() => setShowEditModal(false)} className="px-5 py-2 font-black text-xs text-slate-400 uppercase tracking-widest">Cancelar</button>
@@ -3224,12 +3248,16 @@ export const JobDetails = () => {
                                 <Box size={20} className="text-indigo-500 shrink-0" /> Materiais Recebidos
                             </h3>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                {job.receivedMaterials.map((mat: string) => (
-                                    <div key={mat} className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl">
-                                        <CheckCircle size={16} className="text-indigo-500 shrink-0" />
-                                        <span className="text-[11px] font-bold leading-tight">{mat}</span>
-                                    </div>
-                                ))}
+                                {job.receivedMaterials.map((mat: string) => {
+                                    const qty = job.receivedMaterialQuantities?.[mat];
+                                    const displayName = qty ? `${qty}x ${mat}` : mat;
+                                    return (
+                                        <div key={mat} className="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl">
+                                            <CheckCircle size={16} className="text-indigo-500 shrink-0" />
+                                            <span className="text-[11px] font-bold leading-tight">{displayName}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

@@ -30,7 +30,7 @@ export default function Reports() {
   const [variationFilters, setVariationFilters] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState('');
   const [urgencyFilter, setUrgencyFilter] = useState('');
-  const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE'>('DATE');
+  const [groupBy, setGroupBy] = useState<'DATE' | 'JOB_TYPE' | 'LIST' | 'COLLABORATOR'>('DATE');
   const [reportType, setReportType] = useState<'PRODUCTION' | 'DETAILED_ORDERS' | 'SERVICE_TYPES'>('PRODUCTION');
 
   const selectedJobType = useMemo(() => {
@@ -116,15 +116,42 @@ export default function Reports() {
     const groups: Record<string, typeof jobs> = {};
     
     filteredJobs.forEach(job => {
-      let key = '';
-      if (groupBy === 'DATE') {
-        key = new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR');
-      } else if (groupBy === 'JOB_TYPE') {
-        key = job.items.length > 0 ? job.items[0].name : 'Sem tipo';
+      if (groupBy === 'COLLABORATOR') {
+        const collabIds = [...new Set(job.history.map(h => h.userId).filter(Boolean))];
+        if (collabIds.length === 0) {
+          const key = 'Sem Colaborador';
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(job);
+        } else {
+          collabIds.forEach(cId => {
+            const collab = allUsers.find(u => u.id === cId);
+            if (collab && collab.role !== 'CLIENT') {
+              const key = collab.name;
+              if (!groups[key]) groups[key] = [];
+              groups[key].push(job);
+            } else if (!collab) {
+              const key = 'Sem Colaborador';
+              if (!groups[key]) groups[key] = [];
+              // Prevent duplicates if multiple unknown IDs
+              if (!groups[key].some(j => j.id === job.id)) {
+                groups[key].push(job);
+              }
+            }
+          });
+        }
+      } else {
+        let key = '';
+        if (groupBy === 'DATE') {
+          key = new Date(dateType === 'CREATED' ? job.createdAt : job.dueDate).toLocaleDateString('pt-BR');
+        } else if (groupBy === 'JOB_TYPE') {
+          key = job.items.length > 0 ? job.items[0].name : 'Sem tipo';
+        } else if (groupBy === 'LIST') {
+          key = 'Lista Geral';
+        }
+        
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(job);
       }
-      
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(job);
     });
 
     // Sort jobs within each group
@@ -160,7 +187,7 @@ export default function Reports() {
     });
 
     return sortedGroups;
-  }, [filteredJobs, groupBy, dateType]);
+  }, [filteredJobs, groupBy, dateType, allUsers]);
 
   const serviceStats = useMemo(() => {
     if (reportType !== 'SERVICE_TYPES') return null;
@@ -442,6 +469,8 @@ export default function Reports() {
             <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as any)} className="w-full p-3 bg-indigo-50 border border-indigo-200 rounded-xl font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none">
               <option value="DATE">Data</option>
               <option value="JOB_TYPE">Tipo de Trabalho</option>
+              <option value="COLLABORATOR">Colaborador</option>
+              <option value="LIST">Lista Contínua</option>
             </select>
           </div>
           )}
