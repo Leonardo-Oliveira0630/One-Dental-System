@@ -35,18 +35,41 @@ export const RoutePlanner = () => {
     const [selectedCourierId, setSelectedCourierId] = useState('');
     const [manualCourierName, setManualCourierName] = useState('');
 
-    // State for Drag & Drop Route Items
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const [editingObservationsId, setEditingObservationsId] = useState<string | null>(null);
+    const [observationsText, setObservationsText] = useState('');
 
-    const handleMoveItem = async (idxFrom: number, idxTo: number) => {
+    const groupedStops = useMemo(() => {
+        const groups = new Map<string, RouteItem[]>();
+        const sortedItems = [...routeItems].sort((a, b) => (a.order || 0) - (b.order || 0));
+        
+        sortedItems.forEach(item => {
+            if (!groups.has(item.dentistId)) {
+                groups.set(item.dentistId, []);
+            }
+            groups.get(item.dentistId)!.push(item);
+        });
+        
+        return Array.from(groups.values());
+    }, [routeItems]);
+
+    const handleSaveObservations = async (item: RouteItem) => {
         if (!activeRoute || !currentOrg || !canEdit) return;
-        if (idxTo < 0 || idxTo >= routeItems.length) return;
+        await api.apiUpdateRouteItem(currentOrg.id, activeRoute.id, item.id, { observations: observationsText });
+        setEditingObservationsId(null);
+    };
 
-        const newRouteItems = [...routeItems];
-        const [movedItem] = newRouteItems.splice(idxFrom, 1);
-        newRouteItems.splice(idxTo, 0, movedItem);
+    const handleMoveGroup = async (idxFrom: number, idxTo: number) => {
+        if (!activeRoute || !currentOrg || !canEdit) return;
+        if (idxTo < 0 || idxTo >= groupedStops.length) return;
 
-        const updates = newRouteItems.map((item, index) => {
+        const newGroups = [...groupedStops];
+        const [movedGroup] = newGroups.splice(idxFrom, 1);
+        newGroups.splice(idxTo, 0, movedGroup);
+
+        const flattened = newGroups.flat();
+        
+        const updates = flattened.map((item, index) => {
             if (item.order !== index + 1) {
                 return api.apiUpdateRouteItem(currentOrg.id, activeRoute.id, item.id, { order: index + 1 });
             }
@@ -58,7 +81,7 @@ export const RoutePlanner = () => {
         }
     };
 
-    const handleDropItem = async (targetIdx: number) => {
+    const handleDropGroup = async (targetIdx: number) => {
         if (draggedIndex === null || draggedIndex === targetIdx) {
             setDraggedIndex(null);
             return;
@@ -67,22 +90,7 @@ export const RoutePlanner = () => {
         const sourceIdx = draggedIndex;
         setDraggedIndex(null);
 
-        if (!activeRoute || !currentOrg || !canEdit) return;
-
-        const newRouteItems = [...routeItems];
-        const [movedItem] = newRouteItems.splice(sourceIdx, 1);
-        newRouteItems.splice(targetIdx, 0, movedItem);
-
-        const updates = newRouteItems.map((item, index) => {
-            if (item.order !== index + 1) {
-                return api.apiUpdateRouteItem(currentOrg.id, activeRoute.id, item.id, { order: index + 1 });
-            }
-            return null;
-        }).filter((p): p is Promise<void> => p !== null);
-
-        if (updates.length > 0) {
-            await Promise.all(updates);
-        }
+        await handleMoveGroup(sourceIdx, targetIdx);
     };
 
     const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
@@ -290,95 +298,138 @@ export const RoutePlanner = () => {
                             </div>
 
                             <div className="p-5 space-y-3" id="stops-inner-list">
-                                {routeItems.map((item, idx) => (
+                                {groupedStops.map((group, idx) => (
                                     <div 
-                                        key={item.id} 
+                                        key={`group-${idx}`}
                                         draggable={canEdit}
-                                        onDragStart={() => setDraggedIndex(idx)}
-                                        onDragOver={(e) => {
-                                            if (draggedIndex !== null && canEdit) {
+                                        onDragStart={(e) => {
+                                            if (canEdit) {
+                                                setDraggedIndex(idx);
+                                                e.dataTransfer.effectAllowed = 'move';
+                                            } else {
                                                 e.preventDefault();
+                                            }
+                                        }}
+                                        onDragOver={(e) => {
+                                            if (canEdit) {
+                                                e.preventDefault();
+                                                e.dataTransfer.dropEffect = 'move';
                                             }
                                         }}
                                         onDrop={() => {
                                             if (draggedIndex !== null && canEdit) {
-                                                handleDropItem(idx);
+                                                handleDropGroup(idx);
                                             }
                                         }}
-                                        className={`flex items-center gap-3 sm:gap-4 p-4 bg-white border rounded-2xl hover:border-blue-200 transition-all group shadow-sm/5 hover:shadow-md ${
+                                        className={`flex flex-col gap-3 p-4 bg-white border rounded-2xl hover:border-blue-200 transition-all group shadow-sm/5 hover:shadow-md ${
                                             draggedIndex === idx ? 'opacity-40 border-dashed border-blue-300 bg-slate-50' : 'border-slate-100'
                                         }`} 
-                                        id={`route-stop-${item.id}`}
+                                        id={`route-stop-group-${idx}`}
                                     >
-                                        {/* REORDER CONTROLS (DRAG HANDLE AND MOVEMENT BUTTONS) */}
-                                        {canEdit && (
-                                            <div className="flex items-center gap-1 shrink-0">
-                                                <div 
-                                                    className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors"
-                                                    title="Arrastar para reordenar"
-                                                >
-                                                    <GripVertical size={16} />
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <button
-                                                        onClick={() => handleMoveItem(idx, idx - 1)}
-                                                        disabled={idx === 0}
-                                                        className={`p-0.5 rounded hover:bg-slate-100 transition-colors ${idx === 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600'}`}
-                                                        title="Mover para cima"
+                                        <div className="flex items-center gap-3 sm:gap-4 w-full">
+                                            {/* REORDER CONTROLS (DRAG HANDLE AND MOVEMENT BUTTONS) */}
+                                            {canEdit && (
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <div 
+                                                        className="p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing transition-colors"
+                                                        title="Arrastar para reordenar"
                                                     >
-                                                        <ChevronUp size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleMoveItem(idx, idx + 1)}
-                                                        disabled={idx === routeItems.length - 1}
-                                                        className={`p-0.5 rounded hover:bg-slate-100 transition-colors ${idx === routeItems.length - 1 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600'}`}
-                                                        title="Mover para baixo"
-                                                    >
-                                                        <ChevronDown size={14} />
-                                                    </button>
+                                                        <GripVertical size={16} />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <button
+                                                            onClick={() => handleMoveGroup(idx, idx - 1)}
+                                                            disabled={idx === 0}
+                                                            className={`p-0.5 rounded hover:bg-slate-100 transition-colors ${idx === 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600'}`}
+                                                            title="Mover para cima"
+                                                        >
+                                                            <ChevronUp size={14} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleMoveGroup(idx, idx + 1)}
+                                                            disabled={idx === groupedStops.length - 1}
+                                                            className={`p-0.5 rounded hover:bg-slate-100 transition-colors ${idx === groupedStops.length - 1 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600'}`}
+                                                            title="Mover para baixo"
+                                                        >
+                                                            <ChevronDown size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
 
-                                        <div className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-black text-sm shrink-0 shadow-md">
-                                            {idx + 1}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="font-extrabold text-slate-800 truncate text-sm md:text-base">{item.dentistName}</h4>
-                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${item.type === 'DELIVERY' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
-                                                    {item.type === 'DELIVERY' ? 'Entrega' : 'Coleta'}
-                                                </span>
+                                            <div className="w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center font-black text-sm shrink-0 shadow-md">
+                                                {idx + 1}
                                             </div>
-                                            <div className="flex items-center gap-1 text-slate-400 text-xs mt-1">
-                                                <MapPin size={12} className="text-slate-400 shrink-0" />
-                                                <span className="truncate">{item.address}</span>
-                                            </div>
-                                            {item.patientName && (
-                                                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-50 border border-slate-100 rounded-md text-[10px] font-bold text-slate-500">
-                                                    <UserIcon size={10} /> Paciente: {item.patientName}
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-extrabold text-slate-800 truncate text-sm md:text-base">{group[0].dentistName}</h4>
+                                                <div className="flex items-center gap-1 text-slate-400 text-xs mt-1">
+                                                    <MapPin size={12} className="text-slate-400 shrink-0" />
+                                                    <span className="truncate">{group[0].address}</span>
                                                 </div>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button 
-                                                id={`maps-stop-btn-${item.id}`}
-                                                onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address)}`, '_blank')}
-                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                                                title="Ver no Mapa"
-                                            >
-                                                <Navigation size={18} />
-                                            </button>
-                                            { (canDelete || canEdit) && (
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                                 <button 
-                                                    id={`delete-stop-btn-${item.id}`}
-                                                    onClick={() => handleDeleteItem(item.id)}
-                                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                                    title="Remover da Rota"
+                                                    onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(group[0].address)}`, '_blank')}
+                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                                    title="Ver no Mapa"
                                                 >
-                                                    <Trash2 size={18} />
+                                                    <Navigation size={18} />
                                                 </button>
-                                            )}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Group Items */}
+                                        <div className="pl-[3.25rem] space-y-2 mt-2">
+                                            {group.map(item => (
+                                                <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <div>
+                                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${item.type === 'DELIVERY' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                                {item.type === 'DELIVERY' ? 'Entrega' : 'Coleta'}
+                                                            </span>
+                                                            {item.patientName && (
+                                                                <div className="mt-1.5 flex items-center gap-1.5 text-xs font-bold text-slate-600">
+                                                                    <UserIcon size={12} /> Paciente: {item.patientName}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {(canDelete || canEdit) && (
+                                                            <button 
+                                                                onClick={() => handleDeleteItem(item.id)}
+                                                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
+                                                                title="Remover Serviço"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {/* Observations */}
+                                                    <div className="mt-3 border-t border-slate-200 pt-3">
+                                                        {editingObservationsId === item.id ? (
+                                                            <div className="flex flex-col gap-2">
+                                                                <textarea
+                                                                    value={observationsText}
+                                                                    onChange={(e) => setObservationsText(e.target.value)}
+                                                                    placeholder="Observações de entrega..."
+                                                                    className="w-full text-xs p-2 border rounded-lg resize-none h-16 font-medium text-slate-700 focus:border-indigo-400 outline-none"
+                                                                />
+                                                                <div className="flex justify-end gap-2">
+                                                                    <button onClick={() => setEditingObservationsId(null)} className="text-xs font-bold text-slate-500 hover:text-slate-700">Cancelar</button>
+                                                                    <button onClick={() => handleSaveObservations(item)} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">Salvar</button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-start justify-between gap-2 group/obs cursor-pointer" onClick={() => { setEditingObservationsId(item.id); setObservationsText(item.observations || ''); }}>
+                                                                <p className={`text-xs font-medium ${item.observations ? 'text-slate-600' : 'text-slate-400 italic'}`}>
+                                                                    {item.observations || 'Adicionar observações de entrega...'}
+                                                                </p>
+                                                                <span className="opacity-0 group-hover/obs:opacity-100 text-xs text-indigo-500 font-bold whitespace-nowrap">Editar</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 ))}

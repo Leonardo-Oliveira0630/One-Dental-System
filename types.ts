@@ -192,6 +192,7 @@ export interface RouteItem {
   address: string;
   type: 'DELIVERY' | 'PICKUP';
   order: number;
+  observations?: string;
 }
 
 export interface Courier {
@@ -360,6 +361,7 @@ export interface JobItem {
   price: number;
   basePriceBeforeDiscount?: number;
   appliedDiscount?: number;
+  appliedDiscountFixed?: number;
   appliedPriceTable?: string;
   nature: JobNature;
   selectedVariationIds: string[];

@@ -245,7 +245,7 @@ interface AppContextType {
   updatePriceTable: (id: string, updates: Partial<PriceTable>) => Promise<void>;
   deletePriceTable: (id: string) => Promise<void>;
 
-  addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => Promise<void>;
+  addJobToRoute: (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string) => Promise<void>;
   generateBatchBoleto: (dentistId: string, jobIds: string[], dueDate: Date, customAmount?: number) => Promise<any>;
   addDentistPayment: (p: Omit<DentistPayment, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
   updateDentistPayment: (id: string, updates: Partial<DentistPayment>) => Promise<void>;
@@ -1269,9 +1269,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     });
   };
 
-  const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date) => {
+  const addJobToRoute = async (job: Job, driver: string, shift: 'MORNING' | 'AFTERNOON', date: Date, observations?: string) => {
       const orgId = currentUser?.organizationId;
       if (!orgId) return;
+
       const dateStr = date.toISOString().split('T')[0];
       const routeId = `route_${dateStr}_${shift}_${driver.replace(/\s+/g, '_')}`;
       const routeSnap = await getDoc(doc(db, 'organizations', orgId, 'routes', routeId));
@@ -1284,7 +1285,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const onlineDentist = allUsers.find(u => u.id === job.dentistId);
       const address = dentist ? `${dentist.address}, ${dentist.number} - ${dentist.city}` : (onlineDentist?.address || 'Endereço não cadastrado');
       const routeItem: RouteItem = {
-          id: `item_${Date.now()}`, routeId: routeId, jobId: job.id, dentistId: job.dentistId, dentistName: job.dentistName, patientName: job.patientName, address: address, type: 'DELIVERY', order: Date.now() 
+          id: `item_${Date.now()}`, routeId: routeId, jobId: job.id, dentistId: job.dentistId, dentistName: job.dentistName, patientName: job.patientName, address: address, type: 'DELIVERY', order: Date.now(), observations: observations || '' 
       };
       await api.apiAddRouteItem(orgId, routeId, routeItem);
       await api.apiUpdateJob(orgId, job.id, { routeId });

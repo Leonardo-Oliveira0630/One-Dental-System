@@ -33,6 +33,9 @@ export const Inventory = () => {
     const [newStockOwnerId, setNewStockOwnerId] = useState('');
     const [showNewStockDentistDropdown, setShowNewStockDentistDropdown] = useState(false);
     const [newStockDentistSearch, setNewStockDentistSearch] = useState('');
+    
+    const [showDeleteStockModal, setShowDeleteStockModal] = useState(false);
+    const [deleteStockId, setDeleteStockId] = useState<string | null>(null);
 
     React.useEffect(() => {
         setIsSelectionMode(false);
@@ -509,6 +512,31 @@ export const Inventory = () => {
         setActiveOwnerGroup(targetOwner);
     };
 
+    const handleDeleteStock = async () => {
+        if (!deleteStockId) return;
+        
+        // Remove all items in this stock
+        const itemsToDelete = itemGroups[deleteStockId] || [];
+        for (const item of itemsToDelete) {
+            await deleteInventoryItem(item.id);
+        }
+
+        // Remove from emptyStocks if it's there
+        setEmptyStocks(prev => prev.filter(id => id !== deleteStockId));
+        
+        setShowDeleteStockModal(false);
+        setDeleteStockId(null);
+        if (activeOwnerGroup === deleteStockId) {
+            setActiveOwnerGroup(null);
+        }
+    };
+
+    const openDeleteStockConfirm = (stockId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setDeleteStockId(stockId);
+        setShowDeleteStockModal(true);
+    };
+
     return (
         <div className="px-4 pb-4 sm:px-6 sm:pb-6 md:p-4 sm:p-8 max-w-7xl mx-auto space-y-8 pb-32">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
@@ -662,11 +690,20 @@ export const Inventory = () => {
                     {activeOwnerGroup === null ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:p-6">
                             {ownerOptions.map(owner => (
-                                <div key={owner.id} onClick={() => setActiveOwnerGroup(owner.id)} className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer">
+                                <div key={owner.id} onClick={() => setActiveOwnerGroup(owner.id)} className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col group hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer relative">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className={`p-4 rounded-2xl ${owner.id === 'LAB' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}`}>
                                             {owner.id === 'LAB' ? <Box size={32} /> : <UserIcon size={32} />}
                                         </div>
+                                        {canDelete && (
+                                            <button 
+                                                onClick={(e) => openDeleteStockConfirm(owner.id, e)} 
+                                                className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                title="Excluir Estoque"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        )}
                                     </div>
                                     <h3 className="text-lg font-black text-slate-800 line-clamp-2">{owner.name}</h3>
                                     <div className="mt-4 flex justify-between items-center">
@@ -1382,6 +1419,25 @@ export const Inventory = () => {
                         <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
                             <button onClick={() => setShowCreateStockModal(false)} className="px-5 py-2.5 font-bold text-slate-500 hover:bg-slate-200 rounded-xl transition-colors">Cancelar</button>
                             <button onClick={handleCreateStock} disabled={!newStockOwnerId} className="px-5 py-2.5 bg-amber-600 text-white font-bold rounded-xl shadow-lg hover:bg-amber-700 transition-all disabled:opacity-50">Criar Estoque</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Stock Confirm Modal */}
+            {showDeleteStockModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
+                        <div className="p-6 text-center space-y-4">
+                            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                                <Trash2 size={32} />
+                            </div>
+                            <h2 className="text-xl font-black text-slate-800">Excluir Estoque</h2>
+                            <p className="text-slate-600 font-medium">Tem certeza que deseja excluir este estoque completo? <strong>Todos os {itemGroups[deleteStockId || '']?.length || 0} itens dentro dele serão apagados permanentemente.</strong></p>
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                            <button onClick={() => setShowDeleteStockModal(false)} className="flex-1 px-5 py-3 font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancelar</button>
+                            <button onClick={handleDeleteStock} className="flex-1 px-5 py-3 bg-red-600 text-white font-bold rounded-xl shadow-lg hover:bg-red-700 transition-all">Excluir Estoque</button>
                         </div>
                     </div>
                 </div>

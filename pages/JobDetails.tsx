@@ -116,6 +116,7 @@ export const JobDetails = () => {
     quantity: number;
     price: number;
     appliedDiscount: number;
+    appliedDiscountFixed: number;
     appliedPriceTable: string;
     commissionDisabled: boolean;
     isInternalStep: boolean;
@@ -124,7 +125,7 @@ export const JobDetails = () => {
     sectorCommissionDisabled: Record<string, boolean>;
     selectedTeeth: string[];
     color: string;
-  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
+  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Stage Config Modal State
@@ -302,6 +303,7 @@ export const JobDetails = () => {
   const [routeDriver, setRouteDriver] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
+  const [routeObservations, setRouteObservations] = useState('');
 
   const [showReturnModal, setShowReturnModal] = useState(false);
 
@@ -1012,8 +1014,9 @@ export const JobDetails = () => {
     if (!routeDriver) { alert("Informe o nome do motorista."); return; }
     setIsUpdatingStatus(true);
     try {
-        await addJobToRoute(job, routeDriver, routeShift, new Date(routeDate));
+        await addJobToRoute(job, routeDriver, routeShift, new Date(routeDate), routeObservations);
         setShowRouteModal(false);
+        setRouteObservations('');
     } catch (err) {
         alert("Erro ao adicionar à rota.");
     } finally { setIsUpdatingStatus(false); }
@@ -1449,6 +1452,7 @@ export const JobDetails = () => {
           quantity: item.quantity,
           price: item.basePriceBeforeDiscount ?? item.price,
           appliedDiscount: item.appliedDiscount || 0,
+          appliedDiscountFixed: item.appliedDiscountFixed || 0,
           appliedPriceTable: item.appliedPriceTable || 'Padrão',
           commissionDisabled: item.commissionDisabled || false,
           isInternalStep: item.isInternalStep || false,
@@ -1466,7 +1470,9 @@ export const JobDetails = () => {
 
   const handleSaveItemEdit = async (item: JobItem) => {
       const newBasePrice = itemEditForm.price;
-      const finalPrice = newBasePrice * (1 - (itemEditForm.appliedDiscount / 100));
+      let finalPrice = newBasePrice * (1 - (itemEditForm.appliedDiscount / 100));
+      if (itemEditForm.appliedDiscountFixed > 0) finalPrice -= itemEditForm.appliedDiscountFixed;
+      finalPrice = Math.max(0, finalPrice);
       
       const updatedItems = job.items.map((i: any) => {
           if (i.id === item.id) {
@@ -1476,6 +1482,7 @@ export const JobDetails = () => {
                   price: finalPrice,
                   basePriceBeforeDiscount: newBasePrice,
                   appliedDiscount: itemEditForm.appliedDiscount,
+                  appliedDiscountFixed: itemEditForm.appliedDiscountFixed,
                   appliedPriceTable: itemEditForm.appliedPriceTable,
                   commissionDisabled: itemEditForm.commissionDisabled,
                   isInternalStep: itemEditForm.isInternalStep,
@@ -3030,6 +3037,18 @@ export const JobDetails = () => {
                                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">%</span>
                                                             </div>
                                                         </div>
+                                                        <div>
+                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Desconto (R$)</label>
+                                                            <div className="relative">
+                                                                <input 
+                                                                    type="number" min={0} step={0.01}
+                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 pl-8 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    value={itemEditForm.appliedDiscountFixed}
+                                                                    onChange={(e) => setItemEditForm({...itemEditForm, appliedDiscountFixed: Math.max(0, parseFloat(e.target.value) || 0)})}
+                                                                />
+                                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     
                                                     {/* Variations Editing */}
@@ -3113,7 +3132,14 @@ export const JobDetails = () => {
                                                             </div>
                                                             <div>
                                                                 <p className="text-[9px] font-black text-slate-400 uppercase">Desconto</p>
-                                                                <p className="text-sm font-bold text-slate-700">{item.appliedDiscount ? `${item.appliedDiscount.toFixed(1)}%` : 'Nenhum'}</p>
+                                                                <p className="text-sm font-bold text-slate-700">
+                                                                    {item.appliedDiscount || item.appliedDiscountFixed ? (
+                                                                        <>
+                                                                            {item.appliedDiscount ? `${item.appliedDiscount.toFixed(1)}% ` : ''}
+                                                                            {item.appliedDiscountFixed ? `(R$ ${item.appliedDiscountFixed.toFixed(2)})` : ''}
+                                                                        </>
+                                                                    ) : 'Nenhum'}
+                                                                </p>
                                                             </div>
                                                             <div>
                                                                 <p className="text-[9px] font-black text-slate-400 uppercase">Tabela Usada</p>
@@ -3735,6 +3761,15 @@ export const JobDetails = () => {
                           ) : (
                               <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800 text-xs bg-slate-50" />
                           )}
+                      </div>
+                      <div>
+                          <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Observações de Entrega (Opcional)</label>
+                          <textarea 
+                              placeholder="Instruções adicionais para a entrega..."
+                              value={routeObservations}
+                              onChange={e => setRouteObservations(e.target.value)}
+                              className="w-full px-4 py-2 border rounded-xl bg-white font-bold text-slate-800 text-xs resize-none h-20"
+                          />
                       </div>
                       <button onClick={handleAddToRoute} disabled={isUpdatingStatus} className="w-full py-4 bg-indigo-600 text-white font-black text-xs rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 active:scale-95 transition-transform uppercase tracking-widest mt-2">
                           {isUpdatingStatus ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={16} /> ADICIONAR AO ROTEIRO</>}

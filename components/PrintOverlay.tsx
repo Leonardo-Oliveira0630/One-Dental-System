@@ -3,7 +3,7 @@ import React from 'react';
 import Barcode from 'react-barcode';
 import { useApp } from '../context/AppContext';
 import { UrgencyLevel } from '../types';
-import { Printer, X, MapPin, User, Package, Truck, Clock, FileText } from 'lucide-react';
+import { Printer, X, MapPin, User, Package, Truck, Clock, FileText, Calendar } from 'lucide-react';
 import { formatItemNameWithVariations } from '../pages/JobDetails';
 import { formatTeethRange } from '../utils/toothUtils';
 
@@ -137,11 +137,11 @@ export const PrintOverlay = () => {
                     <div className="border border-gray-300 p-2 rounded flex justify-between items-start">
                         <div className="overflow-hidden">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cliente / Clínica</p>
-                            <p className="text-base font-bold leading-tight truncate mt-1">{job.dentistName}</p>
+                            <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.dentistName}</p>
                             {job.subDentistName && (
                                 <div className="mt-2 pt-1 border-t border-gray-100">
                                     <p className="text-[9px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista Solicitante</p>
-                                    <p className="text-sm font-bold leading-tight mt-0.5">{job.subDentistName}</p>
+                                    <p className="text-[10pt] font-bold leading-tight mt-0.5">{job.subDentistName}</p>
                                 </div>
                             )}
                         </div>
@@ -153,7 +153,7 @@ export const PrintOverlay = () => {
                     <div className="flex gap-2">
                         <div className="border border-gray-300 p-2 rounded relative flex-1">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
-                            <p className="text-base font-bold leading-tight truncate mt-1">{job.patientName}</p>
+                            <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.patientName}</p>
                             {job.items.some(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT') && (
                                 <div className="absolute top-2 right-2 px-2 py-0.5 bg-black text-white text-[10px] font-black uppercase rounded-sm">
                                     {job.items.find(i => i.nature === 'REPETITION' || i.nature === 'ADJUSTMENT')?.nature === 'REPETITION' ? 'REPETIÇÃO' : 'AJUSTE'}
@@ -187,16 +187,15 @@ export const PrintOverlay = () => {
               <div className="mb-3 flex flex-col">
                 <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Serviços do Pedido</h3>
                 <div className="">
-                  <table className="w-full text-left text-xs">
-                      <thead><tr className="border-b border-gray-300"><th className="py-1 w-10">Qtd</th><th className="py-1 w-20">Dentes</th><th className="py-1 w-16">Cor</th><th className="py-1">Descrição</th><th className="py-1 w-20">Natureza</th></tr></thead>
-                      <tbody className="divide-y divide-gray-200">
+                  <table className="w-full text-left text-xs border-collapse border border-gray-400">
+                      <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-[4ch] text-center">Qtd</th><th className="py-1 px-1 border border-gray-400 w-20 text-center">Dentes</th><th className="py-1 px-1 border border-gray-400 w-[6ch] text-center">Cor</th><th className="py-1 px-1 border border-gray-400">Descrição</th></tr></thead>
+                      <tbody className="divide-y divide-gray-400">
                           {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
                               <tr key={`item-${idx}`}>
-                                  <td className="py-1 font-bold align-top text-sm">{item.quantity}x</td>
-                                  <td className="py-1 font-bold align-top text-[10px] text-indigo-600">{formatTeethRange(item.selectedTeeth) || '-'}</td>
-                                  <td className="py-1 font-bold align-top text-[11px] text-slate-800">{item.color || (item as any).cor || '-'}</td>
-                                  <td className="py-1 align-top font-bold text-sm"><div>{formatItemNameWithVariations(item, jobTypes)}</div></td>
-                                  <td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{item.nature === 'REPETITION' ? 'REPETIÇÃO' : item.nature === 'ADJUSTMENT' ? 'AJUSTE' : 'NORMAL'}</td>
+                                  <td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td>
+                                  <td className="py-1 px-1 border border-gray-400 font-bold align-top text-[10px] text-indigo-600 text-center">{formatTeethRange(item.selectedTeeth) || '-'}</td>
+                                  <td className="py-1 px-1 border border-gray-400 font-bold align-top text-[11px] text-slate-800 break-words text-center">{item.color || (item as any).cor || '-'}</td>
+                                  <td className="py-1 px-1 border border-gray-400 align-top font-bold text-[10pt]"><div>{item.nature === 'REPETITION' ? '(R)' : item.nature === 'ADJUSTMENT' ? '(A)' : ''}{formatItemNameWithVariations(item, jobTypes)}</div></td>
                               </tr>
                           ))}
                       </tbody>
@@ -207,11 +206,11 @@ export const PrintOverlay = () => {
                   <div className="mt-2">
                     <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Produtos do Pedido</h3>
                     <div className="">
-                      <table className="w-full text-left text-xs">
-                          <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24">Origem</th></tr></thead>
-                          <tbody className="divide-y divide-gray-200">
+                      <table className="w-full text-left text-xs border-collapse border border-gray-400">
+                          <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-12">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24">Origem</th></tr></thead>
+                          <tbody className="divide-y divide-gray-400">
                               {job.products.map((prod, idx) => (
-                                  <tr key={`prod-${idx}`}><td className="py-1 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div>{prod.name}</div></td><td className="py-1 align-top text-gray-600 uppercase text-[10px] font-bold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td></tr>
+                                  <tr key={`prod-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-sm"><div>{prod.name}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-gray-600 uppercase text-[10px] font-bold">{prod.dentistOwnerId ? 'CLI' : 'LAB'}</td></tr>
                               ))}
                           </tbody>
                       </table>
@@ -276,11 +275,11 @@ export const PrintOverlay = () => {
                     <div className="border border-gray-300 p-2 rounded flex flex-col items-start">
                         <div className="w-full mb-1">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Cliente / Clínica</p>
-                            <p className="text-base font-bold leading-tight truncate mt-1">{job.dentistName}</p>
+                            <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.dentistName}</p>
                             {job.subDentistName && (
                                 <div className="mt-2 pt-1 border-t border-gray-100">
                                     <p className="text-[9px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Dentista Solicitante</p>
-                                    <p className="text-sm font-bold leading-tight mt-0.5">{job.subDentistName}</p>
+                                    <p className="text-[10pt] font-bold leading-tight mt-0.5">{job.subDentistName}</p>
                                 </div>
                             )}
                         </div>
@@ -292,7 +291,7 @@ export const PrintOverlay = () => {
                     <div className="flex gap-2">
                         <div className="border border-gray-300 p-2 rounded relative flex-1">
                             <p className="text-[10px] uppercase font-bold text-gray-500 mb-0.5 leading-none">Paciente</p>
-                            <p className="text-base font-bold leading-tight truncate mt-1">{job.patientName}</p>
+                            <p className="text-[10pt] font-bold leading-tight truncate mt-1">{job.patientName}</p>
                         </div>
                         <div className="bg-gray-100 p-2 rounded w-24 shrink-0 flex flex-col justify-center items-center">
                             <p className="text-[10px] font-bold text-gray-500 leading-none mb-1">Caixa</p>
@@ -312,29 +311,29 @@ export const PrintOverlay = () => {
                     </div>
                 </div>
               </div>
-              
+
               <div className="mb-3 flex flex-col">
                 <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Serviços Executados</h3>
                 <div className="">
-                  <table className="w-full text-left text-xs">
-                      <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24 text-right">Valor Unit.</th><th className="py-1 w-24 text-right">Total</th></tr></thead>
-                      <tbody className="divide-y divide-gray-200">
+                  <table className="w-full text-left text-xs border-collapse border border-gray-400">
+                      <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-[4ch]">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Valor Unit.</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Total</th></tr></thead>
+                      <tbody className="divide-y divide-gray-400">
                           {job.items.filter(i => !i.isInternalStep).map((item, idx) => (
-                              <tr key={`item-${idx}`}><td className="py-1 font-bold align-top text-sm">{item.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div>{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                              <tr key={`item-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm text-center">{item.quantity}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-[10pt]"><div>{item.nature === 'REPETITION' ? '(R)' : item.nature === 'ADJUSTMENT' ? '(A)' : ''}{formatItemNameWithVariations(item, jobTypes)} {item.selectedTeeth?.length ? ` - Dentes: ${formatTeethRange(item.selectedTeeth)}` : ''}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(item.price || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((item.price || 0) * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                           ))}
                       </tbody>
                   </table>
                 </div>
-                
+                  
                 {job.products && job.products.length > 0 && (
                   <div className="mt-2">
                     <h3 className="font-bold border-b border-black mb-1 pb-1 uppercase text-xs shrink-0">Produtos</h3>
                     <div className="">
-                      <table className="w-full text-left text-xs">
-                          <thead><tr className="border-b border-gray-300"><th className="py-1 w-12">Qtd</th><th className="py-1">Descrição</th><th className="py-1 w-24 text-right">Valor Unit.</th><th className="py-1 w-24 text-right">Total</th></tr></thead>
-                          <tbody className="divide-y divide-gray-200">
+                      <table className="w-full text-left text-xs border-collapse border border-gray-400">
+                          <thead><tr className="border-b border-gray-400"><th className="py-1 px-1 border border-gray-400 w-12">Qtd</th><th className="py-1 px-1 border border-gray-400">Descrição</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Valor Unit.</th><th className="py-1 px-1 border border-gray-400 w-24 text-right">Total</th></tr></thead>
+                          <tbody className="divide-y divide-gray-400">
                               {job.products.map((prod, idx) => (
-                                  <tr key={`prod-${idx}`}><td className="py-1 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 align-top font-bold text-sm"><div>{prod.name}</div></td><td className="py-1 align-top text-right text-gray-700 text-sm">{(prod.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 align-top font-bold text-right text-sm">{((prod.unitPrice || 0) * prod.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
+                                  <tr key={`prod-${idx}`}><td className="py-1 px-1 border border-gray-400 font-bold align-top text-sm">{prod.quantity}x</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-sm"><div>{prod.name}</div></td><td className="py-1 px-1 border border-gray-400 align-top text-right text-gray-700 text-sm">{(prod.unitPrice || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="py-1 px-1 border border-gray-400 align-top font-bold text-right text-sm">{((prod.unitPrice || 0) * prod.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td></tr>
                               ))}
                           </tbody>
                       </table>
@@ -541,61 +540,75 @@ export const PrintOverlay = () => {
 
           {printData.mode === 'ROUTE' && printData.routeItems && (
             <div className="h-full flex flex-col">
-               <div className="flex justify-between items-center border-b-2 border-black pb-4 mb-6">
+               <div className="flex justify-between items-center border-b border-black pb-2 mb-4">
                   <div>
-                    <h1 className="text-2xl font-black uppercase tracking-tight">Roteiro de Entregas</h1>
-                    <div className="flex gap-4 mt-1 text-sm font-bold">
-                        <span className="flex items-center gap-1 uppercase"><Truck size={16}/> {printData.driver}</span>
-                        <span className="flex items-center gap-1 uppercase"><Clock size={16}/> {printData.shift === 'MORNING' ? 'MANHÃ' : 'TARDE'}</span>
-                        <span className="flex items-center gap-1 uppercase"><Truck size={16}/> {printData.date}</span>
+                    <h1 className="text-xl font-black uppercase tracking-tight">Roteiro de Entregas</h1>
+                    <div className="flex gap-4 mt-1 text-xs font-bold">
+                        <span className="flex items-center gap-1 uppercase"><Truck size={14}/> {printData.driver}</span>
+                        <span className="flex items-center gap-1 uppercase"><Clock size={14}/> {printData.shift === 'MORNING' ? 'MANHÃ' : 'TARDE'}</span>
+                        <span className="flex items-center gap-1 uppercase"><Calendar size={14}/> {printData.date}</span>
                     </div>
                   </div>
                   <div className="text-right">
-                      <p className="font-black text-xl uppercase">{labName}</p>
-                      <p className="text-xs">Gerado em: {new Date().toLocaleString()}</p>
+                      <p className="font-black text-sm uppercase">{labName}</p>
+                      <p className="text-[10px] uppercase">Gerado: {new Date().toLocaleString()}</p>
                   </div>
                </div>
 
-               <div className="space-y-4">
-                  {printData.routeItems.map((item, idx) => (
-                    <div key={item.id} className="border-2 border-black p-4 rounded-xl flex gap-4">
-                       <div className="w-12 h-12 bg-black text-white rounded-full flex items-center justify-center font-black text-xl shrink-0">
-                          {idx + 1}
-                       </div>
-                       <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                             <div>
-                                <h3 className="font-black text-lg uppercase leading-none">{item.dentistName}</h3>
-                                <p className="text-sm font-bold text-gray-600 mb-2">{item.clinicName || 'Consultório'}</p>
-                             </div>
-                             <span className="px-2 py-1 bg-gray-200 text-black text-[10px] font-black rounded uppercase">
-                                {item.type === 'DELIVERY' ? 'ENTREGA' : 'COLETA'}
-                             </span>
-                          </div>
-                          
-                          <div className="flex items-start gap-1 mb-2">
-                             <MapPin size={16} className="shrink-0 mt-0.5" />
-                             <p className="text-base font-bold leading-tight">{item.address}</p>
-                          </div>
-
-                          {item.patientName && (
-                            <div className="flex items-center gap-2 p-2 bg-gray-50 border border-gray-200 rounded">
-                                <User size={14} className="text-gray-400" />
-                                <span className="text-xs font-bold">Paciente: {item.patientName}</span>
-                            </div>
-                          )}
-                       </div>
-                       {/* Área para rubrica do cliente */}
-                       <div className="w-32 border-l border-dashed border-gray-300 pl-4 flex flex-col justify-end">
-                           <div className="border-t border-black w-full mb-1"></div>
-                           <p className="text-[8px] text-center uppercase font-bold">Rubrica / Hora</p>
-                       </div>
-                    </div>
-                  ))}
+               <div className="w-full">
+                   <table className="w-full border-collapse">
+                      <thead>
+                         <tr className="border-b border-black text-left text-[10px] uppercase">
+                            <th className="w-8 py-1">Ord.</th>
+                            <th className="py-1">Cliente / Endereço</th>
+                            <th className="py-1">Serviços / Observações</th>
+                            <th className="w-24 py-1 text-center">Assinatura</th>
+                         </tr>
+                      </thead>
+                      <tbody>
+                         {(() => {
+                            const groups = new Map<string, typeof printData.routeItems>();
+                            const sortedItems = [...printData.routeItems].sort((a, b) => (a.order || 0) - (b.order || 0));
+                            sortedItems.forEach(item => {
+                               if (!groups.has(item.dentistId)) groups.set(item.dentistId, []);
+                               groups.get(item.dentistId)!.push(item);
+                            });
+                            return Array.from(groups.values()).map((group, idx) => (
+                               <tr key={idx} className="border-b border-gray-300">
+                                  <td className="py-2 align-top">
+                                     <div className="w-5 h-5 bg-black text-white rounded-full flex items-center justify-center font-bold text-xs">
+                                        {idx + 1}
+                                     </div>
+                                  </td>
+                                  <td className="py-2 pr-2 align-top">
+                                     <h3 className="font-bold text-[10pt] uppercase leading-tight">{group[0].dentistName}</h3>
+                                     <p className="text-[9px] font-bold text-gray-600 leading-tight mb-1 uppercase">{group[0].clinicName || 'Consultório'}</p>
+                                     <p className="text-[9px] leading-tight flex items-start gap-0.5 uppercase"><MapPin size={10} className="shrink-0 mt-0.5"/> {group[0].address}</p>
+                                  </td>
+                                  <td className="py-2 pr-2 align-top text-[9px]">
+                                     {group.map((item, i) => (
+                                         <div key={i} className="mb-1 border border-gray-200 rounded p-1 bg-gray-50">
+                                             <div className="font-bold uppercase mb-0.5 flex items-center justify-between">
+                                                 <span>{item.type === 'DELIVERY' ? 'ENTREGA' : 'COLETA'}{item.patientName ? ` - ${item.patientName}` : ''}</span>
+                                             </div>
+                                             {item.observations && <div className="text-[8px] text-gray-800 font-bold uppercase leading-tight">OBS: {item.observations}</div>}
+                                         </div>
+                                     ))}
+                                  </td>
+                                  <td className="py-2 align-bottom pb-4">
+                                     <div className="w-full border-t border-black pt-0.5">
+                                         <p className="text-[7px] text-center uppercase font-bold text-gray-500">Recebedor / Hora</p>
+                                     </div>
+                                  </td>
+                               </tr>
+                            ));
+                         })()}
+                      </tbody>
+                   </table>
                </div>
 
-               <div className="mt-auto pt-8 text-center border-t border-dashed border-gray-300">
-                  <p className="text-xs font-bold uppercase text-gray-500">Documento de uso logístico ProTrack - Boa viagem, motorista!</p>
+               <div className="mt-auto pt-4 text-center border-t border-dashed border-gray-300">
+                  <p className="text-[9px] font-bold uppercase text-gray-500">Documento de uso logístico - Boa viagem, motorista!</p>
                </div>
             </div>
           )}

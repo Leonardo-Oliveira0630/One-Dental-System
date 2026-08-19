@@ -192,9 +192,11 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [selectedVariations, setSelectedVariations] = useState<Record<string, string | string[]>>({}); 
   const [variationTextValues, setVariationTextValues] = useState<Record<string, string>>({}); 
   const [itemSelectedTeeth, setItemSelectedTeeth] = useState<string[]>([]);
+  const [manualTeethText, setManualTeethText] = useState('');
   const [commissionDisabled, setCommissionDisabled] = useState(false);
   const [manualPrice, setManualPrice] = useState<number | null>(null);
   const [discountPercent, setDiscountPercent] = useState<number>(0);
+  const [discountFixed, setDiscountFixed] = useState<number>(0);
 
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
   const activeJobType = useMemo(() => jobTypes.find(t => t.id === selectedTypeId), [selectedTypeId, jobTypes]);
@@ -423,8 +425,9 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const finalItemPrice = useMemo(() => {
     let price = manualPrice !== null ? manualPrice : calculatedBasePrice;
     if (discountPercent > 0) price = price * (1 - discountPercent / 100);
-    return price;
-  }, [calculatedBasePrice, manualPrice, discountPercent]);
+    if (discountFixed > 0) price = price - discountFixed;
+    return Math.max(0, price);
+  }, [calculatedBasePrice, manualPrice, discountPercent, discountFixed]);
 
   const disabledOptions = useMemo(() => {
     if (!activeJobType) return new Set<string>();
@@ -750,13 +753,14 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         price: finalItemPrice, 
         basePriceBeforeDiscount: manualPrice !== null ? manualPrice : calculatedBasePrice,
         appliedDiscount: discountPercent,
+        appliedDiscountFixed: discountFixed,
         appliedPriceTable: appliedTableName,
         selectedVariationIds: allSelectedOptionIds, 
         variationValues: variationTextValues, 
-        commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : undefined, color: itemColor || undefined 
+        commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : (manualTeethText.trim() ? [manualTeethText.trim()] : undefined), color: itemColor || undefined 
     };
     setAddedItems([...addedItems, newItem]);
-    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL'); setIsInternalStep(false);
+    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualTeethText(''); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setDiscountFixed(0); setItemNature('NORMAL'); setIsInternalStep(false);
   };
 
   const handleEditItem = (item: JobItem) => {
@@ -767,8 +771,21 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     setIsInternalStep(item.isInternalStep || false);
     setManualPrice(item.basePriceBeforeDiscount || null);
     setDiscountPercent(item.appliedDiscount || 0);
+    setDiscountFixed(item.appliedDiscountFixed || 0);
     setItemColor(item.color || '');
-    setItemSelectedTeeth(item.selectedTeeth || []);
+    if (item.selectedTeeth && item.selectedTeeth.length > 0) {
+        const isAllNumeric = item.selectedTeeth.every(t => /^\d{2}$/.test(t));
+        if (isAllNumeric) {
+            setItemSelectedTeeth(item.selectedTeeth);
+            setManualTeethText('');
+        } else {
+            setItemSelectedTeeth([]);
+            setManualTeethText(item.selectedTeeth.join(', '));
+        }
+    } else {
+        setItemSelectedTeeth([]);
+        setManualTeethText('');
+    }
     setCommissionDisabled(item.commissionDisabled || false);
     
     const activeType = jobTypes.find(t => t.id === item.jobTypeId);
@@ -1265,14 +1282,18 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                     )}
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                                 <div className={`w-full ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Qtd</label>
                                     <input type="number" min="1" value={quantity} readOnly={itemSelectedTeeth.length > 0} onChange={e => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-center font-black" />
                                 </div>
                                 <div className="w-full">
                                     <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Cor</label>
-                                    <input type="text" value={itemColor} onChange={e => setItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 text-xs" />
+                                    <input type="text" value={itemColor} onChange={e => setItemColor(e.target.value)} placeholder="Ex: A3" className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 text-xs text-center" />
+                                </div>
+                                <div className="w-full">
+                                    <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Dentes</label>
+                                    <input type="text" value={itemSelectedTeeth.length > 0 ? formatTeethRange(itemSelectedTeeth) : manualTeethText} readOnly={itemSelectedTeeth.length > 0} onChange={e => setManualTeethText(e.target.value)} placeholder="Ex: 11-13" className={`w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 text-xs text-center ${itemSelectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`} />
                                 </div>
                             </div>
                         </div>
@@ -1299,7 +1320,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                         )}
 
                         <div className="pt-4 border-t border-slate-200 space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Preço Final Unitário (R$)</label>
                                     <input type="number" step="0.01" value={manualPrice !== null ? manualPrice : calculatedBasePrice.toFixed(2)} onChange={e => setManualPrice(parseFloat(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl font-black focus:ring-2 outline-none" />
@@ -1307,6 +1328,10 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Desconto Extra (%)</label>
                                     <input type="number" max="100" min="0" value={discountPercent} onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-black focus:ring-2 outline-none" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Desconto Extra (R$)</label>
+                                    <input type="number" min="0" step="0.01" value={discountFixed} onChange={e => setDiscountFixed(Math.max(0, parseFloat(e.target.value) || 0))} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-black focus:ring-2 outline-none" />
                                 </div>
                             </div>
                             

@@ -1,6 +1,11 @@
 export const formatTeethRange = (teeth?: string[]): string => {
   if (!teeth || teeth.length === 0) return '-';
 
+  const isAllNumeric = teeth.every(t => /^\d{2}$/.test(t));
+  if (!isAllNumeric) {
+    return teeth.join(', ');
+  }
+
   // Group by quadrant
   const groups: Record<string, number[]> = {};
   teeth.forEach(t => {

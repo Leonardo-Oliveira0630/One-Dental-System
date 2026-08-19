@@ -385,7 +385,8 @@ export const JobsList = ({ isStoreContext, isBudgetMode }: { isStoreContext?: bo
   const [routeDriver, setRouteDriver] = useState('');
   const [routeShift, setRouteShift] = useState<'MORNING' | 'AFTERNOON'>('MORNING');
   const [routeDate, setRouteDate] = useState(new Date().toISOString().split('T')[0]);
-    const [isProcessing, setIsProcessing] = useState(false);
+  const [routeObservations, setRouteObservations] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const [visibleCount, setVisibleCount] = useState(20);
 
   const handleSaveNotes = async (jobId: string, notes: string) => {
@@ -603,8 +604,9 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
     if (!routeModalJob || !routeDriver) return;
     setIsProcessing(true);
     try {
-        await addJobToRoute(routeModalJob, routeDriver, routeShift, new Date(routeDate));
+        await addJobToRoute(routeModalJob, routeDriver, routeShift, new Date(routeDate), routeObservations);
         setRouteModalJob(null);
+        setRouteObservations('');
         alert("Adicionado à rota!");
     } catch (e) { alert("Erro."); } finally { setIsProcessing(false); }
 
@@ -1132,6 +1134,15 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                           ) : (
                               <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" />
                           )}
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observações de Entrega (Opcional)</label>
+                          <textarea 
+                              placeholder="Instruções adicionais para a entrega..."
+                              value={routeObservations}
+                              onChange={e => setRouteObservations(e.target.value)}
+                              className="w-full px-4 py-2 border rounded-xl font-medium text-slate-800 bg-slate-50 resize-none h-20"
+                          />
                       </div>
                       <button onClick={handleAddToRoute} disabled={isProcessing} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 active:scale-95 transition-transform">
                           {isProcessing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 size={20} /> CONFIRMAR NA ROTA</>}
