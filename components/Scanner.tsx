@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { CapacitorNfc as Nfc } from '@capgo/capacitor-nfc';
 
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from "motion/react";
@@ -58,12 +60,12 @@ export const GlobalScanner: React.FC = () => {
   const [scannedJob, setScannedJob] = useState<Job | null>(null);
   const [scanAction, setScanAction] = useState<'ENTRY' | 'EXIT'>('ENTRY');
   
-  const [activeUserSector, setActiveUserSector] = useState<string>('');
+  const [activeanySector, setActiveanySector] = useState<string>('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{item: JobItem, stageName?: string, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE', blockedMessage?: string} | null>(null);
 
-  const activeUserSectorRef = useRef(activeUserSector);
-  useEffect(() => { activeUserSectorRef.current = activeUserSector; }, [activeUserSector]);
+  const activeanySectorRef = useRef(activeanySector);
+  useEffect(() => { activeanySectorRef.current = activeanySector; }, [activeanySector]);
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
   const [eligibleItems, setEligibleItems] = useState<{item: JobItem, jobType?: JobType}[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -133,619 +135,110 @@ export const GlobalScanner: React.FC = () => {
     let ndef: any = null;
     let abortController = new AbortController();
     
-    setIsNfcSupported('NDEFReader' in window);
+    setIsNfcSupported(Capacitor.isNativePlatform() || 'NDEFReader' in window);
 
-    const startNfc = async (fromUserInteraction = false) => {
-      if ('NDEFReader' in window) {
-        try {
+    const startNfc = async (fromanyInteraction = false) => {
+      try {
+        if (Capacitor.isNativePlatform()) {
+          const isSupported = await Nfc.isSupported();
+          if (!isSupported.supported) throw new Error('NFC nativo não suportado.');
+          
+          await Nfc.startScanSession();
+          setNfcStatus('scanning');
+          console.log("Native NFC Scanner started successfully!");
+          
+          Nfc.addListener('nfcTagScanned', (event) => {
+            const serialNumber = event.id ? event.id.map((b: any) => b.toString(16).padStart(2, '0')).join('').toUpperCase() : '';
+            console.log("[Native NFC] Tag detected. SerialNumber:", serialNumber);
+            
+            let textValue = '';
+            if (event.messages && event.messages.length > 0) {
+              for (const record of event.messages[0].records) {
+                if (record.type && String.fromCharCode(...record.type) === 'T' && record.payload) {
+                   textValue = String.fromCharCode(...record.payload).substring(3);
+                   break;
+                }
+              }
+            }
+            
+            if (navigator.vibrate) navigator.vibrate(50);
+            
+            let cleanSerialNumber = serialNumber.replace(/:/g, "").toUpperCase();
+            let cleanText = textValue ? textValue.toUpperCase().trim() : '';
+            
+            if (cleanText.startsWith('BOX-')) {
+               cleanText = cleanText.replace('BOX-', '');
+            }
+            
+            if (cleanSerialNumber || cleanText) {
+                processScan({ uid: cleanSerialNumber, text: cleanText });
+                // removed isNfcSupported
+                setIsCameraActive(false);
+                Nfc.stopScanSession();
+                Nfc.removeAllListeners();
+            }
+          });
+          
+          abortController.signal.addEventListener('abort', () => {
+             Nfc.stopScanSession();
+             Nfc.removeAllListeners();
+          });
+          
+        } else if ('NDEFReader' in window) {
           ndef = new (window as any).NDEFReader();
           await ndef.scan({ signal: abortController.signal });
           setNfcStatus('scanning');
-          console.log("NFC Scanner started successfully!");
+          console.log("Web NFC Scanner started successfully!");
           
           ndef.addEventListener("reading", ({ message, serialNumber }: any) => {
             console.log("[Web NFC] Tag detected. SerialNumber:", serialNumber);
-            
-            // Decodificar registros NDEF (se houver texto/URL gravados na memória)
             let textValue = '';
             try {
-              for (const record of message.records) {
-                if (record.recordType === "text" || (record.recordType === "mime" && record.mediaType === "text/plain")) {
-                  const textDecoder = new TextDecoder(record.encoding || 'utf-8');
-                  textValue = textDecoder.decode(record.data);
-                  break;
-                } else if (record.recordType === "url") {
-                  const textDecoder = new TextDecoder(record.encoding || 'utf-8');
-                  const url = textDecoder.decode(record.data);
-                  const parts = url.split('/');
-                  const lastPart = parts[parts.length - 1];
-                  if (lastPart) textValue = lastPart;
-                  break;
-                } else {
-                  const textDecoder = new TextDecoder('utf-8');
-                  const text = textDecoder.decode(record.data);
-                  if (text && text.length > 0 && text.length < 50) {
-                    textValue = text;
-                    break;
-                  }
-                }
+              if (message && message.records) {
+                 for (const record of message.records) {
+                   if (record.recordType === "text" || (record.recordType === "mime" && record.mediaType === "text/plain")) {
+                     const textDecoder = new TextDecoder(record.encoding || 'utf-8');
+                     textValue = textDecoder.decode(record.data);
+                     break;
+                   }
+                 }
               }
-            } catch (error: any) {
-              console.error("[Web NFC] Error processing reading:", error);
+            } catch (e) {
+              console.error("[Web NFC] Error reading NDEF:", e);
             }
-
-            // Normalizar o UID do hardware (ex: "04:A1:B2:C3" -> "04A1B2C3")
-            const cleanSerialNumber = serialNumber ? String(serialNumber).replace(/[:\s-]/g, '').toUpperCase() : '';
-            const cleanText = textValue ? textValue.trim().toUpperCase() : '';
-
-            // Processar a leitura no scanner
-            if (processScanRef.current) {
-              if (cleanSerialNumber) {
-                console.log("[Web NFC] Processando Serial Number (UID):", cleanSerialNumber);
-                processScanRef.current(cleanSerialNumber);
-              }
-              if (cleanText && cleanText !== cleanSerialNumber) {
-                console.log("[Web NFC] Processando Texto NDEF:", cleanText);
-                processScanRef.current(cleanText);
-              }
+            
+            if (navigator.vibrate) navigator.vibrate(50);
+            
+            let cleanSerialNumber = (serialNumber || '').replace(/:/g, "").toUpperCase();
+            let cleanText = textValue ? textValue.toUpperCase().trim() : '';
+            if (cleanText.startsWith('BOX-')) cleanText = cleanText.replace('BOX-', '');
+            
+            if (cleanSerialNumber || cleanText) {
+                processScan({ uid: cleanSerialNumber, text: cleanText });
+                // removed isNfcSupported
+                setIsCameraActive(false);
             }
           });
-          
-        } catch (error: any) {
-          console.log("[Web NFC] Error starting scan:", error);
-          setNfcStatus('error');
-          if (fromUserInteraction) {
-             alert("Erro ao iniciar NFC: " + error.message);
-          } else if (error.name === 'NotAllowedError') {
-             console.warn("NFC scan requires user gesture or permission.");
-          }
         }
+      } catch (error: any) {
+         setNfcStatus('error');
+         if (fromanyInteraction) {
+             alert("Erro ao iniciar NFC: " + error.message);
+         }
       }
     };
 
-    startNfc();
-    
-    // Expose for manual triggering
-    (window as any).triggerNfcStart = () => startNfc(true);
+    if (isNfcSupported && isNfcSupported === 'nfc') {
+      startNfc(false);
+    }
 
     return () => {
       abortController.abort();
-    };
-  }, []);
-  const isUploadingRef = useRef(isUploading);
-
-  const getEligibleItemsAndComm = (job: Job, user: any, jobTypes: JobType[], sectorToUse: string) => {
-      if (!sectorToUse) return { eligible: [], commission: 0 };
-      const sector = sectorToUse;
-      const availableItems: { item: JobItem, jobType?: JobType }[] = [];
-      let totalComm = 0;
-      
-      job.items.forEach(item => {
-          const jt = jobTypes.find(t => t.id === item.jobTypeId);
-          if (jt?.allowedSectors && jt.allowedSectors.length > 0 && !jt.allowedSectors.includes(sector)) return;
-          
-          const execution = job.itemExecutions?.find(e => e.itemId === item.id && e.sector === sector);
-          const itemSectorStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector] || [];
-          
-          let isCompletelyExecuted = false;
-          if (execution) {
-              const pendingStages = itemSectorStages.filter(stage => {
-                  const st = execution.stageTimes?.[stage];
-                  return !st || !st.exitTime;
-              });
-              const isLegacyComplete = execution.timestamp && (!execution.stageTimes || Object.keys(execution.stageTimes).length === 0);
-              const isBaseComplete = execution.isBaseChecked || isLegacyComplete;
-              
-              if (isBaseComplete && pendingStages.length === 0 && itemSectorStages.length > 0) {
-                   isCompletelyExecuted = true;
-              } else if (isBaseComplete && itemSectorStages.length === 0) {
-                   isCompletelyExecuted = true;
-              }
-          }
-          
-          if (isCompletelyExecuted) return;
-          
-          availableItems.push({ item, jobType: jt });
-
-          if (!item.commissionDisabled) {
-              const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
-              totalComm += calculateItemCommission(item, jt, user, secQty);
-          }
-      });
-      return { eligible: availableItems, commission: totalComm };
-  };
-
-  const calculateCommissionForItems = (job: Job, user: any, selectedIds: string[], jobTypes: JobType[], sectorToUse: string, stagesMap?: Record<string, string[]>) => {
-      if (!user) return 0;
-      const sector = sectorToUse || 'Gestão';
-      let totalComm = 0;
-      
-      job.items.forEach(item => {
-          const isBaseChecked = selectedIds.includes(item.id);
-          const stagesToUse = stagesMap?.[item.id] || [];
-          if (!isBaseChecked && stagesToUse.length === 0) return;
-          if (item.commissionDisabled) return;
-          
-          const secQty = (item.sectorQuantities && item.sectorQuantities[sector]) ? item.sectorQuantities[sector] : item.quantity;
-          const jt = jobTypes.find(t => t.id === item.jobTypeId);
-          totalComm += calculateItemCommission(item, jt, user, secQty, sector, stagesToUse, isBaseChecked);
-      });
-      return totalComm;
-  };
-
-  useEffect(() => {
-    const handleOpenJobScannerPopup = (e: any) => {
-        const jobId = e.detail?.jobId;
-        if (!jobId) return;
-        const job = jobMapRef.current.get(jobId.toUpperCase()) || jobsRef.current.find(j => j.id === jobId);
-        if (job) {
-            setScanSuccess(true);
-            setTimeout(() => setScanSuccess(false), 500);
-            setScannedJob(job);
-            const user = currentUserRef.current;
-            
-            let detectedSector = user?.sector || '';
-            if (user?.sectors && user.sectors.length > 0) {
-                const openMovement = job.sectorMovements?.find(m => !m.exitTime && (m.sector === user.sector || user.sectors?.includes(m.sector)));
-                if (openMovement) {
-                    detectedSector = openMovement.sector;
-                } else if (!detectedSector && user.sectors.length > 0) {
-                    detectedSector = user.sectors[0];
-                }
-            }
-            setActiveUserSector(detectedSector);
-
-            const isLastActionEntryHere = detectedSector ? job.sectorMovements?.some(m => m.sector === detectedSector && !m.exitTime) : false;
-            setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
-            
-            if (isLastActionEntryHere && user && detectedSector) {
-                const { eligible, commission } = getEligibleItemsAndComm(job, user, jobTypesRef.current, detectedSector);
-                setEligibleItems(eligible);
-                setSelectedItemIds([]);
-                setSelectedStages({});
-                setCommissionEarned(0);
-            } else {
-                setEligibleItems([]);
-                setSelectedItemIds([]);
-                setSelectedStages({});
-                setCommissionEarned(0);
-            }
-            setNextSector('');
-        }
-    };
-
-    window.addEventListener('open-job-scanner-popup', handleOpenJobScannerPopup);
-    return () => window.removeEventListener('open-job-scanner-popup', handleOpenJobScannerPopup);
-  }, []);
-
-  useEffect(() => {
-    currentUserRef.current = currentUser;
-    isCameraActiveRef.current = isCameraActive;
-    jobsRef.current = jobs;
-    jobMapRef.current = jobMap;
-    commissionsRef.current = commissions;
-    jobTypesRef.current = jobTypes;
-    scannedJobRef.current = scannedJob;
-    scanActionRef.current = scanAction;
-    nextSectorRef.current = nextSector;
-    isUploadingRef.current = isUploading;
-    nfcBoxesRef.current = nfcBoxes;
-  }, [currentUser, isCameraActive, jobs, commissions, jobTypes, scannedJob, scanAction, nextSector, jobMap, isUploading, nfcBoxes]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Bloqueio ultra-agressivo de Ctrl+J / Cmd+J (Downloads no Chrome) e variações
-      // Scanners Elgin/Bematech costumam enviar Ctrl+J como sufixo (Line Feed)
-      const isCtrlJ = (e.ctrlKey || e.metaKey) && (
-        e.key?.toLowerCase() === 'j' || 
-        e.keyCode === 74 || 
-        e.which === 74
-      );
-      
-      const isLineFeed = e.key === '\n' || e.keyCode === 10 || e.which === 10;
-
-      if (isCtrlJ || isLineFeed) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          e.stopPropagation();
-          
-          // Se houver algo no buffer, processar agora
-          if (bufferRef.current.length >= MIN_LENGTH) {
-              processScan(bufferRef.current);
-          }
-          bufferRef.current = '';
-          return;
-      }
-
-      // Bloqueio de Ctrl+M / Cmd+M (Enter) que alguns scanners enviam
-      const isCtrlM = (e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === 'm' || e.keyCode === 13 || e.which === 13);
-      if (isCtrlM) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          if (bufferRef.current.length >= MIN_LENGTH) {
-              processScan(bufferRef.current);
-          }
-          bufferRef.current = '';
-          return;
-      }
-
-      // Bloqueio de Ctrl+N / Cmd+N (Nova Janela) e Ctrl+T / Cmd+T (Nova Guia)
-      if ((e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === 'n' || e.key?.toLowerCase() === 't')) {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          return;
-      }
-
-      // Ignorar se câmera ativa ou se for apenas uma tecla modificadora
-      if (!currentUserRef.current || isCameraActiveRef.current || ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
-      
-      const currentTime = Date.now();
-      const timeDiff = currentTime - lastKeyTimeRef.current;
-
-      // Detectar se é um scanner (entrada muito rápida)
-      const isScannerInput = timeDiff < SCANNER_TIMEOUT;
-
-      // Tratamento para Enter ou Tab (terminadores comuns)
-      if (e.key === 'Enter' || e.key === 'Tab') {
-          if (bufferRef.current.length >= MIN_LENGTH) {
-              e.preventDefault();
-              e.stopPropagation();
-              processScan(bufferRef.current);
-          }
-          bufferRef.current = '';
-          return;
-      }
-
-      // Se o tempo entre teclas for muito longo, resetar o buffer (provavelmente digitação manual)
-      if (timeDiff > 200) {
-          const target = e.target as HTMLElement;
-          if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
-              bufferRef.current = '';
-          }
-      }
-
-      // Capturar apenas caracteres individuais
-      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-          bufferRef.current += e.key;
-          
-          // Se detectarmos que é um scanner (pelo menos a partir do 2º caractere), 
-          // podemos tentar evitar que o texto "vaze" para inputs focados
-          if (isScannerInput) {
-              const target = e.target as HTMLElement;
-              if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-                  // e.preventDefault(); // Cuidado: pode ser agressivo demais
-              }
-          }
-      }
-
-      lastKeyTimeRef.current = currentTime;
-    };
-
-    const preventShortcuts = (e: KeyboardEvent) => {
-      const isCtrlJ = (e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === 'j' || e.keyCode === 74 || e.which === 74);
-      const isCtrlM = (e.ctrlKey || e.metaKey) && (e.key?.toLowerCase() === 'm' || e.keyCode === 13 || e.which === 13);
-      if (isCtrlJ || isCtrlM) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (Capacitor.isNativePlatform()) {
+         try { Nfc.stopScanSession(); Nfc.removeAllListeners(); } catch(e){}
       }
     };
-
-    // Usar capture: true para interceptar antes de outros handlers
-    window.addEventListener('keydown', handleKeyDown, { capture: true });
-    window.addEventListener('keypress', preventShortcuts, { capture: true });
-    window.addEventListener('keyup', preventShortcuts, { capture: true });
-    
-    // Ouvinte para evento customizado de abrir scanner (útil para botões globais)
-    const handleOpenScanner = () => setIsCameraActive(true);
-    window.addEventListener('open-scanner', handleOpenScanner);
-    const handleManualTrigger = (e: any) => {
-        if (e.detail?.code && processScanRef.current) {
-            processScanRef.current(e.detail.code);
-        }
-    };
-    window.addEventListener('manual-scan-trigger', handleManualTrigger);
-
-    return () => {
-        window.removeEventListener('keydown', handleKeyDown, { capture: true });
-        window.removeEventListener('keypress', preventShortcuts, { capture: true });
-        window.removeEventListener('keyup', preventShortcuts, { capture: true });
-        window.removeEventListener('open-scanner', handleOpenScanner);
-        window.removeEventListener('manual-scan-trigger', handleManualTrigger);
-    };
-  }, []); // Dependências vazias pois usamos refs
-
-  const processScanRef = useRef<((code: string) => Promise<void>) | null>(null);
-  useEffect(() => {
-      processScanRef.current = processScan;
-  });
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    const fetchCameras = async () => {
-        if (!isCameraActive) return;
-        const availableCameras = await getAvailableCameras();
-        if (isMounted) {
-            setCameras(availableCameras);
-            if (availableCameras.length > 0 && !selectedCameraId) {
-                setSelectedCameraId(getSmartCameraSelection(availableCameras) || null);
-            }
-        }
-    };
-    
-    if (isCameraActive && cameras.length === 0) {
-        fetchCameras();
-    }
-    
-    return () => { isMounted = false; };
-  }, [isCameraActive, selectedCameraId, cameras.length]);
-
-  useEffect(() => {
-      let isMounted = true;
-      let reader: BrowserMultiFormatReader | null = null;
-      let scanLoopId: number | null = null;
-      let stream: MediaStream | null = null;
-
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-      const getRotatedCanvas = (video: HTMLVideoElement, angleDeg: number) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const vWidth = video.videoWidth;
-          const vHeight = video.videoHeight;
-          if (!vWidth || !vHeight || !ctx) return null;
-
-          const rad = (angleDeg * Math.PI) / 180;
-          if (Math.abs(angleDeg) === 90 || Math.abs(angleDeg) === 270) {
-              canvas.width = vHeight;
-              canvas.height = vWidth;
-          } else {
-              canvas.width = vWidth;
-              canvas.height = vHeight;
-          }
-
-          ctx.save();
-          ctx.translate(canvas.width / 2, canvas.height / 2);
-          ctx.rotate(rad);
-          ctx.drawImage(video, -vWidth / 2, -vHeight / 2);
-          ctx.restore();
-          return canvas;
-      };
-
-      if (isCameraActive && videoRef.current) {
-          if (cameras.length === 0) return;
-
-          const startScanner = async () => {
-              try {
-                  const isPortrait = window.innerHeight > window.innerWidth;
-                  const idealWidth = isPortrait ? 1080 : 1920;
-                  const idealHeight = isPortrait ? 1920 : 1080;
-
-                  const videoConstraints: MediaTrackConstraints = selectedCameraId 
-                    ? { deviceId: { exact: selectedCameraId }, width: { ideal: idealWidth }, height: { ideal: idealHeight } }
-                    : { facingMode: 'environment', width: { ideal: idealWidth }, height: { ideal: idealHeight } };
-
-                  const hasNativeScanner = 'BarcodeDetector' in window;
-
-                  if (hasNativeScanner && videoRef.current) {
-                      console.log("Using Native Web Barcode Scanner API");
-                      const barcodeDetector = new (window as any).BarcodeDetector({ 
-                          formats: ['code_128', 'qr_code', 'ean_13', 'ean_8', 'code_39'] 
-                      });
-
-                      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints });
-                      if (!isMounted || !videoRef.current) {
-                          if (stream) stream.getTracks().forEach(t => t.stop());
-                          return;
-                      }
-
-                      videoRef.current.srcObject = stream;
-                      videoRef.current.setAttribute("playsinline", "true");
-                      await videoRef.current.play();
-
-                      const track = stream.getVideoTracks()[0];
-                      if (track) {
-                          try {
-                              const capabilities = track.getCapabilities() as any;
-                              const advancedConstraints: any = {};
-                              if (capabilities.zoom) advancedConstraints.zoom = capabilities.zoom.min || 1;
-                              if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) advancedConstraints.focusMode = 'continuous';
-                              if (capabilities.focusDistance) advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
-                              
-                              if (Object.keys(advancedConstraints).length > 0) {
-                                  await track.applyConstraints({ advanced: [advancedConstraints] });
-                              }
-                          } catch (e) {}
-                      }
-
-                      let lastScan = 0;
-                      const scanFrame = async () => {
-                          if (!isMounted || !isCameraActive || !videoRef.current) return;
-                          
-                          const now = Date.now();
-                          if (now - lastScan > 100) {
-                              lastScan = now;
-                              try {
-                                  let barcodes = [];
-                                  if (isIOS) {
-                                      const rotatedCanvas = getRotatedCanvas(videoRef.current, 90);
-                                      if (rotatedCanvas) {
-                                          try {
-                                              barcodes = await barcodeDetector.detect(rotatedCanvas);
-                                          } catch (e) {}
-                                      }
-                                      if (!barcodes || barcodes.length === 0) {
-                                          const rotatedCanvas270 = getRotatedCanvas(videoRef.current, 270);
-                                          if (rotatedCanvas270) {
-                                              try {
-                                                  barcodes = await barcodeDetector.detect(rotatedCanvas270);
-                                              } catch (e) {}
-                                          }
-                                      }
-                                  }
-                                  if (!barcodes || barcodes.length === 0) {
-                                      barcodes = await barcodeDetector.detect(videoRef.current);
-                                  }
-
-                                  if (barcodes && barcodes.length > 0) {
-                                      const text = barcodes[0].rawValue;
-                                      if (processScanRef.current) {
-                                          processScanRef.current(text);
-                                      }
-                                      setIsCameraActive(false);
-                                      return;
-                                  }
-                              } catch (e) {}
-                          }
-                          scanLoopId = requestAnimationFrame(scanFrame);
-                      };
-                      
-                      scanFrame();
-
-                  } else {
-                      const hints = new Map();
-                      hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-                          BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.CODE_39
-                      ]);
-                      hints.set(DecodeHintType.TRY_HARDER, true);
-                      
-                      const activeReader = new BrowserMultiFormatReader(hints);
-                      activeReader.timeBetweenDecodingAttempts = 150; 
-                      reader = activeReader;
-
-                      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: videoConstraints });
-                      if (!isMounted || !videoRef.current) {
-                          if (stream) stream.getTracks().forEach(t => t.stop());
-                          return;
-                      }
-
-                      videoRef.current.srcObject = stream;
-                      videoRef.current.setAttribute("playsinline", "true");
-                      await videoRef.current.play();
-
-                      let lastScan = 0;
-                      const zxingScanFrame = async () => {
-                          if (!isMounted || !isCameraActive || !videoRef.current) return;
-
-                          const now = Date.now();
-                          if (now - lastScan > 200) {
-                              lastScan = now;
-                              try {
-                                  const canvases = [];
-                                  if (isIOS) {
-                                      const c90 = getRotatedCanvas(videoRef.current, 90);
-                                      if (c90) canvases.push(c90);
-                                      const c270 = getRotatedCanvas(videoRef.current, 270);
-                                      if (c270) canvases.push(c270);
-                                  }
-                                  canvases.push(videoRef.current);
-
-                                  for (const target of canvases) {
-                                      try {
-                                          let result = null;
-                                          if (target instanceof HTMLCanvasElement) {
-                                              const dataUrl = target.toDataURL('image/jpeg', 0.8);
-                                              result = await activeReader.decodeFromImageUrl(dataUrl);
-                                          } else {
-                                              result = await activeReader.decodeFromVideoElement(target);
-                                          }
-                                          if (result) {
-                                              const text = result.getText();
-                                              if (text) {
-                                                  if (processScanRef.current) {
-                                                      processScanRef.current(text);
-                                                  }
-                                                  setIsCameraActive(false);
-                                                  return;
-                                              }
-                                          }
-                                      } catch (e) {}
-                                  }
-                              } catch (e) {}
-                          }
-                          scanLoopId = requestAnimationFrame(zxingScanFrame);
-                      };
-
-                      zxingScanFrame();
-
-                      const s = videoRef.current.srcObject;
-                      if (s) {
-                          stream = s as MediaStream;
-                          const track = stream.getVideoTracks()[0];
-                          if (track) {
-                              try {
-                                  const capabilities = track.getCapabilities() as any;
-                                  const advancedConstraints: any = {};
-                                  if (capabilities.zoom) advancedConstraints.zoom = capabilities.zoom.min || 1;
-                                  if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) advancedConstraints.focusMode = 'continuous';
-                                  if (capabilities.focusDistance) advancedConstraints.focusDistance = capabilities.focusDistance.min || 0;
-                                  if (Object.keys(advancedConstraints).length > 0) {
-                                      track.applyConstraints({ advanced: [advancedConstraints] }).catch(e => {});
-                                  }
-                              } catch (e) {}
-                          }
-                      }
-                  }
-              } catch (err) {
-                  console.error("Camera error:", err);
-                  if (reader && isMounted && videoRef.current) {
-                      try {
-                          await reader.decodeFromVideoDevice(
-                              null,
-                              videoRef.current,
-                              (result, err) => {
-                                  if (result && isMounted) {
-                                      if (processScanRef.current) {
-                                          processScanRef.current(result.getText());
-                                      }
-                                      setIsCameraActive(false);
-                                  }
-                              }
-                          );
-                      } catch (fallbackErr) {
-                          console.error("Fallback camera error:", fallbackErr);
-                          if (isMounted) setIsCameraActive(false);
-                      }
-                  }
-              }
-          };
-
-          startScanner();
-      }
-
-      return () => { 
-          isMounted = false;
-          if (scanLoopId !== null) {
-              cancelAnimationFrame(scanLoopId);
-          }
-          if (stream) {
-              stream.getTracks().forEach(t => t.stop());
-          }
-          if (reader) {
-              reader.reset();
-          }
-      };
-  }, [isCameraActive, selectedCameraId, cameras.length]);
-
-  const toggleTorch = useCallback(async () => {
-    if (!videoRef.current) return;
-    try {
-      const stream = videoRef.current.srcObject as MediaStream;
-      const track = stream?.getVideoTracks()[0];
-      if (track) {
-        const capabilities = track.getCapabilities() as any;
-        if (capabilities.torch) {
-          const newState = !isTorchOn;
-          await track.applyConstraints({
-            advanced: [{ torch: newState }] as any
-          });
-          setIsTorchOn(newState);
-        }
-      }
-    } catch (e) {
-      console.error("Torch error:", e);
-    }
-  }, [isTorchOn]);
+  }, [isNfcSupported, isNfcSupported]);
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -776,6 +269,30 @@ export const GlobalScanner: React.FC = () => {
       setIsUploading(false);
     }
   }, [scannedJob, currentUser, uploadFile, updateJob]);
+
+  
+  const getEligibleItemsAndComm = (job: Job, user: any, types: JobType[], sector: string) => {
+    let commission = 0;
+    const eligible: any[] = [];
+    if (!job.items) return { eligible, commission };
+    for (const item of job.items) {
+      const comm = calculateItemCommission(item, user.id, types, sector, user.commissionRates);
+      if (comm != null) {
+        eligible.push(item);
+        if (typeof typeof typeof comm === 'number') commission += comm;
+      }
+    }
+    return { eligible, commission };
+  };
+
+  const calculateCommissionForItems = (items: JobItem[], user: any, types: JobType[], sector: string) => {
+    let commission = 0;
+    for (const item of items) {
+      const comm = calculateItemCommission(item, user.id, types, sector, user.commissionRates);
+      if (typeof typeof typeof comm === 'number') commission += comm;
+    }
+    return commission;
+  };
 
   const processScan = useCallback(async (code: string) => {
     try {
@@ -875,7 +392,7 @@ export const GlobalScanner: React.FC = () => {
                       detectedSector = user.sectors[0];
                   }
               }
-              setActiveUserSector(detectedSector);
+              setActiveanySector(detectedSector);
 
               const isLastActionEntryHere = detectedSector ? job.sectorMovements?.some(m => m.sector === detectedSector && !m.exitTime) : false;
               setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
@@ -929,7 +446,7 @@ export const GlobalScanner: React.FC = () => {
     const { item, stageName, status: currentStatus } = pendingAction;
     setPendingAction(null);
 
-    if (isUploadingRef.current) return;
+    if (isUploading) return;
     const currentJob = scannedJobRef.current;
     const user = currentUserRef.current;
     if (!currentJob || !user) return;
@@ -943,7 +460,7 @@ export const GlobalScanner: React.FC = () => {
 
     setIsUploading(true);
     try {
-        let sector = activeUserSectorRef.current || user.sector || currentJob.currentSector || 'Gestão';
+        let sector = activeanySectorRef.current || user.sector || currentJob.currentSector || 'Gestão';
         
         let newExecutions = [...(currentJob.itemExecutions || [])];
         let executionIndex = newExecutions.findIndex(e => e.itemId === item.id && e.sector === sector);
@@ -1017,7 +534,7 @@ export const GlobalScanner: React.FC = () => {
                 sector: sector,
                 entryTime: new Date(),
                 entryUserId: user.id,
-                entryUserName: user.name
+                entryanyName: user.name
             });
         }
 
@@ -1073,7 +590,7 @@ export const GlobalScanner: React.FC = () => {
       // 1. Check if it's the BASE service and the sector is not allowed
       if (!stageName) {
           const user = currentUserRef.current;
-          let sector = activeUserSectorRef.current || user?.sector || 'Gestão';
+          let sector = activeanySectorRef.current || user?.sector || 'Gestão';
           const jt = jobTypesRef.current.find(t => t.id === item.jobTypeId);
           
           if (jt?.allowedSectors && jt.allowedSectors.length > 0 && !jt.allowedSectors.includes(sector)) {
@@ -1156,10 +673,10 @@ export const GlobalScanner: React.FC = () => {
                         <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Setor:</span>
                             <select 
-                                value={activeUserSector} 
+                                value={activeanySector} 
                                 onChange={e => {
                                     const newSector = e.target.value;
-                                    setActiveUserSector(newSector);
+                                    setActiveanySector(newSector);
                                     
                                     const isLastActionEntryHere = newSector ? scannedJob.sectorMovements?.some(m => m.sector === newSector && !m.exitTime) : false;
                                     setScanAction(isLastActionEntryHere ? 'EXIT' : 'ENTRY');
@@ -1180,7 +697,7 @@ export const GlobalScanner: React.FC = () => {
                             </select>
                         </div>
                     ) : (
-                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Setor: {activeUserSector || 'Geral'}</p>
+                        <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Setor: {activeanySector || 'Geral'}</p>
                     )}
                 </div>
             </div>
@@ -1215,7 +732,7 @@ export const GlobalScanner: React.FC = () => {
             <div className="space-y-2 max-h-64 overflow-y-auto pr-2 rounded-xl border border-slate-100 p-2 bg-slate-50">
                 {scannedJob.items.map((item) => {
                     const jt = jobTypes.find(t => t.id === item.jobTypeId);
-                    const sector = activeUserSector || 'Gestão';
+                    const sector = activeanySector || 'Gestão';
                     const itemSectorStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector] || [];
                     
                     const execution = scannedJob.itemExecutions?.find(e => e.itemId === item.id && e.sector === sector);

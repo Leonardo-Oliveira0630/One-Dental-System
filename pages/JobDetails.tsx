@@ -117,6 +117,7 @@ export const JobDetails = () => {
     price: number;
     appliedDiscount: number;
     appliedDiscountFixed: number;
+    discountType: 'PERCENTAGE' | 'FIXED';
     appliedPriceTable: string;
     commissionDisabled: boolean;
     isInternalStep: boolean;
@@ -125,7 +126,7 @@ export const JobDetails = () => {
     sectorCommissionDisabled: Record<string, boolean>;
     selectedTeeth: string[];
     color: string;
-  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
+  }>({ quantity: 1, price: 0, appliedDiscount: 0, appliedDiscountFixed: 0, discountType: 'PERCENTAGE', appliedPriceTable: 'Padrão', commissionDisabled: false, isInternalStep: false, selectedVariationIds: [], variationValues: {}, sectorCommissionDisabled: {}, selectedTeeth: [], color: '' });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // Stage Config Modal State
@@ -1453,6 +1454,7 @@ export const JobDetails = () => {
           price: item.basePriceBeforeDiscount ?? item.price,
           appliedDiscount: item.appliedDiscount || 0,
           appliedDiscountFixed: item.appliedDiscountFixed || 0,
+          discountType: (item.appliedDiscountFixed && item.appliedDiscountFixed > 0) ? 'FIXED' : 'PERCENTAGE',
           appliedPriceTable: item.appliedPriceTable || 'Padrão',
           commissionDisabled: item.commissionDisabled || false,
           isInternalStep: item.isInternalStep || false,
@@ -3025,28 +3027,33 @@ export const JobDetails = () => {
                                                                 />
                                                             </div>
                                                         </div>
-                                                        <div>
-                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Desconto (%)</label>
-                                                            <div className="relative">
+                                                        <div className="col-span-1 sm:col-span-2">
+                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Desconto Extra</label>
+                                                            <div className="flex gap-2">
+                                                                <select 
+                                                                    value={itemEditForm.discountType} 
+                                                                    onChange={(e) => setItemEditForm({...itemEditForm, discountType: e.target.value as 'PERCENTAGE' | 'FIXED'})}
+                                                                    className="w-1/3 px-2 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold focus:ring-2 outline-none text-xs"
+                                                                >
+                                                                    <option value="PERCENTAGE">% (Porcentagem)</option>
+                                                                    <option value="FIXED">R$ (Valor Fixo)</option>
+                                                                </select>
                                                                 <input 
-                                                                    type="number" min={0} max={100} step={0.1}
-                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 pr-8 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                    value={itemEditForm.appliedDiscount}
-                                                                    onChange={(e) => setItemEditForm({...itemEditForm, appliedDiscount: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))})}
+                                                                    type="number" 
+                                                                    min={0} 
+                                                                    step={itemEditForm.discountType === 'PERCENTAGE' ? "0.1" : "0.01"}
+                                                                    max={itemEditForm.discountType === 'PERCENTAGE' ? 100 : undefined}
+                                                                    className="flex-1 w-full text-sm font-bold border border-slate-300 p-2.5 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                                    value={itemEditForm.discountType === 'PERCENTAGE' ? itemEditForm.appliedDiscount : itemEditForm.appliedDiscountFixed}
+                                                                    onChange={(e) => {
+                                                                        const val = Math.max(0, parseFloat(e.target.value) || 0);
+                                                                        if (itemEditForm.discountType === 'PERCENTAGE') {
+                                                                            setItemEditForm({...itemEditForm, appliedDiscount: Math.min(100, val), appliedDiscountFixed: 0});
+                                                                        } else {
+                                                                            setItemEditForm({...itemEditForm, appliedDiscountFixed: val, appliedDiscount: 0});
+                                                                        }
+                                                                    }}
                                                                 />
-                                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">%</span>
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-[10px] uppercase font-black text-slate-500 mb-1">Desconto (R$)</label>
-                                                            <div className="relative">
-                                                                <input 
-                                                                    type="number" min={0} step={0.01}
-                                                                    className="w-full text-sm font-bold border border-slate-300 p-2.5 pl-8 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                    value={itemEditForm.appliedDiscountFixed}
-                                                                    onChange={(e) => setItemEditForm({...itemEditForm, appliedDiscountFixed: Math.max(0, parseFloat(e.target.value) || 0)})}
-                                                                />
-                                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
                                                             </div>
                                                         </div>
                                                     </div>

@@ -195,8 +195,9 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
   const [manualTeethText, setManualTeethText] = useState('');
   const [commissionDisabled, setCommissionDisabled] = useState(false);
   const [manualPrice, setManualPrice] = useState<number | null>(null);
-  const [discountPercent, setDiscountPercent] = useState<number>(0);
-  const [discountFixed, setDiscountFixed] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<"PERCENTAGE" | "FIXED">("PERCENTAGE");
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  
 
   const connectedDentists = useMemo(() => allUsers.filter(u => u.role === UserRole.CLIENT), [allUsers]);
   const activeJobType = useMemo(() => jobTypes.find(t => t.id === selectedTypeId), [selectedTypeId, jobTypes]);
@@ -424,10 +425,10 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
   const finalItemPrice = useMemo(() => {
     let price = manualPrice !== null ? manualPrice : calculatedBasePrice;
-    if (discountPercent > 0) price = price * (1 - discountPercent / 100);
-    if (discountFixed > 0) price = price - discountFixed;
+    if (discountType === 'PERCENTAGE' && discountValue > 0) price = price * (1 - discountValue / 100);
+    if (discountType === 'FIXED' && discountValue > 0) price = price - discountValue;
     return Math.max(0, price);
-  }, [calculatedBasePrice, manualPrice, discountPercent, discountFixed]);
+  }, [calculatedBasePrice, manualPrice, discountType, discountValue]);
 
   const disabledOptions = useMemo(() => {
     if (!activeJobType) return new Set<string>();
@@ -693,7 +694,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
       });
   };
   
-  useEffect(() => { setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualPrice(null); setDiscountPercent(0); setItemNature('NORMAL'); }, [selectedTypeId]);
+  useEffect(() => { setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualPrice(null); setDiscountValue(0); setItemNature('NORMAL'); }, [selectedTypeId]);
 
   const handleAddProduct = () => {
     if (!selectedProductId) return;
@@ -752,15 +753,15 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
         isInternalStep: isInternalStep,
         price: finalItemPrice, 
         basePriceBeforeDiscount: manualPrice !== null ? manualPrice : calculatedBasePrice,
-        appliedDiscount: discountPercent,
-        appliedDiscountFixed: discountFixed,
+        appliedDiscount: discountType === 'PERCENTAGE' ? discountValue : 0,
+        appliedDiscountFixed: discountType === 'FIXED' ? discountValue : 0,
         appliedPriceTable: appliedTableName,
         selectedVariationIds: allSelectedOptionIds, 
         variationValues: variationTextValues, 
         commissionDisabled: commissionDisabled, selectedTeeth: itemSelectedTeeth && itemSelectedTeeth.length > 0 ? itemSelectedTeeth : (manualTeethText.trim() ? [manualTeethText.trim()] : undefined), color: itemColor || undefined 
     };
     setAddedItems([...addedItems, newItem]);
-    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualTeethText(''); setCommissionDisabled(false); setManualPrice(null); setDiscountPercent(0); setDiscountFixed(0); setItemNature('NORMAL'); setIsInternalStep(false);
+    setQuantity(1); setItemColor(''); setSelectedVariations({}); setVariationTextValues({}); setItemSelectedTeeth([]); setManualTeethText(''); setCommissionDisabled(false); setManualPrice(null); setDiscountValue(0); setItemNature('NORMAL'); setIsInternalStep(false);
   };
 
   const handleEditItem = (item: JobItem) => {
@@ -770,8 +771,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     setItemNature(item.nature || 'NORMAL');
     setIsInternalStep(item.isInternalStep || false);
     setManualPrice(item.basePriceBeforeDiscount || null);
-    setDiscountPercent(item.appliedDiscount || 0);
-    setDiscountFixed(item.appliedDiscountFixed || 0);
+    if (item.appliedDiscountFixed && item.appliedDiscountFixed > 0) {
+        setDiscountType('FIXED');
+        setDiscountValue(item.appliedDiscountFixed);
+    } else {
+        setDiscountType('PERCENTAGE');
+        setDiscountValue(item.appliedDiscount || 0);
+    }
     setItemColor(item.color || '');
     if (item.selectedTeeth && item.selectedTeeth.length > 0) {
         const isAllNumeric = item.selectedTeeth.every(t => /^\d{2}$/.test(t));
@@ -1320,18 +1326,33 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                         )}
 
                         <div className="pt-4 border-t border-slate-200 space-y-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Preço Final Unitário (R$)</label>
                                     <input type="number" step="0.01" value={manualPrice !== null ? manualPrice : calculatedBasePrice.toFixed(2)} onChange={e => setManualPrice(parseFloat(e.target.value))} className="w-full px-4 py-2.5 border rounded-xl font-black focus:ring-2 outline-none" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Desconto Extra (%)</label>
-                                    <input type="number" max="100" min="0" value={discountPercent} onChange={e => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-black focus:ring-2 outline-none" />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Desconto Extra (R$)</label>
-                                    <input type="number" min="0" step="0.01" value={discountFixed} onChange={e => setDiscountFixed(Math.max(0, parseFloat(e.target.value) || 0))} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-black focus:ring-2 outline-none" />
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase mb-1">Desconto Extra</label>
+                                    <div className="flex gap-2">
+                                        <select 
+                                            value={discountType} 
+                                            onChange={(e) => setDiscountType(e.target.value as 'PERCENTAGE' | 'FIXED')}
+                                            className="w-1/3 px-2 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black focus:ring-2 outline-none text-xs"
+                                        >
+                                            <option value="PERCENTAGE">% (Porcentagem)</option>
+                                            <option value="FIXED">R$ (Valor Fixo)</option>
+                                        </select>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            step={discountType === 'PERCENTAGE' ? "1" : "0.01"}
+                                            max={discountType === 'PERCENTAGE' ? "100" : undefined}
+                                            value={discountValue} 
+                                            onChange={e => setDiscountValue(discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)) : Math.max(0, parseFloat(e.target.value) || 0))} 
+                                            className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-black focus:ring-2 outline-none" 
+                                            placeholder={discountType === 'PERCENTAGE' ? "0%" : "R$ 0,00"}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             

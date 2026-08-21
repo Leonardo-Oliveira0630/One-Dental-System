@@ -49,6 +49,7 @@ import { Tutorials } from './pages/superadmin/Tutorials';
 import { HelpdeskAgentsAdmin } from './pages/superadmin/HelpdeskAgentsAdmin';
 import { MarketplaceCategoriesAdmin } from './pages/superadmin/MarketplaceCategoriesAdmin';
 import { WhatsAppTemplates } from './pages/superadmin/WhatsAppTemplates';
+import { LabResets } from './pages/superadmin/LabResets';
 import { TutorialsView } from './pages/TutorialsView';
 import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { TermsOfUse } from './pages/TermsOfUse';
@@ -136,8 +137,11 @@ const StoreCatalogRoute = () => {
 };
 
 import Reports from './pages/Reports';
+import { useAnalytics } from './hooks/useAnalytics';
 
 const AppContent = () => {
+  useAnalytics();
+  
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
@@ -218,6 +222,7 @@ const AppContent = () => {
       <Route path="/superadmin/tutorials" element={<ProtectedRoute><Tutorials /></ProtectedRoute>} />
       <Route path="/superadmin/helpdesk" element={<ProtectedRoute><HelpdeskAgentsAdmin /></ProtectedRoute>} />
       <Route path="/superadmin/whatsapp" element={<ProtectedRoute><WhatsAppTemplates /></ProtectedRoute>} />
+      <Route path="/superadmin/resets" element={<ProtectedRoute><LabResets /></ProtectedRoute>} />
       <Route path="/helpdesk" element={<ProtectedRoute><HelpdeskWorkspace /></ProtectedRoute>} />
       
       <Route path="*" element={<Navigate to="/" replace />} />

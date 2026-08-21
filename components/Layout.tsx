@@ -289,6 +289,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     <SidebarItem to="/superadmin/whatsapp" icon={<MessageSquare size={20} />} label="Modelos WhatsApp" active={location.pathname === '/superadmin/whatsapp'} />
                     <SidebarItem to="/superadmin/tutorials" icon={<BookOpen size={20} />} label="Gerenciar Tutoriais" active={location.pathname === '/superadmin/tutorials'} />
                     <SidebarItem to="/superadmin/helpdesk" icon={<ShieldCheck size={20} />} label="Agentes de Atendimento" active={location.pathname === '/superadmin/helpdesk'} />
+                    <SidebarItem to="/superadmin/resets" icon={<AlertTriangle size={20} />} label="Reset de Laboratórios" active={location.pathname === '/superadmin/resets'} />
                   </>
                 )}
 

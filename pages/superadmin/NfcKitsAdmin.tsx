@@ -269,7 +269,7 @@ export const NfcKitsAdmin: React.FC = () => {
   useEffect(() => {
     if (!scanModeActive || !activeScanKit) return;
 
-    const cleanup = NfcReaderService.setupKeyboardScanner((code) => {
+    const cleanup = NfcReaderService.setupUsbHidListener((code: string) => {
       console.log("[NFC Kits Admin] USB HID Leitor detectou código:", code);
       processTagScanned(code);
     });

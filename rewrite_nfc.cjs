@@ -1,4 +1,6 @@
-import { 
+const fs = require('fs');
+
+const head = `import { 
   collection, 
   doc, 
   getDoc, 
@@ -17,7 +19,7 @@ import {
 import { db } from './firebaseConfig';
 import { NfcKit, NfcBox } from '../types';
 import { Capacitor } from '@capacitor/core';
-import { CapacitorNfc as Nfc } from '@capgo/capacitor-nfc';
+import { Nfc } from '@capgo/capacitor-nfc';
 
 /**
  * Utilitário para converter e gerenciar formatos de UID NFC (Hexadecimal <-> Decimal e byte swapping)
@@ -28,7 +30,7 @@ export function getNfcUidFormats(uidInput: string): {
   uidDecimal: string;
   allCandidates: string[];
 } {
-  const raw = (uidInput || '').trim().toUpperCase().replace(/[:\s-]/g, '');
+  const raw = (uidInput || '').trim().toUpperCase().replace(/[:\\s-]/g, '');
   if (!raw) {
     return { uid: '', uidHex: '', uidDecimal: '', allCandidates: [] };
   }
@@ -40,7 +42,7 @@ export function getNfcUidFormats(uidInput: string): {
   let uidHex = '';
   let uidDecimal = '';
 
-  const isNumericOnly = /^\d+$/.test(raw);
+  const isNumericOnly = /^\\d+$/.test(raw);
   const isHexOnly = /^[0-9A-F]+$/i.test(raw);
 
   if (isNumericOnly) {
@@ -119,7 +121,7 @@ export const NfcReaderService = {
         
         await Nfc.startScanSession();
         
-        Nfc.addListener('nfcTagScanned', (event: any) => {
+        Nfc.addListener('nfcTagScanned', (event) => {
           let textValue = '';
           const uid = event.id ? event.id.map((b: number) => b.toString(16).padStart(2, '0')).join('').toUpperCase() : '';
           
@@ -183,18 +185,14 @@ export const NfcReaderService = {
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }
 };
+`;
 
+const tail = `
 /**
  * Service 2: KitService
  * Gerenciamento de Kits NFC (Super Admin)
  */
 export const KitService = {
-
-  getKits: async (): Promise<NfcKit[]> => {
-    const snapshot = await getDocs(collection(db, 'nfc_kits'));
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as NfcKit[];
-  },
-
   createKit: async (data: { nome: string; descricao?: string; caixaInicial: number; caixaFinal: number }): Promise<NfcKit> => {
     const totalCaixas = (data.caixaFinal - data.caixaInicial) + 1;
     
@@ -210,7 +208,7 @@ export const KitService = {
       descricao: data.descricao || '',
       caixaInicial: data.caixaInicial,
       caixaFinal: data.caixaFinal,
-      // removed: any,
+      totalCaixas,
       status: 'Disponível',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -229,7 +227,7 @@ export const KitService = {
         uid: '',
         uidHex: '',
         uidDecimal: '',
-        textoGravado: `BOX-${i}`,
+        textoGravado: \`BOX-\${i}\`,
         status: 'Pendente',
         updatedAt: new Date().toISOString()
       });
@@ -306,7 +304,7 @@ export const KitService = {
     const sourceKit = kitSnap.data() as NfcKit;
     
     const newKit = await KitService.createKit({
-      nome: `${sourceKit.nome} (Cópia)`,
+      nome: \`\${sourceKit.nome} (Cópia)\`,
       descricao: sourceKit.descricao,
       caixaInicial: sourceKit.caixaInicial,
       caixaFinal: sourceKit.caixaFinal
@@ -348,10 +346,10 @@ export const UidMappingService = {
           const parentKitRef = doc(db, 'nfc_kits', docKitId);
           const parentKitSnap = await getDoc(parentKitRef);
           const parentKit = parentKitSnap.exists() ? (parentKitSnap.data() as NfcKit) : null;
-          const kitCodeMsg = parentKit ? ` (no Kit ${parentKit.codigoKit})` : '';
+          const kitCodeMsg = parentKit ? \` (no Kit \${parentKit.codigoKit})\` : '';
           return {
             duplicated: true,
-            message: `Este UID/SerialNumber (${cand}) já está associado à Caixa ${dupeDoc.data().numeroCaixa}${kitCodeMsg}.`
+            message: \`Este UID/SerialNumber (\${cand}) já está associado à Caixa \${dupeDoc.data().numeroCaixa}\${kitCodeMsg}.\`
           };
         }
       }
@@ -370,7 +368,7 @@ export const UidMappingService = {
           const dupeDoc = labsBoxesSnap.docs[0];
           return {
             duplicated: true,
-            message: `Este UID/SerialNumber (${cand}) já está ativado em um laboratório (Caixa ${dupeDoc.data().numeroCaixa}).`
+            message: \`Este UID/SerialNumber (\${cand}) já está ativado em um laboratório (Caixa \${dupeDoc.data().numeroCaixa}).\`
           };
         }
       }
@@ -409,7 +407,7 @@ export const ActivationService = {
     const kitData = kitDoc.data() as NfcKit;
 
     if (kitData.status === 'Ativado') {
-      throw new Error(`Este kit já foi ativado anteriormente pela empresa: ${kitData.empresaDestino || 'Outro laboratório'}.`);
+      throw new Error(\`Este kit já foi ativado anteriormente pela empresa: \${kitData.empresaDestino || 'Outro laboratório'}.\`);
     }
 
     const boxes = await KitService.getKitBoxes(kitDoc.id);
@@ -428,7 +426,7 @@ export const ActivationService = {
         uidHex: box.uidHex || formats.uidHex || box.uid,
         uidDecimal: box.uidDecimal || formats.uidDecimal || box.uid,
         numeroCaixa: box.numeroCaixa,
-        textoGravado: box.textoGravado || `BOX-${box.numeroCaixa}`,
+        textoGravado: box.textoGravado || \`BOX-\${box.numeroCaixa}\`,
         status: 'Associada',
         activatedAt: new Date().toISOString(),
         kitCodigo: cleanCode,
@@ -449,3 +447,6 @@ export const ActivationService = {
     await batch.commit();
   }
 };
+`;
+
+fs.writeFileSync('services/nfcServices.ts', head + tail);
