@@ -1,23 +1,8 @@
 const fs = require('fs');
-let code = fs.readFileSync('pages/admin/DentistsTab.tsx', 'utf-8');
+let code = fs.readFileSync('components/Scanner.tsx', 'utf8');
 
-code = code.replace(
-`        )}
-    </div>
-  );
-};`,
-`        )}`
-);
+// Fix the syntax error: osNumber: currentJob.osNumber || 'N/A'), -> osNumber: currentJob.osNumber || 'N/A'
+code = code.replace(/osNumber: currentJob\.osNumber \|\| 'N\/A'\),/g, "osNumber: currentJob.osNumber || 'N/A'");
 
-code = code.replace(
-`          </div>
-  
-        {/* MODAL: SUB-DENTISTA */}`,
-`          </div>
-        )}
-  
-        {/* MODAL: SUB-DENTISTA */}`
-);
-
-fs.writeFileSync('pages/admin/DentistsTab.tsx', code + '\n    </div>\n  );\n};\n');
-console.log('Fixed syntax');
+fs.writeFileSync('components/Scanner.tsx', code);
+console.log("Syntax fixed");

@@ -117,9 +117,9 @@ export const NfcReaderService = {
         const isSupported = await Nfc.isSupported();
         if (!isSupported.supported) throw new Error('NFC não suportado.');
         
-        await Nfc.startScanSession();
+        await (Nfc as any).startScanSession();
         
-        Nfc.addListener('nfcTagScanned', (event: any) => {
+        (Nfc as any).addListener('nfcTagScanned', (event: any) => {
           let textValue = '';
           const uid = event.id ? event.id.map((b: number) => b.toString(16).padStart(2, '0')).join('').toUpperCase() : '';
           
@@ -136,8 +136,8 @@ export const NfcReaderService = {
         
         if (signal) {
           signal.addEventListener('abort', () => {
-             Nfc.stopScanSession();
-             Nfc.removeAllListeners();
+             (Nfc as any).stopScanSession();
+             (Nfc as any).removeAllListeners();
           });
         }
       } else {

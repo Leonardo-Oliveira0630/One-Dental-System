@@ -65,7 +65,8 @@ export const GlobalScanner: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<{item: JobItem, stageName?: string, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE', blockedMessage?: string} | null>(null);
 
   const activeanySectorRef = useRef(activeanySector);
-  useEffect(() => { activeanySectorRef.current = activeanySector; }, [activeanySector]);
+
+  
   const [commissionEarned, setCommissionEarned] = useState<number>(0);
   const [eligibleItems, setEligibleItems] = useState<{item: JobItem, jobType?: JobType}[]>([]);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -143,11 +144,11 @@ export const GlobalScanner: React.FC = () => {
           const isSupported = await Nfc.isSupported();
           if (!isSupported.supported) throw new Error('NFC nativo não suportado.');
           
-          await Nfc.startScanSession();
+          await (Nfc as any).startScanSession();
           setNfcStatus('scanning');
           console.log("Native NFC Scanner started successfully!");
           
-          Nfc.addListener('nfcTagScanned', (event) => {
+          (Nfc as any).addListener('nfcTagScanned', (event: any) => {
             const serialNumber = event.id ? event.id.map((b: any) => b.toString(16).padStart(2, '0')).join('').toUpperCase() : '';
             console.log("[Native NFC] Tag detected. SerialNumber:", serialNumber);
             
@@ -171,17 +172,17 @@ export const GlobalScanner: React.FC = () => {
             }
             
             if (cleanSerialNumber || cleanText) {
-                processScan({ uid: cleanSerialNumber, text: cleanText });
+                processScan(cleanSerialNumber || cleanText);
                 // removed isNfcSupported
                 setIsCameraActive(false);
-                Nfc.stopScanSession();
-                Nfc.removeAllListeners();
+                (Nfc as any).stopScanSession();
+                (Nfc as any).removeAllListeners();
             }
           });
           
           abortController.signal.addEventListener('abort', () => {
-             Nfc.stopScanSession();
-             Nfc.removeAllListeners();
+             (Nfc as any).stopScanSession();
+             (Nfc as any).removeAllListeners();
           });
           
         } else if ('NDEFReader' in window) {
@@ -214,7 +215,7 @@ export const GlobalScanner: React.FC = () => {
             if (cleanText.startsWith('BOX-')) cleanText = cleanText.replace('BOX-', '');
             
             if (cleanSerialNumber || cleanText) {
-                processScan({ uid: cleanSerialNumber, text: cleanText });
+                processScan(cleanSerialNumber || cleanText);
                 // removed isNfcSupported
                 setIsCameraActive(false);
             }
@@ -228,14 +229,14 @@ export const GlobalScanner: React.FC = () => {
       }
     };
 
-    if (isNfcSupported && isNfcSupported === 'nfc') {
+    if (isNfcSupported && isNfcSupported === true) {
       startNfc(false);
     }
 
     return () => {
       abortController.abort();
       if (Capacitor.isNativePlatform()) {
-         try { Nfc.stopScanSession(); Nfc.removeAllListeners(); } catch(e){}
+         try { (Nfc as any).stopScanSession(); (Nfc as any).removeAllListeners(); } catch(e){}
       }
     };
   }, [isNfcSupported, isNfcSupported]);
@@ -276,10 +277,11 @@ export const GlobalScanner: React.FC = () => {
     const eligible: any[] = [];
     if (!job.items) return { eligible, commission };
     for (const item of job.items) {
-      const comm = calculateItemCommission(item, user.id, types, sector, user.commissionRates);
+      const jobType = types.find(t => t.id === item.jobTypeId);
+      const comm = calculateItemCommission(item, jobType, user, item.quantity, sector, []);
       if (comm != null) {
         eligible.push(item);
-        if (typeof typeof typeof comm === 'number') commission += comm;
+        if (typeof comm === 'number') commission += comm;
       }
     }
     return { eligible, commission };
@@ -288,11 +290,13 @@ export const GlobalScanner: React.FC = () => {
   const calculateCommissionForItems = (items: JobItem[], user: any, types: JobType[], sector: string) => {
     let commission = 0;
     for (const item of items) {
-      const comm = calculateItemCommission(item, user.id, types, sector, user.commissionRates);
-      if (typeof typeof typeof comm === 'number') commission += comm;
+      const jobType = types.find(t => t.id === item.jobTypeId);
+      const comm = calculateItemCommission(item, jobType, user, item.quantity, sector, []);
+      if (typeof comm === 'number') commission += comm;
     }
     return commission;
   };
+
 
   const processScan = useCallback(async (code: string) => {
     try {
@@ -407,7 +411,7 @@ export const GlobalScanner: React.FC = () => {
                       const plannedStg = openMovement.plannedStages || {};
                       setSelectedItemIds(plannedIds);
                       setSelectedStages(plannedStg);
-                      setCommissionEarned(calculateCommissionForItems(job, user, plannedIds, jobTypesRef.current, detectedSector, plannedStg));
+                      setCommissionEarned(calculateCommissionForItems(job.items?.filter(i => plannedIds.includes(i.id)) || [], user, jobTypesRef.current, detectedSector));
                   } else {
                       setSelectedItemIds([]);
                       setSelectedStages({});
@@ -520,8 +524,12 @@ export const GlobalScanner: React.FC = () => {
             action: `${actionText} - ${targetName} no setor ${sector}`,
             userId: user.id,
             userName: user.name,
-            sector: sector
-        }];
+            sector: sector,
+                    amount: commissionEarned,
+                    status: 'PENDING' as CommissionStatus,
+                    createdAt: new Date(),
+                    patientName: currentJob.patientName
+                }];
 
         // We DO NOT update sectorMovements here anymore, to avoid treating the whole job as started
         // Actually, we can update sectorMovements so the OS appears in this sector overall.
@@ -534,7 +542,7 @@ export const GlobalScanner: React.FC = () => {
                 sector: sector,
                 entryTime: new Date(),
                 entryUserId: user.id,
-                entryanyName: user.name
+                entryUserName: user.name
             });
         }
 
@@ -561,11 +569,11 @@ export const GlobalScanner: React.FC = () => {
                     userName: user.name,
                     jobId: currentJob.id,
                     osNumber: currentJob.osNumber || 'N/A',
-                    patientName: currentJob.patientName,
+                    sector: sector,
                     amount: commissionEarned,
-                    status: CommissionStatus.PENDING,
+                    status: 'PENDING' as CommissionStatus,
                     createdAt: new Date(),
-                    sector: sector
+                    patientName: currentJob.patientName
                 });
             } catch (commErr: any) {
                 console.error("Erro ao registrar comissão:", commErr);
