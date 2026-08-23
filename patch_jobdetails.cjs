@@ -1,14 +1,10 @@
 const fs = require('fs');
-let content = fs.readFileSync('pages/JobDetails.tsx', 'utf8');
+let code = fs.readFileSync('pages/JobDetails.tsx', 'utf8');
 
-const oldGetTranslatedStatus = `const getTranslatedStatus = (status: JobStatus) => {
-      switch(status) {
-          case JobStatus.PENDING: return 'Pendente';`;
-const newGetTranslatedStatus = `const getTranslatedStatus = (status: JobStatus | string) => {
-      switch(status) {
-          case 'APPROVED': return 'Aprovado';
-          case JobStatus.PENDING: return 'Pendente';`;
+code = code.replace(/window\.dispatchEvent\(new CustomEvent\('open-job-scanner-popup', \{ detail: \{ jobId: job\.id \} \}\)\)/g, 
+  `{ 
+    console.log('Dispatching open-job-scanner-popup for job', job.id); 
+    window.dispatchEvent(new CustomEvent('open-job-scanner-popup', { detail: { jobId: job.id } })); 
+  }`);
 
-content = content.replace(oldGetTranslatedStatus, newGetTranslatedStatus);
-fs.writeFileSync('pages/JobDetails.tsx', content);
-console.log('patched JobDetails status formatting');
+fs.writeFileSync('pages/JobDetails.tsx', code);

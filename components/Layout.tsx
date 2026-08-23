@@ -177,7 +177,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen print:min-h-0 flex print:block bg-slate-50 print:bg-white font-sans relative overflow-x-hidden print:overflow-visible w-full">
-      {!isSuperAdmin && <GlobalScanner />}
+      <GlobalScanner />
       <PrintOverlay />
       <AlertPopup />
       <PWAInstallPrompt />

@@ -52,6 +52,7 @@ const formatItemNameWithVariations = (item: JobItem, jobTypes: JobType[]) => {
 };
 
 export const GlobalScanner: React.FC = () => {
+  console.log("GlobalScanner mounted!");
   const { jobs, updateJob, currentUser, addCommissionRecord, commissions, uploadFile, sectors, jobTypes, nfcBoxes } = useApp();
   const navigate = useNavigate();
   const bufferRef = useRef<string>('');
@@ -130,6 +131,20 @@ export const GlobalScanner: React.FC = () => {
   const scanActionRef = useRef(scanAction);
   const nextSectorRef = useRef(nextSector);
   const nfcBoxesRef = useRef(nfcBoxes);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+    isCameraActiveRef.current = isCameraActive;
+    jobsRef.current = jobs;
+    jobMapRef.current = jobMap;
+    commissionsRef.current = commissions;
+    jobTypesRef.current = jobTypes;
+    scannedJobRef.current = scannedJob;
+    scanActionRef.current = scanAction;
+    nextSectorRef.current = nextSector;
+    nfcBoxesRef.current = nfcBoxes;
+  }, [currentUser, isCameraActive, jobs, jobMap, commissions, jobTypes, scannedJob, scanAction, nextSector, nfcBoxes]);
+
   
   // Web NFC API integration
   useEffect(() => {
@@ -614,6 +629,73 @@ export const GlobalScanner: React.FC = () => {
 
 
 
+
+  // Listeners for manual triggers and global barcode scanning
+  useEffect(() => {
+    const handleManualScan = (e: any) => {
+      if (e.detail && e.detail.code) {
+        processScan(e.detail.code);
+      }
+    };
+
+    const handleOpenJobScanner = (e: any) => {
+      console.log("Scanner listener fired! JobId: " + (e.detail?.jobId || 'none') + ", Jobs: " + jobsRef.current.length);
+      if (e.detail && e.detail.jobId) {
+        const job = jobsRef.current.find(j => j.id === e.detail.jobId);
+        if (job) {
+          setScannedJob(job);
+        } else {
+          console.error("Job not found in jobsRef!");
+        }
+      }
+    };
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement || 
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+      
+      const char = e.key;
+      const now = Date.now();
+      
+      if (now - lastKeyTimeRef.current > SCANNER_TIMEOUT && bufferRef.current.length > 0) {
+        bufferRef.current = '';
+      }
+      
+      if (char === 'Enter') {
+        const code = bufferRef.current.trim();
+        if (code.length >= MIN_LENGTH) {
+          processScan(code);
+        }
+        bufferRef.current = '';
+      } else if (char.length === 1) {
+        bufferRef.current += char;
+      }
+      
+      lastKeyTimeRef.current = now;
+    };
+
+    window.addEventListener('manual-scan-trigger', handleManualScan);
+    window.addEventListener('open-job-scanner-popup', handleOpenJobScanner);
+    window.addEventListener('keypress', handleKeyPress);
+    const handleOpenScannerCam = () => setIsCameraActive(true);
+    window.addEventListener('open-scanner', handleOpenScannerCam);
+
+    
+    return () => {
+      window.removeEventListener('manual-scan-trigger', handleManualScan);
+      window.removeEventListener('open-job-scanner-popup', handleOpenJobScanner);
+      window.removeEventListener('keypress', handleKeyPress);
+      window.removeEventListener('open-scanner', handleOpenScannerCam);
+
+      
+    };
+  }, [processScan]);
+
   if (!scannedJob) return null;
 
   return (
@@ -738,7 +820,7 @@ export const GlobalScanner: React.FC = () => {
         <div className="mb-6 space-y-2">
             <label className="block text-sm font-bold text-slate-700 mb-2">Serviços e Etapas</label>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-2 rounded-xl border border-slate-100 p-2 bg-slate-50">
-                {scannedJob.items.map((item) => {
+                {(scannedJob.items || []).map((item) => {
                     const jt = jobTypes.find(t => t.id === item.jobTypeId);
                     const sector = activeanySector || 'Gestão';
                     const itemSectorStages = item.sectorStages?.[sector] || jt?.sectorStages?.[sector] || [];
@@ -809,7 +891,7 @@ export const GlobalScanner: React.FC = () => {
                         </div>
                     );
                 })}
-                {scannedJob.items.length === 0 && (
+                {(scannedJob.items || []).length === 0 && (
                     <p className="text-sm text-slate-400 text-center py-4 italic">Nenhum serviço neste trabalho.</p>
                 )}
             </div>

@@ -2724,7 +2724,10 @@ export const JobDetails = () => {
                 <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 flex-1 lg:justify-end w-full">
                     {isLabStaff && !isFinished && !job.isBudget && (
                         <button 
-                            onClick={() => window.dispatchEvent(new CustomEvent('open-job-scanner-popup', { detail: { jobId: job.id } }))} 
+                            onClick={() => { 
+    console.log('Dispatching open-job-scanner-popup for job', job.id); 
+    window.dispatchEvent(new CustomEvent('open-job-scanner-popup', { detail: { jobId: job.id } })); 
+  }} 
                             className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 text-white font-black text-[10px] rounded-xl hover:bg-slate-900 shadow-xl shadow-slate-200 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95"
                         >
                             <ScanBarcode size={16} /> LER CÓDIGO
