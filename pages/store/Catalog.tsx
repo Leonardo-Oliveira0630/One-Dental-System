@@ -399,60 +399,69 @@ const VariationConfigModal = ({ product, selectedLab, localPriceTables, onClose 
             return total;
         }
         
-        let discountableTotal = type.basePrice;
+        let basePrice = type.basePrice || 0;
+        let discountRate = 0;
         
-        if (currentUser.priceTableId && !currentUser.isCustomPricing) {
+        if (currentUser.priceTableId) {
             const table = localPriceTables.find(t => t.id === currentUser.priceTableId);
-            if (table && table.prices[type.id]?.basePrice !== undefined) {
-                discountableTotal = table.prices[type.id].basePrice;
+            if (table && table.prices?.[type.id]?.basePrice !== undefined && table.prices[type.id].basePrice !== null && !isNaN(table.prices[type.id].basePrice)) {
+                basePrice = Number(table.prices[type.id].basePrice);
             }
         }
         
-        let exemptTotal = 0;
-        let discountRate = 0;
-        
         const custom = currentUser.customPrices?.find(p => p.jobTypeId === type.id);
+        if (currentUser.isCustomPricing) {
+            if (custom) {
+                if (custom.fixedPrice !== undefined && custom.fixedPrice !== null && !isNaN(custom.fixedPrice) && Number(custom.fixedPrice) > 0) {
+                    basePrice = Number(custom.fixedPrice);
+                    discountRate = 0;
+                } else if (custom.discountPercent !== undefined && custom.discountPercent !== null && !isNaN(custom.discountPercent)) {
+                    discountRate = Number(custom.discountPercent) / 100;
+                } else if (custom.price !== undefined && custom.price !== null && !isNaN(custom.price) && Number(custom.price) > 0) {
+                    basePrice = Number(custom.price);
+                    discountRate = 0;
+                } else if (currentUser.globalDiscountPercent !== undefined && currentUser.globalDiscountPercent !== null && !isNaN(currentUser.globalDiscountPercent)) {
+                    discountRate = Number(currentUser.globalDiscountPercent) / 100;
+                }
+            } else if (currentUser.globalDiscountPercent !== undefined && currentUser.globalDiscountPercent !== null && !isNaN(currentUser.globalDiscountPercent)) {
+                discountRate = Number(currentUser.globalDiscountPercent) / 100;
+            }
+        } else if (currentUser.globalDiscountPercent !== undefined && currentUser.globalDiscountPercent !== null && !isNaN(currentUser.globalDiscountPercent)) {
+             discountRate = Number(currentUser.globalDiscountPercent) / 100;
+        }
+
+        let discountableTotal = basePrice;
+        let exemptTotal = 0;
         
         selectedIds.forEach(id => {
-            type.variationGroups.forEach(g => {
+            type.variationGroups?.forEach(g => {
                 const opt = g.options.find(o => o.id === id);
                 if (opt) {
-                    let modifier = opt.priceModifier;
+                    let modifier = opt.priceModifier || 0;
+                    let isCustomFixedVariation = false;
                     
-                    if (currentUser.isCustomPricing) {
-                        if (custom && custom.variations && custom.variations[opt.id] !== undefined) {
-                            modifier = custom.variations[opt.id];
-                        }
-                    } else if (currentUser.priceTableId) {
+                    if (currentUser.priceTableId) {
                         const table = localPriceTables.find(t => t.id === currentUser.priceTableId);
-                        if (table && table.prices[type.id]?.variations?.[opt.id] !== undefined) {
-                            modifier = table.prices[type.id].variations[opt.id];
+                        if (table && table.prices?.[type.id]?.variations?.[opt.id] !== undefined && table.prices[type.id].variations[opt.id] !== null && !isNaN(table.prices[type.id].variations[opt.id])) {
+                            modifier = Number(table.prices[type.id].variations[opt.id]);
+                        }
+                    }
+
+                    if (currentUser.isCustomPricing) {
+                        if (custom && custom.variations && custom.variations[opt.id] !== undefined && custom.variations[opt.id] !== null && !isNaN(custom.variations[opt.id])) {
+                            modifier = Number(custom.variations[opt.id]);
+                            isCustomFixedVariation = true;
                         }
                     }
                     
-                    if (opt.isDiscountExempt) exemptTotal += modifier;
-                    else discountableTotal += modifier;
+                    if (isCustomFixedVariation || opt.isDiscountExempt) {
+                        exemptTotal += modifier;
+                    } else {
+                        discountableTotal += modifier;
+                    }
                 }
             });
         });
-
-        if (currentUser.isCustomPricing) {
-            if (custom) {
-                if (custom.fixedPrice !== undefined && custom.fixedPrice > 0) {
-                    discountableTotal = custom.fixedPrice;
-                    discountRate = 0;
-                } else if (custom.discountPercent !== undefined) {
-                    discountRate = custom.discountPercent / 100;
-                } else if (custom.price !== undefined) {
-                    discountableTotal = custom.price;
-                    discountRate = 0;
-                }
-            } else if (currentUser.globalDiscountPercent) {
-                discountRate = currentUser.globalDiscountPercent / 100;
-            }
-        } else if (currentUser.globalDiscountPercent) {
-             discountRate = currentUser.globalDiscountPercent / 100;
-        }
 
         const discountedSum = discountableTotal * (1 - discountRate);
         return discountedSum + exemptTotal;
