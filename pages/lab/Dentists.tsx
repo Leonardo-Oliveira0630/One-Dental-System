@@ -197,36 +197,8 @@ export const Dentists = () => {
         }
         setTemporaryUnblockUntil(parsedDate);
         
-        // Ensure that if isCustomPricing is true, customPrices is fully populated
-        let loadedCustomPrices = client.customPrices || [];
-        if (client.isCustomPricing) {
-            const assignedTable = priceTables.find(t => t.id === client.priceTableId);
-            loadedCustomPrices = jobTypes.map(type => {
-                const existing = loadedCustomPrices.find((p: any) => p.jobTypeId === type.id);
-                if (existing && existing.fixedPrice !== undefined) return existing;
-                
-                let baseForService = type.basePrice;
-                let variations = {};
-                
-                if (assignedTable && assignedTable.prices[type.id]) {
-                    if (assignedTable.prices[type.id].basePrice !== undefined) {
-                        baseForService = assignedTable.prices[type.id].basePrice;
-                    }
-                    if (assignedTable.prices[type.id].variations) {
-                        variations = { ...assignedTable.prices[type.id].variations };
-                    }
-                }
-                
-                if (existing && existing.discountPercent !== undefined) {
-                    return {
-                        ...existing,
-                        fixedPrice: baseForService * (1 - existing.discountPercent / 100),
-                        variations
-                    };
-                }
-                return { jobTypeId: type.id, fixedPrice: baseForService, variations };
-            });
-        }
+        // Load custom prices as defined without overriding with dummy fixedPrices
+        const loadedCustomPrices = client.customPrices || [];
         setCustomPrices(loadedCustomPrices);
     };
 
@@ -235,9 +207,17 @@ export const Dentists = () => {
         setIsSaving(true);
         
         try {
+            // Clean up custom prices to only keep entries with active overrides
+            const cleanedCustomPrices = isCustomPricing ? customPrices.filter((p: any) => {
+                const hasFixed = p.fixedPrice !== undefined && p.fixedPrice !== null && p.fixedPrice > 0;
+                const hasDiscount = p.discountPercent !== undefined && p.discountPercent !== null && p.discountPercent > 0;
+                const hasVars = p.variations && Object.keys(p.variations).length > 0;
+                return hasFixed || hasDiscount || hasVars;
+            }) : [];
+
             const updates: any = {
                 globalDiscountPercent: globalDiscount,
-                customPrices: customPrices,
+                customPrices: cleanedCustomPrices,
                 isCustomPricing: isCustomPricing,
                 clientType: clientType,
             };
@@ -1073,7 +1053,7 @@ export const Dentists = () => {
                                      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
                                         <div>
                                             <p className="text-xs font-black text-blue-800 uppercase">Tabela Personalizada</p>
-                                            <p className="text-[10px] text-blue-600 font-bold">Ignora a tabela base e aplica descontos manuais</p>
+                                            <p className="text-[10px] text-blue-600 font-bold">Personalize descontos e preços fixos específicos para este cliente</p>
                                         </div>
                                         <label className="relative inline-flex items-center cursor-pointer">
                                             <input 
@@ -1083,40 +1063,6 @@ export const Dentists = () => {
                                                 onChange={e => {
                                                     const checked = e.target.checked;
                                                     setIsCustomPricing(checked);
-                                                    if (checked) {
-                                                        const assignedTable = priceTables.find(t => t.id === priceTableId);
-                                                        const newCustomPrices = jobTypes.map(type => {
-                                                            const existing = customPrices.find((p: any) => p.jobTypeId === type.id);
-                                                            if (existing && existing.fixedPrice !== undefined) return existing;
-                                                            
-                                                            let baseForService = type.basePrice;
-                                                            let variations = {};
-                                                            
-                                                            if (assignedTable && assignedTable.prices[type.id]) {
-                                                                if (assignedTable.prices[type.id].basePrice !== undefined) {
-                                                                    baseForService = assignedTable.prices[type.id].basePrice;
-                                                                }
-                                                                if (assignedTable.prices[type.id].variations) {
-                                                                    variations = { ...assignedTable.prices[type.id].variations };
-                                                                }
-                                                            }
-                                                            
-                                                            if (existing && existing.discountPercent !== undefined) {
-                                                                return {
-                                                                    ...existing,
-                                                                    fixedPrice: baseForService * (1 - existing.discountPercent / 100),
-                                                                    variations
-                                                                };
-                                                            }
-                                                            
-                                                            return {
-                                                                jobTypeId: type.id,
-                                                                fixedPrice: baseForService,
-                                                                variations
-                                                            };
-                                                        });
-                                                        setCustomPrices(newCustomPrices);
-                                                    }
                                                 }}
                                             />
                                             <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -1195,9 +1141,31 @@ export const Dentists = () => {
                             {isCustomPricing ? (
                                 <>
                                     <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
-                                        <div className="flex items-center gap-3 mb-4 text-green-800">
-                                            <Percent size={24} />
-                                            <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3 text-green-800">
+                                                <Percent size={24} />
+                                                <div>
+                                                    <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
+                                                    <p className="text-[10px] text-green-700 font-medium">Aplica-se a todos os serviços e variações sem preço fixo individual</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCustomPrices([])}
+                                                    title="Limpar personalizações individuais para que todos usem o desconto global"
+                                                    className="px-2.5 py-1 text-[10px] font-bold bg-white text-green-800 border border-green-200 hover:bg-green-100 rounded-lg transition-all shadow-xs"
+                                                >
+                                                    Usar Global em Todos
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setGlobalDiscount(0); }}
+                                                    className="px-2.5 py-1 text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg transition-all shadow-xs"
+                                                >
+                                                    Zerar Global
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <input 
@@ -1205,7 +1173,7 @@ export const Dentists = () => {
                                                 min="0" 
                                                 max="50" 
                                                 value={globalDiscount}
-                                                onChange={e => setGlobalDiscount(parseInt(e.target.value))}
+                                                onChange={e => setGlobalDiscount(parseInt(e.target.value) || 0)}
                                                 className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600"
                                             />
                                             <span className="font-black text-2xl text-green-700 w-16 text-right">{globalDiscount}%</span>
@@ -1213,18 +1181,33 @@ export const Dentists = () => {
                                     </div>
 
                                         <div className="space-y-4">
-                                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                                <DollarSign size={14}/> Preços e Descontos Individuais
-                                            </h4>
+                                            <div className="flex items-center justify-between">
+                                                <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                    <DollarSign size={14}/> Preços e Descontos Individuais
+                                                </h4>
+                                                <span className="text-[10px] text-slate-400 font-bold">
+                                                    Valores base herdados de: {priceTables.find(t => t.id === priceTableId)?.name || 'Tabela Padrão'}
+                                                </span>
+                                            </div>
                                             
                                             <div className="space-y-3">
                                                 {jobTypes.map(type => {
                                                     const cp = customPrices.find(p => p.jobTypeId === type.id);
-                                                    const discountValue = cp?.discountPercent ?? (cp?.fixedPrice ? 0 : globalDiscount);
+                                                    const hasCustomFixed = cp?.fixedPrice !== undefined && cp.fixedPrice !== null && cp.fixedPrice > 0;
+                                                    const hasCustomDiscount = cp?.discountPercent !== undefined && cp.discountPercent !== null && cp.discountPercent > 0;
+                                                    
                                                     const assignedTable = priceTables.find(t => t.id === priceTableId);
-                                                     const tablePriceObj = assignedTable?.prices[type.id];
-                                                     const basePriceForService = tablePriceObj?.basePrice !== undefined ? tablePriceObj.basePrice : type.basePrice;
-                                                     const finalPrice = cp?.fixedPrice ?? (basePriceForService * (1 - discountValue / 100));
+                                                    const tablePriceObj = assignedTable?.prices[type.id];
+                                                    const basePriceForService = tablePriceObj?.basePrice !== undefined ? tablePriceObj.basePrice : type.basePrice;
+                                                    
+                                                    // Effective discount rate for service
+                                                    const effectiveServiceDiscount = hasCustomDiscount
+                                                        ? cp.discountPercent!
+                                                        : (hasCustomFixed ? 0 : (globalDiscount || 0));
+                                                    
+                                                    const finalPrice = hasCustomFixed
+                                                        ? cp.fixedPrice!
+                                                        : (basePriceForService * (1 - effectiveServiceDiscount / 100));
                                                     
                                                     return (
                                                         <div key={type.id} className="flex flex-col p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all gap-4">
@@ -1232,16 +1215,14 @@ export const Dentists = () => {
                                                                 
                                                             <div className="mb-2 sm:mb-0">
                                                                 <p className="font-bold text-slate-800">{type.name}</p>
-                                                                {(() => {
-                                                                    const assignedTable = priceTables.find(t => t.id === priceTableId);
-                                                                    const tablePriceObj = assignedTable?.prices[type.id];
-                                                                    const basePriceForService = tablePriceObj?.basePrice !== undefined ? tablePriceObj.basePrice : type.basePrice;
-                                                                    return (
-                                                                        <p className="text-xs text-slate-400">
-                                                                            {assignedTable ? `Preço Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Preço Padrão: R$ ${type.basePrice.toFixed(2)}`}
-                                                                        </p>
-                                                                    );
-                                                                })()}
+                                                                <p className="text-xs text-slate-400">
+                                                                    {assignedTable ? `Preço Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Preço Padrão: R$ ${type.basePrice.toFixed(2)}`}
+                                                                    {effectiveServiceDiscount > 0 && !hasCustomFixed && (
+                                                                        <span className="ml-2 text-green-600 font-bold">
+                                                                            ({effectiveServiceDiscount}% desc. {hasCustomDiscount ? 'individual' : 'global'})
+                                                                        </span>
+                                                                    )}
+                                                                </p>
                                                             </div>
                                                             <div className="flex items-center gap-4">
                                                                 <div className="text-right">
@@ -1253,21 +1234,28 @@ export const Dentists = () => {
                                                                     <div className="flex items-center">
                                                                         <input 
                                                                             type="number" 
-                                                                            value={cp?.discountPercent ?? ''}
+                                                                            value={cp?.discountPercent !== undefined ? cp.discountPercent : ''}
                                                                             onChange={e => {
-                                                                                const newPercent = parseInt(e.target.value) || 0;
+                                                                                const raw = e.target.value;
+                                                                                const newPercent = raw === '' ? undefined : parseInt(raw);
                                                                                 const newCustomPrices = [...customPrices];
                                                                                 const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                                 if (idx !== -1) {
-                                                                                    newCustomPrices[idx] = { ...newCustomPrices[idx], discountPercent: newPercent, fixedPrice: undefined };
-                                                                                    if (newPercent === 0 && !newCustomPrices[idx].fixedPrice) newCustomPrices.splice(idx, 1);
-                                                                                } else if (newPercent > 0) {
+                                                                                    if (newPercent === undefined || isNaN(newPercent)) {
+                                                                                        delete newCustomPrices[idx].discountPercent;
+                                                                                        if (!newCustomPrices[idx].fixedPrice && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
+                                                                                            newCustomPrices.splice(idx, 1);
+                                                                                        }
+                                                                                    } else {
+                                                                                        newCustomPrices[idx] = { ...newCustomPrices[idx], discountPercent: newPercent, fixedPrice: undefined };
+                                                                                    }
+                                                                                } else if (newPercent !== undefined && !isNaN(newPercent)) {
                                                                                     newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent });
                                                                                 }
                                                                                 setCustomPrices(newCustomPrices);
                                                                             }}
                                                                             className="w-14 px-2 py-2 font-bold text-center outline-none bg-transparent"
-                                                                            placeholder="0"
+                                                                            placeholder={globalDiscount > 0 ? `${globalDiscount}%` : "0"}
                                                                         />
                                                                         <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
                                                                     </div>
@@ -1276,21 +1264,28 @@ export const Dentists = () => {
                                                                         <span className="pl-2 pr-1 text-[10px] font-bold text-slate-400">R$</span>
                                                                         <input 
                                                                             type="number" 
-                                                                            value={cp?.fixedPrice ?? ''}
+                                                                            value={cp?.fixedPrice !== undefined && cp.fixedPrice > 0 ? cp.fixedPrice : ''}
                                                                             onChange={e => {
-                                                                                const newFixed = parseFloat(e.target.value) || 0;
+                                                                                const raw = e.target.value;
+                                                                                const newFixed = raw === '' ? undefined : parseFloat(raw);
                                                                                 const newCustomPrices = [...customPrices];
                                                                                 const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                                 if (idx !== -1) {
-                                                                                    newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined };
-                                                                                    // if (newFixed === 0 && !newCustomPrices[idx].discountPercent) newCustomPrices.splice(idx, 1);
-                                                                                } else if (newFixed > 0) {
+                                                                                    if (newFixed === undefined || isNaN(newFixed) || newFixed <= 0) {
+                                                                                        delete newCustomPrices[idx].fixedPrice;
+                                                                                        if (!newCustomPrices[idx].discountPercent && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
+                                                                                            newCustomPrices.splice(idx, 1);
+                                                                                        }
+                                                                                    } else {
+                                                                                        newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined };
+                                                                                    }
+                                                                                } else if (newFixed !== undefined && !isNaN(newFixed) && newFixed > 0) {
                                                                                     newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed });
                                                                                 }
                                                                                 setCustomPrices(newCustomPrices);
                                                                             }}
                                                                             className="w-20 px-2 py-2 font-bold text-center outline-none bg-transparent"
-                                                                            placeholder="Fixo"
+                                                                            placeholder={finalPrice.toFixed(2)}
                                                                         />
                                                                     </div>
                                                                 </div>
@@ -1308,21 +1303,44 @@ export const Dentists = () => {
                                                                                     {group.options.map((opt: any) => {
                                                                                         const tablePriceObj = priceTables.find(t => t.id === priceTableId)?.prices[type.id];
                                                                                         const tableVariationPrice = tablePriceObj?.variations?.[opt.id];
-                                                                                        const baseVariationPrice = tableVariationPrice !== undefined ? tableVariationPrice : opt.priceModifier;
+                                                                                        const baseVariationPrice = tableVariationPrice !== undefined ? tableVariationPrice : (opt.priceModifier || 0);
                                                                                         const customVarPrice = cp?.variations?.[opt.id];
+                                                                                        
+                                                                                        let finalVariationPrice = baseVariationPrice;
+                                                                                        let variationDiscountLabel = '';
+
+                                                                                        if (customVarPrice !== undefined && customVarPrice !== null && !isNaN(customVarPrice)) {
+                                                                                            finalVariationPrice = customVarPrice;
+                                                                                            variationDiscountLabel = 'Personalizado';
+                                                                                        } else if (opt.isDiscountExempt) {
+                                                                                            finalVariationPrice = baseVariationPrice;
+                                                                                            variationDiscountLabel = 'Isento de desc.';
+                                                                                        } else if (effectiveServiceDiscount > 0) {
+                                                                                            finalVariationPrice = baseVariationPrice * (1 - effectiveServiceDiscount / 100);
+                                                                                            variationDiscountLabel = `${effectiveServiceDiscount}% desc.`;
+                                                                                        }
+
                                                                                         return (
                                                                                             <div key={opt.id} className="flex items-center justify-between text-xs px-2 group/opt">
                                                                                                 <div className="flex flex-col">
                                                                                                     <span className="text-slate-600 font-bold">{opt.name}</span>
-                                                                                                    <span className="text-[9px] text-slate-400">Padrão: R$ {baseVariationPrice.toFixed(2)}</span>
+                                                                                                    <span className="text-[10px] text-slate-400">
+                                                                                                        Base: R$ {baseVariationPrice.toFixed(2)}
+                                                                                                        {variationDiscountLabel && (
+                                                                                                            <span className={`ml-1.5 font-bold ${opt.isDiscountExempt ? 'text-amber-600' : 'text-green-600'}`}>
+                                                                                                                → Final: R$ {finalVariationPrice.toFixed(2)} ({variationDiscountLabel})
+                                                                                                            </span>
+                                                                                                        )}
+                                                                                                    </span>
                                                                                                 </div>
                                                                                                 <div className="flex items-center gap-2">
                                                                                                     <span className="text-[9px] text-slate-400 font-bold">R$</span>
                                                                                                     <input 
-                                                                                                        type="number"
+                                                                                                        type="number" 
                                                                                                         value={customVarPrice !== undefined ? customVarPrice : ''}
                                                                                                         onChange={e => {
-                                                                                                            const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                                                                            const raw = e.target.value;
+                                                                                                            const val = raw === '' ? undefined : parseFloat(raw);
                                                                                                             const newCustomPrices = [...customPrices];
                                                                                                             let idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
                                                                                                             if (idx === -1) {
@@ -1331,7 +1349,7 @@ export const Dentists = () => {
                                                                                                             }
                                                                                                             if (!newCustomPrices[idx].variations) newCustomPrices[idx].variations = {};
                                                                                                             
-                                                                                                            if (val === undefined) {
+                                                                                                            if (val === undefined || isNaN(val)) {
                                                                                                                 delete newCustomPrices[idx].variations[opt.id];
                                                                                                                 if (Object.keys(newCustomPrices[idx].variations).length === 0) {
                                                                                                                     delete newCustomPrices[idx].variations;
@@ -1344,8 +1362,8 @@ export const Dentists = () => {
                                                                                                             }
                                                                                                             setCustomPrices(newCustomPrices);
                                                                                                         }}
-                                                                                                        className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-md font-bold text-right outline-none focus:border-blue-400 transition-all"
-                                                                                                        placeholder="Fixo"
+                                                                                                        className="w-20 px-2 py-1 bg-white border border-slate-200 rounded-md font-bold text-right outline-none focus:border-blue-400 transition-all text-xs"
+                                                                                                        placeholder={finalVariationPrice.toFixed(2)}
                                                                                                     />
                                                                                                 </div>
                                                                                             </div>
@@ -1362,7 +1380,7 @@ export const Dentists = () => {
                                                 })}
                                             </div>
                                         </div>
-                                </>
+                                    </>
                             ) : (
                                 <div className="bg-slate-50 p-4 sm:p-8 rounded-3xl border border-dashed border-slate-200 text-center">
                                     <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mx-auto mb-4 text-slate-400">

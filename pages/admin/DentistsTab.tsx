@@ -197,6 +197,17 @@ export const DentistsTab = () => {
               dataToSave.billingLimit = hasBillingLimit ? formData.billingLimit : 0;
           }
 
+          if (dataToSave.isCustomPricing) {
+              dataToSave.customPrices = (dataToSave.customPrices || []).filter((p: any) => {
+                  const hasFixed = p.fixedPrice !== undefined && p.fixedPrice !== null && p.fixedPrice > 0;
+                  const hasDiscount = p.discountPercent !== undefined && p.discountPercent !== null && p.discountPercent > 0;
+                  const hasVars = p.variations && Object.keys(p.variations).length > 0;
+                  return hasFixed || hasDiscount || hasVars;
+              });
+          } else {
+              dataToSave.customPrices = [];
+          }
+
           if (editingDentistId) {
               await updateManualDentist(editingDentistId, dataToSave);
           } else {
@@ -795,36 +806,14 @@ export const DentistsTab = () => {
                                 </div>
                                 <label className="relative inline-flex items-center cursor-pointer">
                                     <input 
-                                        type="checkbox" 
-                                        className="sr-only peer" 
+                                            className="sr-only peer" 
                                         checked={formData.isCustomPricing}
                                         onChange={e => {
                                             const isChecked = e.target.checked;
-                                            setFormData(prev => {
-                                                const newState = { ...prev, isCustomPricing: isChecked };
-                                                if (isChecked) {
-                                                    const assignedTable = priceTables.find(t => t.id === prev.priceTableId);
-                                                    const newCustomPrices = jobTypes.map((type: any) => {
-                                                        const existing = (prev.customPrices || []).find((p: any) => p.jobTypeId === type.id);
-                                                        if (existing && existing.fixedPrice !== undefined) return existing;
-                                                        
-                                                        let baseForService = type.basePrice;
-                                                        let variations = {};
-                                                        if (assignedTable && assignedTable.prices[type.id]) {
-                                                            if (assignedTable.prices[type.id].basePrice !== undefined) baseForService = assignedTable.prices[type.id].basePrice;
-                                                            if (assignedTable.prices[type.id].variations) variations = { ...assignedTable.prices[type.id].variations };
-                                                        }
-                                                        if (existing && existing.discountPercent !== undefined) {
-                                                            return { ...existing, fixedPrice: baseForService * (1 - existing.discountPercent / 100), variations };
-                                                        }
-                                                        return { jobTypeId: type.id, fixedPrice: baseForService, variations };
-                                                    });
-                                                    newState.customPrices = newCustomPrices;
-                                                } else {
-                                                    newState.customPrices = [];
-                                                }
-                                                return newState;
-                                            });
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                isCustomPricing: isChecked
+                                            }));
                                         }}
                                     />
                                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -834,9 +823,30 @@ export const DentistsTab = () => {
                              {formData.isCustomPricing && (
                                 <div className="space-y-4 animate-in slide-in-from-top-2">
                                   <div className="bg-green-50 p-4 sm:p-6 rounded-2xl border border-green-100">
-                                      <div className="flex items-center gap-3 mb-4 text-green-800">
-                                          <Percent size={24} />
-                                          <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
+                                      <div className="flex items-center justify-between mb-4">
+                                          <div className="flex items-center gap-3 text-green-800">
+                                              <Percent size={24} />
+                                              <div>
+                                                  <h4 className="font-black uppercase tracking-widest text-sm">Desconto Global Customizado</h4>
+                                                  <p className="text-[10px] text-green-700 font-medium">Aplica-se a todos os serviços e variações sem valor fixo individual</p>
+                                              </div>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setFormData(prev => ({ ...prev, customPrices: [] }))}
+                                                  className="px-2 py-1 text-[10px] font-bold bg-white text-green-800 border border-green-200 hover:bg-green-100 rounded-lg transition-all"
+                                              >
+                                                  Usar Global em Todos
+                                              </button>
+                                              <button
+                                                  type="button"
+                                                  onClick={() => setFormData(prev => ({ ...prev, globalDiscountPercent: 0 }))}
+                                                  className="px-2 py-1 text-[10px] font-bold bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 rounded-lg transition-all"
+                                              >
+                                                  Zerar Global
+                                              </button>
+                                          </div>
                                       </div>
                                       <div className="flex items-center gap-4">
                                           <input 
@@ -844,68 +854,109 @@ export const DentistsTab = () => {
                                               min="0" 
                                               max="50" 
                                               value={formData.globalDiscountPercent || 0}
-                                              onChange={e => setFormData(prev => ({ ...prev, globalDiscountPercent: parseInt(e.target.value) }))}
+                                              onChange={e => setFormData(prev => ({ ...prev, globalDiscountPercent: parseInt(e.target.value) || 0 }))}
                                               className="flex-1 h-2 bg-green-200 rounded-lg appearance-none cursor-pointer accent-green-600"
                                           />
                                           <span className="font-black text-2xl text-green-700 w-16 text-right">{formData.globalDiscountPercent || 0}%</span>
                                       </div>
                                   </div>
 
-                                  <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2">
+                                  <div className="grid grid-cols-1 gap-2 max-h-80 overflow-y-auto pr-2">
                                       {jobTypes.map((type: any) => {
                                           const cp = formData.customPrices?.find((p: any) => p.jobTypeId === type.id);
-                                          const val = cp?.discountPercent || 0;
+                                          const hasCustomFixed = cp?.fixedPrice !== undefined && cp.fixedPrice !== null && cp.fixedPrice > 0;
+                                          const hasCustomDiscount = cp?.discountPercent !== undefined && cp.discountPercent !== null && cp.discountPercent > 0;
+                                          
+                                          const assignedTable = priceTables.find(t => t.id === formData.priceTableId);
+                                          const tablePriceObj = assignedTable?.prices[type.id];
+                                          const basePriceForService = tablePriceObj?.basePrice !== undefined ? tablePriceObj.basePrice : type.basePrice;
+                                          
+                                          const effectiveServiceDiscount = hasCustomDiscount 
+                                              ? cp.discountPercent 
+                                              : (hasCustomFixed ? 0 : (formData.globalDiscountPercent || 0));
+                                          
+                                          const finalPrice = hasCustomFixed 
+                                              ? cp.fixedPrice 
+                                              : (basePriceForService * (1 - effectiveServiceDiscount / 100));
+
                                           return (
                                               <div key={type.id} className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl gap-3">
                                                   <div className="flex items-center justify-between">
                                                       
                                                   <div className="min-w-0 flex-1">
                                                       <p className="text-xs font-bold text-slate-700 truncate">{type.name}</p>
-                                                      <p className="text-[10px] text-slate-400">R$ {type.basePrice.toFixed(2)}</p>
+                                                      <p className="text-[10px] text-slate-400">
+                                                          {assignedTable ? `Tabela (${assignedTable.name}): R$ ${basePriceForService.toFixed(2)}` : `Base: R$ ${type.basePrice.toFixed(2)}`}
+                                                          {effectiveServiceDiscount > 0 && !hasCustomFixed && (
+                                                              <span className="ml-1 text-green-600 font-bold">
+                                                                  (-{effectiveServiceDiscount}%)
+                                                              </span>
+                                                          )}
+                                                      </p>
                                                   </div>
-                                                  <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden shrink-0 gap-1 pr-2">
-                                                      <div className="flex items-center">
-                                                          <input 
-                                                              type="number" 
-                                                              value={cp?.discountPercent || ''}
-                                                              onChange={e => {
-                                                                  const newPercent = parseInt(e.target.value) || 0;
-                                                                  const newCustomPrices = [...(formData.customPrices || [])];
-                                                                  const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
-                                                                  if (idx !== -1) {
-                                                                      newCustomPrices[idx] = { ...newCustomPrices[idx], discountPercent: newPercent, fixedPrice: undefined };
-                                                                      if (newPercent === 0 && !(newCustomPrices[idx] as any).fixedPrice) newCustomPrices.splice(idx, 1);
-                                                                  } else if (newPercent > 0) {
-                                                                      newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent } as any);
-                                                                  }
-                                                                  setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
-                                                              }}
-                                                              className="w-12 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
-                                                              placeholder="0"
-                                                          />
-                                                          <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
+                                                  <div className="flex items-center gap-3">
+                                                      <div className="text-right">
+                                                          <p className="text-[9px] font-bold text-slate-400 uppercase">Final</p>
+                                                          <p className="font-black text-xs text-blue-700">R$ {finalPrice.toFixed(2)}</p>
                                                       </div>
-                                                      <div className="w-px h-4 bg-slate-200 mx-1"></div>
-                                                      <div className="flex items-center">
-                                                          <span className="px-1 text-[10px] font-bold text-slate-400">R$</span>
-                                                          <input 
-                                                              type="number" 
-                                                              value={cp?.fixedPrice || ''}
-                                                              onChange={e => {
-                                                                  const newFixed = parseFloat(e.target.value) || 0;
-                                                                  const newCustomPrices = [...(formData.customPrices || [])];
-                                                                  const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
-                                                                  if (idx !== -1) {
-                                                                      newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined as any };
-                                                                      if (newFixed === 0 && !(newCustomPrices[idx] as any).discountPercent) newCustomPrices.splice(idx, 1);
-                                                                  } else if (newFixed > 0) {
-                                                                      newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed } as any);
-                                                                  }
-                                                                  setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
-                                                              }}
-                                                              className="w-16 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
-                                                              placeholder="Fixo"
-                                                          />
+                                                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg overflow-hidden shrink-0 gap-1 pr-2">
+                                                          <div className="flex items-center">
+                                                              <input 
+                                                                  type="number" 
+                                                                  value={cp?.discountPercent !== undefined ? cp.discountPercent : ''}
+                                                                  onChange={e => {
+                                                                      const raw = e.target.value;
+                                                                      const newPercent = raw === '' ? undefined : parseInt(raw);
+                                                                      const newCustomPrices = [...(formData.customPrices || [])];
+                                                                      const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                      if (idx !== -1) {
+                                                                          if (newPercent === undefined || isNaN(newPercent)) {
+                                                                              delete newCustomPrices[idx].discountPercent;
+                                                                              if (!newCustomPrices[idx].fixedPrice && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
+                                                                                  newCustomPrices.splice(idx, 1);
+                                                                              }
+                                                                          } else {
+                                                                              newCustomPrices[idx] = { ...newCustomPrices[idx], discountPercent: newPercent, fixedPrice: undefined };
+                                                                          }
+                                                                      } else if (newPercent !== undefined && !isNaN(newPercent)) {
+                                                                          newCustomPrices.push({ jobTypeId: type.id, discountPercent: newPercent } as any);
+                                                                      }
+                                                                      setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
+                                                                  }}
+                                                                  className="w-12 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
+                                                                  placeholder={formData.globalDiscountPercent ? `${formData.globalDiscountPercent}%` : "0"}
+                                                              />
+                                                              <span className="px-1 text-[10px] font-bold text-slate-400 border-l">%</span>
+                                                          </div>
+                                                          <div className="w-px h-4 bg-slate-200 mx-1"></div>
+                                                          <div className="flex items-center">
+                                                              <span className="px-1 text-[10px] font-bold text-slate-400">R$</span>
+                                                              <input 
+                                                                  type="number" 
+                                                                  value={cp?.fixedPrice !== undefined && cp.fixedPrice > 0 ? cp.fixedPrice : ''}
+                                                                  onChange={e => {
+                                                                      const raw = e.target.value;
+                                                                      const newFixed = raw === '' ? undefined : parseFloat(raw);
+                                                                      const newCustomPrices = [...(formData.customPrices || [])];
+                                                                      const idx = newCustomPrices.findIndex(p => p.jobTypeId === type.id);
+                                                                      if (idx !== -1) {
+                                                                          if (newFixed === undefined || isNaN(newFixed) || newFixed <= 0) {
+                                                                              delete newCustomPrices[idx].fixedPrice;
+                                                                              if (!newCustomPrices[idx].discountPercent && (!newCustomPrices[idx].variations || Object.keys(newCustomPrices[idx].variations).length === 0)) {
+                                                                                  newCustomPrices.splice(idx, 1);
+                                                                              }
+                                                                          } else {
+                                                                              newCustomPrices[idx] = { ...newCustomPrices[idx], fixedPrice: newFixed, discountPercent: undefined as any };
+                                                                          }
+                                                                      } else if (newFixed !== undefined && !isNaN(newFixed) && newFixed > 0) {
+                                                                          newCustomPrices.push({ jobTypeId: type.id, fixedPrice: newFixed } as any);
+                                                                      }
+                                                                      setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
+                                                                  }}
+                                                                  className="w-16 px-2 py-1 text-xs font-bold text-center outline-none bg-transparent"
+                                                                  placeholder={finalPrice.toFixed(2)}
+                                                              />
+                                                          </div>
                                                       </div>
                                                   </div>
                                               
@@ -919,17 +970,40 @@ export const DentistsTab = () => {
                                                                       <p className="text-[9px] font-bold text-slate-500 mb-1">{group.name}</p>
                                                                       <div className="space-y-1">
                                                                           {group.options.map((opt: any) => {
+                                                                              const tablePriceObj = assignedTable?.prices[type.id];
+                                                                              const tableVariationPrice = tablePriceObj?.variations?.[opt.id];
+                                                                              const baseVariationPrice = tableVariationPrice !== undefined ? tableVariationPrice : (opt.priceModifier || 0);
                                                                               const customVarPrice = cp?.variations?.[opt.id];
+                                                                              
+                                                                              let finalVarPrice = baseVariationPrice;
+                                                                              let varDiscountInfo = '';
+                                                                              if (customVarPrice !== undefined && customVarPrice !== null && !isNaN(customVarPrice)) {
+                                                                                  finalVarPrice = customVarPrice;
+                                                                                  varDiscountInfo = 'Personalizado';
+                                                                              } else if (opt.isDiscountExempt) {
+                                                                                  finalVarPrice = baseVariationPrice;
+                                                                                  varDiscountInfo = 'Isento';
+                                                                              } else if (effectiveServiceDiscount > 0) {
+                                                                                  finalVarPrice = baseVariationPrice * (1 - effectiveServiceDiscount / 100);
+                                                                                  varDiscountInfo = `-${effectiveServiceDiscount}%`;
+                                                                              }
+
                                                                               return (
-                                                                                  <div key={opt.id} className="flex items-center justify-between">
-                                                                                      <span className="text-[10px] text-slate-600 truncate max-w-[120px]">{opt.name}</span>
+                                                                                  <div key={opt.id} className="flex items-center justify-between text-[10px]">
+                                                                                      <span className="text-slate-600 truncate max-w-[150px]">
+                                                                                          {opt.name}
+                                                                                          <span className="text-slate-400 text-[9px] ml-1">
+                                                                                              (R$ {baseVariationPrice.toFixed(2)}{varDiscountInfo ? ` → R$ ${finalVarPrice.toFixed(2)}` : ''})
+                                                                                          </span>
+                                                                                      </span>
                                                                                       <div className="flex items-center">
                                                                                           <span className="text-[9px] text-slate-400 pr-1">R$</span>
                                                                                           <input
                                                                                               type="number"
                                                                                               value={customVarPrice !== undefined ? customVarPrice : ''}
                                                                                               onChange={e => {
-                                                                                                  const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                                                                  const raw = e.target.value;
+                                                                                                  const val = raw === '' ? undefined : parseFloat(raw);
                                                                                                   const newCustomPrices = [...(formData.customPrices || [])];
                                                                                                   let idx = newCustomPrices.findIndex((p: any) => p.jobTypeId === type.id);
                                                                                                   if (idx === -1) {
@@ -938,7 +1012,7 @@ export const DentistsTab = () => {
                                                                                                   }
                                                                                                   if (!(newCustomPrices[idx] as any).variations) (newCustomPrices[idx] as any).variations = {};
                                                                                                   
-                                                                                                  if (val === undefined) {
+                                                                                                  if (val === undefined || isNaN(val)) {
                                                                                                       delete (newCustomPrices[idx] as any).variations[opt.id];
                                                                                                       if (Object.keys((newCustomPrices[idx] as any).variations).length === 0) {
                                                                                                           delete (newCustomPrices[idx] as any).variations;
@@ -951,8 +1025,8 @@ export const DentistsTab = () => {
                                                                                                   }
                                                                                                   setFormData(prev => ({ ...prev, customPrices: newCustomPrices }));
                                                                                               }}
-                                                                                              className="w-14 px-1 py-1 text-[10px] bg-slate-50 border border-slate-200 rounded text-right outline-none focus:border-blue-400"
-                                                                                              placeholder="Fixo"
+                                                                                              className="w-16 px-1 py-1 text-[10px] bg-slate-50 border border-slate-200 rounded text-right outline-none focus:border-blue-400 font-bold"
+                                                                                              placeholder={finalVarPrice.toFixed(2)}
                                                                                           />
                                                                                       </div>
                                                                                   </div>
