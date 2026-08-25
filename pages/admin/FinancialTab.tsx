@@ -3,8 +3,9 @@ import { useApp } from '../../context/AppContext';
 import { 
   ShieldCheck, Info, CreditCard, Loader2, Wallet, Save, 
   Building2, MapPin, Phone, Mail, Calendar, DollarSign, 
-  FileText, ExternalLink, Key, Check, Trash2, Clock, Plus, AlertCircle
+  FileText, ExternalLink, Key, Check, Trash2, Clock, Plus, AlertCircle, RefreshCw
 } from 'lucide-react';
+import { testBrevoConnection } from '../../services/brevoService';
 
 export const FinancialTab = () => {
   const { currentOrg, updateOrganization, createLabWallet } = useApp();
@@ -15,6 +16,14 @@ export const FinancialTab = () => {
   const [pixKey, setPixKey] = useState(currentOrg?.financialSettings?.pixKey || '');
   const [bankInfo, setBankInfo] = useState(currentOrg?.financialSettings?.bankInfo || '');
   const [paymentLink, setPaymentLink] = useState(currentOrg?.financialSettings?.paymentLink || '');
+
+  // Estados Brevo (Envio de Extratos e E-mails via Google Cloud)
+  const [brevoApiKey, setBrevoApiKey] = useState(currentOrg?.brevoApiKey || '');
+  const [brevoSenderEmail, setBrevoSenderEmail] = useState(currentOrg?.brevoSenderEmail || currentOrg?.email || '');
+  const [brevoSenderName, setBrevoSenderName] = useState(currentOrg?.brevoSenderName || currentOrg?.name || 'Labprox Laboratório');
+  const [isSavingBrevo, setIsSavingBrevo] = useState(false);
+  const [isTestingBrevo, setIsTestingBrevo] = useState(false);
+  const [brevoTestResult, setBrevoTestResult] = useState<{ status: 'IDLE' | 'SUCCESS' | 'ERROR'; message?: string }>({ status: 'IDLE' });
 
   // Estado para inserção manual da Wallet do Asaas
   const [manualAsaasKey, setManualAsaasKey] = useState('');
@@ -115,6 +124,49 @@ export const FinancialTab = () => {
           }
       });
       alert("Configurações manuais salvas!");
+  };
+
+  const handleSaveBrevo = async () => {
+      if (!currentOrg) return;
+      setIsSavingBrevo(true);
+      try {
+          await updateOrganization(currentOrg.id, {
+              brevoApiKey: brevoApiKey.trim(),
+              brevoSenderEmail: brevoSenderEmail.trim().toLowerCase(),
+              brevoSenderName: brevoSenderName.trim()
+          });
+          alert("Configurações do Brevo salvas com sucesso!");
+      } catch (err: any) {
+          alert("Erro ao salvar Brevo: " + (err.message || err));
+      } finally {
+          setIsSavingBrevo(false);
+      }
+  };
+
+  const handleTestBrevo = async () => {
+    setIsTestingBrevo(true);
+    setBrevoTestResult({ status: 'IDLE' });
+    try {
+      const res = await testBrevoConnection(currentOrg?.id);
+      if (res.valid) {
+        setBrevoTestResult({
+          status: 'SUCCESS',
+          message: res.email ? `Autenticado com sucesso! Conta: ${res.email}` : 'Conexão validada com sucesso pelo Google Cloud.'
+        });
+      } else {
+        setBrevoTestResult({
+          status: 'ERROR',
+          message: res.message || 'Falha ao autenticar com o Brevo.'
+        });
+      }
+    } catch (err: any) {
+      setBrevoTestResult({
+        status: 'ERROR',
+        message: err.message || 'Erro ao conectar ao serviço.'
+      });
+    } finally {
+      setIsTestingBrevo(false);
+    }
   };
 
   const asaasWalletId = currentOrg?.financialSettings?.asaasWalletId;
@@ -337,6 +389,106 @@ export const FinancialTab = () => {
               <div className="pt-4 border-t flex justify-end">
                   <button onClick={handleSaveManual} className="px-10 py-3 bg-slate-900 text-white font-black rounded-xl shadow-lg hover:bg-slate-800 flex items-center gap-2 transition-all active:scale-95">
                     <Save size={18}/> SALVAR CONFIGURAÇÕES MANUAIS
+                  </button>
+              </div>
+          </div>
+      </div>
+
+      {/* INTEGRAÇÃO BREVO (E-MAILS & EXTRATOS) */}
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-3xl shadow-sm border border-slate-100">
+          <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                  <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+                    <Mail className="text-blue-600" /> Envio de E-mails e Extratos (Brevo API)
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Processamento seguro via Google Cloud Functions para envio automático de extratos em PDF e cobranças por e-mail.
+                  </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestBrevo}
+                  disabled={isTestingBrevo}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-black uppercase transition-colors disabled:opacity-50"
+                >
+                  {isTestingBrevo ? <Loader2 size={14} className="animate-spin text-blue-600" /> : <RefreshCw size={14} className="text-blue-600" />}
+                  {isTestingBrevo ? 'Testando...' : 'Testar Conexão'}
+                </button>
+                <a 
+                  href="https://app.brevo.com/settings/keys/api" 
+                  target="_blank" 
+                  rel="noreferrer" 
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-black uppercase transition-colors"
+                >
+                  Obter Chave no Brevo <ExternalLink size={14} />
+                </a>
+              </div>
+          </div>
+
+          {brevoTestResult.status === 'SUCCESS' && (
+            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-3 text-emerald-800 text-xs font-bold">
+              <Check className="text-emerald-600 shrink-0" size={18} />
+              <span>{brevoTestResult.message}</span>
+            </div>
+          )}
+
+          {brevoTestResult.status === 'ERROR' && (
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-3 text-rose-800 text-xs font-bold">
+              <AlertCircle className="text-rose-600 shrink-0" size={18} />
+              <span>{brevoTestResult.message}</span>
+            </div>
+          )}
+
+          <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-3">
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Chave de API do Brevo (v3 API Key)</label>
+                      <input 
+                        type="password" 
+                        value={brevoApiKey} 
+                        onChange={e => {
+                          setBrevoApiKey(e.target.value);
+                          setBrevoTestResult({ status: 'IDLE' });
+                        }} 
+                        placeholder="xkeysib-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 
+                        className="w-full px-4 py-2.5 font-mono text-sm font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1 font-medium">
+                        Salva com criptografia e lida com segurança pela Cloud Function no Google Cloud (não exposta ao cliente).
+                      </p>
+                  </div>
+                  <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">E-mail do Remetente Autorizado</label>
+                      <input 
+                        type="email" 
+                        value={brevoSenderEmail} 
+                        onChange={e => setBrevoSenderEmail(e.target.value)} 
+                        placeholder="financeiro@seulaboratorio.com.br" 
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-sm" 
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Deve ser um e-mail verificado em Senders &amp; IP no Brevo.
+                      </p>
+                  </div>
+                  <div className="md:col-span-2">
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Nome de Exibição do Remetente</label>
+                      <input 
+                        type="text" 
+                        value={brevoSenderName} 
+                        onChange={e => setBrevoSenderName(e.target.value)} 
+                        placeholder="Ex: Laboratório Sorriso Dental" 
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-sm" 
+                      />
+                  </div>
+              </div>
+              <div className="pt-4 border-t flex justify-end">
+                  <button 
+                    onClick={handleSaveBrevo} 
+                    disabled={isSavingBrevo}
+                    className="px-10 py-3 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {isSavingBrevo ? <Loader2 size={18} className="animate-spin"/> : <Save size={18}/>} SALVAR CONFIGURAÇÃO DO BREVO
                   </button>
               </div>
           </div>

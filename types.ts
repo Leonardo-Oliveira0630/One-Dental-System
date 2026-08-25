@@ -37,6 +37,7 @@ export interface GlobalWhatsAppTemplate {
   body: string;
   active: boolean;
   metaTemplateName?: string;
+  language?: string;
 }
 
 export interface GlobalSettings {
@@ -142,6 +143,9 @@ export interface Organization {
   receivedMaterialOptions?: string[];
   ycloudPhoneNumber?: string;
   ycloudApiKey?: string;
+  brevoApiKey?: string;
+  brevoSenderEmail?: string;
+  brevoSenderName?: string;
   whatsappTemplates?: {
     id: string;
     name: string;

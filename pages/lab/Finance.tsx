@@ -3,9 +3,10 @@ import { useApp } from '../../context/AppContext';
 import { JobStatus, UserRole, Expense, Job, TransactionCategory, BillingBatch, DentistPayment } from '../../types';
 import * as api from '../../services/firebaseService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
-import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, CreditCard, Loader2, User, Package, Clock, X, Filter, FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle, ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Search, Calendar, Plus, Printer, FileText, Download, AlertCircle, Wallet, Briefcase, CheckCircle, CreditCard, Loader2, User, Package, Clock, X, Filter, FileCheck, Receipt, Check, Trash2, ShoppingCart, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronLeft, History, ExternalLink, Copy, Tag, AlertTriangle, ShieldCheck, Zap, ArrowUpCircle, ArrowDownCircle, FileSpreadsheet, Building, UserCheck, Save, Banknote, ChevronRight, Mail, Send } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { SendDebtsEmailModal } from '../../components/SendDebtsEmailModal';
 
 const translatePaymentMethod = (method: string) => {
     switch (method) {
@@ -91,6 +92,8 @@ export const Finance = () => {
   const [reportSource, setReportSource] = useState<'ALL' | 'MANUAL_OR_ASAAS' | 'ONLINE_STORE' | 'EXPENSE'>('ALL');
   const [reportStatus, setReportStatus] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL');
   const [reportSearchTerm, setReportSearchTerm] = useState('');
+  const [showDebtsEmailModal, setShowDebtsEmailModal] = useState(false);
+  const [selectedEmailClientId, setSelectedEmailClientId] = useState<string | undefined>(undefined);
 
   // Calculations for Client Debits Report
   const reportDebts = useMemo(() => {
@@ -1658,7 +1661,19 @@ export const Finance = () => {
                           </h3>
                           <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-0.5">Filtre, analise e exporte o fluxo financeiro</p>
                       </div>
-                      <div className="flex items-center gap-2 w-full md:w-auto">
+                      <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                          {reportType === 'DEBITOS' && (
+                              <button 
+                                  onClick={() => {
+                                      setSelectedEmailClientId(undefined);
+                                      setShowDebtsEmailModal(true);
+                                  }}
+                                  className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white hover:bg-blue-700 rounded-xl text-xs font-black uppercase transition-all shadow-md shadow-blue-500/20 cursor-pointer"
+                                  title="Enviar extratos individuais em PDF por e-mail via Brevo"
+                              >
+                                  <Mail size={16} /> Enviar Extratos por E-mail
+                              </button>
+                          )}
                           <button 
                               onClick={exportReportPDF}
                               className="flex-1 md:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
@@ -1879,19 +1894,31 @@ export const Finance = () => {
                                                   </span>
                                               </td>
                                               <td className="p-4 text-center">
-                                                  <button
-                                                      onClick={() => {
-                                                          setStatementClient(d.dentistObj || d);
-                                                          setFilterStartDate(reportStartDate);
-                                                          setFilterEndDate(reportEndDate);
-                                                          setActiveSubTab('EXTRATO');
-                                                          setShowStatement(true);
-                                                      }}
-                                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
-                                                      title="Abrir Extrato Financeiro do Período"
-                                                  >
-                                                      <History size={14} /> Extrato
-                                                  </button>
+                                                  <div className="flex items-center justify-center gap-1.5">
+                                                      <button
+                                                          onClick={() => {
+                                                              setStatementClient(d.dentistObj || d);
+                                                              setFilterStartDate(reportStartDate);
+                                                              setFilterEndDate(reportEndDate);
+                                                              setActiveSubTab('EXTRATO');
+                                                              setShowStatement(true);
+                                                          }}
+                                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                                                          title="Abrir Extrato Financeiro do Período"
+                                                      >
+                                                          <History size={14} /> Extrato
+                                                      </button>
+                                                      <button
+                                                          onClick={() => {
+                                                              setSelectedEmailClientId(d.id);
+                                                              setShowDebtsEmailModal(true);
+                                                          }}
+                                                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                                                          title="Enviar Extrato deste Cliente por E-mail (Brevo)"
+                                                      >
+                                                          <Mail size={14} /> Enviar E-mail
+                                                      </button>
+                                                  </div>
                                               </td>
                                           </tr>
                                       ))
@@ -2149,6 +2176,20 @@ export const Finance = () => {
                                                 className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl shadow-slate-200"
                                             >
                                                 <Download size={16} /> Exportar PDF
+                                            </button>
+                                            <button 
+                                                onClick={() => {
+                                                    if (statementClient) {
+                                                        setSelectedEmailClientId(statementClient.id);
+                                                        setReportStartDate(filterStartDate);
+                                                        setReportEndDate(filterEndDate);
+                                                        setShowDebtsEmailModal(true);
+                                                    }
+                                                }}
+                                                className="px-6 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-xl shadow-blue-500/20"
+                                                title="Enviar este Extrato em PDF por E-mail via Brevo"
+                                            >
+                                                <Mail size={16} /> Enviar por E-mail
                                             </button>
                                         </div>
                                     </div>
@@ -3202,6 +3243,21 @@ export const Finance = () => {
               </div>
           </div>
       )}
+
+      {/* MODAL DE ENVIO DE EXTRATOS POR E-MAIL VIA BREVO */}
+      <SendDebtsEmailModal 
+          isOpen={showDebtsEmailModal}
+          onClose={() => {
+              setShowDebtsEmailModal(false);
+              setSelectedEmailClientId(undefined);
+          }}
+          reportDebts={reportDebts}
+          reportStartDate={reportStartDate}
+          reportEndDate={reportEndDate}
+          allJobs={jobs}
+          dentistPayments={dentistPayments}
+          initialSelectedClientId={selectedEmailClientId}
+      />
     </div>
   );
 };

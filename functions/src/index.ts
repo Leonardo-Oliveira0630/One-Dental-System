@@ -69,6 +69,37 @@ const getYcloudConfig = async () => {
   return { apiKey, fromNumber };
 };
 
+const getBrevoConfig = async (orgId?: string) => {
+  let apiKey = process.env.BREVO_API_KEY || process.env.brevo_api_key || "";
+  let senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.brevo_sender_email || "";
+  let senderName = process.env.BREVO_SENDER_NAME || process.env.brevo_sender_name || "Labprox";
+
+  try {
+    const db = admin.firestore();
+    const globalSettingsDoc = await db.collection("settings").doc("global").get();
+    if (globalSettingsDoc.exists) {
+      const data = globalSettingsDoc.data();
+      if (!apiKey && data?.brevoApiKey) apiKey = data.brevoApiKey;
+      if (!senderEmail && data?.brevoSenderEmail) senderEmail = data.brevoSenderEmail;
+      if (data?.brevoSenderName && senderName === "Labprox") senderName = data.brevoSenderName;
+    }
+
+    if (orgId) {
+      const orgDoc = await db.collection("organizations").doc(orgId).get();
+      if (orgDoc.exists) {
+        const orgData = orgDoc.data();
+        if (orgData?.brevoApiKey) apiKey = orgData.brevoApiKey;
+        if (orgData?.brevoSenderEmail) senderEmail = orgData.brevoSenderEmail;
+        if (orgData?.brevoSenderName) senderName = orgData.brevoSenderName;
+      }
+    }
+  } catch (e) {
+    logger.error("Failed to fetch Brevo config from DB", e);
+  }
+
+  return { apiKey: apiKey?.trim(), senderEmail: senderEmail?.trim(), senderName: senderName?.trim() };
+};
+
 async function getOrCreateAsaasCustomer(
   url: string, 
   key: string, 
@@ -2333,5 +2364,157 @@ export const cancelAsaasSubscriptionOnDelete = onCall(async (request) => {
     return { success: false, error: error.message };
   }
 });
+
+/**
+ * ENVIA E-MAILS TRANSACIONAIS (EXTRATOS, RELATÓRIOS) VIA API DO BREVO
+ * A chave de API reside no Google Cloud (Cloud Functions / Firestore backend)
+ */
+export const sendBrevoEmail = onCall({ maxInstances: 10 }, async (request) => {
+  try {
+    const { sender, to, subject, htmlContent, attachment, orgId } = request.data as any;
+
+    if (!to || !Array.isArray(to) || to.length === 0 || !to[0].email) {
+      throw new HttpsError("invalid-argument", "Destinatário com e-mail válido é obrigatório.");
+    }
+    if (!subject) {
+      throw new HttpsError("invalid-argument", "Assunto do e-mail é obrigatório.");
+    }
+    if (!htmlContent) {
+      throw new HttpsError("invalid-argument", "Conteúdo do e-mail é obrigatório.");
+    }
+
+    const config = await getBrevoConfig(orgId);
+    const apiKey = config.apiKey;
+
+    if (!apiKey) {
+      logger.error("[Brevo Cloud Function] BREVO_API_KEY não configurada no Google Cloud.");
+      throw new HttpsError(
+        "failed-precondition",
+        "Chave de API do Brevo não configurada no Google Cloud. Configure a variável de ambiente BREVO_API_KEY ou salve nas configurações da plataforma."
+      );
+    }
+
+    const effectiveSenderEmail = (sender?.email || config.senderEmail || "").trim().toLowerCase();
+    const effectiveSenderName = (sender?.name || config.senderName || "Labprox").trim();
+
+    if (!effectiveSenderEmail) {
+      throw new HttpsError(
+        "invalid-argument",
+        "E-mail do remetente não informado. Configure o e-mail verificado do Brevo nas configurações."
+      );
+    }
+
+    const payload: any = {
+      sender: {
+        name: effectiveSenderName,
+        email: effectiveSenderEmail
+      },
+      to: to.map((r: any) => ({
+        name: r.name || "Cliente",
+        email: (r.email || "").trim().toLowerCase()
+      })),
+      subject,
+      htmlContent
+    };
+
+    if (attachment && Array.isArray(attachment) && attachment.length > 0) {
+      payload.attachment = attachment.map((att: any) => ({
+        name: att.name,
+        content: att.content
+      }));
+    }
+
+    logger.info(`[Brevo Cloud Function] Enviando e-mail de ${effectiveSenderEmail} para ${to.map((r: any) => r.email).join(', ')}...`);
+
+    const response = await axios.post("https://api.brevo.com/v3/smtp/email", payload, {
+      headers: {
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      }
+    });
+
+    const messageId = response.data?.messageId;
+    logger.info(`[Brevo Cloud Function] E-mail enviado com sucesso! Message ID: ${messageId}`);
+
+    try {
+      await admin.firestore().collection("message_logs").add({
+        orgId: orgId || "GLOBAL",
+        channelId: "BREVO_EMAIL",
+        provider: "BREVO",
+        direction: "OUTBOUND",
+        templateId: "STATEMENT_EMAIL",
+        recipient: to.map((r: any) => r.email).join(', '),
+        message: `Assunto: ${subject}`,
+        status: "SENT",
+        messageId: messageId || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (logErr) {
+      logger.warn("[Brevo Cloud Function] Aviso ao registrar log de mensagem:", logErr);
+    }
+
+    return {
+      success: true,
+      messageId: messageId
+    };
+  } catch (error: any) {
+    const status = error.response?.status;
+    const apiErr = error.response?.data?.message || error.response?.data?.error || error.message;
+    logger.error(`[Brevo Cloud Function] Erro ao enviar e-mail (${status}): ${apiErr}`, error.response?.data);
+
+    let friendlyMessage = `Erro ao enviar e-mail via Brevo: ${apiErr}`;
+    if (status === 401) {
+      friendlyMessage = "Chave de API do Brevo inválida ou não autorizada no Google Cloud. Verifique a chave configurada.";
+    } else if (status === 400 && String(apiErr).toLowerCase().includes("sender")) {
+      friendlyMessage = "O e-mail do remetente não está autorizado ou validado na conta Brevo. Valide o e-mail no painel do Brevo (Senders & IP).";
+    }
+
+    throw new HttpsError("aborted", friendlyMessage);
+  }
+});
+
+/**
+ * TESTA A CONEXÃO COM A API DO BREVO ATRAVÉS DO BACKEND NO GOOGLE CLOUD
+ */
+export const testBrevoConnection = onCall({ maxInstances: 10 }, async (request) => {
+  try {
+    const { orgId } = request.data || {};
+    const config = await getBrevoConfig(orgId);
+
+    if (!config.apiKey) {
+      return {
+        configured: false,
+        valid: false,
+        message: "Chave de API do Brevo não configurada no Google Cloud."
+      };
+    }
+
+    const response = await axios.get("https://api.brevo.com/v3/account", {
+      headers: {
+        "api-key": config.apiKey,
+        "Accept": "application/json"
+      }
+    });
+
+    return {
+      configured: true,
+      valid: true,
+      email: response.data?.email,
+      companyName: response.data?.companyName || response.data?.name,
+      plan: response.data?.plan
+    };
+  } catch (error: any) {
+    const status = error.response?.status;
+    const msg = error.response?.data?.message || error.message;
+    logger.error(`[Brevo Test Connection] Erro (${status}): ${msg}`);
+    return {
+      configured: true,
+      valid: false,
+      error: status === 401 ? "Chave de API inválida ou não autorizada no Brevo" : msg
+    };
+  }
+});
+
 
 
