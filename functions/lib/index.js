@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.cancelAsaasSubscriptionOnDelete = exports.sendDeleteCodeEmail = exports.communication = exports.triggerJobUpdated = exports.ycloudWebhook = exports.triggerSupplierOrderUpdated = exports.triggerDeliveryRouteUpdated = exports.triggerAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
+exports.testBrevoConnection = exports.sendBrevoEmail = exports.cancelAsaasSubscriptionOnDelete = exports.sendDeleteCodeEmail = exports.communication = exports.triggerJobUpdated = exports.ycloudWebhook = exports.triggerSupplierOrderUpdated = exports.triggerDeliveryRouteUpdated = exports.triggerAppointmentCreated = exports.sendYcloudWhatsApp = exports.optimizeAndUploadImage = exports.syncStoreOrders = exports.manageOrderDecision = exports.calculateFrenetShipping = exports.createSupplierPayment = exports.asaasWebhook = exports.getSaaSInvoices = exports.toggleWhatsappModule = exports.createSaaSSubscription = exports.checkSubscriptionStatus = exports.setSubscriptionStatus = exports.createPatientPayment = exports.createOrderPayment = exports.createLabSubAccount = exports.generateBatchBoleto = exports.updateUserAdmin = exports.deleteUserAdmin = exports.validateCro = exports.registerUserInOrg = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-functions/v2/firestore");
 const logger = __importStar(require("firebase-functions/logger"));
@@ -96,6 +96,40 @@ const getYcloudConfig = async () => {
         logger.error("Failed to fetch Ycloud config from DB", e);
     }
     return { apiKey, fromNumber };
+};
+const getBrevoConfig = async (orgId) => {
+    let apiKey = process.env.BREVO_API_KEY || process.env.brevo_api_key || "";
+    let senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.brevo_sender_email || "";
+    let senderName = process.env.BREVO_SENDER_NAME || process.env.brevo_sender_name || "Labprox";
+    try {
+        const db = admin.firestore();
+        const globalSettingsDoc = await db.collection("settings").doc("global").get();
+        if (globalSettingsDoc.exists) {
+            const data = globalSettingsDoc.data();
+            if (!apiKey && (data === null || data === void 0 ? void 0 : data.brevoApiKey))
+                apiKey = data.brevoApiKey;
+            if (!senderEmail && (data === null || data === void 0 ? void 0 : data.brevoSenderEmail))
+                senderEmail = data.brevoSenderEmail;
+            if ((data === null || data === void 0 ? void 0 : data.brevoSenderName) && senderName === "Labprox")
+                senderName = data.brevoSenderName;
+        }
+        if (orgId) {
+            const orgDoc = await db.collection("organizations").doc(orgId).get();
+            if (orgDoc.exists) {
+                const orgData = orgDoc.data();
+                if (orgData === null || orgData === void 0 ? void 0 : orgData.brevoApiKey)
+                    apiKey = orgData.brevoApiKey;
+                if (orgData === null || orgData === void 0 ? void 0 : orgData.brevoSenderEmail)
+                    senderEmail = orgData.brevoSenderEmail;
+                if (orgData === null || orgData === void 0 ? void 0 : orgData.brevoSenderName)
+                    senderName = orgData.brevoSenderName;
+            }
+        }
+    }
+    catch (e) {
+        logger.error("Failed to fetch Brevo config from DB", e);
+    }
+    return { apiKey: apiKey === null || apiKey === void 0 ? void 0 : apiKey.trim(), senderEmail: senderEmail === null || senderEmail === void 0 ? void 0 : senderEmail.trim(), senderName: senderName === null || senderName === void 0 ? void 0 : senderName.trim() };
 };
 async function getOrCreateAsaasCustomer(url, key, name, cpfCnpj, externalReference, email = "") {
     if (externalReference) {
@@ -1620,7 +1654,7 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
 exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d, _e;
     const { to, body, orgId } = request.data;
     if (!to || !body) {
         throw new https_1.HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
@@ -1658,6 +1692,7 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
             message: `WhatsApp enviado via simulador: ${body}`
         };
     }
+    let payload = null;
     try {
         const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
         let cleanTo = to.replace(/\D/g, "");
@@ -1669,7 +1704,7 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
             cleanFrom = ""; // Don't use recipient phone number as sender
         }
         logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
-        const payload = {
+        payload = {
             to: `+${cleanTo}`
         };
         if (cleanFrom) {
@@ -1710,24 +1745,27 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
     }
     catch (error) {
         const status = (_a = error.response) === null || _a === void 0 ? void 0 : _a.status;
-        const apiErr = ((_d = (_c = (_b = error.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.error) === null || _d === void 0 ? void 0 : _d.message) || ((_f = (_e = error.response) === null || _e === void 0 ? void 0 : _e.data) === null || _f === void 0 ? void 0 : _f.message) || error.message;
-        let friendlyMessage = `Erro no Ycloud: ${apiErr}`;
+        const errorData = (_b = error.response) === null || _b === void 0 ? void 0 : _b.data;
+        const apiErr = ((_c = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _c === void 0 ? void 0 : _c.message) || (errorData === null || errorData === void 0 ? void 0 : errorData.message) || error.message;
+        const errorCode = ((_d = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _d === void 0 ? void 0 : _d.code) || (errorData === null || errorData === void 0 ? void 0 : errorData.code) || '';
+        let friendlyMessage = `Erro no Ycloud (${status || 'API'} - ${errorCode}): ${apiErr}`;
         if (status === 409) {
-            friendlyMessage = `Erro no Ycloud (409): O número de remetente informou que o número +${to} ou remetente não está registrado no Ycloud WABA. Verifique a chave de API e o número remetente oficial cadastrado no Ycloud.`;
+            friendlyMessage = `Erro no Ycloud (409): O número de remetente ou destinatário informado não está registrado no Ycloud WABA. Detalhes: ${apiErr}`;
         }
         else if (status === 403) {
-            friendlyMessage = `Erro no Ycloud (403): Envio de mensagem direta bloqueado pela Meta/Ycloud. Crie e aprove um Modelo/Template de mensagem no painel do Ycloud/Meta.`;
+            friendlyMessage = `Erro no Ycloud (403): ${apiErr || 'Envio direto bloqueado ou modelo não localizado na WABA da Meta.'}`;
         }
-        logger.error(`Erro ao enviar mensagem via Ycloud real (${status}): ${apiErr}`, (_g = error.response) === null || _g === void 0 ? void 0 : _g.data);
+        logger.error(`Erro ao enviar mensagem via Ycloud real (${status}): ${apiErr}`, { errorData, payload });
         await admin.firestore().collection("message_logs").add({
             orgId: orgId || "TEST",
             channelId: "YCLOUD_API",
             provider: "YCLOUD",
             direction: "OUTBOUND",
-            templateId: "MANUAL_TEST",
+            templateId: ((_e = request.data.template) === null || _e === void 0 ? void 0 : _e.name) || "MANUAL_TEST",
             recipient: to,
-            message: `Erro: ${friendlyMessage}`,
+            message: `Erro (${status}): ${friendlyMessage}`,
             status: "FAILED",
+            errorDetails: errorData || apiErr,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
         throw new https_1.HttpsError("aborted", friendlyMessage);
@@ -2112,6 +2150,138 @@ exports.cancelAsaasSubscriptionOnDelete = (0, https_1.onCall)(async (request) =>
     catch (error) {
         logger.error("[CancelAsaas] Erro crítico ao cancelar no Asaas:", error);
         return { success: false, error: error.message };
+    }
+});
+/**
+ * ENVIA E-MAILS TRANSACIONAIS (EXTRATOS, RELATÓRIOS) VIA API DO BREVO
+ * A chave de API reside no Google Cloud (Cloud Functions / Firestore backend)
+ */
+exports.sendBrevoEmail = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
+    var _a, _b, _c, _d, _e, _f, _g;
+    try {
+        const { sender, to, subject, htmlContent, attachment, orgId } = request.data;
+        if (!to || !Array.isArray(to) || to.length === 0 || !to[0].email) {
+            throw new https_1.HttpsError("invalid-argument", "Destinatário com e-mail válido é obrigatório.");
+        }
+        if (!subject) {
+            throw new https_1.HttpsError("invalid-argument", "Assunto do e-mail é obrigatório.");
+        }
+        if (!htmlContent) {
+            throw new https_1.HttpsError("invalid-argument", "Conteúdo do e-mail é obrigatório.");
+        }
+        const config = await getBrevoConfig(orgId);
+        const apiKey = config.apiKey;
+        if (!apiKey) {
+            logger.error("[Brevo Cloud Function] BREVO_API_KEY não configurada no Google Cloud.");
+            throw new https_1.HttpsError("failed-precondition", "Chave de API do Brevo não configurada no Google Cloud. Configure a variável de ambiente BREVO_API_KEY ou salve nas configurações da plataforma.");
+        }
+        const effectiveSenderEmail = ((sender === null || sender === void 0 ? void 0 : sender.email) || config.senderEmail || "").trim().toLowerCase();
+        const effectiveSenderName = ((sender === null || sender === void 0 ? void 0 : sender.name) || config.senderName || "Labprox").trim();
+        if (!effectiveSenderEmail) {
+            throw new https_1.HttpsError("invalid-argument", "E-mail do remetente não informado. Configure o e-mail verificado do Brevo nas configurações.");
+        }
+        const payload = {
+            sender: {
+                name: effectiveSenderName,
+                email: effectiveSenderEmail
+            },
+            to: to.map((r) => ({
+                name: r.name || "Cliente",
+                email: (r.email || "").trim().toLowerCase()
+            })),
+            subject,
+            htmlContent
+        };
+        if (attachment && Array.isArray(attachment) && attachment.length > 0) {
+            payload.attachment = attachment.map((att) => ({
+                name: att.name,
+                content: att.content
+            }));
+        }
+        logger.info(`[Brevo Cloud Function] Enviando e-mail de ${effectiveSenderEmail} para ${to.map((r) => r.email).join(', ')}...`);
+        const response = await axios_1.default.post("https://api.brevo.com/v3/smtp/email", payload, {
+            headers: {
+                "api-key": apiKey,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        });
+        const messageId = (_a = response.data) === null || _a === void 0 ? void 0 : _a.messageId;
+        logger.info(`[Brevo Cloud Function] E-mail enviado com sucesso! Message ID: ${messageId}`);
+        try {
+            await admin.firestore().collection("message_logs").add({
+                orgId: orgId || "GLOBAL",
+                channelId: "BREVO_EMAIL",
+                provider: "BREVO",
+                direction: "OUTBOUND",
+                templateId: "STATEMENT_EMAIL",
+                recipient: to.map((r) => r.email).join(', '),
+                message: `Assunto: ${subject}`,
+                status: "SENT",
+                messageId: messageId || null,
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        catch (logErr) {
+            logger.warn("[Brevo Cloud Function] Aviso ao registrar log de mensagem:", logErr);
+        }
+        return {
+            success: true,
+            messageId: messageId
+        };
+    }
+    catch (error) {
+        const status = (_b = error.response) === null || _b === void 0 ? void 0 : _b.status;
+        const apiErr = ((_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.message) || ((_f = (_e = error.response) === null || _e === void 0 ? void 0 : _e.data) === null || _f === void 0 ? void 0 : _f.error) || error.message;
+        logger.error(`[Brevo Cloud Function] Erro ao enviar e-mail (${status}): ${apiErr}`, (_g = error.response) === null || _g === void 0 ? void 0 : _g.data);
+        let friendlyMessage = `Erro ao enviar e-mail via Brevo: ${apiErr}`;
+        if (status === 401) {
+            friendlyMessage = "Chave de API do Brevo inválida ou não autorizada no Google Cloud. Verifique a chave configurada.";
+        }
+        else if (status === 400 && String(apiErr).toLowerCase().includes("sender")) {
+            friendlyMessage = "O e-mail do remetente não está autorizado ou validado na conta Brevo. Valide o e-mail no painel do Brevo (Senders & IP).";
+        }
+        throw new https_1.HttpsError("aborted", friendlyMessage);
+    }
+});
+/**
+ * TESTA A CONEXÃO COM A API DO BREVO ATRAVÉS DO BACKEND NO GOOGLE CLOUD
+ */
+exports.testBrevoConnection = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
+    var _a, _b, _c, _d, _e, _f, _g;
+    try {
+        const { orgId } = request.data || {};
+        const config = await getBrevoConfig(orgId);
+        if (!config.apiKey) {
+            return {
+                configured: false,
+                valid: false,
+                message: "Chave de API do Brevo não configurada no Google Cloud."
+            };
+        }
+        const response = await axios_1.default.get("https://api.brevo.com/v3/account", {
+            headers: {
+                "api-key": config.apiKey,
+                "Accept": "application/json"
+            }
+        });
+        return {
+            configured: true,
+            valid: true,
+            email: (_a = response.data) === null || _a === void 0 ? void 0 : _a.email,
+            companyName: ((_b = response.data) === null || _b === void 0 ? void 0 : _b.companyName) || ((_c = response.data) === null || _c === void 0 ? void 0 : _c.name),
+            plan: (_d = response.data) === null || _d === void 0 ? void 0 : _d.plan
+        };
+    }
+    catch (error) {
+        const status = (_e = error.response) === null || _e === void 0 ? void 0 : _e.status;
+        const msg = ((_g = (_f = error.response) === null || _f === void 0 ? void 0 : _f.data) === null || _g === void 0 ? void 0 : _g.message) || error.message;
+        logger.error(`[Brevo Test Connection] Erro (${status}): ${msg}`);
+        return {
+            configured: true,
+            valid: false,
+            error: status === 401 ? "Chave de API inválida ou não autorizada no Brevo" : msg
+        };
     }
 });
 //# sourceMappingURL=index.js.map

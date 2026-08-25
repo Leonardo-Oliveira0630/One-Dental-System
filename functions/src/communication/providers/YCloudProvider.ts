@@ -95,7 +95,6 @@ export class YCloudProvider implements ICommunicationProvider {
         template: {
             name: template.name,
             language: {
-                policy: "deterministic",
                 code: template.language || "pt_BR"
             },
             components: components.length > 0 ? components : undefined
@@ -106,7 +105,7 @@ export class YCloudProvider implements ICommunicationProvider {
       payload.from = cleanFrom;
     }
 
-    logger.info(`Sending YCloud Template ${template.name} from ${cleanFrom || 'default'} to ${cleanTo}`);
+    logger.info(`Sending YCloud Template ${template.name} from ${cleanFrom || 'default'} to ${cleanTo}`, { payload });
     
     try {
       const response = await axios.post('https://api.ycloud.com/v2/whatsapp/messages', payload, {
@@ -118,15 +117,17 @@ export class YCloudProvider implements ICommunicationProvider {
       return response.data;
     } catch (error: any) {
       const status = error.response?.status;
-      const apiErr = error.response?.data?.error?.message || error.response?.data?.message || error.message;
+      const errorData = error.response?.data;
+      const apiErr = errorData?.error?.message || errorData?.message || error.message;
+      const errorCode = errorData?.error?.code || errorData?.code || '';
       
-      let friendlyMessage = `Erro Ycloud (${status || 'API'}): ${apiErr}`;
+      let friendlyMessage = `Erro Ycloud (${status || 'API'} - ${errorCode}): ${apiErr}`;
       if (status === 409) {
-        friendlyMessage = `Erro Ycloud 409: O número de remetente ${cleanFrom || 'configurado'} não está registrado na sua conta Ycloud.`;
+        friendlyMessage = `Erro Ycloud 409: O número de remetente ${cleanFrom || 'configurado'} não está registrado na sua conta Ycloud WABA. Detalhes: ${apiErr}`;
       } else if (status === 403) {
-        friendlyMessage = `Erro Ycloud 403: O modelo de mensagem "${template.name}" não foi encontrado ou ainda não foi aprovado na Meta/Ycloud com o código de idioma pt_BR.`;
+        friendlyMessage = `Erro Ycloud 403: O modelo "${template.name}" não foi encontrado na conta/WABA do remetente, ou as variáveis não coincidem, ou a conta Meta está com pendência. Detalhe da Meta: ${apiErr}`;
       }
-      logger.error("[YCloudProvider.sendTemplate]", friendlyMessage, error.response?.data);
+      logger.error("[YCloudProvider.sendTemplate]", friendlyMessage, { errorData, payload });
       throw new Error(friendlyMessage);
     }
   }

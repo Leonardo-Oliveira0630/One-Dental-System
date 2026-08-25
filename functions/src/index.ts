@@ -1869,6 +1869,8 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     };
   }
 
+  let payload: any = null;
+
   try {
     const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
     let cleanTo = to.replace(/\D/g, "");
@@ -1882,7 +1884,7 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     
     logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
     
-    const payload: any = {
+    payload = {
       to: `+${cleanTo}`
     };
 
@@ -1925,24 +1927,28 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     };
   } catch (error: any) {
     const status = error.response?.status;
-    const apiErr = error.response?.data?.error?.message || error.response?.data?.message || error.message;
-    let friendlyMessage = `Erro no Ycloud: ${apiErr}`;
+    const errorData = error.response?.data;
+    const apiErr = errorData?.error?.message || errorData?.message || error.message;
+    const errorCode = errorData?.error?.code || errorData?.code || '';
+    
+    let friendlyMessage = `Erro no Ycloud (${status || 'API'} - ${errorCode}): ${apiErr}`;
     if (status === 409) {
-      friendlyMessage = `Erro no Ycloud (409): O número de remetente informou que o número +${to} ou remetente não está registrado no Ycloud WABA. Verifique a chave de API e o número remetente oficial cadastrado no Ycloud.`;
+      friendlyMessage = `Erro no Ycloud (409): O número de remetente ou destinatário informado não está registrado no Ycloud WABA. Detalhes: ${apiErr}`;
     } else if (status === 403) {
-      friendlyMessage = `Erro no Ycloud (403): Envio de mensagem direta bloqueado pela Meta/Ycloud. Crie e aprove um Modelo/Template de mensagem no painel do Ycloud/Meta.`;
+      friendlyMessage = `Erro no Ycloud (403): ${apiErr || 'Envio direto bloqueado ou modelo não localizado na WABA da Meta.'}`;
     }
 
-    logger.error(`Erro ao enviar mensagem via Ycloud real (${status}): ${apiErr}`, error.response?.data);
+    logger.error(`Erro ao enviar mensagem via Ycloud real (${status}): ${apiErr}`, { errorData, payload });
     await admin.firestore().collection("message_logs").add({
             orgId: orgId || "TEST",
             channelId: "YCLOUD_API",
             provider: "YCLOUD",
             direction: "OUTBOUND",
-            templateId: "MANUAL_TEST",
+            templateId: request.data.template?.name || "MANUAL_TEST",
             recipient: to,
-            message: `Erro: ${friendlyMessage}`,
+            message: `Erro (${status}): ${friendlyMessage}`,
             status: "FAILED",
+            errorDetails: errorData || apiErr,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
         throw new HttpsError("aborted", friendlyMessage);
