@@ -916,6 +916,7 @@ export interface ManualDentist {
   clientType?: 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO';
   email?: string;
   phone?: string;
+  whatsapp?: string;
   cpfCnpj?: string;
   cro?: string;
   birthDate?: string;

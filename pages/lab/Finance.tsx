@@ -87,10 +87,193 @@ export const Finance = () => {
       const d = new Date();
       return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
   });
-  const [reportType, setReportType] = useState<'ALL' | 'DESPESA' | 'RECEBIMENTO'>('ALL');
+  const [reportType, setReportType] = useState<'ALL' | 'DESPESA' | 'RECEBIMENTO' | 'DEBITOS'>('ALL');
   const [reportSource, setReportSource] = useState<'ALL' | 'MANUAL_OR_ASAAS' | 'ONLINE_STORE' | 'EXPENSE'>('ALL');
   const [reportStatus, setReportStatus] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL');
   const [reportSearchTerm, setReportSearchTerm] = useState('');
+
+  // Calculations for Client Debits Report
+  const reportDebts = useMemo(() => {
+    const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`) : new Date(0);
+    const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`) : new Date(8640000000000000);
+
+    const manualEmails = new Set<string>();
+    const manualDocs = new Set<string>();
+
+    const uniqueManual = manualDentists.map(d => {
+        if (d.email) manualEmails.add(d.email.toLowerCase().trim());
+        const cleanDoc = (d.cpfCnpj || '').replace(/\D/g, '');
+        if (cleanDoc) manualDocs.add(cleanDoc);
+        return d;
+    });
+
+    const uniqueOnline = allUsers.filter(u => u.role === UserRole.CLIENT).filter(u => {
+        const userEmail = u.email ? u.email.toLowerCase().trim() : '';
+        const userDoc = (u.cpfCnpj || '').replace(/\D/g, '');
+        const isDuplicateEmail = userEmail && manualEmails.has(userEmail);
+        const isDuplicateDoc = userDoc && manualDocs.has(userDoc);
+        const hasSameId = uniqueManual.some(m => m.id === u.id);
+        return !hasSameId && !isDuplicateEmail && !isDuplicateDoc;
+    });
+
+    const allDents = [...uniqueOnline, ...uniqueManual];
+    const map = new Map<string, any>();
+
+    allDents.forEach(d => {
+        map.set(d.id, {
+            id: d.id,
+            name: d.name,
+            clinicName: d.clinicName || '',
+            phone: (d as any).phone || (d as any).whatsapp || '',
+            cpfCnpj: d.cpfCnpj || '',
+            email: d.email || '',
+            dentistObj: d,
+            totalDebitsUpTo: 0,
+            totalCreditsUpTo: 0,
+            balanceUpToEndDate: 0,
+            periodDebits: 0,
+            periodCredits: 0,
+            pendingJobs: [] as Job[],
+            allJobsCount: 0,
+            pendingJobsCount: 0,
+        });
+    });
+
+    // Process all completed/delivered jobs
+    jobs.forEach(job => {
+        if (job.status !== JobStatus.COMPLETED && job.status !== JobStatus.DELIVERED) return;
+        
+        let entry = map.get(job.dentistId);
+        if (!entry) {
+            entry = {
+                id: job.dentistId,
+                name: job.dentistName || 'Cliente sem Nome',
+                clinicName: '',
+                phone: '',
+                cpfCnpj: '',
+                email: '',
+                dentistObj: { id: job.dentistId, name: job.dentistName || 'Cliente' },
+                totalDebitsUpTo: 0,
+                totalCreditsUpTo: 0,
+                balanceUpToEndDate: 0,
+                periodDebits: 0,
+                periodCredits: 0,
+                pendingJobs: [] as Job[],
+                allJobsCount: 0,
+                pendingJobsCount: 0,
+            };
+            map.set(job.dentistId, entry);
+        }
+
+        const jobDate = new Date(job.createdAt);
+        
+        // Debits up to end date
+        if (jobDate <= eDate) {
+            entry.totalDebitsUpTo += (job.totalValue || 0);
+            entry.allJobsCount += 1;
+            
+            const isUnpaid = (job.paymentStatus === 'PENDING' || !job.paymentStatus) && !job.batchId && !job.asaasPaymentId;
+            if (isUnpaid) {
+                entry.pendingJobsCount += 1;
+                entry.pendingJobs.push(job);
+            }
+        }
+
+        // Debits within selected period
+        if (jobDate >= sDate && jobDate <= eDate) {
+            entry.periodDebits += (job.totalValue || 0);
+        }
+    });
+
+    // Process all payments/credits/manual debits
+    dentistPayments.forEach(p => {
+        let entry = map.get(p.dentistId);
+        if (!entry) {
+            entry = {
+                id: p.dentistId,
+                name: p.dentistName || 'Cliente',
+                clinicName: '',
+                phone: '',
+                cpfCnpj: '',
+                email: '',
+                dentistObj: { id: p.dentistId, name: p.dentistName },
+                totalDebitsUpTo: 0,
+                totalCreditsUpTo: 0,
+                balanceUpToEndDate: 0,
+                periodDebits: 0,
+                periodCredits: 0,
+                pendingJobs: [] as Job[],
+                allJobsCount: 0,
+                pendingJobsCount: 0,
+            };
+            map.set(p.dentistId, entry);
+        }
+
+        const payDate = new Date(p.paymentDate);
+        const isDebit = p.type === 'MANUAL_DEBIT';
+        const creditAmount = p.type === 'DISCOUNT' || p.type === 'MANUAL_CREDIT' 
+            ? Number(p.amount || 0) 
+            : (Number(p.amount || 0) + Number(p.discount || 0));
+
+        if (payDate <= eDate) {
+            if (isDebit) {
+                entry.totalDebitsUpTo += Number(p.amount || 0);
+            } else {
+                entry.totalCreditsUpTo += creditAmount;
+            }
+        }
+
+        if (payDate >= sDate && payDate <= eDate) {
+            if (isDebit) {
+                entry.periodDebits += Number(p.amount || 0);
+            } else {
+                entry.periodCredits += creditAmount;
+            }
+        }
+    });
+
+    // Calculate final balance and filter
+    let results = Array.from(map.values()).map(d => {
+        const balance = d.totalDebitsUpTo - d.totalCreditsUpTo;
+        return {
+            ...d,
+            balanceUpToEndDate: balance
+        };
+    });
+
+    // Filter to only those with debits (balance > 0 or pending jobs > 0)
+    results = results.filter(d => d.balanceUpToEndDate > 0 || d.pendingJobsCount > 0);
+
+    // Apply search filter
+    if (reportSearchTerm.trim()) {
+        const s = reportSearchTerm.toLowerCase();
+        results = results.filter(d => 
+            (d.name && d.name.toLowerCase().includes(s)) ||
+            (d.clinicName && d.clinicName.toLowerCase().includes(s)) ||
+            (d.phone && d.phone.toLowerCase().includes(s)) ||
+            (d.cpfCnpj && d.cpfCnpj.toLowerCase().includes(s))
+        );
+    }
+
+    // Sort by debt balance descending
+    return results.sort((a, b) => b.balanceUpToEndDate - a.balanceUpToEndDate);
+  }, [jobs, manualDentists, allUsers, dentistPayments, reportStartDate, reportEndDate, reportSearchTerm]);
+
+  const reportDebtStats = useMemo(() => {
+    const totalClientsWithDebt = reportDebts.length;
+    const totalDebtAmount = reportDebts.reduce((sum, d) => sum + Math.max(0, d.balanceUpToEndDate), 0);
+    const totalPendingJobs = reportDebts.reduce((sum, d) => sum + d.pendingJobsCount, 0);
+    const avgDebt = totalClientsWithDebt > 0 ? totalDebtAmount / totalClientsWithDebt : 0;
+    const maxDebtClient = reportDebts.length > 0 ? reportDebts[0] : null;
+
+    return {
+        totalClientsWithDebt,
+        totalDebtAmount,
+        totalPendingJobs,
+        avgDebt,
+        maxDebtClient
+    };
+  }, [reportDebts]);
 
   const reportMovements = useMemo(() => {
     // 1. Expenses
@@ -154,7 +337,7 @@ export const Finance = () => {
     allMovements = allMovements.filter(m => m.date >= sDate && m.date <= eDate);
 
     // Filter by type
-    if (reportType !== 'ALL') {
+    if (reportType !== 'ALL' && reportType !== 'DEBITOS') {
       allMovements = allMovements.filter(m => m.type === reportType);
     }
 
@@ -215,6 +398,36 @@ export const Finance = () => {
 
   const exportReportCSV = () => {
     if (!currentOrg) return;
+
+    if (reportType === 'DEBITOS') {
+      const headers = ['Cliente (Dentista)', 'Clinica', 'Documento', 'Telefone', 'OSs Pendentes (Qtd)', 'Debito no Periodo (R$)', 'Pagamentos no Periodo (R$)', 'Saldo Devedor Total (R$)'];
+      const rows = reportDebts.map(d => [
+        (d.name || '').replace(/;/g, ','),
+        (d.clinicName || '').replace(/;/g, ','),
+        (d.cpfCnpj || '').replace(/;/g, ','),
+        (d.phone || '').replace(/;/g, ','),
+        d.pendingJobsCount,
+        d.periodDebits.toFixed(2),
+        d.periodCredits.toFixed(2),
+        d.balanceUpToEndDate.toFixed(2)
+      ]);
+
+      const csvContent = [
+        headers.join(';'),
+        ...rows.map(row => row.join(';'))
+      ].join('\n');
+
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Relatorio_Debitos_Clientes_${currentOrg.name.replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     const headers = ['Data', 'Descricao', 'Tipo', 'Origem/Categoria', 'Cliente (Dentista)', 'Metodo Pagamento', 'Valor (R$)', 'Status'];
     const rows = reportMovements.map(m => [
       m.date.toLocaleDateString('pt-BR'),
@@ -246,6 +459,70 @@ export const Finance = () => {
     if (!currentOrg) return;
     const doc = new jsPDF();
     
+    if (reportType === 'DEBITOS') {
+      const sDate = reportStartDate ? new Date(`${reportStartDate}T00:00:00`).toLocaleDateString('pt-BR') : 'Início';
+      const eDate = reportEndDate ? new Date(`${reportEndDate}T23:59:59`).toLocaleDateString('pt-BR') : 'Fim';
+
+      // Header
+      doc.setFillColor(15, 23, 42); // slate-900 color
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(currentOrg.name, 14, 18);
+      
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(200, 220, 255);
+      doc.text("Relatório de Débitos de Clientes", 14, 28);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text(`Período: ${sDate} - ${eDate}`, 195, 28, { align: 'right' });
+      
+      // Summary metrics section
+      doc.setTextColor(50, 50, 50);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Resumo de Débitos de Clientes", 14, 52);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Total de Clientes em Débito: ${reportDebtStats.totalClientsWithDebt}`, 14, 60);
+      doc.text(`Saldo Total Devedor: R$ ${reportDebtStats.totalDebtAmount.toFixed(2)}`, 14, 66);
+      doc.text(`Total de OSs Pendentes: ${reportDebtStats.totalPendingJobs}`, 14, 72);
+      
+      doc.text(`Média por Devedor: R$ ${reportDebtStats.avgDebt.toFixed(2)}`, 110, 60);
+      const maxClientStr = reportDebtStats.maxDebtClient ? `${reportDebtStats.maxDebtClient.name} (R$ ${reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)})` : '---';
+      doc.text(`Maior Débito Individual: ${maxClientStr}`, 110, 66);
+      
+      // Table of client debts
+      const tableData = reportDebts.map(d => [
+        d.name,
+        d.clinicName || d.phone || '---',
+        `${d.pendingJobsCount} OS(s)`,
+        `R$ ${d.periodDebits.toFixed(2)}`,
+        `R$ ${d.periodCredits.toFixed(2)}`,
+        `R$ ${d.balanceUpToEndDate.toFixed(2)}`
+      ]);
+      
+      autoTable(doc, {
+        startY: 80,
+        head: [['Cliente / Dentista', 'Clínica / Contato', 'OSs Pendentes', 'Débito Período', 'Pagamentos Período', 'Saldo Devedor Total']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8 },
+        columnStyles: {
+          5: { fontStyle: 'bold', textColor: [220, 38, 38] }
+        }
+      });
+      
+      doc.save(`Relatorio_Debitos_Clientes_${currentOrg.name.replace(/\s+/g, '_')}.pdf`);
+      return;
+    }
+
     // Header
     doc.setFillColor(15, 23, 42); // slate-900 color
     doc.rect(0, 0, 210, 40, 'F');
@@ -460,7 +737,7 @@ export const Finance = () => {
   const chronoHistory = useMemo(() => {
     if (!statementClient) return { history: [], previousBalance: 0 };
     
-    const clientJobs = dentistJobs.filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+    const clientJobs = (dentistJobs && dentistJobs.length > 0 ? dentistJobs : jobs).filter(j => j.dentistId === statementClient.id && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
     const clientPayments = dentistPayments.filter(p => p.dentistId === statementClient.id);
     
     const history = [
@@ -511,7 +788,7 @@ export const Finance = () => {
     });
 
     return { history: filteredHistory, previousBalance };
-  }, [statementClient, dentistJobs, dentistPayments, filterStartDate, filterEndDate]);
+  }, [statementClient, dentistJobs, dentistPayments, jobs, filterStartDate, filterEndDate]);
 
   const handleAddManualEntry = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1399,12 +1676,14 @@ export const Finance = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
                       <div className="lg:col-span-2">
-                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Buscar por Descrição/Dentista</label>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-1">
+                              {reportType === 'DEBITOS' ? 'Buscar Dentista / Clínica / CPF / Tel' : 'Buscar por Descrição/Dentista'}
+                          </label>
                           <input 
                               type="text"
                               value={reportSearchTerm}
                               onChange={e => setReportSearchTerm(e.target.value)}
-                              placeholder="Pesquisar..."
+                              placeholder={reportType === 'DEBITOS' ? 'Nome do dentista, clínica, documento...' : 'Pesquisar...'}
                               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
                           />
                       </div>
@@ -1431,11 +1710,12 @@ export const Finance = () => {
                           <select 
                               value={reportType}
                               onChange={e => setReportType(e.target.value as any)}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500 font-sans"
                           >
                               <option value="ALL">Todos os Tipos</option>
                               <option value="RECEBIMENTO">Recebimentos</option>
                               <option value="DESPESA">Despesas</option>
+                              <option value="DEBITOS">Débitos (Clientes com Débito)</option>
                           </select>
                       </div>
                       <div>
@@ -1443,112 +1723,253 @@ export const Finance = () => {
                           <select 
                               value={reportSource}
                               onChange={e => setReportSource(e.target.value as any)}
-                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                              disabled={reportType === 'DEBITOS'}
+                              className={`w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500 ${
+                                  reportType === 'DEBITOS' ? 'opacity-60 cursor-not-allowed text-slate-400' : ''
+                              }`}
                           >
-                              <option value="ALL">Todos</option>
-                              <option value="MANUAL_OR_ASAAS">Faturas (Manual/Asaas)</option>
-                              <option value="ONLINE_STORE">Loja Online (Pedidos)</option>
-                              <option value="EXPENSE">Despesas</option>
+                              {reportType === 'DEBITOS' ? (
+                                  <option value="ALL">Contas de Clientes</option>
+                              ) : (
+                                  <>
+                                      <option value="ALL">Todos</option>
+                                      <option value="MANUAL_OR_ASAAS">Faturas (Manual/Asaas)</option>
+                                      <option value="ONLINE_STORE">Loja Online (Pedidos)</option>
+                                      <option value="EXPENSE">Despesas</option>
+                                  </>
+                              )}
                           </select>
                       </div>
                   </div>
               </div>
 
               {/* Statistics Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Realizados</p>
-                      <h4 className="text-xl font-black text-green-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
-                  </div>
-                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pagas</p>
-                      <h4 className="text-xl font-black text-red-500">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
-                  </div>
-                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Saldo Líquido Período</p>
-                      <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
-                          R$ {reportStats.netBalance.toFixed(2)}
-                      </h4>
-                  </div>
-                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Pendentes</p>
-                      <h4 className="text-xl font-black text-orange-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
-                  </div>
-                  <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                      <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pendentes</p>
-                      <h4 className="text-xl font-black text-amber-600">R$ {reportStats.pendingOutflows.toFixed(2)}</h4>
-                  </div>
-              </div>
-
-              {/* Movements Table */}
-              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                          Mostrando {reportMovements.length} registro(s)
-                      </span>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                          <thead>
-                              <tr className="bg-slate-50 border-b border-slate-100">
-                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Data</th>
-                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Descrição</th>
-                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Tipo</th>
-                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Canal / Origem</th>
-                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Cliente</th>
-                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Valor</th>
-                                  <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Status</th>
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {reportMovements.length === 0 ? (
-                                  <tr>
-                                      <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
-                                          Nenhuma movimentação encontrada para os filtros selecionados.
-                                      </td>
-                                  </tr>
+              {reportType === 'DEBITOS' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Clientes em Débito</p>
+                          <h4 className="text-xl font-black text-slate-800">{reportDebtStats.totalClientsWithDebt}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-gradient-to-br from-white to-rose-50/30">
+                          <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Saldo Total Devedor</p>
+                          <h4 className="text-xl font-black text-rose-600">R$ {reportDebtStats.totalDebtAmount.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">OSs Pendentes</p>
+                          <h4 className="text-xl font-black text-amber-600">{reportDebtStats.totalPendingJobs}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Média por Devedor</p>
+                          <h4 className="text-xl font-black text-slate-700">R$ {reportDebtStats.avgDebt.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Maior Débito</p>
+                          <h4 className="text-sm font-black text-slate-800 truncate" title={reportDebtStats.maxDebtClient ? reportDebtStats.maxDebtClient.name : '---'}>
+                              {reportDebtStats.maxDebtClient ? (
+                                  <>
+                                      <span className="text-rose-600 block">R$ {reportDebtStats.maxDebtClient.balanceUpToEndDate.toFixed(2)}</span>
+                                      <span className="text-xs text-slate-500 font-bold truncate block">{reportDebtStats.maxDebtClient.name}</span>
+                                  </>
                               ) : (
-                                  reportMovements.map(m => (
-                                      <tr key={`${m.source}-${m.id}`} className="hover:bg-slate-50 border-b border-slate-100 transition-colors">
-                                          <td className="p-4 text-xs font-bold text-slate-500">
-                                              {m.date.toLocaleDateString('pt-BR')}
-                                          </td>
-                                          <td className="p-4 text-xs font-bold text-slate-800 max-w-xs truncate">
-                                              {m.description}
-                                          </td>
-                                          <td className="p-4">
-                                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                                                  m.type === 'RECEBIMENTO' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
-                                              }`}>
-                                                  {m.type === 'RECEBIMENTO' ? 'RECEBIMENTO' : 'DESPESA'}
-                                              </span>
-                                          </td>
-                                          <td className="p-4 text-xs font-bold text-slate-600">
-                                              {m.category}
-                                          </td>
-                                          <td className="p-4 text-xs font-bold text-slate-500">
-                                              {m.dentistName}
-                                          </td>
-                                          <td className={`p-4 text-xs font-black text-right ${
-                                              m.type === 'RECEBIMENTO' ? 'text-green-600' : 'text-red-600'
-                                          }`}>
-                                              {m.type === 'RECEBIMENTO' ? '+' : '-'} R$ {m.amount.toFixed(2)}
-                                          </td>
-                                          <td className="p-4 text-center">
-                                              <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                                                  m.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                                              }`}>
-                                                  {m.status === 'PAID' ? 'PAGO' : 'PENDENTE'}
-                                              </span>
+                                  '---'
+                              )}
+                          </h4>
+                      </div>
+                  </div>
+              ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Realizados</p>
+                          <h4 className="text-xl font-black text-green-600">R$ {reportStats.totalInflows.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pagas</p>
+                          <h4 className="text-xl font-black text-red-500">R$ {reportStats.totalOutflows.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Saldo Líquido Período</p>
+                          <h4 className={`text-xl font-black ${reportStats.netBalance >= 0 ? 'text-blue-600' : 'text-rose-600'}`}>
+                              R$ {reportStats.netBalance.toFixed(2)}
+                          </h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Recebimentos Pendentes</p>
+                          <h4 className="text-xl font-black text-orange-600">R$ {reportStats.pendingInflows.toFixed(2)}</h4>
+                      </div>
+                      <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Despesas Pendentes</p>
+                          <h4 className="text-xl font-black text-amber-600">R$ {reportStats.pendingOutflows.toFixed(2)}</h4>
+                      </div>
+                  </div>
+              )}
+
+              {/* Table Section */}
+              {reportType === 'DEBITOS' ? (
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                                  Clientes com Débitos Pendentes
+                              </span>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-600">
+                                  {reportDebts.length} encontrado(s)
+                              </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-bold">
+                              Clique em <strong className="text-blue-600 font-bold">Extrato</strong> para ver os lançamentos detalhados do período
+                          </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                              <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100">
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Cliente / Dentista</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Clínica & Contato</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">OSs Pendentes</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Débito no Período</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Pagamentos Período</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Saldo Devedor Total</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Ações</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {reportDebts.length === 0 ? (
+                                      <tr>
+                                          <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
+                                              Nenhum cliente com débito pendente encontrado para o período e filtros selecionados.
                                           </td>
                                       </tr>
-                                  ))
-                              )}
-                          </tbody>
-                      </table>
+                                  ) : (
+                                      reportDebts.map(d => (
+                                          <tr key={d.id} className="hover:bg-slate-50/80 border-b border-slate-100 transition-colors">
+                                              <td className="p-4">
+                                                  <div className="flex items-center gap-3">
+                                                      <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-600 text-xs shrink-0">
+                                                          {d.name.substring(0, 2).toUpperCase()}
+                                                      </div>
+                                                      <div>
+                                                          <p className="text-xs font-black text-slate-800 leading-snug">{d.name}</p>
+                                                          {d.cpfCnpj && <p className="text-[10px] font-bold text-slate-400">{d.cpfCnpj}</p>}
+                                                      </div>
+                                                  </div>
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-600">
+                                                  <p className="text-slate-700">{d.clinicName || '---'}</p>
+                                                  {d.phone && <p className="text-[10px] text-slate-400 font-bold">{d.phone}</p>}
+                                              </td>
+                                              <td className="p-4 text-center">
+                                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${
+                                                      d.pendingJobsCount > 0 
+                                                          ? 'bg-amber-100 text-amber-800' 
+                                                          : 'bg-slate-100 text-slate-600'
+                                                  }`}>
+                                                      {d.pendingJobsCount} OS(s)
+                                                  </span>
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-700 text-right">
+                                                  R$ {d.periodDebits.toFixed(2)}
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-emerald-600 text-right">
+                                                  R$ {d.periodCredits.toFixed(2)}
+                                              </td>
+                                              <td className="p-4 text-right">
+                                                  <span className="text-sm font-black text-rose-600 bg-rose-50 px-2.5 py-1 rounded-xl">
+                                                      R$ {d.balanceUpToEndDate.toFixed(2)}
+                                                  </span>
+                                              </td>
+                                              <td className="p-4 text-center">
+                                                  <button
+                                                      onClick={() => {
+                                                          setStatementClient(d.dentistObj || d);
+                                                          setFilterStartDate(reportStartDate);
+                                                          setFilterEndDate(reportEndDate);
+                                                          setActiveSubTab('EXTRATO');
+                                                          setShowStatement(true);
+                                                      }}
+                                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm cursor-pointer"
+                                                      title="Abrir Extrato Financeiro do Período"
+                                                  >
+                                                      <History size={14} /> Extrato
+                                                  </button>
+                                              </td>
+                                          </tr>
+                                      ))
+                                  )}
+                              </tbody>
+                          </table>
+                      </div>
                   </div>
-              </div>
+              ) : (
+                  <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                              Mostrando {reportMovements.length} registro(s)
+                          </span>
+                      </div>
+
+                      <div className="overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                              <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100">
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Data</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Descrição</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Tipo</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Canal / Origem</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase">Cliente</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-right">Valor</th>
+                                      <th className="p-4 text-[10px] font-black text-slate-400 uppercase text-center">Status</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {reportMovements.length === 0 ? (
+                                      <tr>
+                                          <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
+                                              Nenhuma movimentação encontrada para os filtros selecionados.
+                                          </td>
+                                      </tr>
+                                  ) : (
+                                      reportMovements.map(m => (
+                                          <tr key={`${m.source}-${m.id}`} className="hover:bg-slate-50 border-b border-slate-100 transition-colors">
+                                              <td className="p-4 text-xs font-bold text-slate-500">
+                                                  {m.date.toLocaleDateString('pt-BR')}
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-800 max-w-xs truncate">
+                                                  {m.description}
+                                              </td>
+                                              <td className="p-4">
+                                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                                                      m.type === 'RECEBIMENTO' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                                                  }`}>
+                                                      {m.type === 'RECEBIMENTO' ? 'RECEBIMENTO' : 'DESPESA'}
+                                                  </span>
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-600">
+                                                  {m.category}
+                                              </td>
+                                              <td className="p-4 text-xs font-bold text-slate-500">
+                                                  {m.dentistName}
+                                              </td>
+                                              <td className={`p-4 text-xs font-black text-right ${
+                                                  m.type === 'RECEBIMENTO' ? 'text-green-600' : 'text-red-600'
+                                              }`}>
+                                                  {m.type === 'RECEBIMENTO' ? '+' : '-'} R$ {m.amount.toFixed(2)}
+                                              </td>
+                                              <td className="p-4 text-center">
+                                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                                                      m.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                                  }`}>
+                                                      {m.status === 'PAID' ? 'PAGO' : 'PENDENTE'}
+                                                  </span>
+                                              </td>
+                                          </tr>
+                                      ))
+                                  )}
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              )}
           </div>
       )}
 

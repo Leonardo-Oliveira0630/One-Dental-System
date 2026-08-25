@@ -1,14 +1,85 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { ManualDentist, UserRole, PermissionKey } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
-  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package, DollarSign, Lock, Unlock, Table, Percent, Link2
+  FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package, DollarSign, Lock, Unlock, Table, Percent, Link2,
+  AlertTriangle, AlertCircle, CheckCircle2, Filter
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../../services/addressService';
+
+export interface DentistCompletenessResult {
+  isIncomplete: boolean;
+  missingLabels: string[];
+  missingKeys: string[];
+  hasCpfCnpj: boolean;
+  hasCro: boolean;
+  hasAddress: boolean;
+  hasEmail: boolean;
+  hasPhone: boolean;
+  completedCount: number;
+  totalCount: number;
+  percentage: number;
+}
+
+export const checkDentistCompleteness = (dentist: any): DentistCompletenessResult => {
+  const missingLabels: string[] = [];
+  const missingKeys: string[] = [];
+
+  const hasCpfCnpj = Boolean(dentist?.cpfCnpj && String(dentist.cpfCnpj).trim() !== '');
+  const hasCro = Boolean(dentist?.cro && String(dentist.cro).trim() !== '');
+  const hasAddress = Boolean(
+    (dentist?.address && String(dentist.address).trim() !== '') ||
+    (dentist?.cep && String(dentist.cep).trim() !== '' && dentist?.city && String(dentist.city).trim() !== '')
+  );
+  const hasEmail = Boolean(dentist?.email && String(dentist.email).trim() !== '');
+  const hasPhone = Boolean(
+    (dentist?.phone && String(dentist.phone).trim() !== '') ||
+    (dentist?.whatsapp && String(dentist.whatsapp).trim() !== '')
+  );
+
+  if (!hasCpfCnpj) {
+    missingKeys.push('cpfCnpj');
+    missingLabels.push('CPF/CNPJ');
+  }
+  if (!hasCro) {
+    missingKeys.push('cro');
+    missingLabels.push('CRO');
+  }
+  if (!hasAddress) {
+    missingKeys.push('address');
+    missingLabels.push('Endereço');
+  }
+  if (!hasEmail) {
+    missingKeys.push('email');
+    missingLabels.push('E-mail');
+  }
+  if (!hasPhone) {
+    missingKeys.push('phone');
+    missingLabels.push('Telefone');
+  }
+
+  const totalCount = 5;
+  const completedCount = totalCount - missingKeys.length;
+  const percentage = Math.round((completedCount / totalCount) * 100);
+
+  return {
+    isIncomplete: missingKeys.length > 0,
+    missingLabels,
+    missingKeys,
+    hasCpfCnpj,
+    hasCro,
+    hasAddress,
+    hasEmail,
+    hasPhone,
+    completedCount,
+    totalCount,
+    percentage
+  };
+};
 
 export const DentistsTab = () => {
   const { manualDentists, addManualDentist, updateManualDentist, deleteManualDentist, priceTables, currentUser, jobTypes } = useApp();
@@ -16,6 +87,7 @@ export const DentistsTab = () => {
   const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
   const [dentistSearch, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
+  const [completenessFilter, setCompletenessFilter] = useState<'ALL' | 'INCOMPLETE' | 'COMPLETE' | 'MISSING_CPF' | 'MISSING_CRO' | 'MISSING_ADDRESS' | 'MISSING_EMAIL' | 'MISSING_PHONE'>('ALL');
 
   // AI Import States
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -381,146 +453,409 @@ export const DentistsTab = () => {
     }
   };
 
-  const filteredDentists = manualDentists.filter(d => {
-    const matchesSearch = d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
-      (d.cro || '').includes(dentistSearch) ||
-      (d.cpfCnpj || '').includes(dentistSearch);
+  const completenessStats = useMemo(() => {
+    const total = manualDentists.length;
+    let incompleteCount = 0;
+    let missingCpfCount = 0;
+    let missingCroCount = 0;
+    let missingAddressCount = 0;
+    let missingEmailCount = 0;
+    let missingPhoneCount = 0;
 
-    if (!matchesSearch) return false;
+    manualDentists.forEach(d => {
+      const comp = checkDentistCompleteness(d);
+      if (comp.isIncomplete) incompleteCount++;
+      if (!comp.hasCpfCnpj) missingCpfCount++;
+      if (!comp.hasCro) missingCroCount++;
+      if (!comp.hasAddress) missingAddressCount++;
+      if (!comp.hasEmail) missingEmailCount++;
+      if (!comp.hasPhone) missingPhoneCount++;
+    });
 
-    if (statusFilter === 'ALL') return true;
-    if (statusFilter === 'ACTIVE') return !d.isBlocked;
-    if (statusFilter === 'BLOCKED') return d.isBlocked;
-    if (statusFilter === 'DEBT') return d.isBlocked && d.blockReason === 'DEBT';
-    if (statusFilter === 'FINANCIAL_APPROVAL') return d.isBlocked && d.blockReason === 'FINANCIAL_APPROVAL';
+    const completeCount = total - incompleteCount;
+    return {
+      total,
+      incompleteCount,
+      completeCount,
+      missingCpfCount,
+      missingCroCount,
+      missingAddressCount,
+      missingEmailCount,
+      missingPhoneCount
+    };
+  }, [manualDentists]);
 
-    return true;
-  });
+  const filteredDentists = useMemo(() => {
+    return manualDentists.filter(d => {
+      const comp = checkDentistCompleteness(d);
+
+      const matchesSearch = d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
+        (d.cro || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
+        (d.cpfCnpj || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
+        (d.clinicName || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
+        (d.email || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
+        (d.phone || '').toLowerCase().includes(dentistSearch.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      // Completeness Filter
+      if (completenessFilter === 'INCOMPLETE' && !comp.isIncomplete) return false;
+      if (completenessFilter === 'COMPLETE' && comp.isIncomplete) return false;
+      if (completenessFilter === 'MISSING_CPF' && !comp.missingKeys.includes('cpfCnpj')) return false;
+      if (completenessFilter === 'MISSING_CRO' && !comp.missingKeys.includes('cro')) return false;
+      if (completenessFilter === 'MISSING_ADDRESS' && !comp.missingKeys.includes('address')) return false;
+      if (completenessFilter === 'MISSING_EMAIL' && !comp.missingKeys.includes('email')) return false;
+      if (completenessFilter === 'MISSING_PHONE' && !comp.missingKeys.includes('phone')) return false;
+
+      // Status Filter
+      if (statusFilter === 'ACTIVE' && d.isBlocked) return false;
+      if (statusFilter === 'BLOCKED' && !d.isBlocked) return false;
+      if (statusFilter === 'DEBT' && (!d.isBlocked || d.blockReason !== 'DEBT')) return false;
+      if (statusFilter === 'FINANCIAL_APPROVAL' && (!d.isBlocked || d.blockReason !== 'FINANCIAL_APPROVAL')) return false;
+
+      return true;
+    });
+  }, [manualDentists, dentistSearch, completenessFilter, statusFilter]);
+
+  const formCompleteness = useMemo(() => {
+    return checkDentistCompleteness(formData);
+  }, [formData]);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-left-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">Clientes Internos (Offline)</h3>
+            <div>
+                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">Clientes Internos (Offline)</h3>
+                <p className="text-xs text-slate-500 font-medium">Cadastre e monitore a completude cadastral dos dentistas e clínicas do laboratório.</p>
+            </div>
             <div className="flex gap-2 w-full md:w-auto">
                 {canCreate && (
-                    <button onClick={() => setIsImportModalOpen(true)} className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200">
+                    <button onClick={() => setIsImportModalOpen(true)} className="flex-1 md:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-200 cursor-pointer">
                         <FileSpreadsheet size={18}/> Importar Planilha
                     </button>
                 )}
                 {canCreate && (
-                    <button onClick={() => { resetForm(); setIsAddingDentist(true); }} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-all">
+                    <button onClick={() => { resetForm(); setIsAddingDentist(true); }} className="flex-1 md:flex-none px-4 py-2 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg hover:bg-blue-700 transition-all cursor-pointer">
                         <Plus size={20}/> Novo Cadastro
                     </button>
                 )}
             </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-            <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+        {/* Quick Completeness Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+                type="button"
+                onClick={() => setCompletenessFilter('ALL')}
+                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                    completenessFilter === 'ALL'
+                        ? 'bg-blue-50/70 border-blue-300 ring-2 ring-blue-500/20 shadow-sm'
+                        : 'bg-white border-slate-200 hover:border-slate-300'
+                }`}
+            >
+                <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total de Clientes</p>
+                    <p className="text-2xl font-black text-slate-800 mt-0.5">{completenessStats.total}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
+                    <Stethoscope size={20} />
+                </div>
+            </button>
+
+            <button
+                type="button"
+                onClick={() => setCompletenessFilter(completenessFilter === 'COMPLETE' ? 'ALL' : 'COMPLETE')}
+                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                    completenessFilter === 'COMPLETE'
+                        ? 'bg-emerald-50 border-emerald-300 ring-2 ring-emerald-500/20 shadow-sm'
+                        : 'bg-white border-slate-200 hover:border-emerald-200'
+                }`}
+            >
+                <div>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                        <CheckCircle2 size={12} /> Cadastros Completos
+                    </p>
+                    <p className="text-2xl font-black text-emerald-700 mt-0.5">{completenessStats.completeCount}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-100/70 flex items-center justify-center text-emerald-700 font-black text-xs">
+                    {completenessStats.total > 0 ? `${Math.round((completenessStats.completeCount / completenessStats.total) * 100)}%` : '0%'}
+                </div>
+            </button>
+
+            <button
+                type="button"
+                onClick={() => setCompletenessFilter(completenessFilter === 'INCOMPLETE' ? 'ALL' : 'INCOMPLETE')}
+                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
+                    completenessFilter === 'INCOMPLETE'
+                        ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-500/20 shadow-sm'
+                        : 'bg-white border-slate-200 hover:border-amber-200'
+                }`}
+            >
+                <div>
+                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-wider flex items-center gap-1">
+                        <AlertTriangle size={12} /> Cadastros Incompletos
+                    </p>
+                    <p className="text-2xl font-black text-amber-700 mt-0.5">{completenessStats.incompleteCount}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-100/80 flex items-center justify-center text-amber-700 font-black text-xs">
+                    {completenessStats.total > 0 ? `${Math.round((completenessStats.incompleteCount / completenessStats.total) * 100)}%` : '0%'}
+                </div>
+            </button>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                <div className="relative md:col-span-6">
+                    <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
                     <input 
-                        placeholder="Filtrar por nome, CRO ou documento..." 
-                        className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium" 
+                        placeholder="Filtrar por nome, CRO, CPF/CNPJ, clínica, e-mail..." 
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold transition-all placeholder:text-slate-400" 
                         value={dentistSearch} 
                         onChange={e => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="md:col-span-3">
+                    <select 
+                        value={completenessFilter}
+                        onChange={e => setCompletenessFilter(e.target.value as any)}
+                        className={`w-full px-3 py-2.5 border rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                            completenessFilter !== 'ALL' 
+                                ? 'bg-amber-50/60 border-amber-300 text-amber-900 font-black' 
+                                : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                    >
+                        <option value="ALL">Status de Cadastro: Todos ({completenessStats.total})</option>
+                        <option value="INCOMPLETE">⚠️ Cadastros Incompletos ({completenessStats.incompleteCount})</option>
+                        <option value="COMPLETE">✅ Cadastros 100% Completos ({completenessStats.completeCount})</option>
+                        <option value="MISSING_CPF">Falta CPF/CNPJ ({completenessStats.missingCpfCount})</option>
+                        <option value="MISSING_CRO">Falta CRO ({completenessStats.missingCroCount})</option>
+                        <option value="MISSING_ADDRESS">Falta Endereço ({completenessStats.missingAddressCount})</option>
+                        <option value="MISSING_EMAIL">Falta E-mail ({completenessStats.missingEmailCount})</option>
+                        <option value="MISSING_PHONE">Falta Telefone ({completenessStats.missingPhoneCount})</option>
+                    </select>
+                </div>
+
+                <div className="md:col-span-3">
                     <select 
                         value={statusFilter}
                         onChange={e => setStatusFilter(e.target.value as any)}
-                        className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="ALL">Todos os Clientes</option>
+                        <option value="ALL">Status da Conta: Todos</option>
                         <option value="ACTIVE">Clientes Ativos</option>
                         <option value="BLOCKED">Todos os Bloqueados</option>
-                        <option value="DEBT">Por Inadimplência</option>
-                        <option value="FINANCIAL_APPROVAL">Por Análise de Crédito</option>
+                        <option value="DEBT">Bloqueados por Inadimplência</option>
+                        <option value="FINANCIAL_APPROVAL">Bloqueados por Análise</option>
                     </select>
                 </div>
             </div>
+
+            {completenessFilter !== 'ALL' && (
+                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 text-amber-800 font-bold">
+                        <Filter size={14} className="text-amber-600" />
+                        <span>Filtro de cadastro ativo: <strong>{
+                            completenessFilter === 'INCOMPLETE' ? 'Apenas Cadastros Incompletos' :
+                            completenessFilter === 'COMPLETE' ? 'Apenas Cadastros Completos' :
+                            completenessFilter === 'MISSING_CPF' ? 'Faltando CPF/CNPJ' :
+                            completenessFilter === 'MISSING_CRO' ? 'Faltando CRO' :
+                            completenessFilter === 'MISSING_ADDRESS' ? 'Faltando Endereço' :
+                            completenessFilter === 'MISSING_EMAIL' ? 'Faltando E-mail' : 'Faltando Telefone'
+                        }</strong> ({filteredDentists.length} clientes encontrados)</span>
+                    </div>
+                    <button 
+                        type="button" 
+                        onClick={() => setCompletenessFilter('ALL')}
+                        className="text-blue-600 hover:text-blue-800 font-black uppercase text-[10px] cursor-pointer"
+                    >
+                        Limpar Filtro
+                    </button>
+                </div>
+            )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="px-6 py-3 border-b border-slate-100 flex items-center justify-between text-xs text-slate-400 font-bold">
+                <span>Mostrando {filteredDentists.length} de {manualDentists.length} cliente(s)</span>
+                {completenessStats.incompleteCount > 0 && (
+                    <span className="text-amber-600 flex items-center gap-1 font-black text-[11px]">
+                        <AlertTriangle size={13} /> {completenessStats.incompleteCount} cliente(s) precisam de complemento cadastral
+                    </span>
+                )}
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
                   <tr>
-                    <th className="p-4">Nome / Clínica</th>
+                    <th className="p-4">Nome / Clínica & Cadastro</th>
                     <th className="p-4">Documento / CRO</th>
-                    <th className="p-4">Logística</th>
+                    <th className="p-4">Logística / Endereço</th>
                     <th className="p-4">Contato</th>
                     <th className="p-4 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredDentists.length === 0 ? (
-                    <tr><td colSpan={5} className="p-12 text-center text-slate-400 italic">Nenhum cliente cadastrado.</td></tr>
+                    <tr>
+                      <td colSpan={5} className="p-12 text-center text-slate-400 italic">
+                        Nenhum cliente encontrado para os filtros selecionados.
+                      </td>
+                    </tr>
                   ) : (
-                    filteredDentists.map(dentist => (
-                      <tr key={dentist.id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="p-4">
-                          <div className="font-bold text-slate-800">{dentist.name}</div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] text-slate-400 font-extrabold uppercase">{dentist.clinicName || '---'}</span>
-                            {(dentist as any).userId ? (
-                              <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">
-                                Ativo Online
-                              </span>
-                            ) : (
-                              <span className="bg-amber-100 text-amber-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">
-                                Convidar Online
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4 text-xs">
-                          <div className="font-bold text-slate-700">{dentist.cpfCnpj || '---'}</div>
-                          <div className="text-[10px] text-blue-600 font-bold uppercase">CRO: {dentist.cro || '---'}</div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-medium text-slate-600 truncate">{dentist.city ? `${dentist.city}/${dentist.state}` : '---'}</span>
-                            {dentist.deliveryViaPost && (
-                              <span className="bg-orange-100 text-orange-700 text-[8px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 w-fit uppercase">
-                                <Package size={10} /> VIA CORREIOS
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="text-xs text-slate-500 flex items-center gap-1"><Mail size={12}/> {dentist.email || '---'}</div>
-                          <div className="text-xs font-bold text-slate-400 flex items-center gap-1"><Phone size={12}/> {dentist.phone || '---'}</div>
-                        </td>
-                        <td className="p-4 text-right">
-                            <div className="flex justify-end gap-2">
-                                <button onClick={() => {
-                                    if (!dentist.email) {
-                                        alert("Por favor, edite o cadastro deste dentista e defina um e-mail válido antes de gerar o convite de requisições.");
-                                        return;
-                                    }
-                                    const inviteUrl = `${window.location.origin}/#/requisition-invite?orgId=${currentUser?.organizationId || ''}&dentistId=${dentist.id}`;
-                                    navigator.clipboard.writeText(inviteUrl);
-                                    alert(`Link de requisição online para Dr(a). ${dentist.name} copiado!\n\nLink: ${inviteUrl}`);
-                                }} title="Copiar Link para Requisição Online" className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg">
-                                    <Link2 size={18}/>
-                                </button>
-                                {canEdit && (
-                                    <button onClick={() => {
-                                        setEditingDentistId(dentist.id);
-                                        setFormData({ ...dentist } as any);
-                                        setHasBillingLimit((dentist.billingLimit || 0) > 0);
-                                        setIsAddingDentist(true);
-                                    }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"><Edit size={18}/></button>
-                                )}
-                                {canDelete && (
-                                    <button onClick={() => deleteManualDentist(dentist.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={18}/></button>
-                                )}
+                    filteredDentists.map(dentist => {
+                      const comp = checkDentistCompleteness(dentist);
+                      return (
+                        <tr key={dentist.id} className="hover:bg-slate-50 transition-colors group">
+                          <td className="p-4">
+                            <div className="font-bold text-slate-800">{dentist.name}</div>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="text-[10px] text-slate-400 font-extrabold uppercase">{dentist.clinicName || '---'}</span>
+                              {(dentist as any).userId ? (
+                                <span className="bg-emerald-100 text-emerald-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">
+                                  Ativo Online
+                                </span>
+                              ) : (
+                                <span className="bg-amber-100 text-amber-800 text-[8px] font-black px-1.5 py-0.5 rounded uppercase">
+                                  Convidar Online
+                                </span>
+                              )}
                             </div>
-                        </td>
-                      </tr>
-                    ))
+
+                            {/* Completeness Badge */}
+                            <div className="mt-2">
+                              {comp.isIncomplete ? (
+                                <div className="space-y-1">
+                                  <span 
+                                    className="bg-amber-50 text-amber-800 border border-amber-200 text-[9px] font-black px-2 py-0.5 rounded-md inline-flex items-center gap-1 shadow-2xs"
+                                    title={`Preenchido ${comp.completedCount} de 5. Pendente: ${comp.missingLabels.join(', ')}`}
+                                  >
+                                    <AlertTriangle size={11} className="text-amber-600 shrink-0" />
+                                    Cadastro Incompleto ({comp.completedCount}/5)
+                                  </span>
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {comp.missingLabels.map((lbl, idx) => (
+                                      <span key={idx} className="bg-rose-50 text-rose-700 text-[8px] font-black px-1.5 py-0.5 rounded border border-rose-100">
+                                        Falta {lbl}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-md inline-flex items-center gap-1">
+                                  <CheckCircle2 size={10} className="text-emerald-600 shrink-0" />
+                                  Cadastro 100% Completo
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-4 text-xs">
+                            <div className="mb-1">
+                              {dentist.cpfCnpj ? (
+                                <div className="font-bold text-slate-700">{dentist.cpfCnpj}</div>
+                              ) : (
+                                <span className="text-rose-500 font-bold italic text-[10px] flex items-center gap-1">
+                                  <AlertCircle size={11} /> CPF/CNPJ pendente
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              {dentist.cro ? (
+                                <div className="text-[10px] text-blue-600 font-black uppercase">CRO: {dentist.cro}</div>
+                              ) : (
+                                <span className="text-amber-600 font-bold text-[10px] flex items-center gap-1">
+                                  <AlertCircle size={11} /> CRO pendente
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="p-4">
+                            <div className="flex flex-col gap-1 text-xs">
+                              {dentist.address ? (
+                                <span className="text-slate-700 font-medium text-[11px] leading-snug">
+                                  {dentist.address}{dentist.number ? `, ${dentist.number}` : ''}
+                                </span>
+                              ) : (
+                                <span className="text-amber-600 font-bold text-[10px] flex items-center gap-1">
+                                  <AlertCircle size={11} /> Endereço pendente
+                                </span>
+                              )}
+
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {dentist.city && (
+                                  <span className="text-[10px] font-bold text-slate-400">
+                                    {dentist.city}{dentist.state ? `/${dentist.state}` : ''}
+                                  </span>
+                                )}
+                                {dentist.deliveryViaPost && (
+                                  <span className="bg-orange-100 text-orange-700 text-[8px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 w-fit uppercase">
+                                    <Package size={10} /> VIA CORREIOS
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-4">
+                            <div className="space-y-1">
+                              <div>
+                                {dentist.email ? (
+                                  <div className="text-xs text-slate-600 flex items-center gap-1 font-medium">
+                                    <Mail size={12} className="text-slate-400 shrink-0"/> <span className="truncate max-w-[160px]">{dentist.email}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-rose-500 font-bold text-[10px] flex items-center gap-1">
+                                    <Mail size={11} className="shrink-0" /> E-mail pendente
+                                  </span>
+                                )}
+                              </div>
+
+                              <div>
+                                {dentist.phone || dentist.whatsapp ? (
+                                  <div className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                                    <Phone size={12} className="text-slate-400 shrink-0"/> {dentist.phone || dentist.whatsapp}
+                                  </div>
+                                ) : (
+                                  <span className="text-rose-500 font-bold text-[10px] flex items-center gap-1">
+                                    <Phone size={11} className="shrink-0" /> Telefone pendente
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                  <button onClick={() => {
+                                      if (!dentist.email) {
+                                          alert("Por favor, edite o cadastro deste dentista e defina um e-mail válido antes de gerar o convite de requisições.");
+                                          return;
+                                      }
+                                      const inviteUrl = `${window.location.origin}/#/requisition-invite?orgId=${currentUser?.organizationId || ''}&dentistId=${dentist.id}`;
+                                      navigator.clipboard.writeText(inviteUrl);
+                                      alert(`Link de requisição online para Dr(a). ${dentist.name} copiado!\n\nLink: ${inviteUrl}`);
+                                  }} title="Copiar Link para Requisição Online" className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer">
+                                      <Link2 size={18}/>
+                                  </button>
+                                  {canEdit && (
+                                      <button onClick={() => {
+                                          setEditingDentistId(dentist.id);
+                                          setFormData({ ...dentist } as any);
+                                          setHasBillingLimit((dentist.billingLimit || 0) > 0);
+                                          setIsAddingDentist(true);
+                                      }} title="Editar Cadastro" className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg cursor-pointer"><Edit size={18}/></button>
+                                  )}
+                                  {canDelete && (
+                                      <button onClick={() => deleteManualDentist(dentist.id)} title="Excluir Cadastro" className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg cursor-pointer"><Trash2 size={18}/></button>
+                                  )}
+                              </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -532,36 +867,77 @@ export const DentistsTab = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
               <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-auto animate-in zoom-in duration-200">
                   <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-3xl">
-                      <h3 className="text-xl font-black flex items-center gap-2 text-slate-800"><Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cadastro' : 'Ficha de Cliente'}</h3>
-                      <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
-                  </div>
-                  <form onSubmit={handleSaveManualDentist} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6">
                       <div>
-                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">1. Identificação e Contato</h4>
+                        <h3 className="text-xl font-black flex items-center gap-2 text-slate-800">
+                          <Stethoscope className="text-blue-600" /> {editingDentistId ? 'Editar Cadastro de Cliente' : 'Ficha de Cadastro de Cliente'}
+                        </h3>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">Mantenha os dados atualizados para correta identificação e emissão financeira.</p>
+                      </div>
+                      <button onClick={() => { setIsAddingDentist(false); setEditingDentistId(null); }} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200/60 transition-colors"><X size={22}/></button>
+                  </div>
+                  <form onSubmit={handleSaveManualDentist} className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6 pt-4">
+                      {/* Completeness Notification Banner inside Form */}
+                      {formCompleteness.isIncomplete ? (
+                        <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl flex items-start gap-3">
+                          <AlertTriangle className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                          <div className="flex-1 text-xs">
+                            <p className="font-black text-amber-900">
+                              Cadastro Incompleto ({formCompleteness.completedCount} de {formCompleteness.totalCount} campos essenciais preenchidos)
+                            </p>
+                            <p className="text-amber-700 text-[11px] mt-0.5 leading-relaxed">
+                              Campos pendentes: <strong className="font-black text-amber-900">{formCompleteness.missingLabels.join(', ')}</strong>. Preencha todos os campos destacados para completar o cadastro.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center gap-2.5 text-xs font-bold text-emerald-800">
+                          <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                          <span>Cadastro 100% Completo! Todos os dados essenciais (CPF/CNPJ, CRO, Endereço, E-mail e Telefone) foram preenchidos.</span>
+                        </div>
+                      )}
+
+                      <div>
+                        <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1 flex items-center justify-between">
+                          <span>1. Identificação e Contato</span>
+                        </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Nome Completo *</label>
-                            <input name="name" required value={formData.name} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input name="name" required value={formData.name} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800" />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">E-mail</label>
-                            <input name="email" type="email" value={formData.email} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <label className="block text-[10px] font-bold uppercase mb-1 ml-1 flex items-center justify-between">
+                              <span className="text-slate-500">E-mail</span>
+                              {!formData.email?.trim() ? (
+                                <span className="text-rose-500 text-[9px] font-black bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">Pendente</span>
+                              ) : (
+                                <span className="text-emerald-600 text-[9px] font-black flex items-center gap-0.5"><Check size={10}/> Preenchido</span>
+                              )}
+                            </label>
+                            <input name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="exemplo@clinica.com.br" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Telefone / WhatsApp</label>
-                            <input name="phone" value={formData.phone} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <label className="block text-[10px] font-bold uppercase mb-1 ml-1 flex items-center justify-between">
+                              <span className="text-slate-500">Telefone / WhatsApp</span>
+                              {!formData.phone?.trim() ? (
+                                <span className="text-rose-500 text-[9px] font-black bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">Pendente</span>
+                              ) : (
+                                <span className="text-emerald-600 text-[9px] font-black flex items-center gap-0.5"><Check size={10}/> Preenchido</span>
+                              )}
+                            </label>
+                            <input name="phone" value={formData.phone} onChange={handleInputChange} placeholder="(00) 00000-0000" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Data de Nascimento</label>
-                            <input name="birthDate" type="date" value={formData.birthDate} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <input name="birthDate" type="date" value={formData.birthDate} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-medium" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Clínica</label>
-                            <input name="clinicName" value={formData.clinicName} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <input name="clinicName" value={formData.clinicName} onChange={handleInputChange} placeholder="Nome do Consultório / Clínica" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-medium" />
                           </div>
-                          <div>
+                          <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Tipo de Cliente *</label>
-                            <select name="clientType" value={formData.clientType || 'CLINICA'} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold">
+                            <select name="clientType" value={formData.clientType || 'CLINICA'} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs">
                                 <option value="CLINICA">Clínica</option>
                                 <option value="PESSOA_FISICA">Pessoa Física</option>
                                 <option value="LABORATORIO">Laboratório</option>
@@ -574,23 +950,44 @@ export const DentistsTab = () => {
                         <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">2. Documentação e Registro</h4>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CPF / CNPJ</label>
-                            <input name="cpfCnpj" value={formData.cpfCnpj} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <label className="block text-[10px] font-bold uppercase mb-1 ml-1 flex items-center justify-between">
+                              <span className="text-slate-500">CPF / CNPJ</span>
+                              {!formData.cpfCnpj?.trim() ? (
+                                <span className="text-rose-500 text-[9px] font-black bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">Pendente</span>
+                              ) : (
+                                <span className="text-emerald-600 text-[9px] font-black flex items-center gap-0.5"><Check size={10}/> Preenchido</span>
+                              )}
+                            </label>
+                            <input name="cpfCnpj" value={formData.cpfCnpj} onChange={handleInputChange} placeholder="000.000.000-00" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">CRO</label>
-                            <input name="cro" value={formData.cro} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <label className="block text-[10px] font-bold uppercase mb-1 ml-1 flex items-center justify-between">
+                              <span className="text-slate-500">CRO</span>
+                              {!formData.cro?.trim() ? (
+                                <span className="text-rose-500 text-[9px] font-black bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">Pendente</span>
+                              ) : (
+                                <span className="text-emerald-600 text-[9px] font-black flex items-center gap-0.5"><Check size={10}/> Preenchido</span>
+                              )}
+                            </label>
+                            <input name="cro" value={formData.cro} onChange={handleInputChange} placeholder="Ex: 12345-SP" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Data Aprovação</label>
-                            <input name="approvalDate" type="date" value={formData.approvalDate} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl" />
+                            <input name="approvalDate" type="date" value={formData.approvalDate} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-medium" />
                           </div>
                         </div>
                       </div>
 
                       <div>
                         <div className="flex justify-between items-center mb-3 border-b border-blue-100 pb-1">
-                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest">3. Localização e Logística</h4>
+                            <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
+                              <span>3. Localização e Logística</span>
+                              {!formData.address?.trim() ? (
+                                <span className="text-rose-500 text-[9px] font-black bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">Endereço Pendente</span>
+                              ) : (
+                                <span className="text-emerald-600 text-[9px] font-black flex items-center gap-0.5"><Check size={10}/> Preenchido</span>
+                              )}
+                            </h4>
                             <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                                 <button type="button" onClick={() => { setIsInternational(false); setFormData(prev => ({ ...prev, country: 'Brasil' })); }} className={`px-2 py-1 text-[8px] font-black uppercase rounded-md transition-all ${!isInternational ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Brasil</button>
                                 <button type="button" onClick={() => { setIsInternational(true); setFormData(prev => ({ ...prev, country: '' })); }} className={`px-2 py-1 text-[8px] font-black uppercase rounded-md transition-all ${isInternational ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400'}`}>Internacional</button>
@@ -628,29 +1025,34 @@ export const DentistsTab = () => {
 
                             <div className={isInternational ? 'md:col-span-1' : 'md:col-span-1'}>
                                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">{isInternational ? 'Zip/Postal Code' : 'CEP'} {isSearchingCep && <Loader2 size={10} className="inline animate-spin text-blue-500"/>}</label>
-                                <input name="cep" value={formData.cep} onChange={handleInputChange} onBlur={handleCEPBlur} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" placeholder={isInternational ? "Ex: 90210" : "00000-000"} />
+                                <input name="cep" value={formData.cep} onChange={handleInputChange} onBlur={handleCEPBlur} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" placeholder={isInternational ? "Ex: 90210" : "00000-000"} />
                             </div>
                           <div className={isInternational ? 'md:col-span-3' : 'md:col-span-2'}>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Logradouro</label>
-                            <input name="address" value={formData.address} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                            <label className="block text-[10px] font-bold uppercase mb-1 ml-1 flex items-center justify-between">
+                              <span className="text-slate-500">Logradouro</span>
+                              {!formData.address?.trim() && (
+                                <span className="text-rose-500 text-[9px] font-black bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200">Pendente</span>
+                              )}
+                            </label>
+                            <input name="address" value={formData.address} onChange={handleInputChange} placeholder="Rua, Av, Travessa..." className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">{isInternational ? 'Port/Suite' : 'Número'}</label>
-                            <input name="number" value={formData.number} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input name="number" value={formData.number} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Cidade</label>
-                            <input name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">{isInternational ? 'Region/State' : 'UF'}</label>
-                            <input name="state" value={formData.state} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input name="state" value={formData.state} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           
                           {isInternational ? (
                               <div>
                                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">País</label>
-                                <input name="country" value={formData.country} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500" />
+                                <input name="country" value={formData.country} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                               </div>
                           ) : (
                             <div className="md:col-span-1 flex flex-col justify-end">
