@@ -1193,7 +1193,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                     {isBudget && selectedDentistObj && (selectedDentistObj.address || selectedDentistObj.city) && (
                         <div className="md:col-span-12 mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1"><MapPin size={12} className="inline mr-1"/> Endereço do Cliente</p>
-                            <p className="text-xs text-slate-700 font-bold uppercase">{selectedDentistObj.address}, {selectedDentistObj.number} - {selectedDentistObj.neighborhood}, {selectedDentistObj.city}/{selectedDentistObj.state}</p>
+                            <p className="text-xs text-slate-700 font-bold uppercase">{selectedDentistObj.address}, {selectedDentistObj.number}{selectedDentistObj.complement ? ` - ${selectedDentistObj.complement}` : ''} - {selectedDentistObj.neighborhood}, {selectedDentistObj.city}/{selectedDentistObj.state}</p>
                             {selectedDentistObj.cep && <p className="text-[10px] text-slate-500 font-bold mt-0.5">CEP: {selectedDentistObj.cep}</p>}
                         </div>
                     )}

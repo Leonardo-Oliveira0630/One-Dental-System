@@ -776,7 +776,7 @@ export const DentistsTab = () => {
                             <div className="flex flex-col gap-1 text-xs">
                               {dentist.address ? (
                                 <span className="text-slate-700 font-medium text-[11px] leading-snug">
-                                  {dentist.address}{dentist.number ? `, ${dentist.number}` : ''}
+                                  {dentist.address}{dentist.number ? `, ${dentist.number}` : ''}{dentist.complement ? ` - ${dentist.complement}` : ''}
                                 </span>
                               ) : (
                                 <span className="text-amber-600 font-bold text-[10px] flex items-center gap-1">
@@ -1038,25 +1038,33 @@ export const DentistsTab = () => {
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">{isInternational ? 'Port/Suite' : 'Número'}</label>
-                            <input name="number" value={formData.number} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
+                            <input name="number" value={formData.number} onChange={handleInputChange} placeholder="Nº" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
-                          <div className="md:col-span-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Complemento</label>
+                            <input name="complement" value={formData.complement || ''} onChange={handleInputChange} placeholder="Ex: Sala 102, Apto, Bloco..." className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Bairro</label>
+                            <input name="neighborhood" value={formData.neighborhood || ''} onChange={handleInputChange} placeholder="Bairro" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
+                          </div>
+                          <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">Cidade</label>
-                            <input name="city" value={formData.city} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
+                            <input name="city" value={formData.city} onChange={handleInputChange} placeholder="Cidade" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">{isInternational ? 'Region/State' : 'UF'}</label>
-                            <input name="state" value={formData.state} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
+                            <input name="state" value={formData.state} onChange={handleInputChange} placeholder="UF" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                           </div>
                           
                           {isInternational ? (
-                              <div>
+                              <div className="md:col-span-2">
                                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">País</label>
                                 <input name="country" value={formData.country} onChange={handleInputChange} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-xs font-medium" />
                               </div>
                           ) : (
-                            <div className="md:col-span-1 flex flex-col justify-end">
-                                <label className="flex items-center gap-2 cursor-pointer p-2 bg-orange-50 border border-orange-100 rounded-xl hover:bg-orange-100 transition-colors">
+                            <div className="md:col-span-4 flex flex-col justify-end">
+                                <label className="flex items-center gap-2 cursor-pointer p-2.5 bg-orange-50 border border-orange-100 rounded-xl hover:bg-orange-100 transition-colors w-fit">
                                     <input 
                                         type="checkbox" 
                                         name="deliveryViaPost" 
@@ -1064,7 +1072,7 @@ export const DentistsTab = () => {
                                         onChange={handleInputChange}
                                         className="w-4 h-4 rounded text-orange-600 focus:ring-orange-500" 
                                     />
-                                    <span className="text-[10px] font-black text-orange-800 uppercase leading-none">Via Correios</span>
+                                    <span className="text-[10px] font-black text-orange-800 uppercase leading-none">Entrega via Correios / Transportadora</span>
                                 </label>
                             </div>
                           )}
@@ -1576,7 +1584,7 @@ export const DentistsTab = () => {
                                 )}
                               </td>
                               <td className="p-4 text-[10px] leading-tight text-slate-500 max-w-xs">
-                                <p className="font-bold text-slate-700">{item.address}{item.number ? `, ${item.number}` : ''}</p>
+                                <p className="font-bold text-slate-700">{item.address}{item.number ? `, ${item.number}` : ''}{item.complement ? ` - ${item.complement}` : ''}</p>
                                 <p>{item.neighborhood}{item.city ? ` - ${item.city}` : ''}{item.state ? `/${item.state}` : ''}</p>
                               </td>
                               <td className="p-4 text-xs">

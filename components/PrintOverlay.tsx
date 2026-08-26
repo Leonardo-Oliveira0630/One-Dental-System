@@ -27,14 +27,16 @@ export const PrintOverlay = () => {
   const formatAddress = (d: any) => {
     if (!d) return '';
     const parts = [];
-    if (d.address) parts.push(d.address);
-    if (d.number) parts.push(d.number);
-    let str = parts.join(', ');
-    if (d.complement) str += ` ${d.complement}`;
-    if (d.neighborhood) str += ` - ${d.neighborhood}`;
-    if (d.city || d.state) str += ` - ${d.city || ''}/${d.state || ''}`;
-    if (d.cep) str += ` - CEP: ${d.cep}`;
-    return str;
+    if (d.address) {
+      let line = d.address;
+      if (d.number) line += `, ${d.number}`;
+      if (d.complement) line += ` - ${d.complement}`;
+      parts.push(line);
+    }
+    if (d.neighborhood) parts.push(d.neighborhood);
+    if (d.city || d.state) parts.push(`${d.city || ''}${d.city && d.state ? '/' : ''}${d.state || ''}`);
+    if (d.cep) parts.push(`CEP: ${d.cep}`);
+    return parts.length > 0 ? parts.join(' - ') : (typeof d.address === 'string' ? d.address : '');
   };
   
   const dentistFullAddress = dentist ? formatAddress(dentist) : onlineDentist ? formatAddress(onlineDentist) : '';

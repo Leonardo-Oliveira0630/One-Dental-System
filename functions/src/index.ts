@@ -1830,9 +1830,9 @@ export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (reques
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
 export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) => {
-  const { to, body, orgId } = request.data as any;
-  if (!to || !body) {
-    throw new HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
+  const { to, body, template, orgId } = request.data as any;
+  if (!to || (!body && !template)) {
+    throw new HttpsError("invalid-argument", "Número de destino e mensagem ou modelo (template) são obrigatórios.");
   }
 
   const globalConfig = await getYcloudConfig();
@@ -1914,9 +1914,9 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
             channelId: "YCLOUD_API",
             provider: "YCLOUD",
             direction: "OUTBOUND",
-            templateId: "MANUAL_TEST",
+            templateId: request.data.template?.name || "MANUAL_TEST",
             recipient: cleanTo,
-            message: body,
+            message: body || (request.data.template ? `[Template: ${request.data.template.name}]` : ""),
             status: "SENT",
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });

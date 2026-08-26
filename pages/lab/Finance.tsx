@@ -914,7 +914,7 @@ export const Finance = () => {
     
     let addressStr = '';
     if (statementClient.address) {
-        addressStr = `${statementClient.address}${statementClient.number ? `, ${statementClient.number}` : ''}`;
+        addressStr = `${statementClient.address}${statementClient.number ? `, ${statementClient.number}` : ''}${statementClient.complement ? ` - ${statementClient.complement}` : ''}`;
         if (statementClient.neighborhood) addressStr += `, ${statementClient.neighborhood}`;
         let secondLine = [];
         if (statementClient.cep) secondLine.push(statementClient.cep);
@@ -1065,7 +1065,7 @@ export const Finance = () => {
 
       let addressStr = '';
       if (statementClient.address) {
-          addressStr = `${statementClient.address}${statementClient.number ? `, ${statementClient.number}` : ''}`;
+          addressStr = `${statementClient.address}${statementClient.number ? `, ${statementClient.number}` : ''}${statementClient.complement ? ` - ${statementClient.complement}` : ''}`;
           if (statementClient.neighborhood) addressStr += `, ${statementClient.neighborhood}`;
           let secondLine = [];
           if (statementClient.cep) secondLine.push(statementClient.cep);

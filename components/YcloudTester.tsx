@@ -78,6 +78,7 @@ export const YcloudTester = () => {
           });
         }
 
+        payload.body = `[Envio de Template: ${templateName.trim()}]`;
         payload.template = {
           name: templateName.trim(),
           language: {

@@ -135,9 +135,23 @@ export const RoutePlanner = () => {
         setSelectedCourierId('');
     };
 
+    const formatDentistAddress = (d: any) => {
+        if (!d) return 'Endereço não cadastrado';
+        const parts: string[] = [];
+        if (d.address) {
+            let line = d.address;
+            if (d.number) line += `, ${d.number}`;
+            if (d.complement) line += ` - ${d.complement}`;
+            parts.push(line);
+        }
+        if (d.neighborhood) parts.push(d.neighborhood);
+        if (d.city || d.state) parts.push(`${d.city || ''}${d.city && d.state ? '/' : ''}${d.state || ''}`);
+        return parts.length > 0 ? parts.join(' - ') : (typeof d.address === 'string' && d.address.trim() ? d.address : 'Endereço não cadastrado');
+    };
+
     const handleAddPickup = async (dentist: any) => {
         if (!activeRoute || !currentOrg || (!canCreate && !canEdit)) return;
-        const address = dentist.address ? `${dentist.address}, ${dentist.number} - ${dentist.city}` : 'Endereço não cadastrado';
+        const address = formatDentistAddress(dentist);
         
         const newItem: RouteItem = {
             id: `pickup_${Date.now()}`,

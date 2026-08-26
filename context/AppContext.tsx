@@ -1283,7 +1283,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
       const dentist = manualDentists.find(d => d.id === job.dentistId);
       const onlineDentist = allUsers.find(u => u.id === job.dentistId);
-      const address = dentist ? `${dentist.address}, ${dentist.number} - ${dentist.city}` : (onlineDentist?.address || 'Endereço não cadastrado');
+      const targetDentist: any = dentist || onlineDentist;
+      
+      const formatRouteAddress = (d: any) => {
+        if (!d) return 'Endereço não cadastrado';
+        const parts: string[] = [];
+        if (d.address) {
+          let line = d.address;
+          if (d.number) line += `, ${d.number}`;
+          if (d.complement) line += ` - ${d.complement}`;
+          parts.push(line);
+        }
+        if (d.neighborhood) parts.push(d.neighborhood);
+        if (d.city || d.state) parts.push(`${d.city || ''}${d.city && d.state ? '/' : ''}${d.state || ''}`);
+        return parts.length > 0 ? parts.join(' - ') : (typeof d.address === 'string' && d.address.trim() ? d.address : 'Endereço não cadastrado');
+      };
+
+      const address = formatRouteAddress(targetDentist);
       const routeItem: RouteItem = {
           id: `item_${Date.now()}`, routeId: routeId, jobId: job.id, dentistId: job.dentistId, dentistName: job.dentistName, patientName: job.patientName, address: address, type: 'DELIVERY', order: Date.now(), observations: observations || '' 
       };
