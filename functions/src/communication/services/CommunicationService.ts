@@ -83,7 +83,7 @@ export class CommunicationService {
 
         const defaultTemplates: any = {
             'LAB_DISPATCH': { name: 'lab_boa_em_rota', body: 'Olá {{ dentist_name }}, seus trabalhos estão saindo para entrega/coleta com nosso motoboy:\n{{jobs_list}}' },
-            'LAB_DELIVERED': { name: 'lab_delivered', body: 'Olá {{ dentist_name }}, os seguintes trabalhos foram entregues:\n{{jobs_list}}' },
+            'LAB_DELIVERED': { name: 'lab_trabalho_entregue', body: 'Olá {{ dentist_name }}, os seguintes trabalhos foram entregues:\n{{jobs_list}}' },
             'CLINIC_APPOINTMENT': { name: 'clinic_appointment', body: 'Olá {{ patient_name }}, sua consulta está marcada para {{date}}.' },
             'SUPPLIER_UPDATE': { name: 'supplier_update', body: 'Seu pedido {{order_id}} foi atualizado para: {{status}}' }
         };

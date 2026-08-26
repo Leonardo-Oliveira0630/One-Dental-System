@@ -43,7 +43,7 @@ export const WhatsAppTemplates = () => {
       system: 'LAB',
       vars: ['dentist_name', 'jobs_list'],
       example: 'Olá Dr(a) {{dentist_name}}, confirmamos que os seguintes trabalhos foram entregues com sucesso:\n\n{{jobs_list}}\n\nQualquer dúvida estamos à disposição!',
-      defaultMeta: 'lab_delivered'
+      defaultMeta: 'lab_trabalho_entregue'
     },
     'LAB_DISPATCH': {
       label: 'Laboratório: Trabalho em Rota de Entrega (Motoboy)',
@@ -105,7 +105,7 @@ export const WhatsAppTemplates = () => {
     setCustomAction('');
     setName('Laboratório: Trabalho Entregue');
     setBody(actionsConfig['LAB_DELIVERED'].example);
-    setMetaTemplateName('lab_delivered');
+    setMetaTemplateName('lab_trabalho_entregue');
     setLanguage('pt_BR');
     setActive(true);
     setEditingId('new');
