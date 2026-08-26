@@ -61,6 +61,15 @@ export class CommunicationService {
     }
 
     async getTemplate(orgId: string, module: string, templateType: string) {
+        const defaultTemplates: any = {
+            'LAB_DISPATCH': { name: 'lab_trabalho_em_rota', language: 'pt_BR', body: 'Olá {{dentist_name}}, seus trabalhos estão saindo para entrega com o entregador:\n{{jobs_list}}' },
+            'LAB_DELIVERED': { name: 'lab_trabalho_entregue', language: 'pt_BR', body: 'Olá {{dentist_name}}, os seguintes trabalhos foram entregues:\n{{jobs_list}}' },
+            'CLINIC_APPOINTMENT': { name: 'clinica_lembrete_consulta', language: 'pt_BR', body: 'Olá {{patient_name}}, sua consulta está agendada para {{date}} às {{time}}.' },
+            'CLINIC_APPOINTMENT_CONFIRMED': { name: 'clinica_consulta_confirmada', language: 'pt_BR', body: 'Olá {{patient_name}}, sua consulta para {{date}} às {{time}} está confirmada.' },
+            'CLINIC_APPOINTMENT_CANCELED': { name: 'clinica_consulta_cancelada', language: 'pt_BR', body: 'Olá {{patient_name}}, sua consulta para {{date}} às {{time}} foi cancelada.' },
+            'SUPPLIER_UPDATE': { name: 'fornecedor_status_pedido', language: 'pt_PT', body: 'Seu pedido #{{order_id}} foi atualizado para: {{status}}' }
+        };
+
         // Use globalSettings.globalWhatsappTemplates created by SuperAdmin UI
         try {
             const settingsSnap = await this.db.collection('settings').doc('global').get();
@@ -69,24 +78,19 @@ export class CommunicationService {
                 if (globalSettings && globalSettings.globalWhatsappTemplates) {
                     const t = globalSettings.globalWhatsappTemplates.find((tpl: any) => tpl.action === templateType && tpl.active);
                     if (t) {
-                        const templateName = (t.metaTemplateName || t.name || '').trim();
-                        if (templateName) {
-                            return { type: 'meta_template', data: { ...t, name: templateName } };
+                        let templateName = (t.metaTemplateName || '').trim();
+                        // Se metaTemplateName estiver vazio ou contiver espaços (ex: nome de exibição), usa o padrão oficial da Meta
+                        if (!templateName || templateName.includes(' ')) {
+                            templateName = defaultTemplates[templateType]?.name || t.action.toLowerCase();
                         }
-                        return { type: 'meta_template', data: { ...t, name: t.action.toLowerCase() } };
+                        const language = t.language || defaultTemplates[templateType]?.language || (templateName === 'fornecedor_status_pedido' ? 'pt_PT' : 'pt_BR');
+                        return { type: 'meta_template', data: { ...t, name: templateName, language } };
                     }
                 }
             }
         } catch (e) {
             console.error('Error fetching globalWhatsappTemplates', e);
         }
-
-        const defaultTemplates: any = {
-            'LAB_DISPATCH': { name: 'lab_boa_em_rota', body: 'Olá {{ dentist_name }}, seus trabalhos estão saindo para entrega/coleta com nosso motoboy:\n{{jobs_list}}' },
-            'LAB_DELIVERED': { name: 'lab_trabalho_entregue', body: 'Olá {{ dentist_name }}, os seguintes trabalhos foram entregues:\n{{jobs_list}}' },
-            'CLINIC_APPOINTMENT': { name: 'clinic_appointment', body: 'Olá {{ patient_name }}, sua consulta está marcada para {{date}}.' },
-            'SUPPLIER_UPDATE': { name: 'supplier_update', body: 'Seu pedido {{order_id}} foi atualizado para: {{status}}' }
-        };
         
         if (defaultTemplates[templateType]) {
             return { type: 'meta_template', data: defaultTemplates[templateType] };

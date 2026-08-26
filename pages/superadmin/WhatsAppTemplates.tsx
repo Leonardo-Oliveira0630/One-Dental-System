@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { 
   Plus, Edit2, Trash2, Save, X, Loader2, MessageSquare, Info, AlertCircle, 
   CheckCircle, Smartphone, Sparkles, Copy, Check, Search, Filter, 
-  ToggleLeft, ToggleRight, ArrowRight, ShieldCheck, Tag, HelpCircle, Layers
+  ToggleLeft, ToggleRight, ArrowRight, ShieldCheck, Tag, HelpCircle, Layers, RefreshCw
 } from 'lucide-react';
 import { GlobalWhatsAppTemplate } from '../../types';
 import { YcloudTester } from '../../components/YcloudTester';
@@ -37,55 +37,62 @@ export const WhatsAppTemplates = () => {
 
   const templatesList: GlobalWhatsAppTemplate[] = globalSettings?.globalWhatsappTemplates || [];
 
-  const actionsConfig: Record<string, { label: string, system: 'LAB' | 'CLINIC' | 'SUPPLIER' | 'GERAL', vars: string[], example: string, defaultMeta: string }> = {
+  const actionsConfig: Record<string, { label: string, system: 'LAB' | 'CLINIC' | 'SUPPLIER' | 'GERAL', vars: string[], example: string, defaultMeta: string, defaultLanguage?: string }> = {
     'LAB_DELIVERED': {
       label: 'Laboratório: Trabalho Entregue ao Dentista',
       system: 'LAB',
       vars: ['dentist_name', 'jobs_list'],
       example: 'Olá Dr(a) {{dentist_name}}, confirmamos que os seguintes trabalhos foram entregues com sucesso:\n\n{{jobs_list}}\n\nQualquer dúvida estamos à disposição!',
-      defaultMeta: 'lab_trabalho_entregue'
+      defaultMeta: 'lab_trabalho_entregue',
+      defaultLanguage: 'pt_BR'
     },
     'LAB_DISPATCH': {
       label: 'Laboratório: Trabalho em Rota de Entrega (Motoboy)',
       system: 'LAB',
       vars: ['dentist_name', 'jobs_list'],
       example: 'Olá Dr(a) {{dentist_name}}, os seguintes trabalhos acabaram de sair para entrega com o entregador:\n\n{{jobs_list}}',
-      defaultMeta: 'lab_dispatch'
+      defaultMeta: 'lab_trabalho_em_rota',
+      defaultLanguage: 'pt_BR'
     },
     'CLINIC_APPOINTMENT': {
       label: 'Clínica: Consulta Agendada (Convite / Lembrete)',
       system: 'CLINIC',
       vars: ['patient_name', 'date', 'time'],
       example: 'Olá {{patient_name}}, sua consulta está agendada para {{date}} às {{time}}.\n\nPor favor, responda 1 para CONFIRMAR ou 2 para CANCELAR.',
-      defaultMeta: 'clinic_appointment'
+      defaultMeta: 'clinica_lembrete_consulta',
+      defaultLanguage: 'pt_BR'
     },
     'CLINIC_APPOINTMENT_CONFIRMED': {
       label: 'Clínica: Confirmação de Consulta Recebida',
       system: 'CLINIC',
       vars: ['patient_name', 'date', 'time'],
       example: 'Olá {{patient_name}}, recebemos sua confirmação! Sua consulta para {{date}} às {{time}} está confirmada.',
-      defaultMeta: 'clinic_appointment_confirmed'
+      defaultMeta: 'clinica_consulta_confirmada',
+      defaultLanguage: 'pt_BR'
     },
     'CLINIC_APPOINTMENT_CANCELED': {
       label: 'Clínica: Cancelamento de Consulta Registrado',
       system: 'CLINIC',
       vars: ['patient_name', 'date', 'time'],
       example: 'Olá {{patient_name}}, sua consulta do dia {{date}} às {{time}} foi cancelada conforme solicitado.',
-      defaultMeta: 'clinic_appointment_canceled'
+      defaultMeta: 'clinica_consulta_cancelada',
+      defaultLanguage: 'pt_BR'
     },
     'SUPPLIER_UPDATE': {
       label: 'Fornecedor: Atualização de Status do Pedido',
       system: 'SUPPLIER',
       vars: ['order_id', 'status'],
       example: 'Olá, informamos que o status do seu pedido #{{order_id}} foi atualizado para: *{{status}}*.',
-      defaultMeta: 'supplier_update'
+      defaultMeta: 'fornecedor_status_pedido',
+      defaultLanguage: 'pt_PT'
     },
     'CUSTOM': {
       label: 'Gatilho / Ação Personalizada',
       system: 'GERAL',
       vars: ['nome', 'codigo', 'detalhes'],
       example: 'Olá {{nome}}, notificamos sobre {{detalhes}} (Código: {{codigo}}).',
-      defaultMeta: 'custom_notification'
+      defaultMeta: 'custom_notification',
+      defaultLanguage: 'pt_BR'
     }
   };
 
@@ -282,6 +289,84 @@ export const WhatsAppTemplates = () => {
     }
   };
 
+  const handleSyncOfficialTemplates = async () => {
+    if (!window.confirm('Deseja sincronizar os modelos cadastrados no seu painel YCloud/Meta (lab_trabalho_entregue, lab_trabalho_em_rota, clinica_lembrete_consulta, clinica_consulta_confirmada, clinica_consulta_cancelada, fornecedor_status_pedido)?')) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const officialTemplates: GlobalWhatsAppTemplate[] = [
+        {
+          id: 'tpl_lab_delivered',
+          action: 'LAB_DELIVERED',
+          name: 'Laboratório: Trabalho Entregue ao Dentista',
+          metaTemplateName: 'lab_trabalho_entregue',
+          language: 'pt_BR',
+          body: actionsConfig['LAB_DELIVERED'].example,
+          active: true
+        },
+        {
+          id: 'tpl_lab_dispatch',
+          action: 'LAB_DISPATCH',
+          name: 'Laboratório: Trabalho em Rota de Entrega (Motoboy)',
+          metaTemplateName: 'lab_trabalho_em_rota',
+          language: 'pt_BR',
+          body: actionsConfig['LAB_DISPATCH'].example,
+          active: true
+        },
+        {
+          id: 'tpl_clinic_appointment',
+          action: 'CLINIC_APPOINTMENT',
+          name: 'Clínica: Consulta Agendada (Convite / Lembrete)',
+          metaTemplateName: 'clinica_lembrete_consulta',
+          language: 'pt_BR',
+          body: actionsConfig['CLINIC_APPOINTMENT'].example,
+          active: true
+        },
+        {
+          id: 'tpl_clinic_confirmed',
+          action: 'CLINIC_APPOINTMENT_CONFIRMED',
+          name: 'Clínica: Confirmação de Consulta Recebida',
+          metaTemplateName: 'clinica_consulta_confirmada',
+          language: 'pt_BR',
+          body: actionsConfig['CLINIC_APPOINTMENT_CONFIRMED'].example,
+          active: true
+        },
+        {
+          id: 'tpl_clinic_canceled',
+          action: 'CLINIC_APPOINTMENT_CANCELED',
+          name: 'Clínica: Cancelamento de Consulta Registrado',
+          metaTemplateName: 'clinica_consulta_cancelada',
+          language: 'pt_BR',
+          body: actionsConfig['CLINIC_APPOINTMENT_CANCELED'].example,
+          active: true
+        },
+        {
+          id: 'tpl_supplier_update',
+          action: 'SUPPLIER_UPDATE',
+          name: 'Fornecedor: Atualização de Status do Pedido',
+          metaTemplateName: 'fornecedor_status_pedido',
+          language: 'pt_PT',
+          body: actionsConfig['SUPPLIER_UPDATE'].example,
+          active: true
+        }
+      ];
+
+      const customTemplates = templatesList.filter(t => !['LAB_DELIVERED', 'LAB_DISPATCH', 'CLINIC_APPOINTMENT', 'CLINIC_APPOINTMENT_CONFIRMED', 'CLINIC_APPOINTMENT_CANCELED', 'SUPPLIER_UPDATE'].includes(t.action));
+
+      await updateGlobalSettings({
+        globalWhatsappTemplates: [...officialTemplates, ...customTemplates]
+      });
+
+      setMessage({ type: 'success', text: 'Modelos sincronizados com sucesso com o catálogo da Meta / YCloud!' });
+    } catch (err: any) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Erro ao sincronizar modelos: ' + err.message });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -334,7 +419,16 @@ export const WhatsAppTemplates = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            onClick={handleSyncOfficialTemplates}
+            disabled={isSaving}
+            title="Importa e configura os modelos exatamente conforme aprovados no seu painel YCloud"
+            className="px-4 py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded-2xl shadow-sm transition-all flex items-center gap-2 text-xs sm:text-sm active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw size={17} className={isSaving ? 'animate-spin' : ''} />
+            Sincronizar Modelos YCloud
+          </button>
           <button 
             onClick={handleOpenAdd}
             className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl shadow-lg shadow-blue-200 transition-all flex items-center gap-2 text-xs sm:text-sm uppercase tracking-wider active:scale-95"
