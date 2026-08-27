@@ -1830,14 +1830,14 @@ export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (reques
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
 export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) => {
-  const { to, body, template, orgId } = request.data as any;
+  const { to, body, template, orgId, from: customFrom } = request.data as any;
   if (!to || (!body && !template)) {
     throw new HttpsError("invalid-argument", "Número de destino e mensagem ou modelo (template) são obrigatórios.");
   }
 
   const globalConfig = await getYcloudConfig();
   let apiKey = globalConfig.apiKey;
-  let fromNumber = globalConfig.fromNumber;
+  let fromNumber = customFrom || globalConfig.fromNumber;
   
   if (orgId) {
     const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
@@ -1932,7 +1932,9 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     const errorCode = errorData?.error?.code || errorData?.code || '';
     
     let friendlyMessage = `Erro no Ycloud (${status || 'API'} - ${errorCode}): ${apiErr}`;
-    if (status === 409) {
+    if (status === 400 && errorCode === 'PARAM_MISSING') {
+      friendlyMessage = `Erro no Ycloud (400 - PARAM_MISSING): ${apiErr}. Verifique se o número remetente (From) está configurado em Super Admin > Canais/WhatsApp ou se o modelo na Meta possui variáveis obrigatórias não preenchidas.`;
+    } else if (status === 409) {
       friendlyMessage = `Erro no Ycloud (409): O número de remetente ou destinatário informado não está registrado no Ycloud WABA. Detalhes: ${apiErr}`;
     } else if (status === 403) {
       friendlyMessage = `Erro no Ycloud (403): ${apiErr || 'Envio direto bloqueado ou modelo não localizado na WABA da Meta.'}`;

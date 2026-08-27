@@ -15,9 +15,11 @@ export const YcloudTester = () => {
   
   // Template Mode State
   const [templateName, setTemplateName] = useState('lab_trabalho_entregue');
+  const [fromNumberOverride, setFromNumberOverride] = useState('');
   const [languageCode, setLanguageCode] = useState('pt_BR');
   const [param1, setParam1] = useState('Dr. Leonardo');
   const [param2, setParam2] = useState('- Paciente Teste (OS: 123456)');
+  const [param3, setParam3] = useState('');
   
   // Text Mode State
   const [message, setMessage] = useState('Olá! Mensagem de teste enviada pelo Labprox.');
@@ -65,10 +67,15 @@ export const YcloudTester = () => {
       const sendYcloudWhatsApp = httpsCallable(functions, 'sendYcloudWhatsApp');
       let payload: any = { to: phone };
 
+      if (fromNumberOverride.trim()) {
+        payload.from = fromNumberOverride.trim();
+      }
+
       if (testMode === 'TEMPLATE') {
         const bodyParameters: any[] = [];
         if (param1.trim()) bodyParameters.push({ type: 'text', text: param1.trim() });
         if (param2.trim()) bodyParameters.push({ type: 'text', text: param2.trim() });
+        if (param3.trim()) bodyParameters.push({ type: 'text', text: param3.trim() });
 
         const components: any[] = [];
         if (bodyParameters.length > 0) {
@@ -145,18 +152,34 @@ export const YcloudTester = () => {
         </div>
 
         <form onSubmit={handleTest} className="space-y-4">
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-              Telefone de Destino (com DDD)
-            </label>
-            <input
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Ex: 27996566725 ou 5527996566725"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white"
-              required
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                Telefone de Destino (com DDD) *
+              </label>
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Ex: 27996566725 ou 5527996566725"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                Número Remetente WABA (From)
+              </label>
+              <input
+                type="text"
+                value={fromNumberOverride}
+                onChange={(e) => setFromNumberOverride(e.target.value)}
+                placeholder={globalSettings?.ycloudPhoneNumber ? `Configurado: ${globalSettings.ycloudPhoneNumber}` : "Ex: 5527999999999 (opcional)"}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white font-mono"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Deixe em branco para usar o número padrão configurado no sistema ({globalSettings?.ycloudPhoneNumber || 'Não configurado'}).</p>
+            </div>
           </div>
 
           {testMode === 'TEMPLATE' ? (
@@ -210,10 +233,10 @@ export const YcloudTester = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-purple-100">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-purple-100">
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1">
-                    Variável 1 (ex: Nome do Dentista / Paciente)
+                    Variável 1 (ex: Nome)
                   </label>
                   <input
                     type="text"
@@ -226,13 +249,26 @@ export const YcloudTester = () => {
 
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1">
-                    Variável 2 (ex: Lista de Trabalhos / Detalhes)
+                    Variável 2 (ex: Data / OS)
                   </label>
                   <input
                     type="text"
                     value={param2}
                     onChange={(e) => setParam2(e.target.value)}
                     placeholder="Ex: - Paciente Teste (OS: 123456)"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1">
+                    Variável 3 (ex: Horário / Status)
+                  </label>
+                  <input
+                    type="text"
+                    value={param3}
+                    onChange={(e) => setParam3(e.target.value)}
+                    placeholder="Ex: 14:30 (opcional)"
                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
                   />
                 </div>
