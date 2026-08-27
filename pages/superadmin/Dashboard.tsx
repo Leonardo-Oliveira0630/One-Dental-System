@@ -21,6 +21,8 @@ export const SuperAdminDashboard = () => {
         if (globalSettings) {
             setPlatformComm(globalSettings.platformCommission);
             setGeminiApiKey(globalSettings.geminiApiKey || '');
+            setYcloudApiKey(globalSettings.ycloudApiKey || '');
+            setYcloudPhone(globalSettings.ycloudPhoneNumber || '');
         }
     }, [globalSettings]);
 
@@ -148,6 +150,40 @@ export const SuperAdminDashboard = () => {
                                             value={geminiApiKey}
                                             onChange={e => setGeminiApiKey(e.target.value)}
                                             placeholder="Cole a chave da API do Google Gemini aqui..."
+                                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label className="block">
+                                <span className="text-sm font-black text-slate-700 uppercase flex items-center gap-2 mb-2">
+                                    <Settings size={16} className="text-blue-500"/> Chave da API Ycloud (WhatsApp)
+                                </span>
+                                <div className="flex gap-4">
+                                    <div className="relative flex-1">
+                                        <input 
+                                            type="password" 
+                                            value={ycloudApiKey}
+                                            onChange={e => setYcloudApiKey(e.target.value)}
+                                            placeholder="Cole a chave da API do Ycloud aqui..."
+                                            className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                </div>
+                            </label>
+
+                            <label className="block">
+                                <span className="text-sm font-black text-slate-700 uppercase flex items-center gap-2 mb-2">
+                                    <Settings size={16} className="text-blue-500"/> Número Remetente Ycloud (WABA)
+                                </span>
+                                <div className="flex gap-4">
+                                    <div className="relative flex-1">
+                                        <input 
+                                            type="text" 
+                                            value={ycloudPhone}
+                                            onChange={e => setYcloudPhone(e.target.value)}
+                                            placeholder="Ex: 5527999999999"
                                             className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>

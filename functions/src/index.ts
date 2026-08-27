@@ -1878,6 +1878,9 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
       cleanTo = "55" + cleanTo;
     }
     let cleanFrom = fromNumber ? fromNumber.replace(/\D/g, "") : "";
+    if (cleanFrom && (cleanFrom.length === 10 || cleanFrom.length === 11)) {
+      cleanFrom = "55" + cleanFrom;
+    }
     if (cleanFrom === cleanTo) {
       cleanFrom = ""; // Don't use recipient phone number as sender
     }
