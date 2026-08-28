@@ -78,9 +78,12 @@ export class YCloudProvider implements ICommunicationProvider {
     if (variables && Object.keys(variables).length > 0) {
         let bodyParameters: any[] = [];
         for (const [, value] of Object.entries(variables)) {
+             let safeValue = value !== undefined && value !== null ? String(value) : "-";
+             if (safeValue.trim() === '') safeValue = '-';
+             safeValue = safeValue.replace(/\n/g, ' | ');
              bodyParameters.push({
                  type: "text",
-                 text: String(value)
+                 text: safeValue
              });
         }
         components.push({

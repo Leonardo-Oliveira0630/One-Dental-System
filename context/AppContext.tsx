@@ -1,4 +1,4 @@
-import logger from "../utils/logger";
+import logger, { getCircularReplacer } from "../utils/logger";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { 
@@ -65,7 +65,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   };
   logger.error({ context: errInfo }, 'Firestore Error');
-  throw new Error(JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo, getCircularReplacer()));
 }
 
 const ALL_PERMISSIONS: PermissionKey[] = [

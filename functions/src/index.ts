@@ -2077,12 +2077,12 @@ export const triggerDeliveryRouteUpdated = onDocumentUpdated("organizations/{org
          continue;
        }
        
-       const jobsListStr = info.jobs.join("\n");
+       const jobsListStr = info.jobs.join(" | ");
        const templateType = justCompleted ? "LAB_DELIVERED" : "LAB_DISPATCH";
        
        try {
          await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType as any, {
-           dentist_name: info.dentistName,
+           dentist_name: info.dentistName || "Doutor(a)",
            jobs_list: jobsListStr
          });
        } catch (err: any) {

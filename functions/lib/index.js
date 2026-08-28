@@ -1654,14 +1654,14 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
 exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
-    var _a, _b, _c, _d, _e;
-    const { to, body, orgId } = request.data;
-    if (!to || !body) {
-        throw new https_1.HttpsError("invalid-argument", "Número de destino e corpo da mensagem são obrigatórios.");
+    var _a, _b, _c, _d, _e, _f;
+    const { to, body, template, orgId, from: customFrom } = request.data;
+    if (!to || (!body && !template)) {
+        throw new https_1.HttpsError("invalid-argument", "Número de destino e mensagem ou modelo (template) são obrigatórios.");
     }
     const globalConfig = await getYcloudConfig();
     let apiKey = globalConfig.apiKey;
-    let fromNumber = globalConfig.fromNumber;
+    let fromNumber = customFrom || globalConfig.fromNumber;
     if (orgId) {
         const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
         if (orgSnap.exists) {
@@ -1700,6 +1700,9 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
             cleanTo = "55" + cleanTo;
         }
         let cleanFrom = fromNumber ? fromNumber.replace(/\D/g, "") : "";
+        if (cleanFrom && (cleanFrom.length === 10 || cleanFrom.length === 11)) {
+            cleanFrom = "55" + cleanFrom;
+        }
         if (cleanFrom === cleanTo) {
             cleanFrom = ""; // Don't use recipient phone number as sender
         }
@@ -1731,9 +1734,9 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
             channelId: "YCLOUD_API",
             provider: "YCLOUD",
             direction: "OUTBOUND",
-            templateId: "MANUAL_TEST",
+            templateId: ((_a = request.data.template) === null || _a === void 0 ? void 0 : _a.name) || "MANUAL_TEST",
             recipient: cleanTo,
-            message: body,
+            message: body || (request.data.template ? `[Template: ${request.data.template.name}]` : ""),
             status: "SENT",
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -1744,12 +1747,15 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
         };
     }
     catch (error) {
-        const status = (_a = error.response) === null || _a === void 0 ? void 0 : _a.status;
-        const errorData = (_b = error.response) === null || _b === void 0 ? void 0 : _b.data;
-        const apiErr = ((_c = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _c === void 0 ? void 0 : _c.message) || (errorData === null || errorData === void 0 ? void 0 : errorData.message) || error.message;
-        const errorCode = ((_d = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _d === void 0 ? void 0 : _d.code) || (errorData === null || errorData === void 0 ? void 0 : errorData.code) || '';
+        const status = (_b = error.response) === null || _b === void 0 ? void 0 : _b.status;
+        const errorData = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data;
+        const apiErr = ((_d = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _d === void 0 ? void 0 : _d.message) || (errorData === null || errorData === void 0 ? void 0 : errorData.message) || error.message;
+        const errorCode = ((_e = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _e === void 0 ? void 0 : _e.code) || (errorData === null || errorData === void 0 ? void 0 : errorData.code) || '';
         let friendlyMessage = `Erro no Ycloud (${status || 'API'} - ${errorCode}): ${apiErr}`;
-        if (status === 409) {
+        if (status === 400 && errorCode === 'PARAM_MISSING') {
+            friendlyMessage = `Erro no Ycloud (400 - PARAM_MISSING): ${apiErr}. Verifique se o número remetente (From) está configurado em Super Admin > Canais/WhatsApp ou se o modelo na Meta possui variáveis obrigatórias não preenchidas.`;
+        }
+        else if (status === 409) {
             friendlyMessage = `Erro no Ycloud (409): O número de remetente ou destinatário informado não está registrado no Ycloud WABA. Detalhes: ${apiErr}`;
         }
         else if (status === 403) {
@@ -1761,7 +1767,7 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
             channelId: "YCLOUD_API",
             provider: "YCLOUD",
             direction: "OUTBOUND",
-            templateId: ((_e = request.data.template) === null || _e === void 0 ? void 0 : _e.name) || "MANUAL_TEST",
+            templateId: ((_f = request.data.template) === null || _f === void 0 ? void 0 : _f.name) || "MANUAL_TEST",
             recipient: to,
             message: `Erro (${status}): ${friendlyMessage}`,
             status: "FAILED",
@@ -1875,7 +1881,7 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
             if (!phone) {
                 continue;
             }
-            const jobsListStr = info.jobs.join("\n");
+            const jobsListStr = info.jobs.join(" | ");
             const templateType = justCompleted ? "LAB_DELIVERED" : "LAB_DISPATCH";
             try {
                 await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType, {

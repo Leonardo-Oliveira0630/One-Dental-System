@@ -110,9 +110,11 @@ class YCloudProvider {
         if (variables && Object.keys(variables).length > 0) {
             let bodyParameters = [];
             for (const [, value] of Object.entries(variables)) {
+                let safeValue = String(value);
+                safeValue = safeValue.replace(/\n/g, ' | ');
                 bodyParameters.push({
                     type: "text",
-                    text: String(value)
+                    text: safeValue
                 });
             }
             components.push({
