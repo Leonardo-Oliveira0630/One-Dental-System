@@ -18,9 +18,8 @@ export const FinancialTab = () => {
   const [paymentLink, setPaymentLink] = useState(currentOrg?.financialSettings?.paymentLink || '');
 
   // Estados Brevo (Envio de Extratos e E-mails via Google Cloud)
-  const [brevoApiKey, setBrevoApiKey] = useState(currentOrg?.brevoApiKey || '');
-  const [brevoSenderEmail, setBrevoSenderEmail] = useState(currentOrg?.brevoSenderEmail || currentOrg?.email || '');
-  const [brevoSenderName, setBrevoSenderName] = useState(currentOrg?.brevoSenderName || currentOrg?.name || 'Labprox Laboratório');
+  const [brevoSenderEmail, setBrevoSenderEmail] = useState(currentOrg?.brevoSenderEmail || 'contato@labprox.com.br');
+  const [brevoSenderName, setBrevoSenderName] = useState(currentOrg?.brevoSenderName || 'Labprox Laboratório');
   const [isSavingBrevo, setIsSavingBrevo] = useState(false);
   const [isTestingBrevo, setIsTestingBrevo] = useState(false);
   const [brevoTestResult, setBrevoTestResult] = useState<{ status: 'IDLE' | 'SUCCESS' | 'ERROR'; message?: string }>({ status: 'IDLE' });
@@ -131,7 +130,6 @@ export const FinancialTab = () => {
       setIsSavingBrevo(true);
       try {
           await updateOrganization(currentOrg.id, {
-              brevoApiKey: brevoApiKey.trim(),
               brevoSenderEmail: brevoSenderEmail.trim().toLowerCase(),
               brevoSenderName: brevoSenderName.trim()
           });
@@ -442,33 +440,17 @@ export const FinancialTab = () => {
 
           <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-3">
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Chave de API do Brevo (v3 API Key)</label>
-                      <input 
-                        type="password" 
-                        value={brevoApiKey} 
-                        onChange={e => {
-                          setBrevoApiKey(e.target.value);
-                          setBrevoTestResult({ status: 'IDLE' });
-                        }} 
-                        placeholder="xkeysib-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" 
-                        className="w-full px-4 py-2.5 font-mono text-sm font-bold border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" 
-                      />
-                      <p className="text-[11px] text-slate-400 mt-1 font-medium">
-                        Salva com criptografia e lida com segurança pela Cloud Function no Google Cloud (não exposta ao cliente).
-                      </p>
-                  </div>
                   <div>
                       <label className="block text-sm font-bold text-slate-700 mb-1">E-mail do Remetente Autorizado</label>
                       <input 
                         type="email" 
                         value={brevoSenderEmail} 
                         onChange={e => setBrevoSenderEmail(e.target.value)} 
-                        placeholder="financeiro@seulaboratorio.com.br" 
+                        placeholder="contato@labprox.com.br" 
                         className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-sm" 
                       />
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Deve ser um e-mail verificado em Senders &amp; IP no Brevo.
+                        E-mail remetente padrão (ex: contato@labprox.com.br) verificado no Brevo.
                       </p>
                   </div>
                   <div className="md:col-span-2">
@@ -477,7 +459,7 @@ export const FinancialTab = () => {
                         type="text" 
                         value={brevoSenderName} 
                         onChange={e => setBrevoSenderName(e.target.value)} 
-                        placeholder="Ex: Laboratório Sorriso Dental" 
+                        placeholder="Ex: Labprox Laboratório" 
                         className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-sm" 
                       />
                   </div>

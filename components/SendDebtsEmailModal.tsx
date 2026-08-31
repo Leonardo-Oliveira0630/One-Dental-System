@@ -38,8 +38,8 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   const { currentOrg, updateOrganization, updateManualDentist, manualDentists } = useApp();
 
   // Brevo Config State
-  const [senderEmail, setSenderEmail] = useState(currentOrg?.brevoSenderEmail || currentOrg?.email || '');
-  const [senderName, setSenderName] = useState(currentOrg?.brevoSenderName || currentOrg?.name || 'Labprox Laboratório');
+  const [senderEmail, setSenderEmail] = useState(currentOrg?.brevoSenderEmail || 'contato@labprox.com.br');
+  const [senderName, setSenderName] = useState(currentOrg?.brevoSenderName || 'Labprox Laboratório');
   const [showConfig, setShowConfig] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [testStatus, setTestStatus] = useState<'IDLE' | 'TESTING' | 'VALID' | 'INVALID'>('IDLE');

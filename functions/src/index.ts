@@ -71,8 +71,8 @@ const getYcloudConfig = async () => {
 
 const getBrevoConfig = async (orgId?: string) => {
   let apiKey = process.env.BREVO_API_KEY || process.env.brevo_api_key || "";
-  let senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.brevo_sender_email || "";
-  let senderName = process.env.BREVO_SENDER_NAME || process.env.brevo_sender_name || "Labprox";
+  let senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.brevo_sender_email || "contato@labprox.com.br";
+  let senderName = process.env.BREVO_SENDER_NAME || process.env.brevo_sender_name || "Labprox Laboratório";
 
   try {
     const db = admin.firestore();
@@ -80,8 +80,8 @@ const getBrevoConfig = async (orgId?: string) => {
     if (globalSettingsDoc.exists) {
       const data = globalSettingsDoc.data();
       if (!apiKey && data?.brevoApiKey) apiKey = data.brevoApiKey;
-      if (!senderEmail && data?.brevoSenderEmail) senderEmail = data.brevoSenderEmail;
-      if (data?.brevoSenderName && senderName === "Labprox") senderName = data.brevoSenderName;
+      if ((!senderEmail || senderEmail === "contato@labprox.com.br") && data?.brevoSenderEmail) senderEmail = data.brevoSenderEmail;
+      if (data?.brevoSenderName && senderName === "Labprox Laboratório") senderName = data.brevoSenderName;
     }
 
     if (orgId) {
@@ -95,6 +95,13 @@ const getBrevoConfig = async (orgId?: string) => {
     }
   } catch (e) {
     logger.error("Failed to fetch Brevo config from DB", e);
+  }
+
+  if (!senderEmail || senderEmail.trim() === "") {
+    senderEmail = "contato@labprox.com.br";
+  }
+  if (!senderName || senderName.trim() === "") {
+    senderName = "Labprox Laboratório";
   }
 
   return { apiKey: apiKey?.trim(), senderEmail: senderEmail?.trim(), senderName: senderName?.trim() };
