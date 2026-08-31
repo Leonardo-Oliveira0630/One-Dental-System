@@ -70,7 +70,21 @@ const getYcloudConfig = async () => {
 };
 
 const getBrevoConfig = async (orgId?: string) => {
-  let apiKey = process.env.BREVO_API_KEY || process.env.brevo_api_key || "";
+  let apiKey = process.env.BREVO_API_KEY || 
+               process.env.brevo_api_key || 
+               process.env.BREVO_KEY || 
+               process.env.brevo_key || 
+               process.env.SENDINBLUE_API_KEY || "";
+
+  try {
+    const functions = require("firebase-functions");
+    if (functions.config && functions.config().brevo) {
+      if (!apiKey) apiKey = functions.config().brevo.apikey || functions.config().brevo.api_key || functions.config().brevo.key || "";
+    }
+  } catch (e) {
+    // ignore
+  }
+
   let senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.brevo_sender_email || "contato@labprox.com.br";
   let senderName = process.env.BREVO_SENDER_NAME || process.env.brevo_sender_name || "Labprox Laboratório";
 
@@ -78,19 +92,36 @@ const getBrevoConfig = async (orgId?: string) => {
     const db = admin.firestore();
     const globalSettingsDoc = await db.collection("settings").doc("global").get();
     if (globalSettingsDoc.exists) {
-      const data = globalSettingsDoc.data();
-      if (!apiKey && data?.brevoApiKey) apiKey = data.brevoApiKey;
-      if ((!senderEmail || senderEmail === "contato@labprox.com.br") && data?.brevoSenderEmail) senderEmail = data.brevoSenderEmail;
-      if (data?.brevoSenderName && senderName === "Labprox Laboratório") senderName = data.brevoSenderName;
+      const data = globalSettingsDoc.data() as any;
+      if (!apiKey && (data?.brevoApiKey || data?.brevo_api_key || data?.apiKey)) {
+        apiKey = data.brevoApiKey || data.brevo_api_key || data.apiKey;
+      }
+      if ((!senderEmail || senderEmail === "contato@labprox.com.br") && (data?.brevoSenderEmail || data?.senderEmail)) {
+        senderEmail = data.brevoSenderEmail || data.senderEmail;
+      }
+      if (data?.brevoSenderName && senderName === "Labprox Laboratório") {
+        senderName = data.brevoSenderName;
+      }
+    }
+
+    // Also check settings/brevo if exists
+    if (!apiKey) {
+      const brevoSettingsDoc = await db.collection("settings").doc("brevo").get();
+      if (brevoSettingsDoc.exists) {
+        const brevoData = brevoSettingsDoc.data() as any;
+        apiKey = brevoData?.apiKey || brevoData?.brevoApiKey || brevoData?.api_key || "";
+      }
     }
 
     if (orgId) {
       const orgDoc = await db.collection("organizations").doc(orgId).get();
       if (orgDoc.exists) {
-        const orgData = orgDoc.data();
-        if (orgData?.brevoApiKey) apiKey = orgData.brevoApiKey;
-        if (orgData?.brevoSenderEmail) senderEmail = orgData.brevoSenderEmail;
-        if (orgData?.brevoSenderName) senderName = orgData.brevoSenderName;
+        const orgData = orgDoc.data() as any;
+        if (!apiKey && (orgData?.brevoApiKey || orgData?.brevo_api_key)) {
+          apiKey = orgData.brevoApiKey || orgData.brevo_api_key;
+        }
+        if (!senderEmail && orgData?.brevoSenderEmail) senderEmail = orgData.brevoSenderEmail;
+        if (!senderName && orgData?.brevoSenderName) senderName = orgData.brevoSenderName;
       }
     }
   } catch (e) {
