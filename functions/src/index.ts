@@ -1519,10 +1519,8 @@ export const calculateFrenetShipping = onCall({ cors: true }, async (req: any) =
   }
 
   // Calculate total weight and dimensions (approximate)
-  let totalWeight = 0;
   let totalValue = 0;
   items.forEach((item: any) => {
-    totalWeight += (item.weight || 0.5) * item.quantity;
     totalValue += (item.price * item.quantity);
   });
 
@@ -1843,7 +1841,7 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
     if (orgSnap.exists) {
       const org = orgSnap.data() as any;
-      if (org.ycloudPhoneNumber) {
+      if (!fromNumber && org.ycloudPhoneNumber) {
         fromNumber = org.ycloudPhoneNumber;
       }
     }
@@ -1854,9 +1852,14 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
       .get();
     if (!channelSnap.empty) {
       const channelData = channelSnap.docs[0].data();
-      if (channelData.phoneNumber) fromNumber = channelData.phoneNumber;
       if (channelData.apiKey) apiKey = channelData.apiKey;
+      if (!fromNumber && channelData.phoneNumber) {
+        fromNumber = channelData.phoneNumber;
+      }
     }
+  }
+  if (globalConfig.fromNumber) {
+    fromNumber = globalConfig.fromNumber;
   }
 
   if (!apiKey || apiKey === "your_ycloud_api_key_here") {

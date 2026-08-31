@@ -1365,10 +1365,8 @@ exports.calculateFrenetShipping = (0, https_1.onCall)({ cors: true }, async (req
         return { error: 'Missing CEP or Frenet Token.' };
     }
     // Calculate total weight and dimensions (approximate)
-    let totalWeight = 0;
     let totalValue = 0;
     items.forEach((item) => {
-        totalWeight += (item.weight || 0.5) * item.quantity;
         totalValue += (item.price * item.quantity);
     });
     const payload = {
@@ -1666,7 +1664,7 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
         const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
         if (orgSnap.exists) {
             const org = orgSnap.data();
-            if (org.ycloudPhoneNumber) {
+            if (!fromNumber && org.ycloudPhoneNumber) {
                 fromNumber = org.ycloudPhoneNumber;
             }
         }
@@ -1677,11 +1675,15 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
             .get();
         if (!channelSnap.empty) {
             const channelData = channelSnap.docs[0].data();
-            if (channelData.phoneNumber)
-                fromNumber = channelData.phoneNumber;
             if (channelData.apiKey)
                 apiKey = channelData.apiKey;
+            if (!fromNumber && channelData.phoneNumber) {
+                fromNumber = channelData.phoneNumber;
+            }
         }
+    }
+    if (globalConfig.fromNumber) {
+        fromNumber = globalConfig.fromNumber;
     }
     if (!apiKey || apiKey === "your_ycloud_api_key_here") {
         logger.info(`[Ycloud Simulation] Credenciais não configuradas. Simulação de envio para ${to}: ${body}`);
@@ -1885,7 +1887,7 @@ exports.triggerDeliveryRouteUpdated = (0, firestore_1.onDocumentUpdated)("organi
             const templateType = justCompleted ? "LAB_DELIVERED" : "LAB_DISPATCH";
             try {
                 await communicationService.sendTemplateMessage(orgId, phone, "LAB", templateType, {
-                    dentist_name: info.dentistName,
+                    dentist_name: info.dentistName || "Doutor(a)",
                     jobs_list: jobsListStr
                 });
             }

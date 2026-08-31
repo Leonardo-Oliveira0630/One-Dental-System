@@ -53,23 +53,22 @@ class YCloudProvider {
         this.name = 'YCloud';
     }
     async sendMessage(channelConfig, to, message) {
-        var _a, _b, _c, _d, _e, _f, _g;
+        var _a, _b, _c, _d, _e, _f, _g, _h;
         const { apiKey, phoneNumber } = channelConfig;
         if (!apiKey) {
-            throw new Error('YCloud Provider: apiKey é obrigatória.');
+            throw new Error('YCloud Provider: Chave da API (apiKey) não configurada.');
         }
         const cleanTo = formatE164(to);
-        let cleanFrom = phoneNumber ? formatE164(phoneNumber) : undefined;
-        // Evita enviar from igual ao destinatário
-        if (cleanFrom && cleanFrom === cleanTo) {
-            cleanFrom = undefined;
+        if (!cleanTo || cleanTo.length < 8) {
+            throw new Error(`YCloud Provider: Número de destinatário (to) inválido: "${to}".`);
         }
+        const cleanFrom = phoneNumber ? formatE164(phoneNumber) : '';
         const payload = {
             to: cleanTo,
             type: 'text',
             text: { body: message }
         };
-        if (cleanFrom) {
+        if (cleanFrom && cleanFrom.length >= 8) {
             payload.from = cleanFrom;
         }
         try {
@@ -82,35 +81,63 @@ class YCloudProvider {
             return response.data;
         }
         catch (error) {
-            const status = (_a = error.response) === null || _a === void 0 ? void 0 : _a.status;
-            const apiErr = ((_d = (_c = (_b = error.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.error) === null || _d === void 0 ? void 0 : _d.message) || ((_f = (_e = error.response) === null || _e === void 0 ? void 0 : _e.data) === null || _f === void 0 ? void 0 : _f.message) || error.message;
-            let friendlyMessage = `Erro Ycloud (${status || 'API'}): ${apiErr}`;
+            const errorData = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data;
+            const apiErr = ((_b = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _b === void 0 ? void 0 : _b.message) || (errorData === null || errorData === void 0 ? void 0 : errorData.message) || error.message;
+            if (payload.from && (((_c = error.response) === null || _c === void 0 ? void 0 : _c.status) === 403 || ((_d = error.response) === null || _d === void 0 ? void 0 : _d.status) === 409 || apiErr.includes('has not been registered') || apiErr.includes('not been registered'))) {
+                logger.warn(`[YCloudProvider] Remetente ${payload.from} rejeitado (${apiErr}), tentando enviar sem 'from'...`);
+                delete payload.from;
+                try {
+                    const retryResponse = await axios_1.default.post('https://api.ycloud.com/v2/whatsapp/messages', payload, {
+                        headers: {
+                            'X-API-Key': apiKey,
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    return retryResponse.data;
+                }
+                catch (retryError) {
+                    error = retryError;
+                }
+            }
+            const status = (_e = error.response) === null || _e === void 0 ? void 0 : _e.status;
+            const finalErrorData = (_f = error.response) === null || _f === void 0 ? void 0 : _f.data;
+            const finalApiErr = ((_g = finalErrorData === null || finalErrorData === void 0 ? void 0 : finalErrorData.error) === null || _g === void 0 ? void 0 : _g.message) || (finalErrorData === null || finalErrorData === void 0 ? void 0 : finalErrorData.message) || error.message;
+            const errorTarget = ((_h = finalErrorData === null || finalErrorData === void 0 ? void 0 : finalErrorData.error) === null || _h === void 0 ? void 0 : _h.target) || '';
+            let friendlyMessage = `Erro Ycloud (${status || 'API'}): ${finalApiErr}${errorTarget ? ` [target: ${errorTarget}]` : ''}`;
             if (status === 409) {
-                friendlyMessage = `Erro Ycloud 409: O número de remetente ${cleanFrom || 'configurado'} não está registrado na sua conta Ycloud WABA. Verifique a configuração da chave API / número remetente.`;
+                friendlyMessage = `Erro Ycloud 409: O número de remetente ${cleanFrom} não está registrado na sua conta Ycloud WABA. Detalhes: ${finalApiErr}`;
             }
             else if (status === 403) {
-                friendlyMessage = `Erro Ycloud 403: Envio de mensagem livre (texto) bloqueado pela Meta/Ycloud fora da janela de 24 horas do cliente. Cadastre e aprove um Modelo/Template de mensagem no painel do Ycloud/Meta.`;
+                friendlyMessage = `Erro Ycloud 403: Envio de mensagem livre bloqueado fora da janela de 24h. Detalhes: ${finalApiErr}`;
             }
-            logger.error("[YCloudProvider.sendMessage]", friendlyMessage, (_g = error.response) === null || _g === void 0 ? void 0 : _g.data);
+            else if (status === 400) {
+                friendlyMessage = `Erro Ycloud 400 (Parâmetro Inválido/Ausente): ${finalApiErr}${errorTarget ? ` (Campo: ${errorTarget})` : ''}. Verifique o número de telefone e as configurações.`;
+            }
+            logger.error("[YCloudProvider.sendMessage]", friendlyMessage, finalErrorData);
             throw new Error(friendlyMessage);
         }
     }
     async sendTemplate(channelConfig, to, template, variables) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c, _d, _e, _f, _g, _h;
         const { apiKey, phoneNumber } = channelConfig;
         if (!apiKey) {
-            throw new Error('YCloud Provider: apiKey é obrigatória.');
+            throw new Error('YCloud Provider: Chave da API (apiKey) não configurada.');
         }
         const cleanTo = formatE164(to);
-        let cleanFrom = phoneNumber ? formatE164(phoneNumber) : undefined;
-        if (cleanFrom && cleanFrom === cleanTo) {
-            cleanFrom = undefined;
+        if (!cleanTo || cleanTo.length < 8) {
+            throw new Error(`YCloud Provider: Número de destinatário (to) inválido: "${to}".`);
+        }
+        const cleanFrom = phoneNumber ? formatE164(phoneNumber) : '';
+        if (!template || !template.name) {
+            throw new Error('YCloud Provider: Nome do template (template.name) ausente.');
         }
         let components = [];
         if (variables && Object.keys(variables).length > 0) {
             let bodyParameters = [];
             for (const [, value] of Object.entries(variables)) {
-                let safeValue = String(value);
+                let safeValue = value !== undefined && value !== null ? String(value) : '-';
+                if (safeValue.trim() === '')
+                    safeValue = '-';
                 safeValue = safeValue.replace(/\n/g, ' | ');
                 bodyParameters.push({
                     type: "text",
@@ -133,7 +160,7 @@ class YCloudProvider {
                 components: components.length > 0 ? components : undefined
             }
         };
-        if (cleanFrom) {
+        if (cleanFrom && cleanFrom.length >= 8) {
             payload.from = cleanFrom;
         }
         logger.info(`Sending YCloud Template ${template.name} from ${cleanFrom || 'default'} to ${cleanTo}`, { payload });
@@ -147,18 +174,36 @@ class YCloudProvider {
             return response.data;
         }
         catch (error) {
-            const status = (_a = error.response) === null || _a === void 0 ? void 0 : _a.status;
-            const errorData = (_b = error.response) === null || _b === void 0 ? void 0 : _b.data;
-            const apiErr = ((_c = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _c === void 0 ? void 0 : _c.message) || (errorData === null || errorData === void 0 ? void 0 : errorData.message) || error.message;
-            const errorCode = ((_d = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _d === void 0 ? void 0 : _d.code) || (errorData === null || errorData === void 0 ? void 0 : errorData.code) || '';
-            let friendlyMessage = `Erro Ycloud (${status || 'API'} - ${errorCode}): ${apiErr}`;
+            const errorData = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data;
+            const apiErr = ((_b = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _b === void 0 ? void 0 : _b.message) || (errorData === null || errorData === void 0 ? void 0 : errorData.message) || error.message;
+            if (payload.from && (((_c = error.response) === null || _c === void 0 ? void 0 : _c.status) === 403 || ((_d = error.response) === null || _d === void 0 ? void 0 : _d.status) === 409 || apiErr.includes('has not been registered') || apiErr.includes('not been registered'))) {
+                logger.warn(`[YCloudProvider] Remetente ${payload.from} rejeitado (${apiErr}), tentando enviar template sem 'from'...`);
+                delete payload.from;
+                try {
+                    const retryResponse = await axios_1.default.post('https://api.ycloud.com/v2/whatsapp/messages', payload, {
+                        headers: {
+                            'X-API-Key': apiKey,
+                            'Content-Type': 'application/json',
+                        }
+                    });
+                    return retryResponse.data;
+                }
+                catch (retryError) {
+                    error = retryError;
+                }
+            }
+            const status = (_e = error.response) === null || _e === void 0 ? void 0 : _e.status;
+            const finalErrorData = (_f = error.response) === null || _f === void 0 ? void 0 : _f.data;
+            const finalApiErr = ((_g = finalErrorData === null || finalErrorData === void 0 ? void 0 : finalErrorData.error) === null || _g === void 0 ? void 0 : _g.message) || (finalErrorData === null || finalErrorData === void 0 ? void 0 : finalErrorData.message) || error.message;
+            const errorCode = ((_h = finalErrorData === null || finalErrorData === void 0 ? void 0 : finalErrorData.error) === null || _h === void 0 ? void 0 : _h.code) || error.code || '';
+            let friendlyMessage = `Erro Ycloud (${status || 'API'} - ${errorCode}): ${finalApiErr}`;
             if (status === 409) {
-                friendlyMessage = `Erro Ycloud 409: O número de remetente ${cleanFrom || 'configurado'} não está registrado na sua conta Ycloud WABA. Detalhes: ${apiErr}`;
+                friendlyMessage = `Erro Ycloud 409: O número de remetente ${cleanFrom || 'configurado'} não está registrado na sua conta Ycloud WABA. Detalhes: ${finalApiErr}`;
             }
             else if (status === 403) {
-                friendlyMessage = `Erro Ycloud 403: O modelo "${template.name}" não foi encontrado na conta/WABA do remetente, ou as variáveis não coincidem, ou a conta Meta está com pendência. Detalhe da Meta: ${apiErr}`;
+                friendlyMessage = `Erro Ycloud 403: O modelo "${template.name}" não foi encontrado na conta/WABA do remetente, ou as variáveis não coincidem, ou a conta Meta está com pendência. Detalhe da Meta: ${finalApiErr}`;
             }
-            logger.error("[YCloudProvider.sendTemplate]", friendlyMessage, { errorData, payload });
+            logger.error("[YCloudProvider.sendTemplate]", friendlyMessage, { errorData: finalErrorData, payload });
             throw new Error(friendlyMessage);
         }
     }

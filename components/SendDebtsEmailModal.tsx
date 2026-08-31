@@ -211,6 +211,11 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
       return;
     }
 
+    if (!currentOrg) {
+      alert('Dados da organização não carregados. Por favor, aguarde ou recarregue a página.');
+      return;
+    }
+
     if (selectedClientIds.length === 0) {
       alert('Selecione pelo menos um cliente para enviar o extrato.');
       return;

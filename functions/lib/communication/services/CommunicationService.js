@@ -83,7 +83,7 @@ class CommunicationService {
                 channelConfig.phoneNumber = systemPhoneNumber;
             }
         }
-        return Object.assign(Object.assign({}, channelConfig), { apiKey: channelConfig.apiKey || systemApiKey });
+        return Object.assign(Object.assign({}, channelConfig), { apiKey: channelConfig.apiKey || systemApiKey, phoneNumber: systemPhoneNumber || channelConfig.phoneNumber });
     }
     async getTemplate(orgId, module, templateType) {
         var _a, _b;

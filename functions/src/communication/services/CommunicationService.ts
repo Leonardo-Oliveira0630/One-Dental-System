@@ -56,7 +56,8 @@ export class CommunicationService {
 
         return {
             ...channelConfig,
-            apiKey: channelConfig.apiKey || systemApiKey
+            apiKey: channelConfig.apiKey || systemApiKey,
+            phoneNumber: systemPhoneNumber || channelConfig.phoneNumber
         };
     }
 

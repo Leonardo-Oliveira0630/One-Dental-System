@@ -125,8 +125,10 @@ export function calculateClientChronoHistory(params: {
   if (!client) return { history: [], previousBalance: 0, totalServices: 0, totalPayments: 0, currentBalance: 0 };
 
   const clientId = client.id;
-  const clientJobs = jobs.filter(j => j.dentistId === clientId && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
-  const clientPayments = dentistPayments.filter(p => p.dentistId === clientId);
+  const safeJobs = jobs || [];
+  const safePayments = dentistPayments || [];
+  const clientJobs = safeJobs.filter(j => j && j.dentistId === clientId && (j.status === JobStatus.COMPLETED || j.status === JobStatus.DELIVERED));
+  const clientPayments = safePayments.filter(p => p && p.dentistId === clientId);
 
   const translatePayment = (method?: string) => {
     switch (method) {
@@ -231,6 +233,8 @@ export async function generateClientStatementPDF(params: {
   };
 }> {
   const { client, currentOrg, jobs, dentistPayments, startDateStr, endDateStr } = params;
+  const safeClient = client || {};
+  const safeOrg = currentOrg || {};
 
   const doc = new jsPDF();
   const sDate = startDateStr ? new Date(`${startDateStr}T00:00:00`) : new Date();
@@ -244,11 +248,11 @@ export async function generateClientStatementPDF(params: {
   doc.rect(0, 0, 210, 35, 'F');
 
   // Logo da Organização / Laboratório
-  if (currentOrg?.logoUrl) {
+  if (safeOrg?.logoUrl) {
     try {
       const img = new Image();
       img.crossOrigin = 'Anonymous';
-      img.src = currentOrg.logoUrl;
+      img.src = safeOrg.logoUrl;
       await new Promise((resolve) => {
         img.onload = resolve;
         img.onerror = resolve;
@@ -279,7 +283,7 @@ export async function generateClientStatementPDF(params: {
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
-    doc.text(currentOrg.name || 'Labprox', 14, 18);
+    doc.text(safeOrg.name || 'Labprox', 14, 18);
   }
 
   // Título Extrato à direita
@@ -301,12 +305,12 @@ export async function generateClientStatementPDF(params: {
   doc.setFont("helvetica", "bold");
   doc.text("Cliente:", 14, 45);
   doc.setFont("helvetica", "normal");
-  doc.text((client.name || 'CLIENTE').toUpperCase(), 30, 45);
+  doc.text((safeClient.name || 'CLIENTE').toUpperCase(), 30, 45);
 
   doc.setFont("helvetica", "bold");
   doc.text("Documento:", 14, 52);
   doc.setFont("helvetica", "normal");
-  doc.text(client.cpfCnpj || client.cro || '-', 36, 52);
+  doc.text(safeClient.cpfCnpj || safeClient.cro || '-', 36, 52);
 
   doc.setFont("helvetica", "bold");
   doc.text("Período:", 14, 59);
@@ -319,15 +323,15 @@ export async function generateClientStatementPDF(params: {
   doc.setFont("helvetica", "normal");
 
   let addressStr = '';
-  if (client.address) {
-    addressStr = `${client.address}${client.number ? `, ${client.number}` : ''}`;
-    if (client.neighborhood) addressStr += `, ${client.neighborhood}`;
+  if (safeClient.address) {
+    addressStr = `${safeClient.address}${safeClient.number ? `, ${safeClient.number}` : ''}`;
+    if (safeClient.neighborhood) addressStr += `, ${safeClient.neighborhood}`;
     const secondLine = [];
-    if (client.cep) secondLine.push(client.cep);
-    if (client.city) secondLine.push(`${client.city}${client.state ? `, ${client.state}` : ''}`);
+    if (safeClient.cep) secondLine.push(safeClient.cep);
+    if (safeClient.city) secondLine.push(`${safeClient.city}${safeClient.state ? `, ${safeClient.state}` : ''}`);
     if (secondLine.length > 0) addressStr += `\n${secondLine.join(', ')}`;
   } else {
-    addressStr = client.clinicName || 'Não informado';
+    addressStr = safeClient.clinicName || 'Não informado';
   }
 
   const splitAddr = doc.splitTextToSize(addressStr, 60);
