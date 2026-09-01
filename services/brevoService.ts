@@ -361,7 +361,9 @@ export async function generateClientStatementPDF(params: {
     const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : `R$ ${item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     const textColor = isDebit ? [239, 68, 68] : [34, 197, 94];
 
-    const hasSubItems = 'job' in item && item.job && item.job.items && item.job.items.length > 0;
+    const hasItems = 'job' in item && item.job && item.job.items && item.job.items.length > 0;
+    const hasProducts = 'job' in item && item.job && item.job.products && item.job.products.length > 0;
+    const hasSubDetails = hasItems || hasProducts;
 
     let description = '';
     if ('job' in item && item.job) {
@@ -372,19 +374,36 @@ export async function generateClientStatementPDF(params: {
     }
 
     tableBody.push([
-      { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220, 220, 220] } },
-      { content: description, styles: { lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220, 220, 220] } },
-      { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220, 220, 220] } },
-      { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220, 220, 220] } }
+      { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220, 220, 220] } },
+      { content: description, styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220, 220, 220] } },
+      { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220, 220, 220] } },
+      { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220, 220, 220] } }
     ]);
 
-    if (hasSubItems && item.job && item.job.items) {
-      item.job.items.forEach((subItem: any, subIndex: number) => {
-        const isLast = subIndex === item.job!.items!.length - 1;
+    const totalSubCount = (hasItems ? item.job.items.length : 0) + (hasProducts ? item.job.products.length : 0);
+    let currentIndex = 0;
+
+    if (hasItems && item.job && item.job.items) {
+      item.job.items.forEach((subItem: any) => {
+        currentIndex++;
+        const isLast = currentIndex === totalSubCount;
         tableBody.push([
           { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220, 220, 220] } },
           { content: `${subItem.quantity || 1}      ${(subItem.name || '').toUpperCase()}`, styles: { textColor: [100, 100, 100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220, 220, 220] } },
           { content: `R$ ${((subItem.price || 0) * (subItem.quantity || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { textColor: [100, 100, 100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220, 220, 220] } },
+          { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220, 220, 220] } }
+        ]);
+      });
+    }
+
+    if (hasProducts && item.job && item.job.products) {
+      item.job.products.forEach((prod: any) => {
+        currentIndex++;
+        const isLast = currentIndex === totalSubCount;
+        tableBody.push([
+          { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220, 220, 220] } },
+          { content: `${prod.quantity || 1}      [IMPLANTE/PRODUTO] ${(prod.name || '').toUpperCase()}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220, 220, 220] } },
+          { content: `R$ ${((prod.unitPrice || 0) * (prod.quantity || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220, 220, 220] } },
           { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220, 220, 220] } }
         ]);
       });

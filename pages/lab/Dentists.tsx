@@ -517,7 +517,9 @@ export const Dentists = () => {
             const amountStr = isDebit ? `R$ -${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : `R$ ${item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
             const textColor = isDebit ? [239, 68, 68] : [34, 197, 94]; 
             
-            const hasSubItems = isDebit && item.job && item.job.items && item.job.items.length > 0;
+            const hasItems = isDebit && item.job && item.job.items && item.job.items.length > 0;
+            const hasProducts = isDebit && item.job && item.job.products && item.job.products.length > 0;
+            const hasSubDetails = hasItems || hasProducts;
             
             let description = '';
             if (isDebit) {
@@ -528,19 +530,36 @@ export const Dentists = () => {
             }
 
             tableBody.push([
-                { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
-                { content: description, styles: { lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
-                { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
-                { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubItems ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
+                { content: new Date(item.date).toLocaleDateString('pt-BR'), styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+                { content: description, styles: { lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+                { content: amountStr, styles: { textColor: textColor, lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } },
+                { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
             ]);
             
-            if (hasSubItems) {
-                item.job.items.forEach((subItem: any, subIndex: number) => {
-                    const isLast = subIndex === item.job.items.length - 1;
+            const totalSubCount = (hasItems ? item.job.items.length : 0) + (hasProducts ? item.job.products.length : 0);
+            let currentIndex = 0;
+
+            if (hasItems) {
+                item.job.items.forEach((subItem: any) => {
+                    currentIndex++;
+                    const isLast = currentIndex === totalSubCount;
                     tableBody.push([
                         { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: `${subItem.quantity}      ${subItem.name.toUpperCase()}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: `R$ ${(subItem.price * subItem.quantity).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [100,100,100], fontSize: 8, lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
+                    ]);
+                });
+            }
+
+            if (hasProducts) {
+                item.job.products.forEach((prod: any) => {
+                    currentIndex++;
+                    const isLast = currentIndex === totalSubCount;
+                    tableBody.push([
+                        { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: `${prod.quantity || 1}      [IMPLANTE/PRODUTO] ${(prod.name || '').toUpperCase()}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
+                        { content: `R$ ${((prod.unitPrice || 0) * (prod.quantity || 1)).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`, styles: { textColor: [180, 83, 9], fontSize: 8, fontStyle: 'bold', lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } },
                         { content: '', styles: { lineWidth: { bottom: isLast ? 0.1 : 0 } as any, lineColor: [220,220,220] } }
                     ]);
                 });
@@ -1602,10 +1621,16 @@ export const Dentists = () => {
                                                                     </div>
                                                                     {item.type === 'DEBIT' && 'job' in item && (item as any).job && (
                                                                         <div className="ml-10 space-y-1">
-                                                                            {(item as any).job.items.map((it:any, iIdx:number) => (
-                                                                                <div key={iIdx} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
+                                                                            {(item as any).job.items?.map((it:any, iIdx:number) => (
+                                                                                <div key={`item-${iIdx}`} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
                                                                                     <span>{it.quantity} x {it.name}</span>
                                                                                     <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                            {(item as any).job.products?.map((prod:any, pIdx:number) => (
+                                                                                <div key={`prod-${pIdx}`} className="flex items-center gap-4 text-[9px] font-extrabold text-amber-600 uppercase">
+                                                                                    <span>{prod.quantity || 1} x [IMPLANTE/PRODUTO] {prod.name}</span>
+                                                                                    <span className="text-amber-500">R$ {((prod.unitPrice || 0) * (prod.quantity || 1)).toFixed(2)}</span>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
