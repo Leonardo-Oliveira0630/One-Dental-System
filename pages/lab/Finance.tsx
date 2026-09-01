@@ -94,6 +94,49 @@ export const Finance = () => {
   const [reportSearchTerm, setReportSearchTerm] = useState('');
   const [showDebtsEmailModal, setShowDebtsEmailModal] = useState(false);
   const [selectedEmailClientId, setSelectedEmailClientId] = useState<string | undefined>(undefined);
+  const [reportEmailStatusFilter, setReportEmailStatusFilter] = useState<'ALL' | 'SENT' | 'NOT_SENT' | 'BOUNCED' | 'NO_EMAIL'>('ALL');
+  const [clientEmailStatuses, setClientEmailStatuses] = useState<Record<string, { status: 'SENT' | 'BOUNCED' | 'NOT_SENT'; errorMsg?: string; lastSentAt?: string }>>(() => {
+      try {
+          const saved = localStorage.getItem(`labprox_email_statuses_${currentOrg?.id || 'default'}`);
+          return saved ? JSON.parse(saved) : {};
+      } catch {
+          return {};
+      }
+  });
+
+  useEffect(() => {
+      if (currentOrg?.id) {
+          localStorage.setItem(`labprox_email_statuses_${currentOrg.id}`, JSON.stringify(clientEmailStatuses));
+      }
+  }, [clientEmailStatuses, currentOrg?.id]);
+
+  const handleEmailStatusUpdate = (results: Array<{ clientId: string; status: 'SUCCESS' | 'ERROR'; message?: string }>) => {
+      setClientEmailStatuses(prev => {
+          const next = { ...prev };
+          results.forEach(r => {
+              const msg = (r.message || '').toLowerCase();
+              const isRefusal = r.status === 'ERROR' && (
+                  msg.includes('recusa') ||
+                  msg.includes('bounce') ||
+                  msg.includes('reject') ||
+                  msg.includes('refus') ||
+                  msg.includes('block') ||
+                  msg.includes('spam') ||
+                  msg.includes('550') ||
+                  msg.includes('554') ||
+                  msg.includes('invalid') ||
+                  msg.includes('blacklisted')
+              );
+
+              next[r.clientId] = {
+                  status: r.status === 'SUCCESS' ? 'SENT' : 'BOUNCED',
+                  errorMsg: r.message,
+                  lastSentAt: new Date().toISOString()
+              };
+          });
+          return next;
+      });
+  };
 
   // Calculations for Client Debits Report
   const reportDebts = useMemo(() => {
@@ -238,14 +281,35 @@ export const Finance = () => {
     // Calculate final balance and filter
     let results = Array.from(map.values()).map(d => {
         const balance = d.totalDebitsUpTo - d.totalCreditsUpTo;
+        const hasEmail = Boolean(d.email && d.email.trim().includes('@'));
+        let emailStatus: 'SENT' | 'NOT_SENT' | 'BOUNCED' | 'NO_EMAIL' = 'NOT_SENT';
+
+        if (!hasEmail) {
+            emailStatus = 'NO_EMAIL';
+        } else {
+            const stored = clientEmailStatuses[d.id];
+            if (stored?.status) {
+                emailStatus = stored.status;
+            } else {
+                emailStatus = 'NOT_SENT';
+            }
+        }
+
         return {
             ...d,
-            balanceUpToEndDate: balance
+            balanceUpToEndDate: balance,
+            emailStatus,
+            emailErrorMsg: clientEmailStatuses[d.id]?.errorMsg
         };
     });
 
     // Filter to only those with debits (balance > 0 or pending jobs > 0)
     results = results.filter(d => d.balanceUpToEndDate > 0 || d.pendingJobsCount > 0);
+
+    // Apply email status filter
+    if (reportEmailStatusFilter !== 'ALL') {
+        results = results.filter(d => d.emailStatus === reportEmailStatusFilter);
+    }
 
     // Apply search filter
     if (reportSearchTerm.trim()) {
@@ -260,7 +324,7 @@ export const Finance = () => {
 
     // Sort by debt balance descending
     return results.sort((a, b) => b.balanceUpToEndDate - a.balanceUpToEndDate);
-  }, [jobs, manualDentists, allUsers, dentistPayments, reportStartDate, reportEndDate, reportSearchTerm]);
+  }, [jobs, manualDentists, allUsers, dentistPayments, reportStartDate, reportEndDate, reportSearchTerm, reportEmailStatusFilter, clientEmailStatuses]);
 
   const reportDebtStats = useMemo(() => {
     const totalClientsWithDebt = reportDebts.length;
@@ -1755,6 +1819,22 @@ export const Finance = () => {
                               )}
                           </select>
                       </div>
+                      {reportType === 'DEBITOS' && (
+                          <div>
+                              <label className="block text-[10px] font-black text-blue-600 uppercase mb-1">Status do E-mail</label>
+                              <select 
+                                  value={reportEmailStatusFilter}
+                                  onChange={e => setReportEmailStatusFilter(e.target.value as any)}
+                                  className="w-full px-3 py-2 bg-blue-50/70 border border-blue-200 rounded-xl outline-none text-xs font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 font-sans"
+                              >
+                                  <option value="ALL">Todos os E-mails</option>
+                                  <option value="SENT">Extratos Enviados</option>
+                                  <option value="NOT_SENT">Não Enviados</option>
+                                  <option value="BOUNCED">Recusa do Servidor</option>
+                                  <option value="NO_EMAIL">E-mail Não Cadastrado</option>
+                              </select>
+                          </div>
+                      )}
                   </div>
               </div>
 
@@ -3257,6 +3337,7 @@ export const Finance = () => {
           allJobs={jobs}
           dentistPayments={dentistPayments}
           initialSelectedClientId={selectedEmailClientId}
+          onEmailStatusUpdate={handleEmailStatusUpdate}
       />
     </div>
   );

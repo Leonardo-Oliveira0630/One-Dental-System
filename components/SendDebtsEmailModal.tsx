@@ -23,6 +23,7 @@ interface SendDebtsEmailModalProps {
   allJobs: Job[];
   dentistPayments: DentistPayment[];
   initialSelectedClientId?: string;
+  onEmailStatusUpdate?: (results: Array<{ clientId: string; status: 'SUCCESS' | 'ERROR'; message?: string }>) => void;
 }
 
 export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
@@ -33,7 +34,8 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
   reportEndDate,
   allJobs,
   dentistPayments,
-  initialSelectedClientId
+  initialSelectedClientId,
+  onEmailStatusUpdate
 }) => {
   const { currentOrg, updateOrganization, updateManualDentist, manualDentists } = useApp();
 
@@ -239,6 +241,13 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
     setCurrentIndex(0);
 
     const validClients = clientsToSend.filter(d => clientEmails[d.id] && clientEmails[d.id].includes('@'));
+    const accumulatedResults: Array<{
+      clientId: string;
+      clientName: string;
+      email: string;
+      status: 'SUCCESS' | 'ERROR';
+      message?: string;
+    }> = [];
 
     for (let i = 0; i < validClients.length; i++) {
       const clientItem = validClients[i];
@@ -297,27 +306,25 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
           orgId: currentOrg?.id
         });
 
-        setSendResults(prev => [
-          ...prev,
-          {
-            clientId: clientItem.id,
-            clientName: clientItem.name,
-            email: targetEmail,
-            status: 'SUCCESS'
-          }
-        ]);
+        const resItem = {
+          clientId: clientItem.id,
+          clientName: clientItem.name,
+          email: targetEmail,
+          status: 'SUCCESS' as const
+        };
+        accumulatedResults.push(resItem);
+        setSendResults(prev => [...prev, resItem]);
       } catch (err: any) {
         console.error(`Erro ao enviar para ${clientItem.name}:`, err);
-        setSendResults(prev => [
-          ...prev,
-          {
-            clientId: clientItem.id,
-            clientName: clientItem.name,
-            email: targetEmail,
-            status: 'ERROR',
-            message: err.message || 'Erro no envio'
-          }
-        ]);
+        const errItem = {
+          clientId: clientItem.id,
+          clientName: clientItem.name,
+          email: targetEmail,
+          status: 'ERROR' as const,
+          message: err.message || 'Erro no envio'
+        };
+        accumulatedResults.push(errItem);
+        setSendResults(prev => [...prev, errItem]);
       }
 
       // Pequeno delay entre requisições para evitar rate limit
@@ -325,6 +332,9 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
     }
 
     setIsSending(false);
+    if (onEmailStatusUpdate) {
+      onEmailStatusUpdate(accumulatedResults);
+    }
   };
 
   if (!isOpen) return null;
