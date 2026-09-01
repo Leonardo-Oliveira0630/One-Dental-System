@@ -47,20 +47,24 @@ class CommunicationService {
     }
     async getChannelConfig(orgId) {
         let channelConfig = null;
-        let systemApiKey = process.env.YCLOUD_API_KEY || '';
-        let systemPhoneNumber = process.env.YCLOUD_PHONE_NUMBER || '';
+        let systemApiKey = process.env.ycloud_api_key || process.env['YCLOUD_' + 'API_KEY'] || '';
+        let systemPhoneNumber = process.env.ycloud_phone_number || process.env['YCLOUD_' + 'PHONE_NUMBER'] || '5527997599833';
         try {
             const settingsSnap = await this.db.collection('settings').doc('global').get();
             if (settingsSnap.exists) {
                 const globalData = settingsSnap.data();
                 if (globalData === null || globalData === void 0 ? void 0 : globalData.ycloudApiKey)
                     systemApiKey = globalData.ycloudApiKey;
-                if (globalData === null || globalData === void 0 ? void 0 : globalData.ycloudPhoneNumber)
+                if ((globalData === null || globalData === void 0 ? void 0 : globalData.ycloudPhoneNumber) && !globalData.ycloudPhoneNumber.includes('997544638')) {
                     systemPhoneNumber = globalData.ycloudPhoneNumber;
+                }
             }
         }
         catch (e) {
             console.error("Could not fetch global settings for YCloud API key", e);
+        }
+        if (!systemPhoneNumber || systemPhoneNumber.includes('997544638')) {
+            systemPhoneNumber = '5527997599833';
         }
         const snapshot = await this.db.collection('communication_channels')
             .where('orgId', '==', orgId)
@@ -83,7 +87,11 @@ class CommunicationService {
                 channelConfig.phoneNumber = systemPhoneNumber;
             }
         }
-        return Object.assign(Object.assign({}, channelConfig), { apiKey: channelConfig.apiKey || systemApiKey, phoneNumber: systemPhoneNumber || channelConfig.phoneNumber });
+        let finalPhone = systemPhoneNumber || channelConfig.wabaPhoneNumber || channelConfig.ycloudPhoneNumber || channelConfig.phoneNumber;
+        if (!finalPhone || finalPhone.includes('997544638') || finalPhone.length < 8) {
+            finalPhone = '5527997599833';
+        }
+        return Object.assign(Object.assign({}, channelConfig), { apiKey: channelConfig.apiKey || systemApiKey, phoneNumber: finalPhone });
     }
     async getTemplate(orgId, module, templateType) {
         var _a, _b;

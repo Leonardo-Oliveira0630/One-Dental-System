@@ -50,6 +50,11 @@ export const Dentists = () => {
     const [temporaryUnblockUntil, setTemporaryUnblockUntil] = useState<Date | null>(null);
     const [customPrices, setCustomPrices] = useState<any[]>([]);
     const [subDentists, setSubDentists] = useState<{ id: string; name: string; cro?: string; }[]>([]);
+    const [technicalManagerName, setTechnicalManagerName] = useState('');
+    const [technicalManagerEmail, setTechnicalManagerEmail] = useState('');
+    const [technicalManagerCpf, setTechnicalManagerCpf] = useState('');
+    const [technicalManagerCro, setTechnicalManagerCro] = useState('');
+    const [showTechnicalManager, setShowTechnicalManager] = useState(false);
     
     // Extrato State
     const [showStatement, setShowStatement] = useState(false);
@@ -200,6 +205,13 @@ export const Dentists = () => {
         // Load custom prices as defined without overriding with dummy fixedPrices
         const loadedCustomPrices = client.customPrices || [];
         setCustomPrices(loadedCustomPrices);
+        setTechnicalManagerName(client.technicalManagerName || '');
+        setTechnicalManagerEmail(client.technicalManagerEmail || '');
+        setTechnicalManagerCpf(client.technicalManagerCpf || '');
+        setTechnicalManagerCro(client.technicalManagerCro || '');
+        setShowTechnicalManager(
+            Boolean(client.technicalManagerName || client.technicalManagerEmail || client.technicalManagerCpf || client.technicalManagerCro)
+        );
     };
 
     const handleSavePricing = async () => {
@@ -220,6 +232,10 @@ export const Dentists = () => {
                 customPrices: cleanedCustomPrices,
                 isCustomPricing: isCustomPricing,
                 clientType: clientType,
+                technicalManagerName: technicalManagerName || '',
+                technicalManagerEmail: technicalManagerEmail || '',
+                technicalManagerCpf: technicalManagerCpf || '',
+                technicalManagerCro: technicalManagerCro || '',
             };
 
             // STRICT PERMISSION CHECK
@@ -1012,7 +1028,86 @@ export const Dentists = () => {
                                     </select>
                                 </div>
                                 
-                                {clientType === 'CLINICA' && (
+                                {(clientType === 'CLINICA' || clientType === 'LABORATORIO') && (
+                                     <div className="space-y-3 col-span-1 md:col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                         <div className="flex items-center justify-between">
+                                             <div>
+                                                 <p className="text-xs font-black text-slate-700 uppercase">Técnico Responsável</p>
+                                                 <p className="text-[10px] text-slate-500 font-bold">Responsável técnico vinculado à clínica ou laboratório</p>
+                                             </div>
+                                             {!showTechnicalManager ? (
+                                                 <button
+                                                     type="button"
+                                                     onClick={() => setShowTechnicalManager(true)}
+                                                     className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-blue-700 flex items-center gap-1.5 shadow-sm"
+                                                 >
+                                                     <Plus size={14} /> Adicionar Técnico Responsável
+                                                 </button>
+                                             ) : (
+                                                 <button
+                                                     type="button"
+                                                     onClick={() => {
+                                                         setTechnicalManagerName('');
+                                                         setTechnicalManagerEmail('');
+                                                         setTechnicalManagerCpf('');
+                                                         setTechnicalManagerCro('');
+                                                         setShowTechnicalManager(false);
+                                                     }}
+                                                     className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1"
+                                                 >
+                                                     <MinusCircle size={14} /> Remover Técnico
+                                                 </button>
+                                             )}
+                                         </div>
+
+                                         {showTechnicalManager && (
+                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                                                 <div className="space-y-1">
+                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Nome do Técnico Responsável</label>
+                                                     <input 
+                                                         type="text" 
+                                                         placeholder="Ex: Dr. Carlos Silva" 
+                                                         value={technicalManagerName}
+                                                         onChange={e => setTechnicalManagerName(e.target.value)}
+                                                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                                                     />
+                                                 </div>
+                                                 <div className="space-y-1">
+                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">E-mail</label>
+                                                     <input 
+                                                         type="email" 
+                                                         placeholder="tecnico@email.com" 
+                                                         value={technicalManagerEmail}
+                                                         onChange={e => setTechnicalManagerEmail(e.target.value)}
+                                                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                                                     />
+                                                 </div>
+                                                 <div className="space-y-1">
+                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CPF</label>
+                                                     <input 
+                                                         type="text" 
+                                                         placeholder="000.000.000-00" 
+                                                         value={technicalManagerCpf}
+                                                         onChange={e => setTechnicalManagerCpf(e.target.value)}
+                                                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                                                     />
+                                                 </div>
+                                                 <div className="space-y-1">
+                                                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CRO</label>
+                                                     <input 
+                                                         type="text" 
+                                                         placeholder="CRO/UF 00000" 
+                                                         value={technicalManagerCro}
+                                                         onChange={e => setTechnicalManagerCro(e.target.value)}
+                                                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                                                     />
+                                                 </div>
+                                             </div>
+                                         )}
+                                     </div>
+                                 )}
+
+                                 {clientType === 'CLINICA' && (
                                     <div className="space-y-3 col-span-1 md:col-span-2">
                                         <div className="flex items-center justify-between">
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Dentistas Associados (Sub-contas)</label>

@@ -51,8 +51,8 @@ const getAsaasConfig = async () => {
 };
 
 const getYcloudConfig = async () => {
-  let apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
-  let fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
+  let apiKey = process.env.ycloud_api_key || process.env['YCLOUD_' + 'API_KEY'] || "";
+  let fromNumber = process.env.ycloud_phone_number || process.env['YCLOUD_' + 'PHONE_NUMBER'] || "5527997599833";
 
   try {
     const db = admin.firestore();
@@ -60,10 +60,16 @@ const getYcloudConfig = async () => {
     if (globalSettingsDoc.exists) {
       const data = globalSettingsDoc.data();
       if (data?.ycloudApiKey) apiKey = data.ycloudApiKey;
-      if (data?.ycloudPhoneNumber) fromNumber = data.ycloudPhoneNumber;
+      if (data?.ycloudPhoneNumber && !data.ycloudPhoneNumber.includes('997544638')) {
+        fromNumber = data.ycloudPhoneNumber;
+      }
     }
   } catch (e) {
     logger.error("Failed to fetch Ycloud config from DB", e);
+  }
+
+  if (!fromNumber || fromNumber.includes('997544638') || fromNumber.length < 8) {
+    fromNumber = "5527997599833";
   }
 
   return { apiKey, fromNumber };
@@ -1866,14 +1872,17 @@ export const optimizeAndUploadImage = onCall({ maxInstances: 10 }, async (reques
  * ENVIA NOTIFICAÇÃO DE WHATSAPP VIA API DO YCLOUD (SERVER-SIDE PROXY)
  */
 export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) => {
-  const { to, body, template, orgId, from: customFrom } = request.data as any;
+  const { to, body, template, orgId } = request.data as any;
   if (!to || (!body && !template)) {
     throw new HttpsError("invalid-argument", "Número de destino e mensagem ou modelo (template) são obrigatórios.");
   }
 
   const globalConfig = await getYcloudConfig();
   let apiKey = globalConfig.apiKey;
-  let fromNumber = customFrom || globalConfig.fromNumber;
+  let fromNumber = globalConfig.fromNumber || '5527997599833';
+  if (!fromNumber || fromNumber.includes('997544638') || fromNumber.length < 8) {
+    fromNumber = '5527997599833';
+  }
   
   if (orgId) {
     const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
@@ -1891,12 +1900,12 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     if (!channelSnap.empty) {
       const channelData = channelSnap.docs[0].data();
       if (channelData.apiKey) apiKey = channelData.apiKey;
-      if (!fromNumber && channelData.phoneNumber) {
-        fromNumber = channelData.phoneNumber;
+      if (!fromNumber && (channelData.wabaPhoneNumber || channelData.ycloudPhoneNumber)) {
+        fromNumber = channelData.wabaPhoneNumber || channelData.ycloudPhoneNumber;
       }
     }
   }
-  if (globalConfig.fromNumber) {
+  if (!fromNumber && globalConfig.fromNumber) {
     fromNumber = globalConfig.fromNumber;
   }
 

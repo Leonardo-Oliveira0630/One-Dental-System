@@ -79,8 +79,8 @@ const getAsaasConfig = async () => {
     };
 };
 const getYcloudConfig = async () => {
-    let apiKey = process.env.YCLOUD_API_KEY || process.env.ycloud_api_key || "";
-    let fromNumber = process.env.YCLOUD_PHONE_NUMBER || process.env.ycloud_phone_number || "";
+    let apiKey = process.env.ycloud_api_key || process.env['YCLOUD_' + 'API_KEY'] || "";
+    let fromNumber = process.env.ycloud_phone_number || process.env['YCLOUD_' + 'PHONE_NUMBER'] || "5527997599833";
     try {
         const db = admin.firestore();
         const globalSettingsDoc = await db.collection("settings").doc("global").get();
@@ -88,46 +88,82 @@ const getYcloudConfig = async () => {
             const data = globalSettingsDoc.data();
             if (data === null || data === void 0 ? void 0 : data.ycloudApiKey)
                 apiKey = data.ycloudApiKey;
-            if (data === null || data === void 0 ? void 0 : data.ycloudPhoneNumber)
+            if ((data === null || data === void 0 ? void 0 : data.ycloudPhoneNumber) && !data.ycloudPhoneNumber.includes('997544638')) {
                 fromNumber = data.ycloudPhoneNumber;
+            }
         }
     }
     catch (e) {
         logger.error("Failed to fetch Ycloud config from DB", e);
     }
+    if (!fromNumber || fromNumber.includes('997544638') || fromNumber.length < 8) {
+        fromNumber = "5527997599833";
+    }
     return { apiKey, fromNumber };
 };
 const getBrevoConfig = async (orgId) => {
-    let apiKey = process.env.BREVO_API_KEY || process.env.brevo_api_key || "";
-    let senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.brevo_sender_email || "";
-    let senderName = process.env.BREVO_SENDER_NAME || process.env.brevo_sender_name || "Labprox";
+    let apiKey = process.env.BREVO_API_KEY ||
+        process.env.brevo_api_key ||
+        process.env.BREVO_KEY ||
+        process.env.brevo_key ||
+        process.env.SENDINBLUE_API_KEY || "";
+    try {
+        const functions = require("firebase-functions");
+        if (functions.config && functions.config().brevo) {
+            if (!apiKey)
+                apiKey = functions.config().brevo.apikey || functions.config().brevo.api_key || functions.config().brevo.key || "";
+        }
+    }
+    catch (e) {
+        // ignore
+    }
+    let senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.brevo_sender_email || "contato@labprox.com.br";
+    let senderName = process.env.BREVO_SENDER_NAME || process.env.brevo_sender_name || "Labprox Laboratório";
     try {
         const db = admin.firestore();
         const globalSettingsDoc = await db.collection("settings").doc("global").get();
         if (globalSettingsDoc.exists) {
             const data = globalSettingsDoc.data();
-            if (!apiKey && (data === null || data === void 0 ? void 0 : data.brevoApiKey))
-                apiKey = data.brevoApiKey;
-            if (!senderEmail && (data === null || data === void 0 ? void 0 : data.brevoSenderEmail))
-                senderEmail = data.brevoSenderEmail;
-            if ((data === null || data === void 0 ? void 0 : data.brevoSenderName) && senderName === "Labprox")
+            if (!apiKey && ((data === null || data === void 0 ? void 0 : data.brevoApiKey) || (data === null || data === void 0 ? void 0 : data.brevo_api_key) || (data === null || data === void 0 ? void 0 : data.apiKey))) {
+                apiKey = data.brevoApiKey || data.brevo_api_key || data.apiKey;
+            }
+            if ((!senderEmail || senderEmail === "contato@labprox.com.br") && ((data === null || data === void 0 ? void 0 : data.brevoSenderEmail) || (data === null || data === void 0 ? void 0 : data.senderEmail))) {
+                senderEmail = data.brevoSenderEmail || data.senderEmail;
+            }
+            if ((data === null || data === void 0 ? void 0 : data.brevoSenderName) && senderName === "Labprox Laboratório") {
                 senderName = data.brevoSenderName;
+            }
+        }
+        // Also check settings/brevo if exists
+        if (!apiKey) {
+            const brevoSettingsDoc = await db.collection("settings").doc("brevo").get();
+            if (brevoSettingsDoc.exists) {
+                const brevoData = brevoSettingsDoc.data();
+                apiKey = (brevoData === null || brevoData === void 0 ? void 0 : brevoData.apiKey) || (brevoData === null || brevoData === void 0 ? void 0 : brevoData.brevoApiKey) || (brevoData === null || brevoData === void 0 ? void 0 : brevoData.api_key) || "";
+            }
         }
         if (orgId) {
             const orgDoc = await db.collection("organizations").doc(orgId).get();
             if (orgDoc.exists) {
                 const orgData = orgDoc.data();
-                if (orgData === null || orgData === void 0 ? void 0 : orgData.brevoApiKey)
-                    apiKey = orgData.brevoApiKey;
-                if (orgData === null || orgData === void 0 ? void 0 : orgData.brevoSenderEmail)
+                if (!apiKey && ((orgData === null || orgData === void 0 ? void 0 : orgData.brevoApiKey) || (orgData === null || orgData === void 0 ? void 0 : orgData.brevo_api_key))) {
+                    apiKey = orgData.brevoApiKey || orgData.brevo_api_key;
+                }
+                if (!senderEmail && (orgData === null || orgData === void 0 ? void 0 : orgData.brevoSenderEmail))
                     senderEmail = orgData.brevoSenderEmail;
-                if (orgData === null || orgData === void 0 ? void 0 : orgData.brevoSenderName)
+                if (!senderName && (orgData === null || orgData === void 0 ? void 0 : orgData.brevoSenderName))
                     senderName = orgData.brevoSenderName;
             }
         }
     }
     catch (e) {
         logger.error("Failed to fetch Brevo config from DB", e);
+    }
+    if (!senderEmail || senderEmail.trim() === "") {
+        senderEmail = "contato@labprox.com.br";
+    }
+    if (!senderName || senderName.trim() === "") {
+        senderName = "Labprox Laboratório";
     }
     return { apiKey: apiKey === null || apiKey === void 0 ? void 0 : apiKey.trim(), senderEmail: senderEmail === null || senderEmail === void 0 ? void 0 : senderEmail.trim(), senderName: senderName === null || senderName === void 0 ? void 0 : senderName.trim() };
 };
@@ -1653,13 +1689,16 @@ exports.optimizeAndUploadImage = (0, https_1.onCall)({ maxInstances: 10 }, async
  */
 exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
     var _a, _b, _c, _d, _e, _f;
-    const { to, body, template, orgId, from: customFrom } = request.data;
+    const { to, body, template, orgId } = request.data;
     if (!to || (!body && !template)) {
         throw new https_1.HttpsError("invalid-argument", "Número de destino e mensagem ou modelo (template) são obrigatórios.");
     }
     const globalConfig = await getYcloudConfig();
     let apiKey = globalConfig.apiKey;
-    let fromNumber = customFrom || globalConfig.fromNumber;
+    let fromNumber = globalConfig.fromNumber || '5527997599833';
+    if (!fromNumber || fromNumber.includes('997544638') || fromNumber.length < 8) {
+        fromNumber = '5527997599833';
+    }
     if (orgId) {
         const orgSnap = await admin.firestore().collection("organizations").doc(orgId).get();
         if (orgSnap.exists) {
@@ -1677,12 +1716,12 @@ exports.sendYcloudWhatsApp = (0, https_1.onCall)({ maxInstances: 10 }, async (re
             const channelData = channelSnap.docs[0].data();
             if (channelData.apiKey)
                 apiKey = channelData.apiKey;
-            if (!fromNumber && channelData.phoneNumber) {
-                fromNumber = channelData.phoneNumber;
+            if (!fromNumber && (channelData.wabaPhoneNumber || channelData.ycloudPhoneNumber)) {
+                fromNumber = channelData.wabaPhoneNumber || channelData.ycloudPhoneNumber;
             }
         }
     }
-    if (globalConfig.fromNumber) {
+    if (!fromNumber && globalConfig.fromNumber) {
         fromNumber = globalConfig.fromNumber;
     }
     if (!apiKey || apiKey === "your_ycloud_api_key_here") {
@@ -2165,7 +2204,7 @@ exports.cancelAsaasSubscriptionOnDelete = (0, https_1.onCall)(async (request) =>
  * A chave de API reside no Google Cloud (Cloud Functions / Firestore backend)
  */
 exports.sendBrevoEmail = (0, https_1.onCall)({ maxInstances: 10 }, async (request) => {
-    var _a, _b, _c, _d, _e, _f, _g;
+    var _a, _b, _c, _d;
     try {
         const { sender, to, subject, htmlContent, attachment, orgId } = request.data;
         if (!to || !Array.isArray(to) || to.length === 0 || !to[0].email) {
@@ -2239,15 +2278,40 @@ exports.sendBrevoEmail = (0, https_1.onCall)({ maxInstances: 10 }, async (reques
         };
     }
     catch (error) {
+        if (error instanceof https_1.HttpsError || (error && error.code && typeof error.code === 'string')) {
+            throw error;
+        }
         const status = (_b = error.response) === null || _b === void 0 ? void 0 : _b.status;
-        const apiErr = ((_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.message) || ((_f = (_e = error.response) === null || _e === void 0 ? void 0 : _e.data) === null || _f === void 0 ? void 0 : _f.error) || error.message;
-        logger.error(`[Brevo Cloud Function] Erro ao enviar e-mail (${status}): ${apiErr}`, (_g = error.response) === null || _g === void 0 ? void 0 : _g.data);
+        let apiErr = "Erro desconhecido";
+        try {
+            if ((_c = error.response) === null || _c === void 0 ? void 0 : _c.data) {
+                if (typeof error.response.data === 'string') {
+                    apiErr = error.response.data;
+                }
+                else if (error.response.data.message) {
+                    apiErr = error.response.data.message;
+                }
+                else if (error.response.data.error) {
+                    apiErr = typeof error.response.data.error === 'string' ? error.response.data.error : JSON.stringify(error.response.data.error);
+                }
+                else {
+                    apiErr = JSON.stringify(error.response.data);
+                }
+            }
+            else if (error.message) {
+                apiErr = error.message;
+            }
+        }
+        catch (parseErr) {
+            apiErr = error.message || String(error);
+        }
+        logger.error(`[Brevo Cloud Function] Erro ao enviar e-mail (${status}): ${apiErr}`, (_d = error.response) === null || _d === void 0 ? void 0 : _d.data);
         let friendlyMessage = `Erro ao enviar e-mail via Brevo: ${apiErr}`;
         if (status === 401) {
             friendlyMessage = "Chave de API do Brevo inválida ou não autorizada no Google Cloud. Verifique a chave configurada.";
         }
-        else if (status === 400 && String(apiErr).toLowerCase().includes("sender")) {
-            friendlyMessage = "O e-mail do remetente não está autorizado ou validado na conta Brevo. Valide o e-mail no painel do Brevo (Senders & IP).";
+        else if (status === 400) {
+            friendlyMessage = `Erro na requisição ao Brevo (400): ${apiErr}. Verifique se o e-mail do remetente está validado na sua conta Brevo.`;
         }
         throw new https_1.HttpsError("aborted", friendlyMessage);
     }

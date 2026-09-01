@@ -634,6 +634,10 @@ export interface User {
   termsAcceptedAt?: Date | string;
   clinicName?: string;
   clientType?: 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO';
+  technicalManagerName?: string;
+  technicalManagerEmail?: string;
+  technicalManagerCpf?: string;
+  technicalManagerCro?: string;
   commissionSettings?: UserCommissionSetting[];
   globalDiscountPercent?: number; 
   priceTableId?: string;
@@ -918,6 +922,10 @@ export interface ManualDentist {
   userId?: string;
   clinicName?: string;
   clientType?: 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO';
+  technicalManagerName?: string;
+  technicalManagerEmail?: string;
+  technicalManagerCpf?: string;
+  technicalManagerCro?: string;
   email?: string;
   phone?: string;
   whatsapp?: string;

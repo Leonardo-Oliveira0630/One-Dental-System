@@ -5,7 +5,7 @@ import { ManualDentist, UserRole, PermissionKey } from '../../types';
 import { 
   Plus, Search, Edit, Trash2, X, Stethoscope, 
   FileSpreadsheet, UploadCloud, Loader2, Sparkles, Check, Save, BadgeCheck, Phone, Mail, MapPin, Calendar, Globe, Hash, Truck, Package, DollarSign, Lock, Unlock, Table, Percent, Link2,
-  AlertTriangle, AlertCircle, CheckCircle2, Filter
+  AlertTriangle, AlertCircle, CheckCircle2, Filter, MinusCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
@@ -136,13 +136,18 @@ export const DentistsTab = () => {
     temporaryUnblockUntil: null as any,
     isCustomPricing: false,
     globalDiscountPercent: 0,
-    customPrices: [] as any[]
+    customPrices: [] as any[],
+    technicalManagerName: '',
+    technicalManagerEmail: '',
+    technicalManagerCpf: '',
+    technicalManagerCro: ''
   });
 
   const [hasBillingLimit, setHasBillingLimit] = useState(false);
   const [isInternational, setIsInternational] = useState(false);
   const [loqateSuggestions, setLoqateSuggestions] = useState<any[]>([]);
   const [isSearchingCep, setIsSearchingCep] = useState(false);
+  const [showTechnicalManager, setShowTechnicalManager] = useState(false);
 
   const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'MANAGER';
   const canCreate = isAdmin || currentUser?.permissions?.includes('clients:create');
@@ -299,9 +304,11 @@ export const DentistsTab = () => {
       state: '', subDentists: [] as any[], country: 'Brasil', clinicName: '', clientType: 'CLINICA' as any, deliveryViaPost: false,
       priceTableId: priceTables.find(t => t.isDefault)?.id || '', billingLimit: 0, 
       isBlocked: false, blockReason: '' as any, temporaryUnblockUntil: null as any,
-      isCustomPricing: false, globalDiscountPercent: 0, customPrices: [] as any[]
+      isCustomPricing: false, globalDiscountPercent: 0, customPrices: [] as any[],
+      technicalManagerName: '', technicalManagerEmail: '', technicalManagerCpf: '', technicalManagerCro: ''
     });
     setHasBillingLimit(false);
+    setShowTechnicalManager(false);
   };
 
   // --- AI IMPORT LOGIC (REFINED FOR CRO) ---
@@ -943,6 +950,86 @@ export const DentistsTab = () => {
                                 <option value="LABORATORIO">Laboratório</option>
                             </select>
                           </div>
+
+                          {(formData.clientType === 'CLINICA' || formData.clientType === 'LABORATORIO') && (
+                              <div className="space-y-3 col-span-1 md:col-span-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                  <div className="flex items-center justify-between">
+                                      <div>
+                                          <p className="text-xs font-black text-slate-700 uppercase">Técnico Responsável</p>
+                                          <p className="text-[10px] text-slate-500 font-bold">Responsável técnico vinculado à clínica ou laboratório</p>
+                                      </div>
+                                      {!showTechnicalManager ? (
+                                          <button
+                                              type="button"
+                                              onClick={() => setShowTechnicalManager(true)}
+                                              className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-blue-700 flex items-center gap-1.5 shadow-sm"
+                                          >
+                                              <Plus size={14} /> Adicionar Técnico Responsável
+                                          </button>
+                                      ) : (
+                                          <button
+                                              type="button"
+                                              onClick={() => {
+                                                  setFormData(prev => ({ ...prev, technicalManagerName: '', technicalManagerEmail: '', technicalManagerCpf: '', technicalManagerCro: '' }));
+                                                  setShowTechnicalManager(false);
+                                              }}
+                                              className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1"
+                                          >
+                                              <MinusCircle size={14} /> Remover Técnico
+                                          </button>
+                                      )}
+                                  </div>
+
+                                  {showTechnicalManager && (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                                          <div className="space-y-1">
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Nome do Técnico Responsável</label>
+                                              <input 
+                                                  type="text" 
+                                                  name="technicalManagerName"
+                                                  placeholder="Ex: Dr. Carlos Silva" 
+                                                  value={formData.technicalManagerName || ''}
+                                                  onChange={handleInputChange}
+                                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                                              />
+                                          </div>
+                                          <div className="space-y-1">
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">E-mail</label>
+                                              <input 
+                                                  type="email" 
+                                                  name="technicalManagerEmail"
+                                                  placeholder="tecnico@email.com" 
+                                                  value={formData.technicalManagerEmail || ''}
+                                                  onChange={handleInputChange}
+                                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                                              />
+                                          </div>
+                                          <div className="space-y-1">
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CPF</label>
+                                              <input 
+                                                  type="text" 
+                                                  name="technicalManagerCpf"
+                                                  placeholder="000.000.000-00" 
+                                                  value={formData.technicalManagerCpf || ''}
+                                                  onChange={handleInputChange}
+                                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                                              />
+                                          </div>
+                                          <div className="space-y-1">
+                                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">CRO</label>
+                                              <input 
+                                                  type="text" 
+                                                  name="technicalManagerCro"
+                                                  placeholder="CRO/UF 00000" 
+                                                  value={formData.technicalManagerCro || ''}
+                                                  onChange={handleInputChange}
+                                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                                              />
+                                          </div>
+                                      </div>
+                                  )}
+                              </div>
+                          )}
                         </div>
                       </div>
 

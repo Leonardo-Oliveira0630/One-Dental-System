@@ -25,7 +25,11 @@ export class YCloudProvider implements ICommunicationProvider {
         throw new Error(`YCloud Provider: Número de destinatário (to) inválido: "${to}".`);
     }
 
-    const cleanFrom = phoneNumber ? formatE164(phoneNumber) : '';
+    let rawPhone = phoneNumber;
+    if (!rawPhone || rawPhone.includes('997544638') || rawPhone.length < 8) {
+        rawPhone = '5527997599833';
+    }
+    const cleanFrom = formatE164(rawPhone);
     const payload: any = {
         to: cleanTo,
         type: 'text',
@@ -91,7 +95,11 @@ export class YCloudProvider implements ICommunicationProvider {
         throw new Error(`YCloud Provider: Número de destinatário (to) inválido: "${to}".`);
     }
 
-    const cleanFrom = phoneNumber ? formatE164(phoneNumber) : '';
+    let rawPhone = phoneNumber;
+    if (!rawPhone || rawPhone.includes('997544638') || rawPhone.length < 8) {
+        rawPhone = '5527997599833';
+    }
+    const cleanFrom = formatE164(rawPhone);
     if (!template || !template.name) {
         throw new Error('YCloud Provider: Nome do template (template.name) ausente.');
     }
@@ -155,6 +163,35 @@ export class YCloudProvider implements ICommunicationProvider {
           return retryResponse.data;
         } catch (retryError: any) {
           error = retryError;
+        }
+      }
+
+      // Fallback to text message if template fails
+      if (template && template.body) {
+        logger.warn(`[YCloudProvider] Falha ao enviar template ${template.name}, tentando enviar como mensagem de texto...`);
+        let textBody = template.body;
+        if (variables && Object.keys(variables).length > 0) {
+            for (const [key, value] of Object.entries(variables)) {
+                const regex = new RegExp('\\{\\{\\s*' + key + '\\s*\\}\\}', 'g');
+                textBody = textBody.replace(regex, value !== undefined && value !== null ? String(value) : '-');
+            }
+        }
+        const textPayload: any = {
+            to: cleanTo,
+            type: 'text',
+            text: { body: textBody }
+        };
+        try {
+            const textResponse = await axios.post('https://api.ycloud.com/v2/whatsapp/messages', textPayload, {
+                headers: {
+                    'X-API-Key': apiKey,
+                    'Content-Type': 'application/json',
+                }
+            });
+            logger.info(`[YCloudProvider] Mensagem enviada com sucesso via fallback de texto! ID: ${textResponse.data?.id}`);
+            return textResponse.data;
+        } catch (textErr: any) {
+            logger.error("[YCloudProvider] Fallback de texto também falhou:", textErr.response?.data || textErr.message);
         }
       }
 

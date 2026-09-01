@@ -1026,7 +1026,7 @@ export const Finance = () => {
             { content: `R$ ${item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, styles: { halign: 'left', lineWidth: { bottom: hasSubDetails ? 0 : 0.1 } as any, lineColor: [220,220,220] } }
         ]);
         
-        const totalSubCount = (hasItems ? item.job.items.length : 0) + (hasProducts ? item.job.products.length : 0);
+        const totalSubCount = (hasItems && item.job?.items ? item.job.items.length : 0) + (hasProducts && item.job?.products ? item.job.products.length : 0);
         let currentIndex = 0;
 
         if (hasItems && 'job' in item && item.job && item.job.items) {
