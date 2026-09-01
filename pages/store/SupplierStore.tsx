@@ -229,13 +229,14 @@ export const SupplierStore = () => {
   const getThemeClasses = (themeId?: string) => {
     switch (themeId) {
       case 'shopee':
+      case 'orange':
         return {
-          bg: 'from-orange-600 to-red-600',
-          textHover: 'hover:text-[#EE4D2D]',
-          textPrimary: 'text-[#EE4D2D]',
-          bgPrimary: 'bg-[#EE4D2D] hover:bg-[#ff5d3c]',
-          borderActive: 'border-[#EE4D2D]',
-          accentBadge: 'bg-[#EE4D2D]/10 text-[#EE4D2D]'
+          bg: 'from-slate-900 to-[#15263f]',
+          textHover: 'hover:text-[#15263f]',
+          textPrimary: 'text-[#15263f]',
+          bgPrimary: 'bg-[#15263f] hover:bg-slate-800',
+          borderActive: 'border-[#15263f]',
+          accentBadge: 'bg-[#15263f]/10 text-[#15263f]'
         };
       case 'dark':
         return {
@@ -275,12 +276,12 @@ export const SupplierStore = () => {
         };
       case 'orange':
         return {
-          bg: 'from-orange-500 to-amber-600',
-          textHover: 'hover:text-orange-600',
-          textPrimary: 'text-orange-600',
-          bgPrimary: 'bg-orange-600 hover:bg-orange-500',
-          borderActive: 'border-orange-500',
-          accentBadge: 'bg-orange-500/10 text-orange-600'
+          bg: 'from-slate-900 to-[#15263f]',
+          textHover: 'hover:text-[#15263f]',
+          textPrimary: 'text-[#15263f]',
+          bgPrimary: 'bg-[#15263f] hover:bg-slate-800',
+          borderActive: 'border-[#15263f]',
+          accentBadge: 'bg-[#15263f]/10 text-[#15263f]'
         };
       default:
         // Default classic style
@@ -790,59 +791,6 @@ const isPromo = (jt: any) => {
           >
             Meus Pedidos
           </button>
-          <div className="hidden md:flex gap-2 md:gap-4 sm:px-6 sm:py-0 py-0">
-            <div 
-              className="relative"
-              onMouseEnter={() => setIsCategoriesDropdownOpen(true)}
-              onMouseLeave={() => setIsCategoriesDropdownOpen(false)}
-            >
-              <button className={`px-4 py-2 rounded-xl font-bold text-base flex items-center gap-1 transition-colors ${selectedMarketplaceCategoryId ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}>
-                Categorias <CornerDownRight size={16} />
-              </button>
-              {isCategoriesDropdownOpen && globalSettings?.marketplaceCategories && (
-                <div className="absolute top-full left-0 mt-0 pt-2 w-72 z-50">
-                  <div className="bg-white border border-slate-200 shadow-xl rounded-xl p-2 max-h-[70vh] overflow-y-auto">
-                    <div 
-                      className={`p-2 rounded-lg cursor-pointer hover:bg-slate-100 ${!selectedMarketplaceCategoryId ? 'bg-slate-100 font-bold text-[#15263f]' : 'text-slate-600'}`}
-                      onClick={() => { setSelectedMarketplaceCategoryId(null); setIsCategoriesDropdownOpen(false); }}
-                    >
-                      Todas as Categorias
-                    </div>
-                    {globalSettings.marketplaceCategories.map(cat => (
-                      <div key={cat.id} className="space-y-1 mt-1">
-                        <div 
-                          className={`p-2 rounded-lg cursor-pointer font-bold hover:bg-slate-100 text-slate-800 ${selectedMarketplaceCategoryId === cat.id ? 'text-orange-600 bg-orange-50' : ''}`}
-                          onClick={() => { setSelectedMarketplaceCategoryId(cat.id); setIsCategoriesDropdownOpen(false); }}
-                        >
-                          {cat.name}
-                        </div>
-                        {cat.subcategories?.map(sub => (
-                          <div key={sub.id} className="space-y-1 pl-4 border-l-2 border-slate-100 ml-2">
-                            <div 
-                              className={`p-1.5 rounded-lg cursor-pointer text-sm hover:bg-slate-50 text-slate-600 ${selectedMarketplaceCategoryId === sub.id ? 'text-orange-600 font-bold bg-orange-50/50' : ''}`}
-                              onClick={() => { setSelectedMarketplaceCategoryId(sub.id); setIsCategoriesDropdownOpen(false); }}
-                            >
-                              {sub.name}
-                            </div>
-                            {sub.subcategories?.map(subsub => (
-                              <div 
-                                key={subsub.id} 
-                                className={`p-1 pl-4 rounded-lg cursor-pointer text-xs hover:bg-slate-50 text-slate-500 ${selectedMarketplaceCategoryId === subsub.id ? 'text-orange-600 font-bold' : ''}`}
-                                onClick={() => { setSelectedMarketplaceCategoryId(subsub.id); setIsCategoriesDropdownOpen(false); }}
-                              >
-                                {subsub.name}
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
         </div>
         
         <div className="flex items-center justify-end gap-4 w-auto md:w-32 flex-shrink-0">
@@ -905,7 +853,7 @@ const isPromo = (jt: any) => {
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-12">
+          <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="max-w-7xl mx-auto px-4 sm:px-6 py-0 space-y-12">
             {selectedInternalCategory && (
               <button 
                 onClick={() => setSelectedInternalCategory(null)}
@@ -919,9 +867,9 @@ const isPromo = (jt: any) => {
             {!selectedInternalCategory ? (
               <>
                 {/* Featured Products */}
-                <section>
+                <section style={{ paddingTop: '10px', paddingBottom: '0px', marginBottom: '0px' }}>
                   <h2 className="text-2xl font-bold mb-6">Produtos em Destaque</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:p-6">
+                  <div style={{ paddingTop: '0px', paddingBottom: '24px', marginLeft: '0px', paddingRight: '24px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).slice(0, 4).map(p => (
                       <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
@@ -963,7 +911,7 @@ const isPromo = (jt: any) => {
                   <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold">Todos os Produtos</h2>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:p-6">
+                  <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).map(p => (
                       <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
@@ -983,7 +931,7 @@ const isPromo = (jt: any) => {
                   <h2 className="text-3xl font-bold mb-8">
                     {supplierCategories.find(c => c.id === selectedInternalCategory)?.name || 'Categoria'}
                   </h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:p-6">
+                  <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {rankedProducts.map(p => (
                       <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
@@ -1006,7 +954,7 @@ const isPromo = (jt: any) => {
                 {/* Random Products from this store */}
                 <section>
                   <h2 className="text-2xl font-bold mb-6 text-slate-800">Mais produtos dessa loja</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:p-6">
+                  <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {(() => {
                       const otherProducts = (allSupplierProducts || [])
                         .filter(p => p.organizationId === selectedSupplierId && p.categoryId !== selectedInternalCategory)
@@ -1048,124 +996,122 @@ const isPromo = (jt: any) => {
         </>
       )}
 
-      {/* Control Panel: Search, Filter Supplier & Shopee Sorting options */}
-      <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-100 border border-slate-200 rounded-2xl p-4">
-          {/* Search */}
-          <div className="md:col-span-2 relative">
-            <Search className="absolute left-3.5 top-3.5 text-slate-500" size={18} />
-            <input
-              type="text"
-              placeholder="Pesquise o produto que deseja (Ex: silicone, resina, gesso...)"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-orange-500 placeholder-slate-400"
-            />
-          </div>
-
-          {/* Supplier Selector */}
-          <div className="md:col-span-2 flex items-center gap-2">
-            <Filter className="text-slate-500 flex-shrink-0" size={18} />
-            <select
-              value={selectedSupplierId}
-              onChange={e => setSelectedSupplierId(e.target.value)}
-              className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-orange-500"
-            >
-              <option value="ALL">Selecionar Loja de Fornecedor</option>
-              {allSuppliers.map(s => (
-                <option key={s.id} value={s.id}>{s.name} ({s.city || 'Cali'})</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Location / Radius (Only active when in ALL Suppliers) */}
-          {selectedSupplierId === 'ALL' && (
-            <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div className="relative">
-                  <MapPin className="absolute left-3.5 top-3.5 text-slate-500" size={18} />
-                  <input
-                    type="text"
-                    placeholder="Filtrar por cidade (Ex: São Paulo)"
-                    value={userLocation}
-                    onChange={e => setUserLocation(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl pl-11 pr-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-orange-500 placeholder-slate-400"
-                  />
-               </div>
-               
-               <div className="flex items-center gap-4 bg-white border border-slate-300 rounded-xl px-4 py-2">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Raio: {searchRadius === 201 ? '+200' : searchRadius} km</span>
-                  <input
-                     type="range"
-                     min="10"
-                     max="201"
-                     step="10"
-                     value={searchRadius}
-                     onChange={e => setSearchRadius(Number(e.target.value))}
-                     className="w-full accent-orange-500"
-                  />
-               </div>
+      {/* Control Panel: Search, Filter Supplier & Sorting options (Minimalist YourNextStore style) */}
+      <div className="px-4 pb-2 sm:px-6 sm:pb-4 space-y-3 max-w-7xl mx-auto">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-xs space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {/* Search */}
+            <div className="md:col-span-2 relative">
+              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+              <input
+                type="text"
+                placeholder="Pesquisar insumo ou produto..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 outline-none focus:border-[#15263f] placeholder-slate-400 font-medium"
+              />
             </div>
-          )}
-        </div>
 
-        {/* Shopee Style Sorting Tabs */}
-        <div className="bg-slate-100 border border-slate-200 rounded-xl p-2 flex flex-wrap items-center justify-between text-xs gap-2">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-slate-500 px-2 font-medium">Ordenar por:</span>
-            
-            <button
-              onClick={() => setSortOption('RELEVANCE')}
-              className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
-                sortOption === 'RELEVANCE' 
-                  ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-white text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Popular / Relevância
-            </button>
+            {/* Supplier Selector */}
+            <div className="md:col-span-2 flex items-center gap-2">
+              <Filter className="text-slate-400 flex-shrink-0" size={16} />
+              <select
+                value={selectedSupplierId}
+                onChange={e => setSelectedSupplierId(e.target.value)}
+                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#15263f] font-medium"
+              >
+                <option value="ALL">Todas as Lojas de Fornecedores</option>
+                {allSuppliers.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.city || 'Geral'})</option>
+                ))}
+              </select>
+            </div>
 
-            <button
-              onClick={() => setSortOption('LATEST')}
-              className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
-                sortOption === 'LATEST' 
-                  ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-white text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Mais Recentes
-            </button>
-
-
-
-            <button
-              onClick={() => setSortOption('PRICE_ASC')}
-              className={`px-4 py-1.5 rounded-lg font-bold transition-all ${
-                sortOption === 'PRICE_ASC' 
-                  ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-white text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Menor Preço
-            </button>
-
-            <button
-              onClick={() => setSortOption('PRICE_DESC')}
-              className={`px-4 py-1.5 rounded-lg font-bold transition-all relative ${
-                sortOption === 'PRICE_DESC' 
-                  ? 'bg-[#EE4D2D] text-white' 
-                  : 'bg-white text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Maior Preço
-            </button>
+            {/* Location / Radius (Only active when in ALL Suppliers) */}
+            {selectedSupplierId === 'ALL' && (
+              <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                 <div className="relative">
+                    <MapPin className="absolute left-3 top-2.5 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Filtrar por cidade..."
+                      value={userLocation}
+                      onChange={e => setUserLocation(e.target.value)}
+                      className="w-full bg-slate-50/50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 outline-none focus:border-[#15263f] placeholder-slate-400 font-medium"
+                    />
+                 </div>
+                 
+                 <div className="flex items-center gap-3 bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Raio: {searchRadius === 201 ? '+200' : searchRadius} km</span>
+                    <input
+                       type="range"
+                       min="10"
+                       max="201"
+                       step="10"
+                       value={searchRadius}
+                       onChange={e => setSearchRadius(Number(e.target.value))}
+                       className="w-full accent-[#15263f]"
+                    />
+                 </div>
+              </div>
+            )}
           </div>
 
-          <span className="text-[10px] text-slate-500 font-mono pr-2">
-            Mostrando {rankedProducts.length} itens encontrados
-          </span>
+          {/* Minimalist Sorting Tabs */}
+          <div className="flex flex-wrap items-center justify-between text-xs gap-2 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-slate-400 px-1 font-medium text-[11px]">Ordenar:</span>
+              
+              <button
+                onClick={() => setSortOption('RELEVANCE')}
+                className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                  sortOption === 'RELEVANCE' 
+                    ? 'bg-[#15263f] text-white shadow-xs' 
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Relevância
+              </button>
+
+              <button
+                onClick={() => setSortOption('LATEST')}
+                className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                  sortOption === 'LATEST' 
+                    ? 'bg-[#15263f] text-white shadow-xs' 
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Recentes
+              </button>
+
+              <button
+                onClick={() => setSortOption('PRICE_ASC')}
+                className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all ${
+                  sortOption === 'PRICE_ASC' 
+                    ? 'bg-[#15263f] text-white shadow-xs' 
+                    : 'bg-slate-50 text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Menor Preço
+              </button>
+
+              <button
+                onClick={() => setSortOption('PRICE_DESC')}
+                className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all relative ${
+                  sortOption === 'PRICE_DESC' 
+                    ? 'bg-[#15263f] text-white shadow-xs' 
+                    : 'bg-slate-50 text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Maior Preço
+              </button>
+            </div>
+
+            <span className="text-[10px] text-slate-400 font-mono pr-1">
+              {rankedProducts.length} itens
+            </span>
+          </div>
         </div>
-      </div>
       </div>
 
       <div className="px-4 pb-4 sm:px-6 sm:pb-6">
