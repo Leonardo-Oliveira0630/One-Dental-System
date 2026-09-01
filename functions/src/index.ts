@@ -2511,15 +2511,36 @@ export const sendBrevoEmail = onCall({ maxInstances: 10 }, async (request) => {
       messageId: messageId
     };
   } catch (error: any) {
+    if (error instanceof HttpsError || (error && error.code && typeof error.code === 'string')) {
+      throw error;
+    }
     const status = error.response?.status;
-    const apiErr = error.response?.data?.message || error.response?.data?.error || error.message;
+    let apiErr = "Erro desconhecido";
+    try {
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string') {
+          apiErr = error.response.data;
+        } else if (error.response.data.message) {
+          apiErr = error.response.data.message;
+        } else if (error.response.data.error) {
+          apiErr = typeof error.response.data.error === 'string' ? error.response.data.error : JSON.stringify(error.response.data.error);
+        } else {
+          apiErr = JSON.stringify(error.response.data);
+        }
+      } else if (error.message) {
+        apiErr = error.message;
+      }
+    } catch (parseErr) {
+      apiErr = error.message || String(error);
+    }
+
     logger.error(`[Brevo Cloud Function] Erro ao enviar e-mail (${status}): ${apiErr}`, error.response?.data);
 
     let friendlyMessage = `Erro ao enviar e-mail via Brevo: ${apiErr}`;
     if (status === 401) {
       friendlyMessage = "Chave de API do Brevo inválida ou não autorizada no Google Cloud. Verifique a chave configurada.";
-    } else if (status === 400 && String(apiErr).toLowerCase().includes("sender")) {
-      friendlyMessage = "O e-mail do remetente não está autorizado ou validado na conta Brevo. Valide o e-mail no painel do Brevo (Senders & IP).";
+    } else if (status === 400) {
+      friendlyMessage = `Erro na requisição ao Brevo (400): ${apiErr}. Verifique se o e-mail do remetente está validado na sua conta Brevo.`;
     }
 
     throw new HttpsError("aborted", friendlyMessage);

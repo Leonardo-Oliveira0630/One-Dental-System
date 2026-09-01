@@ -316,12 +316,18 @@ export const SendDebtsEmailModal: React.FC<SendDebtsEmailModalProps> = ({
         setSendResults(prev => [...prev, resItem]);
       } catch (err: any) {
         console.error(`Erro ao enviar para ${clientItem.name}:`, err);
+        let errorMsg = err.message || 'Erro no envio';
+        if (err.details) {
+          errorMsg = err.details;
+        } else if (errorMsg.includes('internal') || errorMsg === 'internal') {
+          errorMsg = 'Erro interno no envio. Verifique se a chave de API do Brevo e o e-mail do remetente estão configurados corretamente.';
+        }
         const errItem = {
           clientId: clientItem.id,
           clientName: clientItem.name,
           email: targetEmail,
           status: 'ERROR' as const,
-          message: err.message || 'Erro no envio'
+          message: errorMsg
         };
         accumulatedResults.push(errItem);
         setSendResults(prev => [...prev, errItem]);
