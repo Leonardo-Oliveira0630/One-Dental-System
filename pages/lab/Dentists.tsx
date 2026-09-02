@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, ManualDentist, Job, JobStatus, DentistPayment, BillingBatch } from '../../types';
-import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Stethoscope, Building, Search, Loader2, ArrowRight, Tag, Percent, Save, X, DollarSign, Globe, HardDrive, UserCheck, Package, Table, FileText, Lock, Unlock, RefreshCw, Check, Calendar, ArrowUpCircle, ArrowDownCircle, Receipt, History, CreditCard, Banknote, Wallet, FileSpreadsheet, Plus, Info, MinusCircle, Printer, Download, ChevronLeft, ChevronRight, Users, Filter, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
@@ -739,6 +739,105 @@ export const Dentists = () => {
         doc.save(`Recibos_${statementClient.name.replace(/\s+/g, '_')}_${startDateStr.replace(/\//g,'-')}_a_${endDateStr.replace(/\//g,'-')}.pdf`);
     };
 
+    const exportFilteredClientsCSV = () => {
+        if (filtered.length === 0) {
+            alert("Nenhum cliente filtrado para exportar.");
+            return;
+        }
+
+        const headers = [
+            'Nome do Cliente',
+            'E-mail',
+            'Telefone / WhatsApp',
+            'Tipo',
+            'Consultório / Clínica',
+            'CPF / CNPJ',
+            'Tabela Pertencente',
+            'Desconto Global (%)',
+            'Limite de Faturamento (R$)',
+            'Status',
+            'Motivo do Bloqueio',
+            'Origem'
+        ];
+
+        const getClientTypeLabel = (type?: string) => {
+            switch (type) {
+                case 'PESSOA_FISICA': return 'Pessoa Física';
+                case 'CLINICA': return 'Clínica';
+                case 'LABORATORIO': return 'Laboratório';
+                default: return type || 'Clínica';
+            }
+        };
+
+        const getPriceTableName = (tableId?: string) => {
+            if (!tableId) return 'Tabela Padrão';
+            const table = priceTables.find(t => t.id === tableId);
+            return table ? table.name : 'Tabela Personalizada';
+        };
+
+        const getStatusLabel = (client: any) => {
+            if (!client.isBlocked) return 'Ativo';
+            if (client.blockReason === 'DEBT') return 'Bloqueado por Inadimplência';
+            if (client.blockReason === 'FINANCIAL_APPROVAL') return 'Bloqueado por Análise de Crédito';
+            return 'Bloqueado';
+        };
+
+        const getBlockReasonLabel = (reason?: string) => {
+            switch (reason) {
+                case 'DEBT': return 'Inadimplência';
+                case 'FINANCIAL_APPROVAL': return 'Análise de Crédito';
+                default: return reason || '-';
+            }
+        };
+
+        const rows = filtered.map(client => {
+            const cleanName = client.name || '';
+            const cleanEmail = client.email || '-';
+            const cleanPhone = client.phone || client.whatsapp || '-';
+            const typeLabel = getClientTypeLabel(client.clientType);
+            const clinic = client.clinicName || '-';
+            const doc = client.cpfCnpj || '-';
+            const tableName = getPriceTableName(client.priceTableId);
+            const discount = `${client.globalDiscountPercent || 0}%`;
+            const billingLimit = client.billingLimit ? `R$ ${Number(client.billingLimit).toFixed(2)}` : 'Sem Limite';
+            const status = getStatusLabel(client);
+            const blockReason = client.isBlocked ? getBlockReasonLabel(client.blockReason) : '-';
+            const origin = client.isManual ? 'Interno (Manual)' : 'Portal Web';
+
+            return [
+                cleanName,
+                cleanEmail,
+                cleanPhone,
+                typeLabel,
+                clinic,
+                doc,
+                tableName,
+                discount,
+                billingLimit,
+                status,
+                blockReason,
+                origin
+            ];
+        });
+
+        const csvContent = [
+            headers.join(';'),
+            ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+        ].join('\n');
+
+        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const orgName = currentOrg?.name ? currentOrg.name.replace(/\s+/g, '_') : 'Labprox';
+        const dateStr = new Date().toISOString().split('T')[0];
+        link.setAttribute('href', url);
+        link.setAttribute('download', `Clientes_Filtrados_${orgName}_${dateStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     const totals = useMemo(() => {
         const lastBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
         const pendingInvoicesTotal = billingBatches.filter(b => b.dentistId === statementClient?.id && b.status === 'PENDING').reduce((acc, curr) => acc + curr.totalAmount, 0);
@@ -749,16 +848,58 @@ export const Dentists = () => {
         };
     }, [chronoHistory, billingBatches, statementClient]);
 
+    const hasActiveFilters = Boolean(searchTerm.trim()) || clientTypeFilter !== 'ALL' || priceTableFilter !== 'ALL' || statusFilter !== 'ALL';
+
+    const handleClearFilters = () => {
+        setSearchTerm('');
+        setClientTypeFilter('ALL');
+        setPriceTableFilter('ALL');
+        setStatusFilter('ALL');
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Gestão de Clientes</h1>
-                    <p className="text-slate-500">Administre as tabelas de preços de todos os seus dentistas.</p>
+                    <p className="text-slate-500">Administre as tabelas de preços, limites e extratos de todos os seus dentistas.</p>
+                </div>
+
+                <div className="flex items-center gap-2.5 flex-wrap">
+                    {/* Contador de Clientes */}
+                    <div className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs border transition-all ${
+                        hasActiveFilters 
+                            ? 'bg-blue-50 border-blue-200 text-blue-800' 
+                            : 'bg-slate-100 border-slate-200 text-slate-700'
+                    }`}>
+                        <Users size={16} className={hasActiveFilters ? 'text-blue-600' : 'text-slate-500'} />
+                        <span>
+                            {hasActiveFilters ? (
+                                <>Filtrados: <strong className="text-blue-900 font-extrabold">{filtered.length}</strong> de {combinedClients.length}</>
+                            ) : (
+                                <>Total: <strong className="text-slate-900 font-extrabold">{combinedClients.length}</strong> clientes</>
+                            )}
+                        </span>
+                    </div>
+
+                    {/* Botão de Exportação */}
+                    <button
+                        onClick={exportFilteredClientsCSV}
+                        disabled={filtered.length === 0}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 ${
+                            filtered.length === 0 
+                                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' 
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200/60 cursor-pointer'
+                        }`}
+                        title="Exportar dados dos clientes filtrados para planilha (.csv compatível com Excel)"
+                    >
+                        <FileSpreadsheet size={18} className="shrink-0" />
+                        <span>Exportar Clientes ({filtered.length})</span>
+                    </button>
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 space-y-3">
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-3 text-slate-400" size={20} />
@@ -804,10 +945,45 @@ export const Dentists = () => {
                         </select>
                     </div>
                 </div>
+
+                {hasActiveFilters && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                        <div className="flex items-center gap-2 text-slate-500">
+                            <Filter size={14} className="text-blue-500" />
+                            <span>Filtros ativos: exibindo <strong>{filtered.length}</strong> de <strong>{combinedClients.length}</strong> clientes</span>
+                        </div>
+                        <button
+                            onClick={handleClearFilters}
+                            className="flex items-center gap-1 text-slate-500 hover:text-blue-600 font-bold transition-colors cursor-pointer"
+                        >
+                            <RotateCcw size={12} />
+                            Limpar filtros
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:p-6">
-                {filtered.map(client => {
+                {filtered.length === 0 ? (
+                    <div className="bg-white rounded-2xl p-12 text-center border border-slate-100 shadow-sm col-span-full">
+                        <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400 border border-slate-100">
+                            <Search size={28} />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">Nenhum cliente encontrado</h3>
+                        <p className="text-sm text-slate-500 max-w-sm mx-auto mb-4">
+                            Nenhum cliente corresponde aos filtros selecionados. Tente ajustar o termo de busca ou filtros.
+                        </p>
+                        {hasActiveFilters && (
+                            <button
+                                onClick={handleClearFilters}
+                                className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold text-xs rounded-xl transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                            >
+                                <RotateCcw size={14} />
+                                Limpar todos os filtros
+                            </button>
+                        )}
+                    </div>
+                ) : filtered.map(client => {
                     const clientBatches = billingBatches.filter(b => b.dentistId === client.id);
                     const gBatches = clientBatches.filter(b => b.status === 'PENDING');
                     const eBatches = clientBatches.filter(b => b.status === 'OVERDUE');
