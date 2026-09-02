@@ -20,17 +20,94 @@ import { Capacitor } from '@capacitor/core';
 import { CapacitorNfc as Nfc } from '@capgo/capacitor-nfc';
 
 /**
- * Utilitário para converter e gerenciar formatos de UID NFC (Hexadecimal <-> Decimal e byte swapping)
+ * Utilitário para converter e gerenciar formatos de UID NFC entre leitores:
+ * 1. LEITOR NOVO: UID hexadecimal canônico completo (ex: 0427DE7DC32A81 ou 5383CEB9950001)
+ * 2. LEITOR ANTIGO: Decimal baseado nos primeiros 4 bytes com bytes invertidos (ex: 2111710980 ou 3117318995)
+ */
+
+/**
+ * Converte o UID Hexadecimal canônico (Leitor Novo) para o formato Decimal (Leitor Antigo).
+ * Pega os primeiros 4 bytes (8 caracteres hex), inverte a ordem dos bytes (Little-Endian)
+ * e converte o resultado hexadecimal para decimal.
+ * 
+ * Exemplo:
+ * 0427DE7DC32A81 -> 04 27 DE 7D -> 7D DE 27 04 -> 7DDE2704 -> 2111710980
+ * 5383CEB9950001 -> 53 83 CE B9 -> B9 CE 83 53 -> B9CE8353 -> 3117318995
+ */
+export function convertCanonicalHexToOldReaderDecimal(hexStr: string): string {
+  const clean = (hexStr || '').trim().toUpperCase().replace(/[^0-9A-F]/g, '');
+  if (clean.length < 8) return '';
+  const first4BytesHex = clean.substring(0, 8); // ex: "0427DE7D"
+  const bytes = [
+    first4BytesHex.substring(0, 2),
+    first4BytesHex.substring(2, 4),
+    first4BytesHex.substring(4, 6),
+    first4BytesHex.substring(6, 8)
+  ];
+  const invertedHex = bytes.reverse().join(''); // ex: "7DDE2704"
+  try {
+    const bigVal = BigInt('0x' + invertedHex);
+    return bigVal.toString(10); // ex: "2111710980"
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Converte o formato Decimal (Leitor Antigo) para o UID Hexadecimal (primeiros 4 bytes canônicos).
+ * Converte o decimal em hex de 32 bits (8 chars), inverte os 4 bytes para obter o prefixo canônico.
+ * 
+ * Exemplo:
+ * 2111710980 -> 7DDE2704 -> Inverte bytes: 04 27 DE 7D -> "0427DE7D"
+ * 3117318995 -> B9CE8353 -> Inverte bytes: 53 83 CE B9 -> "5383CEB9"
+ */
+export function convertOldReaderDecimalToHex(decimalStr: string): {
+  hex4Bytes: string;
+  invertedHex: string;
+} {
+  const clean = (decimalStr || '').trim().replace(/[^0-9]/g, '');
+  if (!clean) return { hex4Bytes: '', invertedHex: '' };
+  try {
+    const bigVal = BigInt(clean);
+    // Converte para 8 caracteres hexadecimais (32 bits unsigned)
+    const invertedHex = bigVal.toString(16).padStart(8, '0').toUpperCase(); // ex: "7DDE2704"
+    const bytes = [
+      invertedHex.substring(0, 2),
+      invertedHex.substring(2, 4),
+      invertedHex.substring(4, 6),
+      invertedHex.substring(6, 8)
+    ];
+    const hex4Bytes = bytes.reverse().join(''); // ex: "0427DE7D"
+    return { hex4Bytes, invertedHex };
+  } catch {
+    return { hex4Bytes: '', invertedHex: '' };
+  }
+}
+
+/**
+ * Normaliza qualquer entrada de UID (do Leitor Novo ou do Leitor Antigo)
+ * e gera todas as representações possíveis para armazenamento e busca.
  */
 export function getNfcUidFormats(uidInput: string): {
   uid: string;
   uidHex: string;
   uidDecimal: string;
+  uid4ByteHex: string;
+  invertedHex: string;
+  isOldReaderFormat: boolean;
   allCandidates: string[];
 } {
   const raw = (uidInput || '').trim().toUpperCase().replace(/[:\s-]/g, '');
   if (!raw) {
-    return { uid: '', uidHex: '', uidDecimal: '', allCandidates: [] };
+    return {
+      uid: '',
+      uidHex: '',
+      uidDecimal: '',
+      uid4ByteHex: '',
+      invertedHex: '',
+      isOldReaderFormat: false,
+      allCandidates: []
+    };
   }
 
   const candidates = new Set<string>();
@@ -39,71 +116,132 @@ export function getNfcUidFormats(uidInput: string): {
 
   let uidHex = '';
   let uidDecimal = '';
+  let uid4ByteHex = '';
+  let invertedHex = '';
+  let isOldReaderFormat = false;
 
   const isNumericOnly = /^\d+$/.test(raw);
   const isHexOnly = /^[0-9A-F]+$/i.test(raw);
 
   if (isNumericOnly) {
-    uidDecimal = raw;
     try {
       const bigVal = BigInt(raw);
-      let hex = bigVal.toString(16).toUpperCase();
-      if (hex.length % 2 !== 0) hex = '0' + hex;
-      uidHex = hex;
-      candidates.add(hex);
+      // Se for um decimal de até 32 bits (<= 4294967295), é o formato do leitor antigo
+      if (bigVal <= 4294967295n) {
+        isOldReaderFormat = true;
+        uidDecimal = raw;
+        const converted = convertOldReaderDecimalToHex(raw);
+        uid4ByteHex = converted.hex4Bytes;
+        invertedHex = converted.invertedHex;
+        uidHex = converted.hex4Bytes; // Prefixo canônico em hexadecimal
 
-      // Inversão de ordem de bytes (Little-Endian <-> Big-Endian)
-      const pairs = hex.match(/.{1,2}/g) || [];
-      const reversedHex = [...pairs].reverse().join('');
-      if (reversedHex) {
-        candidates.add(reversedHex);
-        try {
-          const revBig = BigInt('0x' + reversedHex);
-          candidates.add(revBig.toString(10));
-        } catch {}
-      }
+        candidates.add(uidDecimal);
+        if (uid4ByteHex) candidates.add(uid4ByteHex);
+        if (invertedHex) candidates.add(invertedHex);
 
-      // Variações com zeros à esquerda
-      if (hex.length < 8) candidates.add(hex.padStart(8, '0'));
-      if (hex.length < 14) candidates.add(hex.padStart(14, '0'));
-    } catch {
-      // Fallback
-    }
-  } else if (isHexOnly) {
-    uidHex = raw;
-    try {
-      let paddedHex = raw;
-      if (paddedHex.length % 2 !== 0) paddedHex = '0' + paddedHex;
-      const bigVal = BigInt('0x' + paddedHex);
-      uidDecimal = bigVal.toString(10);
-      candidates.add(uidDecimal);
-
-      // Inversão de ordem de bytes (Little-Endian <-> Big-Endian)
-      const pairs = paddedHex.match(/.{1,2}/g) || [];
-      const reversedHex = [...pairs].reverse().join('');
-      if (reversedHex && reversedHex !== raw) {
-        candidates.add(reversedHex);
-        try {
-          const revBigVal = BigInt('0x' + reversedHex);
-          const revDec = revBigVal.toString(10);
-          candidates.add(revDec);
-          if (!uidDecimal) uidDecimal = revDec;
-        } catch {}
-      }
-
-      // Formato com dois pontos
-      if (pairs.length > 1) {
-        candidates.add(pairs.join(':'));
+        const pairs = uid4ByteHex.match(/.{1,2}/g) || [];
+        if (pairs.length > 1) {
+          candidates.add(pairs.join(':'));
+        }
+      } else {
+        // Fallback para números decimais maiores
+        uidDecimal = raw;
+        let hex = bigVal.toString(16).toUpperCase();
+        if (hex.length % 2 !== 0) hex = '0' + hex;
+        uidHex = hex;
+        candidates.add(hex);
       }
     } catch {}
+  } else if (isHexOnly) {
+    uidHex = raw;
+    candidates.add(uidHex);
+
+    if (raw.length >= 8) {
+      uid4ByteHex = raw.substring(0, 8);
+      candidates.add(uid4ByteHex);
+      uidDecimal = convertCanonicalHexToOldReaderDecimal(raw);
+      if (uidDecimal) {
+        candidates.add(uidDecimal);
+      }
+
+      const bytes = [
+        uid4ByteHex.substring(0, 2),
+        uid4ByteHex.substring(2, 4),
+        uid4ByteHex.substring(4, 6),
+        uid4ByteHex.substring(6, 8)
+      ];
+      invertedHex = [...bytes].reverse().join('');
+      if (invertedHex) {
+        candidates.add(invertedHex);
+      }
+    }
+
+    const pairs = raw.match(/.{1,2}/g) || [];
+    if (pairs.length > 1) {
+      candidates.add(pairs.join(':'));
+    }
   }
 
+  const canonicalUid = uidHex || raw;
+
   return {
-    uid: raw,
-    uidHex: uidHex || raw,
+    uid: canonicalUid,
+    uidHex: canonicalUid,
     uidDecimal: uidDecimal || raw,
+    uid4ByteHex: uid4ByteHex || canonicalUid.substring(0, 8),
+    invertedHex: invertedHex,
+    isOldReaderFormat,
     allCandidates: Array.from(candidates).filter(Boolean)
   };
+}
+
+/**
+ * Função utilitária centralizada para encontrar uma caixa NFC a partir de qualquer entrada
+ * (Leitor Novo Hexadecimal, Leitor Antigo Decimal, Número da Caixa ou Texto Gravado).
+ */
+export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox | undefined {
+  if (!scannedCode || !boxes || boxes.length === 0) return undefined;
+
+  const cleanInput = scannedCode.trim().toUpperCase().replace(/[:\s-]/g, '');
+  const formats = getNfcUidFormats(cleanInput);
+
+  // 1. Busca por correspondência exata de candidatos de UID
+  for (const box of boxes) {
+    const boxFormats = getNfcUidFormats(box.uid || '');
+    const boxCandidates = new Set([
+      box.uid,
+      box.uidHex,
+      box.uidDecimal,
+      box.uid4ByteHex,
+      ...boxFormats.allCandidates
+    ].filter(Boolean).map(s => String(s).trim().toUpperCase().replace(/[:\s-]/g, '')));
+
+    if (formats.allCandidates.some(c => boxCandidates.has(c))) {
+      return box;
+    }
+
+    // 2. Busca por prefixo de 4 bytes (quando o leitor antigo envia os primeiros 4 bytes de uma tag de 7 bytes canônica)
+    if (formats.uid4ByteHex && boxFormats.uidHex) {
+      if (boxFormats.uidHex.startsWith(formats.uid4ByteHex) || formats.uidHex.startsWith(boxFormats.uid4ByteHex)) {
+        return box;
+      }
+    }
+  }
+
+  // 3. Busca por número de caixa (ex: "001", "1", ou número direto)
+  const cleanNumInput = cleanInput.replace(/^0+/, '');
+  for (const box of boxes) {
+    const cleanBoxNum = String(box.numeroCaixa || '').trim().toUpperCase().replace(/^0+/, '');
+    if (cleanBoxNum && cleanBoxNum === cleanNumInput) {
+      return box;
+    }
+    const cleanText = (box.textoGravado || '').trim().toUpperCase();
+    if (cleanText && (cleanText === cleanInput || cleanInput.includes(cleanText))) {
+      return box;
+    }
+  }
+
+  return undefined;
 }
 
 export const NfcReaderService = {
@@ -254,11 +392,14 @@ export const KitService = {
 
   saveKitBox: async (kitId: string, box: NfcBox): Promise<void> => {
     const formats = getNfcUidFormats(box.uid || '');
+    const canonicalUid = formats.uidHex || box.uid;
     const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', String(box.numeroCaixa));
     const boxData = {
       ...box,
-      uidHex: box.uidHex || formats.uidHex || box.uid,
-      uidDecimal: box.uidDecimal || formats.uidDecimal || box.uid,
+      uid: canonicalUid,
+      uidHex: canonicalUid,
+      uidDecimal: formats.uidDecimal || box.uidDecimal || '',
+      uid4ByteHex: formats.uid4ByteHex || '',
       updatedAt: new Date().toISOString()
     };
     await setDoc(boxRef, boxData, { merge: true });
@@ -422,11 +563,13 @@ export const ActivationService = {
     
     registeredBoxes.forEach(box => {
       const formats = getNfcUidFormats(box.uid || '');
-      const labBoxRef = doc(db, 'organizations', organizationId, 'nfcBoxes', box.uid);
+      const canonicalUid = formats.uidHex || box.uid;
+      const labBoxRef = doc(db, 'organizations', organizationId, 'nfcBoxes', canonicalUid);
       batch.set(labBoxRef, {
-        uid: box.uid,
-        uidHex: box.uidHex || formats.uidHex || box.uid,
-        uidDecimal: box.uidDecimal || formats.uidDecimal || box.uid,
+        uid: canonicalUid,
+        uidHex: canonicalUid,
+        uidDecimal: formats.uidDecimal || box.uidDecimal || '',
+        uid4ByteHex: formats.uid4ByteHex || '',
         numeroCaixa: box.numeroCaixa,
         textoGravado: box.textoGravado || `BOX-${box.numeroCaixa}`,
         status: 'Associada',

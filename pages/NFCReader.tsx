@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { JobStatus } from '../types';
 import { Loader2, AlertTriangle, Box } from 'lucide-react';
-import { getNfcUidFormats } from '../services/nfcServices';
+import { getNfcUidFormats, findMatchingNfcBox } from '../services/nfcServices';
 
 export const NFCReader: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -22,30 +22,12 @@ export const NFCReader: React.FC = () => {
         const rawBoxParam = boxParam.trim().toUpperCase();
         let finalBoxNumber = rawBoxParam;
 
-        // Verificar se é um UID cadastrado nas caixas NFC do laboratório, número de caixa ou texto gravado
+        // Verificar se é um UID cadastrado nas caixas NFC do laboratório (suporta Leitor Novo Hex e Leitor Antigo Decimal)
         if (nfcBoxes && nfcBoxes.length > 0) {
-            const rawCandidates = getNfcUidFormats(rawBoxParam).allCandidates;
-            const matchedBox = nfcBoxes.find(b => {
-                const boxCandidates = new Set([
-                    b.uid,
-                    b.uidHex,
-                    b.uidDecimal,
-                    ...getNfcUidFormats(b.uid || '').allCandidates
-                ].filter(Boolean).map(s => String(s).trim().toUpperCase().replace(/[:\s-]/g, '')));
-
-                const cleanBoxNum = String(b.numeroCaixa || '').trim().toUpperCase().replace(/^0+/, '');
-                const cleanRawParam = rawBoxParam.replace(/^0+/, '');
-                const cleanText = (b.textoGravado || '').trim().toUpperCase();
-
-                const matchesUid = rawCandidates.some(c => boxCandidates.has(c));
-                const matchesBoxNum = cleanBoxNum && cleanBoxNum === cleanRawParam;
-                const matchesText = cleanText && (cleanText === rawBoxParam || rawBoxParam.includes(cleanText));
-
-                return matchesUid || matchesBoxNum || matchesText;
-            });
+            const matchedBox = findMatchingNfcBox(rawBoxParam, nfcBoxes);
             if (matchedBox) {
                 finalBoxNumber = String(matchedBox.numeroCaixa).trim().toUpperCase();
-                console.log(`[NFCReader] Mapeando Tag ${rawBoxParam} para Caixa #${finalBoxNumber}`);
+                console.log(`[NFCReader] Mapeando Tag ${rawBoxParam} para Caixa #${finalBoxNumber} (UID: ${matchedBox.uid})`);
             }
         }
 

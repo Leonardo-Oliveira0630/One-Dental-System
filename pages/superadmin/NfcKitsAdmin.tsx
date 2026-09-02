@@ -198,14 +198,16 @@ export const NfcKitsAdmin: React.FC = () => {
         }
       }
 
-      // 4. Salvar na Firestore
+      // 4. Salvar na Firestore com UID canônico hexadecimal
       const formats = getNfcUidFormats(cleanUid);
+      const canonicalUid = formats.uidHex || cleanUid;
       const updatedBox: NfcBox = {
         id: targetBoxNumber,
         numeroCaixa: targetBoxNumber,
-        uid: cleanUid,
-        uidHex: formats.uidHex,
-        uidDecimal: formats.uidDecimal,
+        uid: canonicalUid,
+        uidHex: canonicalUid,
+        uidDecimal: formats.uidDecimal || '',
+        uid4ByteHex: formats.uid4ByteHex || '',
         textoGravado: nfcText || `BOX-${targetBoxNumber}`,
         status: 'Associada'
       };
@@ -219,8 +221,8 @@ export const NfcKitsAdmin: React.FC = () => {
       setSelectedKitBoxes(newBoxesList);
 
       const msgText = (formats.uidHex && formats.uidDecimal && formats.uidHex !== formats.uidDecimal)
-        ? `Caixa ${targetBoxNumber} associada com sucesso! (HEX: ${formats.uidHex} | DEC: ${formats.uidDecimal})`
-        : `Caixa ${targetBoxNumber} associada com sucesso ao UID ${cleanUid}!`;
+        ? `Caixa ${targetBoxNumber} associada! (HEX Canônico: ${formats.uidHex} | DEC Antigo: ${formats.uidDecimal})`
+        : `Caixa ${targetBoxNumber} associada com sucesso ao UID ${canonicalUid}!`;
 
       setScanMessage({ 
         text: msgText, 
@@ -560,20 +562,23 @@ export const NfcKitsAdmin: React.FC = () => {
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                   <Shield size={14} className="text-slate-500" />
-                  Método de Integração de Leitores
+                  Suporte a Leitores NFC (Novo Hexadecimal & Antigo Decimal)
                 </h4>
                 <p className="text-xs text-slate-500 max-w-xl">
-                  Compatível com celulares Android (NFC nativo), leitores USB HID do tipo teclado (basta aproximar, sem focar em nenhum campo), e leitores profissionais.
+                  Suporta <strong>Leitores Novos (UID Hexadecimal completo)</strong> e <strong>Leitores Antigos (Decimal com bytes invertidos)</strong>. A conversão para o identificador canônico no banco é feita automaticamente. Compatível também com celulares Android (NFC nativo) e leitores USB HID.
                 </p>
               </div>
-              <div className="shrink-0">
+              <div className="shrink-0 flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-[10px] font-black uppercase border border-indigo-200/60">
+                  Dual Reader Ativo
+                </span>
                 {webNfcSupported ? (
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-black uppercase">
-                    <Check size={12} /> Web NFC Ativo
+                    <Check size={12} /> Web NFC
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-[10px] font-black uppercase">
-                    Leitor USB Ativo
+                    USB HID
                   </span>
                 )}
               </div>

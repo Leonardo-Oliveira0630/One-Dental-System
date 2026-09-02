@@ -1312,6 +1312,7 @@ export interface NfcBox {
   uid: string;
   uidHex?: string;
   uidDecimal?: string;
+  uid4ByteHex?: string;
   textoGravado?: string;
   status: 'Disponível' | 'Associada';
   updatedAt?: any;

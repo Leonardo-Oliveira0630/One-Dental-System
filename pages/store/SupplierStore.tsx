@@ -841,12 +841,12 @@ const isPromo = (jt: any) => {
                      const link = activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.buttonLink;
                      if(link) window.location.href = link;
                   }}
-                  className="mt-6 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-full transition-all"
+                  className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all"
                 >
                   {activeSupplierOrg.storeSettings.banners[bannerIndex].buttonText}
                 </button>
               ) : (
-                <button className="mt-6 px-8 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-full transition-all">
+                <button className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all">
                   Ver Produtos
                 </button>
               )}
@@ -867,15 +867,15 @@ const isPromo = (jt: any) => {
             {!selectedInternalCategory ? (
               <>
                 {/* Featured Products */}
-                <section style={{ paddingTop: '10px', paddingBottom: '0px', marginBottom: '0px' }}>
+                <section style={{ paddingTop: '11px', paddingBottom: '0px', marginBottom: '0px' }}>
                   <h2 className="text-2xl font-bold mb-6">Produtos em Destaque</h2>
-                  <div style={{ paddingTop: '0px', paddingBottom: '24px', marginLeft: '0px', paddingRight: '24px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div style={{ paddingTop: '0px', paddingBottom: '0px', marginLeft: '0px', paddingRight: '24px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).slice(0, 4).map(p => (
-                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
+                      <div key={p.id} className="border border-slate-200 hover:border-blue-600 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
-                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Package size={48} className="text-slate-300 m-auto h-full" />}
+                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <Package size={48} className="text-slate-300 m-auto h-full" />}
                         </div>
-                        <h3 className="font-bold text-sm line-clamp-2">{p.name}</h3>
+                        <h3 className="font-bold text-sm line-clamp-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
                         <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                       </div>
                     ))}
@@ -886,7 +886,7 @@ const isPromo = (jt: any) => {
                 {supplierCategories && supplierCategories.length > 0 && (
                   <section>
                     <h2 className="text-2xl font-bold mb-6">Explore nossas Categorias</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-6">
+                    <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {supplierCategories.map(cat => (
                         <div 
                           key={cat.id} 
@@ -913,11 +913,11 @@ const isPromo = (jt: any) => {
                   </div>
                   <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).map(p => (
-                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
+                      <div key={p.id} className="border border-slate-200 hover:border-blue-600 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
-                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Package size={48} className="text-slate-300 m-auto h-full" />}
+                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <Package size={48} className="text-slate-300 m-auto h-full" />}
                         </div>
-                        <h3 className="font-bold text-sm line-clamp-2">{p.name}</h3>
+                        <h3 className="font-bold text-sm line-clamp-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
                         <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                       </div>
                     ))}
@@ -933,11 +933,11 @@ const isPromo = (jt: any) => {
                   </h2>
                   <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {rankedProducts.map(p => (
-                      <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
+                      <div key={p.id} className="border border-slate-200 hover:border-blue-600 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openProductDetail(p)}>
                         <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
-                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Package size={48} className="text-slate-300" />}
+                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <Package size={48} className="text-slate-300" />}
                         </div>
-                        <h3 className="font-bold text-sm line-clamp-2">{p.name}</h3>
+                        <h3 className="font-bold text-sm line-clamp-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
                         <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                       </div>
                     ))}
@@ -962,11 +962,11 @@ const isPromo = (jt: any) => {
                         .slice(0, 4);
                       
                       return otherProducts.map(p => (
-                        <div key={p.id} className="border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => openProductDetail(p)}>
+                        <div key={p.id} className="border border-slate-200 hover:border-blue-600 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openProductDetail(p)}>
                           <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
-                            {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" /> : <Package size={48} className="text-slate-300" />}
+                            {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <Package size={48} className="text-slate-300" />}
                           </div>
-                          <h3 className="font-bold text-sm line-clamp-2">{p.name}</h3>
+                          <h3 className="font-bold text-sm line-clamp-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
                           <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                         </div>
                       ));
@@ -1132,7 +1132,7 @@ const isPromo = (jt: any) => {
               <div key={block.id} className="space-y-4">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-805 border-slate-200">
                   <h3 className="font-bold text-lg flex items-center gap-2">
-                    <Sparkles className="text-orange-600" size={18} />
+                    <Sparkles className="text-blue-600" size={18} />
                     {block.title || 'Seção Destacada'}
                   </h3>
                   <span className="text-xs text-slate-500">{block.type}</span>
@@ -1158,16 +1158,16 @@ const isPromo = (jt: any) => {
                       <div 
                         key={p.id} 
                         onClick={() => openProductDetail(p)}
-                        className="bg-white border border-slate-200 rounded-xl overflow-hidden w-60 flex-shrink-0 snap-start hover:border-orange-500 cursor-pointer transition-all p-3 space-y-3"
+                        className="bg-white border border-slate-200 rounded-xl overflow-hidden w-60 flex-shrink-0 snap-start hover:border-blue-600 cursor-pointer transition-all p-3 space-y-3 group"
                       >
                         <div className="aspect-square bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center">
-                          <img src={p.imageUrl || 'https://via.placeholder.com/150'} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <img src={p.imageUrl || 'https://via.placeholder.com/150'} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
                         </div>
                         <div>
-                          <p className="font-bold text-xs truncate text-slate-250 leading-tight">{p.name}</p>
+                          <p className="font-bold text-xs truncate text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">{p.name}</p>
                           <div className="flex justify-between items-center pt-2">
-                            <span className="text-[#EE4D2D] font-bold font-mono text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
-                            <span className="text-[9px] text-[#EE4D2D] bg-[#EE4D2D]/10 px-1 rounded">Ver</span>
+                            <span className="text-slate-900 font-bold font-mono text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
+                            <span className="text-[9px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold">Ver</span>
                           </div>
                         </div>
                       </div>
@@ -1181,7 +1181,7 @@ const isPromo = (jt: any) => {
                       <div 
                         key={p.id} 
                         onClick={() => openProductDetail(p)}
-                        className="bg-white border border-slate-200 hover:border-[#EE4D2D]/50 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all cursor-pointer"
+                        className="bg-white border border-slate-200 hover:border-blue-600 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all cursor-pointer shadow-sm hover:shadow-md"
                       >
                         <div className="p-4 space-y-3">
                           <div className="aspect-square bg-slate-50 border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center relative">
@@ -1197,11 +1197,11 @@ const isPromo = (jt: any) => {
                             )}
                           </div>
                           <div>
-                            <h3 className="font-bold text-slate-800 line-clamp-1 group-hover:text-amber-400">{p.name}</h3>
+                            <h3 className="font-bold text-slate-800 line-clamp-1 group-hover:text-blue-600 transition-colors">{p.name}</h3>
                             <p className="text-slate-500 text-xs line-clamp-2 h-8 mt-1">{p.description || 'Nenhuma descrição...'}</p>
                           </div>
                           <div className="pt-2 border-t border-slate-200 flex items-center justify-between font-mono">
-                            <span className="text-[#EE4D2D] font-bold text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
+                            <span className="text-slate-900 font-bold text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
                             <span className="text-[10px] text-slate-500">Estoque: {p.currentStock || 0}</span>
                           </div>
                         </div>
@@ -1216,13 +1216,13 @@ const isPromo = (jt: any) => {
                       <div 
                         key={p.id} 
                         onClick={() => openProductDetail(p)}
-                        className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between cursor-pointer hover:border-indigo-400 transition-all"
+                        className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between cursor-pointer hover:border-blue-600 transition-all group"
                       >
                         <div className="aspect-square rounded-lg overflow-hidden bg-white">
-                          <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer"/>
+                          <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer"/>
                         </div>
-                        <p className="font-bold text-xs truncate mt-2">{p.name}</p>
-                        <p className="text-[#EE4D2D] font-bold text-xs mt-1 font-mono">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
+                        <p className="font-bold text-xs truncate mt-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</p>
+                        <p className="text-slate-900 font-bold text-xs mt-1 font-mono">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
                       </div>
                     ))}
                   </div>
@@ -1234,18 +1234,18 @@ const isPromo = (jt: any) => {
                       <div 
                         key={p.id} 
                         onClick={() => openProductDetail(p)}
-                        className="p-4 flex items-center justify-between hover:bg-slate-50/40 cursor-pointer transition-all gap-4"
+                        className="p-4 flex items-center justify-between hover:bg-slate-50/60 cursor-pointer transition-all gap-4 group"
                       >
                         <div className="flex items-center gap-3">
-                          <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-lg object-cover" referrerPolicy="no-referrer"/>
+                          <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-lg object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer"/>
                           <div>
-                            <p className="font-bold text-xs text-slate-800">{p.name}</p>
+                            <p className="font-bold text-xs text-slate-800 group-hover:text-blue-600 transition-colors">{p.name}</p>
                             <p className="text-[10px] text-slate-500 max-w-lg truncate">{p.description}</p>
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-[#EE4D2D] font-bold font-mono text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
-                          <span className="text-[9px] text-[#EE4D2D] bg-[#EE4D2D]/10 px-1.5 py-0.5 rounded font-bold uppercase">Ver Opções</span>
+                          <p className="text-slate-900 font-bold font-mono text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
+                          <span className="text-[9px] text-blue-600 bg-blue-50 px-2 py-1 rounded font-bold uppercase transition-colors group-hover:bg-blue-600 group-hover:text-white">Ver Opções</span>
                         </div>
                       </div>
                     ))}
@@ -1272,7 +1272,7 @@ const isPromo = (jt: any) => {
                 <div 
                   key={p.id} 
                   onClick={() => openProductDetail(p)}
-                  className="bg-white border border-slate-200 hover:border-orange-500/50 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all cursor-pointer relative shadow-sm hover:shadow-md"
+                  className="bg-white border border-slate-200 hover:border-blue-600 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all cursor-pointer relative shadow-sm hover:shadow-md"
                 >
                   <div className="p-4 space-y-3.5">
                     {/* Image/Placeholder wrapper */}
@@ -1294,7 +1294,7 @@ const isPromo = (jt: any) => {
                       
                       {/* Floating Supplier Origin Tag */}
                       <div className="absolute top-2 left-2 bg-white/90 backdrop-blur border border-slate-100 px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold text-slate-500 flex items-center gap-1 shadow-sm">
-                        <Building2 size={10} className="text-orange-500" />
+                        <Building2 size={10} className="text-blue-600" />
                         {getSupplierName(p.organizationId).toUpperCase().substring(0, 18)}
                       </div>
 
@@ -1307,7 +1307,7 @@ const isPromo = (jt: any) => {
 
                     {/* Info */}
                     <div className="space-y-1">
-                      <h3 className="font-bold text-slate-900 line-clamp-1 group-hover:text-orange-600 transition-colors">
+                      <h3 className="font-bold text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
                         {p.name}
                       </h3>
                       <p className="text-slate-500 text-xs line-clamp-2 h-8">
@@ -1324,7 +1324,7 @@ const isPromo = (jt: any) => {
                           </span>
                         ))}
                         {p.variations.length > 3 && (
-                          <span className="text-[9px] text-[#EE4D2D] font-bold">+{p.variations.length - 3}</span>
+                          <span className="text-[9px] text-blue-600 font-bold bg-blue-50 px-1 rounded">+{p.variations.length - 3}</span>
                         )}
                       </div>
                     )}
@@ -1351,7 +1351,7 @@ const isPromo = (jt: any) => {
                         e.stopPropagation();
                         openProductDetail(p);
                       }}
-                      className="w-full py-2 bg-white border border-slate-200 hover:bg-[#EE4D2D] hover:text-white text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 bg-white border border-slate-200 hover:bg-blue-600 hover:border-blue-600 hover:text-white text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
                     >
                       <Plus size={13} /> Ver Opções & Comprar
                     </button>
@@ -1370,7 +1370,7 @@ const isPromo = (jt: any) => {
           <div className="bg-white border-l border-slate-200 w-full max-w-md h-full flex flex-col text-slate-900 shadow-2xl relative">
             <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-200 border-slate-200 flex items-center justify-between bg-slate-50/40">
               <h3 className="font-bold text-lg flex items-center gap-2">
-                <ShoppingCart className="text-orange-600" />
+                <ShoppingCart className="text-blue-600" />
                 Cesta de Fornecedores
               </h3>
               <button 
@@ -1399,14 +1399,14 @@ const isPromo = (jt: any) => {
                           <div>
                             <h4 className="font-bold text-slate-800 text-sm line-clamp-1">{item.product.name}</h4>
                             {item.variation && (
-                              <p className="text-xs text-orange-600 font-bold mt-1">
+                              <p className="text-xs text-blue-600 font-bold mt-1">
                                 Opção: {item.variation.name}
                               </p>
                             )}
                             {item.selectedOptions && item.selectedOptions.length > 0 && (
                               <div className="mt-1 space-y-0.5">
                                 {item.selectedOptions.map(opt => (
-                                  <p key={opt.optionId} className="text-xs text-orange-600 font-bold">
+                                  <p key={opt.optionId} className="text-xs text-blue-600 font-bold">
                                     {opt.groupName}: <span className="text-slate-900">{opt.optionName}</span>
                                   </p>
                                 ))}
@@ -1468,7 +1468,7 @@ const isPromo = (jt: any) => {
 
                 <button
                   onClick={() => setIsCheckoutOpen(true)}
-                  className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5"
+                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5"
                 >
                   Continuar para Pagamento <ArrowRight size={16} />
                 </button>
@@ -1524,7 +1524,7 @@ const isPromo = (jt: any) => {
                     <div 
                       onClick={() => setDetailActiveImg(selectedItemForDetail.imageUrl || '')}
                       className={`w-14 h-14 bg-slate-50 rounded-xl overflow-hidden cursor-pointer border ${
-                        detailActiveImg === selectedItemForDetail.imageUrl ? 'border-orange-500' : 'border-slate-200'
+                        detailActiveImg === selectedItemForDetail.imageUrl ? 'border-blue-600 ring-2 ring-blue-600/20' : 'border-slate-200 hover:border-slate-300'
                       }`}
                     >
                       <img src={selectedItemForDetail.imageUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -1534,7 +1534,7 @@ const isPromo = (jt: any) => {
                         key={idx} 
                         onClick={() => setDetailActiveImg(url)}
                         className={`w-14 h-14 bg-slate-50 rounded-xl overflow-hidden cursor-pointer border ${
-                          detailActiveImg === url ? 'border-orange-500' : 'border-slate-200'
+                          detailActiveImg === url ? 'border-blue-600 ring-2 ring-blue-600/20' : 'border-slate-200 hover:border-slate-300'
                         }`}
                       >
                         <img src={url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -1558,7 +1558,7 @@ const isPromo = (jt: any) => {
                         {selectedItemForDetail.comboItems.map((c, i) => (
                           <div key={i} className="flex justify-between items-center text-xs">
                             <span className="text-slate-700">• {c.name}</span>
-                            <span className="text-[#EE4D2D] font-bold">x{c.quantity} un</span>
+                            <span className="text-blue-600 font-bold">x{c.quantity} un</span>
                           </div>
                         ))}
                       </div>
@@ -1582,7 +1582,7 @@ const isPromo = (jt: any) => {
                             }}
                             className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all ${
                               detailSelectedVar?.id === v.id 
-                                ? 'border-orange-500 bg-orange-500/10 text-orange-600' 
+                                ? 'border-blue-600 bg-blue-50 text-blue-600' 
                                 : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                             }`}
                           >
@@ -1641,7 +1641,7 @@ const isPromo = (jt: any) => {
                                   }}
                                   className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all flex flex-col items-start ${
                                     isSelected 
-                                      ? 'border-orange-500 bg-orange-500/10 text-orange-600' 
+                                      ? 'border-blue-600 bg-blue-50 text-blue-600' 
                                       : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                                   }`}
                                 >
@@ -1685,7 +1685,7 @@ const isPromo = (jt: any) => {
                       addToCart(selectedItemForDetail, detailSelectedVar, detailSelectedOptions);
                       setSelectedItemForDetail(null);
                     }}
-                    className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-600 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
                   >
                     <ShoppingCart size={16} /> Adicionar Esta Especificação à Cesta
                   </button>
@@ -1697,7 +1697,7 @@ const isPromo = (jt: any) => {
                       {selectedItemForDetail.description || 'Nenhum detalhe adicional fornecido para este produto.'}
                     </div>
                     {selectedItemForDetail.description && selectedItemForDetail.description.length > 150 && (
-                      <button onClick={() => setIsDescExpanded(!isDescExpanded)} className="text-orange-600 font-bold mt-2 text-xs">
+                      <button onClick={() => setIsDescExpanded(!isDescExpanded)} className="text-blue-600 hover:text-blue-700 font-bold mt-2 text-xs">
                         {isDescExpanded ? 'Ver menos' : 'Ver mais'}
                       </button>
                     )}
@@ -1955,7 +1955,7 @@ const isPromo = (jt: any) => {
               <button
                 type="submit"
                 disabled={isProcessing}
-                className="w-full py-3 bg-[#EE4D2D] hover:bg-orange-650 disabled:opacity-55 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-55 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1"
               >
                 {isProcessing ? 'Enviando...' : 'Confirmar e Enviar Pedido'}
               </button>
@@ -1986,7 +1986,7 @@ const isPromo = (jt: any) => {
 
             {orderSuccess.paymentMethod === 'PIX' ? (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
-                <span className="text-[10px] font-mono text-[#EE4D2D] uppercase font-black">PAGAMENTO VIA PIX (ASAAS)</span>
+                <span className="text-[10px] font-mono text-blue-600 uppercase font-black">PAGAMENTO VIA PIX (ASAAS)</span>
                 <div className="w-32 h-32 bg-white rounded-lg mx-auto flex items-center justify-center text-slate-900 text-xs font-mono font-bold">
                   [ QR CODE PIX ]
                 </div>
@@ -2001,7 +2001,7 @@ const isPromo = (jt: any) => {
             ) : (
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-3">
                 <p className="text-emerald-600 font-bold">Transação via Asaas Gerada!</p>
-                <a href={orderSuccess.asaasInvoiceUrl} target="_blank" rel="noreferrer" className="inline-block px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-colors">
+                <a href={orderSuccess.asaasInvoiceUrl} target="_blank" rel="noreferrer" className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors">
                   Acessar Fatura Asaas
                 </a>
                 <p className="text-slate-500">Verifique os detalhes na fatura do seu cartão ou acesse o link acima.</p>
@@ -2013,7 +2013,7 @@ const isPromo = (jt: any) => {
                 setOrderSuccess(null);
                 setIsCartOpen(false);
               }}
-              className="w-full py-2.5 bg-[#EE4D2D] hover:bg-orange-650 text-white font-bold rounded-xl transition-all"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all"
             >
               Voltar para Loja
             </button>

@@ -163,6 +163,8 @@ interface LogoProps extends React.SVGProps<SVGSVGElement> {
   showText?: boolean;
   variant?: 'light' | 'dark' | 'colored';
   padding?: string | number;
+  imgStyle?: React.CSSProperties;
+  imgClassName?: string;
 }
 
 
@@ -339,6 +341,8 @@ export const Logo: React.FC<LogoProps> = ({
   showText = true, 
   className = '',
   padding = -100,
+  imgStyle,
+  imgClassName,
   ...props
 }) => {
   // Determine standard colors for "Smile" and "ProX" parts based on theme variant
@@ -385,8 +389,8 @@ export const Logo: React.FC<LogoProps> = ({
         <img 
           src={finalCompletoUrl} 
           alt="Labprox Logo" 
-          style={{ height: wrapperHeight, width: 'auto' }}
-          className="object-contain max-w-full shrink-0"
+          style={{ height: wrapperHeight, width: typeof size === 'number' ? `${size}px` : 'auto', ...imgStyle }}
+          className={`object-contain max-w-full shrink-0 ${imgClassName || ''}`}
         />
       </div>
     );
