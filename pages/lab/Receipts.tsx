@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { matchesSearchQuery } from '../../utils/stringUtils';
 
 export const Receipts: React.FC = () => {
     const { currentUser, currentOrg, allUsers, manualDentists, updateOrganization } = useApp();
@@ -223,12 +224,16 @@ export const Receipts: React.FC = () => {
     }, [allUsers, manualDentists]);
 
     const filteredDentistSuggestions = useMemo(() => {
-        const querySearch = dentistSearch.toLowerCase();
-        // If searching, filter results
         return dentists.filter(d => 
-            d.name.toLowerCase().includes(querySearch) ||
-            (d.cpfCnpj && d.cpfCnpj.includes(querySearch)) ||
-            ((d as any).clinicName && (d as any).clinicName.toLowerCase().includes(querySearch))
+            matchesSearchQuery(
+                dentistSearch,
+                d.name,
+                d.cpfCnpj,
+                (d as any).clinicName,
+                (d as any).email,
+                (d as any).phone,
+                (d as any).whatsapp
+            )
         ).slice(0, 15);
     }, [dentists, dentistSearch]);
 

@@ -10,6 +10,7 @@ import {
 import * as XLSX from 'xlsx';
 import { GoogleGenAI } from "@google/genai";
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../../services/addressService';
+import { matchesSearchQuery } from '../../utils/stringUtils';
 
 export interface DentistCompletenessResult {
   isIncomplete: boolean;
@@ -86,6 +87,8 @@ export const DentistsTab = () => {
   const [isAddingDentist, setIsAddingDentist] = useState(false);
   const [editingDentistId, setEditingDentistId] = useState<string | null>(null);
   const [dentistSearch, setSearchTerm] = useState('');
+  const [priceTableFilter, setPriceTableFilter] = useState<string>('ALL');
+  const [customPricingFilter, setCustomPricingFilter] = useState<'ALL' | 'CUSTOM' | 'NOT_CUSTOM'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
   const [completenessFilter, setCompletenessFilter] = useState<'ALL' | 'INCOMPLETE' | 'COMPLETE' | 'MISSING_CPF' | 'MISSING_CRO' | 'MISSING_ADDRESS' | 'MISSING_EMAIL' | 'MISSING_PHONE'>('ALL');
 
@@ -496,12 +499,18 @@ export const DentistsTab = () => {
     return manualDentists.filter(d => {
       const comp = checkDentistCompleteness(d);
 
-      const matchesSearch = d.name.toLowerCase().includes(dentistSearch.toLowerCase()) || 
-        (d.cro || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
-        (d.cpfCnpj || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
-        (d.clinicName || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
-        (d.email || '').toLowerCase().includes(dentistSearch.toLowerCase()) ||
-        (d.phone || '').toLowerCase().includes(dentistSearch.toLowerCase());
+      const matchesSearch = matchesSearchQuery(
+        dentistSearch,
+        d.name,
+        d.cro,
+        d.cpfCnpj,
+        d.clinicName,
+        d.email,
+        d.phone,
+        d.whatsapp,
+        d.city,
+        d.address
+      );
 
       if (!matchesSearch) return false;
 
@@ -520,9 +529,25 @@ export const DentistsTab = () => {
       if (statusFilter === 'DEBT' && (!d.isBlocked || d.blockReason !== 'DEBT')) return false;
       if (statusFilter === 'FINANCIAL_APPROVAL' && (!d.isBlocked || d.blockReason !== 'FINANCIAL_APPROVAL')) return false;
 
+      // Price Table Base Filter
+      if (priceTableFilter !== 'ALL') {
+        if (priceTableFilter === 'GENERIC' || priceTableFilter === 'NONE') {
+          if (d.priceTableId) return false;
+        } else {
+          if (d.priceTableId !== priceTableFilter) return false;
+        }
+      }
+
+      // Custom Pricing Filter on top of base table
+      if (customPricingFilter !== 'ALL') {
+        const isCustom = Boolean(d.isCustomPricing || (d.customPrices && d.customPrices.length > 0));
+        if (customPricingFilter === 'CUSTOM' && !isCustom) return false;
+        if (customPricingFilter === 'NOT_CUSTOM' && isCustom) return false;
+      }
+
       return true;
     });
-  }, [manualDentists, dentistSearch, completenessFilter, statusFilter]);
+  }, [manualDentists, dentistSearch, completenessFilter, statusFilter, priceTableFilter, customPricingFilter]);
 
   const formCompleteness = useMemo(() => {
     return checkDentistCompleteness(formData);
@@ -612,8 +637,8 @@ export const DentistsTab = () => {
 
         {/* Filter Bar */}
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                <div className="relative md:col-span-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3">
+                <div className="relative md:col-span-3">
                     <Search className="absolute left-3.5 top-3 text-slate-400" size={18} />
                     <input 
                         placeholder="Filtrar por nome, CRO, CPF/CNPJ, clínica, e-mail..." 
@@ -621,6 +646,48 @@ export const DentistsTab = () => {
                         value={dentistSearch} 
                         onChange={e => setSearchTerm(e.target.value)}
                     />
+                </div>
+
+                {/* Filtro de Tabela Base */}
+                <div className="md:col-span-2">
+                    <select 
+                        value={priceTableFilter}
+                        onChange={e => setPriceTableFilter(e.target.value)}
+                        className={`w-full px-3 py-2.5 border rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                            priceTableFilter !== 'ALL' 
+                                ? 'bg-blue-50 border-blue-300 text-blue-900 font-black' 
+                                : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                        title="Tabela de Preços Base"
+                    >
+                        <option value="ALL">Tabela Base: Todas</option>
+                        <option value="GENERIC">🏛️ Tabela Genérica</option>
+                        {priceTables.length > 0 && (
+                            <optgroup label="Tabelas Cadastradas">
+                                {priceTables.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </optgroup>
+                        )}
+                    </select>
+                </div>
+
+                {/* Filtro de Personalização de Preço */}
+                <div className="md:col-span-2">
+                    <select 
+                        value={customPricingFilter}
+                        onChange={e => setCustomPricingFilter(e.target.value as any)}
+                        className={`w-full px-3 py-2.5 border rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                            customPricingFilter !== 'ALL' 
+                                ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-black' 
+                                : 'bg-white border-slate-200 text-slate-700'
+                        }`}
+                        title="Personalização em cima da tabela base"
+                    >
+                        <option value="ALL">Personalização: Todas</option>
+                        <option value="CUSTOM">🏷️ Preço Personalizado</option>
+                        <option value="NOT_CUSTOM">📋 Sem Personalização</option>
+                    </select>
                 </div>
 
                 <div className="md:col-span-3">
@@ -644,40 +711,71 @@ export const DentistsTab = () => {
                     </select>
                 </div>
 
-                <div className="md:col-span-3">
+                <div className="md:col-span-2">
                     <select 
                         value={statusFilter}
                         onChange={e => setStatusFilter(e.target.value as any)}
                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        <option value="ALL">Status da Conta: Todos</option>
+                        <option value="ALL">Status: Todos</option>
                         <option value="ACTIVE">Clientes Ativos</option>
-                        <option value="BLOCKED">Todos os Bloqueados</option>
-                        <option value="DEBT">Bloqueados por Inadimplência</option>
-                        <option value="FINANCIAL_APPROVAL">Bloqueados por Análise</option>
+                        <option value="BLOCKED">Todos Bloqueados</option>
+                        <option value="DEBT">Inadimplência</option>
+                        <option value="FINANCIAL_APPROVAL">Em Análise</option>
                     </select>
                 </div>
             </div>
 
-            {completenessFilter !== 'ALL' && (
-                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2 text-amber-800 font-bold">
-                        <Filter size={14} className="text-amber-600" />
-                        <span>Filtro de cadastro ativo: <strong>{
-                            completenessFilter === 'INCOMPLETE' ? 'Apenas Cadastros Incompletos' :
-                            completenessFilter === 'COMPLETE' ? 'Apenas Cadastros Completos' :
-                            completenessFilter === 'MISSING_CPF' ? 'Faltando CPF/CNPJ' :
-                            completenessFilter === 'MISSING_CRO' ? 'Faltando CRO' :
-                            completenessFilter === 'MISSING_ADDRESS' ? 'Faltando Endereço' :
-                            completenessFilter === 'MISSING_EMAIL' ? 'Faltando E-mail' : 'Faltando Telefone'
-                        }</strong> ({filteredDentists.length} clientes encontrados)</span>
+            {(completenessFilter !== 'ALL' || priceTableFilter !== 'ALL' || customPricingFilter !== 'ALL' || statusFilter !== 'ALL' || Boolean(dentistSearch.trim())) && (
+                <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs flex-wrap gap-2">
+                    <div className="flex items-center gap-2 text-slate-700 font-bold flex-wrap">
+                        <Filter size={14} className="text-blue-600 shrink-0" />
+                        <span>Filtros ativos:</span>
+                        {priceTableFilter !== 'ALL' && (
+                            <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg text-[11px] font-extrabold">
+                                Base: {priceTableFilter === 'GENERIC' ? 'Tabela Genérica' : (priceTables.find(t => t.id === priceTableFilter)?.name || priceTableFilter)}
+                            </span>
+                        )}
+                        {customPricingFilter !== 'ALL' && (
+                            <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg text-[11px] font-extrabold">
+                                {customPricingFilter === 'CUSTOM' ? 'Preços Personalizados' : 'Sem Personalização'}
+                            </span>
+                        )}
+                        {completenessFilter !== 'ALL' && (
+                            <span className="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-lg text-[11px] font-extrabold">
+                                Cadastro: {
+                                    completenessFilter === 'INCOMPLETE' ? 'Incompletos' :
+                                    completenessFilter === 'COMPLETE' ? 'Completos' :
+                                    completenessFilter === 'MISSING_CPF' ? 'Falta CPF/CNPJ' :
+                                    completenessFilter === 'MISSING_CRO' ? 'Falta CRO' :
+                                    completenessFilter === 'MISSING_ADDRESS' ? 'Falta Endereço' :
+                                    completenessFilter === 'MISSING_EMAIL' ? 'Falta E-mail' : 'Falta Telefone'
+                                }
+                            </span>
+                        )}
+                        {statusFilter !== 'ALL' && (
+                            <span className="bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-lg text-[11px] font-extrabold">
+                                Status: {
+                                    statusFilter === 'ACTIVE' ? 'Ativos' :
+                                    statusFilter === 'BLOCKED' ? 'Bloqueados' :
+                                    statusFilter === 'DEBT' ? 'Inadimplência' : 'Análise'
+                                }
+                            </span>
+                        )}
+                        <span className="text-slate-500 font-medium">({filteredDentists.length} clientes encontrados)</span>
                     </div>
                     <button 
                         type="button" 
-                        onClick={() => setCompletenessFilter('ALL')}
+                        onClick={() => {
+                            setCompletenessFilter('ALL');
+                            setPriceTableFilter('ALL');
+                            setCustomPricingFilter('ALL');
+                            setStatusFilter('ALL');
+                            setSearchTerm('');
+                        }}
                         className="text-blue-600 hover:text-blue-800 font-black uppercase text-[10px] cursor-pointer"
                     >
-                        Limpar Filtro
+                        Limpar Filtros
                     </button>
                 </div>
             )}
@@ -1180,7 +1278,7 @@ export const DentistsTab = () => {
                                         onChange={handleInputChange}
                                         className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
                                     >
-                                        <option value="">Tabela Padrão (Sem tabela base)</option>
+                                        <option value="">Tabela Genérica (Padrão do Laboratório)</option>
                                         {priceTables.map(table => (
                                             <option key={table.id} value={table.id}>{table.name}</option>
                                         ))}

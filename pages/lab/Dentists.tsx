@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDentistJobs, subscribeDentistJobs } from '../../services/firebaseService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { matchesSearchQuery } from '../../utils/stringUtils';
 
 const translatePaymentMethod = (method: string) => {
     switch (method) {
@@ -32,6 +33,7 @@ export const Dentists = () => {
     const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'DEBT' | 'FINANCIAL_APPROVAL'>('ALL');
     const [clientTypeFilter, setClientTypeFilter] = useState<'ALL' | 'PESSOA_FISICA' | 'CLINICA' | 'LABORATORIO'>('ALL');
     const [priceTableFilter, setPriceTableFilter] = useState<string>('ALL');
+    const [customPricingFilter, setCustomPricingFilter] = useState<'ALL' | 'CUSTOM' | 'NOT_CUSTOM'>('ALL');
 
     const hasPerm = (perm: string) => {
         if (currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN) return true;
@@ -339,15 +341,35 @@ export const Dentists = () => {
 
     const filtered = useMemo(() => {
         return combinedClients.filter(d => {
-            const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                (d.clinicName || '').toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = matchesSearchQuery(
+                searchTerm,
+                d.name,
+                d.clinicName,
+                d.email,
+                d.phone,
+                d.whatsapp,
+                d.cro,
+                d.cpfCnpj
+            );
             
             if (!matchesSearch) return false;
 
             if (clientTypeFilter !== 'ALL' && d.clientType !== clientTypeFilter) return false;
+            
+            // Filtro por Tabela Base Usada
             if (priceTableFilter !== 'ALL') {
-                if (priceTableFilter === 'NONE' && d.priceTableId) return false;
-                if (priceTableFilter !== 'NONE' && d.priceTableId !== priceTableFilter) return false;
+                if (priceTableFilter === 'GENERIC' || priceTableFilter === 'NONE') {
+                    if (d.priceTableId) return false;
+                } else {
+                    if (d.priceTableId !== priceTableFilter) return false;
+                }
+            }
+
+            // Filtro de Personalização de Preço em cima da tabela base
+            if (customPricingFilter !== 'ALL') {
+                const isCustom = Boolean(d.isCustomPricing || (d.customPrices && d.customPrices.length > 0));
+                if (customPricingFilter === 'CUSTOM' && !isCustom) return false;
+                if (customPricingFilter === 'NOT_CUSTOM' && isCustom) return false;
             }
 
             if (statusFilter === 'ALL') return true;
@@ -358,7 +380,7 @@ export const Dentists = () => {
 
             return true;
         });
-    }, [combinedClients, searchTerm, statusFilter, clientTypeFilter, priceTableFilter]);
+    }, [combinedClients, searchTerm, statusFilter, clientTypeFilter, priceTableFilter, customPricingFilter]);
 
     // Advanced chronological statement with previous balance
     const chronoHistory = useMemo(() => {
@@ -769,10 +791,16 @@ export const Dentists = () => {
             }
         };
 
-        const getPriceTableName = (tableId?: string) => {
-            if (!tableId) return 'Tabela Padrão';
-            const table = priceTables.find(t => t.id === tableId);
-            return table ? table.name : 'Tabela Personalizada';
+        const getPriceTableName = (client: any) => {
+            const isCustom = Boolean(client.isCustomPricing || (client.customPrices && client.customPrices.length > 0));
+            const baseTableName = client.priceTableId 
+                ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Tabela Vinculada') 
+                : 'Tabela Genérica';
+
+            if (isCustom) {
+                return `Personalizada (Base: ${baseTableName})`;
+            }
+            return baseTableName;
         };
 
         const getStatusLabel = (client: any) => {
@@ -797,7 +825,7 @@ export const Dentists = () => {
             const typeLabel = getClientTypeLabel(client.clientType);
             const clinic = client.clinicName || '-';
             const doc = client.cpfCnpj || '-';
-            const tableName = getPriceTableName(client.priceTableId);
+            const tableName = getPriceTableName(client);
             const discount = `${client.globalDiscountPercent || 0}%`;
             const billingLimit = client.billingLimit ? `R$ ${Number(client.billingLimit).toFixed(2)}` : 'Sem Limite';
             const status = getStatusLabel(client);
@@ -848,12 +876,13 @@ export const Dentists = () => {
         };
     }, [chronoHistory, billingBatches, statementClient]);
 
-    const hasActiveFilters = Boolean(searchTerm.trim()) || clientTypeFilter !== 'ALL' || priceTableFilter !== 'ALL' || statusFilter !== 'ALL';
+    const hasActiveFilters = Boolean(searchTerm.trim()) || clientTypeFilter !== 'ALL' || priceTableFilter !== 'ALL' || customPricingFilter !== 'ALL' || statusFilter !== 'ALL';
 
     const handleClearFilters = () => {
         setSearchTerm('');
         setClientTypeFilter('ALL');
         setPriceTableFilter('ALL');
+        setCustomPricingFilter('ALL');
         setStatusFilter('ALL');
     };
 
@@ -921,17 +950,45 @@ export const Dentists = () => {
                             <option value="PESSOA_FISICA">Pessoa Física</option>
                             <option value="LABORATORIO">Laboratório</option>
                         </select>
+
+                        {/* Filtro de Tabela Base */}
                         <select 
                             value={priceTableFilter}
                             onChange={e => setPriceTableFilter(e.target.value)}
-                            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold bg-white text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+                            className={`px-4 py-2 border rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
+                                priceTableFilter !== 'ALL'
+                                    ? 'bg-blue-50 border-blue-300 text-blue-900 font-extrabold shadow-xs'
+                                    : 'bg-white border-slate-200 text-slate-700'
+                            }`}
+                            title="Filtrar pela tabela de preços base associada ao cliente"
                         >
-                            <option value="ALL">Todas as Tabelas</option>
-                            <option value="NONE">Sem Tabela (Padrão)</option>
-                            {priceTables.map(t => (
-                                <option key={t.id} value={t.id}>{t.name}</option>
-                            ))}
+                            <option value="ALL">Tabela Base: Todas</option>
+                            <option value="GENERIC">🏛️ Tabela Genérica (Padrão)</option>
+                            {priceTables.length > 0 && (
+                                <optgroup label="Tabelas Cadastradas">
+                                    {priceTables.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </optgroup>
+                            )}
                         </select>
+
+                        {/* Filtro Separado de Personalização */}
+                        <select 
+                            value={customPricingFilter}
+                            onChange={e => setCustomPricingFilter(e.target.value as any)}
+                            className={`px-4 py-2 border rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${
+                                customPricingFilter !== 'ALL'
+                                    ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-extrabold shadow-xs'
+                                    : 'bg-white border-slate-200 text-slate-700'
+                            }`}
+                            title="Filtrar se possui preços personalizados individualmente em cima da tabela base"
+                        >
+                            <option value="ALL">Personalização: Todas</option>
+                            <option value="CUSTOM">🏷️ Preços Personalizados</option>
+                            <option value="NOT_CUSTOM">📋 Sem Personalização (Preço Direto)</option>
+                        </select>
+
                         <select 
                             value={statusFilter}
                             onChange={e => setStatusFilter(e.target.value as any)}
@@ -1028,8 +1085,27 @@ export const Dentists = () => {
 
                         <div className="space-y-3 py-4 border-y border-slate-50">
                             <div className="flex justify-between items-center text-sm">
+                                <span className="text-slate-500">Tabela de Preços:</span>
+                                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                                    {(client.isCustomPricing || (client.customPrices && client.customPrices.length > 0)) ? (
+                                        <span className="font-bold text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-lg flex items-center gap-1" title={`Preços personalizados individualmente (Base: ${client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : 'Tabela Genérica'})`}>
+                                            <Tag size={12} className="text-indigo-500 shrink-0" /> Personalizada
+                                            <span className="text-[10px] text-indigo-500 font-medium">({client.priceTableId ? (priceTables.find(t => t.id === client.priceTableId)?.name || 'Específica') : 'Genérica'})</span>
+                                        </span>
+                                    ) : client.priceTableId ? (
+                                        <span className="font-bold text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1 max-w-[180px] truncate" title="Tabela de preço vinculada">
+                                            <Table size={12} className="text-blue-500 shrink-0" /> <span className="truncate">{priceTables.find(t => t.id === client.priceTableId)?.name || 'Tabela Especial'}</span>
+                                        </span>
+                                    ) : (
+                                        <span className="font-bold text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg">
+                                            Tabela Genérica
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
                                 <span className="text-slate-500">Desconto Global:</span>
-                                <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{client.globalDiscountPercent}%</span>
+                                <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">{client.globalDiscountPercent || 0}%</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-slate-500">Logística:</span>
@@ -1183,7 +1259,7 @@ export const Dentists = () => {
                                             onChange={e => setPriceTableId(e.target.value)}
                                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-slate-700"
                                         >
-                                            <option value="">Tabela Padrão do Laboratório</option>
+                                            <option value="">Tabela Genérica (Padrão do Laboratório)</option>
                                             {priceTables.map(table => (
                                                 <option key={table.id} value={table.id}>{table.name}</option>
                                             ))}
@@ -1476,7 +1552,7 @@ export const Dentists = () => {
                                                     <DollarSign size={14}/> Preços e Descontos Individuais
                                                 </h4>
                                                 <span className="text-[10px] text-slate-400 font-bold">
-                                                    Valores base herdados de: {priceTables.find(t => t.id === priceTableId)?.name || 'Tabela Padrão'}
+                                                    Valores base herdados de: {priceTables.find(t => t.id === priceTableId)?.name || 'Tabela Genérica'}
                                                 </span>
                                             </div>
                                             

@@ -419,7 +419,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
           selectedDentistObj,
           priceTables
         );
-        let appliedTableName = 'Tabela Padrão';
+        let appliedTableName = 'Tabela Genérica';
         if (selectedDentistObj?.isCustomPricing) {
             appliedTableName = 'Customizado (Dentista)';
         } else if (selectedDentistObj?.priceTableId) {
@@ -755,7 +755,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
     if (!activeJobType) return;
     const allSelectedOptionIds = Object.values(selectedVariations).flat() as string[];
     
-    let appliedTableName = 'Tabela Padrão';
+    let appliedTableName = 'Tabela Genérica';
     if (selectedDentistObj?.isCustomPricing) {
         appliedTableName = 'Customizado (Dentista)';
     } else if (selectedDentistObj?.priceTableId) {
