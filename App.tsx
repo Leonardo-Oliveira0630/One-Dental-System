@@ -35,6 +35,7 @@ import { Finance } from './pages/lab/Finance';
 import { Receipts } from './pages/lab/Receipts';
 import { RoutePlanner } from './pages/lab/RoutePlanner';
 import { Inventory } from './pages/lab/Inventory';
+import { Kanban } from './pages/lab/Kanban';
 import { PriceTables } from './pages/lab/PriceTables';
 import { IncomingRequisitions } from './pages/lab/IncomingRequisitions';
 import { DentistRequisitions } from './pages/dentist/DentistRequisitions';
@@ -181,6 +182,7 @@ const AppContent = () => {
       
       <Route path="/lab/dentists" element={<ProtectedRoute><Dentists /></ProtectedRoute>} />
       <Route path="/lab/finance" element={<ProtectedRoute><Finance /></ProtectedRoute>} />
+      <Route path="/lab/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
       <Route path="/lab/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
       <Route path="/lab/logistics" element={<ProtectedRoute><RoutePlanner /></ProtectedRoute>} />
       <Route path="/lab/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />

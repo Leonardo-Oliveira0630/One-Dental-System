@@ -8,7 +8,7 @@ import {
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList, Cpu
-, ChevronLeft, MessageSquare} from 'lucide-react';
+, ChevronLeft, MessageSquare, Columns} from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner, ManualScannerInput } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
@@ -336,6 +336,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                             {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-budget" icon={<PlusCircle size={20} />} label="Novo Orçamento" active={location.pathname === '/new-budget'} />}
                             {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/budgets" icon={<FileText size={20} />} label="Orçamentos" active={location.pathname === '/budgets'} />}
                             {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
+                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/kanban" icon={<Columns size={20} />} label="Kanban" active={location.pathname === '/lab/kanban'} />}
                             {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
                             {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
                             {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label="Relatórios" active={location.pathname === '/reports'} />}
