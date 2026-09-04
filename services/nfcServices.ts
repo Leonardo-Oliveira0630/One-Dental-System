@@ -255,27 +255,48 @@ export const NfcReaderService = {
         const isSupported = await Nfc.isSupported();
         if (!isSupported.supported) throw new Error('NFC não suportado.');
         
-        await (Nfc as any).startScanSession();
+        await Nfc.startScanning();
         
-        (Nfc as any).addListener('nfcTagScanned', (event: any) => {
+        const handleNativeTag = (event: any) => {
+          const tag = event.tag || event;
           let textValue = '';
-          const uid = event.id ? event.id.map((b: number) => b.toString(16).padStart(2, '0')).join('').toUpperCase() : '';
+          let uid = '';
+          if (tag.id && Array.isArray(tag.id)) {
+            uid = tag.id.map((b: number) => (b & 0xFF).toString(16).padStart(2, '0')).join('').toUpperCase();
+          } else if (typeof tag.id === 'string') {
+            uid = tag.id.replace(/:/g, '').toUpperCase();
+          }
           
-          if (event.messages && event.messages.length > 0) {
-            for (const record of event.messages[0].records) {
-              if (record.type && String.fromCharCode(...record.type) === 'T' && record.payload) {
-                 textValue = String.fromCharCode(...record.payload).substring(3);
-                 break;
+          const messages = tag.ndefMessage || tag.messages || [];
+          if (Array.isArray(messages) && messages.length > 0) {
+            for (const record of messages) {
+              if (record.payload && Array.isArray(record.payload)) {
+                try {
+                  const bytes = record.payload;
+                  const langLen = (bytes[0] || 0) & 0x3F;
+                  if (bytes.length > 1 + langLen) {
+                    textValue = String.fromCharCode(...bytes.slice(1 + langLen));
+                  } else {
+                    textValue = String.fromCharCode(...bytes);
+                  }
+                  if (textValue) break;
+                } catch(e) {}
               }
             }
           }
           onScan(uid, textValue);
-        });
+        };
+
+        (Nfc as any).addListener('nfcEvent', handleNativeTag);
+        (Nfc as any).addListener('tagDiscovered', handleNativeTag);
+        (Nfc as any).addListener('ndefDiscovered', handleNativeTag);
         
         if (signal) {
           signal.addEventListener('abort', () => {
-             (Nfc as any).stopScanSession();
-             (Nfc as any).removeAllListeners();
+             try {
+               Nfc.stopScanning();
+               (Nfc as any).removeAllListeners();
+             } catch(e){}
           });
         }
       } else {

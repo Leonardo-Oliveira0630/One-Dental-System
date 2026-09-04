@@ -159,27 +159,45 @@ export const GlobalScanner: React.FC = () => {
           const isSupported = await Nfc.isSupported();
           if (!isSupported.supported) throw new Error('NFC nativo não suportado.');
           
-          await (Nfc as any).startScanSession();
+          await Nfc.startScanning();
           setNfcStatus('scanning');
-          console.log("Native NFC Scanner started successfully!");
+          console.log("[Native NFC] Scanner started successfully with startScanning!");
           
-          (Nfc as any).addListener('nfcTagScanned', (event: any) => {
-            const serialNumber = event.id ? event.id.map((b: any) => b.toString(16).padStart(2, '0')).join('').toUpperCase() : '';
-            console.log("[Native NFC] Tag detected. SerialNumber:", serialNumber);
+          const handleNativeTag = (event: any) => {
+            const tag = event.tag || event;
+            let serialNumber = '';
+            if (tag.id && Array.isArray(tag.id)) {
+              serialNumber = tag.id.map((b: number) => (b & 0xFF).toString(16).padStart(2, '0')).join('').toUpperCase();
+            } else if (typeof tag.id === 'string') {
+              serialNumber = tag.id.replace(/:/g, '').toUpperCase();
+            }
+
+            console.log("[Native NFC] Tag detected. SerialNumber:", serialNumber, "Event:", event);
             
             let textValue = '';
-            if (event.messages && event.messages.length > 0) {
-              for (const record of event.messages[0].records) {
-                if (record.type && String.fromCharCode(...record.type) === 'T' && record.payload) {
-                   textValue = String.fromCharCode(...record.payload).substring(3);
-                   break;
+            const messages = tag.ndefMessage || tag.messages || [];
+            if (Array.isArray(messages) && messages.length > 0) {
+              for (const record of messages) {
+                if (record.payload && Array.isArray(record.payload)) {
+                  try {
+                    const bytes = record.payload;
+                    const langLen = (bytes[0] || 0) & 0x3F;
+                    if (bytes.length > 1 + langLen) {
+                      textValue = String.fromCharCode(...bytes.slice(1 + langLen));
+                    } else {
+                      textValue = String.fromCharCode(...bytes);
+                    }
+                    if (textValue) break;
+                  } catch (e) {
+                    console.warn("Could not decode NDEF payload", e);
+                  }
                 }
               }
             }
             
             if (navigator.vibrate) navigator.vibrate(50);
             
-            let cleanSerialNumber = serialNumber.replace(/:/g, "").toUpperCase();
+            let cleanSerialNumber = (serialNumber || '').replace(/:/g, "").toUpperCase();
             let cleanText = textValue ? textValue.toUpperCase().trim() : '';
             
             if (cleanText.startsWith('BOX-')) {
@@ -188,16 +206,19 @@ export const GlobalScanner: React.FC = () => {
             
             if (cleanSerialNumber || cleanText) {
                 processScan(cleanSerialNumber || cleanText);
-                // removed isNfcSupported
                 setIsCameraActive(false);
-                (Nfc as any).stopScanSession();
-                (Nfc as any).removeAllListeners();
             }
-          });
+          };
+
+          (Nfc as any).addListener('nfcEvent', handleNativeTag);
+          (Nfc as any).addListener('tagDiscovered', handleNativeTag);
+          (Nfc as any).addListener('ndefDiscovered', handleNativeTag);
           
           abortController.signal.addEventListener('abort', () => {
-             (Nfc as any).stopScanSession();
-             (Nfc as any).removeAllListeners();
+             try {
+               Nfc.stopScanning();
+               (Nfc as any).removeAllListeners();
+             } catch(e){}
           });
           
         } else if ('NDEFReader' in window) {
@@ -231,7 +252,6 @@ export const GlobalScanner: React.FC = () => {
             
             if (cleanSerialNumber || cleanText) {
                 processScan(cleanSerialNumber || cleanText);
-                // removed isNfcSupported
                 setIsCameraActive(false);
             }
           });
@@ -251,7 +271,10 @@ export const GlobalScanner: React.FC = () => {
     return () => {
       abortController.abort();
       if (Capacitor.isNativePlatform()) {
-         try { (Nfc as any).stopScanSession(); (Nfc as any).removeAllListeners(); } catch(e){}
+         try {
+           Nfc.stopScanning();
+           (Nfc as any).removeAllListeners();
+         } catch(e){}
       }
     };
   }, [isNfcSupported, isNfcSupported]);
