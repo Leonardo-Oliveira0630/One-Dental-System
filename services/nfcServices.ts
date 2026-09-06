@@ -64,13 +64,15 @@ export function convertCanonicalHexToOldReaderDecimal(hexStr: string): string {
 export function convertOldReaderDecimalToHex(decimalStr: string): {
   hex4Bytes: string;
   invertedHex: string;
+  directHex: string;
 } {
   const clean = (decimalStr || '').trim().replace(/[^0-9]/g, '');
-  if (!clean) return { hex4Bytes: '', invertedHex: '' };
+  if (!clean) return { hex4Bytes: '', invertedHex: '', directHex: '' };
   try {
     const bigVal = BigInt(clean);
     // Converte para 8 caracteres hexadecimais (32 bits unsigned)
     const invertedHex = bigVal.toString(16).padStart(8, '0').toUpperCase(); // ex: "7DDE2704"
+    const directHex = invertedHex; // para uso direto se não tiver sido invertido
     const bytes = [
       invertedHex.substring(0, 2),
       invertedHex.substring(2, 4),
@@ -78,9 +80,9 @@ export function convertOldReaderDecimalToHex(decimalStr: string): {
       invertedHex.substring(6, 8)
     ];
     const hex4Bytes = bytes.reverse().join(''); // ex: "0427DE7D"
-    return { hex4Bytes, invertedHex };
+    return { hex4Bytes, invertedHex, directHex };
   } catch {
-    return { hex4Bytes: '', invertedHex: '' };
+    return { hex4Bytes: '', invertedHex: '', directHex: '' };
   }
 }
 
@@ -113,6 +115,10 @@ export function getNfcUidFormats(uidInput: string): {
   const candidates = new Set<string>();
   candidates.add(raw);
   candidates.add(uidInput.trim().toUpperCase());
+  
+  // Adiciona a versão sem zeros à esquerda para tolerância
+  const rawNoZeros = raw.replace(/^0+/, '');
+  if (rawNoZeros) candidates.add(rawNoZeros);
 
   let uidHex = '';
   let uidDecimal = '';
@@ -126,6 +132,8 @@ export function getNfcUidFormats(uidInput: string): {
   if (isNumericOnly) {
     try {
       const bigVal = BigInt(raw);
+      candidates.add(bigVal.toString(10));
+      
       // Se for um decimal de até 32 bits (<= 4294967295), é o formato do leitor antigo
       if (bigVal <= 4294967295n) {
         isOldReaderFormat = true;
@@ -138,6 +146,7 @@ export function getNfcUidFormats(uidInput: string): {
         candidates.add(uidDecimal);
         if (uid4ByteHex) candidates.add(uid4ByteHex);
         if (invertedHex) candidates.add(invertedHex);
+        if (converted.directHex) candidates.add(converted.directHex);
 
         const pairs = uid4ByteHex.match(/.{1,2}/g) || [];
         if (pairs.length > 1) {
@@ -150,6 +159,12 @@ export function getNfcUidFormats(uidInput: string): {
         if (hex.length % 2 !== 0) hex = '0' + hex;
         uidHex = hex;
         candidates.add(hex);
+        
+        // Inverte os bytes se possível
+        const pairs = hex.match(/.{1,2}/g) || [];
+        if (pairs.length > 0) {
+          candidates.add([...pairs].reverse().join(''));
+        }
       }
     } catch {}
   } else if (isHexOnly) {
@@ -163,6 +178,12 @@ export function getNfcUidFormats(uidInput: string): {
       if (uidDecimal) {
         candidates.add(uidDecimal);
       }
+      
+      // Tentativa direta
+      try {
+        const directDec = BigInt('0x' + uid4ByteHex).toString(10);
+        candidates.add(directDec);
+      } catch {}
 
       const bytes = [
         uid4ByteHex.substring(0, 2),
@@ -202,7 +223,8 @@ export function getNfcUidFormats(uidInput: string): {
 export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox | undefined {
   if (!scannedCode || !boxes || boxes.length === 0) return undefined;
 
-  const cleanInput = scannedCode.trim().toUpperCase().replace(/[:\s-]/g, '');
+  const rawUpper = scannedCode.trim().toUpperCase();
+  const cleanInput = rawUpper.replace(/[:\s-]/g, '');
   const formats = getNfcUidFormats(cleanInput);
 
   // 1. Busca por correspondência exata de candidatos de UID
@@ -226,6 +248,11 @@ export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox
         return box;
       }
     }
+    
+    // 2.1 Verifica inversão
+    if (formats.invertedHex && boxFormats.uidHex && boxFormats.uidHex.startsWith(formats.invertedHex)) {
+      return box;
+    }
   }
 
   // 3. Busca por número de caixa (ex: "001", "1", ou número direto)
@@ -235,9 +262,19 @@ export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox
     if (cleanBoxNum && cleanBoxNum === cleanNumInput) {
       return box;
     }
-    const cleanText = (box.textoGravado || '').trim().toUpperCase();
-    if (cleanText && (cleanText === cleanInput || cleanInput.includes(cleanText))) {
+    
+    // 4. Busca por textoNfc amigável (ignorando traços e formatação)
+    const cleanText = (box.textoGravado || '').trim().toUpperCase().replace(/[:\s-]/g, '');
+    if (cleanText && (cleanText === cleanInput || cleanInput.includes(cleanText) || cleanText.includes(cleanInput))) {
       return box;
+    }
+    
+    // Tratamento para digitar apenas o prefixo BOX
+    if (cleanText.startsWith('BOX')) {
+      const bNum = cleanText.replace('BOX', '').replace(/^0+/, '');
+      if (bNum === cleanNumInput) {
+         return box;
+      }
     }
   }
 
