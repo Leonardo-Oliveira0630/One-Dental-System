@@ -390,7 +390,10 @@ export const GlobalScanner: React.FC = () => {
             const activeJobWithBox = jobsRef.current.find(j => {
                 if (!j.boxNumber) return false;
                 const box = String(j.boxNumber).trim().toUpperCase();
-                return box === searchBoxNumber || box === rawCode || box === cleanedCode;
+                const cleanBox = box.replace(/^0+/, '');
+                const cleanSearch = searchBoxNumber.replace(/^0+/, '');
+                
+                return box === searchBoxNumber || cleanBox === cleanSearch || box === rawCode || cleanBox === cleanedCode;
             });
             
             if (activeJobWithBox && !['COMPLETED', 'DELIVERED', 'CANCELED', 'REJECTED'].includes(activeJobWithBox.status)) {
