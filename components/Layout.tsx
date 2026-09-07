@@ -513,7 +513,18 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <>
               <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
-                 <button onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('open-scanner')); }} className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform">
+                 <button 
+                    id="btn-mobile-bottom-camera-scanner"
+                    type="button"
+                    onClick={(e) => { 
+                      e.preventDefault(); 
+                      e.stopPropagation();
+                      window.dispatchEvent(new CustomEvent('open-scanner')); 
+                    }} 
+                    className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform cursor-pointer"
+                    title="Ler Código de Barras (Ficha A4)"
+                    aria-label="Ler Código de Barras da Ficha A4"
+                 >
                     <Camera size={28}/>
                  </button>
               </div>

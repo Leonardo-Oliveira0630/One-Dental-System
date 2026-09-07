@@ -17,6 +17,7 @@ import { CaseApprovalSystem } from '../components/CaseApprovalSystem';
 import { AttachmentPreviewModal, handleDownloadFile } from '../components/AttachmentPreviewModal';
 import { calculateItemCommission } from '../utils/commissionUtils';
 import { WebcamModal } from '../components/WebcamModal';
+import { capturePhotoWithNativePreference } from '../utils/cameraUtils';
 import { formatTeethRange } from '../utils/toothUtils';
 import { smartCompress } from '../services/compressionService';
 import * as api from '../services/firebaseService';
@@ -299,6 +300,17 @@ export const JobDetails = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isWebcamOpen, setIsWebcamOpen] = useState(false);
   const [uploadProgressMsg, setUploadProgressMsg] = useState('');
+
+  const handleTakePhotoClick = async () => {
+    await capturePhotoWithNativePreference(
+      (file) => {
+        setSelectedFiles(prev => [...prev, file]);
+      },
+      () => {
+        setIsWebcamOpen(true);
+      }
+    );
+  };
 
   const [routeInfo, setRouteInfo] = useState<DeliveryRoute | null>(null);
   const [routeDriver, setRouteDriver] = useState('');
@@ -3403,7 +3415,7 @@ export const JobDetails = () => {
                                     </div>
                                 </div>
                                 <button 
-                                    onClick={() => setIsWebcamOpen(true)}
+                                    onClick={handleTakePhotoClick}
                                     disabled={isUploadingFiles}
                                     className="w-24 p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50 group hover:border-blue-400 hover:bg-blue-50/50 transition-all flex flex-col items-center justify-center gap-2 shrink-0 disabled:opacity-50"
                                 >
@@ -3856,6 +3868,7 @@ export const JobDetails = () => {
       
       {isWebcamOpen && (
         <WebcamModal 
+          title="Foto para o Caso"
           onClose={() => setIsWebcamOpen(false)}
           onCapture={(file) => {
             setSelectedFiles(prev => [...prev, file]);

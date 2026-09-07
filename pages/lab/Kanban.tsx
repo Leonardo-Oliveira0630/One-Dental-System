@@ -34,7 +34,7 @@ export const Kanban = () => {
   // Filtra apenas os trabalhos ativos (não entregues e não cancelados)
   const allActiveJobs = useMemo(() => {
     return jobs.filter(
-      job => job.status !== JobStatus.DELIVERED && job.status !== JobStatus.CANCELLED
+      job => job.status !== JobStatus.DELIVERED && job.status !== JobStatus.CANCELED
     );
   }, [jobs]);
 

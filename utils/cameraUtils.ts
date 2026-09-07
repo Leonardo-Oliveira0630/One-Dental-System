@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+
 export interface CameraDevice {
     deviceId: string;
     label: string;
@@ -95,4 +98,55 @@ export const getSmartCameraSelection = (cameras: CameraDevice[]): string | undef
     }
 
     return bestCamera ? bestCamera.deviceId : candidates[0]?.deviceId;
+};
+
+export const capturePhotoWithNativePreference = async (
+    onCaptured: (file: File) => void,
+    onOpenModalFallback: () => void
+): Promise<void> => {
+    if (Capacitor.isNativePlatform()) {
+        try {
+            // First check & request camera permission if needed
+            try {
+                const perm = await Camera.checkPermissions();
+                if (perm.camera !== 'granted') {
+                    await Camera.requestPermissions({ permissions: ['camera'] });
+                }
+            } catch (pErr) {
+                console.warn("Could not check/request native permissions:", pErr);
+            }
+
+            const photo = await Camera.getPhoto({
+                quality: 92,
+                allowEditing: false,
+                resultType: CameraResultType.Uri,
+                source: CameraSource.Camera
+            });
+
+            if (photo && photo.webPath) {
+                const response = await fetch(photo.webPath);
+                const blob = await response.blob();
+                const ext = photo.format || 'jpg';
+                const file = new File(
+                    [blob],
+                    `foto-caso-${Date.now()}.${ext}`,
+                    { type: `image/${ext === 'png' ? 'png' : 'jpeg'}` }
+                );
+                onCaptured(file);
+                return;
+            }
+        } catch (err: any) {
+            const errStr = (err?.message || err?.toString() || '').toLowerCase();
+            // If the user cancelled the camera app, do nothing
+            if (errStr.includes('cancelled') || errStr.includes('cancel') || errStr.includes('user cancelled')) {
+                return;
+            }
+            console.warn("Native camera failed, falling back to camera modal:", err);
+            onOpenModalFallback();
+            return;
+        }
+    }
+
+    // On web / desktop or if fallback needed:
+    onOpenModalFallback();
 };

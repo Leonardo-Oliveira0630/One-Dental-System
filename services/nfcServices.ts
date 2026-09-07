@@ -452,6 +452,17 @@ export const KitService = {
     const formats = getNfcUidFormats(box.uid || '');
     const canonicalUid = formats.uidHex || box.uid;
     const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', String(box.numeroCaixa));
+
+    const kitRef = doc(db, 'nfc_kits', kitId);
+    const kitSnap = await getDoc(kitRef);
+    if (!kitSnap.exists()) {
+        throw new Error('Kit não encontrado');
+    }
+    const kitData = kitSnap.data() as NfcKit;
+
+    const oldBoxSnap = await getDoc(boxRef);
+    const oldBoxData = oldBoxSnap.exists() ? oldBoxSnap.data() as NfcBox : null;
+
     const boxData = {
       ...box,
       uid: canonicalUid,
@@ -460,12 +471,80 @@ export const KitService = {
       uid4ByteHex: formats.uid4ByteHex || '',
       updatedAt: new Date().toISOString()
     };
-    await setDoc(boxRef, boxData, { merge: true });
-
-    const kitRef = doc(db, 'nfc_kits', kitId);
-    await updateDoc(kitRef, {
+    
+    const batch = writeBatch(db);
+    batch.set(boxRef, boxData, { merge: true });
+    
+    batch.update(kitRef, {
       updatedAt: new Date().toISOString()
     });
+
+    if (kitData.status === 'Ativado' && kitData.activatedByOrgId) {
+       const orgId = kitData.activatedByOrgId;
+       
+       if (oldBoxData && oldBoxData.uid && oldBoxData.uid !== canonicalUid) {
+           const oldLabBoxRef = doc(db, 'organizations', orgId, 'nfcBoxes', oldBoxData.uid);
+           batch.delete(oldLabBoxRef);
+       }
+       
+       if (canonicalUid) {
+           const newLabBoxRef = doc(db, 'organizations', orgId, 'nfcBoxes', canonicalUid);
+           batch.set(newLabBoxRef, {
+              uid: canonicalUid,
+              uidHex: canonicalUid,
+              uidDecimal: formats.uidDecimal || box.uidDecimal || '',
+              uid4ByteHex: formats.uid4ByteHex || '',
+              numeroCaixa: box.numeroCaixa,
+              textoGravado: box.textoGravado || `BOX-${box.numeroCaixa}`,
+              status: 'Associada',
+              activatedAt: new Date().toISOString(),
+              kitCodigo: kitData.codigoKit || '',
+              kitId: kitId
+           }, { merge: true });
+       }
+    }
+    
+    await batch.commit();
+  },
+
+  clearKitBox: async (kitId: string, boxNumber: string | number): Promise<void> => {
+    const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', String(boxNumber));
+    const kitRef = doc(db, 'nfc_kits', kitId);
+    
+    const kitSnap = await getDoc(kitRef);
+    if (!kitSnap.exists()) {
+        throw new Error('Kit não encontrado');
+    }
+    const kitData = kitSnap.data() as NfcKit;
+    
+    const oldBoxSnap = await getDoc(boxRef);
+    const oldBoxData = oldBoxSnap.exists() ? oldBoxSnap.data() as NfcBox : null;
+
+    const batch = writeBatch(db);
+    
+    // Zera os dados NFC da caixa
+    batch.update(boxRef, {
+      uid: '',
+      uidHex: '',
+      uidDecimal: '',
+      uid4ByteHex: '',
+      updatedAt: new Date().toISOString()
+    });
+    
+    batch.update(kitRef, {
+      updatedAt: new Date().toISOString()
+    });
+
+    // Se o kit estiver ativado, também deleta a caixa do inventário do laboratório
+    if (kitData.status === 'Ativado' && kitData.activatedByOrgId) {
+       const orgId = kitData.activatedByOrgId;
+       if (oldBoxData && oldBoxData.uid) {
+           const oldLabBoxRef = doc(db, 'organizations', orgId, 'nfcBoxes', oldBoxData.uid);
+           batch.delete(oldLabBoxRef);
+       }
+    }
+    
+    await batch.commit();
   },
 
   deleteKit: async (kitId: string): Promise<void> => {
@@ -645,6 +724,52 @@ export const ActivationService = {
       activatedAt: new Date().toISOString(),
       activatedBy: userName,
       activatedByOrgId: organizationId
+    });
+
+    await batch.commit();
+  },
+
+  removeLabKit: async (codigoKit: string, organizationId: string): Promise<void> => {
+    const cleanCode = codigoKit.trim().toUpperCase();
+    if (!cleanCode) {
+      throw new Error('Código do kit não informado.');
+    }
+
+    const kitQuery = query(collection(db, 'nfc_kits'), where('codigoKit', '==', cleanCode), limit(1));
+    const kitSnap = await getDocs(kitQuery);
+    
+    if (kitSnap.empty) {
+      throw new Error('Kit não encontrado no banco de dados central.');
+    }
+
+    const kitDoc = kitSnap.docs[0];
+    const kitData = kitDoc.data() as NfcKit;
+
+    if (kitData.activatedByOrgId !== organizationId) {
+      throw new Error('Este kit não está ativado no seu laboratório.');
+    }
+
+    const batch = writeBatch(db);
+
+    // 1. Delete all boxes mapped to this kit in the organization's nfcBoxes
+    const orgBoxesQuery = query(
+        collection(db, 'organizations', organizationId, 'nfcBoxes'),
+        where('kitCodigo', '==', cleanCode)
+    );
+    const orgBoxesSnap = await getDocs(orgBoxesQuery);
+    orgBoxesSnap.forEach(docSnap => {
+        batch.delete(docSnap.ref);
+    });
+
+    // 2. Update the kit in global nfc_kits to be available again
+    const kitRef = doc(db, 'nfc_kits', kitDoc.id);
+    batch.update(kitRef, {
+        status: 'Disponível', // Or 'Vendido' - changing to Disponível so it can be re-sold or reused
+        empresaDestino: null,
+        activatedAt: null,
+        activatedBy: null,
+        activatedByOrgId: null,
+        updatedAt: new Date().toISOString()
     });
 
     await batch.commit();
