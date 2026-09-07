@@ -1,14 +1,62 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
-import { X, Zap, ZapOff, SwitchCamera, Camera, Image, Keyboard, Loader2, ScanBarcode, AlertCircle } from 'lucide-react';
+import {
+  X,
+  Zap,
+  ZapOff,
+  SwitchCamera,
+  Camera,
+  Image,
+  Keyboard,
+  Loader2,
+  ScanBarcode,
+  AlertCircle,
+  CheckCircle2,
+  ZoomIn
+} from 'lucide-react';
 import { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';
+import {
+  BarcodeScannerEngine,
+  startHighDefinitionCamera,
+  toggleTrackTorch,
+  applyTrackZoom
+} from '../services/barcodeScannerEngine';
 
 interface CameraBarcodeScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onScan: (code: string) => void;
 }
+
+const triggerSuccessFeedback = async () => {
+  // 1. Audio Beep
+  try {
+    const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (AudioCtxClass) {
+      const audioCtx = new AudioCtxClass();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(950, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.12);
+    }
+  } catch (e) {}
+
+  // 2. Capacitor Haptics / Web Vibrate
+  try {
+    const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+    await Haptics.impact({ style: ImpactStyle.Heavy });
+  } catch (e) {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate([30, 20, 30]);
+    }
+  }
+};
 
 export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps> = ({
   isOpen,
@@ -21,28 +69,44 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [hasTorch, setHasTorch] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [maxHardwareZoom, setMaxHardwareZoom] = useState<number>(1);
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [lastDetectedCode, setLastDetectedCode] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const engineRef = useRef<BarcodeScannerEngine | null>(null);
+  const activeTrackRef = useRef<MediaStreamTrack | null>(null);
   const hasScannedRef = useRef<boolean>(false);
+  const scanLoopIdRef = useRef<number | null>(null);
+  const isScanningFrameRef = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Stop camera tracks and ZXing decoder safely
+  // Stop camera tracks and engine scanning safely
   const stopScanner = useCallback(() => {
-    try {
-      if (codeReaderRef.current) {
-        codeReaderRef.current.reset();
-        codeReaderRef.current = null;
-      }
-    } catch (e) {
-      console.warn('[CameraScanner] Error resetting reader:', e);
+    if (scanLoopIdRef.current !== null) {
+      cancelAnimationFrame(scanLoopIdRef.current);
+      scanLoopIdRef.current = null;
+    }
+    isScanningFrameRef.current = false;
+
+    if (engineRef.current) {
+      try {
+        engineRef.current.reset();
+      } catch (e) {}
     }
 
-    try {
-      if (videoRef.current && videoRef.current.srcObject) {
+    if (activeTrackRef.current) {
+      try {
+        activeTrackRef.current.stop();
+      } catch (e) {}
+      activeTrackRef.current = null;
+    }
+
+    if (videoRef.current && videoRef.current.srcObject) {
+      try {
         const stream = videoRef.current.srcObject as MediaStream;
         stream.getTracks().forEach(track => {
           try {
@@ -50,15 +114,16 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           } catch (tErr) {}
         });
         videoRef.current.srcObject = null;
-      }
-    } catch (e) {
-      console.warn('[CameraScanner] Error stopping tracks:', e);
+      } catch (e) {}
     }
+
     setIsTorchOn(false);
     setHasTorch(false);
+    setZoomLevel(1);
+    setMaxHardwareZoom(1);
   }, []);
 
-  // Request permissions and initialize cameras
+  // Request native permissions & discover available cameras
   useEffect(() => {
     if (!isOpen) {
       stopScanner();
@@ -66,12 +131,13 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
     }
 
     hasScannedRef.current = false;
+    setLastDetectedCode(null);
     setCameraError(null);
     setIsLoading(true);
 
     let isMounted = true;
 
-    const initCamera = async () => {
+    const initDevice = async () => {
       // 1. If running on Capacitor Native, request native camera permission first
       if (Capacitor.isNativePlatform()) {
         try {
@@ -95,7 +161,6 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           const bestId = getSmartCameraSelection(available) || available[0].deviceId;
           setSelectedCameraId(bestId);
         } else {
-          // If device enumeration didn't return labels, try default
           setSelectedCameraId('default');
         }
       } catch (err: any) {
@@ -106,7 +171,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
       }
     };
 
-    initCamera();
+    initDevice();
 
     return () => {
       isMounted = false;
@@ -114,114 +179,141 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
     };
   }, [isOpen, stopScanner]);
 
-  // Start ZXing Barcode Scanning on the selected camera
+  // Handle successful scan event
+  const handleBarcodeFound = useCallback((code: string) => {
+    if (hasScannedRef.current) return;
+    hasScannedRef.current = true;
+    setLastDetectedCode(code);
+
+    triggerSuccessFeedback();
+
+    // Brief delay to let the user see the visual confirmation
+    setTimeout(() => {
+      stopScanner();
+      onScan(code);
+      onClose();
+    }, 280);
+  }, [onScan, onClose, stopScanner]);
+
+  // Start High-Definition Camera and High-Speed Scan Loop
   useEffect(() => {
     if (!isOpen || !selectedCameraId) return;
 
     let isMounted = true;
     hasScannedRef.current = false;
+    setLastDetectedCode(null);
     setIsLoading(true);
     setCameraError(null);
 
-    // Hints configured for A4 paper barcodes (CODE128, CODE39, EAN, QR)
-    const hints = new Map<DecodeHintType, any>();
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
-      BarcodeFormat.CODE_128,
-      BarcodeFormat.CODE_39,
-      BarcodeFormat.EAN_13,
-      BarcodeFormat.EAN_8,
-      BarcodeFormat.ITF,
-      BarcodeFormat.QR_CODE,
-      BarcodeFormat.DATA_MATRIX,
-      BarcodeFormat.UPC_A,
-      BarcodeFormat.UPC_E,
-      BarcodeFormat.CODABAR
-    ]);
-    hints.set(DecodeHintType.TRY_HARDER, true);
+    // Initialize Barcode Engine (Native BarcodeDetector + Dual-Axis ZXing)
+    const engine = new BarcodeScannerEngine();
+    engineRef.current = engine;
 
-    const reader = new BrowserMultiFormatReader(hints, 200);
-    codeReaderRef.current = reader;
-
-    const startScanning = async () => {
+    const startCameraAndScan = async () => {
       try {
-        const targetDeviceId = (selectedCameraId === 'default' || !selectedCameraId) ? null : selectedCameraId;
-        const videoElement = videoRef.current;
-        if (!videoElement) return;
+        await engine.init();
 
-        await reader.decodeFromVideoDevice(
-          targetDeviceId,
-          videoElement,
-          (result, error) => {
-            if (!isMounted) return;
-
-            if (result && !hasScannedRef.current) {
-              const scannedText = result.getText();
-              if (scannedText && scannedText.trim().length >= 2) {
-                hasScannedRef.current = true;
-                stopScanner();
-                onScan(scannedText.trim());
-                onClose();
-              }
-            }
-          }
+        const { stream, track, capabilities } = await startHighDefinitionCamera(
+          selectedCameraId === 'default' ? null : selectedCameraId
         );
+
+        if (!isMounted) {
+          track.stop();
+          return;
+        }
+
+        activeTrackRef.current = track;
+
+        const videoElement = videoRef.current;
+        if (!videoElement) {
+          track.stop();
+          return;
+        }
+
+        videoElement.srcObject = stream;
+        await videoElement.play();
 
         if (isMounted) {
           setIsLoading(false);
 
-          // Check if torch is supported on current video track
-          try {
-            if (videoElement.srcObject) {
-              const stream = videoElement.srcObject as MediaStream;
-              const track = stream.getVideoTracks()[0];
-              if (track) {
-                const capabilities = (track as any).getCapabilities?.();
-                setHasTorch(!!capabilities?.torch);
-              }
+          // Check torch capability
+          setHasTorch(!!capabilities?.torch);
+
+          // Check zoom capability
+          if (capabilities?.zoom) {
+            setMaxHardwareZoom(capabilities.zoom.max || 1);
+          } else {
+            setMaxHardwareZoom(1);
+          }
+
+          // Start continuous high-speed scan loop (20-30 FPS)
+          const runScanLoop = () => {
+            if (!isMounted || hasScannedRef.current) return;
+
+            if (!isScanningFrameRef.current && videoElement && videoElement.readyState >= 2) {
+              isScanningFrameRef.current = true;
+
+              engine.scanFrame(videoElement)
+                .then(code => {
+                  if (code && !hasScannedRef.current) {
+                    handleBarcodeFound(code);
+                  }
+                })
+                .catch(() => {})
+                .finally(() => {
+                  isScanningFrameRef.current = false;
+                });
             }
-          } catch (tErr) {}
+
+            if (!hasScannedRef.current) {
+              scanLoopIdRef.current = requestAnimationFrame(runScanLoop);
+            }
+          };
+
+          scanLoopIdRef.current = requestAnimationFrame(runScanLoop);
         }
       } catch (err: any) {
-        console.error('[CameraScanner] Failed to start barcode scanner:', err);
+        console.error('[CameraScanner] Failed to start HD camera scanner:', err);
         if (isMounted) {
           setIsLoading(false);
           setCameraError(
             err.name === 'NotAllowedError'
-              ? 'Permissão de câmera negada. Ative a câmera nas configurações do seu aparelho ou navegador.'
-              : err.message || 'Não foi possível acessar a câmera para leitura de códigos.'
+              ? 'Permissão de câmera negada. Ative o acesso à câmera nas configurações do seu aparelho ou navegador.'
+              : err.message || 'Não foi possível acessar a câmera de alta definição para leitura de códigos.'
           );
         }
       }
     };
 
-    startScanning();
+    startCameraAndScan();
 
     return () => {
       isMounted = false;
       stopScanner();
     };
-  }, [isOpen, selectedCameraId, onScan, onClose, stopScanner]);
+  }, [isOpen, selectedCameraId, handleBarcodeFound, stopScanner]);
 
   // Toggle Torch
   const handleToggleTorch = async () => {
-    try {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        const track = stream.getVideoTracks()[0];
-        if (track) {
-          const nextState = !isTorchOn;
-          await (track as any).applyConstraints({
-            advanced: [{ torch: nextState }]
-          });
-          setIsTorchOn(nextState);
-        }
-      }
-    } catch (err) {
-      console.warn('[CameraScanner] Torch toggle error:', err);
+    if (!activeTrackRef.current) return;
+    const nextState = !isTorchOn;
+    const ok = await toggleTrackTorch(activeTrackRef.current, nextState);
+    if (ok) {
+      setIsTorchOn(nextState);
     }
   };
 
-  // Cycle camera
+  // Toggle Zoom Level (1x -> 1.5x -> 2x -> 1x)
+  const handleCycleZoom = async () => {
+    const nextZoom = zoomLevel === 1 ? 1.5 : zoomLevel === 1.5 ? 2 : 1;
+    setZoomLevel(nextZoom);
+
+    if (activeTrackRef.current && maxHardwareZoom > 1) {
+      await applyTrackZoom(activeTrackRef.current, nextZoom);
+    }
+  };
+
+  // Cycle camera device
   const handleCycleCamera = () => {
     if (cameras.length <= 1) return;
     const currentIndex = cameras.findIndex(c => c.deviceId === selectedCameraId);
@@ -238,7 +330,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
     onClose();
   };
 
-  // Handle Photo from Device Native Camera
+  // Handle Photo from Device Native Camera (Capacitor)
   const handleNativeCameraSnap = async () => {
     try {
       const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
@@ -252,18 +344,18 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
       if (photo.webPath) {
         setIsProcessingImage(true);
         try {
-          const hints = new Map<DecodeHintType, any>();
-          hints.set(DecodeHintType.TRY_HARDER, true);
-          const imgReader = new BrowserMultiFormatReader(hints);
-          const result = await imgReader.decodeFromImageUrl(photo.webPath);
-          if (result && result.getText()) {
-            stopScanner();
-            onScan(result.getText().trim());
-            onClose();
+          if (!engineRef.current) {
+            engineRef.current = new BarcodeScannerEngine();
+          }
+          const code = await engineRef.current.decodeStaticImage(photo.webPath);
+          if (code) {
+            handleBarcodeFound(code);
             return;
+          } else {
+            setCameraError('Nenhum código de barras identificado na foto capturada. Tente aproximar da ficha A4 ou etiqueta térmica.');
           }
         } catch (decodeErr) {
-          setCameraError('Nenhum código de barras legível encontrado na foto. Tente aproximar da ficha A4 ou digite a OS.');
+          setCameraError('Erro ao processar imagem capturada.');
         } finally {
           setIsProcessingImage(false);
         }
@@ -284,22 +376,17 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
     setCameraError(null);
 
     try {
-      const objectUrl = URL.createObjectURL(file);
-      const hints = new Map<DecodeHintType, any>();
-      hints.set(DecodeHintType.TRY_HARDER, true);
-      const imgReader = new BrowserMultiFormatReader(hints);
-      const result = await imgReader.decodeFromImageUrl(objectUrl);
-      URL.revokeObjectURL(objectUrl);
-
-      if (result && result.getText()) {
-        stopScanner();
-        onScan(result.getText().trim());
-        onClose();
+      if (!engineRef.current) {
+        engineRef.current = new BarcodeScannerEngine();
+      }
+      const code = await engineRef.current.decodeStaticImage(file);
+      if (code) {
+        handleBarcodeFound(code);
       } else {
-        setCameraError('Código não identificado na imagem. Tente uma foto mais nítida do código de barras.');
+        setCameraError('Código de barras não identificado na imagem enviada. Certifique-se de que esteja focado e bem iluminado.');
       }
     } catch (err) {
-      setCameraError('Não foi possível identificar o código de barras nesta foto. Certifique-se de que a imagem esteja nítida e bem iluminada.');
+      setCameraError('Não foi possível processar a imagem do arquivo selecionado.');
     } finally {
       setIsProcessingImage(false);
       if (fileInputRef.current) {
@@ -315,52 +402,70 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
       id="camera-barcode-scanner-modal"
       className="fixed inset-0 z-[200] flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-200"
     >
-      {/* Top Bar */}
-      <div className="relative z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
+      {/* Top Header Bar */}
+      <div className="relative z-20 flex items-center justify-between p-4 bg-gradient-to-b from-black/90 via-black/70 to-transparent">
         <div className="flex items-center gap-2.5 text-white">
-          <div className="p-2 bg-blue-600/30 border border-blue-500/30 rounded-xl text-blue-400">
+          <div className={`p-2 rounded-xl transition-all ${lastDetectedCode ? 'bg-emerald-500/30 border border-emerald-500/50 text-emerald-400' : 'bg-blue-600/30 border border-blue-500/30 text-blue-400'}`}>
             <ScanBarcode size={22} />
           </div>
           <div>
-            <h2 className="text-sm font-black tracking-wide text-white uppercase">Leitor de Código de Barras</h2>
-            <p className="text-[11px] text-slate-300">Aponte para o código da ficha A4 ou caixa</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-black tracking-wide text-white uppercase">Leitor Rápido Labprox</h2>
+              <span className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[9px] font-black uppercase rounded tracking-wider">
+                Ultra HD
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300">Ficha A4 e Etiqueta Térmica na horizontal</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Zoom Toggle Pill */}
+          <button
+            onClick={handleCycleZoom}
+            className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white font-mono font-bold text-xs rounded-full flex items-center gap-1 transition-all border border-white/10"
+            title="Ajustar Zoom (Ideal para Etiqueta Térmica)"
+          >
+            <ZoomIn size={14} className="text-blue-400" />
+            <span>{zoomLevel}x</span>
+          </button>
+
+          {/* Torch Button */}
           {hasTorch && (
             <button
               onClick={handleToggleTorch}
-              className={`p-3 rounded-full transition-all ${
+              className={`p-2.5 rounded-full transition-all ${
                 isTorchOn
                   ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/50 scale-105'
                   : 'bg-white/10 hover:bg-white/20 text-white'
               }`}
               title={isTorchOn ? 'Desligar Lanterna' : 'Ligar Lanterna'}
             >
-              {isTorchOn ? <Zap size={20} /> : <ZapOff size={20} />}
+              {isTorchOn ? <Zap size={18} /> : <ZapOff size={18} />}
             </button>
           )}
 
+          {/* Switch Camera */}
           {cameras.length > 1 && (
             <button
               onClick={handleCycleCamera}
-              className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
-              title="Trocar Câmera"
+              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
+              title="Trocar Câmera Traseira"
             >
-              <SwitchCamera size={20} />
+              <SwitchCamera size={18} />
             </button>
           )}
 
+          {/* Close */}
           <button
             onClick={() => {
               stopScanner();
               onClose();
             }}
-            className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
+            className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all"
             title="Fechar"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
       </div>
@@ -371,69 +476,92 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
         {isLoading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10 text-white space-y-3">
             <Loader2 size={36} className="animate-spin text-blue-500" />
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Iniciando câmera...</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-300">Iniciando câmera Full HD...</p>
           </div>
         )}
 
         {/* Processing Image Overlay */}
         {isProcessingImage && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-black/80 text-white space-y-3">
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-black/85 text-white space-y-3">
             <Loader2 size={40} className="animate-spin text-blue-400" />
-            <p className="text-sm font-bold text-white">Analisando imagem do código...</p>
+            <p className="text-sm font-bold text-white">Analisando imagem em alta resolução...</p>
           </div>
         )}
 
-        {/* Video Element */}
+        {/* Live Video Element */}
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
+          style={{
+            transform: zoomLevel > 1 && maxHardwareZoom <= 1 ? `scale(${zoomLevel})` : undefined,
+            transition: 'transform 0.2s ease-out'
+          }}
           className="absolute inset-0 w-full h-full object-cover"
         />
 
         {/* Reticle / Viewfinder Frame */}
         {!cameraError && (
-          <div className="relative z-10 w-[82vw] max-w-sm h-48 sm:h-56 flex flex-col items-center justify-center pointer-events-none">
+          <div className="relative z-10 w-[84vw] max-w-sm h-48 sm:h-52 flex flex-col items-center justify-center pointer-events-none">
             {/* Viewfinder boundary box */}
-            <div className="relative w-full h-full rounded-2xl border-2 border-blue-400/50 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]">
+            <div
+              className={`relative w-full h-full rounded-2xl border-2 transition-all duration-200 shadow-[0_0_0_9999px_rgba(0,0,0,0.58)] ${
+                lastDetectedCode
+                  ? 'border-emerald-400 bg-emerald-500/20 shadow-[0_0_25px_rgba(16,185,129,0.7)]'
+                  : 'border-blue-400/60'
+              }`}
+            >
               {/* Corner brackets */}
-              <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-blue-500 rounded-tl-xl" />
-              <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-blue-500 rounded-tr-xl" />
-              <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-blue-500 rounded-bl-xl" />
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-blue-500 rounded-br-xl" />
+              <div className={`absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 rounded-tl-xl transition-colors ${lastDetectedCode ? 'border-emerald-400' : 'border-blue-500'}`} />
+              <div className={`absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 rounded-tr-xl transition-colors ${lastDetectedCode ? 'border-emerald-400' : 'border-blue-500'}`} />
+              <div className={`absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 rounded-bl-xl transition-colors ${lastDetectedCode ? 'border-emerald-400' : 'border-blue-500'}`} />
+              <div className={`absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 rounded-br-xl transition-colors ${lastDetectedCode ? 'border-emerald-400' : 'border-blue-500'}`} />
 
-              {/* Animated laser line */}
-              <div className="absolute inset-x-2 top-0 h-0.5 bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_12px_#ef4444] animate-pulse">
-                <style>{`
-                  @keyframes scanLineAnimation {
-                    0% { top: 6%; opacity: 0.8; }
-                    50% { top: 92%; opacity: 1; }
-                    100% { top: 6%; opacity: 0.8; }
-                  }
-                  .scanner-laser-line {
-                    position: absolute;
-                    left: 5%;
-                    right: 5%;
-                    height: 2px;
-                    background: #3b82f6;
-                    box-shadow: 0 0 10px #60a5fa, 0 0 20px #3b82f6;
-                    animation: scanLineAnimation 2.2s ease-in-out infinite;
-                  }
-                `}</style>
-                <div className="scanner-laser-line" />
-              </div>
+              {/* Dynamic Laser Beam */}
+              {!lastDetectedCode ? (
+                <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+                  <style>{`
+                    @keyframes ultraFastScanLine {
+                      0% { top: 8%; opacity: 0.8; }
+                      50% { top: 88%; opacity: 1; }
+                      100% { top: 8%; opacity: 0.8; }
+                    }
+                    .ultra-laser-line {
+                      position: absolute;
+                      left: 4%;
+                      right: 4%;
+                      height: 2px;
+                      background: #3b82f6;
+                      box-shadow: 0 0 10px #60a5fa, 0 0 20px #3b82f6;
+                      animation: ultraFastScanLine 1.4s ease-in-out infinite;
+                    }
+                  `}</style>
+                  <div className="ultra-laser-line" />
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-950/70 rounded-2xl animate-in zoom-in-90 duration-150 text-white">
+                  <CheckCircle2 size={44} className="text-emerald-400 mb-1" />
+                  <span className="font-mono text-xs font-black tracking-wider text-emerald-300 uppercase">
+                    Código Identificado
+                  </span>
+                  <span className="font-mono text-sm font-extrabold text-white mt-0.5">
+                    {lastDetectedCode}
+                  </span>
+                </div>
+              )}
             </div>
 
+            {/* Instruction label */}
             <p className="text-white text-xs font-bold tracking-wide mt-4 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] text-center px-4">
-              Posicione o código de barras da ficha A4 dentro da moldura
+              Mantenha o celular na vertical e o código na horizontal
             </p>
           </div>
         )}
 
         {/* Camera Error Message */}
         {cameraError && (
-          <div className="relative z-20 max-w-sm p-6 mx-4 text-center bg-slate-900/90 border border-slate-700 rounded-3xl text-white space-y-4 shadow-2xl">
+          <div className="relative z-20 max-w-sm p-6 mx-4 text-center bg-slate-900/95 border border-slate-700 rounded-3xl text-white space-y-4 shadow-2xl">
             <div className="w-12 h-12 mx-auto bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center">
               <AlertCircle size={28} />
             </div>
@@ -465,8 +593,8 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
       </div>
 
       {/* Bottom Controls Bar */}
-      <div className="relative z-20 p-4 bg-gradient-to-t from-black/95 via-black/80 to-transparent space-y-3 pb-[env(safe-area-inset-bottom)]">
-        {/* Manual Input form if opened */}
+      <div className="relative z-20 p-4 bg-gradient-to-t from-black/95 via-black/85 to-transparent space-y-3 pb-[env(safe-area-inset-bottom)]">
+        {/* Manual Input Form */}
         {showManualInput ? (
           <form onSubmit={handleManualSubmit} className="flex gap-2 max-w-md mx-auto animate-in slide-in-from-bottom duration-150">
             <input
@@ -521,7 +649,7 @@ export const CameraBarcodeScannerModal: React.FC<CameraBarcodeScannerModalProps>
           </div>
         )}
 
-        {/* Hidden File Input */}
+        {/* Hidden File Input for Gallery */}
         <input
           ref={fileInputRef}
           type="file"
