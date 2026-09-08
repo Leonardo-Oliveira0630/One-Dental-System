@@ -290,6 +290,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     <SidebarItem to="/superadmin/tutorials" icon={<BookOpen size={20} />} label="Gerenciar Tutoriais" active={location.pathname === '/superadmin/tutorials'} />
                     <SidebarItem to="/superadmin/helpdesk" icon={<ShieldCheck size={20} />} label="Agentes de Atendimento" active={location.pathname === '/superadmin/helpdesk'} />
                     <SidebarItem to="/superadmin/resets" icon={<AlertTriangle size={20} />} label="Reset de Laboratórios" active={location.pathname === '/superadmin/resets'} />
+                    <SidebarItem to="/superadmin/bio" icon={<Globe size={20} />} label="Página da Bio" active={location.pathname === '/superadmin/bio'} />
                   </>
                 )}
 
@@ -590,7 +591,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className={`${isStoreRoute ? "mt-[104px] md:mt-[104px] px-0 max-w-full" : "mt-[104px] md:mt-[40px] px-4 pb-4 md:px-8 md:pb-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
+        <div className={`${isStoreRoute ? "mt-[104px] md:mt-[104px] px-0 pb-24 md:pb-0 max-w-full" : "mt-[104px] md:mt-[40px] px-4 pb-24 md:px-8 md:pb-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
           {isClinicPendingApproval() ? (
             <div className="flex-1 flex items-center justify-center py-12 px-4">
               <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">
