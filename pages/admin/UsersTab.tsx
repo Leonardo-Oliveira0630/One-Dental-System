@@ -241,44 +241,80 @@ export const UsersTab = () => {
       {/* MODAL: NOVO/EDITAR USUÁRIO */}
       {(isAddingUser || editingUser) && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
-                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-5 sm:p-6 animate-in zoom-in duration-200 max-h-[92vh] flex flex-col">
+                  <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3 shrink-0">
                       <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                         {isAddingUser ? <><UserPlus className="text-blue-600" /> Cadastrar Colaborador</> : <><Edit className="text-blue-600" /> Editar Colaborador</>}
                       </h3>
-                      <button onClick={() => { setIsAddingUser(false); setEditingUser(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                      <button onClick={() => { setIsAddingUser(false); setEditingUser(null); }} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"><X size={22}/></button>
                   </div>
-                  <form onSubmit={isAddingUser ? handleAddUser : handleUpdateUserInfo} className="space-y-4">
+                  <form onSubmit={isAddingUser ? handleAddUser : handleUpdateUserInfo} className="space-y-4 overflow-y-auto pr-1">
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label><input required value={userName} onChange={e => setUserName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label><input type="email" required disabled={!!editingUser} value={userEmail} onChange={e => setUserEmail(e.target.value)} className="w-full px-4 py-2 border rounded-xl disabled:bg-slate-50 disabled:text-slate-400" /></div>
                       {isAddingUser && <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Senha</label><input type="password" required value={userPass} onChange={e => setUserPass(e.target.value)} className="w-full px-4 py-2 border rounded-xl" minLength={6} /></div>}
-                      <div className="grid grid-cols-2 gap-4">
-                          <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label>
-                              <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border rounded-xl bg-white">
-                                  <option value={UserRole.COLLABORATOR}>Técnico</option>
-                                  <option value={UserRole.MANAGER}>Gestor</option>
-                                  <option value={UserRole.ADMIN}>Administrador</option>
-                              </select>
-                          </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label>
+                          <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                              <option value={UserRole.COLLABORATOR}>Técnico</option>
+                              <option value={UserRole.MANAGER}>Gestor</option>
+                              <option value={UserRole.ADMIN}>Administrador</option>
+                          </select>
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setores Atuantes</label>
-                          <div className="flex flex-col gap-2 max-h-40 overflow-y-auto p-3 border border-slate-200 rounded-xl bg-slate-50">
-                              {sectors.map(s => (
-                                  <label key={s.id} className="flex items-center gap-2 cursor-pointer">
-                                      <input 
-                                          type="checkbox" 
-                                          checked={userSectors.includes(s.name)} 
-                                          onChange={e => {
-                                              if (e.target.checked) setUserSectors([...userSectors, s.name]);
-                                              else setUserSectors(userSectors.filter(sec => sec !== s.name));
-                                          }} 
-                                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600/20"
-                                      />
-                                      <span className="text-sm font-medium text-slate-700">{s.name}</span>
-                                  </label>
-                              ))}
-                              {sectors.length === 0 && <span className="text-xs text-slate-400">Nenhum setor cadastrado</span>}
+                          <div className="flex items-center justify-between mb-1.5">
+                              <label className="block text-xs font-bold text-slate-500 uppercase">
+                                  Setores Atuantes {userSectors.length > 0 && <span className="text-blue-600 font-bold">({userSectors.length} selecionado{userSectors.length > 1 ? 's' : ''})</span>}
+                              </label>
+                              {sectors.length > 0 && (
+                                  <div className="flex items-center gap-2">
+                                      <button 
+                                          type="button" 
+                                          onClick={() => setUserSectors(sectors.map(s => s.name))}
+                                          className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                                      >
+                                          Todos
+                                      </button>
+                                      <span className="text-slate-300">•</span>
+                                      <button 
+                                          type="button" 
+                                          onClick={() => setUserSectors([])}
+                                          className="text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:underline"
+                                      >
+                                          Limpar
+                                      </button>
+                                  </div>
+                              )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2.5 border border-slate-200 rounded-2xl bg-slate-50/70">
+                              {sectors.map(s => {
+                                  const isSelected = userSectors.includes(s.name);
+                                  return (
+                                      <label 
+                                          key={s.id} 
+                                          className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-bold cursor-pointer select-none transition-all ${
+                                              isSelected 
+                                                  ? 'bg-blue-50/90 border-blue-300 text-blue-800 shadow-sm' 
+                                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                                          }`}
+                                      >
+                                          <input 
+                                              type="checkbox" 
+                                              checked={isSelected} 
+                                              onChange={e => {
+                                                  if (e.target.checked) setUserSectors([...userSectors, s.name]);
+                                                  else setUserSectors(userSectors.filter(sec => sec !== s.name));
+                                              }} 
+                                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer"
+                                          />
+                                          <span className="truncate leading-normal">{s.name}</span>
+                                      </label>
+                                  );
+                              })}
+                              {sectors.length === 0 && (
+                                  <div className="col-span-2 py-4 text-center text-xs text-slate-400 italic">
+                                      Nenhum setor cadastrado no laboratório
+                                  </div>
+                              )}
                           </div>
                       </div>
                       <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">

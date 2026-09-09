@@ -132,12 +132,62 @@ export async function sendWhatsappNotification(params: {
   }
 }
 
+function parseFirestoreDate(rawDate: any): Date | null {
+  if (!rawDate) return null;
+  if (rawDate instanceof Date) {
+    return isNaN(rawDate.getTime()) ? null : rawDate;
+  }
+  if (typeof rawDate.toDate === 'function') {
+    try {
+      const d = rawDate.toDate();
+      if (d instanceof Date && !isNaN(d.getTime())) return d;
+    } catch (e) {}
+  }
+  if (typeof rawDate === 'object' && ('_seconds' in rawDate || 'seconds' in rawDate)) {
+    const sec = rawDate._seconds !== undefined ? rawDate._seconds : rawDate.seconds;
+    const ms = sec * 1000 + (rawDate._nanoseconds || rawDate.nanoseconds || 0) / 1000000;
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (typeof rawDate === 'number') {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (typeof rawDate === 'string') {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function formatAppointmentDateTime(rawDate: any): { dateStr: string; timeStr: string } {
+  const parsedDate = parseFirestoreDate(rawDate);
+  if (!parsedDate) {
+    return {
+      dateStr: typeof rawDate === 'string' && rawDate.trim() && rawDate !== 'Invalid Date' ? rawDate : 'data agendada',
+      timeStr: 'horário agendado'
+    };
+  }
+
+  const dateStr = parsedDate.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  const timeStr = parsedDate.toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  return { dateStr, timeStr: timeStr || 'horário agendado' };
+}
+
 /**
  * Envia notificação de Confirmação de Consulta para o Paciente (Dentista/Clínica)
  */
 export async function notifyAppointmentCreated(appointment: Appointment, patient: ClinicPatient, dentistName: string) {
-  const dateStr = new Date(appointment.date).toLocaleDateString('pt-BR');
-  const timeStr = new Date(appointment.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const { dateStr, timeStr } = formatAppointmentDateTime(appointment.date);
   const cleanPatientName = patient.name || 'Paciente';
 
   const customConfig = await getMetaTemplateConfig('CLINIC_APPOINTMENT');

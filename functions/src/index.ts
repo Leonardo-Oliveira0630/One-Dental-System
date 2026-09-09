@@ -14,6 +14,11 @@ import axios from "axios";
 if (admin.apps.length === 0) {
   admin.initializeApp();
 }
+try {
+  admin.firestore().settings({ ignoreUndefinedProperties: true });
+} catch (e) {
+  // Settings already initialized
+}
 
 import { CommunicationService } from "./communication/services/CommunicationService";
 const communicationService = new CommunicationService();
@@ -2046,14 +2051,72 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
 
 
 
+function parseFirestoreDate(rawDate: any): Date | null {
+  if (!rawDate) return null;
+  if (rawDate instanceof Date) {
+    return isNaN(rawDate.getTime()) ? null : rawDate;
+  }
+  if (typeof rawDate.toDate === 'function') {
+    try {
+      const d = rawDate.toDate();
+      if (d instanceof Date && !isNaN(d.getTime())) return d;
+    } catch (e) {}
+  }
+  if (typeof rawDate === 'object' && ('_seconds' in rawDate || 'seconds' in rawDate)) {
+    const sec = rawDate._seconds !== undefined ? rawDate._seconds : rawDate.seconds;
+    const ms = sec * 1000 + (rawDate._nanoseconds || rawDate.nanoseconds || 0) / 1000000;
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (typeof rawDate === 'number') {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (typeof rawDate === 'string') {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function formatAppointmentDateTime(rawDate: any, fallbackTime?: string): { dateStr: string; timeStr: string } {
+  const parsedDate = parseFirestoreDate(rawDate);
+  if (!parsedDate) {
+    return {
+      dateStr: typeof rawDate === 'string' && rawDate.trim() && rawDate !== 'Invalid Date' ? rawDate : 'a combinar',
+      timeStr: fallbackTime && fallbackTime !== 'Invalid Date' ? fallbackTime : 'horário agendado'
+    };
+  }
+
+  const dateStr = parsedDate.toLocaleDateString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  let timeStr = fallbackTime && fallbackTime.trim() !== '' && fallbackTime !== 'horário agendado' ? fallbackTime : '';
+  if (!timeStr) {
+    timeStr = parsedDate.toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  return { dateStr, timeStr: timeStr || 'horário agendado' };
+}
+
 export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId}/appointments/{appointmentId}", async (event: any) => {
   const snap = event.data;
   if (!snap) return;
   const appointment = snap.data();
   const orgId = event.params.orgId;
-     logger.info(`[triggerDeliveryRouteUpdated] Rota ${event.params.routeId} iniciada. orgId: ${orgId}`);
+  const appointmentId = event.params.appointmentId;
+  logger.info(`[triggerAppointmentCreated] Nova consulta ${appointmentId} criada na organização ${orgId}`);
   
   const db = admin.firestore();
+  if (!appointment.patientId) return;
   const patientSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appointment.patientId).get();
   if (!patientSnap.exists) return;
   const patient = patientSnap.data() as any;
@@ -2061,25 +2124,26 @@ export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId
   const phone = patient.phone || patient.whatsapp;
   if (!phone) return;
   
-  const dateStr = new Date(appointment.date).toLocaleDateString("pt-BR");
-  const timeStr = appointment.startTime;
+  const { dateStr, timeStr } = formatAppointmentDateTime(appointment.date, appointment.startTime || appointment.time);
+  const patientName = patient.name || 'Paciente';
   
   let cleanPhone = phone.replace(/\D/g, "");
   if (cleanPhone.length === 10 || cleanPhone.length === 11) {
     cleanPhone = "55" + cleanPhone;
   }
   await db.collection("ycloudSessions").doc(cleanPhone).set({
-    appointmentId: event.params.appointmentId,
+    appointmentId: appointmentId,
     orgId: orgId,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
   
   try {
     await communicationService.sendTemplateMessage(orgId, phone, "CLINIC", "CLINIC_APPOINTMENT", {
-      patient_name: patient.name,
+      patient_name: patientName,
       date: dateStr,
       time: timeStr
     });
+    logger.info(`[triggerAppointmentCreated] WhatsApp enviado com sucesso para ${patientName} (${phone}) - Data: ${dateStr} às ${timeStr}`);
   } catch (err: any) {
     logger.warn(`[triggerAppointmentCreated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
   }
@@ -2312,8 +2376,9 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
             const apptSnap = await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).get();
             if (apptSnap.exists) {
                const appt = apptSnap.data() as any;
-               dateStr = new Date(appt.date).toLocaleDateString("pt-BR");
-               timeStr = appt.startTime || "";
+               const formatted = formatAppointmentDateTime(appt.date, appt.startTime || appt.time);
+               dateStr = formatted.dateStr;
+               timeStr = formatted.timeStr;
                const patSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appt.patientId).get();
                if (patSnap.exists) {
                    patientName = (patSnap.data() as any).name;

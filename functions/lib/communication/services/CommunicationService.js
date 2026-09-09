@@ -39,6 +39,12 @@ const YCloudProvider_1 = require("../providers/YCloudProvider");
 class CommunicationService {
     constructor() {
         this.db = admin.firestore();
+        try {
+            this.db.settings({ ignoreUndefinedProperties: true });
+        }
+        catch (e) {
+            // Settings already applied
+        }
         this.providers = new Map();
         this.registerProvider(new YCloudProvider_1.YCloudProvider());
     }
@@ -130,7 +136,14 @@ class CommunicationService {
         throw new Error(`Template not found for module ${module} and type ${templateType}`);
     }
     async logMessage(logData) {
-        await this.db.collection('message_logs').add(Object.assign(Object.assign({}, logData), { createdAt: admin.firestore.FieldValue.serverTimestamp() }));
+        // Strip out any undefined values to be 100% safe
+        const sanitized = {};
+        for (const [k, v] of Object.entries(logData)) {
+            if (v !== undefined) {
+                sanitized[k] = v;
+            }
+        }
+        await this.db.collection('message_logs').add(Object.assign(Object.assign({}, sanitized), { createdAt: admin.firestore.FieldValue.serverTimestamp() }));
     }
     async sendTemplateMessage(orgId, to, module, templateType, variables) {
         try {
@@ -141,7 +154,7 @@ class CommunicationService {
             }
             const channelConfig = await this.getChannelConfig(orgId);
             const template = await this.getTemplate(orgId, module, templateType);
-            const providerName = channelConfig.provider;
+            const providerName = channelConfig.provider || 'YCloud';
             const provider = this.providers.get(providerName);
             if (!provider) {
                 throw new Error(`Provider ${providerName} not found`);
@@ -162,12 +175,12 @@ class CommunicationService {
             }
             await this.logMessage({
                 orgId,
-                channelId: channelConfig.id,
+                channelId: channelConfig.id || 'GLOBAL_YCLOUD',
                 provider: providerName,
                 direction: 'OUTBOUND',
-                templateId: (template.data && template.data.id) ? template.data.id : (template.data && template.data.action ? template.data.action : null),
+                templateId: (template.data && template.data.id) ? template.data.id : (template.data && template.data.action ? template.data.action : (template.data && template.data.name ? template.data.name : null)),
                 recipient: cleanPhone,
-                message: JSON.stringify(result),
+                message: typeof result === 'object' ? JSON.stringify(result) : String(result || ''),
                 status: 'SENT',
                 sentAt: admin.firestore.FieldValue.serverTimestamp()
             });
@@ -182,11 +195,12 @@ class CommunicationService {
             }
             await this.logMessage({
                 orgId,
+                channelId: 'GLOBAL_YCLOUD',
                 direction: 'OUTBOUND',
                 recipient: cleanPhone,
-                message: error.message,
+                message: error.message || 'Erro desconhecido',
                 status: 'FAILED',
-                failedReason: error.message,
+                failedReason: error.message || 'Erro desconhecido',
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             });
             throw error;
