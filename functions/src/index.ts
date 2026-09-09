@@ -1931,11 +1931,11 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     if (cleanFrom && (cleanFrom.length === 10 || cleanFrom.length === 11)) {
       cleanFrom = "55" + cleanFrom;
     }
-    if (cleanFrom === cleanTo) {
-      cleanFrom = ""; // Don't use recipient phone number as sender
+    if (!cleanFrom || cleanFrom.includes("997544638") || cleanFrom === cleanTo || cleanFrom.length < 8) {
+      cleanFrom = "5527997599833"; // Use registered YCloud WABA sender
     }
     
-    logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
+    logger.info(`Enviando mensagem WhatsApp Ycloud real de ${cleanFrom} para ${cleanTo}...`);
     
     payload = {
       to: `+${cleanTo}`
@@ -1965,14 +1965,25 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
       const errData = postErr.response?.data;
       const apiErr = errData?.error?.message || errData?.message || postErr.message;
       if (payload.from && (postErr.response?.status === 403 || postErr.response?.status === 409 || apiErr.includes('has not been registered') || apiErr.includes('not been registered') || apiErr.includes('WABA'))) {
-        logger.warn(`[sendYcloudWhatsApp] Remetente ${payload.from} rejeitado (${apiErr}), tentando enviar sem 'from'...`);
-        delete payload.from;
-        response = await axios.post(ycloudUrl, payload, {
-          headers: {
-            "X-API-Key": apiKey,
-            "Content-Type": "application/json"
-          }
-        });
+        logger.warn(`[sendYcloudWhatsApp] Remetente ${payload.from} rejeitado (${apiErr}), tentando com remetente padrão +5527997599833...`);
+        payload.from = '+5527997599833';
+        try {
+          response = await axios.post(ycloudUrl, payload, {
+            headers: {
+              "X-API-Key": apiKey,
+              "Content-Type": "application/json"
+            }
+          });
+        } catch (retryErr: any) {
+          logger.warn(`[sendYcloudWhatsApp] Falhou com +5527997599833, tentando sem 'from'...`);
+          delete payload.from;
+          response = await axios.post(ycloudUrl, payload, {
+            headers: {
+              "X-API-Key": apiKey,
+              "Content-Type": "application/json"
+            }
+          });
+        }
       } else {
         throw postErr;
       }
@@ -2196,23 +2207,48 @@ export const triggerSupplierOrderUpdated = onDocumentUpdated("supplierOrders/{or
 export const ycloudWebhook = onRequest(async (req: any, res: any) => {
   const db = admin.firestore();
   try {
-    const event = req.body;
+    const event = req.body || {};
+
+    // 1. Handle Status Update Events from YCloud
+    if (event.type === "whatsapp.message.updated" && event.whatsappMessage) {
+      const msg = event.whatsappMessage;
+      const ycloudId = msg.id;
+      const wamid = msg.wamid;
+      const status = (msg.status || "").toUpperCase();
+
+      logger.info(`[ycloudWebhook] Status update for ${ycloudId} (wamid: ${wamid}) -> ${status}`);
+
+      if (ycloudId) {
+        const logsSnap = await db.collection("message_logs").where("sid", "==", ycloudId).get();
+        for (const doc of logsSnap.docs) {
+          await doc.ref.update({
+            status: status || "DELIVERED",
+            error: msg.error?.message || null,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            deliverTime: msg.deliverTime || null
+          });
+        }
+      }
+      res.status(200).json({ success: true, received: true });
+      return;
+    }
+
+    // 2. Handle Inbound Messages
     let from = "";
     let msg = "";
 
-    if (event.type === "whatsappInboundMessage") {
-      from = event.whatsappInboundMessage?.from || "";
-      msg = event.whatsappInboundMessage?.text?.body || "";
+    if (event.type === "whatsappInboundMessage" || event.type === "whatsapp.inbound_message") {
+      from = event.whatsappInboundMessage?.from || event.whatsappMessage?.from || "";
+      msg = event.whatsappInboundMessage?.text?.body || event.whatsappMessage?.text?.body || "";
     } else {
-      // Fallback para outros formatos ou testes
-      from = event.from || event.From || event.whatsappInboundMessage?.from || "";
-      msg = (event.text?.body || event.Body || event.whatsappInboundMessage?.text?.body || "").trim();
+      from = event.from || event.From || event.whatsappInboundMessage?.from || event.whatsappMessage?.from || "";
+      msg = (event.text?.body || event.Body || event.whatsappInboundMessage?.text?.body || event.whatsappMessage?.text?.body || "").trim();
     }
     
     logger.info("Recebido webhook do Ycloud", { from, msg });
     
     if (!from || !msg) {
-      res.status(200).send("OK");
+      res.status(200).json({ success: true, ignored: true });
       return;
     }
 
@@ -2223,7 +2259,7 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
       // Fallback check twilioSessions for transition period
       const oldSessionSnap = await db.collection("twilioSessions").doc(cleanPhone).get();
       if (!oldSessionSnap.exists) {
-         res.status(200).send("OK");
+         res.status(200).json({ success: true, noSession: true });
          return;
       }
     }
@@ -2297,15 +2333,13 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
       const globalConfig = await getYcloudConfig();
       let apiKey = globalConfig.apiKey;
       let fromNumber = globalConfig.fromNumber;
-      
 
-      
       if (apiKey && apiKey !== "your_ycloud_api_key_here") {
         const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
         
         await axios.post(ycloudUrl, {
           to: `+${cleanPhone}`,
-          from: `+${fromNumber.replace(/\D/g, "")}`,
+          from: fromNumber ? `+${fromNumber.replace(/\D/g, "")}` : undefined,
           type: "text",
           text: {
             body: responseMsg
@@ -2319,10 +2353,10 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
       await db.collection("twilioSessions").doc(cleanPhone).delete();
     }
     
-    res.status(200).send("OK");
-  } catch (error) {
+    res.status(200).json({ success: true });
+  } catch (error: any) {
     logger.error("Erro no ycloudWebhook", error);
-    res.status(200).send("Erro");
+    res.status(200).json({ success: false, error: error.message });
   }
 });
 
