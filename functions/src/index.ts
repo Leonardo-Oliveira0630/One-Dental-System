@@ -1953,12 +1953,30 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
       payload.text = { body: body };
     }
 
-    const response = await axios.post(ycloudUrl, payload, {
-      headers: {
-        "X-API-Key": apiKey,
-        "Content-Type": "application/json"
+    let response: any = null;
+    try {
+      response = await axios.post(ycloudUrl, payload, {
+        headers: {
+          "X-API-Key": apiKey,
+          "Content-Type": "application/json"
+        }
+      });
+    } catch (postErr: any) {
+      const errData = postErr.response?.data;
+      const apiErr = errData?.error?.message || errData?.message || postErr.message;
+      if (payload.from && (postErr.response?.status === 403 || postErr.response?.status === 409 || apiErr.includes('has not been registered') || apiErr.includes('not been registered') || apiErr.includes('WABA'))) {
+        logger.warn(`[sendYcloudWhatsApp] Remetente ${payload.from} rejeitado (${apiErr}), tentando enviar sem 'from'...`);
+        delete payload.from;
+        response = await axios.post(ycloudUrl, payload, {
+          headers: {
+            "X-API-Key": apiKey,
+            "Content-Type": "application/json"
+          }
+        });
+      } else {
+        throw postErr;
       }
-    });
+    }
     
     logger.info(`Mensagem real enviada com sucesso! ID: ${response.data.id}`);
         // Log in Firestore

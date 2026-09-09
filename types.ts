@@ -1319,3 +1319,17 @@ export interface NfcBox {
   kitCodigo?: string;
   kitId?: string;
 }
+
+export interface BioLink {
+  id: string;
+  label: string;
+  url: string;
+  type: 'web' | 'playstore' | 'appstore' | 'youtube' | 'whatsapp' | 'instagram' | 'custom';
+  isActive: boolean;
+  order: number;
+}
+
+export interface BioSettings {
+  links: BioLink[];
+  updatedAt?: any;
+}

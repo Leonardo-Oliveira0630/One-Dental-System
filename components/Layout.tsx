@@ -290,6 +290,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     <SidebarItem to="/superadmin/tutorials" icon={<BookOpen size={20} />} label="Gerenciar Tutoriais" active={location.pathname === '/superadmin/tutorials'} />
                     <SidebarItem to="/superadmin/helpdesk" icon={<ShieldCheck size={20} />} label="Agentes de Atendimento" active={location.pathname === '/superadmin/helpdesk'} />
                     <SidebarItem to="/superadmin/resets" icon={<AlertTriangle size={20} />} label="Reset de Laboratórios" active={location.pathname === '/superadmin/resets'} />
+                    <SidebarItem to="/superadmin/bio" icon={<Globe size={20} />} label="Página da Bio" active={location.pathname === '/superadmin/bio'} />
                   </>
                 )}
 
@@ -445,6 +446,16 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              <div className="flex items-center gap-1 shrink-0">
                  {!isBuyer && (
                    <button 
+                     type="button"
+                     onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                     className="p-2 rounded-lg text-slate-600 hover:text-blue-600 active:bg-slate-100 transition-colors"
+                     title="Escanear Código com Câmera"
+                   >
+                     <Camera size={20} />
+                   </button>
+                 )}
+                 {!isBuyer && (
+                   <button 
                      onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
                      className={`p-2 rounded-lg transition-colors ${isMobileSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
                    >
@@ -513,7 +524,18 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <>
               <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
-                 <button onClick={(e) => { e.preventDefault(); window.dispatchEvent(new CustomEvent('open-scanner')); }} className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform">
+                 <button 
+                    id="btn-mobile-bottom-camera-scanner"
+                    type="button"
+                    onClick={(e) => { 
+                      e.preventDefault(); 
+                      e.stopPropagation();
+                      window.dispatchEvent(new CustomEvent('open-scanner')); 
+                    }} 
+                    className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform cursor-pointer"
+                    title="Ler Código de Barras (Ficha A4)"
+                    aria-label="Ler Código de Barras da Ficha A4"
+                 >
                     <Camera size={28}/>
                  </button>
               </div>
@@ -554,24 +576,24 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       <main style={{ marginTop: '-38px' }} className={`flex-1 bg-white transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
         <header 
           style={{ paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', marginTop: '37px' }}
-          className={`${isStoreRoute ? "hidden" : "hidden md:flex"} bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0`}
+          className={`${isStoreRoute ? "hidden" : "hidden md:flex"} bg-white border-b border-slate-200 h-16 items-center justify-between px-4 lg:px-8 sticky top-0 z-30 print:hidden shrink-0 gap-2 sm:gap-4`}
         >
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <Logo size={100} imgStyle={{ width: '100px', height: '100px' }} variant="colored" />
           </div>
 
-          <div className="flex-1 max-w-xl mx-8">
+          <div className="flex-1 max-w-xl mx-2 lg:mx-6">
             <JobSearch />
           </div>
 
-          <div className="mr-4 hidden lg:block">
+          <div className="shrink-0 flex items-center">
             <ManualScannerInput />
           </div>
 
-          <div className="flex items-center gap-4 shrink-0">
-              <div className="flex flex-col items-end">
-                  <span className="text-sm font-black text-slate-800 leading-none uppercase truncate max-w-[150px]">{currentUser?.name}</span>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[150px]">
+          <div className="flex items-center gap-3 lg:gap-4 shrink-0">
+              <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-sm font-black text-slate-800 leading-none uppercase truncate max-w-[120px] lg:max-w-[160px]">{currentUser?.name}</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[120px] lg:max-w-[160px]">
                       {isClient ? 'Cirurgião-Dentista' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Lab Terceirizado' : (currentUser?.sector || 'Acesso Administrativo')}
                   </span>
               </div>
@@ -579,7 +601,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </header>
 
-        <div className={`${isStoreRoute ? "mt-[104px] md:mt-[104px] px-0 max-w-full" : "mt-[104px] md:mt-[40px] px-4 pb-4 md:px-8 md:pb-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
+        <div className={`${isStoreRoute ? "mt-[104px] md:mt-[104px] px-0 pb-24 md:pb-0 max-w-full" : "mt-[104px] md:mt-[40px] px-4 pb-24 md:px-8 md:pb-8 max-w-[1400px]"} w-full mx-auto print:mt-0 print:p-0 flex-1 flex flex-col overflow-x-hidden overflow-y-auto relative`}>
           {isClinicPendingApproval() ? (
             <div className="flex-1 flex items-center justify-center py-12 px-4">
               <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-xl w-full shadow-xl border border-teal-50 text-center animate-in zoom-in duration-300">

@@ -825,11 +825,22 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           // Disparar notificação de WhatsApp caso o status seja atualizado para ENTREGUE (DELIVERED)
           if (u.status === 'DELIVERED') {
               const job = jobs.find(j => j.id === id);
-              if (job) {
-                  const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
-                  const dentistPhone = dentist?.phone || '';
-                  if (dentistPhone) {
-                      await notifyJobLogistics(job, 'DELIVERED', dentistPhone, dentist?.name || 'Dentista');
+              const mergedJob = job ? { ...job, ...updates } : (updates as Job);
+              if (mergedJob) {
+                  const dId = mergedJob.dentistId;
+                  const dentist = manualDentists.find(d => d.id === dId || (mergedJob.dentistName && d.name === mergedJob.dentistName)) || 
+                                  allUsers.find(u => u.id === dId || (mergedJob.dentistName && u.name === mergedJob.dentistName));
+                  const rawPhone = dentist?.whatsapp || dentist?.phone || (mergedJob as any)?.dentistPhone || (mergedJob as any)?.dentistWhatsapp || (mergedJob as any)?.phone || '';
+                  const cleanPhone = rawPhone.replace(/\D/g, '');
+                  if (cleanPhone.length >= 8) {
+                      try {
+                          console.log(`[AppContext] Disparando WhatsApp de entrega para Dr(a). ${dentist?.name || mergedJob.dentistName} (${cleanPhone})...`);
+                          await notifyJobLogistics(mergedJob, 'DELIVERED', cleanPhone, dentist?.name || mergedJob.dentistName || 'Dentista');
+                      } catch (notifyErr: any) {
+                          console.error("[AppContext] Erro ao disparar WhatsApp de entrega via Ycloud:", notifyErr?.message || notifyErr);
+                      }
+                  } else {
+                      console.warn(`[AppContext] WhatsApp de entrega não disparado: Telefone não encontrado ou inválido para o trabalho #${mergedJob.osNumber || id} (dentistId: ${dId}, dentistName: ${mergedJob.dentistName})`);
                   }
               }
           }

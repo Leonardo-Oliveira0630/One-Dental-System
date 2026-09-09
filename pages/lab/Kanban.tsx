@@ -19,7 +19,8 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
-  HelpCircle
+  HelpCircle,
+  Camera
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -34,7 +35,7 @@ export const Kanban = () => {
   // Filtra apenas os trabalhos ativos (não entregues e não cancelados)
   const allActiveJobs = useMemo(() => {
     return jobs.filter(
-      job => job.status !== JobStatus.DELIVERED && job.status !== JobStatus.CANCELLED
+      job => job.status !== JobStatus.DELIVERED && job.status !== JobStatus.CANCELED
     );
   }, [jobs]);
 
@@ -285,24 +286,35 @@ export const Kanban = () => {
 
       {/* CAMPO DE BUSCA PRINCIPAL */}
       <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-200 shadow-sm mb-5">
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Pesquise por Paciente, Dentista, Nº da OS ou Nº da Caixa para ver setor e colaborador..."
-            className="w-full pl-11 pr-10 py-3 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#00B8D9] rounded-xl text-slate-800 placeholder-slate-400 text-sm font-medium outline-none transition-all"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200 transition-colors"
-              title="Limpar busca"
-            >
-              <X size={16} />
-            </button>
-          )}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Pesquise por Paciente, Dentista, Nº da OS ou Nº da Caixa para ver setor e colaborador..."
+              className="w-full pl-11 pr-10 py-3 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#00B8D9] rounded-xl text-slate-800 placeholder-slate-400 text-sm font-medium outline-none transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200 transition-colors"
+                title="Limpar busca"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl font-bold text-xs sm:text-sm shadow-sm transition-all shrink-0 cursor-pointer"
+            title="Escanear Código de Barras com a Câmera"
+          >
+            <Camera size={18} />
+            <span className="hidden sm:inline">Escanear</span>
+          </button>
         </div>
 
         {/* Dicas de Busca e Seletor de visualização */}

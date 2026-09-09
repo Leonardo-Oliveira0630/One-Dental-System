@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { DeliveryRoute, RouteItem, Job, ManualDentist, User, Courier } from '../../types';
+import { DeliveryRoute, RouteItem, Job, ManualDentist, User, Courier, JobStatus } from '../../types';
 import { 
   Truck, Calendar, Clock, Plus, Printer, Trash2, CheckCircle, 
   MapPin, Search, ChevronRight, X, User as UserIcon, Building, Loader2, Save, GripVertical, Navigation,
@@ -12,7 +12,7 @@ import { notifyJobLogistics } from '../../services/ycloudService';
 export const RoutePlanner = () => {
     const { 
         currentOrg, manualDentists, allUsers, triggerRoutePrint, currentUser,
-        couriers, addCourier, updateCourier, deleteCourier, jobs
+        couriers, addCourier, updateCourier, deleteCourier, jobs, updateJob
     } = useApp();
     
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -177,7 +177,46 @@ export const RoutePlanner = () => {
         if (!activeRoute || !currentOrg || !canEdit) return;
         await api.apiUpdateRoute(currentOrg.id, activeRoute.id, { status });
 
+        // Se a rota entrou em trânsito ou foi concluída, notificar dentistas dos trabalhos associados
+        if (status === 'IN_TRANSIT' || status === 'COMPLETED') {
+            const isDelivered = status === 'COMPLETED';
+            const action = isDelivered ? 'DELIVERED' : 'SHIPPED';
 
+            // Agrupar itens por dentista
+            const itemsByDentist: Record<string, RouteItem[]> = {};
+            routeItems.forEach(item => {
+                const key = item.dentistId || item.dentistName || 'unknown';
+                if (!itemsByDentist[key]) {
+                    itemsByDentist[key] = [];
+                }
+                itemsByDentist[key].push(item);
+            });
+
+            for (const [, dItems] of Object.entries(itemsByDentist)) {
+                for (const item of dItems) {
+                    if (item.jobId) {
+                        const job = jobs.find(j => j.id === item.jobId);
+                        if (job) {
+                            if (isDelivered) {
+                                await updateJob(job.id, { status: JobStatus.DELIVERED });
+                            } else {
+                                const dentist = manualDentists.find(d => d.id === item.dentistId || d.name === item.dentistName) || 
+                                                allUsers.find(u => u.id === item.dentistId || u.name === item.dentistName);
+                                const rawPhone = dentist?.whatsapp || dentist?.phone || (job as any)?.dentistPhone || (job as any)?.dentistWhatsapp || '';
+                                const cleanPhone = rawPhone.replace(/\D/g, '');
+                                if (cleanPhone.length >= 8) {
+                                    try {
+                                        await notifyJobLogistics(job, action, cleanPhone, dentist?.name || item.dentistName || 'Dentista');
+                                    } catch (err) {
+                                        console.warn("[RoutePlanner] Erro ao notificar saída para entrega:", err);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     };
 
     const handleAddCourierSubmit = async (e: React.FormEvent) => {

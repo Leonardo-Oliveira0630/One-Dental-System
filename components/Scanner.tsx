@@ -7,10 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, CommissionStatus, JobItem, JobType } from '../types';
 import { ScanBarcode, X, AlertTriangle, LogIn, LogOut, CheckCircle, Camera, RefreshCcw, Volume2, MessageCircle, Loader2, ImagePlus } from 'lucide-react';
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { calculateItemCommission } from '../utils/commissionUtils';
 import { CameraDevice, getAvailableCameras, getSmartCameraSelection } from '../utils/cameraUtils';
 import { getNfcUidFormats, findMatchingNfcBox } from '../services/nfcServices';
+import { CameraBarcodeScannerModal } from './CameraBarcodeScannerModal';
 
 // Importação segura do Capacitor
 const playNativeHaptic = async (isSuccess: boolean) => {
@@ -340,7 +340,14 @@ export const GlobalScanner: React.FC = () => {
     try {
         const rawCode = code.trim().toUpperCase();
         const cleanedCode = rawCode.replace(/^0+/, ''); // Remove leading zeros and trim
-        console.log(`[Scanner] Processando código: "${cleanedCode}" (Original: "${code}")`);
+        // Strip common prefixes like 'OS-', 'OS ', 'OS:', 'JOB-', etc. or URL segments
+        let strippedCode = rawCode.replace(/^(OS|JOB|PEDIDO|CAIXA|BOX)[\s:-]+/i, '').trim();
+        if (code.includes('/jobs/')) {
+            const parts = code.split('/jobs/');
+            if (parts[1]) strippedCode = parts[1].split(/[/?#]/)[0].trim().toUpperCase();
+        }
+        const cleanedStripped = strippedCode.replace(/^0+/, '');
+        console.log(`[Scanner] Processando código: "${cleanedCode}" (Original: "${code}", Stripped: "${strippedCode}")`);
 
 
         // Lógica de confirmação por "Bip Duplo"
@@ -363,17 +370,29 @@ export const GlobalScanner: React.FC = () => {
         setNextSector('');
         
         // Busca instantânea via Map (tenta o raw normal, o raw sem zeros, e depois fuzzy)
-        let job = jobMapRef.current.get(cleanedCode) || jobMapRef.current.get(rawCode);
+        let job = jobMapRef.current.get(cleanedCode) || 
+                  jobMapRef.current.get(rawCode) || 
+                  (strippedCode ? jobMapRef.current.get(strippedCode) : null) ||
+                  (cleanedStripped ? jobMapRef.current.get(cleanedStripped) : null);
         
 
         if (!job) {
             // Busca mais rigorosa no array
-            job = jobsRef.current.find(j => 
-                (j.osNumber && j.osNumber.toUpperCase() === rawCode) ||
-                (j.osNumber && j.osNumber.toUpperCase().replace(/^0+/, '') === cleanedCode) ||
-                j.id.toUpperCase() === rawCode ||
-                j.id.substring(0, 8).toUpperCase() === rawCode
-            );
+            job = jobsRef.current.find(j => {
+                const jOs = (j.osNumber || '').toUpperCase();
+                const jOsClean = jOs.replace(/^0+/, '');
+                const jId = (j.id || '').toUpperCase();
+                const jIdShort = jId.substring(0, 8);
+
+                return (
+                    jOs === rawCode ||
+                    jOsClean === cleanedCode ||
+                    (strippedCode && (jOs === strippedCode || jOsClean === cleanedStripped)) ||
+                    jId === rawCode ||
+                    jIdShort === rawCode ||
+                    (strippedCode && (jId === strippedCode || jIdShort === strippedCode))
+                );
+            });
         }
         
         // Busca por UID da Caixa NFC do laboratório (suporta Leitor Novo Hex e Leitor Antigo Decimal)
@@ -390,7 +409,10 @@ export const GlobalScanner: React.FC = () => {
             const activeJobWithBox = jobsRef.current.find(j => {
                 if (!j.boxNumber) return false;
                 const box = String(j.boxNumber).trim().toUpperCase();
-                return box === searchBoxNumber || box === rawCode || box === cleanedCode;
+                const cleanBox = box.replace(/^0+/, '');
+                const cleanSearch = searchBoxNumber.replace(/^0+/, '');
+                
+                return box === searchBoxNumber || cleanBox === cleanSearch || box === rawCode || cleanBox === cleanedCode;
             });
             
             if (activeJobWithBox && !['COMPLETED', 'DELIVERED', 'CANCELED', 'REJECTED'].includes(activeJobWithBox.status)) {
@@ -402,6 +424,7 @@ export const GlobalScanner: React.FC = () => {
         
         if (job) {
           console.log(`[Scanner] Trabalho encontrado: ${job.osNumber} (${job.id})`);
+          setIsCameraActive(false);
           await playNativeHaptic(true);
           playBeep(true);
           if (currentUserRef.current) {
@@ -701,12 +724,23 @@ export const GlobalScanner: React.FC = () => {
     };
   }, [processScan]);
 
-  if (!scannedJob) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-lg max-h-[95vh] overflow-y-auto overscroll-contain border-t-[12px] border-blue-600 animate-in zoom-in duration-200 relative">
-    {pendingAction && (
+    <>
+      {/* Modal Leitor de Código de Barras via Câmera (Mobile / Capacitor / Web) */}
+      <CameraBarcodeScannerModal
+        isOpen={isCameraActive}
+        onClose={() => setIsCameraActive(false)}
+        onScan={(code) => {
+          setIsCameraActive(false);
+          processScan(code);
+        }}
+      />
+
+      {/* Modal de Controle de Setor / OS Bipada */}
+      {scannedJob && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-lg max-h-[95vh] overflow-y-auto overscroll-contain border-t-[12px] border-blue-600 animate-in zoom-in duration-200 relative">
+      {pendingAction && (
         <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/60 rounded-3xl backdrop-blur-sm p-6 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full p-6 text-center animate-in zoom-in-95 duration-200">
                 {pendingAction.blockedMessage ? (
@@ -909,6 +943,8 @@ export const GlobalScanner: React.FC = () => {
         </div>
       </div>
     </div>
+    )}
+  </>
   );
 };
 
@@ -928,18 +964,30 @@ export const ManualScannerInput: React.FC = () => {
     };
 
     return (
-        <div className="relative flex items-center">
-            <div className="absolute left-3 text-slate-400">
-                <ScanBarcode size={16} />
+        <div className="relative flex items-center gap-1.5 sm:gap-2">
+            <div className="relative hidden xl:flex items-center">
+                <div className="absolute left-3 text-slate-400">
+                    <ScanBarcode size={16} />
+                </div>
+                <input 
+                    type="text" 
+                    value={value}
+                    onChange={e => setValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Bipar Caixa/OS..." 
+                    className="w-36 lg:w-44 pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder:font-normal"
+                />
             </div>
-            <input 
-                type="text" 
-                value={value}
-                onChange={e => setValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Bipar Caixa/OS..." 
-                className="w-48 pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder:font-normal"
-            />
+            <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                title="Escanear Código de Barras com Câmera (Tablet / Celular / Web)"
+                aria-label="Escanear Código de Barras com Câmera"
+                className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl shadow-sm hover:shadow transition-all text-xs font-bold shrink-0 cursor-pointer"
+            >
+                <Camera size={18} />
+                <span className="hidden sm:inline font-bold">Escanear</span>
+            </button>
         </div>
     );
 };

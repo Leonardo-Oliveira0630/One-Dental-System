@@ -71,6 +71,22 @@ export const BoxColorsTab = () => {
     }
   };
 
+  const handleRemoveKit = async (codigoKit: string) => {
+    const orgId = currentOrg?.id;
+    if (!orgId) return;
+
+    if (!window.confirm(`ATENÇÃO: Deseja realmente excluir/desvincular o Kit NFC "${codigoKit}" deste laboratório? As caixas deste kit deixarão de funcionar neste sistema.`)) {
+        return;
+    }
+
+    try {
+        await ActivationService.removeLabKit(codigoKit, orgId);
+        alert(`Kit ${codigoKit} removido com sucesso.`);
+    } catch (err: any) {
+        alert("Erro ao remover kit: " + err.message);
+    }
+  };
+
   // Filtered NFC boxes
   const filteredNfcBoxes = nfcBoxes.filter(box => {
     const query = nfcBoxSearch.trim().toLowerCase().replace(/[:\s-]/g, '');
@@ -319,11 +335,21 @@ export const BoxColorsTab = () => {
                     {activeKits.map(code => {
                       const count = nfcBoxes.filter(b => b.kitCodigo === code).length;
                       return (
-                        <div key={code} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 font-mono text-xs">
-                          <span className="font-bold text-slate-700">{code}</span>
-                          <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">
-                            {count} {count === 1 ? 'caixa' : 'caixas'}
-                          </span>
+                        <div key={code} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 font-mono text-xs group">
+                          <div className="flex flex-col">
+                             <span className="font-bold text-slate-700">{code}</span>
+                             <span className="text-[9px] text-slate-400 font-sans mt-0.5">
+                               {count} {count === 1 ? 'caixa ativada' : 'caixas ativadas'}
+                             </span>
+                          </div>
+                          
+                          <button
+                             onClick={() => handleRemoveKit(code)}
+                             className="opacity-0 group-hover:opacity-100 p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                             title="Remover/Desvincular este kit"
+                          >
+                             <Trash2 size={16} />
+                          </button>
                         </div>
                       );
                     })}

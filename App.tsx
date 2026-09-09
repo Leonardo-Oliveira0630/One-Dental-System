@@ -51,6 +51,8 @@ import { HelpdeskAgentsAdmin } from './pages/superadmin/HelpdeskAgentsAdmin';
 import { MarketplaceCategoriesAdmin } from './pages/superadmin/MarketplaceCategoriesAdmin';
 import { WhatsAppTemplates } from './pages/superadmin/WhatsAppTemplates';
 import { LabResets } from './pages/superadmin/LabResets';
+import { BioLinksAdmin } from './pages/superadmin/BioLinksAdmin';
+import { BioPage } from './pages/BioPage';
 import { TutorialsView } from './pages/TutorialsView';
 import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { TermsOfUse } from './pages/TermsOfUse';
@@ -137,6 +139,7 @@ const StoreCatalogRoute = () => {
   );
 };
 
+import { Capacitor } from '@capacitor/core';
 import Reports from './pages/Reports';
 import { useAnalytics } from './hooks/useAnalytics';
 
@@ -145,10 +148,11 @@ const AppContent = () => {
   
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/login" /> : <LandingPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register-lab" element={<RegisterOrganization />} />
       <Route path="/terms" element={<TermsOfUse />} />
+      <Route path="/bio" element={<BioPage />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/requisition-invite" element={<RequisitionInvite />} />
       
@@ -225,6 +229,7 @@ const AppContent = () => {
       <Route path="/superadmin/helpdesk" element={<ProtectedRoute><HelpdeskAgentsAdmin /></ProtectedRoute>} />
       <Route path="/superadmin/whatsapp" element={<ProtectedRoute><WhatsAppTemplates /></ProtectedRoute>} />
       <Route path="/superadmin/resets" element={<ProtectedRoute><LabResets /></ProtectedRoute>} />
+      <Route path="/superadmin/bio" element={<ProtectedRoute><BioLinksAdmin /></ProtectedRoute>} />
       <Route path="/helpdesk" element={<ProtectedRoute><HelpdeskWorkspace /></ProtectedRoute>} />
       
       <Route path="*" element={<Navigate to="/" replace />} />

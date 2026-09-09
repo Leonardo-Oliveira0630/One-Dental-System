@@ -1538,17 +1538,17 @@ export const Finance = () => {
       )}
 
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-           <div className="flex bg-slate-200 p-1 rounded-2xl w-fit overflow-x-auto no-scrollbar">
-              <button onClick={() => setActiveTab('DASHBOARD')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Métricas</button>
-              <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Extrato p/ Faturamento</button>
-              <button onClick={() => setActiveTab('BATCHES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Faturas & Boletos</button>
-              <button onClick={() => setActiveTab('EXPENSES')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Despesas</button>
-              <button onClick={() => setActiveTab('REPORTS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'REPORTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Relatórios</button>
-              <button onClick={() => setActiveTab('SETTINGS')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Configurações</button>
-          </div>
-          
-
-      </div>
+           <div className="w-full overflow-x-auto pb-1 no-scrollbar">
+               <div className="flex bg-slate-200 p-1 rounded-2xl w-max gap-1">
+                  <button onClick={() => setActiveTab('DASHBOARD')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'DASHBOARD' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Métricas</button>
+                  <button onClick={() => setActiveTab('RECEIVABLES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'RECEIVABLES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Extrato p/ Faturamento</button>
+                  <button onClick={() => setActiveTab('BATCHES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'BATCHES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Faturas & Boletos</button>
+                  <button onClick={() => setActiveTab('EXPENSES')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'EXPENSES' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Despesas</button>
+                  <button onClick={() => setActiveTab('REPORTS')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'REPORTS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Relatórios</button>
+                  <button onClick={() => setActiveTab('SETTINGS')} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${activeTab === 'SETTINGS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}>Configurações</button>
+               </div>
+           </div>
+       </div>
 
       {activeTab === 'DASHBOARD' && (
           <div className="space-y-8 animate-in fade-in duration-300">
@@ -2190,43 +2190,44 @@ export const Finance = () => {
 
       {/* MODAL: EXTRATO COMPLETO (SINC COM DENTISTS.TSX) */}
       {showStatement && statementClient && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-                    <div className="bg-slate-50 rounded-[40px] shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col animate-in zoom-in duration-300 overflow-hidden border border-white">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-2 sm:p-4">
+                    <div className="bg-slate-50 rounded-2xl sm:rounded-[40px] shadow-2xl w-full max-w-6xl h-[94vh] sm:h-[90vh] flex flex-col animate-in zoom-in duration-300 overflow-hidden border border-white">
                         {/* HEADER */}
-                        <div className="p-4 sm:p-8 border-b border-slate-100 flex justify-between items-start bg-white relative">
-                            <div className="flex items-center gap-4 sm:p-6">
-                                <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-blue-200">
-                                    <History size={32} />
+                        <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white relative gap-3">
+                            <div className="flex items-center gap-3 sm:gap-4 pr-10 sm:pr-0">
+                                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-600 rounded-2xl sm:rounded-3xl flex items-center justify-center text-white shadow-xl shadow-blue-200 shrink-0">
+                                    <History size={24} className="sm:w-8 sm:h-8" />
                                 </div>
-                                <div>
-                                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">{statementClient.name}</h3>
-                                    <div className="flex items-center gap-3 mt-1">
-                                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-lg">Financeiro Unificado</span>
-                                        <span className="text-xs text-slate-400 font-bold">• {statementClient.clinicName || 'Consultório'}</span>
+                                <div className="min-w-0">
+                                    <h3 className="text-lg sm:text-2xl font-black text-slate-800 tracking-tight truncate">{statementClient.name}</h3>
+                                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                        <span className="text-[9px] sm:text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded-lg">Financeiro Unificado</span>
+                                        <span className="text-xs text-slate-400 font-bold truncate">• {statementClient.clinicName || 'Consultório'}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex flex-col items-end gap-4">
-                                <button onClick={() => setShowStatement(false)} className="p-3 hover:bg-slate-100 rounded-2xl transition-all">
-                                    <X size={24} className="text-slate-400" />
-                                </button>
-                                <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl">
+                            <button onClick={() => setShowStatement(false)} className="absolute top-3 right-3 sm:relative sm:top-auto sm:right-auto p-2 hover:bg-slate-100 rounded-2xl transition-all text-slate-400">
+                                <X size={24} />
+                            </button>
+
+                            <div className="w-full sm:w-auto overflow-x-auto no-scrollbar">
+                                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl w-full sm:w-auto">
                                     <button 
                                         onClick={() => setActiveSubTab('EXTRATO')}
-                                        className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeSubTab === 'EXTRATO' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeSubTab === 'EXTRATO' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                     >
                                         Extrato
                                     </button>
                                     <button 
                                         onClick={() => setActiveSubTab('RECEBIMENTOS')}
-                                        className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeSubTab === 'RECEBIMENTOS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeSubTab === 'RECEBIMENTOS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                     >
                                         Recebimentos
                                     </button>
                                     <button 
                                         onClick={() => setActiveSubTab('FATURAS')}
-                                        className={`px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeSubTab === 'FATURAS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                        className={`flex-1 sm:flex-initial px-4 sm:px-6 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all whitespace-nowrap ${activeSubTab === 'FATURAS' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                     >
                                         Faturas/Boletos
                                     </button>
@@ -2235,7 +2236,7 @@ export const Finance = () => {
                         </div>
 
                         {/* CONTENT */}
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50/50 relative">
+                        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-50/50 relative">
                             {isLoadingStatement && (
                                 <div className="absolute inset-0 z-10 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center">
                                     <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
@@ -2244,37 +2245,35 @@ export const Finance = () => {
                             )}
 
                             {activeSubTab === 'EXTRATO' && (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="flex justify-between items-center bg-white p-4 sm:p-6 rounded-[32px] border border-slate-100 shadow-sm">
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
-                                                <input 
-                                                    type="date"
-                                                    value={filterStartDate}
-                                                    onChange={(e) => setFilterStartDate(e.target.value)}
-                                                    className="px-4 py-2 bg-transparent text-sm font-bold text-slate-700 outline-none"
-                                                />
-                                                <span className="text-slate-400 font-bold px-2">até</span>
-                                                <input 
-                                                    type="date"
-                                                    value={filterEndDate}
-                                                    onChange={(e) => setFilterEndDate(e.target.value)}
-                                                    className="px-4 py-2 bg-transparent text-sm font-bold text-slate-700 outline-none"
-                                                />
-                                            </div>
+                                <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white p-3 sm:p-6 rounded-2xl sm:rounded-[32px] border border-slate-100 shadow-sm">
+                                        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100 w-full sm:w-auto">
+                                            <input 
+                                                type="date"
+                                                value={filterStartDate}
+                                                onChange={(e) => setFilterStartDate(e.target.value)}
+                                                className="flex-1 sm:flex-initial px-2 sm:px-4 py-2 bg-transparent text-xs sm:text-sm font-bold text-slate-700 outline-none"
+                                            />
+                                            <span className="text-slate-400 font-bold px-1 sm:px-2 text-xs">até</span>
+                                            <input 
+                                                type="date"
+                                                value={filterEndDate}
+                                                onChange={(e) => setFilterEndDate(e.target.value)}
+                                                className="flex-1 sm:flex-initial px-2 sm:px-4 py-2 bg-transparent text-xs sm:text-sm font-bold text-slate-700 outline-none"
+                                            />
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                             <button 
                                                 onClick={() => setShowManualEntryModal(true)}
-                                                className="px-4 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-xl shadow-blue-500/30"
+                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap"
                                             >
-                                                <Plus size={16} /> Lançamento Manual
+                                                <Plus size={15} /> Lançamento
                                             </button>
                                             <button 
                                                 onClick={generateStatementPDF}
-                                                className="px-6 py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-xl shadow-slate-200"
+                                                className="flex-1 sm:flex-initial px-3 sm:px-5 py-2.5 sm:py-3 bg-slate-900 text-white text-[10px] font-black uppercase rounded-xl sm:rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-slate-200 whitespace-nowrap"
                                             >
-                                                <Download size={16} /> Exportar PDF
+                                                <Download size={15} /> PDF
                                             </button>
                                             <button 
                                                 onClick={() => {
@@ -2285,113 +2284,115 @@ export const Finance = () => {
                                                         setShowDebtsEmailModal(true);
                                                     }
                                                 }}
-                                                className="px-6 py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-xl shadow-blue-500/20"
+                                                className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-blue-600 text-white text-[10px] font-black uppercase rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 whitespace-nowrap"
                                                 title="Enviar este Extrato em PDF por E-mail via Brevo"
                                             >
-                                                <Mail size={16} /> Enviar por E-mail
+                                                <Mail size={15} /> Enviar por E-mail
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-                                        <table className="w-full text-left">
-                                            <thead className="bg-slate-50 border-b border-slate-100">
-                                                <tr>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Lançamento</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-50">
-                                                <tr className="bg-slate-50/50 font-bold border-b border-slate-200">
-                                                    <td className="px-6 py-4 text-xs text-slate-400">
-                                                        {filterStartDate ? new Date(`${filterStartDate}T00:00:00`).toLocaleDateString('pt-BR') : '-'}
-                                                    </td>
-                                                    <td className="px-6 py-4 text-xs text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
-                                                    <td className="px-6 py-4 text-right text-xs">-</td>
-                                                    <td className={`px-6 py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                                        R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                    </td>
-                                                </tr>
-                                                {chronoHistory.history.length === 0 ? (
+                                    <div className="bg-white rounded-2xl sm:rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+                                        <div className="overflow-x-auto w-full">
+                                            <table className="w-full text-left min-w-[540px]">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
                                                     <tr>
-                                                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
-                                                            Nenhum registro encontrado neste período.
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Lançamento</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Saldo</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    <tr className="bg-slate-50/50 font-bold border-b border-slate-200">
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-400">
+                                                            {filterStartDate ? new Date(`${filterStartDate}T00:00:00`).toLocaleDateString('pt-BR') : '-'}
+                                                        </td>
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs text-slate-500 uppercase tracking-widest">Saldo Anterior Carregado</td>
+                                                        <td className="px-4 sm:px-6 py-3 sm:py-4 text-right text-xs">-</td>
+                                                        <td className={`px-4 sm:px-6 py-3 sm:py-4 text-right text-xs font-black ${chronoHistory.previousBalance < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                            R$ {chronoHistory.previousBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                         </td>
                                                     </tr>
-                                                ) : (
-                                                    chronoHistory.history.slice().reverse().map((item, idx) => (
-                                                        <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                                                            <td className="px-6 py-4 text-xs font-bold text-slate-500">
-                                                                {new Date(item.date).toLocaleDateString('pt-BR')}
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <div className="flex flex-col gap-1">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className={`p-2 rounded-lg ${item.type === 'DEBIT' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-                                                                            {item.type === 'DEBIT' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
-                                                                        </div>
-                                                                        <span className="text-xs font-black text-slate-800">{item.description}</span>
-                                                                    </div>
-                                                                    {'job' in item && item.job && (
-                                                                        <div className="ml-10 space-y-1">
-                                                                            {item.job.items?.map((it:any, iIdx:number) => (
-                                                                                <div key={`item-${iIdx}`} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
-                                                                                    <span>{it.quantity} x {it.name}</span>
-                                                                                    <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
-                                                                                </div>
-                                                                            ))}
-                                                                            {item.job.products?.map((prod:any, pIdx:number) => (
-                                                                                <div key={`prod-${pIdx}`} className="flex items-center gap-4 text-[9px] font-extrabold text-amber-600 uppercase">
-                                                                                    <span>{prod.quantity || 1} x [IMPLANTE/PRODUTO] {prod.name}</span>
-                                                                                    <span className="text-amber-500">R$ {((prod.unitPrice || 0) * (prod.quantity || 1)).toFixed(2)}</span>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                            <td className={`px-6 py-4 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
-                                                                {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                            </td>
-                                                            <td className={`px-6 py-4 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                                                R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                    {chronoHistory.history.length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold italic bg-slate-50/10">
+                                                                Nenhum registro encontrado neste período.
                                                             </td>
                                                         </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
+                                                    ) : (
+                                                        chronoHistory.history.slice().reverse().map((item, idx) => (
+                                                            <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-500">
+                                                                    {new Date(item.date).toLocaleDateString('pt-BR')}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4">
+                                                                    <div className="flex flex-col gap-1">
+                                                                        <div className="flex items-center gap-2 sm:gap-3">
+                                                                            <div className={`p-1.5 sm:p-2 rounded-lg ${item.type === 'DEBIT' ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+                                                                                {item.type === 'DEBIT' ? <ArrowDownCircle size={14} /> : <ArrowUpCircle size={14} />}
+                                                                            </div>
+                                                                            <span className="text-xs font-black text-slate-800">{item.description}</span>
+                                                                        </div>
+                                                                        {'job' in item && item.job && (
+                                                                            <div className="ml-6 sm:ml-10 space-y-1">
+                                                                                {item.job.items?.map((it:any, iIdx:number) => (
+                                                                                    <div key={`item-${iIdx}`} className="flex items-center gap-4 text-[9px] font-bold text-slate-400 uppercase">
+                                                                                        <span>{it.quantity} x {it.name}</span>
+                                                                                        <span className="text-slate-300">R$ {it.price.toFixed(2)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                                {item.job.products?.map((prod:any, pIdx:number) => (
+                                                                                    <div key={`prod-${pIdx}`} className="flex items-center gap-4 text-[9px] font-extrabold text-amber-600 uppercase">
+                                                                                        <span>{prod.quantity || 1} x [IMPLANTE/PRODUTO] {prod.name}</span>
+                                                                                        <span className="text-amber-500">R$ {((prod.unitPrice || 0) * (prod.quantity || 1)).toFixed(2)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${item.type === 'DEBIT' ? 'text-red-600' : 'text-green-600'}`}>
+                                                                    {item.type === 'DEBIT' ? '-' : '+'} R$ {item.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className={`px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right ${item.balanceAfter < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                                    R$ {item.balanceAfter.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
                             {activeSubTab === 'RECEBIMENTOS' && (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                    <div className="flex justify-between items-center">
-                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Histórico de Recebimentos</h4>
-                                        <div className="flex gap-2">
+                                <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                                        <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-widest">Histórico de Recebimentos</h4>
+                                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                                             <button 
                                                 onClick={generateReceiptsPDF}
-                                                className="px-4 py-2 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2"
+                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-indigo-50 text-indigo-700 text-[10px] font-black uppercase rounded-xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
                                             >
                                                 <Printer size={14} />
                                                 Recibo em PDF
                                             </button>
                                             <button 
                                                 onClick={() => setShowPaymentForm(!showPaymentForm)}
-                                                className="px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center gap-2"
+                                                className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 bg-green-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-100 flex items-center justify-center gap-1.5 whitespace-nowrap"
                                             >
                                                 {showPaymentForm ? <Trash2 size={14} /> : <Plus size={14} />}
-                                                Novo Recebimento Manual
+                                                Novo Recebimento
                                             </button>
                                         </div>
                                     </div>
 
                                     {showPaymentForm && (
                                         <div className="bg-white p-4 sm:p-6 rounded-2xl border-2 border-green-200 animate-in slide-in-from-top-4 duration-300">
-                                            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
                                                 <div className="md:col-span-1">
                                                     <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 tracking-widest">Valor Recebido (R$)</label>
                                                     <input 
@@ -2569,161 +2570,165 @@ export const Finance = () => {
                                     )}
 
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                        <table className="w-full text-left">
-                                            <thead className="bg-slate-50 border-b border-slate-100">
-                                                <tr>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Forma</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Observação</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Comprovante</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-50">
-                                                {dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).length === 0 ? (
+                                        <div className="overflow-x-auto w-full">
+                                            <table className="w-full text-left min-w-[500px]">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
                                                     <tr>
-                                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado neste período.</td>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Forma</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Observação</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Comprovante</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
                                                     </tr>
-                                                ) : (
-                                                    dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).map((p, idx) => (
-                                                        <tr 
-                                                            key={p.id} 
-                                                            onClick={() => {
-                                                                setSelectedPaymentForDetail(p);
-                                                                setIsEditingDetailPayment(false);
-                                                                setEditDetailAmount(p.amount);
-                                                                setEditDetailInterest(p.interest || 0);
-                                                                setEditDetailFees(p.fees || 0);
-                                                                setEditDetailDiscount(p.discount || 0);
-                                                                setEditDetailMethod(p.paymentMethod);
-                                                                setEditDetailCardMachineId(p.cardMachineId || '');
-                                                                setEditDetailBankAccountId(p.bankAccountId || '');
-                                                                setEditDetailDate(new Date(p.paymentDate).toISOString().split('T')[0]);
-                                                                setEditDetailNotes(p.notes || '');
-                                                                setEditDetailAttachmentUrl(p.attachmentUrl || '');
-                                                                setEditDetailAttachmentName(p.attachmentName || '');
-                                                            }}
-                                                            className="hover:bg-slate-50 transition-colors cursor-pointer"
-                                                        >
-                                                            <td className="px-6 py-4 text-xs font-bold text-slate-500">
-                                                                {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
-                                                                    {translatePaymentMethod(p.paymentMethod)}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-6 py-4 text-xs font-bold text-slate-600 italic">
-                                                                {p.notes || '-'}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-center">
-                                                                {p.attachmentUrl ? (
-                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-lg">
-                                                                        <FileCheck size={10} /> Sim
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="inline-flex px-2 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 text-[9px] font-mono rounded">Não</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-xs font-black text-right text-green-600">
-                                                                R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                            </td>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    {dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={5} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">Nenhum recebimento registrado neste período.</td>
                                                         </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
+                                                    ) : (
+                                                        dentistPayments.filter(p => p.dentistId === statementClient.id && new Date(p.paymentDate) >= new Date(`${filterStartDate}T00:00:00`) && new Date(p.paymentDate) <= new Date(`${filterEndDate}T23:59:59`)).map((p, idx) => (
+                                                            <tr 
+                                                                key={p.id} 
+                                                                onClick={() => {
+                                                                    setSelectedPaymentForDetail(p);
+                                                                    setIsEditingDetailPayment(false);
+                                                                    setEditDetailAmount(p.amount);
+                                                                    setEditDetailInterest(p.interest || 0);
+                                                                    setEditDetailFees(p.fees || 0);
+                                                                    setEditDetailDiscount(p.discount || 0);
+                                                                    setEditDetailMethod(p.paymentMethod);
+                                                                    setEditDetailCardMachineId(p.cardMachineId || '');
+                                                                    setEditDetailBankAccountId(p.bankAccountId || '');
+                                                                    setEditDetailDate(new Date(p.paymentDate).toISOString().split('T')[0]);
+                                                                    setEditDetailNotes(p.notes || '');
+                                                                    setEditDetailAttachmentUrl(p.attachmentUrl || '');
+                                                                    setEditDetailAttachmentName(p.attachmentName || '');
+                                                                }}
+                                                                className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                                            >
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-500">
+                                                                    {new Date(p.paymentDate).toLocaleDateString('pt-BR')}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4">
+                                                                    <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded-lg">
+                                                                        {translatePaymentMethod(p.paymentMethod)}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-600 italic">
+                                                                    {p.notes || '-'}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    {p.attachmentUrl ? (
+                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase rounded-lg">
+                                                                            <FileCheck size={10} /> Sim
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="inline-flex px-2 py-0.5 bg-slate-50 text-slate-400 border border-slate-100 text-[9px] font-mono rounded">Não</span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right text-green-600">
+                                                                    R$ {p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
                             {activeSubTab === 'FATURAS' && (
-                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="space-y-4 sm:space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                     <div className="flex justify-between items-center">
-                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">Faturas & Boletos</h4>
+                                        <h4 className="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-widest">Faturas & Boletos</h4>
                                     </div>
 
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                        <table className="w-full text-left">
-                                            <thead className="bg-slate-50 border-b border-slate-100">
-                                                <tr>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-50">
-                                                {billingBatches.filter(b => b.dentistId === statementClient.id).length === 0 ? (
+                                        <div className="overflow-x-auto w-full">
+                                            <table className="w-full text-left min-w-[480px]">
+                                                <thead className="bg-slate-50 border-b border-slate-100">
                                                     <tr>
-                                                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-bold italic">Nenhuma fatura gerada para este cliente.</td>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vencimento</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Valor</th>
+                                                        <th className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
                                                     </tr>
-                                                ) : (
-                                                    billingBatches.filter(b => b.dentistId === statementClient.id).map((b) => (
-                                                        <tr key={b.id} className="hover:bg-slate-50 transition-colors">
-                                                            <td className="px-6 py-4 text-[10px] font-black text-slate-400">#{b.id.slice(-6).toUpperCase()}</td>
-                                                            <td className="px-6 py-4 text-xs font-bold text-slate-600">
-                                                                {new Date(b.dueDate).toLocaleDateString('pt-BR')}
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-lg ${
-                                                                    b.status === 'PAID' ? 'bg-green-100 text-green-700' : 
-                                                                    b.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                                                                }`}>
-                                                                    {b.status === 'PAID' ? 'Paga' : b.status === 'OVERDUE' ? 'Atrasada' : 'Pendente'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-6 py-4 text-xs font-black text-right text-slate-800">
-                                                                R$ {b.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                                            </td>
-                                                            <td className="px-6 py-4 text-center">
-                                                                <div className="flex items-center justify-center gap-2">
-                                                                    {b.status !== 'PAID' && (
-                                                                        <button 
-                                                                            onClick={() => updateBillingBatchStatus(b.id, 'PAID')}
-                                                                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all"
-                                                                            title="Marcar como Pago"
-                                                                        >
-                                                                            <Check size={16} />
-                                                                        </button>
-                                                                    )}
-                                                                    {b.boletoUrl && (
-                                                                        <a href={b.boletoUrl} target="_blank" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Ver Boleto">
-                                                                            <FileText size={16} />
-                                                                        </a>
-                                                                    )}
-                                                                </div>
-                                                            </td>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-50">
+                                                    {billingBatches.filter(b => b.dentistId === statementClient.id).length === 0 ? (
+                                                        <tr>
+                                                            <td colSpan={5} className="px-4 sm:px-6 py-12 text-center text-slate-400 font-bold italic">Nenhuma fatura gerada para este cliente.</td>
                                                         </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
+                                                    ) : (
+                                                        billingBatches.filter(b => b.dentistId === statementClient.id).map((b) => (
+                                                            <tr key={b.id} className="hover:bg-slate-50 transition-colors">
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-slate-400">#{b.id.slice(-6).toUpperCase()}</td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-bold text-slate-600">
+                                                                    {new Date(b.dueDate).toLocaleDateString('pt-BR')}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4">
+                                                                    <span className={`px-2 py-1 text-[9px] font-black uppercase rounded-lg ${
+                                                                        b.status === 'PAID' ? 'bg-green-100 text-green-700' : 
+                                                                        b.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                                                    }`}>
+                                                                        {b.status === 'PAID' ? 'Paga' : b.status === 'OVERDUE' ? 'Atrasada' : 'Pendente'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-xs font-black text-right text-slate-800">
+                                                                    R$ {b.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                                </td>
+                                                                <td className="px-4 sm:px-6 py-3 sm:py-4 text-center">
+                                                                    <div className="flex items-center justify-center gap-2">
+                                                                        {b.status !== 'PAID' && (
+                                                                            <button 
+                                                                                onClick={() => updateBillingBatchStatus(b.id, 'PAID')}
+                                                                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-all"
+                                                                                title="Marcar como Pago"
+                                                                            >
+                                                                                <Check size={16} />
+                                                                            </button>
+                                                                        )}
+                                                                        {b.boletoUrl && (
+                                                                            <a href={b.boletoUrl} target="_blank" className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Ver Boleto">
+                                                                                <FileText size={16} />
+                                                                            </a>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
                             )}
                         </div>
 
                         {/* FOOTER */}
-                        <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t border-slate-100 bg-white flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex items-center gap-4 sm:p-6">
+                        <div className="p-3 sm:px-6 sm:py-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+                            <div className="flex items-center justify-between sm:justify-start gap-4">
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
-                                    <span className={`text-xl font-black ${chronoHistory.history.length > 0 && chronoHistory.history[chronoHistory.history.length-1].balanceAfter < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Devedor Total</span>
+                                    <span className={`text-lg sm:text-xl font-black ${chronoHistory.history.length > 0 && chronoHistory.history[chronoHistory.history.length-1].balanceAfter < 0 ? 'text-red-600' : 'text-green-600'}`}>
                                         R$ {Math.abs(chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length-1].balanceAfter : chronoHistory.previousBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                     </span>
                                 </div>
-                                <div className="h-10 w-px bg-slate-100 mx-2 hidden md:block" />
-                                <div className="hidden md:flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Último Pagamento</span>
-                                    <span className="text-sm font-bold text-slate-600">
+                                <div className="h-8 w-px bg-slate-100 mx-2 hidden sm:block" />
+                                <div className="flex flex-col text-right sm:text-left">
+                                    <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest">Último Pagamento</span>
+                                    <span className="text-xs sm:text-sm font-bold text-slate-600">
                                         {chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()?.date ? new Date(chronoHistory.history.filter(i => i.type === 'PAYMENT').pop()!.date).toLocaleDateString('pt-BR') : '--/--/----'}
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-3 w-full md:w-auto">
+                            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                                 <button 
                                     onClick={() => {
                                         const lastBalance = chronoHistory.history.length > 0 ? chronoHistory.history[chronoHistory.history.length - 1].balanceAfter : chronoHistory.previousBalance;
@@ -2731,9 +2736,9 @@ export const Finance = () => {
                                         setCustomBoletoAmount(defaultAmount);
                                         setShowBoletoModal(true);
                                     }}
-                                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 text-white font-black rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 uppercase text-xs"
+                                    className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 sm:gap-2 px-4 sm:px-8 py-2.5 sm:py-3 bg-blue-600 text-white font-black rounded-xl sm:rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 uppercase text-xs whitespace-nowrap"
                                 >
-                                    <Receipt size={18} /> Fechar Faturamento
+                                    <Receipt size={16} /> Fechar Faturamento
                                 </button>
                                 <button
                                     onClick={() => {

@@ -449,7 +449,7 @@ export const SupportChatWidget = () => {
   }
 
   return (
-    <div className={`fixed z-50 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:flex sm:flex-col sm:items-end' : 'bottom-6 right-6 flex flex-col items-end'}`}>
+    <div className={`fixed z-50 ${isOpen ? 'inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:flex sm:flex-col sm:items-end' : 'bottom-20 right-4 sm:bottom-6 sm:right-6 flex flex-col items-end'}`}>
       {/* Expanded Chat Drawer */}
       {isOpen && (
         <div className="w-full sm:w-full sm:w-96 max-w-[calc(100vw-2rem)] h-[100dvh] sm:h-[500px] max-h-screen bg-white sm:rounded-3xl rounded-none sm:shadow-2xl shadow-none border sm:border-slate-100 border-none flex flex-col overflow-hidden sm:mb-4 mb-0 animate-in slide-in-from-bottom duration-300">
@@ -797,13 +797,15 @@ export const SupportChatWidget = () => {
       {/* Launcher Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`${isOpen ? 'hidden sm:flex' : 'flex'} w-14 h-14 bg-slate-900 text-white rounded-full items-center justify-center shadow-2xl hover:bg-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 border-2 border-slate-800 hover:border-blue-500 relative`}
+        className={`${isOpen ? 'hidden sm:flex' : 'flex'} w-[50px] h-[50px] sm:w-14 sm:h-14 bg-slate-900 text-white rounded-full items-center justify-center shadow-2xl hover:bg-slate-800 transition-all duration-300 transform hover:scale-105 active:scale-95 border-2 border-slate-800 hover:border-blue-500 relative`}
+        title="Suporte Técnico"
+        aria-label="Abrir Suporte Técnico"
       >
-        {isOpen ? <X size={24} /> : <Headphones size={24} />}
+        {isOpen ? <X className="w-5 h-5 sm:w-6 sm:h-6" /> : <Headphones className="w-[22px] h-[22px] sm:w-6 sm:h-6" />}
         
         {/* Real-time Triage / Support active notifier dot */}
         {activeTicket && !isOpen && (
-          <span className="absolute top-0 right-0 w-4 h-4 bg-rose-500 border-2 border-white rounded-full animate-ping" />
+          <span className="absolute top-0 right-0 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-rose-500 border-2 border-white rounded-full animate-ping" />
         )}
       </button>
 

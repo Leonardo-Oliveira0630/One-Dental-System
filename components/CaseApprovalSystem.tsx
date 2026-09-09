@@ -3,11 +3,14 @@ import { useApp } from '../context/AppContext';
 import { Job, UserRole, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Attachment } from '../types';
 import * as api from '../services/firebaseService';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
+import { WebcamModal } from './WebcamModal';
+import { capturePhotoWithNativePreference } from '../utils/cameraUtils';
 import { 
   Check, X, ThumbsUp, ThumbsDown, MessageSquare, CornerDownRight, 
   Paperclip, File, Image as ImageIcon, Video, Box, Globe, 
   Clock, Send, User, Trash2, Plus, ArrowUpRight, HelpCircle, Loader2,
-  FileCheck, FileX, Sparkles, CheckSquare, ChevronDown, Download, Eye, ExternalLink
+  FileCheck, FileX, Sparkles, CheckSquare, ChevronDown, Download, Eye, ExternalLink,
+  Camera
 } from 'lucide-react';
 
 interface CaseApprovalSystemProps {
@@ -25,6 +28,18 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isPosting, setIsPosting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [isWebcamOpen, setIsWebcamOpen] = useState(false);
+
+  const handleTakePhoto = async () => {
+    await capturePhotoWithNativePreference(
+      (file) => {
+        setSelectedFiles(prev => [...prev, file]);
+      },
+      () => {
+        setIsWebcamOpen(true);
+      }
+    );
+  };
 
   // Replies states indexed by itemId
   const [replyTexts, setReplyTexts] = useState<{ [itemId: string]: string }>({});
@@ -551,6 +566,14 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
             </button>
 
             <button 
+              type="button"
+              onClick={handleTakePhoto}
+              className="px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm transition-colors active:scale-95"
+            >
+              <Camera size={16} className="text-indigo-500" /> Tirar Foto
+            </button>
+
+            <button 
               type="submit"
               disabled={isPosting}
               className="ml-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md shadow-indigo-100 flex items-center gap-2 disabled:opacity-50"
@@ -626,6 +649,18 @@ export const CaseApprovalSystem: React.FC<CaseApprovalSystemProps> = ({ job, org
           onClose={() => {
             setSelectedAttachment(null);
             setAllAttachmentsForPreview([]);
+          }}
+        />
+      )}
+
+      {/* Modern Webcam Modal */}
+      {isWebcamOpen && (
+        <WebcamModal 
+          title="Foto para Aprovação"
+          onClose={() => setIsWebcamOpen(false)}
+          onCapture={(file) => {
+            setSelectedFiles(prev => [...prev, file]);
+            setIsWebcamOpen(false);
           }}
         />
       )}

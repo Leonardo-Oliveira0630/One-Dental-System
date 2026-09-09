@@ -219,6 +219,11 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    match /system_settings/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
     match /settings/global {
       allow read, write: if true;
     }

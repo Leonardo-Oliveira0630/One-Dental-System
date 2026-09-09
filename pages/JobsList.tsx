@@ -3,7 +3,7 @@ import logger from "../utils/logger";
 import React, { useState, useMemo, memo } from 'react';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UserRole, UrgencyLevel, Job } from '../types';
-import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle } from 'lucide-react';
+import { Search, Filter, FileDown, Eye, Clock, AlertCircle, Printer, X, ChevronRight, MapPin, User, SlidersHorizontal, RefreshCcw, Ban, Building, QrCode, Copy, Check, Globe, HardDrive, CheckCircle2, Truck, Loader2, Box, RotateCcw, Calendar, MoreHorizontal, PlusCircle, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../services/mockData';
 import { MultiSelect } from '../components/MultiSelect';
@@ -824,21 +824,34 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
        {isClient && <StoreTopMenu />}
 
        <div className={`space-y-4 md:space-y-6 pb-20 ${isClient ? 'p-4 md:p-8 flex-1 overflow-y-auto' : ''}`}>
-       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{isClient ? 'Meus Pedidos' : (isBudgetMode ? 'Lista de Orçamentos' : 'Lista de Trabalhos')}</h1>
           <p className="text-xs md:text-sm text-slate-500">Mostrando {filteredJobs.length} registros encontrados.</p>
         </div>
-        {!isClient && isBudgetMode && (
-           <button onClick={() => navigate('/new-budget')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform">
-              <PlusCircle size={20} /> Novo Orçamento
-           </button>
-        )}
-        {!isClient && !isBudgetMode && (
-           <button onClick={() => navigate('/new-job')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform">
-              <PlusCircle size={20} /> Novo Caso
-           </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!isClient && (
+            <button 
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))} 
+              className="bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 px-4 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-all text-xs sm:text-sm border border-slate-200 shadow-sm"
+              title="Escanear Código de Barras com Câmera do Tablet / Celular"
+            >
+              <Camera size={18} className="text-blue-600" /> 
+              <span>Escanear</span>
+            </button>
+          )}
+          {!isClient && isBudgetMode && (
+             <button onClick={() => navigate('/new-budget')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform text-xs sm:text-sm shadow-sm">
+                <PlusCircle size={18} /> Novo Orçamento
+             </button>
+          )}
+          {!isClient && !isBudgetMode && (
+             <button onClick={() => navigate('/new-job')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform text-xs sm:text-sm shadow-sm">
+                <PlusCircle size={18} /> Novo Caso
+             </button>
+          )}
+        </div>
       </div>
 
       {isClient && (

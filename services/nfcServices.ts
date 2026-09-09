@@ -64,13 +64,15 @@ export function convertCanonicalHexToOldReaderDecimal(hexStr: string): string {
 export function convertOldReaderDecimalToHex(decimalStr: string): {
   hex4Bytes: string;
   invertedHex: string;
+  directHex: string;
 } {
   const clean = (decimalStr || '').trim().replace(/[^0-9]/g, '');
-  if (!clean) return { hex4Bytes: '', invertedHex: '' };
+  if (!clean) return { hex4Bytes: '', invertedHex: '', directHex: '' };
   try {
     const bigVal = BigInt(clean);
     // Converte para 8 caracteres hexadecimais (32 bits unsigned)
     const invertedHex = bigVal.toString(16).padStart(8, '0').toUpperCase(); // ex: "7DDE2704"
+    const directHex = invertedHex; // para uso direto se não tiver sido invertido
     const bytes = [
       invertedHex.substring(0, 2),
       invertedHex.substring(2, 4),
@@ -78,9 +80,9 @@ export function convertOldReaderDecimalToHex(decimalStr: string): {
       invertedHex.substring(6, 8)
     ];
     const hex4Bytes = bytes.reverse().join(''); // ex: "0427DE7D"
-    return { hex4Bytes, invertedHex };
+    return { hex4Bytes, invertedHex, directHex };
   } catch {
-    return { hex4Bytes: '', invertedHex: '' };
+    return { hex4Bytes: '', invertedHex: '', directHex: '' };
   }
 }
 
@@ -113,6 +115,10 @@ export function getNfcUidFormats(uidInput: string): {
   const candidates = new Set<string>();
   candidates.add(raw);
   candidates.add(uidInput.trim().toUpperCase());
+  
+  // Adiciona a versão sem zeros à esquerda para tolerância
+  const rawNoZeros = raw.replace(/^0+/, '');
+  if (rawNoZeros) candidates.add(rawNoZeros);
 
   let uidHex = '';
   let uidDecimal = '';
@@ -126,6 +132,8 @@ export function getNfcUidFormats(uidInput: string): {
   if (isNumericOnly) {
     try {
       const bigVal = BigInt(raw);
+      candidates.add(bigVal.toString(10));
+      
       // Se for um decimal de até 32 bits (<= 4294967295), é o formato do leitor antigo
       if (bigVal <= 4294967295n) {
         isOldReaderFormat = true;
@@ -138,6 +146,7 @@ export function getNfcUidFormats(uidInput: string): {
         candidates.add(uidDecimal);
         if (uid4ByteHex) candidates.add(uid4ByteHex);
         if (invertedHex) candidates.add(invertedHex);
+        if (converted.directHex) candidates.add(converted.directHex);
 
         const pairs = uid4ByteHex.match(/.{1,2}/g) || [];
         if (pairs.length > 1) {
@@ -150,6 +159,12 @@ export function getNfcUidFormats(uidInput: string): {
         if (hex.length % 2 !== 0) hex = '0' + hex;
         uidHex = hex;
         candidates.add(hex);
+        
+        // Inverte os bytes se possível
+        const pairs = hex.match(/.{1,2}/g) || [];
+        if (pairs.length > 0) {
+          candidates.add([...pairs].reverse().join(''));
+        }
       }
     } catch {}
   } else if (isHexOnly) {
@@ -163,6 +178,12 @@ export function getNfcUidFormats(uidInput: string): {
       if (uidDecimal) {
         candidates.add(uidDecimal);
       }
+      
+      // Tentativa direta
+      try {
+        const directDec = BigInt('0x' + uid4ByteHex).toString(10);
+        candidates.add(directDec);
+      } catch {}
 
       const bytes = [
         uid4ByteHex.substring(0, 2),
@@ -202,7 +223,8 @@ export function getNfcUidFormats(uidInput: string): {
 export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox | undefined {
   if (!scannedCode || !boxes || boxes.length === 0) return undefined;
 
-  const cleanInput = scannedCode.trim().toUpperCase().replace(/[:\s-]/g, '');
+  const rawUpper = scannedCode.trim().toUpperCase();
+  const cleanInput = rawUpper.replace(/[:\s-]/g, '');
   const formats = getNfcUidFormats(cleanInput);
 
   // 1. Busca por correspondência exata de candidatos de UID
@@ -226,6 +248,11 @@ export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox
         return box;
       }
     }
+    
+    // 2.1 Verifica inversão
+    if (formats.invertedHex && boxFormats.uidHex && boxFormats.uidHex.startsWith(formats.invertedHex)) {
+      return box;
+    }
   }
 
   // 3. Busca por número de caixa (ex: "001", "1", ou número direto)
@@ -235,9 +262,19 @@ export function findMatchingNfcBox(scannedCode: string, boxes: NfcBox[]): NfcBox
     if (cleanBoxNum && cleanBoxNum === cleanNumInput) {
       return box;
     }
-    const cleanText = (box.textoGravado || '').trim().toUpperCase();
-    if (cleanText && (cleanText === cleanInput || cleanInput.includes(cleanText))) {
+    
+    // 4. Busca por textoNfc amigável (ignorando traços e formatação)
+    const cleanText = (box.textoGravado || '').trim().toUpperCase().replace(/[:\s-]/g, '');
+    if (cleanText && (cleanText === cleanInput || cleanInput.includes(cleanText) || cleanText.includes(cleanInput))) {
       return box;
+    }
+    
+    // Tratamento para digitar apenas o prefixo BOX
+    if (cleanText.startsWith('BOX')) {
+      const bNum = cleanText.replace('BOX', '').replace(/^0+/, '');
+      if (bNum === cleanNumInput) {
+         return box;
+      }
     }
   }
 
@@ -415,6 +452,17 @@ export const KitService = {
     const formats = getNfcUidFormats(box.uid || '');
     const canonicalUid = formats.uidHex || box.uid;
     const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', String(box.numeroCaixa));
+
+    const kitRef = doc(db, 'nfc_kits', kitId);
+    const kitSnap = await getDoc(kitRef);
+    if (!kitSnap.exists()) {
+        throw new Error('Kit não encontrado');
+    }
+    const kitData = kitSnap.data() as NfcKit;
+
+    const oldBoxSnap = await getDoc(boxRef);
+    const oldBoxData = oldBoxSnap.exists() ? oldBoxSnap.data() as NfcBox : null;
+
     const boxData = {
       ...box,
       uid: canonicalUid,
@@ -423,12 +471,80 @@ export const KitService = {
       uid4ByteHex: formats.uid4ByteHex || '',
       updatedAt: new Date().toISOString()
     };
-    await setDoc(boxRef, boxData, { merge: true });
-
-    const kitRef = doc(db, 'nfc_kits', kitId);
-    await updateDoc(kitRef, {
+    
+    const batch = writeBatch(db);
+    batch.set(boxRef, boxData, { merge: true });
+    
+    batch.update(kitRef, {
       updatedAt: new Date().toISOString()
     });
+
+    if (kitData.status === 'Ativado' && kitData.activatedByOrgId) {
+       const orgId = kitData.activatedByOrgId;
+       
+       if (oldBoxData && oldBoxData.uid && oldBoxData.uid !== canonicalUid) {
+           const oldLabBoxRef = doc(db, 'organizations', orgId, 'nfcBoxes', oldBoxData.uid);
+           batch.delete(oldLabBoxRef);
+       }
+       
+       if (canonicalUid) {
+           const newLabBoxRef = doc(db, 'organizations', orgId, 'nfcBoxes', canonicalUid);
+           batch.set(newLabBoxRef, {
+              uid: canonicalUid,
+              uidHex: canonicalUid,
+              uidDecimal: formats.uidDecimal || box.uidDecimal || '',
+              uid4ByteHex: formats.uid4ByteHex || '',
+              numeroCaixa: box.numeroCaixa,
+              textoGravado: box.textoGravado || `BOX-${box.numeroCaixa}`,
+              status: 'Associada',
+              activatedAt: new Date().toISOString(),
+              kitCodigo: kitData.codigoKit || '',
+              kitId: kitId
+           }, { merge: true });
+       }
+    }
+    
+    await batch.commit();
+  },
+
+  clearKitBox: async (kitId: string, boxNumber: string | number): Promise<void> => {
+    const boxRef = doc(db, 'nfc_kits', kitId, 'boxes', String(boxNumber));
+    const kitRef = doc(db, 'nfc_kits', kitId);
+    
+    const kitSnap = await getDoc(kitRef);
+    if (!kitSnap.exists()) {
+        throw new Error('Kit não encontrado');
+    }
+    const kitData = kitSnap.data() as NfcKit;
+    
+    const oldBoxSnap = await getDoc(boxRef);
+    const oldBoxData = oldBoxSnap.exists() ? oldBoxSnap.data() as NfcBox : null;
+
+    const batch = writeBatch(db);
+    
+    // Zera os dados NFC da caixa
+    batch.update(boxRef, {
+      uid: '',
+      uidHex: '',
+      uidDecimal: '',
+      uid4ByteHex: '',
+      updatedAt: new Date().toISOString()
+    });
+    
+    batch.update(kitRef, {
+      updatedAt: new Date().toISOString()
+    });
+
+    // Se o kit estiver ativado, também deleta a caixa do inventário do laboratório
+    if (kitData.status === 'Ativado' && kitData.activatedByOrgId) {
+       const orgId = kitData.activatedByOrgId;
+       if (oldBoxData && oldBoxData.uid) {
+           const oldLabBoxRef = doc(db, 'organizations', orgId, 'nfcBoxes', oldBoxData.uid);
+           batch.delete(oldLabBoxRef);
+       }
+    }
+    
+    await batch.commit();
   },
 
   deleteKit: async (kitId: string): Promise<void> => {
@@ -608,6 +724,52 @@ export const ActivationService = {
       activatedAt: new Date().toISOString(),
       activatedBy: userName,
       activatedByOrgId: organizationId
+    });
+
+    await batch.commit();
+  },
+
+  removeLabKit: async (codigoKit: string, organizationId: string): Promise<void> => {
+    const cleanCode = codigoKit.trim().toUpperCase();
+    if (!cleanCode) {
+      throw new Error('Código do kit não informado.');
+    }
+
+    const kitQuery = query(collection(db, 'nfc_kits'), where('codigoKit', '==', cleanCode), limit(1));
+    const kitSnap = await getDocs(kitQuery);
+    
+    if (kitSnap.empty) {
+      throw new Error('Kit não encontrado no banco de dados central.');
+    }
+
+    const kitDoc = kitSnap.docs[0];
+    const kitData = kitDoc.data() as NfcKit;
+
+    if (kitData.activatedByOrgId !== organizationId) {
+      throw new Error('Este kit não está ativado no seu laboratório.');
+    }
+
+    const batch = writeBatch(db);
+
+    // 1. Delete all boxes mapped to this kit in the organization's nfcBoxes
+    const orgBoxesQuery = query(
+        collection(db, 'organizations', organizationId, 'nfcBoxes'),
+        where('kitCodigo', '==', cleanCode)
+    );
+    const orgBoxesSnap = await getDocs(orgBoxesQuery);
+    orgBoxesSnap.forEach(docSnap => {
+        batch.delete(docSnap.ref);
+    });
+
+    // 2. Update the kit in global nfc_kits to be available again
+    const kitRef = doc(db, 'nfc_kits', kitDoc.id);
+    batch.update(kitRef, {
+        status: 'Disponível', // Or 'Vendido' - changing to Disponível so it can be re-sold or reused
+        empresaDestino: null,
+        activatedAt: null,
+        activatedBy: null,
+        activatedByOrgId: null,
+        updatedAt: new Date().toISOString()
     });
 
     await batch.commit();

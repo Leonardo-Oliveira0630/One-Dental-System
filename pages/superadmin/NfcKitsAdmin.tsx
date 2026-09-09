@@ -149,6 +149,38 @@ export const NfcKitsAdmin: React.FC = () => {
     }
   };
 
+  const handleClearBox = async (boxNumber: string | number) => {
+    if (!selectedKit) return;
+    if (!window.confirm(`Deseja realmente limpar a tag NFC da caixa ${boxNumber}?`)) return;
+    
+    try {
+       await KitService.clearKitBox(selectedKit.id, boxNumber);
+       // Atualiza a lista local
+       const newBoxesList = selectedKitBoxes.map(b => {
+           if (b.numeroCaixa === boxNumber || String(b.numeroCaixa) === String(boxNumber)) {
+               return { ...b, uid: '', uidHex: '', uidDecimal: '', uid4ByteHex: '' };
+           }
+           return b;
+       });
+       setSelectedKitBoxes(newBoxesList);
+       
+       // Se o kit que está no readerMode for o mesmo que estamos editando
+       if (activeScanKit && activeScanKit.id === selectedKit.id) {
+          const newRefList = selectedKitBoxesRef.current.map(b => {
+             if (b.numeroCaixa === boxNumber || String(b.numeroCaixa) === String(boxNumber)) {
+                 return { ...b, uid: '', uidHex: '', uidDecimal: '', uid4ByteHex: '' };
+             }
+             return b;
+          });
+          selectedKitBoxesRef.current = newRefList;
+       }
+       
+       alert("Caixa limpa com sucesso!");
+    } catch (err: any) {
+       alert("Erro ao limpar caixa: " + err.message);
+    }
+  };
+
   // Core Processing of Tag Scanned (for both Web NFC and Keyboard USB HID reader)
   const processTagScanned = async (uid: string, nfcText?: string) => {
     // No celular, se o hardware UID vier bloqueado/vazio pelo browser, utiliza o texto NDEF gravado na memória
@@ -843,33 +875,44 @@ export const NfcKitsAdmin: React.FC = () => {
                               <span className="text-[10px] text-slate-400 block font-normal">({box.textoGravado})</span>
                             )}
                           </div>
-                          {box.uid ? (() => {
-                            const formats = getNfcUidFormats(box.uid);
-                            const hexVal = box.uidHex || formats.uidHex;
-                            const decVal = box.uidDecimal || formats.uidDecimal;
-                            const hasBoth = hexVal && decVal && hexVal !== decVal;
+                          <div className="flex items-center gap-2">
+                            {box.uid ? (() => {
+                              const formats = getNfcUidFormats(box.uid);
+                              const hexVal = box.uidHex || formats.uidHex;
+                              const decVal = box.uidDecimal || formats.uidDecimal;
+                              const hasBoth = hexVal && decVal && hexVal !== decVal;
 
-                            return (
-                              <div className="flex flex-col items-end gap-0.5">
-                                {hasBoth ? (
-                                  <>
-                                    <span className="text-[10px] font-bold bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded border border-indigo-100/60 font-mono">
-                                      HEX: {hexVal}
-                                    </span>
-                                    <span className="text-[9px] text-slate-500 font-mono font-medium">
-                                      DEC: {decVal}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-100 font-mono">
-                                    {box.uid}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })() : (
-                            <span className="text-[10px] text-slate-400 italic">Pendente</span>
-                          )}
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    {hasBoth ? (
+                                      <>
+                                        <span className="text-[10px] font-bold bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded border border-indigo-100/60 font-mono">
+                                          HEX: {hexVal}
+                                        </span>
+                                        <span className="text-[9px] text-slate-500 font-mono font-medium">
+                                          DEC: {decVal}
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span className="text-[10px] font-medium bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-100 font-mono">
+                                        {box.uid}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => handleClearBox(box.numeroCaixa)}
+                                    title="Limpar Tag desta Caixa"
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              );
+                            })() : (
+                              <span className="text-[10px] text-slate-400 italic">Pendente</span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
