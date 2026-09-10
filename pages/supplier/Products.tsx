@@ -10,13 +10,19 @@ import {
 
 export const SupplierProducts = () => {
   const { 
-    inventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem, inventoryCategories, currentUser, globalSettings
+    inventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem, inventoryCategories, addInventoryCategory, currentUser, currentOrg, globalSettings
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'PRODUCTS' | 'COMBOS'>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+
+  // Category creation inline helper state
+  const [showNewCatModal, setShowNewCatModal] = useState(false);
+  const [inlineCatName, setInlineCatName] = useState('');
+  const [inlineCatType, setInlineCatType] = useState<InventoryItemType>('MATERIAL');
+  const [savingInlineCat, setSavingInlineCat] = useState(false);
   
   // Outer form state
   const [form, setForm] = useState<Partial<InventoryItem>>({
@@ -121,28 +127,29 @@ export const SupplierProducts = () => {
     }
   };
 
-  const handleAddNewCategoryInline = async () => {
-    const name = prompt('Informe o nome da nova categoria de insumos:');
-    if (!name || !name.trim()) return;
-    const cleanName = name.trim();
-    const newCat = {
-      id: `cat_${Date.now()}`,
-      name: cleanName,
-      type: 'MATERIAL'
-    };
+  const handleAddNewCategoryInline = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inlineCatName.trim()) {
+      alert('Informe o nome da categoria.');
+      return;
+    }
+    setSavingInlineCat(true);
     try {
-      const orgId = inventoryItems?.[0]?.organizationId || currentUser?.organizationId || '';
-      if (!orgId) {
-        alert('Erro: ID do fornecedor não localizado.');
-        return;
+      const newCatId = await addInventoryCategory({
+        name: inlineCatName.trim(),
+        type: inlineCatType
+      });
+      if (newCatId) {
+        setForm(prev => ({ ...prev, categoryId: newCatId }));
       }
-      const { apiAddInventoryCategory } = await import('../../services/firebaseService');
-      await apiAddInventoryCategory(orgId, newCat);
-      setForm(prev => ({ ...prev, categoryId: newCat.id }));
+      setInlineCatName('');
+      setShowNewCatModal(false);
       alert('Categoria criada com sucesso!');
     } catch (err) {
       console.error(err);
       alert('Erro ao criar categoria.');
+    } finally {
+      setSavingInlineCat(false);
     }
   };
 
@@ -792,10 +799,10 @@ export const SupplierProducts = () => {
                       <label className="block text-xs font-bold text-slate-500 uppercase">Categoria Interna (Estoque)</label>
                       <button
                         type="button"
-                        onClick={handleAddNewCategoryInline}
-                        className="text-[10px] text-indigo-600 hover:text-indigo-500 font-bold"
+                        onClick={() => setShowNewCatModal(true)}
+                        className="text-[11px] text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1 hover:underline"
                       >
-                        + Nova Categoria
+                        <Plus size={12} /> Nova Categoria
                       </button>
                     </div>
                     <select
@@ -805,9 +812,66 @@ export const SupplierProducts = () => {
                     >
                       <option value="">Selecione uma categoria interna...</option>
                       {inventoryCategories && inventoryCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        <option key={cat.id} value={cat.id}>{cat.name} ({cat.type === 'MACHINERY' ? 'Equipamento' : cat.type === 'IMPLANT' ? 'Implante' : cat.type === 'SUPPLY' ? 'Suprimento' : cat.type === 'OTHER' ? 'Outro' : 'Insumo'})</option>
                       ))}
                     </select>
+
+                    {/* Inline Category Creation Dialog */}
+                    {showNewCatModal && (
+                      <div className="mt-3 p-3.5 bg-indigo-50/60 border border-indigo-200 rounded-xl space-y-3 animate-in fade-in zoom-in-95">
+                        <div className="flex justify-between items-center">
+                          <h5 className="font-bold text-xs text-indigo-900 flex items-center gap-1">
+                            <Folder size={14} className="text-indigo-600" />
+                            Criar Nova Categoria
+                          </h5>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewCatModal(false)}
+                            className="text-slate-400 hover:text-slate-600"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Nome da categoria (ex: Resinas 3D)..."
+                            value={inlineCatName}
+                            onChange={e => setInlineCatName(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                            autoFocus
+                          />
+                          <select
+                            value={inlineCatType}
+                            onChange={e => setInlineCatType(e.target.value as InventoryItemType)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
+                          >
+                            <option value="MATERIAL">Insumo / Material Odontológico</option>
+                            <option value="SUPPLY">Suprimento / Consumível</option>
+                            <option value="MACHINERY">Equipamento / Maquinário</option>
+                            <option value="IMPLANT">Implante / Componente Protético</option>
+                            <option value="OTHER">Outros</option>
+                          </select>
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowNewCatModal(false)}
+                              className="px-3 py-1 bg-white border border-slate-200 text-slate-600 text-[11px] font-bold rounded-lg hover:bg-slate-100"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddNewCategoryInline}
+                              disabled={savingInlineCat}
+                              className="px-3 py-1 bg-indigo-600 text-white text-[11px] font-bold rounded-lg hover:bg-indigo-500 shadow-xs"
+                            >
+                              {savingInlineCat ? 'Salvando...' : 'Criar e Selecionar'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {globalSettings?.marketplaceCategories && globalSettings.marketplaceCategories.length > 0 && (

@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { StoreLayoutBlock, StoreSettings, BannerConfig } from '../../types';
+import { StoreLayoutBlock, StoreSettings, BannerConfig, InventoryCategory, InventoryItemType } from '../../types';
 import { smartCompress } from '../../services/compressionService';
 import { 
   Settings, Store, Sparkles, Tag, HelpCircle, Save, Plus, Trash2, 
   ArrowUp, ArrowDown, ChevronRight, CheckCircle2, DollarSign, Wallet, 
   MapPin, Landmark, Layout, Grid, List as ListIcon, RefreshCw, Eye, Image as ImageIcon,
-  CheckCircle, Crown, Info, Zap, MessageSquare
+  CheckCircle, Crown, Info, Zap, MessageSquare, FolderPlus, Folder, Edit2, X
 } from 'lucide-react';
 import * as api from '../../services/firebaseService';
 
 export const SupplierSettings = () => {
   const { 
-    currentOrg, currentPlan, allPlans, updateOrganization, inventoryItems, getSaaSInvoices, inventoryCategories 
+    currentOrg, currentPlan, allPlans, updateOrganization, inventoryItems, getSaaSInvoices, 
+    inventoryCategories, addInventoryCategory, updateInventoryCategory, deleteInventoryCategory 
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'store' | 'plans' | 'asaas'>('store');
@@ -23,14 +24,16 @@ export const SupplierSettings = () => {
   const [banners, setBanners] = useState<BannerConfig[]>([]);
   const [newBanner, setNewBanner] = useState('');
   const [profilePhoto, setProfilePhoto] = useState<string>('');
-  const [layoutBlocks, setLayoutBlocks] = useState<StoreLayoutBlock[]>([]);
   
-  // Custom layout block creator state
-  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-  const [blockTitle, setBlockTitle] = useState('');
-  const [blockType, setBlockType] = useState<StoreLayoutBlock['type']>('CAROUSEL');
-  const [blockCategoryId, setBlockCategoryId] = useState('');
-  const [blockProductIds, setBlockProductIds] = useState<string[]>([]);
+  // Category management state in Store settings
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatType, setNewCatType] = useState<InventoryItemType>('MATERIAL');
+  const [newCatImageUrl, setNewCatImageUrl] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCatName, setEditingCatName] = useState('');
+  const [editingCatType, setEditingCatType] = useState<InventoryItemType>('MATERIAL');
 
   // Asaas & Frenet Integrations State
   const [asaasWalletId, setAsaasWalletId] = useState('');
@@ -61,10 +64,6 @@ export const SupplierSettings = () => {
       setTheme(settings.theme || 'shopee');
       setBanners(settings.banners || []);
       setProfilePhoto(settings.profilePhotoUrl || '');
-      setLayoutBlocks(settings.layoutBlocks || [
-        { id: 'default_carousel', type: 'CAROUSEL', title: 'Destaques' },
-        { id: 'default_grid', type: 'GRID', title: 'Nossos Produtos' }
-      ]);
 
       const fin = currentOrg.financialSettings || {};
       setAsaasWalletId(fin.asaasWalletId || '');
@@ -140,61 +139,72 @@ export const SupplierSettings = () => {
     }
   };
 
-  // Layout Block Sorters & Builders
-  const handleMoveBlock = (index: number, direction: 'up' | 'down') => {
-    const nextIndex = direction === 'up' ? index - 1 : index + 1;
-    if (nextIndex < 0 || nextIndex >= layoutBlocks.length) return;
-    
-    const updated = [...layoutBlocks];
-    const target = updated[index];
-    updated[index] = updated[nextIndex];
-    updated[nextIndex] = target;
-    setLayoutBlocks(updated);
+  // Category Management Handlers
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) {
+      alert('Informe o nome da categoria.');
+      return;
+    }
+    setSavingCategory(true);
+    try {
+      await addInventoryCategory({
+        name: newCatName.trim(),
+        type: newCatType,
+        imageUrl: newCatImageUrl.trim() || undefined
+      });
+      setNewCatName('');
+      setNewCatType('MATERIAL');
+      setNewCatImageUrl('');
+      setIsAddingCategory(false);
+      alert('Categoria criada com sucesso! Ela já está disponível no cadastro de produtos.');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao criar categoria.');
+    } finally {
+      setSavingCategory(false);
+    }
   };
 
-  const handleRemoveBlock = (id: string) => {
-    setLayoutBlocks(layoutBlocks.filter(b => b.id !== id));
+  const handleUpdateCategoryData = async (catId: string) => {
+    if (!editingCatName.trim()) return;
+    try {
+      await updateInventoryCategory(catId, {
+        name: editingCatName.trim(),
+        type: editingCatType
+      });
+      setEditingCategoryId(null);
+      alert('Categoria atualizada com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao atualizar categoria.');
+    }
   };
 
-  const handleAddLayoutBlock = () => {
-    const newBlock: StoreLayoutBlock = {
-      id: `block_${Date.now()}`,
-      type: 'CAROUSEL',
-      title: 'Novo Bloco de Produtos'
-    };
-    setLayoutBlocks([...layoutBlocks, newBlock]);
+  const handleDeleteCategory = async (catId: string, catName: string) => {
+    if (!window.confirm(`Tem certeza que deseja remover a categoria "${catName}"?`)) return;
+    try {
+      await deleteInventoryCategory(catId);
+      alert('Categoria removida com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao remover categoria.');
+    }
   };
 
-  const handleEditBlock = (block: StoreLayoutBlock) => {
-    setEditingBlockId(block.id);
-    setBlockTitle(block.title);
-    setBlockType(block.type);
-    setBlockCategoryId(block.categoryId || '');
-    setBlockProductIds(block.productIds || []);
-  };
-
-  const handleSaveBlockConfig = () => {
-    if (!editingBlockId) return;
-    setLayoutBlocks(layoutBlocks.map(b => {
-      if (b.id === editingBlockId) {
-        return {
-          ...b,
-          title: blockTitle,
-          type: blockType,
-          categoryId: blockCategoryId || undefined,
-          productIds: blockProductIds.length > 0 ? blockProductIds : undefined
-        };
-      }
-      return b;
-    }));
-    setEditingBlockId(null);
-  };
-
-  const toggleSelectBlockProduct = (prodId: string) => {
-    if (blockProductIds.includes(prodId)) {
-      setBlockProductIds(blockProductIds.filter(id => id !== prodId));
-    } else {
-      setBlockProductIds([...blockProductIds, prodId]);
+  const handleNewCatImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const compressed = await smartCompress(file);
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        setNewCatImageUrl(evt.target?.result as string);
+      };
+      reader.readAsDataURL(compressed);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao processar imagem da nova categoria.');
     }
   };
 
@@ -204,16 +214,16 @@ export const SupplierSettings = () => {
     setLoading(true);
     try {
       const updatedStoreSettings: StoreSettings = {
+        ...(currentOrg.storeSettings || {}),
         theme,
         banners,
-        profilePhotoUrl: profilePhoto,
-        layoutBlocks
+        profilePhotoUrl: profilePhoto
       };
       
       await updateOrganization(currentOrg.id, {
         storeSettings: updatedStoreSettings
       });
-      alert('Configurações da sua Loja Autoral salvas com sucesso!');
+      alert('Configurações da sua Loja salvas com sucesso!');
     } catch (err) {
       console.error(err);
       alert('Erro ao salvar as configurações.');
@@ -335,88 +345,61 @@ export const SupplierSettings = () => {
         
         {/* TAB 1: CONFIGURE STORE */}
         {activeTab === 'store' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-6 animate-in fade-in duration-300">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
             {/* Customize Store settings panel */}
             <div className="lg:col-span-2 space-y-6">
               
-              {/* Theme Settings */}
-              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
-                <h3 className="font-bold text-md flex items-center gap-2">
-                  <Sparkles className="text-indigo-400" />
-                  Tema Personalizado da Vitrine
-                </h3>
-                <p className="text-slate-500 text-xs">
-                  Modifique as cores predominantes e visual do seu espaço interno de produtos de acordo com a sua identidade visual.
-                </p>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                  {[
-                    { id: 'shopee', name: 'Shopee Oficial', color: 'bg-orange-600' },
-                    { id: 'light', name: 'Clean Light', color: 'bg-slate-200 text-slate-800' },
-                    { id: 'dark', name: 'Cosmic Obsidian', color: 'bg-slate-50 text-slate-900 border border-slate-200' },
-                    { id: 'amber', name: 'Premium Gold', color: 'bg-amber-500 text-slate-950' },
-                    { id: 'indigo', name: 'Corporate Purple', color: 'bg-indigo-650 bg-indigo-600' },
-                    { id: 'emerald', name: 'Bio Emerald', color: 'bg-emerald-600' },
-                    { id: 'orange', name: 'Dynamic Orange', color: 'bg-orange-550 bg-orange-500' }
-                  ].map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTheme(t.id as any)}
-                      className={`p-3.5 rounded-xl border text-xs font-black transition-all flex flex-col items-center gap-2 ${
-                        theme === t.id 
-                          ? 'border-indigo-500 bg-indigo-500/10 text-indigo-400 shadow-lg' 
-                          : 'border-slate-200 bg-slate-50/50 text-slate-500 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className={`w-6 h-6 rounded-full ${t.color}`} />
-                      <span>{t.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* Banner Carousel customizer */}
               <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
-                <h3 className="font-bold text-md flex items-center gap-2">
-                  <ImageIcon className="text-indigo-400" />
-                  Banners Deslizantes da Loja
-                </h3>
-                <p className="text-slate-500 text-xs">
-                  Insira URLs de banners promocionais para aparecer em carrossel no topo da sua vitrine da loja.
-                </p>
+                <div>
+                  <h3 className="font-bold text-md flex items-center gap-2 text-slate-900">
+                    <ImageIcon className="text-indigo-500" />
+                    Banners Deslizantes da Loja
+                  </h3>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Adicione banners promocionais em carrossel no topo da sua vitrine para divulgar lançamentos, campanhas e ofertas especiais.
+                  </p>
+                </div>
 
                 <div className="space-y-3">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="url"
-                      placeholder="Ex: https://comercial.com/banner-promocao.jpg"
+                      placeholder="URL da imagem do banner (ex: https://...)"
                       value={newBanner}
                       onChange={e => setNewBanner(e.target.value)}
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-650"
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
                     />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      id="banner-image-upload-settings"
-                      className="hidden"
-                      onChange={handleBannerUpload}
-                    />
-                    <label
-                      htmlFor="banner-image-upload-settings"
-                      className="px-4 bg-slate-100 hover:bg-slate-750 text-slate-800 hover:text-indigo-600 font-bold rounded-xl text-xs flex items-center justify-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <Sparkles size={14} className="text-orange-400" /> Upload
-                    </label>
-                    <button
-                      onClick={handleAddBanner}
-                      className="px-5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all animate-in zoom-in-50"
-                    >
-                      <Plus size={18} />
-                    </button>
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="banner-image-upload-settings"
+                        className="hidden"
+                        onChange={handleBannerUpload}
+                      />
+                      <label
+                        htmlFor="banner-image-upload-settings"
+                        className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors border border-slate-200 whitespace-nowrap"
+                      >
+                        <Sparkles size={14} className="text-indigo-600" /> Upload Imagem
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleAddBanner}
+                        className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-1 shadow-sm"
+                        title="Adicionar Banner via Link"
+                      >
+                        <Plus size={18} />
+                        <span className="text-xs sm:inline">Adicionar</span>
+                      </button>
+                    </div>
                   </div>
 
                   {banners.length === 0 ? (
-                    <p className="text-slate-500 text-xs italic">Nenhum banner cadastrado de momento.</p>
+                    <div className="text-center py-6 text-slate-400 text-xs italic border-2 border-dashed border-slate-200 rounded-xl">
+                      Nenhum banner cadastrado no momento. Faça upload ou insira uma URL acima.
+                    </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-4 pt-2">
                       {banners.map((banner, idx) => (
@@ -425,22 +408,27 @@ export const SupplierSettings = () => {
                             <img 
                               src={banner.imageUrl} 
                               alt={`Banner ${idx}`} 
-                              className="w-20 h-12 object-cover rounded-lg bg-white border border-slate-200"
+                              className="w-24 h-16 rounded-xl object-cover bg-white border border-slate-200 flex-shrink-0"
                               referrerPolicy="no-referrer"
                               onError={(e) => {
                                 (e.target as any).src = 'https://placehold.co/600x400?text=Banner+Error';
                               }}
                             />
-                            <span className="text-[10px] text-slate-500 truncate flex-1 font-mono">{banner.imageUrl}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-xs text-slate-800 truncate">Banner #{idx + 1}</p>
+                              <p className="text-[10px] text-slate-500 truncate">{banner.imageUrl}</p>
+                            </div>
                             <button
+                              type="button"
                               onClick={() => handleRemoveBanner(idx)}
-                              className="text-slate-500 hover:text-red-400 p-1.5"
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remover Banner"
                             >
                               <Trash2 size={16} />
                             </button>
                           </div>
-                          
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-slate-200">
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
                             <div>
                               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Título Central</label>
                               <input 
@@ -452,7 +440,7 @@ export const SupplierSettings = () => {
                                   setBanners(newBanners);
                                 }}
                                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Ex: Mega Oferta"
+                                placeholder="Ex: Mega Ofertas da Semana"
                               />
                             </div>
                             <div>
@@ -466,7 +454,7 @@ export const SupplierSettings = () => {
                                   setBanners(newBanners);
                                 }}
                                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Ex: Toda a loja com 50% de desconto"
+                                placeholder="Ex: Toda a linha com descontos especiais"
                               />
                             </div>
                             <div>
@@ -480,11 +468,11 @@ export const SupplierSettings = () => {
                                   setBanners(newBanners);
                                 }}
                                 className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
-                                placeholder="Ex: Comprar Agora"
+                                placeholder="Ex: Ver Ofertas"
                               />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Link do Botão</label>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Link de Redirecionamento</label>
                               <input 
                                 type="text" 
                                 value={banner.buttonLink || ''} 
@@ -505,181 +493,310 @@ export const SupplierSettings = () => {
                 </div>
               </div>
 
-              {/* Profile Photo */}
+              {/* Profile Photo / Logo */}
               <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
-                <h3 className="font-bold text-md flex items-center gap-2">
-                  <ImageIcon className="text-indigo-400" />
-                  Foto de Perfil da Loja
-                </h3>
-                <div className="flex items-center gap-4">
-                  <img src={profilePhoto || 'https://placehold.co/100x100?text=Logo'} className="w-16 h-16 rounded-full border border-slate-700 bg-slate-100 object-cover flex-shrink-0" />
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      type="url"
-                      placeholder="URL da logo da loja"
-                      value={profilePhoto}
-                      onChange={e => setProfilePhoto(e.target.value)}
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                <div>
+                  <h3 className="font-bold text-md flex items-center gap-2 text-slate-900">
+                    <ImageIcon className="text-indigo-500" />
+                    Foto de Perfil / Logo da Loja
+                  </h3>
+                  <p className="text-slate-500 text-xs mt-1">
+                    Importe e insira a logomarca da sua empresa. Ela será exibida no topo da sua vitrine e no catálogo de produtos.
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <div className="relative group flex-shrink-0">
+                    <img 
+                      src={profilePhoto || 'https://placehold.co/120x120?text=Logo'} 
+                      alt="Logo da Loja"
+                      className="w-20 h-20 rounded-2xl border-2 border-slate-200 bg-white object-cover shadow-sm" 
                     />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      id="profile-image-upload"
-                      className="hidden"
-                      onChange={handleProfilePhotoUpload}
-                    />
-                    <label
-                      htmlFor="profile-image-upload"
-                      className="px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-colors border border-slate-200"
-                    >
-                      <Sparkles size={14} className="mr-1 text-indigo-500" /> Upload
-                    </label>
+                  </div>
+                  
+                  <div className="flex-1 w-full space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        placeholder="Cole a URL da imagem da logo..."
+                        value={profilePhoto}
+                        onChange={e => setProfilePhoto(e.target.value)}
+                        className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        id="profile-image-upload"
+                        className="hidden"
+                        onChange={handleProfilePhotoUpload}
+                      />
+                      <label
+                        htmlFor="profile-image-upload"
+                        className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-colors border border-indigo-200 whitespace-nowrap gap-1.5"
+                      >
+                        <Sparkles size={14} className="text-indigo-600" /> Upload Logo
+                      </label>
+                    </div>
+                    <p className="text-[11px] text-slate-400">Formatos aceitos: PNG, JPEG ou WebP. Resolução recomendada: 400x400px.</p>
                   </div>
                 </div>
               </div>
 
-              
-              {/* Category Images for Store Explore */}
+              {/* Categories Management & Category Images */}
               <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
-                <h3 className="font-bold text-md flex items-center gap-2">
-                  <ImageIcon className="text-indigo-400" />
-                  Imagens das Categorias
-                </h3>
-                <p className="text-slate-500 text-xs">
-                  Faça o upload de imagens para as suas categorias. Elas aparecerão na seção "Explorar nossas Categorias" da sua vitrine.
-                </p>
-                <div className="space-y-3 pt-2">
-                  {inventoryCategories && inventoryCategories.length > 0 ? (
-                    inventoryCategories.map(cat => (
-                      <div key={cat.id} className="flex items-center justify-between p-3 border border-slate-100 bg-slate-50 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                            {cat.imageUrl ? (
-                              <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <ImageIcon size={16} className="text-slate-400" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-bold text-sm text-slate-800">{cat.name}</p>
-                            <p className="text-[10px] text-slate-500">{cat.type === 'OTHER' ? 'Outro' : 'Insumo/Produto'}</p>
-                          </div>
-                        </div>
-                        <div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            id={`cat-image-${cat.id}`}
-                            className="hidden"
-                            onChange={async (e) => {
-                               const file = e.target.files?.[0];
-                               if (!file) return;
-                               try {
-                                 const { smartCompress } = await import('../../services/compressionService');
-                                 const compressed = await smartCompress(file);
-                                 const reader = new FileReader();
-                                 reader.onload = async (evt) => {
-                                   const base64 = evt.target?.result as string;
-                                   await api.apiUpdateInventoryCategory(currentOrg?.id || '', cat.id, { imageUrl: base64 });
-                                   alert('Imagem da categoria atualizada!');
-                                 };
-                                 reader.readAsDataURL(compressed);
-                               } catch (err) {
-                                 console.error(err);
-                                 alert('Erro ao atualizar imagem da categoria.');
-                               }
-                            }}
-                          />
-                          <label
-                            htmlFor={`cat-image-${cat.id}`}
-                            className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-indigo-600 cursor-pointer hover:bg-slate-50 transition-colors inline-block"
-                          >
-                            Alterar Imagem
-                          </label>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-sm text-slate-500 py-4 text-center">Nenhuma categoria encontrada.</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Layout arrangements and blocks */}
-              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
-                <div className="flex justify-between items-center border-b border-slate-200 pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div>
-                    <h3 className="font-bold text-md flex items-center gap-2">
-                      <Layout className="text-indigo-400" />
-                      Blocos Autorais da Sua Vitrine
+                    <h3 className="font-bold text-md flex items-center gap-2 text-slate-900">
+                      <Folder className="text-indigo-500" />
+                      Categorias da Loja e Imagens
                     </h3>
                     <p className="text-slate-500 text-xs mt-0.5">
-                      Crie carrosséis de produtos, listas ou grids de destaque e mude a ordem de visualização na loja de acordo com sua estratégia!
+                      Crie e gerencie categorias de produtos e defina imagens para a seção "Explorar Nossas Categorias".
                     </p>
                   </div>
                   <button
-                    onClick={handleAddLayoutBlock}
-                    className="p-2 bg-indigo-500/10 text-indigo-400 font-bold hover:bg-indigo-500/20 rounded-xl transition-all text-xs flex items-center gap-1 border border-indigo-500/25"
+                    type="button"
+                    onClick={() => {
+                      setIsAddingCategory(!isAddingCategory);
+                      setEditingCategoryId(null);
+                    }}
+                    className="px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold rounded-xl text-xs flex items-center gap-1.5 border border-indigo-200 transition-colors w-fit"
                   >
-                    <Plus size={14} /> Bloco
+                    {isAddingCategory ? <X size={15} /> : <FolderPlus size={15} />}
+                    {isAddingCategory ? 'Fechar Formulário' : '+ Nova Categoria'}
                   </button>
                 </div>
 
-                <div className="space-y-3 pt-1">
-                  {layoutBlocks.map((block, idx) => (
-                    <div key={block.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-slate-300 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-                          {block.type === 'CAROUSEL' ? <RefreshCw size={18} /> : block.type === 'GRID' ? <Grid size={18} /> : block.type === 'BANNER' ? <ImageIcon size={18} /> : <ListIcon size={18} />}
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm text-slate-900">{block.title || 'Sem título'}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-500 font-mono mt-0.5">
-                            <span className="bg-slate-905 bg-slate-900 px-2 py-0.5 rounded border border-slate-200 text-slate-500">
-                              {block.type === 'CAROUSEL' ? 'Carrossel' : block.type === 'GRID' ? 'Grade' : block.type === 'RELATED' ? 'Recomendações' : block.type === 'LIST' ? 'Lista' : 'Banner slider'}
-                            </span>
-                            {block.categoryId && <span>Filtrado: Categoria ativa</span>}
-                            {block.productIds && <span>Personalizado ({block.productIds.length} itens)</span>}
-                          </div>
-                        </div>
+                {/* Inline Category Creation Form */}
+                {isAddingCategory && (
+                  <form onSubmit={handleCreateCategory} className="bg-slate-50 border-2 border-indigo-200 rounded-2xl p-4 sm:p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-sm text-indigo-900 flex items-center gap-1.5">
+                        <FolderPlus size={16} className="text-indigo-600" />
+                        Cadastrar Nova Categoria
+                      </h4>
+                      <button 
+                        type="button" 
+                        onClick={() => setIsAddingCategory(false)}
+                        className="text-slate-400 hover:text-slate-600 p-1"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Nome da Categoria *</label>
+                        <input
+                          type="text"
+                          required
+                          value={newCatName}
+                          onChange={e => setNewCatName(e.target.value)}
+                          placeholder="Ex: Resinas 3D, Fresadoras, Descartáveis..."
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {/* Move Controls */}
-                        <button
-                          disabled={idx === 0}
-                          onClick={() => handleMoveBlock(idx, 'up')}
-                          className="p-1 px-2.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-indigo-600 hover:border-slate-600 disabled:opacity-30 disabled:pointer-events-none"
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">Tipo de Item</label>
+                        <select
+                          value={newCatType}
+                          onChange={e => setNewCatType(e.target.value as InventoryItemType)}
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
                         >
-                          <ArrowUp size={14} />
-                        </button>
-                        <button
-                          disabled={idx === layoutBlocks.length - 1}
-                          onClick={() => handleMoveBlock(idx, 'down')}
-                          className="p-1 px-2.5 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-indigo-600 hover:border-slate-600 disabled:opacity-30 disabled:pointer-events-none"
-                        >
-                          <ArrowDown size={14} />
-                        </button>
-
-                        <button
-                          onClick={() => handleEditBlock(block)}
-                          className="p-1 px-3 bg-indigo-650 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 text-xs font-bold font-sans"
-                        >
-                          Configurar
-                        </button>
-
-                        <button
-                          onClick={() => handleRemoveBlock(block.id)}
-                          className="p-1.5 hover:bg-red-500/10 text-slate-450 hover:text-red-400 rounded-lg transition-all"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                          <option value="MATERIAL">Insumo / Material Odontológico</option>
+                          <option value="SUPPLY">Suprimento / Consumível</option>
+                          <option value="MACHINERY">Equipamento / Maquinário</option>
+                          <option value="IMPLANT">Implante / Componente Protético</option>
+                          <option value="OTHER">Outros</option>
+                        </select>
                       </div>
                     </div>
-                  ))}
 
-                  {layoutBlocks.length === 0 && (
-                    <p className="text-center py-6 text-slate-600 text-xs italic border-2 border-dashed border-slate-200 rounded-xl">Sem blocos no layout. A vitrine exibirá a visualização padrão.</p>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">Imagem Representativa da Categoria (Opcional)</label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden flex items-center justify-center flex-shrink-0">
+                          {newCatImageUrl ? (
+                            <img src={newCatImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon size={18} className="text-slate-300" />
+                          )}
+                        </div>
+                        <input
+                          type="url"
+                          placeholder="URL da imagem da categoria..."
+                          value={newCatImageUrl}
+                          onChange={e => setNewCatImageUrl(e.target.value)}
+                          className="flex-1 bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id="new-cat-image-file"
+                          className="hidden"
+                          onChange={handleNewCatImageUpload}
+                        />
+                        <label
+                          htmlFor="new-cat-image-file"
+                          className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-colors border border-slate-200 whitespace-nowrap"
+                        >
+                          Upload
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingCategory(false)}
+                        className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingCategory}
+                        className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center gap-1.5"
+                      >
+                        {savingCategory ? 'Salvando...' : 'Criar Categoria'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Categories List */}
+                <div className="space-y-3 pt-1">
+                  {inventoryCategories && inventoryCategories.length > 0 ? (
+                    inventoryCategories.map(cat => {
+                      const productCount = (inventoryItems || []).filter(item => item.categoryId === cat.id).length;
+                      const isEditing = editingCategoryId === cat.id;
+
+                      return (
+                        <div key={cat.id} className="p-3.5 border border-slate-200 bg-slate-50/70 hover:bg-white rounded-xl transition-colors space-y-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-xs">
+                                {cat.imageUrl ? (
+                                  <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <Folder size={20} className="text-indigo-400" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                {isEditing ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={editingCatName}
+                                      onChange={e => setEditingCatName(e.target.value)}
+                                      className="bg-white border border-indigo-400 rounded-lg px-2.5 py-1 text-xs text-slate-900 outline-none"
+                                    />
+                                    <select
+                                      value={editingCatType}
+                                      onChange={e => setEditingCatType(e.target.value as InventoryItemType)}
+                                      className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800"
+                                    >
+                                      <option value="MATERIAL">Insumo/Material</option>
+                                      <option value="SUPPLY">Suprimento</option>
+                                      <option value="MACHINERY">Equipamento</option>
+                                      <option value="IMPLANT">Implante</option>
+                                      <option value="OTHER">Outro</option>
+                                    </select>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateCategoryData(cat.id)}
+                                      className="px-2.5 py-1 bg-indigo-600 text-white font-bold rounded-lg text-xs"
+                                    >
+                                      Salvar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingCategoryId(null)}
+                                      className="text-slate-400 hover:text-slate-600 p-1 text-xs"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-bold text-sm text-slate-900 truncate">{cat.name}</p>
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                        {cat.type === 'MACHINERY' ? 'Equipamento' : cat.type === 'IMPLANT' ? 'Implante' : cat.type === 'SUPPLY' ? 'Suprimento' : cat.type === 'OTHER' ? 'Outro' : 'Insumo/Material'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                      {productCount} {productCount === 1 ? 'produto vinculado' : 'produtos vinculados'}
+                                    </p>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <input
+                                type="file"
+                                accept="image/*"
+                                id={`cat-image-${cat.id}`}
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  try {
+                                    const compressed = await smartCompress(file);
+                                    const reader = new FileReader();
+                                    reader.onload = async (evt) => {
+                                      const base64 = evt.target?.result as string;
+                                      await updateInventoryCategory(cat.id, { imageUrl: base64 });
+                                      alert('Imagem da categoria atualizada com sucesso!');
+                                    };
+                                    reader.readAsDataURL(compressed);
+                                  } catch (err) {
+                                    console.error(err);
+                                    alert('Erro ao atualizar imagem da categoria.');
+                                  }
+                                }}
+                              />
+                              <label
+                                htmlFor={`cat-image-${cat.id}`}
+                                className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-xs font-bold text-indigo-600 cursor-pointer transition-colors shadow-xs"
+                              >
+                                Alterar Imagem
+                              </label>
+
+                              {!isEditing && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingCategoryId(cat.id);
+                                    setEditingCatName(cat.name);
+                                    setEditingCatType(cat.type || 'MATERIAL');
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                  title="Editar Categoria"
+                                >
+                                  <Edit2 size={15} />
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Excluir Categoria"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8 text-slate-500 text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50">
+                      Nenhuma categoria cadastrada. Clique em "+ Nova Categoria" acima para criar a primeira categoria da sua loja.
+                    </div>
                   )}
                 </div>
               </div>
@@ -689,134 +806,74 @@ export const SupplierSettings = () => {
                 <button
                   onClick={handleSaveStoreConfig}
                   disabled={loading}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-6 rounded-xl transition-all shadow-lg shadow-indigo-950/40 flex items-center gap-1.5"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold p-3 px-6 rounded-xl transition-all shadow-md flex items-center gap-2"
                 >
                   <Save size={18} />
-                  <span>{loading ? 'Processando...' : 'Salvar Alterações de Vitrine'}</span>
+                  <span>{loading ? 'Salvando...' : 'Salvar Alterações de Vitrine'}</span>
                 </button>
               </div>
 
             </div>
 
-            {/* PREVIEW CONTAINER */}
+            {/* PREVIEW & HELP GUIDE CONTAINER */}
             <div className="space-y-6">
               
-              {/* BLOCK CONFIG EDIT MODAL/DRAWER (renders inline for better UX in sidebar) */}
-              {editingBlockId && (
-                <div className="bg-white border-2 border-indigo-500/40 rounded-2xl p-4 sm:p-6 space-y-4 animate-in zoom-in-95 duration-200">
-                  <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                    <h4 className="font-bold text-sm text-indigo-400">Configurar Bloco de Produtos</h4>
-                    <button onClick={() => setEditingBlockId(null)} className="text-slate-500 hover:text-indigo-600">✕</button>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Título do Bloco</label>
-                      <input
-                        type="text"
-                        value={blockTitle}
-                        onChange={e => setBlockTitle(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
-                        placeholder="Ex: Ofertas da Semana"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Tipo de Layout</label>
-                      <select
-                        value={blockType}
-                        onChange={e => setBlockType(e.target.value as any)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
-                      >
-                        <option value="BANNER">Banner Único Destacado</option>
-                        <option value="CAROUSEL">Carrossel Deslizante</option>
-                        <option value="GRID">Grade Expandida</option>
-                        <option value="RELATED">Produtos Relacionados (Por Categoria)</option>
-                        <option value="LIST">Lista de Linhas Simples</option>
-                      </select>
-                    </div>
-
-                    {/* Filter Option */}
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Filtro de Conteúdo</label>
-                        <span className="text-[9px] text-slate-500">Opcional</span>
-                      </div>
-                      <select
-                        value={blockCategoryId}
-                        onChange={e => setBlockCategoryId(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-indigo-500"
-                      >
-                        <option value="">Exibir Todos (Sem Filtrar Categoria)</option>
-                        {categories.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Specific items picker */}
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Selecionar Itens Específicos</label>
-                      <p className="text-[10px] text-slate-500 mb-2">Caso queira colocar uma curadoria de produtos específica neste bloco.</p>
-                      
-                      <div className="max-h-48 overflow-y-auto divide-y divide-slate-850 bg-slate-50 rounded-xl border border-slate-200 p-2">
-                        {inventoryItems.map(p => {
-                          const isSelected = blockProductIds.includes(p.id);
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => toggleSelectBlockProduct(p.id)}
-                              className="w-full flex items-center justify-between text-left p-2 hover:bg-slate-900 rounded-lg text-xs transition-colors"
-                            >
-                              <span className="truncate text-slate-350">{p.name}</span>
-                              <div className={`w-4.5 h-4.5 rounded border flex items-center justify-center shrink-0 ${
-                                isSelected ? 'border-indigo-500 bg-indigo-500/20 text-indigo-400' : 'border-slate-200 bg-transparent text-transparent'
-                              }`}>
-                                <CheckCircle size={10} />
-                              </div>
-                            </button>
-                          );
-                        })}
-
-                        {inventoryItems.length === 0 && (
-                          <p className="text-center py-4 text-slate-650 text-[10px]">Nenhum produto cadastrado.</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleSaveBlockConfig}
-                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-lg"
-                    >
-                      Salvar Alteração do Bloco
-                    </button>
-                  </div>
+              {/* Informative Help Center Panel: Como estilizar sua loja */}
+              <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-4 shadow-xs">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <HelpCircle className="text-indigo-600" size={22} />
+                  <h3 className="font-bold text-base text-slate-900">
+                    Como estilizar sua loja
+                  </h3>
                 </div>
-              )}
+                
+                <div className="text-xs text-slate-600 space-y-4 leading-relaxed">
+                  <p className="text-slate-500">
+                    Personalize a vitrine do seu portal de fornecedor para encantar seus clientes, valorizar sua marca e aumentar suas vendas de produtos odontológicos.
+                  </p>
 
-              {/* Informative Help Center Panel */}
-              <div className="bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl space-y-4">
-                <h3 className="font-bold text-md flex items-center gap-2">
-                  <HelpCircle className="text-indigo-400" />
-                  Como funcionam as Lojas Autorais?
-                </h3>
-                <div className="text-xs text-slate-500 space-y-3 leading-relaxed">
-                  <p>
-                    Com as Lojas Autorais, os fornecedores parceiros podem montar seu próprio portal web customizado dentro de nossa plataforma.
-                  </p>
-                  <p>
-                    <strong>1. Banner Inicial:</strong> Atraia mais compradores exibindo promoções do mês, novidades e ofertas de frete no topo da sua loja.
-                  </p>
-                  <p>
-                    <strong>2. Blocos Customizados:</strong> Crie vitrines flexíveis (como por exemplo carrosséis de 'Destaques', grades de 'Mais Vendidos', ou listas técnicas). Você também pode filtrar para exibir apenas uma categoria específica por bloco!
-                  </p>
-                  <p>
-                    <strong>3. Temas Autênticos:</strong> Altere as características de design, cores e bordas mudando o tema. O tema <strong>Shopee Oficial</strong>, por exemplo, simula as cores e disposição características do marketplace favorito de compras dos clientes!
-                  </p>
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <ImageIcon size={14} className="text-indigo-600" />
+                      1. Banners Deslizantes da Loja
+                    </p>
+                    <p className="text-slate-500 text-[11px]">
+                      Adicione banners promocionais em carrossel no topo da sua loja. Você pode fazer o upload direto de imagens do seu dispositivo ou inserir uma URL. Em cada banner, defina <strong>Título Central</strong>, <strong>Subtítulo</strong>, <strong>Texto do Botão</strong> (ex: "Ver Ofertas") e o <strong>Link de Redirecionamento</strong> para guiar o cliente direto a uma categoria ou produto específico.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-indigo-600" />
+                      2. Foto de Perfil e Logo da Loja
+                    </p>
+                    <p className="text-slate-500 text-[11px]">
+                      Importe e insira a logomarca da sua empresa através de upload de arquivo ou URL. A logo é exibida com destaque no cabeçalho da sua vitrine e no catálogo, identificando sua marca para todos os clientes e laboratórios parceiros.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <Folder size={14} className="text-indigo-600" />
+                      3. Imagens para Categorias
+                    </p>
+                    <p className="text-slate-500 text-[11px]">
+                      Defina fotos e ícones representativos para cada categoria de insumos e maquinários (como Resinas 3D, Fresadoras, Descartáveis, Equipamentos). Essas imagens aparecem em destaque na seção <strong>"Explorar nossas Categorias"</strong> na vitrine principal da loja.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                    <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                      <FolderPlus size={14} className="text-indigo-600" />
+                      4. Criação e Gestão de Categorias
+                    </p>
+                    <p className="text-slate-500 text-[11px]">
+                      Você pode criar novas categorias diretamente aqui nesta tela pelo botão <strong>"+ Nova Categoria"</strong> ou durante o cadastro/edição de produtos (clicando em <em>"+ Nova Categoria"</em> ao lado do seletor). Todas as categorias criadas ficam sincronizadas em tempo real e disponíveis instantaneamente no ato do cadastro de produtos.
+                    </p>
+                  </div>
                 </div>
               </div>
+
             </div>
           </div>
         )}
