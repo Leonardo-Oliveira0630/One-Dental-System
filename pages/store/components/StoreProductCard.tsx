@@ -31,11 +31,11 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
   return (
     <div 
       onClick={() => onOpenDetail(product)}
-      className="group relative flex flex-col justify-between bg-white rounded-2xl border border-zinc-200/80 hover:border-zinc-900/40 p-3.5 sm:p-4 transition-all duration-300 hover:shadow-lg hover:shadow-zinc-950/5 cursor-pointer"
+      className="group relative flex flex-col justify-between bg-white dark:bg-[#131B2A] rounded-2xl border border-zinc-200/80 dark:border-slate-800 hover:border-blue-500/50 dark:hover:border-blue-500/50 p-3.5 sm:p-4 transition-all duration-300 hover:shadow-lg hover:shadow-black/20 cursor-pointer"
     >
       <div className="space-y-3">
         {/* Product Image Container */}
-        <div className="relative aspect-square w-full rounded-xl bg-zinc-100/70 border border-zinc-200/60 overflow-hidden flex items-center justify-center">
+        <div className="relative aspect-square w-full rounded-xl bg-zinc-100/70 dark:bg-slate-850 border border-zinc-200/60 dark:border-slate-800 overflow-hidden flex items-center justify-center">
           {product.imageUrl ? (
             <img 
               src={product.imageUrl} 
@@ -47,7 +47,7 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
               }}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center text-zinc-400 gap-1">
+            <div className="flex flex-col items-center justify-center text-zinc-400 dark:text-slate-400 gap-1">
               <Package size={36} strokeWidth={1.2} />
               <span className="text-[10px] font-mono uppercase tracking-wider">Sem Imagem</span>
             </div>
@@ -69,8 +69,8 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
 
           {/* Supplier badge (Top-Right) */}
           {supplierName && (
-            <div className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-md border border-zinc-200/80 px-2 py-0.5 rounded-lg text-[10px] font-medium text-zinc-700 flex items-center gap-1 shadow-xs max-w-[120px] truncate">
-              <Building2 size={10} className="text-zinc-500 shrink-0" />
+            <div className="absolute top-2.5 right-2.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border border-zinc-200/80 dark:border-slate-700 px-2 py-0.5 rounded-lg text-[10px] font-medium text-zinc-700 dark:text-slate-200 flex items-center gap-1 shadow-xs max-w-[120px] truncate">
+              <Building2 size={10} className="text-zinc-500 dark:text-slate-400 shrink-0" />
               <span className="truncate">{supplierName}</span>
             </div>
           )}
@@ -79,18 +79,18 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
         {/* Product Details */}
         <div className="space-y-1.5 pt-0.5">
           {product.variations && product.variations.length > 0 && (
-            <div className="flex items-center gap-1 text-[11px] text-zinc-500 font-medium">
+            <div className="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-slate-400 font-medium">
               <Layers size={12} />
               <span>{product.variations.length} opções disponíveis</span>
             </div>
           )}
 
-          <h3 className="font-bold text-sm text-zinc-900 leading-snug line-clamp-2 group-hover:text-zinc-700 transition-colors">
+          <h3 className="font-bold text-sm text-zinc-900 dark:text-white leading-snug line-clamp-2 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
             {product.name}
           </h3>
 
           {product.description && (
-            <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed">
+            <p className="text-xs text-zinc-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
               {product.description}
             </p>
           )}
@@ -98,16 +98,16 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
       </div>
 
       {/* Price & Action Section */}
-      <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
+      <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-slate-800 flex items-center justify-between gap-2">
         <div>
           {isPromo && product.promotionalPrice && product.sellPrice > product.promotionalPrice && (
-            <span className="block text-[11px] text-zinc-400 line-through font-mono">
+            <span className="block text-[11px] text-zinc-400 dark:text-slate-400 line-through font-mono">
               R$ {product.sellPrice.toFixed(2)}
             </span>
           )}
           <div className="flex items-baseline gap-1">
-            <span className="text-xs font-bold text-zinc-500 font-mono">R$</span>
-            <span className="text-base font-extrabold text-zinc-950 font-mono tracking-tight">
+            <span className="text-xs font-bold text-zinc-500 dark:text-slate-400 font-mono">R$</span>
+            <span className="text-base font-extrabold text-zinc-950 dark:text-white font-mono tracking-tight">
               {displayPrice.toFixed(2)}
             </span>
           </div>
@@ -119,7 +119,7 @@ export const StoreProductCard: React.FC<StoreProductCardProps> = ({
             e.stopPropagation();
             onOpenDetail(product);
           }}
-          className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0"
         >
           <Plus size={14} />
           <span>Comprar</span>

@@ -566,7 +566,7 @@ export const SupplierStore = () => {
         const cartProductIds = cart.map(item => item.product.id);
         const hasApplicableProduct = cartProductIds.some(id => c.applicableProductIds.includes(id));
         if (!hasApplicableProduct) {
-          setCouponError('Este cupom não é válido para os produtos na cesta.');
+          setCouponError('Este cupom não é válido para os produtos no carrinho.');
           setAppliedCoupon(null);
           return;
         }
@@ -704,14 +704,14 @@ export const SupplierStore = () => {
   const totalCartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <main id="supplier-store-container" className="h-full w-full overflow-y-auto bg-zinc-50/50 text-zinc-900 pb-24 font-sans block">
+    <main id="supplier-store-container" className="h-full w-full overflow-y-auto bg-zinc-50/50 dark:bg-[#0B0F17] text-zinc-900 dark:text-slate-100 pb-24 font-sans block transition-colors">
       
       {/* 1. TOP STORE NAVBAR (Your Next Store signature clean navigation) */}
-      <nav className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200/80 px-4 sm:px-6 py-3 transition-all">
+      <nav className="sticky top-0 z-30 bg-white/95 dark:bg-[#131B2A]/95 backdrop-blur-md border-b border-zinc-200/80 dark:border-slate-800 px-4 sm:px-6 py-3 transition-all">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           
           {/* Segmented View Selector */}
-          <div className="flex items-center gap-1.5 p-1 bg-zinc-100 rounded-xl">
+          <div className="flex items-center gap-1.5 p-1 bg-zinc-100 dark:bg-slate-800/80 rounded-xl">
             <button
               type="button"
               onClick={() => {
@@ -721,8 +721,8 @@ export const SupplierStore = () => {
               }}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'STORE'
-                  ? 'bg-white text-zinc-950 shadow-xs'
-                  : 'text-zinc-600 hover:text-zinc-900'
+                  ? 'bg-white dark:bg-slate-700 text-zinc-950 dark:text-white shadow-xs'
+                  : 'text-zinc-600 dark:text-slate-300 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
               Loja de Fornecedores
@@ -732,8 +732,8 @@ export const SupplierStore = () => {
               onClick={() => setActiveTab('MY_ORDERS')}
               className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeTab === 'MY_ORDERS'
-                  ? 'bg-white text-zinc-950 shadow-xs'
-                  : 'text-zinc-600 hover:text-zinc-900'
+                  ? 'bg-white dark:bg-slate-700 text-zinc-950 dark:text-white shadow-xs'
+                  : 'text-zinc-600 dark:text-slate-300 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
               Meus Pedidos
@@ -750,27 +750,27 @@ export const SupplierStore = () => {
                 setChatInitialOrderId(undefined);
                 setIsChatModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-xl transition-all text-xs font-bold border border-zinc-200"
+              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200 dark:hover:bg-slate-700 text-zinc-900 dark:text-slate-100 rounded-xl transition-all text-xs font-bold border border-zinc-200 dark:border-slate-700"
               title="Chat com Fornecedores"
             >
-              <MessageSquare size={15} className="text-zinc-700" />
+              <MessageSquare size={15} className="text-zinc-700 dark:text-slate-300" />
               <span className="hidden sm:inline">Mensagens</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="group relative flex items-center gap-2.5 px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl transition-all shadow-md active:scale-95 text-xs font-bold"
+              className="group relative flex items-center gap-2.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 text-xs font-bold"
             >
               <ShoppingCart size={15} />
-              <span className="hidden sm:inline">Cesta</span>
+              <span className="hidden sm:inline">Carrinho</span>
               {totalCartCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-white text-zinc-950 rounded-full font-mono text-[10px] font-black">
+                <span className="px-1.5 py-0.2 bg-white text-blue-700 rounded-full font-mono text-[10px] font-black">
                   {totalCartCount}
                 </span>
               )}
               {cartTotals.finalTotal > 0 && (
-                <span className="hidden md:inline pl-1 border-l border-zinc-700 font-mono">
+                <span className="hidden md:inline pl-1 border-l border-blue-400 font-mono">
                   R$ {cartTotals.finalTotal.toFixed(2)}
                 </span>
               )}
@@ -801,7 +801,7 @@ export const SupplierStore = () => {
               <MarketplaceBanner />
 
               {/* Official Stores Carousel */}
-              <div className="bg-white border-b border-zinc-200/80">
+              <div className="bg-white dark:bg-[#131B2A] border-b border-zinc-200/80 dark:border-slate-800 transition-colors">
                 <OfficialStores 
                   suppliers={
                     globalSettings?.officialStoresIds?.length 
@@ -821,23 +821,23 @@ export const SupplierStore = () => {
           <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-4">
             
             {/* Search and Supplier Selection Bar */}
-            <div className="bg-white p-3 sm:p-4 rounded-2xl border border-zinc-200/80 shadow-xs space-y-3">
+            <div className="bg-white dark:bg-[#131B2A] p-3 sm:p-4 rounded-2xl border border-zinc-200/80 dark:border-slate-800 shadow-xs space-y-3 transition-colors">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
                 {/* Search Input */}
                 <div className="md:col-span-6 relative">
-                  <Search className="absolute left-3.5 top-3 text-zinc-400" size={16} />
+                  <Search className="absolute left-3.5 top-3 text-zinc-400 dark:text-slate-400" size={16} />
                   <input
                     type="text"
                     placeholder="Pesquisar insumo, resina, equipamento, marca..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-zinc-50/70 border border-zinc-200 rounded-xl pl-10 pr-9 py-2.5 text-xs text-zinc-900 outline-none focus:border-zinc-900 focus:bg-white placeholder-zinc-400 font-medium transition-all"
+                    className="w-full bg-zinc-50/70 dark:bg-slate-800/80 border border-zinc-200 dark:border-slate-700 rounded-xl pl-10 pr-9 py-2.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 placeholder-zinc-400 dark:placeholder-slate-400 font-medium transition-all"
                   />
                   {searchQuery && (
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-700"
+                      className="absolute right-3 top-3 text-zinc-400 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-white"
                     >
                       <X size={14} />
                     </button>
@@ -846,14 +846,14 @@ export const SupplierStore = () => {
 
                 {/* Supplier Dropdown Switcher */}
                 <div className="md:col-span-4 relative">
-                  <Building2 className="absolute left-3.5 top-3 text-zinc-400" size={16} />
+                  <Building2 className="absolute left-3.5 top-3 text-zinc-400 dark:text-slate-400" size={16} />
                   <select
                     value={selectedSupplierId}
                     onChange={(e) => {
                       setSelectedSupplierId(e.target.value);
                       setSelectedInternalCategory(null);
                     }}
-                    className="w-full bg-zinc-50/70 border border-zinc-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-zinc-900 outline-none focus:border-zinc-900 focus:bg-white font-bold transition-all cursor-pointer"
+                    className="w-full bg-zinc-50/70 dark:bg-slate-800/80 border border-zinc-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 font-bold transition-all cursor-pointer"
                   >
                     <option value="ALL">Todos os Fornecedores</option>
                     {allSuppliers.map((s) => (
@@ -872,8 +872,8 @@ export const SupplierStore = () => {
                       onClick={() => setShowLocationFilter(!showLocationFilter)}
                       className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                         showLocationFilter || userLocation
-                          ? 'border-zinc-950 bg-zinc-950 text-white'
-                          : 'border-zinc-200 bg-zinc-50/70 text-zinc-700 hover:bg-zinc-100'
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-zinc-200 dark:border-slate-700 bg-zinc-50/70 dark:bg-slate-800/80 text-zinc-700 dark:text-slate-200 hover:bg-zinc-100 dark:hover:bg-slate-700'
                       }`}
                     >
                       <MapPin size={14} />
@@ -885,19 +885,19 @@ export const SupplierStore = () => {
 
               {/* Expandable Location Filter */}
               {selectedSupplierId === 'ALL' && showLocationFilter && (
-                <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in">
+                <div className="p-3 bg-zinc-50 dark:bg-slate-800/50 rounded-xl border border-zinc-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in">
                   <div className="relative">
-                    <MapPin className="absolute left-3 top-2.5 text-zinc-400" size={15} />
+                    <MapPin className="absolute left-3 top-2.5 text-zinc-400 dark:text-slate-400" size={15} />
                     <input
                       type="text"
                       placeholder="Filtrar por cidade ou estado..."
                       value={userLocation}
                       onChange={(e) => setUserLocation(e.target.value)}
-                      className="w-full bg-white border border-zinc-200 rounded-lg pl-9 pr-3 py-1.5 text-xs text-zinc-900 outline-none focus:border-zinc-900"
+                      className="w-full bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500"
                     />
                   </div>
-                  <div className="flex items-center gap-3 bg-white border border-zinc-200 rounded-lg px-3 py-1.5">
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider whitespace-nowrap">
+                  <div className="flex items-center gap-3 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-1.5">
+                    <span className="text-[10px] font-bold text-zinc-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
                       Raio: {searchRadius > 200 ? '+200' : searchRadius} km
                     </span>
                     <input
@@ -907,16 +907,16 @@ export const SupplierStore = () => {
                       step="10"
                       value={searchRadius}
                       onChange={(e) => setSearchRadius(Number(e.target.value))}
-                      className="w-full accent-zinc-900 cursor-pointer"
+                      className="w-full accent-blue-600 cursor-pointer"
                     />
                   </div>
                 </div>
               )}
 
               {/* Sorting Pills Toolbar */}
-              <div className="flex flex-wrap items-center justify-between text-xs gap-2 pt-2 border-t border-zinc-100">
+              <div className="flex flex-wrap items-center justify-between text-xs gap-2 pt-2 border-t border-zinc-100 dark:border-slate-800">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-zinc-400 text-[11px] font-medium mr-1 flex items-center gap-1">
+                  <span className="text-zinc-400 dark:text-slate-400 text-[11px] font-medium mr-1 flex items-center gap-1">
                     <ArrowUpDown size={12} /> Ordenar:
                   </span>
 
@@ -933,8 +933,8 @@ export const SupplierStore = () => {
                       onClick={() => setSortOption(s.id as SortOption)}
                       className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
                         sortOption === s.id
-                          ? 'bg-zinc-900 text-white shadow-xs'
-                          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
                       }`}
                     >
                       {s.label}
@@ -942,7 +942,7 @@ export const SupplierStore = () => {
                   ))}
                 </div>
 
-                <span className="text-[11px] font-mono text-zinc-500">
+                <span className="text-[11px] font-mono text-zinc-500 dark:text-slate-400">
                   {rankedProducts.length} {rankedProducts.length === 1 ? 'produto' : 'produtos'}
                 </span>
               </div>
@@ -963,13 +963,13 @@ export const SupplierStore = () => {
           {/* 4. PRODUCT GRID (Your Next Store signature clean grid) */}
           <section className="max-w-7xl mx-auto px-4 sm:px-6">
             {rankedProducts.length === 0 ? (
-              <div className="py-20 bg-white rounded-3xl border border-zinc-200/80 text-center text-zinc-400 space-y-3 p-6">
-                <Package size={48} strokeWidth={1} className="mx-auto text-zinc-300" />
+              <div className="py-20 bg-white dark:bg-[#131B2A] rounded-3xl border border-zinc-200/80 dark:border-slate-800 text-center text-zinc-400 space-y-3 p-6 transition-colors">
+                <Package size={48} strokeWidth={1} className="mx-auto text-zinc-300 dark:text-slate-600" />
                 <div className="space-y-1">
-                  <h3 className="font-extrabold text-base text-zinc-800">
+                  <h3 className="font-extrabold text-base text-zinc-800 dark:text-slate-100">
                     Nenhum produto encontrado
                   </h3>
-                  <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                  <p className="text-xs text-zinc-500 dark:text-slate-400 max-w-sm mx-auto">
                     Tente ajustar seus termos de busca, filtros ou selecionar outro fornecedor parceiro.
                   </p>
                 </div>
@@ -981,7 +981,7 @@ export const SupplierStore = () => {
                       setSelectedInternalCategory(null);
                       setUserLocation('');
                     }}
-                    className="px-4 py-2 bg-zinc-900 text-white text-xs font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-xs"
+                    className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-all shadow-xs"
                   >
                     Limpar Filtros
                   </button>

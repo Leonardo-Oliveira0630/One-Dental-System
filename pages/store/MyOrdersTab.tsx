@@ -163,41 +163,41 @@ export function MyOrdersTab() {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header & Filter Controls */}
-      <div className="bg-white rounded-3xl border border-zinc-200/80 p-6 sm:p-8 space-y-6 shadow-xs">
+      <div className="bg-white dark:bg-[#131B2A] rounded-3xl border border-zinc-200/80 dark:border-slate-800 p-6 sm:p-8 space-y-6 shadow-xs transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Meus Pedidos</h2>
-            <p className="text-xs text-zinc-500 font-medium mt-1">
+            <h2 className="text-2xl font-black text-zinc-950 dark:text-slate-100 tracking-tight">Meus Pedidos</h2>
+            <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium mt-1">
               Acompanhe pedidos confirmados, notas, detalhes dos itens e códigos de rastreamento de entrega.
             </p>
           </div>
 
           {/* Search Box */}
           <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3.5 top-3 text-zinc-400" size={15} />
+            <Search className="absolute left-3.5 top-3 text-zinc-400 dark:text-slate-400" size={15} />
             <input
               type="text"
               placeholder="Buscar por código, produto ou fornecedor..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-zinc-900 focus:bg-white transition-all font-medium"
+              className="w-full bg-zinc-50 dark:bg-slate-800/80 border border-zinc-200 dark:border-slate-700 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-slate-400 outline-none focus:border-zinc-900 dark:focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all font-medium"
             />
           </div>
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-100">
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-100 dark:border-slate-800">
           <button
             type="button"
             onClick={() => setFilterTab('PAID')}
             className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
               filterTab === 'PAID'
-                ? 'bg-zinc-950 text-white shadow-xs'
-                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70'
+                ? 'bg-zinc-950 dark:bg-blue-600 text-white shadow-xs'
+                : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
             }`}
           >
             <span>Confirmados & Pagos</span>
-            <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'PAID' ? 'bg-zinc-800 text-white' : 'bg-zinc-200 text-zinc-700'}`}>
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'PAID' ? 'bg-zinc-800 dark:bg-blue-700 text-white' : 'bg-zinc-200 dark:bg-slate-700 text-zinc-700 dark:text-slate-300'}`}>
               {paidCount}
             </span>
           </button>
@@ -208,12 +208,12 @@ export function MyOrdersTab() {
             className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
               filterTab === 'PENDING'
                 ? 'bg-amber-600 text-white shadow-xs'
-                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70'
+                : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
             }`}
           >
             <span>Aguardando Pagamento</span>
             {pendingCount > 0 && (
-              <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'PENDING' ? 'bg-amber-700 text-white' : 'bg-amber-200 text-amber-900'}`}>
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'PENDING' ? 'bg-amber-700 text-white' : 'bg-amber-200 dark:bg-amber-950 text-amber-900 dark:text-amber-300'}`}>
                 {pendingCount}
               </span>
             )}
@@ -224,12 +224,12 @@ export function MyOrdersTab() {
             onClick={() => setFilterTab('ALL')}
             className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all flex items-center gap-2 ${
               filterTab === 'ALL'
-                ? 'bg-zinc-950 text-white shadow-xs'
-                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/70'
+                ? 'bg-zinc-950 dark:bg-blue-600 text-white shadow-xs'
+                : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
             }`}
           >
             <span>Todos os Pedidos</span>
-            <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'ALL' ? 'bg-zinc-800 text-white' : 'bg-zinc-200 text-zinc-700'}`}>
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-mono ${filterTab === 'ALL' ? 'bg-zinc-800 dark:bg-blue-700 text-white' : 'bg-zinc-200 dark:bg-slate-700 text-zinc-700 dark:text-slate-300'}`}>
               {orders.length}
             </span>
           </button>
@@ -237,7 +237,7 @@ export function MyOrdersTab() {
       </div>
 
       {statusMessage && (
-        <div className="p-4 bg-zinc-900 text-white text-xs font-medium rounded-2xl flex items-center justify-between gap-3 shadow-md animate-in fade-in">
+        <div className="p-4 bg-zinc-900 dark:bg-slate-800 text-white text-xs font-medium rounded-2xl flex items-center justify-between gap-3 shadow-md animate-in fade-in">
           <span>{statusMessage}</span>
           <button type="button" onClick={() => setStatusMessage(null)} className="text-zinc-400 hover:text-white">
             <X size={16} />
@@ -247,15 +247,15 @@ export function MyOrdersTab() {
 
       {/* Orders List Grid */}
       {filteredOrders.length === 0 ? (
-        <div className="py-20 bg-white rounded-3xl border border-zinc-200/80 text-center p-8 space-y-4">
-          <div className="w-16 h-16 rounded-full bg-zinc-100 text-zinc-400 flex items-center justify-center mx-auto">
+        <div className="py-20 bg-white dark:bg-[#131B2A] rounded-3xl border border-zinc-200/80 dark:border-slate-800 text-center p-8 space-y-4">
+          <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-slate-800 text-zinc-400 dark:text-slate-400 flex items-center justify-center mx-auto">
             <Package size={32} strokeWidth={1.5} />
           </div>
           <div className="space-y-1">
-            <h3 className="font-extrabold text-base text-zinc-900">
+            <h3 className="font-extrabold text-base text-zinc-900 dark:text-slate-100">
               Nenhum pedido encontrado
             </h3>
-            <p className="text-xs text-zinc-500 max-w-md mx-auto">
+            <p className="text-xs text-zinc-500 dark:text-slate-400 max-w-md mx-auto">
               {filterTab === 'PAID'
                 ? 'Você ainda não possui compras com pagamento confirmado. Quando o pagamento for concluído na loja de fornecedores, seu pedido aparecerá aqui automaticamente.'
                 : filterTab === 'PENDING'
@@ -273,23 +273,23 @@ export function MyOrdersTab() {
             return (
               <div
                 key={order.id}
-                className="bg-white rounded-3xl border border-zinc-200/80 p-5 sm:p-6 hover:border-zinc-300 transition-all shadow-xs space-y-4"
+                className="bg-white dark:bg-[#131B2A] rounded-3xl border border-zinc-200/80 dark:border-slate-800 p-5 sm:p-6 hover:border-zinc-300 dark:hover:border-slate-700 transition-all shadow-xs space-y-4"
               >
                 {/* Order Summary Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 dark:border-slate-800 pb-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
-                      <span className="font-mono font-bold text-xs bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-lg">
+                      <span className="font-mono font-bold text-xs bg-zinc-100 dark:bg-slate-800 text-zinc-800 dark:text-slate-200 px-2.5 py-1 rounded-lg">
                         #{order.id.substring(0, 8).toUpperCase()}
                       </span>
-                      <span className="text-xs text-zinc-400">•</span>
-                      <span className="text-xs text-zinc-600 font-medium">
+                      <span className="text-xs text-zinc-400 dark:text-slate-500">•</span>
+                      <span className="text-xs text-zinc-600 dark:text-slate-400 font-medium">
                         {order.createdAt ? format(new Date(order.createdAt), "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR }) : 'Data indisponível'}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-900 font-bold">
-                      <Building2 size={14} className="text-zinc-400" />
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-900 dark:text-slate-100 font-bold">
+                      <Building2 size={14} className="text-zinc-400 dark:text-slate-400" />
                       <span>Fornecedor: {order.supplierName}</span>
                     </div>
                   </div>
@@ -303,24 +303,24 @@ export function MyOrdersTab() {
                 {/* Products Preview and Details */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                   <div className="md:col-span-2 space-y-2">
-                    <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+                    <p className="text-[11px] font-bold text-zinc-400 dark:text-slate-400 uppercase tracking-wider">
                       Itens do Pedido ({totalItemsCount} {totalItemsCount === 1 ? 'item' : 'itens'})
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {order.items.slice(0, 3).map((item, idx) => (
                         <div
                           key={idx}
-                          className="bg-zinc-50 border border-zinc-200/80 rounded-xl px-3 py-1.5 text-xs flex items-center gap-2"
+                          className="bg-zinc-50 dark:bg-slate-800/60 border border-zinc-200/80 dark:border-slate-700/80 rounded-xl px-3 py-1.5 text-xs flex items-center gap-2"
                         >
-                          <span className="font-bold text-zinc-900">{item.name}</span>
-                          <span className="text-zinc-500 font-mono">x{item.quantity}</span>
-                          <span className="text-zinc-900 font-mono font-bold">
+                          <span className="font-bold text-zinc-900 dark:text-slate-100">{item.name}</span>
+                          <span className="text-zinc-500 dark:text-slate-400 font-mono">x{item.quantity}</span>
+                          <span className="text-zinc-900 dark:text-slate-100 font-mono font-bold">
                             R$ {(item.price * item.quantity).toFixed(2)}
                           </span>
                         </div>
                       ))}
                       {order.items.length > 3 && (
-                        <span className="text-xs text-zinc-500 font-medium self-center">
+                        <span className="text-xs text-zinc-500 dark:text-slate-400 font-medium self-center">
                           +{order.items.length - 3} mais
                         </span>
                       )}
@@ -328,10 +328,10 @@ export function MyOrdersTab() {
                   </div>
 
                   {/* Pricing and Action */}
-                  <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end justify-between gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-zinc-100">
+                  <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end justify-between gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-zinc-100 dark:border-slate-800">
                     <div className="text-left md:text-right">
-                      <span className="text-[11px] font-medium text-zinc-500 block">Valor Total</span>
-                      <span className="text-lg font-black font-mono text-zinc-950">
+                      <span className="text-[11px] font-medium text-zinc-500 dark:text-slate-400 block">Valor Total</span>
+                      <span className="text-lg font-black font-mono text-zinc-950 dark:text-white">
                         R$ {order.totalValue.toFixed(2)}
                       </span>
                     </div>
@@ -339,7 +339,7 @@ export function MyOrdersTab() {
                     <button
                       type="button"
                       onClick={() => setSelectedOrder(order)}
-                      className="w-full sm:w-auto px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2"
+                      className="w-full sm:w-auto px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs flex items-center justify-center gap-2"
                     >
                       <span>Ver Detalhes da Compra</span>
                       <ChevronRight size={14} />
@@ -351,12 +351,12 @@ export function MyOrdersTab() {
                 {order.returnRequest && (
                   <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
                     order.returnRequest.status === 'REFUNDED' || order.returnRequest.status === 'EXCHANGED'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
                       : order.returnRequest.status === 'REJECTED'
-                      ? 'bg-rose-50 border-rose-200 text-rose-900'
+                      ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200'
                       : order.returnRequest.status === 'APPROVED'
-                      ? 'bg-blue-50 border-blue-200 text-blue-900'
-                      : 'bg-amber-50 border-amber-200 text-amber-900'
+                      ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200'
+                      : 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
                   }`}>
                     <div className="flex items-center gap-2">
                       <RotateCcw size={15} className="shrink-0" />
@@ -378,7 +378,7 @@ export function MyOrdersTab() {
                     <button
                       type="button"
                       onClick={() => setOrderForReturnModal(order)}
-                      className="px-3 py-1.5 bg-white/90 hover:bg-white text-zinc-900 rounded-xl text-[11px] font-bold shadow-xs shrink-0 transition-all"
+                      className="px-3 py-1.5 bg-white/90 dark:bg-slate-800 hover:bg-white dark:hover:bg-slate-700 text-zinc-900 dark:text-white rounded-xl text-[11px] font-bold shadow-xs shrink-0 transition-all border border-zinc-200 dark:border-slate-700"
                     >
                       Ver Detalhes
                     </button>
@@ -387,16 +387,16 @@ export function MyOrdersTab() {
 
                 {/* Tracking alert if available */}
                 {order.trackingCode && (
-                  <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-2xl flex items-center justify-between text-xs text-blue-900 gap-2">
+                  <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-2xl flex items-center justify-between text-xs text-blue-900 dark:text-blue-300 gap-2">
                     <div className="flex items-center gap-2">
-                      <Truck size={15} className="text-blue-600" />
+                      <Truck size={15} className="text-blue-600 dark:text-blue-400" />
                       <span>Rastreio Correios / Transportadora:</span>
                       <span className="font-mono font-bold">{order.trackingCode}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleCopy(order.trackingCode!, order.id)}
-                      className="px-2.5 py-1 bg-white hover:bg-blue-100/60 border border-blue-200 text-blue-800 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all"
+                      className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 text-blue-800 dark:text-blue-300 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-all"
                     >
                       {copiedTracking === order.id ? <Check size={12} /> : <Copy size={12} />}
                       <span>{copiedTracking === order.id ? 'Copiado!' : 'Copiar'}</span>
@@ -405,20 +405,20 @@ export function MyOrdersTab() {
                 )}
 
                 {/* Card Quick Action Bar */}
-                <div className="flex items-center justify-between pt-2 border-t border-zinc-100 text-xs">
+                <div className="flex items-center justify-between pt-2 border-t border-zinc-100 dark:border-slate-800 text-xs">
                   <button
                     type="button"
                     onClick={() => handleOpenChat(order.supplierId, order.supplierName, order.id)}
-                    className="text-zinc-600 hover:text-zinc-950 font-bold flex items-center gap-1.5 transition-colors py-1"
+                    className="text-zinc-600 dark:text-slate-400 hover:text-zinc-950 dark:hover:text-white font-bold flex items-center gap-1.5 transition-colors py-1"
                   >
-                    <MessageSquare size={14} className="text-zinc-400" />
+                    <MessageSquare size={14} className="text-zinc-400 dark:text-slate-500" />
                     <span>Chat com Fornecedor</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setOrderForReturnModal(order)}
-                    className="text-zinc-500 hover:text-zinc-800 font-medium flex items-center gap-1 transition-colors py-1 text-[11px]"
+                    className="text-zinc-500 dark:text-slate-400 hover:text-zinc-800 dark:hover:text-slate-200 font-medium flex items-center gap-1 transition-colors py-1 text-[11px]"
                   >
                     <RotateCcw size={12} />
                     <span>{order.returnRequest ? 'Acompanhar Devolução' : 'Devolução / Cancelamento'}</span>
@@ -508,23 +508,23 @@ function OrderDetailModal({
   return (
     <div className="fixed inset-0 z-[140] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-3xl bg-white rounded-3xl border border-zinc-200 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+        className="relative w-full max-w-3xl bg-white dark:bg-[#131B2A] rounded-3xl border border-zinc-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transition-colors"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-200 bg-zinc-50/80">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-200 dark:border-slate-800 bg-zinc-50/80 dark:bg-slate-900/80">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-zinc-950 dark:bg-blue-600 text-white flex items-center justify-center shrink-0">
               <FileText size={20} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-black text-base text-zinc-950">
+                <h3 className="font-black text-base text-zinc-950 dark:text-slate-100">
                   Pedido #{order.id.substring(0, 8).toUpperCase()}
                 </h3>
                 {getPaymentStatusBadge(order)}
               </div>
-              <p className="text-xs text-zinc-500 font-medium">
+              <p className="text-xs text-zinc-500 dark:text-slate-400 font-medium">
                 Fornecedor: <strong>{order.supplierName}</strong> • {order.createdAt ? format(new Date(order.createdAt), "dd/MM/yyyy 'às' HH:mm") : ''}
               </p>
             </div>
@@ -533,7 +533,7 @@ function OrderDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/60 rounded-xl transition-all"
+            className="p-2 text-zinc-400 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/60 dark:hover:bg-slate-800 rounded-xl transition-all"
           >
             <X size={18} />
           </button>
@@ -545,12 +545,12 @@ function OrderDetailModal({
           {order.returnRequest && (
             <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
               order.returnRequest.status === 'REFUNDED' || order.returnRequest.status === 'EXCHANGED'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-950 dark:text-emerald-200'
                 : order.returnRequest.status === 'REJECTED'
-                ? 'bg-rose-50 border-rose-200 text-rose-950'
+                ? 'bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-800 text-rose-950 dark:text-rose-200'
                 : order.returnRequest.status === 'APPROVED'
-                ? 'bg-blue-50 border-blue-200 text-blue-950'
-                : 'bg-amber-50 border-amber-200 text-amber-950'
+                ? 'bg-blue-50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800 text-blue-950 dark:text-blue-200'
+                : 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-950 dark:text-amber-200'
             }`}>
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 font-bold uppercase tracking-wider text-[10px]">
@@ -576,7 +576,7 @@ function OrderDetailModal({
               <button
                 type="button"
                 onClick={() => onOpenReturnModal(order)}
-                className="px-4 py-2 bg-zinc-950 text-white rounded-xl font-bold text-xs shadow-xs shrink-0 hover:bg-zinc-800 transition-all"
+                className="px-4 py-2 bg-zinc-950 dark:bg-slate-800 hover:bg-zinc-800 dark:hover:bg-slate-700 text-white rounded-xl font-bold text-xs shadow-xs shrink-0 transition-all border border-transparent dark:border-slate-700"
               >
                 Ver Detalhes do Processo
               </button>
@@ -585,22 +585,22 @@ function OrderDetailModal({
 
           {/* Pending Payment Callout */}
           {!isPaid && order.status !== 'CANCELLED' && (
-            <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl space-y-3">
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 rounded-2xl space-y-3">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                   <Clock size={18} />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-extrabold text-xs text-amber-950 uppercase tracking-wider">
+                  <h4 className="font-extrabold text-xs text-amber-950 dark:text-amber-200 uppercase tracking-wider">
                     Aguardando Confirmação do Pagamento
                   </h4>
-                  <p className="text-xs text-amber-800 mt-0.5">
+                  <p className="text-xs text-amber-800 dark:text-amber-300 mt-0.5">
                     O fornecedor iniciará o processo de separação e envio logo após a identificação da liquidação bancária.
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-amber-200/70">
+              <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-amber-200/70 dark:border-amber-800/60">
                 {order.asaasInvoiceUrl && (
                   <a
                     href={order.asaasInvoiceUrl}
@@ -617,7 +617,7 @@ function OrderDetailModal({
                   type="button"
                   onClick={() => onVerifyPayment(order.id)}
                   disabled={isCheckingPayment}
-                  className="py-2.5 px-4 bg-white hover:bg-amber-100/70 border border-amber-300 text-amber-900 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="py-2.5 px-4 bg-white dark:bg-slate-800 hover:bg-amber-100/70 dark:hover:bg-slate-700 border border-amber-300 dark:border-slate-700 text-amber-900 dark:text-amber-300 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   <RefreshCw size={14} className={isCheckingPayment ? 'animate-spin' : ''} />
                   <span>{isCheckingPayment ? 'Verificando...' : 'Verificar Pagamento'}</span>
@@ -627,10 +627,10 @@ function OrderDetailModal({
           )}
 
           {/* 1. DELIVERY & SHIPPING SECTION */}
-          <div className="bg-zinc-50/70 border border-zinc-200/80 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
-              <div className="flex items-center gap-2 text-xs font-black text-zinc-900 uppercase tracking-wider">
-                <Truck size={16} className="text-zinc-600" />
+          <div className="bg-zinc-50/70 dark:bg-slate-900/50 border border-zinc-200/80 dark:border-slate-800 rounded-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-200/60 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-xs font-black text-zinc-900 dark:text-slate-100 uppercase tracking-wider">
+                <Truck size={16} className="text-zinc-600 dark:text-slate-400" />
                 <span>Modo & Status da Entrega</span>
               </div>
               {getDeliveryStatusBadge(order)}
@@ -638,9 +638,9 @@ function OrderDetailModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="space-y-1">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase">Modo de Envio</span>
-                <p className="font-bold text-zinc-900 flex items-center gap-1.5">
-                  <Package size={14} className="text-zinc-500" />
+                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">Modo de Envio</span>
+                <p className="font-bold text-zinc-900 dark:text-slate-200 flex items-center gap-1.5">
+                  <Package size={14} className="text-zinc-500 dark:text-slate-400" />
                   {order.shippingMethod === 'FRENET'
                     ? 'Frenet (Cotação Integrada)'
                     : order.shippingMethod === 'SEDEX'
@@ -652,8 +652,8 @@ function OrderDetailModal({
               </div>
 
               <div className="space-y-1">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase">Custo do Frete</span>
-                <p className="font-mono font-bold text-zinc-900">
+                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">Custo do Frete</span>
+                <p className="font-mono font-bold text-zinc-900 dark:text-slate-200">
                   {order.shippingCost ? `R$ ${order.shippingCost.toFixed(2)}` : 'Incluso ou a combinar'}
                 </p>
               </div>
@@ -661,12 +661,12 @@ function OrderDetailModal({
 
             {/* Tracking Code Box */}
             {order.trackingCode ? (
-              <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="space-y-0.5">
-                  <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
                     Código de Rastreamento
                   </span>
-                  <p className="font-mono font-black text-sm text-blue-950">
+                  <p className="font-mono font-black text-sm text-blue-950 dark:text-blue-200">
                     {order.trackingCode}
                   </p>
                 </div>
@@ -674,7 +674,7 @@ function OrderDetailModal({
                   <button
                     type="button"
                     onClick={() => handleCopy(order.trackingCode!)}
-                    className="px-3 py-1.5 bg-white hover:bg-blue-100/60 border border-blue-200 text-blue-900 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-blue-100/60 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 text-blue-900 dark:text-blue-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
                   >
                     {copiedTracking ? <Check size={13} /> : <Copy size={13} />}
                     <span>{copiedTracking ? 'Copiado!' : 'Copiar Código'}</span>
@@ -692,19 +692,19 @@ function OrderDetailModal({
                 </div>
               </div>
             ) : (
-              <div className="p-3 bg-zinc-100 rounded-xl text-xs text-zinc-500 flex items-center gap-2">
-                <Clock size={14} className="text-zinc-400" />
+              <div className="p-3 bg-zinc-100 dark:bg-slate-800/60 rounded-xl text-xs text-zinc-500 dark:text-slate-400 flex items-center gap-2">
+                <Clock size={14} className="text-zinc-400 dark:text-slate-500" />
                 <span>Código de rastreio será disponibilizado assim que o pedido for despachado.</span>
               </div>
             )}
 
             {/* Delivery Address */}
             {order.buyerAddress && (
-              <div className="space-y-1 pt-2 border-t border-zinc-200/60 text-xs">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase flex items-center gap-1">
+              <div className="space-y-1 pt-2 border-t border-zinc-200/60 dark:border-slate-800 text-xs">
+                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase flex items-center gap-1">
                   <MapPin size={12} /> Endereço de Entrega
                 </span>
-                <p className="text-zinc-800 leading-relaxed font-medium">
+                <p className="text-zinc-800 dark:text-slate-300 leading-relaxed font-medium">
                   {order.buyerAddress.street}
                   {order.buyerAddress.number && `, ${order.buyerAddress.number}`}
                   {order.buyerAddress.complement && ` - ${order.buyerAddress.complement}`}
@@ -717,9 +717,9 @@ function OrderDetailModal({
             )}
 
             {order.notes && (
-              <div className="space-y-1 pt-2 border-t border-zinc-200/60 text-xs">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase">Observações para Despacho</span>
-                <p className="text-zinc-700 italic bg-white p-2.5 rounded-lg border border-zinc-200">
+              <div className="space-y-1 pt-2 border-t border-zinc-200/60 dark:border-slate-800 text-xs">
+                <span className="text-[11px] font-bold text-zinc-400 dark:text-slate-500 uppercase">Observações para Despacho</span>
+                <p className="text-zinc-700 dark:text-slate-300 italic bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-zinc-200 dark:border-slate-700">
                   "{order.notes}"
                 </p>
               </div>
@@ -728,8 +728,8 @@ function OrderDetailModal({
 
           {/* 2. PURCHASED PRODUCTS LIST */}
           <div className="space-y-3">
-            <h4 className="text-xs font-black text-zinc-900 uppercase tracking-wider flex items-center gap-2">
-              <ShoppingBag size={16} className="text-zinc-600" />
+            <h4 className="text-xs font-black text-zinc-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-2">
+              <ShoppingBag size={16} className="text-zinc-600 dark:text-slate-400" />
               <span>Produtos Comprados & Avaliação</span>
             </h4>
 
@@ -741,14 +741,14 @@ function OrderDetailModal({
                 return (
                   <div 
                     key={idx}
-                    className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl space-y-3"
+                    className="p-4 bg-zinc-50 dark:bg-slate-900/50 border border-zinc-200 dark:border-slate-800 rounded-2xl space-y-3"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1">
-                        <h5 className="font-extrabold text-sm text-zinc-950">{item.name}</h5>
+                        <h5 className="font-extrabold text-sm text-zinc-950 dark:text-slate-100">{item.name}</h5>
                         
                         {item.variationName && (
-                          <span className="inline-block text-[11px] font-bold text-zinc-600 bg-white border border-zinc-200 px-2 py-0.5 rounded-md">
+                          <span className="inline-block text-[11px] font-bold text-zinc-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 px-2 py-0.5 rounded-md">
                             Opção: {item.variationName}
                           </span>
                         )}
@@ -756,7 +756,7 @@ function OrderDetailModal({
                         {item.selectedOptions && item.selectedOptions.length > 0 && (
                           <div className="flex flex-wrap gap-1 pt-0.5">
                             {item.selectedOptions.map((opt, i) => (
-                              <span key={i} className="text-[10px] bg-white border border-zinc-200 text-zinc-600 px-1.5 py-0.5 rounded">
+                              <span key={i} className="text-[10px] bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 text-zinc-600 dark:text-slate-300 px-1.5 py-0.5 rounded">
                                 {opt.groupName}: {opt.optionName}
                               </span>
                             ))}
@@ -765,21 +765,21 @@ function OrderDetailModal({
                       </div>
 
                       <div className="text-left sm:text-right space-y-0.5">
-                        <div className="text-xs text-zinc-500 font-mono">
-                          <span className="font-bold text-zinc-800">{item.quantity} un</span> x R$ {item.price.toFixed(2)}
+                        <div className="text-xs text-zinc-500 dark:text-slate-400 font-mono">
+                          <span className="font-bold text-zinc-800 dark:text-slate-200">{item.quantity} un</span> x R$ {item.price.toFixed(2)}
                         </div>
-                        <div className="font-mono font-black text-sm text-zinc-950">
+                        <div className="font-mono font-black text-sm text-zinc-950 dark:text-white">
                           Total: R$ {itemTotal.toFixed(2)}
                         </div>
                       </div>
                     </div>
 
                     {/* Review Section per item */}
-                    <div className="pt-3 border-t border-zinc-200/80">
+                    <div className="pt-3 border-t border-zinc-200/80 dark:border-slate-800">
                       {existingReview ? (
-                        <div className="space-y-1.5 bg-white p-3 rounded-xl border border-zinc-200 text-xs">
+                        <div className="space-y-1.5 bg-white dark:bg-slate-800/80 p-3 rounded-xl border border-zinc-200 dark:border-slate-700 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-zinc-700">Sua Avaliação:</span>
+                            <span className="font-bold text-zinc-700 dark:text-slate-300">Sua Avaliação:</span>
                             <div className="flex gap-1 text-amber-400">
                               {Array.from({ length: existingReview.rating }).map((_, i) => (
                                 <Star key={i} size={14} fill="currentColor" />
@@ -787,12 +787,12 @@ function OrderDetailModal({
                             </div>
                           </div>
                           {existingReview.feedbackText && (
-                            <p className="text-zinc-600 italic">"{existingReview.feedbackText}"</p>
+                            <p className="text-zinc-600 dark:text-slate-300 italic">"{existingReview.feedbackText}"</p>
                           )}
                           {existingReview.imageUrls && existingReview.imageUrls.length > 0 && (
                             <div className="flex gap-2 pt-1">
                               {existingReview.imageUrls.map((url, i) => (
-                                <img key={i} src={url} alt="Review" className="w-12 h-12 object-cover rounded-lg border border-zinc-200" />
+                                <img key={i} src={url} alt="Review" className="w-12 h-12 object-cover rounded-lg border border-zinc-200 dark:border-slate-700" />
                               ))}
                             </div>
                           )}
@@ -810,7 +810,7 @@ function OrderDetailModal({
                             <button
                               type="button"
                               onClick={() => setReviewingItemId(item.productId)}
-                              className="text-xs font-bold text-zinc-900 hover:text-zinc-700 underline flex items-center gap-1.5"
+                              className="text-xs font-bold text-zinc-900 dark:text-slate-200 hover:text-zinc-700 dark:hover:text-white underline flex items-center gap-1.5"
                             >
                               <Star size={13} className="text-amber-500" />
                               <span>Avaliar este produto</span>
@@ -826,7 +826,7 @@ function OrderDetailModal({
           </div>
 
           {/* 3. FINANCIAL SUMMARY */}
-          <div className="p-5 bg-zinc-900 text-white rounded-2xl space-y-3 text-xs">
+          <div className="p-5 bg-zinc-900 dark:bg-slate-950 text-white rounded-2xl space-y-3 text-xs border border-transparent dark:border-slate-800">
             <div className="flex items-center justify-between text-zinc-400 pb-2 border-b border-zinc-800">
               <span className="font-bold uppercase tracking-wider">Resumo Financeiro</span>
               <span className="font-mono">#{order.id.substring(0, 8)}</span>
@@ -863,7 +863,7 @@ function OrderDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-zinc-50 border-t border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="px-6 py-4 bg-zinc-50 dark:bg-slate-900/80 border-t border-zinc-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
@@ -871,9 +871,9 @@ function OrderDetailModal({
                 onClose();
                 onOpenChat(order.supplierId, order.supplierName, order.id);
               }}
-              className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200/80 text-zinc-900 text-xs font-extrabold rounded-xl transition-all flex items-center gap-2 border border-zinc-300 shadow-xs"
+              className="px-4 py-2.5 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200/80 dark:hover:bg-slate-700 text-zinc-900 dark:text-white text-xs font-extrabold rounded-xl transition-all flex items-center gap-2 border border-zinc-300 dark:border-slate-700 shadow-xs"
             >
-              <MessageSquare size={15} className="text-zinc-700" />
+              <MessageSquare size={15} className="text-zinc-700 dark:text-slate-300" />
               <span>Chat com Fornecedor</span>
             </button>
 
@@ -885,8 +885,8 @@ function OrderDetailModal({
               }}
               className={`px-4 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center gap-2 border ${
                 order.returnRequest
-                  ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300'
-                  : 'bg-white hover:bg-zinc-100 text-zinc-700 border-zinc-300'
+                  ? 'bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-800'
+                  : 'bg-white dark:bg-slate-800 hover:bg-zinc-100 dark:hover:bg-slate-700 text-zinc-700 dark:text-slate-200 border-zinc-300 dark:border-slate-700'
               }`}
             >
               <RotateCcw size={14} />
@@ -897,7 +897,7 @@ function OrderDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+            className="px-5 py-2.5 bg-zinc-950 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
           >
             Fechar
           </button>
@@ -910,13 +910,13 @@ function OrderDetailModal({
 function ReviewForm({ 
   order, 
   item, 
-  onSuccess,
+  onSuccess, 
   onCancel 
 }: { 
   order: SupplierOrder; 
   item: any; 
-  onSuccess: () => void;
-  onCancel?: () => void;
+  onSuccess: () => void; 
+  onCancel?: () => void; 
 }) {
   const { currentOrg, currentUser } = useApp();
   const [rating, setRating] = useState(5);
@@ -949,9 +949,9 @@ function ReviewForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 bg-white rounded-xl border border-zinc-200 space-y-3 animate-in fade-in">
+    <form onSubmit={handleSubmit} className="p-4 bg-white dark:bg-slate-800/90 rounded-xl border border-zinc-200 dark:border-slate-700 space-y-3 animate-in fade-in">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-zinc-900">Sua nota para o item:</span>
+        <span className="text-xs font-bold text-zinc-900 dark:text-slate-100">Sua nota para o item:</span>
         <div className="flex gap-1 text-amber-400">
           {[1, 2, 3, 4, 5].map((s) => (
             <button
@@ -970,7 +970,7 @@ function ReviewForm({
         placeholder="Escreva seu comentário sobre a qualidade, embalagem ou acabamento do produto..."
         value={feedback}
         onChange={(e) => setFeedback(e.target.value)}
-        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-900 outline-none focus:border-zinc-900 h-20 resize-none"
+        className="w-full bg-zinc-50 dark:bg-slate-900 border border-zinc-200 dark:border-slate-700 rounded-xl p-3 text-xs text-zinc-900 dark:text-white outline-none focus:border-zinc-900 dark:focus:border-blue-500 h-20 resize-none"
       />
 
       <div className="flex justify-end gap-2">
@@ -978,7 +978,7 @@ function ReviewForm({
           <button
             type="button"
             onClick={onCancel}
-            className="px-3 py-1.5 text-xs font-bold text-zinc-600 hover:text-zinc-900"
+            className="px-3 py-1.5 text-xs font-bold text-zinc-600 dark:text-slate-400 hover:text-zinc-900 dark:hover:text-white"
           >
             Cancelar
           </button>
@@ -986,7 +986,7 @@ function ReviewForm({
         <button
           type="submit"
           disabled={submitting}
-          className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
+          className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 dark:bg-blue-600 dark:hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-all shadow-xs"
         >
           {submitting ? 'Enviando...' : 'Publicar Avaliação'}
         </button>

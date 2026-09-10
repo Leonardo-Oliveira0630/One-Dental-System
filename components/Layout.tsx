@@ -8,7 +8,7 @@ import {
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList, Cpu
-, ChevronLeft, MessageSquare, Columns} from 'lucide-react';
+, ChevronLeft, MessageSquare, Columns, Sun, Moon} from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner, ManualScannerInput } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
@@ -25,7 +25,8 @@ const { onSnapshotsInSync } = firestorePkg as any;
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { 
     currentUser, logout, cart, jobs, currentOrg, currentPlan,
-    userConnections, activeOrganization, switchActiveOrganization
+    userConnections, activeOrganization, switchActiveOrganization,
+    theme, toggleTheme
   } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -121,8 +122,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
+  const isClinic = currentOrg?.orgType === 'CLINIC';
   const isBuyer = (isClient || currentOrg?.orgType === 'LAB_OUTSOURCED') && !isSupplier;
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isLab = !isClient && !isSupplier && !isClinic && (currentOrg?.orgType === 'LAB' || !currentOrg?.orgType);
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
   
   const isClinicPendingApproval = () => {
@@ -224,7 +227,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <div className="flex flex-col min-w-0 opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">
                 {displayBrand.name.toUpperCase() === 'Labprox' ? (
                   <span className="text-sm font-black tracking-tight leading-none truncate uppercase text-white">
-                    Smile<span className="text-[#00B8D9]">ProX</span>
+                    Lab<span className="text-[#00B8D9]">prox</span>
                   </span>
                 ) : (
                   <span className="text-xs font-black tracking-tight leading-none truncate uppercase text-white">{displayBrand.name}</span>
@@ -427,10 +430,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       {/* Default Mobile Header */}
       {!isStoreRoute && (
-          <header className={`fixed top-0 right-0 left-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden print:hidden transition-all duration-300`}>
+          <header className={`fixed top-0 right-0 left-0 mobile-header-light bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden print:hidden transition-all duration-300`}>
              <div className="flex items-center gap-3 overflow-hidden">
                  {!isMobileMenuOpen && (
-                   <button onClick={() => setIsMobileMenuOpen(true)} className={`text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0`}><Menu size={24} /></button>
+                   <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
                  )}
                  {!isMobileSearchOpen && (
                    <div className="flex items-center gap-2 overflow-hidden">
@@ -463,7 +466,17 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    </button>
                  )}
                  {currentUser ? (
-                   <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">
+                   <button 
+                     onClick={toggleTheme}
+                     className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+                     title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+                     aria-label="Alternar Tema"
+                   >
+                     {theme === 'dark' ? <Sun size={19} className="text-amber-500" /> : <Moon size={19} className="text-slate-600" />}
+                   </button>
+                 ) : null}
+                 {currentUser ? (
+                   <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-700 font-black text-xs shrink-0">
                      {currentUser.name?.charAt(0) || 'U'}
                    </Link>
                  ) : (
@@ -477,8 +490,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       {/* Store Header */}
       {isStoreRoute && (
-         <header className={`fixed top-0 right-0 bg-white border-b border-white min-h-16 px-0 pb-0 mb-0 mr-0 flex flex-col md:flex-row md:items-center justify-between z-[50] left-0 md:left-64 print:hidden transition-all duration-300`}>
-           <div className="flex items-center justify-between px-4 h-14 md:h-16 shrink-0 w-full md:w-auto border-b border-slate-100 md:border-none">
+         <header id="store-top-header" className={`fixed top-0 right-0 app-header-light bg-white border-b border-slate-200 min-h-16 px-2 md:px-4 pb-0 mb-0 mr-0 flex flex-col md:flex-row md:items-center justify-between z-[50] ${isSidebarHovered ? 'left-0 md:left-64' : 'left-0 md:left-20'} print:hidden transition-all duration-300`}>
+           <div className="flex items-center justify-between px-2 md:px-0 h-14 md:h-16 shrink-0 w-full md:w-auto border-b border-slate-100 md:border-none">
                <div className="flex items-center gap-2 shrink-0">
                    {!isMobileMenuOpen && (
                        <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 -ml-2 rounded-lg active:bg-slate-100 transition-colors shrink-0 md:hidden"><Menu size={24} /></button>
@@ -488,9 +501,17 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    </div>
                </div>
                
-               <div className="flex items-center gap-1 shrink-0 md:hidden">
+               <div className="flex items-center gap-2 shrink-0 md:hidden">
+                   <button 
+                     onClick={toggleTheme}
+                     className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
+                     title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+                     aria-label="Alternar Tema"
+                   >
+                     {theme === 'dark' ? <Sun size={17} className="text-amber-500" /> : <Moon size={17} className="text-slate-600" />}
+                   </button>
                    {currentUser ? (
-                       <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">
+                       <Link to="/profile" className="w-8 h-8 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
                          {currentUser.name?.charAt(0) || 'U'}
                        </Link>
                    ) : (
@@ -501,11 +522,19 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                </div>
            </div>
            
-           <div id="store-header-portal" className="flex-1 flex justify-center items-center py-2 md:p-0 min-h-[48px] overflow-hidden w-full md:w-auto bg-slate-50 md:bg-transparent shadow-inner md:shadow-none"></div>
+           <div id="store-header-portal" className="flex-1 flex justify-center items-center py-2 md:p-0 min-h-[48px] overflow-hidden w-full md:w-auto bg-transparent"></div>
            
-           <div className="hidden md:flex items-center gap-1 shrink-0 px-4">
+           <div className="hidden md:flex items-center gap-3 shrink-0 px-2 lg:px-4">
+               <button 
+                 onClick={toggleTheme}
+                 className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
+                 title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+                 aria-label="Alternar Tema"
+               >
+                 {theme === 'dark' ? <Sun size={17} className="text-amber-500" /> : <Moon size={17} className="text-slate-600" />}
+               </button>
                {currentUser ? (
-                   <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">
+                   <Link to="/profile" className="w-9 h-9 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-md hover:scale-105 transition-transform">
                      {currentUser.name?.charAt(0) || 'U'}
                    </Link>
                ) : (
@@ -517,7 +546,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
          </header>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-[#131B2A] border-t border-slate-200 dark:border-slate-800 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
           <MobileNavItem to={isFreeLab ? "/lab/finance" : "/dashboard"} icon={<Home size={22}/>} label="Home" active={isFreeLab ? location.pathname === '/lab/finance' : location.pathname === '/dashboard'} />
           
           {!isBuyer ? (
@@ -532,7 +561,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                       e.stopPropagation();
                       window.dispatchEvent(new CustomEvent('open-scanner')); 
                     }} 
-                    className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform cursor-pointer"
+                    className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 dark:shadow-blue-900/40 border-4 border-white dark:border-[#131B2A] active:scale-90 transition-transform cursor-pointer"
                     title="Ler Código de Barras (Ficha A4)"
                     aria-label="Ler Código de Barras da Ficha A4"
                  >
@@ -551,7 +580,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <>
                   <MobileNavItem to="/schedule" icon={<CalendarRange size={22}/>} label="Agenda" active={location.pathname === '/schedule'} />
                   <div className="relative -top-5">
-                     <Link to="/clinic/finance" className="w-14 h-14 bg-teal-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-teal-300 border-4 border-white active:scale-90 transition-transform">
+                     <Link to="/clinic/finance" className="w-14 h-14 bg-teal-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-teal-300 dark:shadow-teal-900/40 border-4 border-white dark:border-[#131B2A] active:scale-90 transition-transform">
                         <Wallet size={28}/>
                      </Link>
                   </div>
@@ -561,7 +590,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <>
                   <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label="Loja" active={location.pathname === '/store'} />
                   <div className="relative -top-5">
-                     <Link to="/patients" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-indigo-300 border-4 border-white active:scale-90 transition-transform">
+                     <Link to="/patients" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-indigo-300 dark:shadow-indigo-900/40 border-4 border-white dark:border-[#131B2A] active:scale-90 transition-transform">
                         <Contact size={28}/>
                      </Link>
                   </div>
@@ -573,10 +602,11 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
       </nav>
 
-      <main style={{ marginTop: '-38px' }} className={`flex-1 bg-white transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
+      <main style={{ marginTop: '-38px' }} className={`flex-1 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
         <header 
+          id="app-top-header"
           style={{ paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', marginTop: '37px' }}
-          className={`${isStoreRoute ? "hidden" : "hidden md:flex"} bg-white border-b border-slate-200 h-16 items-center justify-between px-4 lg:px-8 sticky top-0 z-30 print:hidden shrink-0 gap-2 sm:gap-4`}
+          className={`${isStoreRoute ? "hidden" : "hidden md:flex"} app-header-light bg-white border-b border-slate-200 h-16 items-center justify-between px-4 lg:px-8 sticky top-0 z-30 print:hidden shrink-0 gap-2 sm:gap-4`}
         >
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <Logo size={100} imgStyle={{ width: '100px', height: '100px' }} variant="colored" />
@@ -586,11 +616,22 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             <JobSearch />
           </div>
 
-          <div className="shrink-0 flex items-center">
-            <ManualScannerInput />
-          </div>
+          {isLab && (
+            <div className="shrink-0 flex items-center">
+              <ManualScannerInput />
+            </div>
+          )}
 
           <div className="flex items-center gap-3 lg:gap-4 shrink-0">
+              <button 
+                onClick={toggleTheme}
+                className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
+                title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+                aria-label="Alternar Tema"
+              >
+                {theme === 'dark' ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} className="text-slate-600" />}
+              </button>
+
               <div className="hidden sm:flex flex-col items-end">
                   <span className="text-sm font-black text-slate-800 leading-none uppercase truncate max-w-[120px] lg:max-w-[160px]">{currentUser?.name}</span>
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[120px] lg:max-w-[160px]">

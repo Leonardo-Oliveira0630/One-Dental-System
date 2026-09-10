@@ -3,10 +3,24 @@ import { BioSettings } from '../types';
 import { getBioSettings } from '../services/bioSettings';
 import { Globe, MessageCircle, Instagram, Smartphone, Apple, ExternalLink, PlaySquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
 
 export const BioPage = () => {
+  const { theme } = useApp();
   const [settings, setSettings] = useState<BioSettings | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Ensure BioPage is never altered by dark theme
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.remove('dark');
+    return () => {
+      const savedTheme = localStorage.getItem('app_theme');
+      if (savedTheme === 'dark' || (!savedTheme && wasDark) || theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    };
+  }, [theme]);
 
   useEffect(() => {
     fetchSettings();
@@ -48,14 +62,14 @@ export const BioPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex justify-center items-center">
+      <div className="min-h-screen bg-slate-50 flex justify-center items-center force-light">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center py-16 px-4">
+    <div id="bio-page-root" className="no-dark-theme force-light min-h-screen bg-slate-50 flex flex-col items-center py-16 px-4 text-slate-800">
       <div className="w-full max-w-md space-y-8 animate-fade-in">
         
         {/* Header Profile */}

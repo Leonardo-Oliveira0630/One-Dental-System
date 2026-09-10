@@ -244,40 +244,40 @@ export const Kanban = () => {
   const inSectorsCount = totalActiveCases - inTransitionCount;
 
   return (
-    <div className="flex flex-col min-h-full bg-slate-50 p-3 md:p-6 pb-24 md:pb-12 print:hidden">
+    <div className="flex flex-col min-h-full bg-slate-50 dark:bg-[#0B0F17] p-3 md:p-6 pb-24 md:pb-12 print:hidden">
       
       {/* Header com Título e Estatísticas Rápidas */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 shrink-0">
         <div>
           <div className="flex items-center gap-2">
             <Layers className="text-[#00B8D9] h-7 w-7" />
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Kanban de Produção</h1>
+            <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">Kanban de Produção</h1>
           </div>
-          <p className="text-slate-500 font-medium text-sm mt-0.5">
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-sm mt-0.5">
             Acompanhe o fluxo de casos em tempo real por setores e por colaboradores
           </p>
         </div>
 
         {/* Badges de Métricas */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
+          <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-bold text-slate-700">Total Ativos:</span>
-            <span className="text-xs font-extrabold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded-md">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Total Ativos:</span>
+            <span className="text-xs font-extrabold text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">
               {totalActiveCases}
             </span>
           </div>
-          <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
+          <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-            <span className="text-xs font-bold text-slate-700">Em Setores:</span>
-            <span className="text-xs font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-md">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Em Setores:</span>
+            <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded-md">
               {inSectorsCount}
             </span>
           </div>
-          <div className="bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
+          <div className="bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-3 py-1.5 rounded-xl shadow-xs flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-            <span className="text-xs font-bold text-slate-700">Em Transição:</span>
-            <span className="text-xs font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Em Transição:</span>
+            <span className="text-xs font-extrabold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded-md">
               {inTransitionCount}
             </span>
           </div>
@@ -285,7 +285,7 @@ export const Kanban = () => {
       </div>
 
       {/* CAMPO DE BUSCA PRINCIPAL */}
-      <div className="bg-white p-3.5 md:p-4 rounded-2xl border border-slate-200 shadow-sm mb-5">
+      <div className="bg-white dark:bg-[#131B2A] p-3.5 md:p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm mb-5">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 h-5 w-5" />
@@ -294,41 +294,32 @@ export const Kanban = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Pesquise por Paciente, Dentista, Nº da OS ou Nº da Caixa para ver setor e colaborador..."
-              className="w-full pl-11 pr-10 py-3 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-[#00B8D9] rounded-xl text-slate-800 placeholder-slate-400 text-sm font-medium outline-none transition-all"
+              className="w-full pl-11 pr-10 py-3 bg-slate-50 dark:bg-[#0B0F17] hover:bg-slate-100/70 dark:hover:bg-[#0B0F17]/80 focus:bg-white dark:focus:bg-[#0B0F17] border border-slate-200 dark:border-slate-700 focus:border-[#00B8D9] rounded-xl text-slate-800 dark:text-slate-100 placeholder-slate-400 text-sm font-medium outline-none transition-all"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
                 title="Limpar busca"
               >
                 <X size={16} />
               </button>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
-            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl font-bold text-xs sm:text-sm shadow-sm transition-all shrink-0 cursor-pointer"
-            title="Escanear Código de Barras com a Câmera"
-          >
-            <Camera size={18} />
-            <span className="hidden sm:inline">Escanear</span>
-          </button>
         </div>
 
         {/* Dicas de Busca e Seletor de visualização */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-slate-100 text-xs">
-          <div className="flex items-center gap-1.5 text-slate-400 font-medium">
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500 font-medium">
             <SlidersHorizontal size={13} className="text-[#00B8D9]" />
             <span>Busca instantânea com suporte a multi-setor e colaborador de entrada.</span>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
             <button
               onClick={() => setActiveTab('ALL')}
               className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
-                activeTab === 'ALL' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                activeTab === 'ALL' ? 'bg-white dark:bg-[#131B2A] text-slate-800 dark:text-slate-100 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               Ambos os Quadros
@@ -336,7 +327,7 @@ export const Kanban = () => {
             <button
               onClick={() => setActiveTab('SECTORS')}
               className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
-                activeTab === 'SECTORS' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                activeTab === 'SECTORS' ? 'bg-white dark:bg-[#131B2A] text-slate-800 dark:text-slate-100 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               Por Setores
@@ -344,7 +335,7 @@ export const Kanban = () => {
             <button
               onClick={() => setActiveTab('COLLABORATORS')}
               className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
-                activeTab === 'COLLABORATORS' ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-700'
+                activeTab === 'COLLABORATORS' ? 'bg-white dark:bg-[#131B2A] text-slate-800 dark:text-slate-100 shadow-xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               Por Colaboradores
@@ -475,15 +466,15 @@ export const Kanban = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 flex items-center justify-center font-bold">
                 <MapPin size={18} />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-800 tracking-tight">1. Fluxo por Setores</h2>
-                <p className="text-xs text-slate-500 font-medium">Visualização por bancadas e etapas de produção do laboratório</p>
+                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">1. Fluxo por Setores</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Visualização por bancadas e etapas de produção do laboratório</p>
               </div>
             </div>
-            <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
               {sectors.length + 1} Colunas
             </span>
           </div>
@@ -520,15 +511,15 @@ export const Kanban = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3 px-1">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 flex items-center justify-center font-bold">
                 <Users size={18} />
               </div>
               <div>
-                <h2 className="text-lg font-black text-slate-800 tracking-tight">2. Casos por Colaboradores</h2>
-                <p className="text-xs text-slate-500 font-medium">Visualização dos casos sob responsabilidade de cada profissional</p>
+                <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">2. Casos por Colaboradores</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Visualização dos casos sob responsabilidade de cada profissional</p>
               </div>
             </div>
-            <span className="text-xs font-bold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#131B2A] border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
               {collaboratorsList.length + 1} Colunas
             </span>
           </div>
@@ -583,26 +574,26 @@ const SectorColumn = ({
   return (
     <div className={`flex flex-col w-80 shrink-0 rounded-2xl border min-h-[420px] max-h-[680px] ${
       isTransition 
-        ? 'bg-slate-100/90 border-slate-300/80 border-dashed' 
-        : 'bg-slate-100 border-slate-200'
+        ? 'bg-slate-100/90 dark:bg-[#0B0F17]/90 border-slate-300/80 dark:border-slate-800 border-dashed' 
+        : 'bg-slate-100 dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800'
     }`}>
       {/* Header da Coluna */}
       <div className={`p-3.5 shrink-0 rounded-t-2xl border-b ${
         isTransition 
-          ? 'bg-slate-200/60 border-slate-200' 
-          : 'bg-white border-slate-200 shadow-2xs'
+          ? 'bg-slate-200/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800' 
+          : 'bg-white dark:bg-[#131B2A] border-slate-200 dark:border-slate-800 shadow-2xs'
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 truncate">
             <span className={`w-2.5 h-2.5 rounded-full ${isTransition ? 'bg-amber-500' : 'bg-blue-600'} shrink-0`}></span>
-            <h3 className="font-bold text-slate-800 text-sm truncate" title={title}>{title}</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate" title={title}>{title}</h3>
           </div>
-          <span className="bg-white border border-slate-200 text-slate-700 text-xs font-black px-2 py-0.5 rounded-lg shadow-2xs">
+          <span className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-black px-2 py-0.5 rounded-lg shadow-2xs">
             {items.length}
           </span>
         </div>
         {description && (
-          <p className="text-[11px] text-slate-500 font-medium mt-1 truncate">{description}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 truncate">{description}</p>
         )}
       </div>
 
@@ -613,16 +604,16 @@ const SectorColumn = ({
             <div
               key={`${job.id}-${movement?.id || 'base'}`}
               onClick={() => navigate(`/jobs/${job.id}`)}
-              className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs hover:shadow-md hover:border-blue-400 transition-all cursor-pointer group"
+              className="bg-white dark:bg-[#131B2A] p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-blue-400 dark:hover:border-blue-500 transition-all cursor-pointer group"
             >
               {/* Header do Card: OS e Caixa */}
               <div className="flex items-start justify-between mb-2 gap-2">
-                <div className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                <div className="flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#0B0F17] px-2 py-0.5 rounded border border-slate-100 dark:border-slate-800">
                   <FileText size={12} className="text-slate-400" />
                   OS #{job.osNumber || job.id.slice(-6).toUpperCase()}
                 </div>
                 {job.boxNumber && (
-                  <div className="flex items-center gap-1 text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  <div className="flex items-center gap-1 text-xs font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-900">
                     <Box size={12} className="text-blue-500" />
                     Cx {job.boxNumber}
                   </div>
@@ -633,31 +624,31 @@ const SectorColumn = ({
               <div className="space-y-1 mb-2.5">
                 <div className="flex items-start gap-1.5">
                   <User size={13} className="text-indigo-500 shrink-0 mt-0.5" />
-                  <span className="text-sm font-bold text-slate-800 line-clamp-1">{job.patientName}</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-1">{job.patientName}</span>
                 </div>
                 <div className="flex items-start gap-1.5">
-                  <Stethoscope size={13} className="text-teal-600 shrink-0 mt-0.5" />
-                  <span className="text-xs font-semibold text-slate-600 line-clamp-1">{job.dentistName}</span>
+                  <Stethoscope size={13} className="text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 line-clamp-1">{job.dentistName}</span>
                 </div>
               </div>
 
               {/* Rodapé: Colaborador e Horário de Entrada */}
-              <div className="pt-2 border-t border-slate-100 flex flex-col gap-1">
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-1">
                 {movement?.entryUserName ? (
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                    <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-200">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-200 dark:border-indigo-800">
                       {movement.entryUserName.charAt(0).toUpperCase()}
                     </div>
                     <span className="truncate">{movement.entryUserName}</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 w-fit">
+                  <div className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-100 dark:border-amber-900/50 w-fit">
                     <AlertCircle size={11} /> Sem colaborador ativo
                   </div>
                 )}
 
                 {movement?.entryTime && (
-                  <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 pl-0.5">
+                  <div className="flex items-center gap-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 pl-0.5">
                     <Clock size={10} />
                     Entrada: {format(new Date(movement.entryTime), "dd/MM 'às' HH:mm")}
                   </div>
@@ -668,8 +659,8 @@ const SectorColumn = ({
         })}
 
         {items.length === 0 && (
-          <div className="h-40 flex flex-col items-center justify-center text-slate-400 gap-1.5 opacity-60">
-            <Box size={22} className="text-slate-300" />
+          <div className="h-40 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-1.5 opacity-60">
+            <Box size={22} className="text-slate-300 dark:text-slate-600" />
             <span className="text-xs font-bold text-center">Nenhum caso</span>
           </div>
         )}
@@ -699,32 +690,32 @@ const CollaboratorColumn = ({
   return (
     <div className={`flex flex-col w-80 shrink-0 rounded-2xl border min-h-[420px] max-h-[680px] ${
       isUnassigned 
-        ? 'bg-slate-100/90 border-slate-300/80 border-dashed' 
-        : 'bg-slate-100 border-slate-200'
+        ? 'bg-slate-100/90 dark:bg-[#0B0F17]/90 border-slate-300/80 dark:border-slate-800 border-dashed' 
+        : 'bg-slate-100 dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800'
     }`}>
       {/* Header da Coluna */}
       <div className={`p-3.5 shrink-0 rounded-t-2xl border-b ${
         isUnassigned 
-          ? 'bg-slate-200/60 border-slate-200' 
-          : 'bg-white border-slate-200 shadow-2xs'
+          ? 'bg-slate-200/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800' 
+          : 'bg-white dark:bg-[#131B2A] border-slate-200 dark:border-slate-800 shadow-2xs'
       }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 truncate">
             <div className={`w-6 h-6 rounded-full flex items-center justify-center font-extrabold text-[11px] shrink-0 ${
               isUnassigned 
-                ? 'bg-amber-100 text-amber-800' 
-                : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300' 
+                : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
             }`}>
               {isUnassigned ? '?' : title.charAt(0).toUpperCase()}
             </div>
-            <h3 className="font-bold text-slate-800 text-sm truncate" title={title}>{title}</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm truncate" title={title}>{title}</h3>
           </div>
-          <span className="bg-white border border-slate-200 text-slate-700 text-xs font-black px-2 py-0.5 rounded-lg shadow-2xs">
+          <span className="bg-white dark:bg-[#0B0F17] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-black px-2 py-0.5 rounded-lg shadow-2xs">
             {items.length}
           </span>
         </div>
         {subtitle && (
-          <p className="text-[11px] text-slate-500 font-medium mt-1 truncate">{subtitle}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1 truncate">{subtitle}</p>
         )}
       </div>
 
@@ -746,16 +737,16 @@ const CollaboratorColumn = ({
             <div
               key={job.id}
               onClick={() => navigate(`/jobs/${job.id}`)}
-              className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs hover:shadow-md hover:border-indigo-400 transition-all cursor-pointer group"
+              className="bg-white dark:bg-[#131B2A] p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer group"
             >
               {/* Header do Card: OS e Caixa */}
               <div className="flex items-start justify-between mb-2 gap-2">
-                <div className="flex items-center gap-1 text-xs font-bold text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                <div className="flex items-center gap-1 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#0B0F17] px-2 py-0.5 rounded border border-slate-100 dark:border-slate-800">
                   <FileText size={12} className="text-slate-400" />
                   OS #{job.osNumber || job.id.slice(-6).toUpperCase()}
                 </div>
                 {job.boxNumber && (
-                  <div className="flex items-center gap-1 text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  <div className="flex items-center gap-1 text-xs font-extrabold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-900">
                     <Box size={12} className="text-blue-500" />
                     Cx {job.boxNumber}
                   </div>
@@ -766,25 +757,25 @@ const CollaboratorColumn = ({
               <div className="space-y-1 mb-2.5">
                 <div className="flex items-start gap-1.5">
                   <User size={13} className="text-indigo-500 shrink-0 mt-0.5" />
-                  <span className="text-sm font-bold text-slate-800 line-clamp-1">{job.patientName}</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-1">{job.patientName}</span>
                 </div>
                 <div className="flex items-start gap-1.5">
-                  <Stethoscope size={13} className="text-teal-600 shrink-0 mt-0.5" />
-                  <span className="text-xs font-semibold text-slate-600 line-clamp-1">{job.dentistName}</span>
+                  <Stethoscope size={13} className="text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 line-clamp-1">{job.dentistName}</span>
                 </div>
               </div>
 
               {/* Rodapé: SETORES QUE ESTE COLABORADOR ESTÁ EXECUTANDO (Sem repetir o nome do colaborador) */}
-              <div className="pt-2 border-t border-slate-100 flex flex-col gap-1.5">
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-1.5">
                 {activeSectors.map((sectorItem, sIdx) => (
                   <div key={sIdx} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1 text-slate-700 font-bold bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                    <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-bold bg-slate-50 dark:bg-[#0B0F17] px-2 py-0.5 rounded border border-slate-100 dark:border-slate-800">
                       <MapPin size={11} className="text-red-500 shrink-0" />
                       <span className="truncate">{sectorItem.name}</span>
                     </div>
 
                     {sectorItem.time && (
-                      <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 flex items-center gap-1 shrink-0">
                         <Clock size={10} />
                         {format(sectorItem.time, "HH:mm")}
                       </span>
@@ -797,8 +788,8 @@ const CollaboratorColumn = ({
         })}
 
         {items.length === 0 && (
-          <div className="h-40 flex flex-col items-center justify-center text-slate-400 gap-1.5 opacity-60">
-            <Users size={22} className="text-slate-300" />
+          <div className="h-40 flex flex-col items-center justify-center text-slate-400 dark:text-slate-600 gap-1.5 opacity-60">
+            <Users size={22} className="text-slate-300 dark:text-slate-600" />
             <span className="text-xs font-bold text-center">Nenhum caso ativo</span>
           </div>
         )}

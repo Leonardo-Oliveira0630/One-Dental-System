@@ -67,28 +67,27 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
     }, [allLaboratories, searchTerm, activeOrganization]);
     
     return (
-        <div className={`flex flex-col h-full -mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50`}>
-            <StoreTopMenu />
-        <div className="flex-1 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500 w-full p-4 md:p-4 sm:p-8" id="partnerships-main-container">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0B0F17] py-2 md:py-4">
+        <div className="flex-1 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500 w-full px-4 sm:px-6 md:px-8" id="partnerships-main-container">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-900 tracking-tight">Rede de Parcerias</h1>
-                    <p className="text-slate-500">Explore laboratórios, produtos e feche parcerias diretamento do marketplace.</p>
+                    <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Rede de Parcerias</h1>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Explore laboratórios, produtos e feche parcerias diretamente do marketplace.</p>
                 </div>
             </div>
 
             {/* TABS NAVIGATION */}
-            <div className="flex bg-slate-200 p-1 rounded-2xl w-fit">
+            <div className="flex bg-slate-200 dark:bg-slate-800 p-1 rounded-2xl w-fit">
                 <button 
                     onClick={() => setActiveTab('MY_PARTNERS')}
-                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'MY_PARTNERS' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'MY_PARTNERS' ? 'bg-white dark:bg-[#131B2A] text-blue-600 dark:text-blue-400 shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                     id="tab-my-partners"
                 >
                     <Handshake size={18} /> Minhas Parcerias
                 </button>
                 <button 
                     onClick={() => setActiveTab('EXPLORE')}
-                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'EXPLORE' ? 'bg-white text-blue-600 shadow' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'EXPLORE' ? 'bg-white dark:bg-[#131B2A] text-blue-600 dark:text-blue-400 shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                     id="tab-explore"
                 >
                     <Search size={18} /> Explorar Marketplace
@@ -97,13 +96,13 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
 
             {/* TAB CONTENT: MY PARTNERS */}
             {activeTab === 'MY_PARTNERS' && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:p-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-1 space-y-6">
-                        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 h-fit">
-                            <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-slate-800">
+                        <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 h-fit">
+                            <h3 className="font-bold text-lg mb-2 flex items-center gap-2 text-slate-800 dark:text-slate-100">
                                 <LinkIcon className="text-blue-600" size={20}/> Conexão Direta
                             </h3>
-                            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
                                 Se você já possui o código enviado pelo seu laboratório, cole-o abaixo para se conectar.
                             </p>
                             <form onSubmit={(e) => { e.preventDefault(); handleAdd(orgCode); }} className="space-y-3">
@@ -111,12 +110,12 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                     value={orgCode}
                                     onChange={e => setOrgCode(e.target.value)}
                                     placeholder="Ex: org_123abc..."
-                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-mono"
+                                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F17] rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-mono text-slate-900 dark:text-slate-100"
                                     required
                                 />
-                                {error && activeTab === 'MY_PARTNERS' && <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100">{error}</div>}
-                                {success && activeTab === 'MY_PARTNERS' && <div className="p-3 bg-green-50 text-green-600 text-xs rounded-lg border border-green-100 flex items-center gap-2"><CheckCircle size={14}/> {success}</div>}
-                                <button type="submit" disabled={loading} className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-2 transition-all shadow-lg">
+                                {error && activeTab === 'MY_PARTNERS' && <div className="p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs rounded-lg border border-red-100 dark:border-red-900">{error}</div>}
+                                {success && activeTab === 'MY_PARTNERS' && <div className="p-3 bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400 text-xs rounded-lg border border-green-100 dark:border-green-900 flex items-center gap-2"><CheckCircle size={14}/> {success}</div>}
+                                <button type="submit" disabled={loading} className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl disabled:opacity-70 flex items-center justify-center gap-2 transition-all shadow-lg">
                                     {loading ? <Loader2 className="animate-spin" size={18} /> : 'Vincular por Código'}
                                 </button>
                             </form>
@@ -124,12 +123,12 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                     </div>
 
                     <div className="md:col-span-2">
-                        <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[400px]">
-                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-slate-800">
+                        <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 min-h-[400px]">
+                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-slate-800 dark:text-slate-100">
                                 <Handshake className="text-teal-600" size={20}/> Parceiros Ativos ({userConnections.length})
                             </h3>
                             {userConnections.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-100 rounded-3xl">
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-400 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl">
                                     <Globe size={48} className="mb-4 opacity-20" />
                                     <p className="font-medium">Você ainda não possui parcerias firmadas.</p>
                                     <button onClick={() => setActiveTab('EXPLORE')} className="text-blue-600 font-bold hover:underline mt-2">Explorar marketplace agora</button>
@@ -149,12 +148,12 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                                         navigate('/store');
                                                     }
                                                 }}
-                                                className="flex justify-between items-center p-5 bg-white rounded-3xl border border-slate-100 hover:border-blue-500 hover:shadow-md cursor-pointer transition-all group relative overflow-hidden"
+                                                className="flex justify-between items-center p-5 bg-white dark:bg-[#0B0F17] rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-blue-500 hover:shadow-md cursor-pointer transition-all group relative overflow-hidden"
                                                 id={`partner-card-${conn.id}`}
                                                 title="Clique para acessar a loja do parceiro"
                                             >
                                                 <div className="flex items-center gap-4 relative z-10 w-full">
-                                                    <div className="w-12 h-12 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm overflow-hidden shrink-0">
+                                                    <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm overflow-hidden shrink-0">
                                                         {labInfo?.logoUrl ? (
                                                           <img src={labInfo.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                                                         ) : (
@@ -162,23 +161,23 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
                                                         )}
                                                     </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="font-black text-slate-800 truncate group-hover:text-blue-600 transition-colors">{conn.organizationName}</p>
+                                                        <p className="font-black text-slate-800 dark:text-slate-100 truncate group-hover:text-blue-600 transition-colors">{conn.organizationName}</p>
                                                         <div className="flex flex-wrap items-center gap-2 mt-1">
                                                             <div className="flex items-center gap-1">
                                                                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                                                                <span className="text-[10px] text-green-600 font-black uppercase tracking-tighter">Parceria Ativa</span>
+                                                                <span className="text-[10px] text-green-600 dark:text-green-400 font-black uppercase tracking-tighter">Parceria Ativa</span>
                                                             </div>
                                                             {labInfo?.city && labInfo?.state && (
                                                                 <>
-                                                                    <span className="text-slate-300 text-[10px]">•</span>
-                                                                    <span className="text-[10px] text-slate-500 font-bold flex items-center gap-0.5 whitespace-nowrap">
+                                                                    <span className="text-slate-300 dark:text-slate-600 text-[10px]">•</span>
+                                                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold flex items-center gap-0.5 whitespace-nowrap">
                                                                         <MapPin size={10} className="text-slate-400 shrink-0" /> ({labInfo.city}, {labInfo.state})
                                                                     </span>
                                                                 </>
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <div className="text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all shrink-0">
+                                                    <div className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 group-hover:translate-x-1 transition-all shrink-0">
                                                         <ChevronRight size={20} />
                                                     </div>
                                                 </div>

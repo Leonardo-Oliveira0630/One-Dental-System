@@ -19,14 +19,14 @@ export const getJobOriginInfo = (job: any) => {
 
   switch(origin) {
     case 'ONLINE_ORDER':
-      return { label: 'Loja Online', color: 'bg-indigo-50 border-indigo-200 text-indigo-700' }
+      return { label: 'Loja Online', color: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' }
     case 'ONLINE_REQUISITION':
-      return { label: 'Requisição Online', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' }
+      return { label: 'Requisição Online', color: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300' }
     case 'OUTSOURCING':
-      return { label: 'Terceirização', color: 'bg-purple-50 border-purple-200 text-purple-700' }
+      return { label: 'Terceirização', color: 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300' }
     case 'MANUAL':
     default:
-      return { label: 'Manual', color: 'bg-slate-50 border-slate-200 text-slate-700' }
+      return { label: 'Manual', color: 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300' }
   }
 
 }
@@ -67,9 +67,9 @@ const JobRow = memo(({ isJobOverdue,
     const showAttention = !isClient && timeInfo.isAttention;
 
     return (
-        <tr className={`hover:bg-blue-50/30 transition-colors ${showAttention ? 'bg-yellow-50/50' : ''}`}>
+        <tr className={`hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors ${showAttention ? 'bg-yellow-50/50 dark:bg-yellow-950/20' : ''}`}>
             <td className="p-4 font-mono font-bold text-sm">
-                <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 hover:text-blue-800 hover:underline text-left">
+                <button onClick={() => navigate(`/jobs/${job.id}`)} className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-left">
                     {job.osNumber || '---'}
                 </button>
             </td>
@@ -78,20 +78,20 @@ const JobRow = memo(({ isJobOverdue,
                     {job.boxNumber ? (
                         <div 
                             className="w-10 h-10 rounded-lg flex items-center justify-center font-black text-xs shadow-sm border border-black/10"
-                            style={{ backgroundColor: job.boxColor?.hex || '#f1f5f9', color: job.boxColor ? getContrastColor(job.boxColor.hex) : '#64748b' }}
+                            style={{ backgroundColor: job.boxColor?.hex || '#1E293B', color: job.boxColor ? getContrastColor(job.boxColor.hex) : '#94A3B8' }}
                         >
                             {job.boxNumber}
                         </div>
-                    ) : <span className="text-slate-300">-</span>}
+                    ) : <span className="text-slate-300 dark:text-slate-600">-</span>}
                 </td>
             )}
             
             {!isBudgetMode && (
                 <td className="p-4">
-                    <div className="font-bold text-slate-900 text-sm">{job.patientName}</div>
+                    <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{job.patientName}</div>
                     {(job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
-                        <div className="mt-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-100 rounded px-2 py-1 max-w-xs">
-                            <span className="font-black text-[9px] uppercase tracking-wider block text-red-700">Motivo da Recusa:</span>
+                        <div className="mt-1 text-[11px] font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 rounded px-2 py-1 max-w-xs">
+                            <span className="font-black text-[9px] uppercase tracking-wider block text-red-700 dark:text-red-300">Motivo da Recusa:</span>
                             {job.rejectionReason}
                         </div>
                     )}
@@ -99,7 +99,7 @@ const JobRow = memo(({ isJobOverdue,
             )}
             {isBudgetMode && (
                 <td className="p-4">
-                    <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">{job.dentistName}</div>
                 </td>
             )}
             
@@ -118,12 +118,12 @@ const JobRow = memo(({ isJobOverdue,
             
             {!isBudgetMode && (
                 <td className="p-4">
-                    <div className="text-xs font-bold text-slate-500 uppercase tracking-tight">{job.dentistName}</div>
+                    <div className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">{job.dentistName}</div>
                 </td>
             )}
             {isBudgetMode && (
                 <td className="p-4">
-                    <div className="font-bold text-slate-900 text-sm">{job.patientName}</div>
+                    <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{job.patientName}</div>
                 </td>
             )}
             
@@ -134,7 +134,7 @@ const JobRow = memo(({ isJobOverdue,
                             {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
                         </span>
                     ) : (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200" title="Função de andamento indisponível no momento">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700" title="Função de andamento indisponível no momento">
                             Indisponível
                         </span>
                     )}
@@ -143,11 +143,11 @@ const JobRow = memo(({ isJobOverdue,
             {!isBudgetMode && (
                 <td className="p-4">
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                             {revealJobStatus ? (job.currentSector || 'Triagem') : 'Indisponível'}
                         </span>
                         {revealJobStatus && !isClient && (
-                            <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600' : 'text-slate-500'}`}>
+                            <div className={`flex items-center gap-1 text-xs font-bold ${timeInfo.isAttention ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'}`}>
                                 <Clock size={12} /> {timeInfo.label}
                                 {timeInfo.isAttention && <AlertCircle size={12} className="animate-pulse" />}
                             </div>
@@ -157,7 +157,7 @@ const JobRow = memo(({ isJobOverdue,
             )}
             
             {isBudgetMode && (
-                <td className="p-4 text-slate-600 text-xs font-bold">
+                <td className="p-4 text-slate-600 dark:text-slate-300 text-xs font-bold">
                     {job.createdAt ? (
                         job.createdAt instanceof Date 
                             ? job.createdAt.toLocaleDateString()
@@ -166,28 +166,28 @@ const JobRow = memo(({ isJobOverdue,
                 </td>
             )}
             {!isBudgetMode && (
-                <td className="p-4 text-slate-600 text-xs font-bold">{(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</td>
+                <td className="p-4 text-slate-600 dark:text-slate-300 text-xs font-bold">{(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</td>
             )}
             
             {!isBudgetMode && (
                 <td className="p-4 text-right">
                     <div className="flex justify-end gap-1">
-                        {canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 hover:bg-green-100 rounded-lg"><CheckCircle2 size={18} /></button>}
-                        {canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 hover:bg-amber-100 rounded-lg"><RotateCcw size={18} /></button>}
-                        {canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 hover:bg-indigo-100 rounded-lg"><Truck size={18} /></button>}
-                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Eye size={18} /></button>
+                        {canFinalize && <button onClick={() => handleFinalizeJob(job)} className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-950/40 rounded-lg"><CheckCircle2 size={18} /></button>}
+                        {canReopen && <button onClick={() => handleReopenJob(job)} className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded-lg"><RotateCcw size={18} /></button>}
+                        {canRoute && <button onClick={() => setRouteModalJob(job)} className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40 rounded-lg"><Truck size={18} /></button>}
+                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg"><Eye size={18} /></button>
                     </div>
                 </td>
             )}
             {isBudgetMode && (
-                <td className="p-4 text-right font-bold text-xs text-slate-800">
+                <td className="p-4 text-right font-bold text-xs text-slate-800 dark:text-slate-100">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(job.totalValue || 0)}
                 </td>
             )}
             {isBudgetMode && (
                 <td className="p-4 text-right">
                     <div className="flex justify-end gap-1">
-                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg" title="Ver Orçamento">
+                        <button onClick={() => navigate(`/jobs/${job.id}`)} className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-950/40 rounded-lg" title="Ver Orçamento">
                             <Eye size={18} />
                         </button>
                     </div>
@@ -221,7 +221,7 @@ const JobCard = memo(({ isJobOverdue,
     const timeInfo = getSectorTimeInfo(job);
     const showAttention = !isClient && timeInfo.isAttention;
     return (
-        <div onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${showAttention ? 'border-amber-300 bg-amber-50/30' : 'border-slate-200'}`}>
+        <div onClick={() => navigate(`/jobs/${job.id}`)} className={`bg-white dark:bg-[#131B2A] rounded-2xl p-4 shadow-sm border transition-transform relative overflow-hidden active:scale-[0.98] ${showAttention ? 'border-amber-300 dark:border-amber-700 bg-amber-50/30 dark:bg-amber-950/20' : 'border-slate-200 dark:border-slate-800'}`}>
             {job.urgency === UrgencyLevel.VIP && <div className="absolute top-0 right-0 w-12 h-12 overflow-hidden"><div className="bg-orange-500 text-white text-[8px] font-black py-1 px-10 transform rotate-45 translate-x-3 -translate-y-1 text-center shadow-sm uppercase">VIP</div></div>}
 
             {showAttention && <div className="absolute top-0 left-0 w-full h-1 bg-amber-400 animate-pulse" />}
@@ -229,22 +229,22 @@ const JobCard = memo(({ isJobOverdue,
             
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
-                    <span className="font-mono font-black text-blue-600 text-base">#{job.osNumber || '---'}</span>
+                    <span className="font-mono font-black text-blue-600 dark:text-blue-400 text-base">#{job.osNumber || '---'}</span>
                     {!isBudgetMode && (
                         revealJobStatus ? (
                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}`}>
                                 {getTranslatedStatus(job.status, typeof isJobOverdue === "function" ? isJobOverdue(job) : false)}
                             </span>
                         ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase border bg-slate-100 text-slate-400 border-slate-200">
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase border bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700">
                                 Indisponível
                             </span>
                         )
                     )}
                 </div>
                 <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase leading-none">{isBudgetMode ? 'Criado em' : 'Entrega'}</p>
-                    <p className="text-xs font-bold text-slate-800">
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase leading-none">{isBudgetMode ? 'Criado em' : 'Entrega'}</p>
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
                         {isBudgetMode 
                             ? (job.createdAt ? (job.createdAt instanceof Date ? job.createdAt.toLocaleDateString() : new Date((job.createdAt as any).seconds ? (job.createdAt as any).seconds * 1000 : job.createdAt).toLocaleDateString()) : '-')
                             : (job.dueDate ? new Date(job.dueDate).toLocaleDateString() : '-')
@@ -256,36 +256,36 @@ const JobCard = memo(({ isJobOverdue,
             <div className="space-y-1 mb-4">
                 {isBudgetMode && (
                     <div className="mb-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none block mb-1">Valor Final</span>
-                        <span className="font-bold text-slate-800 text-sm">
+                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase leading-none block mb-1">Valor Final</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-100 text-sm">
                             {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(job.totalValue || 0)}
                         </span>
                     </div>
                 )}
-                <h3 className="font-black text-slate-900 text-lg leading-tight">{job.patientName}</h3>
-                <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold">
+                <h3 className="font-black text-slate-900 dark:text-slate-100 text-lg leading-tight">{job.patientName}</h3>
+                <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-xs font-bold">
                     <User size={12} className="text-blue-500" />
                     <span className="uppercase truncate">Dr(a). {job.dentistName}</span>
                 </div>
                 {!isBudgetMode && (job.status === 'REJECTED' || (job.status as any) === 'REJECTED_REQUISITION') && job.rejectionReason && (
-                    <div className="mt-2 text-xs font-medium text-red-700 bg-red-50 border border-red-100 rounded-xl p-2.5">
-                        <span className="font-black text-[9px] uppercase tracking-wider block mb-0.5 text-red-800">Motivo da Recusa:</span>
+                    <div className="mt-2 text-xs font-medium text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 rounded-xl p-2.5">
+                        <span className="font-black text-[9px] uppercase tracking-wider block mb-0.5 text-red-800 dark:text-red-300">Motivo da Recusa:</span>
                         {job.rejectionReason}
                     </div>
                 )}
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex flex-wrap items-center gap-2">
                    {!isClient && !isBudgetMode && job.boxNumber && (
-                       <div className="flex items-center gap-1.5 bg-slate-100 px-2 py-1 rounded-lg">
-                           <Box size={14} className="text-slate-400" />
-                           <span className="text-xs font-black text-slate-700">{job.boxNumber}</span>
+                       <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+                           <Box size={14} className="text-slate-400 dark:text-slate-500" />
+                           <span className="text-xs font-black text-slate-700 dark:text-slate-300">{job.boxNumber}</span>
                        </div>
                    )}
 
                    {!isBudgetMode && (
-                       <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (showAttention ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-700') : 'bg-slate-100 text-slate-400'}`}>
+                       <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${revealJobStatus ? (showAttention ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300') : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
                            <MapPin size={14} className={revealJobStatus ? (showAttention ? 'text-amber-500' : 'text-blue-400') : 'text-slate-400'} />
                            <span className="text-xs font-bold truncate max-w-[100px]">{revealJobStatus ? (job.currentSector || 'Recepção') : 'Indisponível'}</span>
                            {revealJobStatus && !isClient && <span className="text-[10px] font-black border-l border-current pl-1.5 ml-0.5">{timeInfo.label}</span>}
@@ -300,7 +300,7 @@ const JobCard = memo(({ isJobOverdue,
                         );
                    })()}
                 </div>
-                <ChevronRight className="text-slate-300 flex-shrink-0" size={20} />
+                <ChevronRight className="text-slate-300 dark:text-slate-600 flex-shrink-0" size={20} />
             </div>
         </div>
     );
@@ -473,7 +473,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
       } as any));
 
     return [...nonAcceptedReqs, ...jobs];
-  }, [jobs, budgets, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId]);
+  }, [jobs, budgets, onlineRequisitions, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, isBudgetMode]);
 
   const filteredJobs = useMemo(() => {
     return combinedJobs.filter(job => {
@@ -561,7 +561,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
         return true;
       });
-  }, [jobs, budgets, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
+  }, [combinedJobs, isBudgetMode, isClient, currentUser?.id, currentUser?.manualDentistId, activeManualDentistId, filterText, statusFilter, selectedStatuses, startDate, endDate, selectedDentists, selectedSectors, selectedCollaborators, filterUrgency, filterAttention, filterOrigin]);
 
   const handleFinalizeJob = async (job: Job) => {
       const dentist = allUsers.find(u => u.id === job.dentistId) || manualDentists.find(d => d.id === job.dentistId);
@@ -647,11 +647,11 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
         {/* JOBS LIST */}
 
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-[#131B2A] rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
-                <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase border-b border-slate-100">
+                <tr className="bg-slate-50 dark:bg-[#0B0F17] text-slate-400 dark:text-slate-400 text-[10px] font-black uppercase border-b border-slate-100 dark:border-slate-800">
                   <th className="px-6 py-4">O.S. / Pedido</th>
                   <th className="px-6 py-4">Dentista</th>
                   <th className="px-6 py-4">Paciente</th>
@@ -661,10 +661,10 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                   <th className="px-6 py-4 text-center">Ações / Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-sm font-medium text-slate-700 dark:text-slate-300">
                 {freeLabJobs.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-slate-400">
+                    <td colSpan={7} className="text-center py-12 text-slate-400 dark:text-slate-500">
                       Nenhum pedido aceito encontrado. Aceite pedidos na aba "Pedidos Web".
                     </td>
                   </tr>
@@ -672,38 +672,34 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                   freeLabJobs.slice(0, visibleCount).map((job) => {
                     const isEditingThis = editingJob?.id === job.id;
                     return (
-                      <tr key={job.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 font-mono font-bold text-blue-600">
+                      <tr key={job.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="px-6 py-4 font-mono font-bold text-blue-600 dark:text-blue-400">
                           <button 
                             onClick={() => navigate(`/jobs/${job.id}`)} 
-                            className="text-blue-600 hover:text-blue-800 hover:underline font-bold focus:outline-none cursor-pointer"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-bold focus:outline-none cursor-pointer"
                           >
                             #{job.osNumber || job.id.substring(0, 6)}
-
                           </button>
                         </td>
                         <td className="px-6 py-4">
                           <button 
                             onClick={() => navigate(`/jobs/${job.id}`)} 
-                            className="hover:text-blue-600 hover:underline text-left font-medium focus:outline-none cursor-pointer"
+                            className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline text-left font-medium focus:outline-none cursor-pointer text-slate-700 dark:text-slate-300"
                           >
                             {job.dentistName}
-
                           </button>
                         </td>
-                        <td className="px-6 py-4 font-bold text-slate-900">
+                        <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100">
                           <button 
                             onClick={() => navigate(`/jobs/${job.id}`)} 
-                            className="hover:text-blue-600 hover:underline text-left font-bold focus:outline-none text-slate-900 cursor-pointer"
+                            className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline text-left font-bold focus:outline-none text-slate-900 dark:text-slate-100 cursor-pointer"
                           >
                             {job.patientName}
-
                           </button>
                         </td>
-                        <td className="px-6 py-4 text-slate-500">
+                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
                           {job.items?.map(i => `${i.name} (x${i.quantity || 1})`).join(', ') || 
                            job.products?.map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || '---'}
-
                         </td>
                         <td className="px-6 py-4 max-w-[200px]">
                           {isEditingThis ? (
@@ -711,49 +707,41 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                               <input 
                                 type="text"
                                 value={editNotesText}
-
                                 onChange={(e) => setEditNotesText(e.target.value)}
-
-                                className="px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                                className="px-2 py-1 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
                               />
                               <button 
                                 onClick={() => handleSaveNotes(job.id, editNotesText)}
-
-                                className="px-2 py-1 bg-green-600 text-white font-bold rounded text-xs"
+                                className="px-2 py-1 bg-green-600 text-white font-bold rounded text-xs hover:bg-green-700"
                               >
                                 Salvar
                               </button>
                               <button 
                                 onClick={() => setEditingJob(null)}
-
-                                className="px-2 py-1 bg-slate-200 text-slate-700 font-bold rounded text-xs"
+                                className="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded text-xs"
                               >
                                 X
                               </button>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 group">
-                              <span className="truncate block max-w-[150px]" title={job.notes || 'Sem observações'}>
-                                {job.notes || <span className="text-slate-300 italic">Sem obs</span>}
-
+                              <span className="truncate block max-w-[150px] text-slate-600 dark:text-slate-300" title={job.notes || 'Sem observações'}>
+                                {job.notes || <span className="text-slate-300 dark:text-slate-600 italic">Sem obs</span>}
                               </span>
                               <button 
                                 onClick={() => {
                                   setEditingJob(job);
                                   setEditNotesText(job.notes || '');
                                 }}
-
                                 className="text-blue-500 hover:text-blue-700 text-xs underline cursor-pointer"
                               >
                                 Editar
                               </button>
                             </div>
                           )}
-
                         </td>
-                        <td className="px-6 py-4 text-slate-500">
+                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400">
                           {new Date(job.dueDate).toLocaleDateString('pt-BR')}
-
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
@@ -820,27 +808,16 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
 
   return (
-    <div className={`flex flex-col h-full ${isClient ? '-mt-4 md:-mt-8 -mx-4 md:-mx-8 bg-slate-50' : ''}`}>
+    <div className={`flex flex-col h-full ${isClient ? 'bg-slate-50 dark:bg-[#0B0F17]' : ''}`}>
        {isClient && <StoreTopMenu />}
 
-       <div className={`space-y-4 md:space-y-6 pb-20 ${isClient ? 'p-4 md:p-8 flex-1 overflow-y-auto' : ''}`}>
+       <div className={`space-y-4 md:space-y-6 pb-20 ${isClient ? 'p-4 md:p-6 flex-1 overflow-y-auto' : ''}`}>
        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">{isClient ? 'Meus Pedidos' : (isBudgetMode ? 'Lista de Orçamentos' : 'Lista de Trabalhos')}</h1>
-          <p className="text-xs md:text-sm text-slate-500">Mostrando {filteredJobs.length} registros encontrados.</p>
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">{isClient ? 'Meus Pedidos' : (isBudgetMode ? 'Lista de Orçamentos' : 'Lista de Trabalhos')}</h1>
+          <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">Mostrando {filteredJobs.length} registros encontrados.</p>
         </div>
         <div className="flex items-center gap-2">
-          {!isClient && (
-            <button 
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))} 
-              className="bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 px-4 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-all text-xs sm:text-sm border border-slate-200 shadow-sm"
-              title="Escanear Código de Barras com Câmera do Tablet / Celular"
-            >
-              <Camera size={18} className="text-blue-600" /> 
-              <span>Escanear</span>
-            </button>
-          )}
           {!isClient && isBudgetMode && (
              <button onClick={() => navigate('/new-budget')} className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-bold uppercase tracking-tight flex items-center gap-2 active:scale-95 transition-transform text-xs sm:text-sm shadow-sm">
                 <PlusCircle size={18} /> Novo Orçamento
@@ -855,56 +832,48 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
       </div>
 
       {isClient && (
-        <div className="flex bg-slate-100 p-1 rounded-xl max-w-lg gap-1">
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl max-w-lg gap-1">
           <button
             type="button"
             onClick={() => setStatusFilter('ALL')}
-
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               statusFilter === 'ALL' 
-                ? 'bg-white text-slate-800 shadow-sm' 
-                 : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white dark:bg-[#131B2A] text-slate-800 dark:text-slate-100 shadow-sm' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
-
           >
             Todos ({combinedJobs.length})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('ACTIVE_JOBS')}
-
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               statusFilter === 'ACTIVE_JOBS' 
-                ? 'bg-white text-blue-700 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white dark:bg-[#131B2A] text-blue-700 dark:text-blue-400 shadow-sm' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
-
           >
             Ativos ({combinedJobs.filter(j => !['COMPLETED', 'DELIVERED', 'REJECTED', 'REJECTED_REQUISITION', 'CANCELED'].includes(j.status)).length})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('COMPLETED_DELIVERED')}
-
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               statusFilter === 'COMPLETED_DELIVERED' 
-                ? 'bg-white text-emerald-700 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white dark:bg-[#131B2A] text-emerald-700 dark:text-emerald-400 shadow-sm' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
-
           >
             Entregues ({combinedJobs.filter(j => ['COMPLETED', 'DELIVERED'].includes(j.status)).length})
           </button>
           <button
             type="button"
             onClick={() => setStatusFilter('REJECTED_JOBS')}
-
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg transition-all ${
               statusFilter === 'REJECTED_JOBS' 
-                ? 'bg-white text-rose-700 shadow-sm' 
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-white dark:bg-[#131B2A] text-rose-700 dark:text-rose-400 shadow-sm' 
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
             }`}
-
           >
             Recusados ({combinedJobs.filter(j => ['REJECTED', 'REJECTED_REQUISITION', 'CANCELED'].includes(j.status)).length})
           </button>
@@ -912,44 +881,39 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
       )}
 
 
-      <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col gap-4">
+      <div className="bg-white dark:bg-[#131B2A] p-3 md:p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 text-slate-400" size={20} />
+                <Search className="absolute left-3 top-3 text-slate-400 dark:text-slate-500" size={20} />
                 <input 
                     type="text" 
                     placeholder="Buscar OS, Caixa, Paciente, Dentista..." 
                     value={filterText}
-
                     onChange={(e) => setFilterText(e.target.value)}
-
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 outline-none text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
             </div>
             <button 
                 onClick={() => setShowFilters(!showFilters)}
-
                 className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-bold ${
-                    showFilters ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    showFilters ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-[#0B0F17] border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
-
             >
                 <SlidersHorizontal size={18} /> Filtros
             </button>
         </div>
 
         {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-slate-100 pt-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-slate-100 dark:border-slate-800 pt-3">
                 <MultiSelect 
-                            options={statusOptions} 
-                            selectedValues={selectedStatuses} 
-                            onChange={setSelectedStatuses} 
-                            placeholder="Filtrar Status" 
-                        />
-                <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
+                    options={statusOptions} 
+                    selectedValues={selectedStatuses} 
+                    onChange={setSelectedStatuses} 
+                    placeholder="Filtrar Status" 
+                />
+                <select value={filterUrgency} onChange={e => setFilterUrgency(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100">
                     <option value="">Todas Prioridades</option>
                     {Object.values(UrgencyLevel).map(u => <option key={u} value={u}>{u}</option>)}
-
                 </select>
 
                 {!isClient && (
@@ -976,18 +940,18 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                 )}
 
 
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Inicial" />
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold bg-slate-50" title="Data Final" />
-                <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)} className="px-3 py-2 border rounded-lg text-xs font-bold outline-none bg-slate-50">
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100" title="Data Inicial" />
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100" title="Data Final" />
+                <select value={filterOrigin} onChange={e => setFilterOrigin(e.target.value)} className="px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold outline-none bg-slate-50 dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100">
                     <option value="ALL">Todas as Origens</option>
                     <option value="MANUAL">Cadastrado Manual</option>
                     <option value="ONLINE_ORDER">Pedido Online</option>
                     <option value="ONLINE_REQUISITION">Requisição Online</option>
                     <option value="OUTSOURCING">Terceirização</option>
                 </select>
-                <label className="flex items-center gap-2 px-3 py-2 border rounded-lg bg-slate-50 cursor-pointer">
+                <label className="flex items-center gap-2 px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-[#0B0F17] cursor-pointer">
                     <input type="checkbox" checked={filterAttention} onChange={e => setFilterAttention(e.target.checked)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
-                    <span className="text-xs font-bold text-slate-700">Apenas Atenção (+18h)</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Apenas Atenção (+18h)</span>
                 </label>
             </div>
         )}
@@ -996,11 +960,11 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
       {/* VIEW PARA DESKTOP (TABELA) */}
 
-      <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="hidden md:block bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
                 <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 text-[10px] uppercase tracking-widest font-black">
+                    <tr className="bg-slate-50 dark:bg-[#0B0F17] border-b border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-400 text-[10px] uppercase tracking-widest font-black">
                         <th className="p-4">{isBudgetMode ? 'Orçamento #' : 'OS #'}</th>
                         {!isClient && !isBudgetMode && <th className="p-4">Caixa</th>}
                         
@@ -1021,34 +985,23 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                         {isBudgetMode && <th className="p-4 text-right">Ações</th>}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                     {filteredJobs.slice(0, visibleCount).map(job => (
                         <JobRow 
                             key={job.id} 
                             job={job} 
                             isClient={isClient}
                             isBudgetMode={isBudgetMode}
-
                             isLabStaff={isLabStaff}
-
                             navigate={navigate}
-
                             handleFinalizeJob={handleFinalizeJob}
-
                             handleReopenJob={handleReopenJob}
-
                             setRouteModalJob={setRouteModalJob}
-
                             getStatusColor={getStatusColor}
-
                             getTranslatedStatus={getTranslatedStatus}
-
                             isJobOverdue={isJobOverdue}
-
                             getSectorTimeInfo={getSectorTimeInfo}
-
                             revealJobStatus={revealJobStatus}
-
                         />
                     ))}
 
@@ -1058,7 +1011,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                             <td colSpan={8} className="p-4 text-center">
                                 <button 
                                     onClick={() => setVisibleCount(prev => prev + 20)}
-                                    className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-sm"
+                                    className="px-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-colors text-sm"
                                 >
                                     Carregar mais trabalhos
                                 </button>
@@ -1074,7 +1027,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
       <div className="md:hidden space-y-4">
         {filteredJobs.length === 0 ? (
-            <div className="py-20 text-center text-slate-400 bg-white rounded-3xl border border-dashed">Nenhum pedido encontrado.</div>
+            <div className="py-20 text-center text-slate-400 dark:text-slate-500 bg-white dark:bg-[#131B2A] rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">Nenhum pedido encontrado.</div>
         ) : (
             filteredJobs.slice(0, visibleCount).map(job => (
                 <JobCard 
@@ -1085,7 +1038,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                     getTranslatedStatus={getTranslatedStatus}
                     getSectorTimeInfo={getSectorTimeInfo}
                     isClient={isClient}
-                            isBudgetMode={isBudgetMode}
+                    isBudgetMode={isBudgetMode}
                     revealJobStatus={revealJobStatus}
                 />
             ))
@@ -1095,7 +1048,7 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
             <div className="p-4 flex justify-center">
                 <button 
                     onClick={() => setVisibleCount(prev => prev + 20)}
-                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors text-sm"
+                    className="w-full py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl transition-colors text-sm"
                 >
                     Carregar mais trabalhos
                 </button>
@@ -1107,28 +1060,28 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
 
       {routeModalJob && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
-                  <div className="flex justify-between items-center mb-6 border-b pb-4">
-                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Truck className="text-indigo-600" /> Escalar p/ Entrega</h3>
-                      <button onClick={() => setRouteModalJob(null)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+              <div className="bg-white dark:bg-[#131B2A] rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200 border border-slate-200 dark:border-slate-800">
+                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 dark:border-slate-800 pb-4">
+                      <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><Truck className="text-indigo-600 dark:text-indigo-400" /> Escalar p/ Entrega</h3>
+                      <button onClick={() => setRouteModalJob(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={24}/></button>
                   </div>
                   <div className="space-y-4">
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data da Rota</label>
-                          <input type="date" value={routeDate} onChange={e => setRouteDate(e.target.value)} className="w-full px-4 py-2 border rounded-xl" />
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Data da Rota</label>
+                          <input type="date" value={routeDate} onChange={e => setRouteDate(e.target.value)} className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 rounded-xl" />
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Turno</label>
-                          <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800 bg-slate-50">
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Turno</label>
+                          <select value={routeShift} onChange={e => setRouteShift(e.target.value as any)} className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#0B0F17]">
                               <option value="MORNING">Manhã</option>
                               <option value="AFTERNOON">Tarde</option>
                           </select>
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motoboy</label>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Motoboy</label>
                           {couriers.filter(c => c.active).length > 0 ? (
                               <div className="space-y-2">
-                                  <select value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800 bg-slate-50">
+                                  <select value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#0B0F17]">
                                       <option value="">Selecione um motoboy...</option>
                                       {couriers.filter(c => c.active).map(c => (
                                           <option key={c.id} value={c.name}>{c.name} {c.vehicle ? `(${c.vehicle})` : ''}</option>
@@ -1140,21 +1093,21 @@ const isClient = currentUser?.role === UserRole.CLIENT || !!isStoreContext;
                                           placeholder="Digite o nome do Motoboy" 
                                           value={routeDriver === 'MANUAL' ? '' : routeDriver} 
                                           onChange={e => setRouteDriver(e.target.value)} 
-                                          className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" 
+                                          className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-[#0B0F17]" 
                                       />
                                   )}
                               </div>
                           ) : (
-                              <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border rounded-xl font-bold text-slate-800" />
+                              <input placeholder="Nome do Motoboy" value={routeDriver} onChange={e => setRouteDriver(e.target.value)} className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-[#0B0F17]" />
                           )}
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Observações de Entrega (Opcional)</label>
+                          <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Observações de Entrega (Opcional)</label>
                           <textarea 
                               placeholder="Instruções adicionais para a entrega..."
                               value={routeObservations}
                               onChange={e => setRouteObservations(e.target.value)}
-                              className="w-full px-4 py-2 border rounded-xl font-medium text-slate-800 bg-slate-50 resize-none h-20"
+                              className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl font-medium text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-[#0B0F17] resize-none h-20"
                           />
                       </div>
                       <button onClick={handleAddToRoute} disabled={isProcessing} className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 flex items-center justify-center gap-2 active:scale-95 transition-transform">

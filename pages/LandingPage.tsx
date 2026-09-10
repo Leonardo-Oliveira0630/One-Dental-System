@@ -48,7 +48,20 @@ import {
 
 export const LandingPage = () => {
   const navigate = useNavigate();
-  const { allPlans } = useApp();
+  const { allPlans, theme } = useApp();
+
+  // Ensure Landing Page is never altered by dark theme
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.remove('dark');
+    return () => {
+      const savedTheme = localStorage.getItem('app_theme');
+      if (savedTheme === 'dark' || (!savedTheme && wasDark) || theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    };
+  }, [theme]);
+
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     const element = document.getElementById(id);
@@ -253,7 +266,7 @@ export const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
+    <div id="landing-page-root" className="no-dark-theme force-light min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
       
       {/* 1. TOP PREMIUM HEADER */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all shadow-sm">

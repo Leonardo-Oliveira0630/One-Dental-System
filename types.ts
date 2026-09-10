@@ -737,6 +737,7 @@ export interface User {
   croValid?: boolean;
   isApproved?: boolean;
   manualDentistId?: string;
+  themePreference?: 'light' | 'dark';
 }
 
 export interface CartItem {

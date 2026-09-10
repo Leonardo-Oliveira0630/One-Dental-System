@@ -64,7 +64,7 @@ export const AdminLayout = () => {
       </div>
 
       {/* TABS NAVIGATION: Responsive, touch-scrollable pill bar for tablet, mobile & desktop */}
-      <div className="flex items-center gap-1.5 md:gap-2 p-1.5 md:p-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto no-scrollbar scroll-smooth mx-2 md:mx-0">
+      <div className="flex items-center gap-1.5 md:gap-2 p-1.5 md:p-2 bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar scroll-smooth mx-2 md:mx-0">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -73,13 +73,13 @@ export const AdminLayout = () => {
               `flex items-center justify-center gap-2 px-3.5 py-2.5 md:px-4 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
                 isActive 
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-black' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-transparent'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 bg-transparent'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={isActive ? 'text-white' : 'text-slate-400'}>{item.icon}</span>
+                <span className={isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}>{item.icon}</span>
                 <span>{item.label}</span>
               </>
             )}
