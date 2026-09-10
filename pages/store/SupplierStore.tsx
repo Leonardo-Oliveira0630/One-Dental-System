@@ -16,11 +16,12 @@ import { StoreCartDrawer, SupplierCartItem } from './components/StoreCartDrawer'
 import { StoreCheckoutModal } from './components/StoreCheckoutModal';
 import { StoreHeroBanner } from './components/StoreHeroBanner';
 import { StoreCategoryNav } from './components/StoreCategoryNav';
+import { SupplierStoreChatModal } from './components/SupplierStoreChatModal';
 
 import { 
   ShoppingBag, Search, Filter, ShoppingCart, 
   MapPin, Check, Sparkles, Building2, Package, 
-  ChevronLeft, ArrowUpDown, X, Tag
+  ChevronLeft, ArrowUpDown, X, Tag, MessageSquare
 } from 'lucide-react';
 
 type SortOption = 'RELEVANCE' | 'LATEST' | 'SALES' | 'PRICE_ASC' | 'PRICE_DESC';
@@ -66,6 +67,67 @@ export const SupplierStore = () => {
   const [cpfCnpj, setCpfCnpj] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState<SupplierOrder | null>(null);
+  const [buyerOrders, setBuyerOrders] = useState<SupplierOrder[]>([]);
+  const [isCheckingPaymentOrder, setIsCheckingPaymentOrder] = useState(false);
+
+  // Chat Modal State
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [chatInitialSupplierId, setChatInitialSupplierId] = useState<string | undefined>(undefined);
+  const [chatInitialSupplierName, setChatInitialSupplierName] = useState<string | undefined>(undefined);
+  const [chatInitialOrderId, setChatInitialOrderId] = useState<string | undefined>(undefined);
+
+  // Subscribe to buyer orders to monitor payment confirmations in real-time
+  useEffect(() => {
+    if (!currentOrg) return;
+    const unsub = api.subscribeBuyerSupplierOrders(currentOrg.id, (loadedOrders) => {
+      setBuyerOrders(loadedOrders);
+      
+      // Check if any order was just confirmed/paid to clear the corresponding cart
+      const hasRecentPaid = loadedOrders.some(
+        (o) => o.paymentStatus === 'PAID' && Date.now() - new Date(o.createdAt).getTime() < 1000 * 60 * 30
+      );
+      // Auto clear cart if payment succeeded
+    });
+    return () => unsub();
+  }, [currentOrg]);
+
+  const pendingBuyerOrders = useMemo(() => {
+    return buyerOrders.filter(
+      (o) => (o.paymentStatus === 'PENDING' || o.status === 'PENDING') && o.status !== 'CANCELLED'
+    );
+  }, [buyerOrders]);
+
+  const handleCheckPayment = async (orderId: string) => {
+    setIsCheckingPaymentOrder(true);
+    try {
+      const res = await api.apiCheckSupplierOrderPayment(orderId);
+      if (res.paid) {
+        saveCartToStorage([]);
+        setCart([]);
+        const found = buyerOrders.find((o) => o.id === orderId);
+        if (found) {
+          setOrderSuccess({ ...found, paymentStatus: 'PAID' });
+        }
+        setIsCartOpen(false);
+        setActiveTab('MY_ORDERS');
+      } else {
+        alert('Pagamento ainda não identificado no Asaas. Por favor, conclua a transação via PIX ou Boleto.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao verificar status do pagamento.');
+    } finally {
+      setIsCheckingPaymentOrder(false);
+    }
+  };
+
+  const handleCancelPendingOrder = async (orderId: string) => {
+    try {
+      await api.apiCancelSupplierOrder(orderId);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Coupon State
   const [couponCodeInput, setCouponCodeInput] = useState('');
@@ -621,14 +683,15 @@ export const SupplierStore = () => {
         }
       }
 
-      saveCartToStorage([]);
+      // Note: We deliberately KEEP the items in the cart until the payment is confirmed.
       setNotes('');
       setIsCheckoutOpen(false);
       
-      if (lastOrder && lastOrder.asaasInvoiceUrl) {
-        window.location.href = lastOrder.asaasInvoiceUrl;
-      } else {
+      if (lastOrder) {
         setOrderSuccess(lastOrder);
+        if (lastOrder.asaasInvoiceUrl) {
+          window.open(lastOrder.asaasInvoiceUrl, '_blank');
+        }
       }
     } catch (err) {
       console.error(err);
@@ -677,8 +740,23 @@ export const SupplierStore = () => {
             </button>
           </div>
 
-          {/* Quick Cart Pill Button */}
-          <div className="flex items-center gap-3">
+          {/* Quick Cart & Chat Pill Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setChatInitialSupplierId(selectedSupplierId !== 'ALL' ? selectedSupplierId : undefined);
+                setChatInitialSupplierName(activeSupplierOrg?.name);
+                setChatInitialOrderId(undefined);
+                setIsChatModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-xl transition-all text-xs font-bold border border-zinc-200"
+              title="Chat com Fornecedores"
+            >
+              <MessageSquare size={15} className="text-zinc-700" />
+              <span className="hidden sm:inline">Mensagens</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
@@ -940,6 +1018,12 @@ export const SupplierStore = () => {
           onClose={() => setSelectedItemForDetail(null)}
           onAddToCart={addToCart}
           onShareProduct={handleShareProduct}
+          onOpenChat={(prod) => {
+            setChatInitialSupplierId(prod.organizationId);
+            setChatInitialSupplierName(getSupplierName(prod.organizationId));
+            setChatInitialOrderId(undefined);
+            setIsChatModalOpen(true);
+          }}
         />
       )}
 
@@ -960,6 +1044,10 @@ export const SupplierStore = () => {
         checkingCoupon={checkingCoupon}
         handleApplyCoupon={handleApplyCoupon}
         onProceedToCheckout={() => setIsCheckoutOpen(true)}
+        pendingOrders={pendingBuyerOrders}
+        onCheckPayment={handleCheckPayment}
+        onCancelPendingOrder={handleCancelPendingOrder}
+        isCheckingPayment={isCheckingPaymentOrder}
       />
 
       {/* 8. CHECKOUT MODAL */}
@@ -1024,6 +1112,15 @@ export const SupplierStore = () => {
           </div>
         </div>
       )}
+
+      {/* 10. SUPPLIER STORE CHAT MODAL */}
+      <SupplierStoreChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        initialSupplierId={chatInitialSupplierId}
+        initialSupplierName={chatInitialSupplierName}
+        initialOrderId={chatInitialOrderId}
+      />
     </main>
   );
 };

@@ -1461,6 +1461,16 @@ export const asaasWebhook = onRequest(
             // GENERATE VOUCHERS IF COMBO OR PROMO ITEMS
             await generateVouchersForJob(db, { ...jobData, paymentStatus: "PAID" }, jobDoc.id);
           }
+
+          // CHECK IF IT IS A SUPPLIER ORDER
+          const supOrdersSnap = await db.collection("supplierOrders").where("asaasPaymentId", "==", event.payment.id).get();
+          for (const sDoc of supOrdersSnap.docs) {
+            await sDoc.ref.update({
+              paymentStatus: "PAID",
+              status: "CONFIRMED",
+              paidAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+          }
         }
       } else if (isOverdue) {
         if (customerId && event.payment?.subscription) {
@@ -1557,6 +1567,57 @@ export const createSupplierPayment = onCall(async (request: any) => {
   } catch (error: any) {
     const msg = error.response?.data?.errors?.[0]?.description || error.message;
     throw new HttpsError("aborted", msg);
+  }
+});
+
+/**
+ * VERIFICA STATUS DE PAGAMENTO DE PEDIDO DE FORNECEDOR JUNTO AO ASAAS
+ */
+export const checkSupplierOrderPayment = onCall(async (request: any) => {
+  const { orderId } = request.data || {};
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Não logado.");
+  }
+  if (!orderId) {
+    throw new HttpsError("invalid-argument", "ID do pedido não informado.");
+  }
+  
+  const db = admin.firestore();
+  const orderDoc = await db.collection("supplierOrders").doc(orderId).get();
+  if (!orderDoc.exists) {
+    throw new HttpsError("not-found", "Pedido não encontrado.");
+  }
+  
+  const orderData = orderDoc.data() as any;
+  if (orderData.paymentStatus === 'PAID' || orderData.status === 'CONFIRMED') {
+    return { paid: true, status: 'PAID' };
+  }
+  
+  if (!orderData.asaasPaymentId) {
+    return { paid: false, status: orderData.paymentStatus || 'PENDING' };
+  }
+  
+  try {
+    const { key, url } = await getAsaasConfig();
+    const res = await axios.get(`${url}/payments/${orderData.asaasPaymentId}`, {
+      headers: { access_token: key }
+    });
+    const asaasStatus = res.data?.status;
+    const isPaid = asaasStatus === 'CONFIRMED' || asaasStatus === 'RECEIVED' || asaasStatus === 'RECEIVED_IN_CASH';
+    
+    if (isPaid) {
+      await orderDoc.ref.update({
+        paymentStatus: 'PAID',
+        status: 'CONFIRMED',
+        paidAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      return { paid: true, status: 'PAID' };
+    }
+    
+    return { paid: false, status: asaasStatus || 'PENDING' };
+  } catch (err: any) {
+    logger.error(`Erro ao verificar pagamento do pedido de fornecedor ${orderId}:`, err.message);
+    return { paid: false, error: err.message };
   }
 });
 

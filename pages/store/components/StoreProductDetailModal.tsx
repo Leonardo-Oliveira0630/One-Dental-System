@@ -3,7 +3,8 @@ import { InventoryItem } from '../../../types';
 import { ProductReviews } from '../ProductReviews';
 import { 
   X, ShoppingBag, Plus, Minus, Check, Building2, Package, 
-  Sparkles, Layers, ShieldCheck, Truck, ChevronDown, ChevronUp, Share2 
+  Sparkles, Layers, ShieldCheck, Truck, ChevronDown, ChevronUp, Share2,
+  MessageSquare
 } from 'lucide-react';
 
 interface StoreProductDetailModalProps {
@@ -17,6 +18,7 @@ interface StoreProductDetailModalProps {
     quantity?: number
   ) => void;
   onShareProduct?: (product: InventoryItem) => void;
+  onOpenChat?: (product: InventoryItem) => void;
 }
 
 export const StoreProductDetailModal: React.FC<StoreProductDetailModalProps> = ({
@@ -24,7 +26,8 @@ export const StoreProductDetailModal: React.FC<StoreProductDetailModalProps> = (
   supplierName,
   onClose,
   onAddToCart,
-  onShareProduct
+  onShareProduct,
+  onOpenChat
 }) => {
   if (!product) return null;
 
@@ -367,6 +370,21 @@ export const StoreProductDetailModal: React.FC<StoreProductDetailModalProps> = (
                       <Plus size={14} />
                     </button>
                   </div>
+
+                  {onOpenChat && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenChat(product);
+                      }}
+                      className="p-3.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-bold rounded-2xl transition-all border border-zinc-200 flex items-center justify-center gap-1.5 text-xs shrink-0"
+                      title="Tirar dúvidas com o fornecedor"
+                    >
+                      <MessageSquare size={16} />
+                      <span className="hidden sm:inline">Dúvidas?</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"

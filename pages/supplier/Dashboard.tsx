@@ -2,13 +2,18 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
   ShoppingBag, DollarSign, Package, Clock, Truck, CheckCircle2, 
-  MapPin, User, Mail, Phone, Calendar, Info, Search, RefreshCw 
+  MapPin, User, Mail, Phone, Calendar, Info, Search, RefreshCw,
+  Scale, ShieldAlert, ChevronRight
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const SupplierDashboard = () => {
   const { currentOrg, supplierOrders, updateSupplierOrder, inventoryItems } = useApp();
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'SHIPPED' | 'DELIVERED'>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+
+  const isPoliciesPending = !currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted;
 
   // Filter orders for this supplier
   const myOrders = supplierOrders || [];
@@ -66,6 +71,30 @@ export const SupplierDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Compliance / Terms Notice */}
+      {isPoliciesPending && (
+        <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 border border-amber-200">
+              <ShieldAlert size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-950">Homologação da Loja & Aceite dos Termos Pendente</h3>
+              <p className="text-xs text-amber-800 mt-0.5">
+                Configure suas políticas de envio, devolução (CDC), conformidade ANVISA e homologue os Termos do Marketplace para ativar sua vitrine oficial com selo de garantia.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/supplier-settings')}
+            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl transition-colors shrink-0 flex items-center gap-1.5 shadow-sm"
+          >
+            <span>Configurar Políticas e Termos</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

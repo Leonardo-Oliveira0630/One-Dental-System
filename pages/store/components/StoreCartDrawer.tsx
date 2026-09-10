@@ -1,8 +1,9 @@
 import React from 'react';
-import { InventoryItem } from '../../../types';
+import { InventoryItem, SupplierOrder } from '../../../types';
 import { 
   X, ShoppingBag, Trash2, Plus, Minus, ArrowRight, 
-  Check, Sparkles, ShieldCheck, Tag, Building2 
+  Check, Sparkles, ShieldCheck, Tag, Building2, 
+  Clock, ExternalLink, RefreshCw, AlertCircle, CheckCircle2 
 } from 'lucide-react';
 
 export interface SupplierCartItem {
@@ -45,6 +46,10 @@ interface StoreCartDrawerProps {
   checkingCoupon: boolean;
   handleApplyCoupon: () => void;
   onProceedToCheckout: () => void;
+  pendingOrders?: SupplierOrder[];
+  onCheckPayment?: (orderId: string) => Promise<void>;
+  onCancelPendingOrder?: (orderId: string) => Promise<void>;
+  isCheckingPayment?: boolean;
 }
 
 export const StoreCartDrawer: React.FC<StoreCartDrawerProps> = ({
@@ -62,7 +67,11 @@ export const StoreCartDrawer: React.FC<StoreCartDrawerProps> = ({
   couponError,
   checkingCoupon,
   handleApplyCoupon,
-  onProceedToCheckout
+  onProceedToCheckout,
+  pendingOrders = [],
+  onCheckPayment,
+  onCancelPendingOrder,
+  isCheckingPayment = false
 }) => {
   if (!isOpen) return null;
 
@@ -81,7 +90,7 @@ export const StoreCartDrawer: React.FC<StoreCartDrawerProps> = ({
             <div>
               <h2 className="font-extrabold text-base text-zinc-950">Sua Cesta</h2>
               <p className="text-xs text-zinc-500 font-medium">
-                {cart.length} {cart.length === 1 ? 'item adicionado' : 'itens adicionados'}
+                {cart.length} {cart.length === 1 ? 'item na cesta' : 'itens na cesta'}
               </p>
             </div>
           </div>
@@ -97,6 +106,69 @@ export const StoreCartDrawer: React.FC<StoreCartDrawerProps> = ({
 
         {/* Cart Item List */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Pending Payment Alert Box */}
+          {pendingOrders.length > 0 && (
+            <div className="p-4 bg-amber-50/90 border border-amber-300/80 rounded-2xl space-y-3 shadow-xs">
+              <div className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
+                  <Clock size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-black text-xs text-amber-950 uppercase tracking-wider">
+                      Aguardando Pagamento
+                    </h4>
+                    <span className="text-[10px] font-mono font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-md">
+                      #{pendingOrders[0].id.substring(0, 8)}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 leading-snug mt-1">
+                    Existe uma fatura gerada no valor de <strong>R$ {pendingOrders[0].totalValue.toFixed(2)}</strong>. O pedido só será transferido para "Meus Pedidos" após a confirmação do pagamento.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons for Pending Payment */}
+              <div className="flex flex-col gap-2 pt-1 border-t border-amber-200/80">
+                {pendingOrders[0].asaasInvoiceUrl && (
+                  <a
+                    href={pendingOrders[0].asaasInvoiceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                  >
+                    <span>Pagar Fatura / PIX (Asaas)</span>
+                    <ExternalLink size={13} />
+                  </a>
+                )}
+
+                <div className="flex gap-2">
+                  {onCheckPayment && (
+                    <button
+                      type="button"
+                      onClick={() => onCheckPayment(pendingOrders[0].id)}
+                      disabled={isCheckingPayment}
+                      className="flex-1 py-1.5 px-3 bg-white hover:bg-amber-100/60 border border-amber-300 text-amber-900 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <RefreshCw size={12} className={isCheckingPayment ? "animate-spin" : ""} />
+                      <span>{isCheckingPayment ? "Verificando..." : "Já paguei (Verificar)"}</span>
+                    </button>
+                  )}
+
+                  {onCancelPendingOrder && (
+                    <button
+                      type="button"
+                      onClick={() => onCancelPendingOrder(pendingOrders[0].id)}
+                      className="py-1.5 px-3 bg-white hover:bg-rose-50 border border-zinc-200 hover:border-rose-200 text-zinc-600 hover:text-rose-600 text-[11px] font-bold rounded-xl transition-all"
+                    >
+                      Cancelar Cobrança
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400 space-y-3">
               <div className="w-16 h-16 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400">
@@ -111,6 +183,15 @@ export const StoreCartDrawer: React.FC<StoreCartDrawerProps> = ({
             </div>
           ) : (
             <div className="space-y-3.5">
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                  Itens no Carrinho ({cart.length})
+                </span>
+                <span className="text-[11px] text-zinc-400">
+                  Permanecem até o pagamento
+                </span>
+              </div>
+
               {cart.map((item) => {
                 const isPromo = item.product.isPromotion && item.product.promotionalPrice;
                 const baseItemPrice = isPromo ? item.product.promotionalPrice! : item.product.sellPrice;

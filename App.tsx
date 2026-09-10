@@ -57,6 +57,7 @@ import { TutorialsView } from './pages/TutorialsView';
 import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { SupplierTermsAndGuidelines } from './pages/SupplierTermsAndGuidelines';
 import { RequisitionInvite } from './pages/RequisitionInvite';
 import { SupplierDashboard } from './pages/supplier/Dashboard';
 import { SupplierProducts } from './pages/supplier/Products';
@@ -152,6 +153,8 @@ const AppContent = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register-lab" element={<RegisterOrganization />} />
       <Route path="/terms" element={<TermsOfUse />} />
+      <Route path="/supplier-terms" element={<SupplierTermsAndGuidelines />} />
+      <Route path="/termos-fornecedores" element={<SupplierTermsAndGuidelines />} />
       <Route path="/bio" element={<BioPage />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/requisition-invite" element={<RequisitionInvite />} />

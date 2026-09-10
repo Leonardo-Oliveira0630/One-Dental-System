@@ -6,9 +6,12 @@ import {
   Settings, Store, Sparkles, Tag, HelpCircle, Save, Plus, Trash2, 
   ArrowUp, ArrowDown, ChevronRight, CheckCircle2, DollarSign, Wallet, 
   MapPin, Landmark, Layout, Grid, List as ListIcon, RefreshCw, Eye, Image as ImageIcon,
-  CheckCircle, Crown, Info, Zap, MessageSquare, FolderPlus, Folder, Edit2, X
+  CheckCircle, Crown, Info, Zap, MessageSquare, FolderPlus, Folder, Edit2, X,
+  Scale, ShieldCheck, Truck, RotateCcw, Award, PhoneCall, FileText, AlertTriangle
 } from 'lucide-react';
 import * as api from '../../services/firebaseService';
+import { SupplierStoreSetupWizard } from './components/SupplierStoreSetupWizard';
+import { SupplierTermsModal } from '../../components/SupplierTermsModal';
 
 export const SupplierSettings = () => {
   const { 
@@ -16,7 +19,9 @@ export const SupplierSettings = () => {
     inventoryCategories, addInventoryCategory, updateInventoryCategory, deleteInventoryCategory 
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'store' | 'plans' | 'asaas'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'policies' | 'plans' | 'asaas'>('store');
+  const [showWizard, setShowWizard] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Store Customization state
@@ -314,6 +319,22 @@ export const SupplierSettings = () => {
         >
           <Store size={18} />
           Configurar Loja
+        </button>
+        <button
+          onClick={() => setActiveTab('policies')}
+          className={`px-5 py-3 border-b-2 font-bold text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'policies' 
+              ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' 
+              : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Scale size={18} />
+          <span>Políticas & Termos</span>
+          {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted ? (
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('plans')}
@@ -1132,6 +1153,175 @@ export const SupplierSettings = () => {
             </div>
           </div>
         )}
+
+        {/* TAB 4: POLICIES & TERMS (MARKETPLACE GUIDELINES) */}
+        {activeTab === 'policies' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            {showWizard ? (
+              <SupplierStoreSetupWizard
+                onComplete={() => setShowWizard(false)}
+                onCancel={() => setShowWizard(false)}
+              />
+            ) : (
+              <div className="space-y-6">
+                
+                {/* Status Hero Card */}
+                <div className="p-6 bg-white border border-slate-200 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${
+                      currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted 
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                        : 'bg-amber-50 text-amber-600 border-amber-200'
+                    }`}>
+                      {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted ? (
+                        <ShieldCheck size={28} />
+                      ) : (
+                        <AlertTriangle size={28} />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${
+                          currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted ? 'Loja Homologada' : 'Homologação Pendente'}
+                        </span>
+                        {currentOrg?.storeSettings?.policies?.termsAcceptance?.version && (
+                          <span className="text-[10px] font-mono text-slate-400">
+                            Versão: {currentOrg.storeSettings.policies.termsAcceptance.version}
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="text-xl font-black text-slate-900 mt-1">
+                        {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted 
+                          ? 'Diretrizes e Políticas Homologadas' 
+                          : 'Configure as Políticas e Aceite os Termos'}
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+                        {currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted
+                          ? `Termos aceitos formalmente em ${new Date(currentOrg.storeSettings.policies.termsAcceptance.acceptedAt).toLocaleDateString('pt-BR')} por ${currentOrg.storeSettings.policies.termsAcceptance.acceptedByUserName}.`
+                          : 'Para publicar produtos com selo de garantia no Marketplace LabProx, configure suas diretrizes de envio, devolução, conformidade ANVISA e aceite os Termos Oficiais.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={() => setIsTermsModalOpen(true)}
+                      className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors flex items-center gap-1.5"
+                    >
+                      <FileText size={15} />
+                      <span>Ver Termos</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShowWizard(true)}
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors shadow-md flex items-center gap-2"
+                    >
+                      <Scale size={15} />
+                      <span>{currentOrg?.storeSettings?.policies?.termsAcceptance?.accepted ? 'Editar Políticas da Loja' : 'Iniciar Assistente de Configuração'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Policies Breakdown Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  
+                  {/* Delivery */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600">
+                      <Truck size={18} />
+                      <h3 className="font-bold text-sm text-slate-900">Envio & Expedição</h3>
+                    </div>
+                    <div className="text-xs space-y-1 text-slate-600">
+                      <p><strong className="text-slate-900">Prazo de Despacho:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.defaultDispatchDays || 2} dia(s) útil(eis)</p>
+                      <p><strong className="text-slate-900">Modalidades:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.shippingModes?.join(', ') || 'Frenet, Correios, Transportadora'}</p>
+                      <p><strong className="text-slate-900">Frete Grátis:</strong> {currentOrg?.storeSettings?.policies?.deliveryPolicy?.freeShippingEnabled ? `Acima de R$ ${currentOrg.storeSettings.policies.deliveryPolicy.freeShippingThreshold}` : 'Não ativo'}</p>
+                    </div>
+                  </div>
+
+                  {/* Return */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600">
+                      <RotateCcw size={18} />
+                      <h3 className="font-bold text-sm text-slate-900">Devolução & Arrependimento</h3>
+                    </div>
+                    <div className="text-xs space-y-1 text-slate-600">
+                      <p><strong className="text-slate-900">Prazo CDC:</strong> {currentOrg?.storeSettings?.policies?.returnPolicy?.legalReturnPeriodDays || 7} dias corridos</p>
+                      <p><strong className="text-slate-900">Logística Reversa:</strong> Fornecedor arca com frete nos termos legais</p>
+                      <p><strong className="text-slate-900">Troca / Estorno:</strong> Em até {currentOrg?.storeSettings?.policies?.returnPolicy?.exchangeProcessingDays || 3} dias úteis</p>
+                    </div>
+                  </div>
+
+                  {/* Warranty */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600">
+                      <Award size={18} />
+                      <h3 className="font-bold text-sm text-slate-900">Garantia & Assistência</h3>
+                    </div>
+                    <div className="text-xs space-y-1 text-slate-600">
+                      <p><strong className="text-slate-900">Garantia Legal:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.legalWarrantyDays || 90} dias</p>
+                      <p><strong className="text-slate-900">Garantia Fabricante:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.manufacturerWarrantyMonths || 12} meses</p>
+                      <p><strong className="text-slate-900">Suporte Técnico:</strong> {currentOrg?.storeSettings?.policies?.warrantyPolicy?.technicalAssistanceInfo || 'Assistência autorizada'}</p>
+                    </div>
+                  </div>
+
+                  {/* Regulated Products / ANVISA */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600">
+                      <ShieldCheck size={18} />
+                      <h3 className="font-bold text-sm text-slate-900">Conformidade ANVISA / CRO</h3>
+                    </div>
+                    <div className="text-xs space-y-1 text-slate-600">
+                      <p className="flex items-center gap-1.5 text-emerald-700 font-bold">
+                        <CheckCircle2 size={14} />
+                        <span>Declaração Sanitária Homologada</span>
+                      </p>
+                      <p><strong className="text-slate-900">Rastreabilidade:</strong> Lote e Validade em todos os envios</p>
+                      {currentOrg?.storeSettings?.policies?.regulatedProductsPolicy?.technicalResponsibleName && (
+                        <p><strong className="text-slate-900">Resp. Técnico:</strong> {currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleName} ({currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleDocType} {currentOrg.storeSettings.policies.regulatedProductsPolicy.technicalResponsibleDocNumber})</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Attendance & SLA */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600">
+                      <PhoneCall size={18} />
+                      <h3 className="font-bold text-sm text-slate-900">Atendimento & SLA</h3>
+                    </div>
+                    <div className="text-xs space-y-1 text-slate-600">
+                      <p><strong className="text-slate-900">SLA de Resposta:</strong> Em até {currentOrg?.storeSettings?.policies?.customerServicePolicy?.maxResponseTimeHours || 24} horas úteis</p>
+                      <p><strong className="text-slate-900">Horário:</strong> {currentOrg?.storeSettings?.policies?.customerServicePolicy?.businessHours || 'Seg a Sex, das 08h às 18h'}</p>
+                      <p><strong className="text-slate-900">Canais:</strong> {currentOrg?.storeSettings?.policies?.customerServicePolicy?.supportChannels?.join(', ') || 'Chat, WhatsApp, E-mail'}</p>
+                    </div>
+                  </div>
+
+                  {/* Global Marketplace Split */}
+                  <div className="bg-gradient-to-br from-indigo-50/50 to-slate-50 border border-indigo-100 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2.5 text-indigo-600">
+                      <Scale size={18} />
+                      <h3 className="font-bold text-sm text-slate-900">Marketplace LabProx</h3>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      As políticas personalizadas da sua loja complementam as regras obrigatórias e inegociáveis de conformidade legal, CDC e processamento financeiro Asaas do LabProx.
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Global Terms Modal */}
+        <SupplierTermsModal
+          isOpen={isTermsModalOpen}
+          onClose={() => setIsTermsModalOpen(false)}
+        />
 
         
       </div>
