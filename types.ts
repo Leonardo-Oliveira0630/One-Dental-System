@@ -866,6 +866,8 @@ export interface SubscriptionPlan {
   active: boolean;
   targetAudience?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
   trialDays?: number;
+  isPrivate?: boolean;
+  allowedEmails?: string[];
   features: {
     maxUsers: number;
     maxStorageGB: number;

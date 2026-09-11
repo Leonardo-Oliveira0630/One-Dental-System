@@ -5,10 +5,10 @@ import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag, Receipt, ExternalLi
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 import PricingSection from '../../components/ui/pricing-section-4';
-import { getDetailedPlanFeatures } from '../../utils/planFeatures';
+import { getDetailedPlanFeatures, isPlanAccessible } from '../../utils/planFeatures';
 
 export const SubscriptionTab = () => {
-  const { currentPlan, currentOrg, allPlans, updateOrganization, getSaaSInvoices, globalSettings } = useApp();
+  const { currentPlan, currentOrg, currentUser, allPlans, updateOrganization, getSaaSInvoices, globalSettings } = useApp();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
@@ -232,7 +232,13 @@ export const SubscriptionTab = () => {
       <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600" /> Upgrade de Plano</h3>
          <PricingSection 
-            plans={allPlans.filter(p => p.isPublic && p.active && ((currentOrg?.orgType === 'CLINIC' && p.targetAudience === 'CLINIC') || (currentOrg?.orgType !== 'CLINIC' && p.targetAudience !== 'CLINIC')))}
+            plans={allPlans.filter(p => isPlanAccessible({
+              plan: p,
+              userEmail: currentUser?.email,
+              orgEmail: currentOrg?.email,
+              currentOrgPlanId: currentOrg?.planId,
+              targetAudience: currentOrg?.orgType || 'LAB'
+            }))}
             selectedPlanId={currentOrg?.planId || ''}
             onSelectPlan={(id) => {
               if (id !== currentOrg?.planId) {

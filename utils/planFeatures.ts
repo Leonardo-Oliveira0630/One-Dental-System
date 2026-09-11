@@ -138,3 +138,83 @@ export const getPlanFeaturesSimpleList = (
     .filter(f => f.included)
     .map(f => f.text);
 };
+
+/**
+ * Checks if a plan is private/exclusive (not publicly open to everyone).
+ */
+export const isPlanPrivate = (plan: SubscriptionPlan): boolean => {
+  return (
+    plan.isPrivate === true ||
+    plan.isPublic === false ||
+    (Array.isArray(plan.allowedEmails) && plan.allowedEmails.length > 0)
+  );
+};
+
+/**
+ * Evaluates whether a plan should be visible/selectable for an organization or user.
+ * 
+ * Rules:
+ * 1. Plan must be active.
+ * 2. Target audience must match the org's type (or fallback criteria).
+ * 3. If it's the organization's currently active plan, it is always visible to them.
+ * 4. If the plan is public (isPublic=true and no allowedEmails restriction), it is visible.
+ * 5. If the plan is private (isPrivate=true, isPublic=false or has allowedEmails),
+ *    it is ONLY visible if the user email or organization email is listed in plan.allowedEmails.
+ */
+export const isPlanAccessible = ({
+  plan,
+  userEmail,
+  orgEmail,
+  currentOrgPlanId,
+  targetAudience
+}: {
+  plan: SubscriptionPlan;
+  userEmail?: string;
+  orgEmail?: string;
+  currentOrgPlanId?: string;
+  targetAudience?: string;
+}): boolean => {
+  if (!plan.active) return false;
+
+  // Target audience matching
+  if (targetAudience) {
+    if (targetAudience === 'CLINIC' && plan.targetAudience !== 'CLINIC') {
+      return false;
+    }
+    if (targetAudience === 'SUPPLIER' && plan.targetAudience !== 'SUPPLIER') {
+      return false;
+    }
+    if (targetAudience === 'LAB' && plan.targetAudience === 'CLINIC') {
+      return false;
+    }
+    if (targetAudience === 'LAB_OUTSOURCED' && plan.targetAudience === 'CLINIC') {
+      return false;
+    }
+  }
+
+  // Always show current plan to the subscriber
+  if (currentOrgPlanId && plan.id === currentOrgPlanId) {
+    return true;
+  }
+
+  const isPrivate = isPlanPrivate(plan);
+
+  // If public and unrestricted, everyone can see it
+  if (!isPrivate) {
+    return true;
+  }
+
+  // If private, verify against allowed emails
+  const emailsToCheck = [userEmail, orgEmail]
+    .filter(Boolean)
+    .map(e => e!.toLowerCase().trim());
+
+  if (emailsToCheck.length === 0 || !plan.allowedEmails || plan.allowedEmails.length === 0) {
+    return false;
+  }
+
+  return plan.allowedEmails.some(allowed => 
+    emailsToCheck.includes(allowed.toLowerCase().trim())
+  );
+};
+

@@ -8,8 +8,8 @@ import NumberFlow from "@number-flow/react";
 import { motion } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { SubscriptionPlan } from "../../types";
-import { getDetailedPlanFeatures, PlanFeatureItem } from "../../utils/planFeatures";
-import { Check, X } from "lucide-react";
+import { getDetailedPlanFeatures, PlanFeatureItem, isPlanPrivate } from "../../utils/planFeatures";
+import { Check, X, Lock, Sparkles } from "lucide-react";
 
 interface PricingProps {
   plans: SubscriptionPlan[];
@@ -111,7 +111,7 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
         {plans.map((plan, index) => {
           const isSelected = selectedPlanId === plan.id;
           const features = getDetailedPlanFeatures(plan, regType);
-          const popular = plan.price > 0 && plan.price < 200; // Just to highlight a middle plan visually
+          const isExclusive = isPlanPrivate(plan);
 
           return (
             <TimelineContent
@@ -126,16 +126,23 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                 className={`relative text-white border transition-all duration-300 cursor-pointer h-full flex flex-col ${
                   isSelected
                     ? "bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 shadow-[0px_0px_30px_0px_#4f46e5] border-indigo-500 scale-[1.02] z-20"
+                    : isExclusive
+                    ? "bg-gradient-to-r from-slate-900 via-amber-950/40 to-slate-900 border-amber-500/40 hover:border-amber-400 z-10"
                     : "bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-slate-800 hover:border-slate-600 z-10"
                 }`}
                 onClick={() => onSelectPlan(plan.id)}
               >
+                {isExclusive && (
+                  <div className="absolute top-0 left-0 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[10px] font-black px-3 py-1 rounded-br-xl shadow-md z-30 flex items-center gap-1">
+                    <Lock size={10} className="stroke-[3]" /> EXCLUSIVO PARA VOCÊ
+                  </div>
+                )}
                 {plan.trialDays && plan.trialDays > 0 && (
                   <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-bl-xl shadow-sm z-30">
                     {plan.trialDays} DIAS GRÁTIS
                   </div>
                 )}
-                <CardHeader className="text-left pb-4">
+                <CardHeader className="text-left pb-4 pt-6">
                   <div className="flex justify-between">
                     <h3 className="text-xl font-bold uppercase tracking-wider text-slate-300 mb-2">{plan.name}</h3>
                   </div>

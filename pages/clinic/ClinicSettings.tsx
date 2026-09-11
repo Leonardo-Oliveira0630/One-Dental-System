@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 import PricingSection from '../../components/ui/pricing-section-4';
 import { searchCEP } from '../../services/addressService';
+import { isPlanAccessible } from '../../utils/planFeatures';
 
 export const ClinicSettings = () => {
   const { currentOrg, currentPlan, allPlans, updateOrganization, validateCoupon, currentUser, getSaaSInvoices } = useApp();
@@ -431,7 +432,13 @@ export const ClinicSettings = () => {
                       <div className="text-center text-slate-400 py-10">Carregando opções de planos...</div>
                   ) : (
                       <PricingSection 
-                            plans={allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC')}
+                            plans={allPlans.filter(p => isPlanAccessible({
+                              plan: p,
+                              userEmail: currentUser?.email,
+                              orgEmail: currentOrg?.email,
+                              currentOrgPlanId: currentOrg?.planId,
+                              targetAudience: 'CLINIC'
+                            }))}
                             selectedPlanId={activePlan?.id || ''}
                             onSelectPlan={(id) => {
                                 if (id !== activePlan?.id) {

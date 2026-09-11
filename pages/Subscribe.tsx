@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store, RefreshCw, Ticket, Check, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserRole, Coupon } from '../types';
-import { getDetailedPlanFeatures } from '../utils/planFeatures';
+import { getDetailedPlanFeatures, isPlanAccessible } from '../utils/planFeatures';
 
 export const Subscribe = () => {
     const { currentOrg, createSubscription, allPlans, currentUser, checkSubscriptionStatus, validateCoupon } = useApp();
@@ -32,7 +32,13 @@ export const Subscribe = () => {
     // Determine target audience based on Org Type or User Role fallback
     const targetAudience = currentOrg?.orgType || (currentUser?.role === UserRole.CLIENT ? 'CLINIC' : 'LAB');
 
-    const displayPlans = allPlans.filter(p => p.isPublic && p.active && p.targetAudience === targetAudience);
+    const displayPlans = allPlans.filter(p => isPlanAccessible({
+        plan: p,
+        userEmail: currentUser?.email || billingEmail,
+        orgEmail: currentOrg?.email,
+        currentOrgPlanId: currentOrg?.planId,
+        targetAudience
+    }));
 
     useEffect(() => {
         if (currentUser?.email && !billingEmail) {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { getDetailedPlanFeatures } from '../utils/planFeatures';
+import { getDetailedPlanFeatures, isPlanAccessible } from '../utils/planFeatures';
 import { 
   Logo, 
   LogoIcon 
@@ -2235,8 +2235,8 @@ export const LandingPage = () => {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-4 sm:p-8 justify-center items-stretch">
-              {allPlans && allPlans.filter(p => p.isPublic && p.active && p.targetAudience !== 'CLINIC').length > 0 ? (
-                allPlans.filter(p => p.isPublic && p.active && p.targetAudience !== 'CLINIC').map((plan) => {
+              {allPlans && allPlans.filter(p => isPlanAccessible({ plan: p, targetAudience: 'LAB' })).length > 0 ? (
+                allPlans.filter(p => isPlanAccessible({ plan: p, targetAudience: 'LAB' })).map((plan) => {
                   const isRecommended = plan.price > 150 && plan.price < 400; // Highlight intermediate plans
                   
                   return (
@@ -2398,8 +2398,8 @@ export const LandingPage = () => {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-4 sm:p-8 justify-center items-stretch">
-              {allPlans && allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').length > 0 ? (
-                allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').map((plan) => {
+              {allPlans && allPlans.filter(p => isPlanAccessible({ plan: p, targetAudience: 'CLINIC' })).length > 0 ? (
+                allPlans.filter(p => isPlanAccessible({ plan: p, targetAudience: 'CLINIC' })).map((plan) => {
                   const isRecommended = plan.price > 120; // Highlight premium clinic plan
                   
                   return (

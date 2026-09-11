@@ -3,7 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight, Percent, Languages, X, Check } from 'lucide-react';
 import { Coupon, SubscriptionPlan } from '../types';
-import { getDetailedPlanFeatures } from '../utils/planFeatures';
+import { getDetailedPlanFeatures, isPlanAccessible, isPlanPrivate } from '../utils/planFeatures';
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../src/i18n';
@@ -166,7 +166,12 @@ export const RegisterOrganization = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
   // Filter plans based on Registration Type (LAB vs CLINIC vs LAB_OUTSOURCED vs SUPPLIER)
-  const publicPlans = allPlans.filter(p => p.isPublic && p.active && (p.targetAudience === (regType === 'LAB' ? 'LAB' : regType === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : regType === 'SUPPLIER' ? 'SUPPLIER' : 'CLINIC')));
+  const targetAud = regType === 'LAB' ? 'LAB' : regType === 'LAB_OUTSOURCED' ? 'LAB_OUTSOURCED' : regType === 'SUPPLIER' ? 'SUPPLIER' : 'CLINIC';
+  const publicPlans = allPlans.filter(p => isPlanAccessible({
+    plan: p,
+    userEmail: email,
+    targetAudience: targetAud
+  }));
   
   const freeLabPlan: SubscriptionPlan = {
     id: 'free_lab',
@@ -713,9 +718,16 @@ export const RegisterOrganization = () => {
                                             className={`cursor-pointer border-2 rounded-2xl p-4 sm:p-5 transition-all relative overflow-hidden flex flex-col justify-between w-[250px] xs:w-[270px] sm:w-[290px] md:w-[245px] lg:w-[260px] flex-shrink-0 snap-center ${
                                                 isSelected 
                                                     ? `${themeBorder} bg-white shadow-xl shadow-black/5`
+                                                    : isPlanPrivate(plan)
+                                                    ? 'border-amber-300 bg-amber-50/50 hover:bg-white hover:border-amber-400'
                                                     : 'border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300'
                                             }`}
                                         >
+                                            {isPlanPrivate(plan) && (
+                                                <div className="absolute top-0 left-0 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-br-xl shadow-sm flex items-center gap-1 z-10">
+                                                    <Lock size={9} className="stroke-[3]" /> EXCLUSIVO
+                                                </div>
+                                            )}
                                             {plan.trialDays && plan.trialDays > 0 && (
                                                 <div className="absolute top-0 right-0 bg-green-500 text-white text-[9px] font-black px-2.5 py-1 rounded-bl-xl shadow-sm">
                                                     {plan.trialDays} DIAS GRÁTIS
