@@ -60,6 +60,7 @@ import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { SupplierTermsAndGuidelines } from './pages/SupplierTermsAndGuidelines';
 import { RequisitionInvite } from './pages/RequisitionInvite';
 import { SupplierDashboard } from './pages/supplier/Dashboard';
+import { SupplierChat } from './pages/supplier/Chat';
 import { SupplierProducts } from './pages/supplier/Products';
 import { SupplierCoupons } from './pages/supplier/Coupons';
 import { SupplierSettings } from './pages/supplier/Settings';
@@ -212,6 +213,7 @@ const AppContent = () => {
       <Route path="/my-cases" element={<ProtectedRoute><DentistCases /></ProtectedRoute>} />
 
       <Route path="/supplier/dashboard" element={<ProtectedRoute><SupplierDashboard /></ProtectedRoute>} />
+      <Route path="/supplier/chat" element={<ProtectedRoute><SupplierChat /></ProtectedRoute>} />
       <Route path="/supplier/products" element={<ProtectedRoute><SupplierProducts /></ProtectedRoute>} />
       <Route path="/supplier/coupons" element={<ProtectedRoute><SupplierCoupons /></ProtectedRoute>} />
       <Route path="/supplier/settings" element={<ProtectedRoute><SupplierSettings /></ProtectedRoute>} />

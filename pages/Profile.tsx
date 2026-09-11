@@ -4,14 +4,18 @@ import { UserRole } from '../types';
 import { 
   UserCircle, Mail, Shield, Building, Briefcase, Key, CheckCircle, Loader2, 
   Bell, BellOff, Info, Trash2, AlertTriangle, ShieldAlert, X, Send, Lock,
-  Sun, Moon, Check, Palette
+  Sun, Moon, Check, Palette, Globe, Languages
 } from 'lucide-react';
 import * as api from '../services/firebaseService';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../src/i18n';
 
 export const Profile = () => {
-  const { currentUser, theme, setTheme } = useApp();
+  const { currentUser, theme, setTheme, language, setLanguage } = useApp();
+  const { t } = useTranslation();
   const navigate = useNavigate();
+  const [changingLang, setChangingLang] = useState(false);
 
   const [loadingReset, setLoadingReset] = useState(false);
   const [loadingPush, setLoadingPush] = useState(false);
@@ -204,28 +208,83 @@ export const Profile = () => {
                       disabled={savingPhone}
                       className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm"
                     >
-                      {savingPhone ? 'Salvando...' : 'Salvar'}
+                      {savingPhone ? t('common.saving', 'Salvando...') : t('common.save', 'Salvar')}
                     </button>
                   </div>
                 </div>
                 {currentUser.role === UserRole.CLIENT ? (
                   <div className="md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">Clínica</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">{t('profile.clinic', 'Clínica')}</label>
                     <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 bg-teal-50 dark:bg-teal-950/30 p-3 rounded-xl border border-teal-100 dark:border-teal-900/40 font-bold">
                       <Building size={18} className="text-teal-600 dark:text-teal-400" />
-                      {currentUser.clinicName || 'Não informada'}
+                      {currentUser.clinicName || t('common.notInformed', 'Não informada')}
                     </div>
                   </div>
                 ) : (
                   <div className="md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">Setor</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">{t('profile.sector', 'Setor')}</label>
                     <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 bg-blue-50 dark:bg-blue-950/30 p-3 rounded-xl border border-blue-100 dark:border-blue-900/40 font-bold">
                       <Briefcase size={18} className="text-blue-600 dark:text-blue-400" />
-                      {currentUser.sector || 'Geral'}
+                      {currentUser.sector || t('profile.generalSector', 'Geral')}
                     </div>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* PAINEL DE IDIOMA E LOCALIZAÇÃO */}
+          <div className="bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <Globe size={18} className="text-blue-500" />
+                {t('settings.languageSection', 'Idioma e Localização')}
+              </h3>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center gap-1">
+                <Languages size={12} />
+                {SUPPORTED_LANGUAGES.find(l => l.code === language)?.name || 'Português'}
+              </span>
+            </div>
+            
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              {t('settings.languageDescription', 'Escolha o idioma principal para a interface do aplicativo. A preferência é salva no seu perfil e sincronizada.')}
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              {SUPPORTED_LANGUAGES.map((langItem) => {
+                const isSelected = language === langItem.code;
+                return (
+                  <button
+                    key={langItem.code}
+                    type="button"
+                    disabled={changingLang}
+                    onClick={async () => {
+                      if (changingLang || isSelected) return;
+                      setChangingLang(true);
+                      await setLanguage(langItem.code as SupportedLanguage);
+                      setChangingLang(false);
+                    }}
+                    className={`p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden flex items-center justify-between gap-3 cursor-pointer ${
+                      isSelected
+                        ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 shadow-md ring-2 ring-blue-500/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl leading-none">{langItem.flag}</span>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{langItem.name}</h4>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">{langItem.code}</span>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <Check size={14} strokeWidth={3} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -234,19 +293,19 @@ export const Profile = () => {
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                 <Palette size={18} className="text-cyan-500" />
-                Aparência e Tema do Sistema
+                {t('profile.appearanceAndTheme', 'Aparência e Tema do Sistema')}
               </h3>
               <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
                 theme === 'dark' 
                   ? 'bg-cyan-950/60 text-cyan-300 border border-cyan-800' 
                   : 'bg-amber-100 text-amber-800 border border-amber-200'
               }`}>
-                {theme === 'dark' ? 'Modo Escuro Ativo' : 'Modo Claro Ativo'}
+                {theme === 'dark' ? t('profile.darkModeActive', 'Modo Escuro Ativo') : t('profile.lightModeActive', 'Modo Claro Ativo')}
               </span>
             </div>
             
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              Defina a preferência visual da sua interface. O tema escolhido fica gravado no seu perfil e sincronizado em todas as telas e dispositivos.
+              {t('profile.appearanceDesc', 'Defina a preferência visual da sua interface. O tema escolhido fica gravado no seu perfil e sincronizado em todas as telas e dispositivos.')}
             </p>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
@@ -268,8 +327,8 @@ export const Profile = () => {
                       <Sun size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Tema Claro</h4>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Padrão Diurno</span>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('profile.lightTheme', 'Tema Claro')}</h4>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('profile.daytimeDefault', 'Padrão Diurno')}</span>
                     </div>
                   </div>
                   {theme === 'light' && (
@@ -311,8 +370,8 @@ export const Profile = () => {
                       <Moon size={20} />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Tema Escuro</h4>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Dark Mode de Alto Contraste</span>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('profile.darkTheme', 'Tema Escuro')}</h4>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('profile.highContrastDark', 'Dark Mode de Alto Contraste')}</span>
                     </div>
                   </div>
                   {theme === 'dark' && (
@@ -341,7 +400,7 @@ export const Profile = () => {
           {/* PAINEL DE NOTIFICAÇÕES */}
           <div className="bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 sm:p-6">
             <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-              <Bell size={18} className="text-blue-500" /> Notificações Push
+              <Bell size={18} className="text-blue-500" /> {t('profile.pushNotifications', 'Notificações Push')}
             </h3>
             <div className="flex flex-col md:flex-row items-center gap-4 sm:p-6">
               <div className={`p-4 rounded-full ${notificationStatus === 'granted' ? 'bg-green-100 dark:bg-green-950/60 text-green-600 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
@@ -349,12 +408,12 @@ export const Profile = () => {
               </div>
               <div className="flex-1 text-center md:text-left">
                 <p className="font-bold text-slate-800 dark:text-slate-100">
-                  {notificationStatus === 'granted' ? 'Notificações Ativadas!' : 'Ative as notificações deste dispositivo'}
+                  {notificationStatus === 'granted' ? t('profile.notificationsActive', 'Notificações Ativadas!') : t('profile.enableNotificationsDevice', 'Ative as notificações deste dispositivo')}
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                   {currentUser.role === UserRole.CLIENT 
-                    ? 'Receba alertas sobre o status dos seus pedidos e promoções exclusivas.' 
-                    : 'Receba avisos imediatos sobre alarmes de urgência no seu setor.'}
+                    ? t('profile.clientNotificationsDesc', 'Receba alertas sobre o status dos seus pedidos e promoções exclusivas.') 
+                    : t('profile.staffNotificationsDesc', 'Receba avisos imediatos sobre alarmes de urgência no seu setor.')}
                 </p>
               </div>
               <button 
@@ -362,12 +421,12 @@ export const Profile = () => {
                 disabled={loadingPush || notificationStatus === 'granted'}
                 className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg ${notificationStatus === 'granted' ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
               >
-                {loadingPush ? <Loader2 className="animate-spin" size={18}/> : notificationStatus === 'granted' ? <><CheckCircle size={18}/> Ativado</> : 'Ativar Agora'}
+                {loadingPush ? <Loader2 className="animate-spin" size={18}/> : notificationStatus === 'granted' ? <><CheckCircle size={18}/> {t('common.enabled', 'Ativado')}</> : t('profile.enableNow', 'Ativar Agora')}
               </button>
             </div>
             {notificationStatus === 'denied' && (
               <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs rounded-xl flex gap-2 items-center border border-red-200 dark:border-red-900/40">
-                <Info size={14}/> <strong>Atenção:</strong> Você bloqueou as notificações. Reative nas configurações do navegador para funcionar.
+                <Info size={14}/> <strong>{t('common.attention', 'Atenção')}:</strong> {t('profile.blockedNotificationsWarning', 'Você bloqueou as notificações. Reative nas configurações do navegador para funcionar.')}
               </div>
             )}
           </div>
@@ -375,15 +434,15 @@ export const Profile = () => {
 
         <div className="space-y-6">
           <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
-            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2"><Key size={18} className="text-blue-500" /> Segurança</h3>
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2"><Key size={18} className="text-blue-500" /> {t('profile.security', 'Segurança')}</h3>
             {resetRequested ? (
               <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl text-center">
                 <CheckCircle size={32} className="text-green-600 dark:text-green-400 mx-auto mb-2" />
-                <p className="text-green-800 dark:text-green-300 font-bold text-sm">Link enviado!</p>
+                <p className="text-green-800 dark:text-green-300 font-bold text-sm">{t('profile.linkSent', 'Link enviado!')}</p>
               </div>
             ) : (
               <button onClick={handleRequestPasswordReset} disabled={loadingReset} className="w-full py-3 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
-                {loadingReset ? <Loader2 className="animate-spin" size={18}/> : <><Mail size={18}/> Resetar Senha</>}
+                {loadingReset ? <Loader2 className="animate-spin" size={18}/> : <><Mail size={18}/> {t('profile.resetPassword', 'Resetar Senha')}</>}
               </button>
             )}
           </div>

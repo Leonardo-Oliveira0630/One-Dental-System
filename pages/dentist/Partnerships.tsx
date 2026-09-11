@@ -67,7 +67,7 @@ export const Partnerships = ({ onSelectLab }: { onSelectLab?: (labId: string) =>
     }, [allLaboratories, searchTerm, activeOrganization]);
     
     return (
-        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0B0F17] py-2 md:py-4">
+        <div className="flex flex-col min-h-full bg-slate-50 dark:bg-[#0B0F17] py-4 sm:py-6">
         <div className="flex-1 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500 w-full px-4 sm:px-6 md:px-8" id="partnerships-main-container">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>

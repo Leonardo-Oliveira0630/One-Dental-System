@@ -10,6 +10,7 @@ import {
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
 import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/ycloudService';
+import { SupportedLanguage, setAppLanguage, getInitialLanguage } from '../src/i18n';
 
 import * as authPkg from 'firebase/auth';
 import * as firestorePkg from 'firebase/firestore';
@@ -274,6 +275,8 @@ interface AppContextType {
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => Promise<void>;
   toggleTheme: () => void;
+  language: SupportedLanguage;
+  setLanguage: (lang: SupportedLanguage) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -387,6 +390,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
   }, [theme, setTheme]);
+
+  // Language Management (pt-BR / en / es)
+  const [language, setLanguageState] = useState<SupportedLanguage>(getInitialLanguage);
+
+  useEffect(() => {
+    if (currentUser?.language && currentUser.language !== language) {
+      setLanguageState(currentUser.language);
+      setAppLanguage(currentUser.language);
+    }
+  }, [currentUser?.language]);
+
+  const setLanguage = useCallback(async (newLang: SupportedLanguage) => {
+    setLanguageState(newLang);
+    try {
+      await setAppLanguage(newLang);
+      if (currentUser?.id) {
+        await api.apiUpdateUser(currentUser.id, { language: newLang });
+        setCurrentUser(prev => prev ? { ...prev, language: newLang } : null);
+      }
+    } catch (e) {
+      console.error('Error updating language:', e);
+    }
+  }, [currentUser?.id]);
 
   // Subscrições Públicas: Planos, Laboratórios e Fornecedores são públicos
   useEffect(() => {
@@ -1581,7 +1607,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addPatientBillingBatch, updatePatientBillingBatchStatus, deletePatientBillingBatch,
     labCoupons, addLabCoupon, updateLabCoupon, deleteLabCoupon, validateLabCoupon,
     couriers, addCourier, updateCourier, deleteCourier,
-    theme, setTheme, toggleTheme
+    theme, setTheme, toggleTheme,
+    language, setLanguage
   }), [
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, budgets, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
@@ -1590,7 +1617,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allSuppliers, allSupplierProducts, supplierOrders,
     allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions, nfcBoxes,
-    theme, setTheme, toggleTheme
+    theme, setTheme, toggleTheme,
+    language, setLanguage
   ]);
 
   return (

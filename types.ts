@@ -738,6 +738,7 @@ export interface User {
   isApproved?: boolean;
   manualDentistId?: string;
   themePreference?: 'light' | 'dark';
+  language?: 'pt-BR' | 'en' | 'es';
 }
 
 export interface CartItem {
@@ -1168,6 +1169,7 @@ export interface SupplierOrder {
   supplierName: string;
   buyerOrgId: string;
   buyerOrgName: string;
+  buyerUserId?: string;
   buyerName: string;
   buyerEmail: string;
   buyerPhone?: string;
@@ -1189,10 +1191,22 @@ export interface SupplierOrder {
   totalValue: number;
   discountValue?: number;
   couponCode?: string;
-  status?: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-  deliveryStatus?: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED';
+  status?: 'PENDING' | 'PAID' | 'CONFIRMED' | 'SEPARATION' | 'READY_TO_SHIP' | 'SHIPPED' | 'DELIVERED' | 'RETURNED' | 'CANCELLED';
+  deliveryStatus?: 'PENDING' | 'SEPARATION' | 'READY_TO_SHIP' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'RETURNED';
   paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
   createdAt: Date;
+  separatedAt?: Date;
+  separatedBy?: string;
+  packedAt?: Date;
+  shippedAt?: Date;
+  deliveredAt?: Date;
+  returnedAt?: Date;
+  internalNotes?: string;
+  invoiceNumber?: string;
+  invoiceUrl?: string;
+  subtotalProducts?: number;
+  pickingChecklist?: Record<string, boolean>;
+  buyerCpfCnpj?: string;
   notes?: string;
   paymentMethod: 'CREDIT_CARD' | 'PIX' | 'BOLETO';
   asaasPaymentId?: string;

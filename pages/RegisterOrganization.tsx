@@ -1,12 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight, Percent } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight, Percent, Languages } from 'lucide-react';
 import { Coupon, SubscriptionPlan } from '../types';
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
+import { useTranslation } from 'react-i18next';
+import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../src/i18n';
 
 export const RegisterOrganization = () => {
-  const { registerOrganization, registerOutsourcedLab, registerDentist, registerSupplier, validateCro, allPlans, validateCoupon, createSubscription } = useApp();
+  const { registerOrganization, registerOutsourcedLab, registerDentist, registerSupplier, validateCro, allPlans, validateCoupon, createSubscription, language, setLanguage } = useApp();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialType = (searchParams.get('type') === 'DENTIST' || searchParams.get('type') === 'CLINIC') ? 'DENTIST' : searchParams.get('type') === 'SUPPLIER' ? 'SUPPLIER' : 'LAB';
@@ -248,7 +251,7 @@ export const RegisterOrganization = () => {
       let regUser;
       if (regType === 'LAB') {
           regUser = await registerOrganization(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
-              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone
+              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone, language
           });
           
           // Automatically register subscription and issue the first payment/boleto via Asaas
@@ -271,7 +274,7 @@ export const RegisterOrganization = () => {
           navigate(redirectUrl || '/dashboard');
       } else if (regType === 'LAB_OUTSOURCED') {
           regUser = await registerOutsourcedLab(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
-              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone
+              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone, language
           });
           
           if (regUser && regUser.organizationId) {
@@ -293,7 +296,7 @@ export const RegisterOrganization = () => {
           navigate(redirectUrl || '/store');
       } else if (regType === 'SUPPLIER') {
           regUser = await registerSupplier(email, password, ownerName, labName, selectedPlanId, trialEnd, appliedCoupon?.code, {
-              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone
+              address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone, language
           });
           if (regUser && regUser.organizationId) {
               try {
@@ -331,7 +334,7 @@ export const RegisterOrganization = () => {
           try {
               // Register Dentist with validation flags
               regUser = await registerDentist(email, password, ownerName, clinicName || 'Consultório Particular', selectedPlanId, trialEnd, appliedCoupon?.code, {
-                  address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone,
+                  address, number, complement, neighborhood, city, state, cep, country, cpfCnpj: cleanCpfCnpj, phone, language,
                   croUf: croUf || "",
                   croNumero: croNumero || "",
                   croCategoria: croCategoria || "",
@@ -393,23 +396,48 @@ export const RegisterOrganization = () => {
       <div className="bg-white w-full max-w-4xl p-4 sm:p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 space-y-6">
         
         <div className="space-y-6">
-            <div className="text-left mb-6">
-                <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#15263f] transition-colors mb-6">
-                    <ArrowLeft size={14} /> Voltar para o Site
-                </Link>
-                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 shadow-lg shadow-black/5 ${regType === 'LAB' ? 'bg-blue-600' : regType === 'SUPPLIER' ? 'bg-indigo-600' : 'bg-teal-600'}`}>
-                    {regType === 'LAB' ? <ShieldCheck size={32} className="text-white" /> : regType === 'SUPPLIER' ? <Database size={32} className="text-white" /> : <Stethoscope size={32} className="text-white" />}
+            <div className="flex items-start justify-between gap-4 mb-6">
+                <div className="text-left">
+                    <Link to="/" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-[#15263f] transition-colors mb-4">
+                        <ArrowLeft size={14} /> {t('common.back', 'Voltar para o Site')}
+                    </Link>
+                    <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3 shadow-lg shadow-black/5 ${regType === 'LAB' ? 'bg-blue-600' : regType === 'SUPPLIER' ? 'bg-indigo-600' : 'bg-teal-600'}`}>
+                        {regType === 'LAB' ? <ShieldCheck size={28} className="text-white" /> : regType === 'SUPPLIER' ? <Database size={28} className="text-white" /> : <Stethoscope size={28} className="text-white" />}
+                    </div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-[#15263f] mb-1">{t('auth.createAccount', 'Crie sua Conta')}</h1>
+                    <p className="text-sm text-slate-500">
+                        {regType === 'LAB' ? t('auth.labRegisterDesc', 'Gestão completa ou Loja Online Grátis para seu Laboratório.') : regType === 'SUPPLIER' ? t('auth.supplierRegisterDesc', 'Venda seus produtos e controle estoque para dentistas e laboratórios.') : t('auth.dentistRegisterDesc', 'Gestão clínica e pedidos para Dentistas.')}
+                    </p>
                 </div>
-                <h1 className="text-3xl font-bold text-[#15263f] mb-2">Crie sua Conta</h1>
-                <p className="text-slate-500">
-                    {regType === 'LAB' ? 'Gestão completa ou Loja Online Grátis para seu Laboratório.' : regType === 'SUPPLIER' ? 'Venda seus produtos e controle estoque para dentistas e laboratórios.' : 'Gestão clínica e pedidos para Dentistas.'}
-                </p>
+
+                {/* Seletor de Idioma no Cadastro */}
+                <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 shrink-0">
+                    <Languages size={14} className="text-slate-500 ml-1" />
+                    <div className="flex items-center gap-1">
+                        {SUPPORTED_LANGUAGES.map((langItem) => (
+                            <button
+                                key={langItem.code}
+                                type="button"
+                                onClick={() => setLanguage(langItem.code as SupportedLanguage)}
+                                className={`px-2 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                                    language === langItem.code
+                                        ? 'bg-white text-blue-600 shadow-sm border border-slate-200'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                }`}
+                                title={langItem.name}
+                            >
+                                <span>{langItem.flag}</span>
+                                <span className="hidden sm:inline">{langItem.code.toUpperCase()}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             <div className="flex bg-slate-900 p-1 rounded-xl mb-6 border border-slate-700 flex-wrap md:flex-nowrap gap-1">
-                <button type="button" onClick={() => { setRegType('LAB'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Building size={18} /> Sou Laboratório</button>
-                <button type="button" onClick={() => { setRegType('DENTIST'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'DENTIST' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Stethoscope size={18} /> Sou Dentista</button>
-                <button type="button" onClick={() => { setRegType('SUPPLIER'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'SUPPLIER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Database size={18} /> Sou Fornecedor</button>
+                <button type="button" onClick={() => { setRegType('LAB'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'LAB' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Building size={18} /> {t('auth.iAmLab', 'Sou Laboratório')}</button>
+                <button type="button" onClick={() => { setRegType('DENTIST'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'DENTIST' ? 'bg-teal-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Stethoscope size={18} /> {t('auth.iAmDentist', 'Sou Dentista')}</button>
+                <button type="button" onClick={() => { setRegType('SUPPLIER'); setPlanId(''); }} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs md:text-sm font-bold transition-all min-w-[120px] ${regType === 'SUPPLIER' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}><Database size={18} /> {t('auth.iAmSupplier', 'Sou Fornecedor')}</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,6 +1,7 @@
 import logger from "../utils/logger";
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { Job, JobStatus, UserRole, Attachment } from '../types';
 import { BOX_COLORS } from '../services/mockData';
@@ -14,6 +15,7 @@ import FileSaver from 'file-saver';
 import * as api from '../services/firebaseService'; // Import API functions
 
 export const IncomingOrders = () => {
+  const { t } = useTranslation();
   const { jobs, updateJob, currentUser, currentPlan, currentOrg } = useApp();
   const navigate = useNavigate();
 
@@ -24,15 +26,15 @@ export const IncomingOrders = () => {
   if (currentPlan && !currentPlan.features.hasStoreModule && !isSuperAdmin) {
       return (
           <FeatureLocked 
-              title="Módulo de Loja Web Indisponível" 
-              message="Seu plano atual não permite receber pedidos online diretamente dos dentistas. Faça um upgrade para habilitar a Loja Virtual." 
+              title={t('orders.incoming.webStoreUnavailableTitle', "Módulo de Loja Web Indisponível")} 
+              message={t('orders.incoming.webStoreUnavailableMessage', "Seu plano atual não permite receber pedidos online diretamente dos dentistas. Faça um upgrade para habilitar a Loja Virtual.")} 
           />
       );
   }
 
   // Redirect if not manager/admin/super
   if (currentUser?.role !== UserRole.MANAGER && currentUser?.role !== UserRole.ADMIN && !isSuperAdmin) {
-      return <div className="p-4 sm:p-8 text-center text-slate-500 font-bold uppercase tracking-widest">Acesso Negado</div>;
+      return <div className="p-4 sm:p-8 text-center text-slate-500 font-bold uppercase tracking-widest">{t('common.accessDenied', 'Acesso Negado')}</div>;
   }
 
   const incoming = jobs.filter(j => 
@@ -58,16 +60,20 @@ export const IncomingOrders = () => {
 
   const handleSyncSingleJob = async (jobId: string, force: boolean = false) => {
     if (force) {
-      const confirmForce = window.confirm("Deseja forçar a marcação deste pedido como PAGO e gerar os respectivos vouchers? Use isso se o cliente pagou por fora.");
+      const confirmForce = window.confirm(t('orders.incoming.confirmForcePaid', "Deseja forçar a marcação deste pedido como PAGO e gerar os respectivos vouchers? Use isso se o cliente pagou por fora."));
       if (!confirmForce) return;
     }
     setSyncingJobId(jobId);
     try {
       const res = await api.apiSyncStoreOrders({ organizationId: currentOrg?.id, jobId, forceMarkPaid: force });
-      alert(`Sincronização concluída! Status de pagamento: ${res.paymentsUpdated ? 'Atualizado para Pago' : 'Inalterado/Já Pago'}. Vouchers de combos gerados: ${res.vouchersGenerated || 0}.`);
+      alert(t('orders.incoming.syncSuccess', {
+        paymentStatus: res.paymentsUpdated ? t('orders.status.PAID', 'Pago') : t('orders.incoming.paymentUnchanged', 'Inalterado/Já Pago'),
+        vouchers: res.vouchersGenerated || 0,
+        defaultValue: `Sincronização concluída! Status de pagamento: ${res.paymentsUpdated ? 'Atualizado para Pago' : 'Inalterado/Já Pago'}. Vouchers de combos gerados: ${res.vouchersGenerated || 0}.`
+      }));
     } catch (err: any) {
       logger.error({ userId: currentUser?.id }, "Erro ao sincronizar pedido:", err);
-      alert("Erro ao sincronizar pedido: " + (err.message || err));
+      alert(t('orders.incoming.syncError', { error: err.message || err, defaultValue: "Erro ao sincronizar pedido: " + (err.message || err) }));
     } finally {
       setSyncingJobId(null);
     }
@@ -98,7 +104,7 @@ export const IncomingOrders = () => {
   const confirmOrderRejection = async () => {
       if (!rejectingOrderJob || !currentOrg) return;
       if (!orderRejectionReason.trim()) {
-          alert("Por favor, preencha o motivo da recusa.");
+          alert(t('orders.incoming.fillRejectionReasonAlert', "Por favor, preencha o motivo da recusa."));
           return;
       }
       setIsProcessing(true);
@@ -107,12 +113,12 @@ export const IncomingOrders = () => {
           await updateJob(rejectingOrderJob.id, {
               rejectedAt: new Date()
           });
-          alert("Pedido rejeitado e estorno realizado.");
+          alert(t('orders.incoming.orderRejectedSuccess', "Pedido rejeitado e estorno realizado."));
           setRejectingOrderJob(null);
           setOrderRejectionReason('');
       } catch (error: any) {
           logger.error({ userId: currentUser?.id }, "Erro ao rejeitar:", error);
-          alert("Erro ao realizar estorno: " + error.message);
+          alert(t('orders.incoming.refundError', { error: error.message, defaultValue: "Erro ao realizar estorno: " + error.message }));
       } finally {
           setIsProcessing(false);
       }
@@ -148,7 +154,7 @@ export const IncomingOrders = () => {
 
       } catch (error) {
           logger.error({ userId: currentUser?.id }, "Erro ao criar ZIP:", error);
-          alert("Erro ao criar arquivo ZIP. Tente baixar os arquivos individualmente.");
+          alert(t('orders.incoming.zipError', "Erro ao criar arquivo ZIP. Tente baixar os arquivos individualmente."));
       } finally {
           setZippingJobId(null);
       }
@@ -169,11 +175,11 @@ export const IncomingOrders = () => {
 
        <div className="flex justify-between items-end">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Pedidos Web Recebidos</h1>
-            <p className="text-slate-500 font-medium">Gerencie a entrada de trabalhos vindos da Loja Virtual.</p>
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{t('orders.incoming.title', 'Pedidos Web Recebidos')}</h1>
+            <p className="text-slate-500 font-medium">{t('orders.incoming.subtitle', 'Gerencie a entrada de trabalhos vindos da Loja Virtual.')}</p>
           </div>
           <div className="bg-purple-100 text-purple-700 px-4 py-2 rounded-xl font-bold text-sm">
-              {incoming.length} Pendentes
+              {t('orders.incoming.pendingBadge', { count: incoming.length, defaultValue: `${incoming.length} Pendentes` })}
           </div>
        </div>
 
@@ -183,8 +189,8 @@ export const IncomingOrders = () => {
                 <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
                     <Check size={32} />
                 </div>
-                <h3 className="text-lg font-bold text-slate-700">Tudo limpo!</h3>
-                <p className="text-slate-400">Nenhum pedido aguardando aprovação no momento.</p>
+                <h3 className="text-lg font-bold text-slate-700">{t('orders.incoming.allClean', 'Tudo limpo!')}</h3>
+                <p className="text-slate-400">{t('orders.incoming.allCleanSub', 'Nenhum pedido aguardando aprovação no momento.')}</p>
             </div>
           ) : (
             incoming.map(job => (
@@ -196,7 +202,7 @@ export const IncomingOrders = () => {
                             <div>
                                 <div className="flex flex-wrap items-center gap-3 mb-2">
                                     <span className="px-3 py-1 bg-purple-100 text-purple-700 text-[10px] font-black uppercase rounded-full flex items-center gap-1 border border-purple-200">
-                                        <Clock size={12} /> Aguardando
+                                        <Clock size={12} /> {t('orders.status.WAITING_APPROVAL', 'Aguardando')}
                                     </span>
                                     {job.paymentStatus && (
                                         <span className={`px-3 py-1 text-[10px] font-black uppercase rounded-full flex items-center gap-1 border ${
@@ -206,14 +212,14 @@ export const IncomingOrders = () => {
                                             'bg-yellow-50 text-yellow-700 border-yellow-200'
                                         }`}>
                                             <CreditCard size={12} /> {
-                                                job.paymentStatus === 'VOUCHER' ? 'Voucher' :
-                                                job.paymentStatus === 'PAID' ? 'Pago' :
-                                                job.paymentStatus === 'AUTHORIZED' ? 'Pré-Autorizado' :
-                                                'Aguardando Pagamento'
+                                                job.paymentStatus === 'VOUCHER' ? t('payment.status.voucher', 'Voucher') :
+                                                job.paymentStatus === 'PAID' ? t('payment.status.paid', 'Pago') :
+                                                job.paymentStatus === 'AUTHORIZED' ? t('payment.status.authorized', 'Pré-Autorizado') :
+                                                t('payment.status.pending', 'Aguardando Pagamento')
                                             }
                                         </span>
                                     )}
-                                    <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Pedido em {new Date(job.createdAt).toLocaleDateString()}</span>
+                                    <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">{t('orders.incoming.orderedAt', { date: new Date(job.createdAt).toLocaleDateString(), defaultValue: `Pedido em ${new Date(job.createdAt).toLocaleDateString()}` })}</span>
                                 </div>
                                 
                                 <h3 className="text-xl font-black text-slate-900 mb-1 uppercase tracking-tight">{job.patientName}</h3>
@@ -225,7 +231,7 @@ export const IncomingOrders = () => {
                             </div>
                             
                             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Itens do Pedido</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('orders.incoming.orderItems', 'Itens do Pedido')}</p>
                                 <ul className="text-sm text-slate-700 space-y-2">
                                     {job.items.map((i, idx) => (
                                         <li key={idx} className="flex justify-between border-b border-slate-100 last:border-0 pb-1">
@@ -244,7 +250,7 @@ export const IncomingOrders = () => {
                             {job.attachments && job.attachments.length > 0 && (
                                 <div>
                                     <div className="flex items-center justify-between mb-3">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Arquivos Digitais ({job.attachments.length})</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('orders.incoming.digitalFiles', { count: job.attachments.length, defaultValue: `Arquivos Digitais (${job.attachments.length})` })}</p>
                                         <div className="flex gap-2">
                                             <button 
                                                 onClick={() => handleDownloadAll(job)}
@@ -252,7 +258,7 @@ export const IncomingOrders = () => {
                                                 className="flex items-center gap-1 px-3 py-1.5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase hover:bg-slate-800 transition-all shadow-md"
                                             >
                                                 {zippingJobId === job.id ? <Loader2 size={14} className="animate-spin"/> : <Archive size={14} />} 
-                                                Exportar Tudo
+                                                {t('orders.incoming.exportAll', 'Exportar Tudo')}
                                             </button>
                                         </div>
                                     </div>
@@ -279,7 +285,7 @@ export const IncomingOrders = () => {
                         
                         <div className="flex flex-col gap-3 w-full md:w-auto border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-8">
                              <div className="text-right mb-2 hidden md:block">
-                                <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Valor do Pedido</span>
+                                <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{t('orders.incoming.orderValue', 'Valor do Pedido')}</span>
                                 <p className="text-3xl font-black text-slate-800">R$ {job.totalValue.toFixed(2)}</p>
                              </div>
 
@@ -287,14 +293,14 @@ export const IncomingOrders = () => {
                                 onClick={() => handleOpenApprove(job)}
                                 className="px-8 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center gap-2 transition-all transform active:scale-95"
                             >
-                                <Check size={20} /> APROVAR CASO
+                                <Check size={20} /> {t('orders.incoming.approveJob', 'APROVAR CASO')}
                             </button>
                             
                             <button 
                                 onClick={() => handleReject(job)}
                                 className="px-8 py-4 bg-white border-2 border-red-100 text-red-600 font-black rounded-2xl hover:bg-red-50 flex items-center justify-center gap-2 transition-all text-xs"
                             >
-                                <X size={20} /> REJEITAR / ESTORNAR
+                                <X size={20} /> {t('orders.incoming.rejectRefund', 'REJEITAR / ESTORNAR')}
                             </button>
 
                             {job.paymentStatus !== 'PAID' && job.paymentStatus !== 'VOUCHER' && (
@@ -304,14 +310,14 @@ export const IncomingOrders = () => {
                                         disabled={syncingJobId === job.id}
                                         className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs disabled:opacity-50"
                                     >
-                                        <RefreshCw size={14} className={syncingJobId === job.id ? "animate-spin" : ""} /> Sincronizar Asaas
+                                        <RefreshCw size={14} className={syncingJobId === job.id ? "animate-spin" : ""} /> {t('orders.incoming.syncAsaas', 'Sincronizar Asaas')}
                                     </button>
                                     <button 
                                         onClick={() => handleSyncSingleJob(job.id, true)}
                                         disabled={syncingJobId === job.id}
                                         className="w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all text-xs disabled:opacity-50"
                                     >
-                                        <Zap size={14} /> Forçar Como Pago
+                                        <Zap size={14} /> {t('orders.incoming.forcePaid', 'Forçar Como Pago')}
                                     </button>
                                 </div>
                             )}
@@ -330,7 +336,7 @@ export const IncomingOrders = () => {
           <div className="bg-white rounded-3xl p-4 sm:p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-up">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                <X className="text-red-500" size={20} /> Recusar Pedido
+                <X className="text-red-500" size={20} /> {t('orders.incoming.rejectModalTitle', 'Recusar Pedido')}
               </h3>
               <button 
                 onClick={() => setRejectingOrderJob(null)}
@@ -341,16 +347,20 @@ export const IncomingOrders = () => {
             </div>
             
             <p className="text-xs text-slate-500 mb-4 font-medium leading-relaxed">
-              Informe a justificativa de recusa para o pedido de <strong>{rejectingOrderJob.patientName}</strong> (Dentista: {rejectingOrderJob.dentistName}). O valor pago será estornado automaticamente ao dentista e ele poderá visualizar o motivo da recusa.
+              {t('orders.incoming.rejectModalNotice', {
+                patient: rejectingOrderJob.patientName,
+                dentist: rejectingOrderJob.dentistName,
+                defaultValue: `Informe a justificativa de recusa para o pedido de ${rejectingOrderJob.patientName} (Dentista: ${rejectingOrderJob.dentistName}). O valor pago será estornado automaticamente ao dentista e ele poderá visualizar o motivo da recusa.`
+              })}
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Justificativa / Motivo da Recusa *</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">{t('orders.incoming.rejectReasonLabel', 'Justificativa / Motivo da Recusa *')}</label>
                 <textarea
                   value={orderRejectionReason}
                   onChange={(e) => setOrderRejectionReason(e.target.value)}
-                  placeholder="Ex: Escaneamento com distorção no dente 21, favor reenviar..."
+                  placeholder={t('orders.incoming.rejectReasonPlaceholder', 'Ex: Escaneamento com distorção no dente 21, favor reenviar...')}
                   rows={4}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all resize-none"
                   required
@@ -364,14 +374,14 @@ export const IncomingOrders = () => {
                 className="flex-1 py-3 text-slate-500 hover:bg-slate-50 rounded-2xl text-xs font-black uppercase transition-all"
                 disabled={isProcessing}
               >
-                Cancelar
+                {t('common.cancel', 'Cancelar')}
               </button>
               <button
                 onClick={confirmOrderRejection}
                 disabled={isProcessing}
                 className="flex-[2] py-3 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-xs font-black uppercase shadow-lg shadow-red-100 flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
               >
-                {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <><Check size={16} /> Confirmar Recusa</>}
+                {isProcessing ? <Loader2 className="animate-spin" size={16} /> : <><Check size={16} /> {t('orders.incoming.confirmRejection', 'Confirmar Recusa')}</>}
               </button>
             </div>
           </div>
