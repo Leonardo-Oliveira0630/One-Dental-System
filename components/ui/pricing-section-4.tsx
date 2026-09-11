@@ -8,6 +8,8 @@ import NumberFlow from "@number-flow/react";
 import { motion } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { SubscriptionPlan } from "../../types";
+import { getDetailedPlanFeatures, PlanFeatureItem } from "../../utils/planFeatures";
+import { Check, X } from "lucide-react";
 
 interface PricingProps {
   plans: SubscriptionPlan[];
@@ -43,30 +45,6 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
       y: -20,
       opacity: 0,
     },
-  };
-
-  const getFeaturesList = (plan: SubscriptionPlan) => {
-    const list = [];
-    if (regType === 'LAB' && plan.features.isLabFreeStoreOnly) {
-        list.push("Receber Pedidos Online Grátis", "Acesso ao App dos Dentistas Grátis");
-        return list;
-    }
-    
-    if (plan.features.maxUsers === 999999) list.push("Usuários Ilimitados");
-    else list.push(`Até ${plan.features.maxUsers} usuários`);
-    
-    if (plan.features.maxJobsPerMonth === 999999) list.push("Pedidos Ilimitados");
-    else list.push(`Até ${plan.features.maxJobsPerMonth} pedidos/mês`);
-    
-    if (plan.features.maxDentists === 999999) list.push("Clientes Ilimitados");
-    else list.push(`Até ${plan.features.maxDentists} clientes`);
-    
-    list.push(`${plan.features.maxStorageGB}GB de Armazenamento`);
-    
-    if (plan.features.hasStoreModule) list.push("Módulo de Loja Online");
-    if (plan.whatsappModulePrice !== undefined) list.push(`Módulo WhatsApp (+R$${plan.whatsappModulePrice.toFixed(2)})`);
-    
-    return list;
   };
 
   return (
@@ -132,7 +110,7 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl gap-4 py-6 px-4 mx-auto relative z-10`}>
         {plans.map((plan, index) => {
           const isSelected = selectedPlanId === plan.id;
-          const features = getFeaturesList(plan);
+          const features = getDetailedPlanFeatures(plan, regType);
           const popular = plan.price > 0 && plan.price < 200; // Just to highlight a middle plan visually
 
           return (
@@ -198,10 +176,24 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                       {features.map((feature, featureIndex) => (
                         <li
                           key={featureIndex}
-                          className="flex items-start gap-2 text-sm"
+                          className={`flex items-start gap-2 text-xs sm:text-sm ${
+                            !feature.included ? 'opacity-40 line-through text-slate-500' : 'text-slate-200'
+                          }`}
                         >
-                          <span className="h-2 w-2 mt-1.5 bg-indigo-400 rounded-full shrink-0"></span>
-                          <span className="text-slate-300 leading-tight">{feature}</span>
+                          {feature.included ? (
+                            <span className={`h-4 w-4 mt-0.5 rounded-full flex items-center justify-center shrink-0 ${
+                              feature.highlight ? 'bg-indigo-500 text-white' : 'bg-emerald-500/20 text-emerald-400'
+                            }`}>
+                              <Check size={10} strokeWidth={3} />
+                            </span>
+                          ) : (
+                            <span className="h-4 w-4 mt-0.5 rounded-full flex items-center justify-center shrink-0 bg-red-500/20 text-red-400">
+                              <X size={10} strokeWidth={3} />
+                            </span>
+                          )}
+                          <span className={`leading-tight ${feature.highlight ? 'font-bold text-white' : ''}`}>
+                            {feature.text}
+                          </span>
                         </li>
                       ))}
                     </ul>

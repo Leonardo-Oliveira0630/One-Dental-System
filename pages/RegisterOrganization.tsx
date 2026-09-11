@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight, Percent, Languages } from 'lucide-react';
+import { Building, User, Mail, Lock, CheckCircle, ShieldCheck, Stethoscope, Store, Activity, Database, Users, Ticket, Loader2, Globe, MapPin, ArrowLeft, Phone, FileText, ChevronLeft, ChevronRight, Percent, Languages, X, Check } from 'lucide-react';
 import { Coupon, SubscriptionPlan } from '../types';
+import { getDetailedPlanFeatures } from '../utils/planFeatures';
 import { searchCEP, searchLoqateAddress, fetchLoqateRetrieve, searchInternationalZip } from '../services/addressService';
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../src/i18n';
@@ -738,68 +739,31 @@ export const RegisterOrganization = () => {
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-1.5 text-xs text-slate-600 pt-3 border-t border-slate-200">
-                                                    {regType === 'LAB' && (
-                                                        plan.features.isLabFreeStoreOnly ? (
-                                                            <>
-                                                                <div className="flex items-start gap-1.5 font-semibold text-blue-700">
-                                                                    <CheckCircle size={12} className="text-blue-600 mt-0.5 shrink-0" />
-                                                                    <span>Loja Online integrada e ativa</span>
-                                                                </div>
-                                                                <div className="flex items-start gap-1.5 text-slate-600">
-                                                                    <CheckCircle size={12} className="text-emerald-600 mt-0.5 shrink-0" />
-                                                                    <span>Produtos e serviços ilimitados</span>
-                                                                </div>
-                                                                <div className="flex items-start gap-1.5 text-slate-600">
-                                                                    <CheckCircle size={12} className="text-emerald-600 mt-0.5 shrink-0" />
-                                                                    <span>Histórico de Pedidos Web</span>
-                                                                </div>
-                                                                <div className="flex items-start gap-1.5 text-slate-600">
-                                                                    <CheckCircle size={12} className="text-emerald-600 mt-0.5 shrink-0" />
-                                                                    <span>Financeiro simplificado</span>
-                                                                </div>
-                                                                <div className="flex items-start gap-1.5 text-slate-400 line-through">
-                                                                    <CheckCircle size={12} className="text-slate-300 mt-0.5 shrink-0" />
-                                                                    <span>Sem fluxo interno/estoque</span>
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
-                                                                <div className="flex items-center gap-2"><Database size={12} className={themeText}/>{plan.features.maxStorageGB} GB de Armazenamento</div>
-                                                                <div className={`flex items-center gap-2 ${plan.features.hasStoreModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Store size={12} className={plan.features.hasStoreModule ? 'text-green-600' : 'text-slate-400'}/>Loja Virtual</div>
-                                                                <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-600' : 'text-slate-400'}/>Gestão Clínica (Demo)</div>
-                                                            </>
-                                                        )
-                                                    )}
-                                                    {regType === 'SUPPLIER' && (
-                                                        <>
-                                                            <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Ativação de Vitrine Pública</div>
-                                                            <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
-                                                            <div className="flex items-center gap-2"><Database size={12} className={themeText}/>Estoque & Vendas Digitais</div>
-                                                            <div className="flex items-center gap-2 text-amber-500 font-bold">
-                                                                <Percent size={12} className="text-amber-500"/>
-                                                                Split na Plataforma: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Taxa Padrão'}
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                    {regType === 'LAB_OUTSOURCED' && (
-                                                        <>
-                                                            <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Recebimento de Pedidos</div>
-                                                            <div className="flex items-center gap-2"><Users size={12} className={themeText}/>{plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</div>
-                                                            <div className="flex items-center gap-2"><Building size={12} className={themeText}/>Mapeamento de Serviços</div>
-                                                            <div className="flex items-center gap-2 text-amber-500 font-bold">
-                                                                <Percent size={12} className="text-amber-500"/>
-                                                                Split na Plataforma: {plan.features.splitPercent !== undefined ? `${plan.features.splitPercent}%` : 'Taxa Padrão'}
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                    {regType === 'DENTIST' && (
-                                                        <>
-                                                            <div className="flex items-center gap-2"><CheckCircle size={12} className={themeText}/>Pedidos Online Ilimitados</div>
-                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-700' : 'text-slate-400 line-through'}`}><Activity size={12} className={plan.features.hasClinicModule ? 'text-green-600' : 'text-slate-400'}/>Gestão de Consultório</div>
-                                                            <div className={`flex items-center gap-2 ${plan.features.hasClinicModule ? 'text-slate-700 font-medium' : 'text-slate-400 line-through'}`}><Users size={12} className={plan.features.hasClinicModule ? 'text-green-600' : 'text-slate-400'}/>Cadastro de Pacientes</div>
-                                                        </>
+                                                <div className="space-y-2 text-xs text-slate-600 pt-3 border-t border-slate-200">
+                                                    {getDetailedPlanFeatures(plan, regType).map((feat, fIdx) => (
+                                                        <div 
+                                                            key={fIdx} 
+                                                            className={`flex items-start gap-1.5 ${
+                                                                !feat.included 
+                                                                    ? 'text-slate-400 line-through opacity-60' 
+                                                                    : feat.highlight 
+                                                                    ? 'font-bold text-slate-900' 
+                                                                    : 'text-slate-700'
+                                                            }`}
+                                                        >
+                                                            {feat.included ? (
+                                                                <CheckCircle size={13} className={`mt-0.5 shrink-0 ${feat.highlight ? 'text-blue-600' : 'text-emerald-600'}`} />
+                                                            ) : (
+                                                                <X size={13} className="text-slate-300 mt-0.5 shrink-0" />
+                                                            )}
+                                                            <span className="leading-tight">{feat.text}</span>
+                                                        </div>
+                                                    ))}
+                                                    {plan.features.splitPercent !== undefined && plan.features.splitPercent > 0 && (
+                                                        <div className="flex items-center gap-2 text-amber-600 font-bold pt-1 border-t border-slate-100">
+                                                            <Percent size={12} className="text-amber-500"/>
+                                                            Split na Plataforma: {plan.features.splitPercent}%
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>

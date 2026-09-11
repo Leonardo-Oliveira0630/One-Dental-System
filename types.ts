@@ -1222,7 +1222,7 @@ export interface SupplierOrder {
     state?: string;
     zipCode?: string;
   };
-  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET';
+  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY';
   shippingCost?: number;
   trackingCode?: string;
   trackingInfo?: string;

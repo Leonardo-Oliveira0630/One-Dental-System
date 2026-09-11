@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store, RefreshCw, Ticket, Check } from 'lucide-react';
+import { CheckCircle, CreditCard, Loader2, AlertTriangle, ArrowLeft, Mail, FileText, ExternalLink, Stethoscope, Store, RefreshCw, Ticket, Check, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserRole, Coupon } from '../types';
+import { getDetailedPlanFeatures } from '../utils/planFeatures';
 
 export const Subscribe = () => {
     const { currentOrg, createSubscription, allPlans, currentUser, checkSubscriptionStatus, validateCoupon } = useApp();
@@ -173,11 +174,26 @@ export const Subscribe = () => {
                                         {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}
                                         <span className="text-sm text-slate-400 font-normal">/mês</span>
                                     </p>
-                                    <ul className="mt-6 space-y-3 text-xs font-bold text-slate-500 uppercase tracking-tight">
-                                        <li className="flex gap-2 items-center"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${plan.features.maxUsers} Usuários`}</li>
-                                        <li className="flex gap-2 items-center"><CheckCircle size={16} className="text-green-500"/> {plan.features.maxStorageGB}GB Storage</li>
-                                        {plan.features.hasStoreModule && <li className="flex gap-2 items-center"><CheckCircle size={16} className="text-green-500"/> Loja Virtual</li>}
-                                        {plan.features.hasClinicModule && <li className="flex gap-2 items-center"><CheckCircle size={16} className="text-green-500"/> Gestão Clínica</li>}
+                                    <ul className="mt-6 space-y-2.5 text-xs font-semibold text-slate-600 border-t border-slate-100 pt-4">
+                                        {getDetailedPlanFeatures(plan, targetAudience).map((feat, fIdx) => (
+                                            <li 
+                                                key={fIdx} 
+                                                className={`flex items-start gap-2 ${
+                                                    !feat.included 
+                                                        ? 'text-slate-400 line-through opacity-50' 
+                                                        : feat.highlight 
+                                                        ? 'font-bold text-slate-900' 
+                                                        : 'text-slate-700'
+                                                }`}
+                                            >
+                                                {feat.included ? (
+                                                    <CheckCircle size={14} className={`shrink-0 mt-0.5 ${feat.highlight ? 'text-blue-600' : 'text-emerald-500'}`} />
+                                                ) : (
+                                                    <X size={14} className="shrink-0 mt-0.5 text-slate-300" />
+                                                )}
+                                                <span className="leading-tight">{feat.text}</span>
+                                            </li>
+                                        ))}
                                     </ul>
                                 </div>
                             ))

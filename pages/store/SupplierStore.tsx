@@ -75,6 +75,7 @@ export const SupplierStore = () => {
   const [chatInitialSupplierId, setChatInitialSupplierId] = useState<string | undefined>(undefined);
   const [chatInitialSupplierName, setChatInitialSupplierName] = useState<string | undefined>(undefined);
   const [chatInitialOrderId, setChatInitialOrderId] = useState<string | undefined>(undefined);
+  const [chatInitialProduct, setChatInitialProduct] = useState<any | undefined>(undefined);
 
   // Subscribe to buyer orders to monitor payment confirmations in real-time
   useEffect(() => {
@@ -138,7 +139,7 @@ export const SupplierStore = () => {
   // Detail Modal & Navigation State
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<InventoryItem | null>(null);
   const [activeTab, setActiveTab] = useState<'STORE' | 'MY_ORDERS'>('STORE');
-  const [shippingMethod, setShippingMethod] = useState<'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET'>('COMBINE');
+  const [shippingMethod, setShippingMethod] = useState<'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY'>('COMBINE');
   const [shippingQuotes, setShippingQuotes] = useState<any[]>([]);
   const [shippingError, setShippingError] = useState<string | null>(null);
   const [isQuotingShipping, setIsQuotingShipping] = useState(false);
@@ -491,10 +492,16 @@ export const SupplierStore = () => {
     const firstSupplierId = cart.length > 0 ? cart[0].product.organizationId : null;
     const supplier = firstSupplierId ? allSuppliers.find(s => s.id === firstSupplierId) : null;
     
-    if (address.zipCode && address.zipCode.length >= 8 && supplier?.frenetToken) {
+    if (
+      address.zipCode && 
+      address.zipCode.length >= 8 && 
+      supplier?.frenetToken && 
+      shippingMethod !== 'PICKUP' && 
+      shippingMethod !== 'MOTOBOY'
+    ) {
       handleQuoteShipping(address.zipCode, supplier.frenetToken, supplier.cep || '01001000');
     }
-  }, [address.zipCode, cart, allSuppliers]);
+  }, [address.zipCode, cart, allSuppliers, shippingMethod]);
 
   const handleQuoteShipping = async (cep: string, token: string, originCep: string) => {
     setIsQuotingShipping(true);
@@ -669,7 +676,13 @@ export const SupplierStore = () => {
           notes: notes || undefined,
           shippingMethod,
           shippingCost: supShippingCost > 0 ? supShippingCost : undefined,
-          trackingInfo: selectedShippingService ? `Frenet: ${selectedShippingService.ServiceDescription}` : undefined,
+          trackingInfo: selectedShippingService 
+            ? `${selectedShippingService.ServiceDescription}` 
+            : shippingMethod === 'PICKUP' 
+            ? 'Retirada em Mãos (No Balcão do Fornecedor)' 
+            : shippingMethod === 'MOTOBOY' 
+            ? 'Entrega Expressa por Motoboy (Envio Direto)' 
+            : 'A Combinar Diretamente com Fornecedor',
           paymentMethod: 'BOLETO',
           buyerAddress: address
         };
@@ -1022,6 +1035,7 @@ export const SupplierStore = () => {
             setChatInitialSupplierId(prod.organizationId);
             setChatInitialSupplierName(getSupplierName(prod.organizationId));
             setChatInitialOrderId(undefined);
+            setChatInitialProduct(prod);
             setIsChatModalOpen(true);
           }}
         />
@@ -1120,6 +1134,7 @@ export const SupplierStore = () => {
         initialSupplierId={chatInitialSupplierId}
         initialSupplierName={chatInitialSupplierName}
         initialOrderId={chatInitialOrderId}
+        initialProduct={chatInitialProduct}
       />
     </main>
   );

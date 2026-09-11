@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { getDetailedPlanFeatures } from '../utils/planFeatures';
 import { 
   Logo, 
   LogoIcon 
@@ -2282,29 +2283,24 @@ export const LandingPage = () => {
                         </div>
                       </div>
 
-                      <ul className={`space-y-3.5 border-t pt-6 text-xs font-semibold ${
+                      <ul className={`space-y-2.5 border-t pt-6 text-xs font-semibold ${
                         isRecommended ? 'border-blue-800 text-blue-100' : 'border-slate-200 text-slate-700'
                       }`}>
-                        <li className="flex items-center gap-2.5">
-                          <Check size={16} className={isRecommended ? 'text-teal-400 font-extrabold' : 'text-blue-600 font-extrabold'} />
-                          <span>Até {plan.features?.maxUsers === -1 || plan.features?.maxUsers === 99999 ? 'Ilimitados' : plan.features?.maxUsers} usuários</span>
-                        </li>
-                        <li className="flex items-center gap-2.5">
-                          <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
-                          <span>Armazenamento: {plan.features?.maxStorageGB === -1 || plan.features?.maxStorageGB === 99999 ? 'Ilimitado' : `${plan.features?.maxStorageGB} GB`}</span>
-                        </li>
-                        {plan.features?.maxJobsPerMonth !== undefined && (
-                          <li className="flex items-center gap-2.5">
-                            <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
-                            <span>Casos / Mês: {plan.features?.maxJobsPerMonth === -1 || plan.features?.maxJobsPerMonth === 99999 ? 'Ilimitados' : plan.features?.maxJobsPerMonth}</span>
+                        {getDetailedPlanFeatures(plan, 'LAB').map((feat, fIdx) => (
+                          <li 
+                            key={fIdx} 
+                            className={`flex items-start gap-2.5 ${
+                              !feat.included ? 'opacity-40 line-through text-slate-400' : ''
+                            }`}
+                          >
+                            {feat.included ? (
+                              <Check size={15} className={`mt-0.5 shrink-0 ${isRecommended ? 'text-teal-400 font-extrabold' : 'text-blue-600 font-extrabold'}`} />
+                            ) : (
+                              <X size={15} className="mt-0.5 shrink-0 text-slate-400" />
+                            )}
+                            <span className={feat.highlight ? 'font-bold text-white' : ''}>{feat.text}</span>
                           </li>
-                        )}
-                        {plan.features?.hasStoreModule && (
-                          <li className="flex items-center gap-2.5">
-                            <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
-                            <span>Módulo de Loja Ativo</span>
-                          </li>
-                        )}
+                        ))}
                       </ul>
 
                       <Link 
@@ -2450,23 +2446,24 @@ export const LandingPage = () => {
                         </div>
                       </div>
 
-                      <ul className={`space-y-3.5 border-t pt-6 text-xs font-semibold ${
+                      <ul className={`space-y-2.5 border-t pt-6 text-xs font-semibold ${
                         isRecommended ? 'border-teal-900 text-teal-100' : 'border-slate-200 text-slate-700'
                       }`}>
-                        <li className="flex items-center gap-2.5">
-                          <Check size={16} className={isRecommended ? 'text-emerald-400 font-extrabold' : 'text-teal-600 font-extrabold'} />
-                          <span>Até {plan.features?.maxUsers === -1 || plan.features?.maxUsers === 99999 ? 'Ilimitados' : plan.features?.maxUsers} usuários</span>
-                        </li>
-                        <li className="flex items-center gap-2.5">
-                          <Check size={16} className={isRecommended ? 'text-emerald-400' : 'text-teal-600'} />
-                          <span>Armazenamento: {plan.features?.maxStorageGB === -1 || plan.features?.maxStorageGB === 99999 ? 'Ilimitado' : `${plan.features?.maxStorageGB} GB`}</span>
-                        </li>
-                        {plan.features?.hasClinicModule && (
-                          <li className="flex items-center gap-2.5">
-                            <Check size={16} className={isRecommended ? 'text-emerald-400' : 'text-teal-600'} />
-                            <span>Módulo de Gestão Odonto Ativo</span>
+                        {getDetailedPlanFeatures(plan, 'CLINIC').map((feat, fIdx) => (
+                          <li 
+                            key={fIdx} 
+                            className={`flex items-start gap-2.5 ${
+                              !feat.included ? 'opacity-40 line-through text-slate-400' : ''
+                            }`}
+                          >
+                            {feat.included ? (
+                              <Check size={15} className={`mt-0.5 shrink-0 ${isRecommended ? 'text-emerald-400 font-extrabold' : 'text-teal-600 font-extrabold'}`} />
+                            ) : (
+                              <X size={15} className="mt-0.5 shrink-0 text-slate-400" />
+                            )}
+                            <span className={feat.highlight ? 'font-bold text-white' : ''}>{feat.text}</span>
                           </li>
-                        )}
+                        ))}
                       </ul>
 
                       <Link 
