@@ -431,6 +431,7 @@
     "subscribeNow": "Assinar Agora",
     "processing": "Processando...",
     "securePayment": "Pagamento 100% Seguro via Asaas"
+<<<<<<< HEAD
   },
   "finance": {
     "title": "Financeiro e Caixa",
@@ -658,5 +659,7 @@
       "ACCEPTED": "Aceita / Em Produção",
       "REJECTED": "Recusada"
     }
+=======
+>>>>>>> 50008e2b20b0bdf5bbfbb3ad9a210cdee6e5dc26
   }
 }
