@@ -431,7 +431,6 @@
     "subscribeNow": "Suscribirse Ahora",
     "processing": "Procesando...",
     "securePayment": "Pago 100% Seguro vía Asaas"
-<<<<<<< HEAD
   },
   "finance": {
     "title": "Finanzas y Caja",
@@ -659,7 +658,5 @@
       "ACCEPTED": "Aceptada / En Producción",
       "REJECTED": "Rechazada"
     }
-=======
->>>>>>> 50008e2b20b0bdf5bbfbb3ad9a210cdee6e5dc26
   }
 }

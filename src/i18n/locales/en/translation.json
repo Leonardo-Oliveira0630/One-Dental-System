@@ -431,7 +431,6 @@
     "subscribeNow": "Subscribe Now",
     "processing": "Processing...",
     "securePayment": "100% Secure Payment via Asaas"
-<<<<<<< HEAD
   },
   "finance": {
     "title": "Finance & Cash Flow",
@@ -659,7 +658,5 @@
       "ACCEPTED": "Accepted / In Production",
       "REJECTED": "Rejected"
     }
-=======
->>>>>>> 50008e2b20b0bdf5bbfbb3ad9a210cdee6e5dc26
   }
 }
