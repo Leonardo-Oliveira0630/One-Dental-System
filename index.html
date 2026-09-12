@@ -33,6 +33,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: { 
@@ -53,9 +54,11 @@
                 error: '#EF4444',
                 info: '#3B82F6',
                 // Dark Mode variables
-                darkBg: '#131A23',
-                darkSidebar: '#0F172A',
-                darkCard: '#1E293B',
+                darkBg: '#0B0F17',
+                darkSidebar: '#080C14',
+                darkCard: '#131B2A',
+                darkCardHover: '#1B263B',
+                darkBorder: '#1E293B',
                 darkAccent: '#00B8D9'
               },
               lab: { 
@@ -98,7 +101,7 @@
       }
     </script>
     <style>
-            :root {
+      :root {
         --sat: env(safe-area-inset-top);
         --sar: env(safe-area-inset-right);
         --sab: env(safe-area-inset-bottom);
@@ -122,6 +125,417 @@
         scroll-behavior: smooth;
       }
 
+      html.dark, html.dark body {
+        background-color: #0b0f17;
+        color: #f1f5f9;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         LABPROX DARK THEME SYSTEM (Identical to Profile dark mode standard)
+         ═══════════════════════════════════════════════════════════════ */
+      html.dark .bg-white {
+        background-color: #131B2A !important;
+      }
+
+      html.dark .bg-slate-50,
+      html.dark .bg-slate-100,
+      html.dark .bg-gray-50,
+      html.dark .bg-gray-100,
+      html.dark .bg-zinc-50,
+      html.dark .bg-zinc-100,
+      html.dark .bg-neutral-50 {
+        background-color: #0B0F17 !important;
+      }
+
+      html.dark .bg-slate-200,
+      html.dark .bg-gray-200,
+      html.dark .bg-zinc-200 {
+        background-color: #1E293B !important;
+      }
+
+      /* TOP HEADERS MUST ALWAYS REMAIN LIGHT - NEVER CHANGE COLOR */
+      html.dark header.app-header-light,
+      html.dark .app-header-light,
+      html.dark #app-top-header,
+      html.dark #store-top-header,
+      html.dark header#store-top-header,
+      html.dark #store-header-portal,
+      html.dark header.mobile-header-light {
+        background-color: #FFFFFF !important;
+        border-color: #E2E8F0 !important;
+        color: #1E293B !important;
+      }
+
+      html.dark header.app-header-light *,
+      html.dark .app-header-light *,
+      html.dark #app-top-header *,
+      html.dark #store-top-header *,
+      html.dark header#store-top-header *,
+      html.dark #store-header-portal *,
+      html.dark header.mobile-header-light * {
+        /* Prevent general dark overrides inside top light header */
+      }
+
+      html.dark header.app-header-light .bg-white,
+      html.dark .app-header-light .bg-white,
+      html.dark #app-top-header .bg-white,
+      html.dark #store-top-header .bg-white,
+      html.dark header#store-top-header .bg-white,
+      html.dark #store-header-portal .bg-white,
+      html.dark header.mobile-header-light .bg-white {
+        background-color: #FFFFFF !important;
+      }
+
+      html.dark header.app-header-light .bg-slate-50,
+      html.dark .app-header-light .bg-slate-50,
+      html.dark #app-top-header .bg-slate-50,
+      html.dark #store-top-header .bg-slate-50,
+      html.dark header#store-top-header .bg-slate-50,
+      html.dark #store-header-portal .bg-slate-50,
+      html.dark header.mobile-header-light .bg-slate-50 {
+        background-color: #F8FAFC !important;
+      }
+
+      html.dark header.app-header-light .bg-slate-100,
+      html.dark .app-header-light .bg-slate-100,
+      html.dark #app-top-header .bg-slate-100,
+      html.dark #store-top-header .bg-slate-100,
+      html.dark header#store-top-header .bg-slate-100,
+      html.dark #store-header-portal .bg-slate-100,
+      html.dark header.mobile-header-light .bg-slate-100 {
+        background-color: #F1F5F9 !important;
+      }
+
+      html.dark header.app-header-light .bg-slate-900,
+      html.dark .app-header-light .bg-slate-900,
+      html.dark #app-top-header .bg-slate-900,
+      html.dark #store-top-header .bg-slate-900,
+      html.dark header#store-top-header .bg-slate-900,
+      html.dark header.mobile-header-light .bg-slate-900 {
+        background-color: #0F172A !important;
+        color: #FFFFFF !important;
+      }
+
+      html.dark header.app-header-light .text-slate-900,
+      html.dark .app-header-light .text-slate-900,
+      html.dark #app-top-header .text-slate-900,
+      html.dark #store-top-header .text-slate-900,
+      html.dark header#store-top-header .text-slate-900,
+      html.dark #store-header-portal .text-slate-900,
+      html.dark header.mobile-header-light .text-slate-900 {
+        color: #0F172A !important;
+      }
+
+      html.dark header.app-header-light .text-slate-800,
+      html.dark .app-header-light .text-slate-800,
+      html.dark #app-top-header .text-slate-800,
+      html.dark #store-top-header .text-slate-800,
+      html.dark header#store-top-header .text-slate-800,
+      html.dark #store-header-portal .text-slate-800,
+      html.dark header.mobile-header-light .text-slate-800 {
+        color: #1E293B !important;
+      }
+
+      html.dark header.app-header-light .text-slate-700,
+      html.dark .app-header-light .text-slate-700,
+      html.dark #app-top-header .text-slate-700,
+      html.dark #store-top-header .text-slate-700,
+      html.dark header#store-top-header .text-slate-700,
+      html.dark #store-header-portal .text-slate-700,
+      html.dark header.mobile-header-light .text-slate-700 {
+        color: #334155 !important;
+      }
+
+      html.dark header.app-header-light .text-slate-600,
+      html.dark .app-header-light .text-slate-600,
+      html.dark #app-top-header .text-slate-600,
+      html.dark #store-top-header .text-slate-600,
+      html.dark header#store-top-header .text-slate-600,
+      html.dark #store-header-portal .text-slate-600,
+      html.dark header.mobile-header-light .text-slate-600 {
+        color: #475569 !important;
+      }
+
+      html.dark header.app-header-light .text-slate-500,
+      html.dark .app-header-light .text-slate-500,
+      html.dark #app-top-header .text-slate-500,
+      html.dark #store-top-header .text-slate-500,
+      html.dark header#store-top-header .text-slate-500,
+      html.dark #store-header-portal .text-slate-500,
+      html.dark header.mobile-header-light .text-slate-500 {
+        color: #64748B !important;
+      }
+
+      html.dark header.app-header-light .text-slate-400,
+      html.dark .app-header-light .text-slate-400,
+      html.dark #app-top-header .text-slate-400,
+      html.dark #store-top-header .text-slate-400,
+      html.dark header#store-top-header .text-slate-400,
+      html.dark #store-header-portal .text-slate-400,
+      html.dark header.mobile-header-light .text-slate-400 {
+        color: #94A3B8 !important;
+      }
+
+      html.dark header.app-header-light .border-slate-200,
+      html.dark .app-header-light .border-slate-200,
+      html.dark #app-top-header .border-slate-200,
+      html.dark #store-top-header .border-slate-200,
+      html.dark header#store-top-header .border-slate-200,
+      html.dark #store-header-portal .border-slate-200,
+      html.dark header.mobile-header-light .border-slate-200 {
+        border-color: #E2E8F0 !important;
+      }
+
+      html.dark header.app-header-light input,
+      html.dark .app-header-light input,
+      html.dark #app-top-header input,
+      html.dark #store-top-header input,
+      html.dark header#store-top-header input,
+      html.dark header.mobile-header-light input {
+        background-color: #FFFFFF !important;
+        color: #1E293B !important;
+        border-color: #E2E8F0 !important;
+      }
+
+      html.dark header.app-header-light input::placeholder,
+      html.dark .app-header-light input::placeholder,
+      html.dark #app-top-header input::placeholder,
+      html.dark #store-top-header input::placeholder,
+      html.dark header#store-top-header input::placeholder,
+      html.dark header.mobile-header-light input::placeholder {
+        color: #94A3B8 !important;
+      }
+
+      /* IMMUNITY FOR LANDING PAGE & BIO PAGE */
+      html.dark .force-light,
+      html.dark .force-light * {
+        /* Prevent dark theme overrides */
+      }
+      html.dark .force-light .bg-white {
+        background-color: #FFFFFF !important;
+      }
+      html.dark .force-light .bg-slate-50 {
+        background-color: #F8FAFC !important;
+      }
+      html.dark .force-light .bg-slate-100 {
+        background-color: #F1F5F9 !important;
+      }
+      html.dark .force-light .bg-slate-900 {
+        background-color: #0F172A !important;
+      }
+      html.dark .force-light .text-slate-900 {
+        color: #0F172A !important;
+      }
+      html.dark .force-light .text-slate-800 {
+        color: #1E293B !important;
+      }
+      html.dark .force-light .text-slate-700 {
+        color: #334155 !important;
+      }
+      html.dark .force-light .text-slate-600 {
+        color: #475569 !important;
+      }
+      html.dark .force-light .text-slate-500 {
+        color: #64748B !important;
+      }
+      html.dark .force-light .border-slate-100,
+      html.dark .force-light .border-slate-200,
+      html.dark .force-light .border-slate-300 {
+        border-color: #E2E8F0 !important;
+      }
+
+      html.dark .border-white {
+        border-color: #1E293B !important;
+      }
+
+      html.dark .border-slate-50,
+      html.dark .border-slate-100,
+      html.dark .border-slate-200,
+      html.dark .border-slate-300,
+      html.dark .border-gray-100,
+      html.dark .border-gray-200,
+      html.dark .border-gray-300,
+      html.dark .border-zinc-100,
+      html.dark .border-zinc-200,
+      html.dark .border-zinc-300,
+      html.dark .border-teal-50,
+      html.dark .border-blue-50,
+      html.dark .border-indigo-50 {
+        border-color: #1E293B !important;
+      }
+
+      html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+      html.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+      html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+      html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+        border-color: #1E293B !important;
+      }
+
+      /* Dark Mode Text Colors */
+      html.dark .text-slate-900,
+      html.dark .text-slate-800,
+      html.dark .text-gray-900,
+      html.dark .text-gray-800,
+      html.dark .text-zinc-900,
+      html.dark .text-zinc-800,
+      html.dark .text-neutral-900,
+      html.dark .text-neutral-800,
+      html.dark .text-black {
+        color: #F8FAFC !important;
+      }
+
+      html.dark .text-slate-700,
+      html.dark .text-slate-600,
+      html.dark .text-gray-700,
+      html.dark .text-gray-600,
+      html.dark .text-zinc-700,
+      html.dark .text-zinc-600,
+      html.dark .text-neutral-700,
+      html.dark .text-neutral-600 {
+        color: #E2E8F0 !important;
+      }
+
+      html.dark .text-slate-500,
+      html.dark .text-slate-400,
+      html.dark .text-gray-500,
+      html.dark .text-gray-400,
+      html.dark .text-zinc-500,
+      html.dark .text-zinc-400,
+      html.dark .text-neutral-500,
+      html.dark .text-neutral-400 {
+        color: #94A3B8 !important;
+      }
+
+      /* Inputs, Selects and Textareas */
+      html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="color"]):not([type="file"]),
+      html.dark select,
+      html.dark textarea {
+        background-color: #0B0F17 !important;
+        color: #F8FAFC !important;
+        border-color: #1E293B !important;
+      }
+
+      html.dark input::placeholder,
+      html.dark textarea::placeholder {
+        color: #64748B !important;
+      }
+
+      html.dark select option {
+        background-color: #131B2A !important;
+        color: #F8FAFC !important;
+      }
+
+      /* Hover States */
+      html.dark .hover\:bg-slate-50:hover,
+      html.dark .hover\:bg-slate-100:hover,
+      html.dark .hover\:bg-gray-50:hover,
+      html.dark .hover\:bg-gray-100:hover,
+      html.dark .hover\:bg-zinc-50:hover {
+        background-color: #182234 !important;
+      }
+
+      html.dark .hover\:text-slate-900:hover,
+      html.dark .hover\:text-slate-800:hover {
+        color: #FFFFFF !important;
+      }
+
+      /* Table Styles */
+      html.dark table {
+        color: #E2E8F0 !important;
+      }
+
+      html.dark thead,
+      html.dark thead tr,
+      html.dark thead th {
+        background-color: #0B0F17 !important;
+        color: #94A3B8 !important;
+        border-color: #1E293B !important;
+      }
+
+      html.dark tbody tr {
+        border-color: #1E293B !important;
+      }
+
+      html.dark tbody tr:hover {
+        background-color: #182234 !important;
+      }
+
+      html.dark td {
+        border-color: #1E293B !important;
+      }
+
+      /* Soft Badges & Alerts in Dark Mode */
+      html.dark .bg-teal-50, html.dark .bg-teal-100 {
+        background-color: rgba(19, 78, 74, 0.4) !important;
+        border-color: rgba(20, 184, 166, 0.3) !important;
+        color: #2DD4BF !important;
+      }
+      html.dark .bg-blue-50, html.dark .bg-blue-100 {
+        background-color: rgba(30, 58, 138, 0.4) !important;
+        border-color: rgba(59, 130, 246, 0.3) !important;
+        color: #60A5FA !important;
+      }
+      html.dark .bg-amber-50, html.dark .bg-amber-100, html.dark .bg-yellow-50, html.dark .bg-yellow-100 {
+        background-color: rgba(120, 53, 15, 0.4) !important;
+        border-color: rgba(245, 158, 11, 0.3) !important;
+        color: #FBBF24 !important;
+      }
+      html.dark .bg-green-50, html.dark .bg-green-100, html.dark .bg-emerald-50, html.dark .bg-emerald-100 {
+        background-color: rgba(20, 83, 45, 0.4) !important;
+        border-color: rgba(34, 197, 94, 0.3) !important;
+        color: #4ADE80 !important;
+      }
+      html.dark .bg-rose-50, html.dark .bg-rose-100, html.dark .bg-red-50, html.dark .bg-red-100 {
+        background-color: rgba(136, 19, 55, 0.4) !important;
+        border-color: rgba(244, 63, 94, 0.3) !important;
+        color: #FB7185 !important;
+      }
+      html.dark .bg-purple-50, html.dark .bg-purple-100, html.dark .bg-indigo-50, html.dark .bg-indigo-100 {
+        background-color: rgba(88, 28, 135, 0.4) !important;
+        border-color: rgba(168, 85, 247, 0.3) !important;
+        color: #C084FC !important;
+      }
+      html.dark .bg-orange-50, html.dark .bg-orange-100 {
+        background-color: rgba(124, 45, 18, 0.4) !important;
+        border-color: rgba(249, 115, 22, 0.3) !important;
+        color: #FB923C !important;
+      }
+
+      /* Solid Action Buttons Keep White Text */
+      html.dark .bg-blue-600, html.dark .bg-blue-700,
+      html.dark .bg-teal-600, html.dark .bg-teal-700,
+      html.dark .bg-emerald-600, html.dark .bg-emerald-700,
+      html.dark .bg-green-600, html.dark .bg-green-700,
+      html.dark .bg-indigo-600, html.dark .bg-indigo-700,
+      html.dark .bg-rose-600, html.dark .bg-rose-700,
+      html.dark .bg-red-600, html.dark .bg-red-700,
+      html.dark .bg-amber-600, html.dark .bg-amber-500,
+      html.dark .bg-purple-600, html.dark .bg-purple-700,
+      html.dark .bg-slate-900 {
+        color: #FFFFFF !important;
+      }
+
+      /* Popups, Dialogs, Modals, Overlays */
+      html.dark .fixed.inset-0.bg-black\/50,
+      html.dark .fixed.inset-0.bg-black\/60,
+      html.dark .fixed.inset-0.bg-black\/70,
+      html.dark .fixed.inset-0.bg-slate-900\/50,
+      html.dark .fixed.inset-0.bg-slate-900\/70,
+      html.dark .fixed.inset-0.bg-slate-900\/80 {
+        background-color: rgba(0, 0, 0, 0.8) !important;
+        backdrop-filter: blur(8px) !important;
+      }
+
+      /* Shadows in Dark Mode */
+      html.dark .shadow-sm,
+      html.dark .shadow,
+      html.dark .shadow-md,
+      html.dark .shadow-lg,
+      html.dark .shadow-xl,
+      html.dark .shadow-2xl {
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 4px 12px -2px rgba(0, 0, 0, 0.4) !important;
+      }
+
       body {
         overscroll-behavior-y: none;
         padding: var(--sat) var(--sar) var(--sab) var(--sal);
@@ -143,12 +557,16 @@
       ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
       ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
+      html.dark ::-webkit-scrollbar-thumb { background: #334155; }
+      html.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .scrollbar-hide::-webkit-scrollbar { display: none; }
       .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       .kanban-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
       .kanban-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
       .kanban-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      html.dark .kanban-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
       
       button { touch-action: manipulation; }
       

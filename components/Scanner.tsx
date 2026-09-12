@@ -964,8 +964,9 @@ export const ManualScannerInput: React.FC = () => {
     };
 
     return (
-        <div className="relative flex items-center gap-1.5">
-            <div className="relative flex items-center">
+        <div className="relative flex items-center gap-1.5 sm:gap-2">
+            {/* Desktop: leitor de código de barras físico */}
+            <div className="relative hidden xl:flex items-center">
                 <div className="absolute left-3 text-slate-400">
                     <ScanBarcode size={16} />
                 </div>
@@ -975,16 +976,19 @@ export const ManualScannerInput: React.FC = () => {
                     onChange={e => setValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Bipar Caixa/OS..." 
-                    className="w-48 pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder:font-normal"
+                    className="w-36 lg:w-44 pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder:font-normal"
                 />
             </div>
+            {/* Tablet: Atalho de escaneamento por câmera exclusivo para tablets */}
             <button
                 type="button"
                 onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
-                title="Abrir Câmera para Ler Código de Barras"
-                className="p-2 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded-xl border border-blue-200 hover:border-blue-600 transition-all shadow-sm active:scale-95"
+                title="Escanear Código de Barras com Câmera do Tablet"
+                aria-label="Escanear Código de Barras com Câmera"
+                className="hidden md:flex xl:hidden items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl shadow-sm hover:shadow transition-all text-xs font-bold shrink-0 cursor-pointer"
             >
-                <Camera size={16} />
+                <Camera size={18} />
+                <span className="font-bold">Escanear</span>
             </button>
         </div>
     );

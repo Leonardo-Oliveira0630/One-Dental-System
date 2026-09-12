@@ -14,6 +14,11 @@ import axios from "axios";
 if (admin.apps.length === 0) {
   admin.initializeApp();
 }
+try {
+  admin.firestore().settings({ ignoreUndefinedProperties: true });
+} catch (e) {
+  // Settings already initialized
+}
 
 import { CommunicationService } from "./communication/services/CommunicationService";
 const communicationService = new CommunicationService();
@@ -1456,6 +1461,16 @@ export const asaasWebhook = onRequest(
             // GENERATE VOUCHERS IF COMBO OR PROMO ITEMS
             await generateVouchersForJob(db, { ...jobData, paymentStatus: "PAID" }, jobDoc.id);
           }
+
+          // CHECK IF IT IS A SUPPLIER ORDER
+          const supOrdersSnap = await db.collection("supplierOrders").where("asaasPaymentId", "==", event.payment.id).get();
+          for (const sDoc of supOrdersSnap.docs) {
+            await sDoc.ref.update({
+              paymentStatus: "PAID",
+              status: "CONFIRMED",
+              paidAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+          }
         }
       } else if (isOverdue) {
         if (customerId && event.payment?.subscription) {
@@ -1552,6 +1567,57 @@ export const createSupplierPayment = onCall(async (request: any) => {
   } catch (error: any) {
     const msg = error.response?.data?.errors?.[0]?.description || error.message;
     throw new HttpsError("aborted", msg);
+  }
+});
+
+/**
+ * VERIFICA STATUS DE PAGAMENTO DE PEDIDO DE FORNECEDOR JUNTO AO ASAAS
+ */
+export const checkSupplierOrderPayment = onCall(async (request: any) => {
+  const { orderId } = request.data || {};
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Não logado.");
+  }
+  if (!orderId) {
+    throw new HttpsError("invalid-argument", "ID do pedido não informado.");
+  }
+  
+  const db = admin.firestore();
+  const orderDoc = await db.collection("supplierOrders").doc(orderId).get();
+  if (!orderDoc.exists) {
+    throw new HttpsError("not-found", "Pedido não encontrado.");
+  }
+  
+  const orderData = orderDoc.data() as any;
+  if (orderData.paymentStatus === 'PAID' || orderData.status === 'CONFIRMED') {
+    return { paid: true, status: 'PAID' };
+  }
+  
+  if (!orderData.asaasPaymentId) {
+    return { paid: false, status: orderData.paymentStatus || 'PENDING' };
+  }
+  
+  try {
+    const { key, url } = await getAsaasConfig();
+    const res = await axios.get(`${url}/payments/${orderData.asaasPaymentId}`, {
+      headers: { access_token: key }
+    });
+    const asaasStatus = res.data?.status;
+    const isPaid = asaasStatus === 'CONFIRMED' || asaasStatus === 'RECEIVED' || asaasStatus === 'RECEIVED_IN_CASH';
+    
+    if (isPaid) {
+      await orderDoc.ref.update({
+        paymentStatus: 'PAID',
+        status: 'CONFIRMED',
+        paidAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      return { paid: true, status: 'PAID' };
+    }
+    
+    return { paid: false, status: asaasStatus || 'PENDING' };
+  } catch (err: any) {
+    logger.error(`Erro ao verificar pagamento do pedido de fornecedor ${orderId}:`, err.message);
+    return { paid: false, error: err.message };
   }
 });
 
@@ -1931,11 +1997,11 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
     if (cleanFrom && (cleanFrom.length === 10 || cleanFrom.length === 11)) {
       cleanFrom = "55" + cleanFrom;
     }
-    if (cleanFrom === cleanTo) {
-      cleanFrom = ""; // Don't use recipient phone number as sender
+    if (!cleanFrom || cleanFrom.includes("997544638") || cleanFrom === cleanTo || cleanFrom.length < 8) {
+      cleanFrom = "5527997599833"; // Use registered YCloud WABA sender
     }
     
-    logger.info(`Enviando mensagem WhatsApp Ycloud real para ${cleanTo}...`);
+    logger.info(`Enviando mensagem WhatsApp Ycloud real de ${cleanFrom} para ${cleanTo}...`);
     
     payload = {
       to: `+${cleanTo}`
@@ -1953,12 +2019,41 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
       payload.text = { body: body };
     }
 
-    const response = await axios.post(ycloudUrl, payload, {
-      headers: {
-        "X-API-Key": apiKey,
-        "Content-Type": "application/json"
+    let response: any = null;
+    try {
+      response = await axios.post(ycloudUrl, payload, {
+        headers: {
+          "X-API-Key": apiKey,
+          "Content-Type": "application/json"
+        }
+      });
+    } catch (postErr: any) {
+      const errData = postErr.response?.data;
+      const apiErr = errData?.error?.message || errData?.message || postErr.message;
+      if (payload.from && (postErr.response?.status === 403 || postErr.response?.status === 409 || apiErr.includes('has not been registered') || apiErr.includes('not been registered') || apiErr.includes('WABA'))) {
+        logger.warn(`[sendYcloudWhatsApp] Remetente ${payload.from} rejeitado (${apiErr}), tentando com remetente padrão +5527997599833...`);
+        payload.from = '+5527997599833';
+        try {
+          response = await axios.post(ycloudUrl, payload, {
+            headers: {
+              "X-API-Key": apiKey,
+              "Content-Type": "application/json"
+            }
+          });
+        } catch (retryErr: any) {
+          logger.warn(`[sendYcloudWhatsApp] Falhou com +5527997599833, tentando sem 'from'...`);
+          delete payload.from;
+          response = await axios.post(ycloudUrl, payload, {
+            headers: {
+              "X-API-Key": apiKey,
+              "Content-Type": "application/json"
+            }
+          });
+        }
+      } else {
+        throw postErr;
       }
-    });
+    }
     
     logger.info(`Mensagem real enviada com sucesso! ID: ${response.data.id}`);
         // Log in Firestore
@@ -2017,14 +2112,72 @@ export const sendYcloudWhatsApp = onCall({ maxInstances: 10 }, async (request) =
 
 
 
+function parseFirestoreDate(rawDate: any): Date | null {
+  if (!rawDate) return null;
+  if (rawDate instanceof Date) {
+    return isNaN(rawDate.getTime()) ? null : rawDate;
+  }
+  if (typeof rawDate.toDate === 'function') {
+    try {
+      const d = rawDate.toDate();
+      if (d instanceof Date && !isNaN(d.getTime())) return d;
+    } catch (e) {}
+  }
+  if (typeof rawDate === 'object' && ('_seconds' in rawDate || 'seconds' in rawDate)) {
+    const sec = rawDate._seconds !== undefined ? rawDate._seconds : rawDate.seconds;
+    const ms = sec * 1000 + (rawDate._nanoseconds || rawDate.nanoseconds || 0) / 1000000;
+    const d = new Date(ms);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (typeof rawDate === 'number') {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) return d;
+  }
+  if (typeof rawDate === 'string') {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+function formatAppointmentDateTime(rawDate: any, fallbackTime?: string): { dateStr: string; timeStr: string } {
+  const parsedDate = parseFirestoreDate(rawDate);
+  if (!parsedDate) {
+    return {
+      dateStr: typeof rawDate === 'string' && rawDate.trim() && rawDate !== 'Invalid Date' ? rawDate : 'a combinar',
+      timeStr: fallbackTime && fallbackTime !== 'Invalid Date' ? fallbackTime : 'horário agendado'
+    };
+  }
+
+  const dateStr = parsedDate.toLocaleDateString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+
+  let timeStr = fallbackTime && fallbackTime.trim() !== '' && fallbackTime !== 'horário agendado' ? fallbackTime : '';
+  if (!timeStr) {
+    timeStr = parsedDate.toLocaleTimeString('pt-BR', {
+      timeZone: 'America/Sao_Paulo',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  return { dateStr, timeStr: timeStr || 'horário agendado' };
+}
+
 export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId}/appointments/{appointmentId}", async (event: any) => {
   const snap = event.data;
   if (!snap) return;
   const appointment = snap.data();
   const orgId = event.params.orgId;
-     logger.info(`[triggerDeliveryRouteUpdated] Rota ${event.params.routeId} iniciada. orgId: ${orgId}`);
+  const appointmentId = event.params.appointmentId;
+  logger.info(`[triggerAppointmentCreated] Nova consulta ${appointmentId} criada na organização ${orgId}`);
   
   const db = admin.firestore();
+  if (!appointment.patientId) return;
   const patientSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appointment.patientId).get();
   if (!patientSnap.exists) return;
   const patient = patientSnap.data() as any;
@@ -2032,25 +2185,26 @@ export const triggerAppointmentCreated = onDocumentCreated("organizations/{orgId
   const phone = patient.phone || patient.whatsapp;
   if (!phone) return;
   
-  const dateStr = new Date(appointment.date).toLocaleDateString("pt-BR");
-  const timeStr = appointment.startTime;
+  const { dateStr, timeStr } = formatAppointmentDateTime(appointment.date, appointment.startTime || appointment.time);
+  const patientName = patient.name || 'Paciente';
   
   let cleanPhone = phone.replace(/\D/g, "");
   if (cleanPhone.length === 10 || cleanPhone.length === 11) {
     cleanPhone = "55" + cleanPhone;
   }
   await db.collection("ycloudSessions").doc(cleanPhone).set({
-    appointmentId: event.params.appointmentId,
+    appointmentId: appointmentId,
     orgId: orgId,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   });
   
   try {
     await communicationService.sendTemplateMessage(orgId, phone, "CLINIC", "CLINIC_APPOINTMENT", {
-      patient_name: patient.name,
+      patient_name: patientName,
       date: dateStr,
       time: timeStr
     });
+    logger.info(`[triggerAppointmentCreated] WhatsApp enviado com sucesso para ${patientName} (${phone}) - Data: ${dateStr} às ${timeStr}`);
   } catch (err: any) {
     logger.warn(`[triggerAppointmentCreated] Erro ao enviar WhatsApp via Ycloud para ${phone}: ${err.message}`);
   }
@@ -2178,23 +2332,48 @@ export const triggerSupplierOrderUpdated = onDocumentUpdated("supplierOrders/{or
 export const ycloudWebhook = onRequest(async (req: any, res: any) => {
   const db = admin.firestore();
   try {
-    const event = req.body;
+    const event = req.body || {};
+
+    // 1. Handle Status Update Events from YCloud
+    if (event.type === "whatsapp.message.updated" && event.whatsappMessage) {
+      const msg = event.whatsappMessage;
+      const ycloudId = msg.id;
+      const wamid = msg.wamid;
+      const status = (msg.status || "").toUpperCase();
+
+      logger.info(`[ycloudWebhook] Status update for ${ycloudId} (wamid: ${wamid}) -> ${status}`);
+
+      if (ycloudId) {
+        const logsSnap = await db.collection("message_logs").where("sid", "==", ycloudId).get();
+        for (const doc of logsSnap.docs) {
+          await doc.ref.update({
+            status: status || "DELIVERED",
+            error: msg.error?.message || null,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            deliverTime: msg.deliverTime || null
+          });
+        }
+      }
+      res.status(200).json({ success: true, received: true });
+      return;
+    }
+
+    // 2. Handle Inbound Messages
     let from = "";
     let msg = "";
 
-    if (event.type === "whatsappInboundMessage") {
-      from = event.whatsappInboundMessage?.from || "";
-      msg = event.whatsappInboundMessage?.text?.body || "";
+    if (event.type === "whatsappInboundMessage" || event.type === "whatsapp.inbound_message") {
+      from = event.whatsappInboundMessage?.from || event.whatsappMessage?.from || "";
+      msg = event.whatsappInboundMessage?.text?.body || event.whatsappMessage?.text?.body || "";
     } else {
-      // Fallback para outros formatos ou testes
-      from = event.from || event.From || event.whatsappInboundMessage?.from || "";
-      msg = (event.text?.body || event.Body || event.whatsappInboundMessage?.text?.body || "").trim();
+      from = event.from || event.From || event.whatsappInboundMessage?.from || event.whatsappMessage?.from || "";
+      msg = (event.text?.body || event.Body || event.whatsappInboundMessage?.text?.body || event.whatsappMessage?.text?.body || "").trim();
     }
     
     logger.info("Recebido webhook do Ycloud", { from, msg });
     
     if (!from || !msg) {
-      res.status(200).send("OK");
+      res.status(200).json({ success: true, ignored: true });
       return;
     }
 
@@ -2205,7 +2384,7 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
       // Fallback check twilioSessions for transition period
       const oldSessionSnap = await db.collection("twilioSessions").doc(cleanPhone).get();
       if (!oldSessionSnap.exists) {
-         res.status(200).send("OK");
+         res.status(200).json({ success: true, noSession: true });
          return;
       }
     }
@@ -2258,8 +2437,9 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
             const apptSnap = await db.collection("organizations").doc(orgId).collection("appointments").doc(appointmentId).get();
             if (apptSnap.exists) {
                const appt = apptSnap.data() as any;
-               dateStr = new Date(appt.date).toLocaleDateString("pt-BR");
-               timeStr = appt.startTime || "";
+               const formatted = formatAppointmentDateTime(appt.date, appt.startTime || appt.time);
+               dateStr = formatted.dateStr;
+               timeStr = formatted.timeStr;
                const patSnap = await db.collection("organizations").doc(orgId).collection("patients").doc(appt.patientId).get();
                if (patSnap.exists) {
                    patientName = (patSnap.data() as any).name;
@@ -2279,15 +2459,13 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
       const globalConfig = await getYcloudConfig();
       let apiKey = globalConfig.apiKey;
       let fromNumber = globalConfig.fromNumber;
-      
 
-      
       if (apiKey && apiKey !== "your_ycloud_api_key_here") {
         const ycloudUrl = `https://api.ycloud.com/v2/whatsapp/messages`;
         
         await axios.post(ycloudUrl, {
           to: `+${cleanPhone}`,
-          from: `+${fromNumber.replace(/\D/g, "")}`,
+          from: fromNumber ? `+${fromNumber.replace(/\D/g, "")}` : undefined,
           type: "text",
           text: {
             body: responseMsg
@@ -2301,10 +2479,10 @@ export const ycloudWebhook = onRequest(async (req: any, res: any) => {
       await db.collection("twilioSessions").doc(cleanPhone).delete();
     }
     
-    res.status(200).send("OK");
-  } catch (error) {
+    res.status(200).json({ success: true });
+  } catch (error: any) {
     logger.error("Erro no ycloudWebhook", error);
-    res.status(200).send("Erro");
+    res.status(200).json({ success: false, error: error.message });
   }
 });
 

@@ -57,8 +57,10 @@ import { TutorialsView } from './pages/TutorialsView';
 import { HelpdeskWorkspace } from './pages/HelpdeskWorkspace';
 import { TermsOfUse } from './pages/TermsOfUse';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
+import { SupplierTermsAndGuidelines } from './pages/SupplierTermsAndGuidelines';
 import { RequisitionInvite } from './pages/RequisitionInvite';
 import { SupplierDashboard } from './pages/supplier/Dashboard';
+import { SupplierChat } from './pages/supplier/Chat';
 import { SupplierProducts } from './pages/supplier/Products';
 import { SupplierCoupons } from './pages/supplier/Coupons';
 import { SupplierSettings } from './pages/supplier/Settings';
@@ -152,15 +154,17 @@ const AppContent = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register-lab" element={<RegisterOrganization />} />
       <Route path="/terms" element={<TermsOfUse />} />
+      <Route path="/supplier-terms" element={<SupplierTermsAndGuidelines />} />
+      <Route path="/termos-fornecedores" element={<SupplierTermsAndGuidelines />} />
       <Route path="/bio" element={<BioPage />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/requisition-invite" element={<RequisitionInvite />} />
       
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/new-job" element={<ProtectedRoute><NewJob /></ProtectedRoute>} />
-      <Route path="/budgets" element={<ProtectedRoute><JobsList isBudgetMode={true} /></ProtectedRoute>} />
+      <Route path="/budgets" element={<ProtectedRoute><JobsList key="budgets" isBudgetMode={true} /></ProtectedRoute>} />
       <Route path="/new-budget" element={<ProtectedRoute><NewJob isBudget={true} /></ProtectedRoute>} />
-      <Route path="/jobs" element={<ProtectedRoute><JobsList /></ProtectedRoute>} />
+      <Route path="/jobs" element={<ProtectedRoute><JobsList key="jobs" /></ProtectedRoute>} />
       <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
       <Route path="/nfc" element={<ProtectedRoute><NFCReader /></ProtectedRoute>} />
       <Route path="/commissions" element={<ProtectedRoute><Commissions /></ProtectedRoute>} />
@@ -209,6 +213,7 @@ const AppContent = () => {
       <Route path="/my-cases" element={<ProtectedRoute><DentistCases /></ProtectedRoute>} />
 
       <Route path="/supplier/dashboard" element={<ProtectedRoute><SupplierDashboard /></ProtectedRoute>} />
+      <Route path="/supplier/chat" element={<ProtectedRoute><SupplierChat /></ProtectedRoute>} />
       <Route path="/supplier/products" element={<ProtectedRoute><SupplierProducts /></ProtectedRoute>} />
       <Route path="/supplier/coupons" element={<ProtectedRoute><SupplierCoupons /></ProtectedRoute>} />
       <Route path="/supplier/settings" element={<ProtectedRoute><SupplierSettings /></ProtectedRoute>} />

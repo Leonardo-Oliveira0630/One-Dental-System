@@ -1,13 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types';
-import { UserCircle, Mail, Shield, Building, Briefcase, Key, CheckCircle, Loader2, Bell, BellOff, Info, Trash2, AlertTriangle, ShieldAlert, X, Send, Lock } from 'lucide-react';
+import { 
+  UserCircle, Mail, Shield, Building, Briefcase, Key, CheckCircle, Loader2, 
+  Bell, BellOff, Info, Trash2, AlertTriangle, ShieldAlert, X, Send, Lock,
+  Sun, Moon, Check, Palette, Globe, Languages
+} from 'lucide-react';
 import * as api from '../services/firebaseService';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../src/i18n';
 
 export const Profile = () => {
-  const { currentUser } = useApp();
+  const { currentUser, theme, setTheme, language, setLanguage } = useApp();
+  const { t } = useTranslation();
   const navigate = useNavigate();
+  const [changingLang, setChangingLang] = useState(false);
 
   const [loadingReset, setLoadingReset] = useState(false);
   const [loadingPush, setLoadingPush] = useState(false);
@@ -145,27 +153,30 @@ export const Profile = () => {
 
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
-      case UserRole.ADMIN: return 'bg-purple-100 text-purple-700 border-purple-200';
-      case UserRole.MANAGER: return 'bg-orange-100 text-orange-700 border-orange-200';
-      case UserRole.COLLABORATOR: return 'bg-blue-100 text-blue-700 border-blue-200';
-      case UserRole.CLIENT: return 'bg-teal-100 text-teal-700 border-teal-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+      case UserRole.ADMIN: return 'bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+      case UserRole.MANAGER: return 'bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800';
+      case UserRole.COLLABORATOR: return 'bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+      case UserRole.CLIENT: return 'bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800';
+      default: return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700';
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-12">
-      <h1 className="text-2xl font-bold text-slate-900">Meu Perfil</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Meu Perfil</h1>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:p-6">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="bg-slate-50 p-6 border-b border-slate-100 flex flex-col md:flex-row items-center gap-4 sm:p-6">
-              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-4xl font-bold text-slate-300 border-4 border-white shadow-sm">
+          {/* CARTÃO DE DADOS PESSOAIS */}
+          <div className="bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+            <div className="bg-slate-50 dark:bg-[#0B0F17] p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center gap-4 sm:p-6">
+              <div className="w-24 h-24 bg-white dark:bg-[#131B2A] rounded-full flex items-center justify-center text-4xl font-bold text-slate-400 dark:text-slate-300 border-4 border-white dark:border-slate-800 shadow-sm">
                 {currentUser.name.charAt(0)}
               </div>
               <div className="text-center md:text-left">
-                <h2 className="text-2xl font-bold text-slate-900">{currentUser.name}</h2>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{currentUser.name}</h2>
                 <div className={`mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${getRoleBadge(currentUser.role)}`}>
                   <Shield size={12} />
                   {currentUser.role}
@@ -173,11 +184,11 @@ export const Profile = () => {
               </div>
             </div>
 
-            <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6">
+            <div className="px-4 pb-4 sm:px-6 sm:pb-6 space-y-6 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
                 <div>
                   <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">Email</label>
-                  <div className="flex items-center gap-2 text-slate-800 bg-slate-50 p-3 rounded-xl border border-slate-200 font-medium">
+                  <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 font-medium">
                     <Mail size={18} className="text-slate-400" />
                     {currentUser.email}
                   </div>
@@ -190,31 +201,31 @@ export const Profile = () => {
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
                       placeholder="Ex: 11999999999"
-                      className="flex-1 bg-slate-50 p-3 rounded-xl border border-slate-200 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       onClick={handleSavePhone}
                       disabled={savingPhone}
-                      className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2"
+                      className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center gap-2 shadow-sm"
                     >
-                      {savingPhone ? 'Salvando...' : 'Salvar'}
+                      {savingPhone ? t('common.saving', 'Salvando...') : t('common.save', 'Salvar')}
                     </button>
                   </div>
                 </div>
                 {currentUser.role === UserRole.CLIENT ? (
                   <div className="md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">Clínica</label>
-                    <div className="flex items-center gap-2 text-slate-800 bg-teal-50 p-3 rounded-xl border border-teal-100 font-bold">
-                      <Building size={18} className="text-teal-600" />
-                      {currentUser.clinicName || 'Não informada'}
+                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">{t('profile.clinic', 'Clínica')}</label>
+                    <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 bg-teal-50 dark:bg-teal-950/30 p-3 rounded-xl border border-teal-100 dark:border-teal-900/40 font-bold">
+                      <Building size={18} className="text-teal-600 dark:text-teal-400" />
+                      {currentUser.clinicName || t('common.notInformed', 'Não informada')}
                     </div>
                   </div>
                 ) : (
                   <div className="md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">Setor</label>
-                    <div className="flex items-center gap-2 text-slate-800 bg-blue-50 p-3 rounded-xl border border-blue-100 font-bold">
-                      <Briefcase size={18} className="text-blue-600" />
-                      {currentUser.sector || 'Geral'}
+                    <label className="text-[10px] font-black text-slate-400 uppercase block mb-1 tracking-widest">{t('profile.sector', 'Setor')}</label>
+                    <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 bg-blue-50 dark:bg-blue-950/30 p-3 rounded-xl border border-blue-100 dark:border-blue-900/40 font-bold">
+                      <Briefcase size={18} className="text-blue-600 dark:text-blue-400" />
+                      {currentUser.sector || t('profile.generalSector', 'Geral')}
                     </div>
                   </div>
                 )}
@@ -222,52 +233,216 @@ export const Profile = () => {
             </div>
           </div>
 
+          {/* PAINEL DE IDIOMA E LOCALIZAÇÃO */}
+          <div className="bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <Globe size={18} className="text-blue-500" />
+                {t('settings.languageSection', 'Idioma e Localização')}
+              </h3>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 flex items-center gap-1">
+                <Languages size={12} />
+                {SUPPORTED_LANGUAGES.find(l => l.code === language)?.name || 'Português'}
+              </span>
+            </div>
+            
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              {t('settings.languageDescription', 'Escolha o idioma principal para a interface do aplicativo. A preferência é salva no seu perfil e sincronizada.')}
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              {SUPPORTED_LANGUAGES.map((langItem) => {
+                const isSelected = language === langItem.code;
+                return (
+                  <button
+                    key={langItem.code}
+                    type="button"
+                    disabled={changingLang}
+                    onClick={async () => {
+                      if (changingLang || isSelected) return;
+                      setChangingLang(true);
+                      await setLanguage(langItem.code as SupportedLanguage);
+                      setChangingLang(false);
+                    }}
+                    className={`p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden flex items-center justify-between gap-3 cursor-pointer ${
+                      isSelected
+                        ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 shadow-md ring-2 ring-blue-500/20'
+                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl leading-none">{langItem.flag}</span>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{langItem.name}</h4>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">{langItem.code}</span>
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                        <Check size={14} strokeWidth={3} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* PAINEL DE APARÊNCIA E TEMA (CLARO OU ESCURO) */}
+          <div className="bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <Palette size={18} className="text-cyan-500" />
+                {t('profile.appearanceAndTheme', 'Aparência e Tema do Sistema')}
+              </h3>
+              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                theme === 'dark' 
+                  ? 'bg-cyan-950/60 text-cyan-300 border border-cyan-800' 
+                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+              }`}>
+                {theme === 'dark' ? t('profile.darkModeActive', 'Modo Escuro Ativo') : t('profile.lightModeActive', 'Modo Claro Ativo')}
+              </span>
+            </div>
+            
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              {t('profile.appearanceDesc', 'Defina a preferência visual da sua interface. O tema escolhido fica gravado no seu perfil e sincronizado em todas as telas e dispositivos.')}
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              {/* OPÇÃO TEMA CLARO */}
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                className={`p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden flex flex-col justify-between gap-3 group cursor-pointer ${
+                  theme === 'light'
+                    ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20 shadow-md ring-2 ring-blue-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                      theme === 'light' ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                    }`}>
+                      <Sun size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('profile.lightTheme', 'Tema Claro')}</h4>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('profile.daytimeDefault', 'Padrão Diurno')}</span>
+                    </div>
+                  </div>
+                  {theme === 'light' && (
+                    <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <Check size={14} strokeWidth={3} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Mini Preview Visual Claro */}
+                <div className="w-full h-14 bg-slate-100 rounded-xl p-2 flex flex-col justify-between border border-slate-200/80">
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-2.5 bg-blue-600 rounded-md" />
+                    <div className="w-4 h-2.5 bg-slate-300 rounded-md" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="h-4 bg-white rounded-md border border-slate-200" />
+                    <div className="h-4 bg-white rounded-md border border-slate-200" />
+                    <div className="h-4 bg-white rounded-md border border-slate-200" />
+                  </div>
+                </div>
+              </button>
+
+              {/* OPÇÃO TEMA ESCURO */}
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                className={`p-4 rounded-2xl border-2 text-left transition-all relative overflow-hidden flex flex-col justify-between gap-3 group cursor-pointer ${
+                  theme === 'dark'
+                    ? 'border-cyan-500 bg-cyan-950/20 shadow-md ring-2 ring-cyan-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${
+                      theme === 'dark' ? 'bg-cyan-500 text-slate-950 shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                    }`}>
+                      <Moon size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t('profile.darkTheme', 'Tema Escuro')}</h4>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('profile.highContrastDark', 'Dark Mode de Alto Contraste')}</span>
+                    </div>
+                  </div>
+                  {theme === 'dark' && (
+                    <div className="w-6 h-6 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center shrink-0 shadow-sm">
+                      <Check size={14} strokeWidth={3} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Mini Preview Visual Escuro */}
+                <div className="w-full h-14 bg-[#0B0F17] rounded-xl p-2 flex flex-col justify-between border border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div className="w-12 h-2.5 bg-cyan-500 rounded-md" />
+                    <div className="w-4 h-2.5 bg-slate-700 rounded-md" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <div className="h-4 bg-[#131B2A] rounded-md border border-slate-800" />
+                    <div className="h-4 bg-[#131B2A] rounded-md border border-slate-800" />
+                    <div className="h-4 bg-[#131B2A] rounded-md border border-slate-800" />
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* PAINEL DE NOTIFICAÇÕES */}
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
-            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
-              <Bell size={18} className="text-blue-500" /> Notificações Push
+          <div className="bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 p-4 sm:p-6">
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+              <Bell size={18} className="text-blue-500" /> {t('profile.pushNotifications', 'Notificações Push')}
             </h3>
             <div className="flex flex-col md:flex-row items-center gap-4 sm:p-6">
-              <div className={`p-4 rounded-full ${notificationStatus === 'granted' ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
+              <div className={`p-4 rounded-full ${notificationStatus === 'granted' ? 'bg-green-100 dark:bg-green-950/60 text-green-600 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
                 {notificationStatus === 'granted' ? <Bell size={32} /> : <BellOff size={32} />}
               </div>
               <div className="flex-1 text-center md:text-left">
-                <p className="font-bold text-slate-800">
-                  {notificationStatus === 'granted' ? 'Notificações Ativadas!' : 'Ative as notificações deste dispositivo'}
+                <p className="font-bold text-slate-800 dark:text-slate-100">
+                  {notificationStatus === 'granted' ? t('profile.notificationsActive', 'Notificações Ativadas!') : t('profile.enableNotificationsDevice', 'Ative as notificações deste dispositivo')}
                 </p>
-                <p className="text-sm text-slate-500 mt-1 leading-relaxed">
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                   {currentUser.role === UserRole.CLIENT 
-                    ? 'Receba alertas sobre o status dos seus pedidos e promoções exclusivas.' 
-                    : 'Receba avisos imediatos sobre alarmes de urgência no seu setor.'}
+                    ? t('profile.clientNotificationsDesc', 'Receba alertas sobre o status dos seus pedidos e promoções exclusivas.') 
+                    : t('profile.staffNotificationsDesc', 'Receba avisos imediatos sobre alarmes de urgência no seu setor.')}
                 </p>
               </div>
               <button 
                 onClick={handleEnableNotifications}
                 disabled={loadingPush || notificationStatus === 'granted'}
-                className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg ${notificationStatus === 'granted' ? 'bg-slate-100 text-slate-400 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
+                className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg ${notificationStatus === 'granted' ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-default' : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'}`}
               >
-                {loadingPush ? <Loader2 className="animate-spin" size={18}/> : notificationStatus === 'granted' ? <><CheckCircle size={18}/> Ativado</> : 'Ativar Agora'}
+                {loadingPush ? <Loader2 className="animate-spin" size={18}/> : notificationStatus === 'granted' ? <><CheckCircle size={18}/> {t('common.enabled', 'Ativado')}</> : t('profile.enableNow', 'Ativar Agora')}
               </button>
             </div>
             {notificationStatus === 'denied' && (
-              <div className="mt-4 p-3 bg-red-50 text-red-600 text-xs rounded-xl flex gap-2 items-center">
-                <Info size={14}/> <strong>Atenção:</strong> Você bloqueou as notificações. Reative nas configurações do navegador para funcionar.
+              <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs rounded-xl flex gap-2 items-center border border-red-200 dark:border-red-900/40">
+                <Info size={14}/> <strong>{t('common.attention', 'Atenção')}:</strong> {t('profile.blockedNotificationsWarning', 'Você bloqueou as notificações. Reative nas configurações do navegador para funcionar.')}
               </div>
             )}
           </div>
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Key size={18} className="text-blue-500" /> Segurança</h3>
+          <div className="bg-white dark:bg-[#131B2A] p-4 sm:p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800">
+            <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2"><Key size={18} className="text-blue-500" /> {t('profile.security', 'Segurança')}</h3>
             {resetRequested ? (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-center">
-                <CheckCircle size={32} className="text-green-600 mx-auto mb-2" />
-                <p className="text-green-800 font-bold text-sm">Link enviado!</p>
+              <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl text-center">
+                <CheckCircle size={32} className="text-green-600 dark:text-green-400 mx-auto mb-2" />
+                <p className="text-green-800 dark:text-green-300 font-bold text-sm">{t('profile.linkSent', 'Link enviado!')}</p>
               </div>
             ) : (
-              <button onClick={handleRequestPasswordReset} disabled={loadingReset} className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
-                {loadingReset ? <Loader2 className="animate-spin" size={18}/> : <><Mail size={18}/> Resetar Senha</>}
+              <button onClick={handleRequestPasswordReset} disabled={loadingReset} className="w-full py-3 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
+                {loadingReset ? <Loader2 className="animate-spin" size={18}/> : <><Mail size={18}/> {t('profile.resetPassword', 'Resetar Senha')}</>}
               </button>
             )}
           </div>
@@ -275,21 +450,21 @@ export const Profile = () => {
       </div>
 
       {/* ZONA DE PERIGO - EXCLUSÃO DE CONTA E SISTEMA (LGPD) */}
-      <div className="bg-rose-50/70 border border-rose-200/80 rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 space-y-4 shadow-sm">
+      <div className="bg-rose-50/70 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 space-y-4 shadow-sm">
         <div className="flex items-start gap-4">
           <div className="p-3.5 bg-rose-600 text-white rounded-2xl shadow-md shrink-0">
             <Trash2 size={24} />
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-black text-rose-950">
+              <h3 className="text-lg font-black text-rose-950 dark:text-rose-200">
                 {isAdmin ? 'Excluir Minha Conta e Apagar Todo o Sistema' : 'Excluir Minha Conta de Usuário'}
               </h3>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-200 text-rose-900">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-rose-200 dark:bg-rose-900/60 text-rose-900 dark:text-rose-200">
                 LGPD / Direitos do Titular
               </span>
             </div>
-            <p className="text-xs md:text-sm text-rose-800/90 font-medium leading-relaxed">
+            <p className="text-xs md:text-sm text-rose-800/90 dark:text-rose-300/90 font-medium leading-relaxed">
               {isAdmin ? (
                 <>
                   Ao ser Administrador, a execução desta opção irá <strong>DELETAR PERMANENTEMENTE</strong> toda a sua conta e <strong>TODO O SEU SISTEMA DA ORGANIZAÇÃO</strong> (usuários vinculados, colaboradores, clientes, produtos/serviços, casos/OS, requisições, anexos, históricos e dados financeiros). Esta ação é irreversível e exige confirmação via código enviado por e-mail.
@@ -312,7 +487,7 @@ export const Profile = () => {
               setConfirmWord('');
               setCodeError('');
             }}
-            className="px-6 py-3 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold rounded-2xl shadow-md shadow-rose-600/20 transition-all text-xs md:text-sm flex items-center gap-2"
+            className="px-6 py-3 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold rounded-2xl shadow-md shadow-rose-600/20 transition-all text-xs md:text-sm flex items-center gap-2 cursor-pointer"
           >
             <ShieldAlert size={18} />
             {isAdmin ? 'Solicitar Exclusão do Sistema' : 'Solicitar Exclusão da Minha Conta'}
@@ -323,27 +498,27 @@ export const Profile = () => {
       {/* MODAL DE CONFIRMAÇÃO POR E-MAIL & EXCLUSÃO */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black/70 z-[120] flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 md:p-4 sm:p-8 shadow-2xl border border-slate-100 space-y-6 relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-[#131B2A] rounded-3xl max-w-lg w-full p-4 sm:p-6 md:p-4 sm:p-8 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-6 relative animate-in zoom-in-95 duration-200">
             {/* CLOSE BUTTON */}
             {!isDeleting && (
               <button
                 onClick={() => setIsDeleteModalOpen(false)}
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"
               >
                 <X size={20} />
               </button>
             )}
 
             {/* MODAL HEADER */}
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="p-3 bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 rounded-2xl">
                 <AlertTriangle size={24} />
               </div>
               <div>
-                <h3 className="text-xl font-black text-slate-900">
+                <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">
                   {isAdmin ? 'Apagar Sistema Completo' : 'Apagar Minha Conta'}
                 </h3>
-                <p className="text-xs text-slate-500 font-medium">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                   Confirmação de segurança jurídica e LGPD por e-mail
                 </p>
               </div>
@@ -352,12 +527,12 @@ export const Profile = () => {
             {/* STEP 1: INTENT & REQUEST EMAIL CODE */}
             {deleteStep === 'CONFIRM_INTENT' && (
               <div className="space-y-5">
-                <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-2">
-                  <p className="text-xs font-bold text-rose-900 uppercase tracking-wider flex items-center gap-1.5">
-                    <ShieldAlert size={16} className="text-rose-600" />
+                <div className="p-4 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-2xl space-y-2">
+                  <p className="text-xs font-bold text-rose-900 dark:text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldAlert size={16} className="text-rose-600 dark:text-rose-400" />
                     Aviso Legal de Exclusão Definitiva
                   </p>
-                  <p className="text-xs text-rose-800 leading-relaxed font-medium">
+                  <p className="text-xs text-rose-800 dark:text-rose-300/80 leading-relaxed font-medium">
                     {isAdmin ? (
                       <>
                         Você está prestes a excluir <strong>TODOS OS DADOS DO SISTEMA</strong> da organização <strong>{currentUser.organizationId}</strong>. Todos os usuários, clientes, trabalhos, arquivos e históricos serão destruídos e não poderão ser recuperados.
@@ -374,7 +549,7 @@ export const Profile = () => {
                   <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
                     Endereço de E-mail de Confirmação
                   </label>
-                  <div className="flex items-center gap-2 p-3 bg-slate-100 rounded-2xl text-sm font-bold text-slate-800 border border-slate-200">
+                  <div className="flex items-center gap-2 p-3 bg-slate-100 dark:bg-slate-900 rounded-2xl text-sm font-bold text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700">
                     <Mail size={18} className="text-slate-500" />
                     {currentUser.email}
                   </div>
@@ -384,7 +559,7 @@ export const Profile = () => {
                 </div>
 
                 {codeError && (
-                  <div className="p-3 bg-rose-100 text-rose-700 text-xs rounded-xl font-semibold">
+                  <div className="p-3 bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-xs rounded-xl font-semibold border border-rose-200 dark:border-rose-800">
                     {codeError}
                   </div>
                 )}
@@ -392,7 +567,7 @@ export const Profile = () => {
                 <button
                   onClick={handleRequestDeleteCode}
                   disabled={sendingCode}
-                  className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50"
+                  className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 transition-all text-sm disabled:opacity-50 cursor-pointer"
                 >
                   {sendingCode ? (
                     <>
@@ -412,24 +587,24 @@ export const Profile = () => {
             {/* STEP 2: ENTER CODE & CONFIRM DELETION */}
             {deleteStep === 'CODE_INPUT' && (
               <div className="space-y-5">
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-1">
-                  <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-                    <Mail size={16} className="text-amber-600" />
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-2xl space-y-1">
+                  <p className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                    <Mail size={16} className="text-amber-600 dark:text-amber-400" />
                     Código Enviado por E-mail!
                   </p>
-                  <p className="text-xs text-amber-800 font-medium">
+                  <p className="text-xs text-amber-800 dark:text-amber-300/80 font-medium">
                     Um código de 6 dígitos foi encaminhado para <strong>{currentUser.email}</strong>. Digite-o abaixo para autorizar.
                   </p>
                   {generatedCodeHint && (
-                    <div className="mt-2 p-2 bg-amber-100/80 rounded-xl text-[11px] text-amber-900 font-mono font-bold">
-                      Código de confirmação: <span className="bg-white px-2 py-0.5 rounded border border-amber-300 text-rose-700">{generatedCodeHint}</span>
+                    <div className="mt-2 p-2 bg-amber-100/80 dark:bg-amber-900/40 rounded-xl text-[11px] text-amber-900 dark:text-amber-200 font-mono font-bold">
+                      Código de confirmação: <span className="bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700 text-rose-700 dark:text-rose-400">{generatedCodeHint}</span>
                     </div>
                   )}
                 </div>
 
                 {/* 6-DIGIT CODE INPUT */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block">
+                  <label className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                     Código de Confirmação (6 dígitos)
                   </label>
                   <div className="relative">
@@ -440,27 +615,27 @@ export const Profile = () => {
                       value={inputCode}
                       onChange={(e) => setInputCode(e.target.value.replace(/\D/g, ''))}
                       placeholder="000000"
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-2xl text-xl font-mono font-black text-center tracking-widest text-slate-900 focus:outline-none focus:border-rose-500 transition-all"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl text-xl font-mono font-black text-center tracking-widest text-slate-900 dark:text-slate-100 focus:outline-none focus:border-rose-500 transition-all"
                     />
                   </div>
                 </div>
 
                 {/* CONFIRMATION WORD INPUT */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block">
-                    Digite a palavra <span className="text-rose-600 font-black">EXCLUIR</span> para destravar
+                  <label className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                    Digite a palavra <span className="text-rose-600 dark:text-rose-400 font-black">EXCLUIR</span> para destravar
                   </label>
                   <input
                     type="text"
                     value={confirmWord}
                     onChange={(e) => setConfirmWord(e.target.value)}
                     placeholder="EXCLUIR"
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-center text-slate-900 focus:outline-none focus:border-rose-500 transition-all uppercase"
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold text-center text-slate-900 dark:text-slate-100 focus:outline-none focus:border-rose-500 transition-all uppercase"
                   />
                 </div>
 
                 {codeError && (
-                  <div className="p-3 bg-rose-100 text-rose-700 text-xs rounded-xl font-semibold">
+                  <div className="p-3 bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-xs rounded-xl font-semibold border border-rose-200 dark:border-rose-800">
                     {codeError}
                   </div>
                 )}
@@ -469,14 +644,14 @@ export const Profile = () => {
                   <button
                     onClick={() => setDeleteStep('CONFIRM_INTENT')}
                     disabled={isDeleting}
-                    className="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs transition-all"
+                    className="w-1/3 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition-all cursor-pointer"
                   >
                     Voltar
                   </button>
                   <button
                     onClick={handleExecuteDeletion}
                     disabled={isDeleting || inputCode.length < 6 || confirmWord.trim().toUpperCase() !== 'EXCLUIR'}
-                    className="w-2/3 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 transition-all text-xs md:text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-2/3 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-2xl shadow-lg shadow-rose-600/20 flex items-center justify-center gap-2 transition-all text-xs md:text-sm disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {isDeleting ? (
                       <>
@@ -499,8 +674,8 @@ export const Profile = () => {
               <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
                 <Loader2 size={48} className="animate-spin text-rose-600" />
                 <div className="space-y-1">
-                  <h4 className="text-lg font-bold text-slate-900">Processando Exclusão Definitiva...</h4>
-                  <p className="text-xs text-slate-500 max-w-xs">
+                  <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">Processando Exclusão Definitiva...</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
                     Limpando dados do banco de dados e removendo credenciais do sistema de acordo com as normas da LGPD.
                   </p>
                 </div>

@@ -8,6 +8,8 @@ import NumberFlow from "@number-flow/react";
 import { motion } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { SubscriptionPlan } from "../../types";
+import { getDetailedPlanFeatures, PlanFeatureItem, isPlanPrivate } from "../../utils/planFeatures";
+import { Check, X, Lock, Sparkles } from "lucide-react";
 
 interface PricingProps {
   plans: SubscriptionPlan[];
@@ -43,30 +45,6 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
       y: -20,
       opacity: 0,
     },
-  };
-
-  const getFeaturesList = (plan: SubscriptionPlan) => {
-    const list = [];
-    if (regType === 'LAB' && plan.features.isLabFreeStoreOnly) {
-        list.push("Receber Pedidos Online Grátis", "Acesso ao App dos Dentistas Grátis");
-        return list;
-    }
-    
-    if (plan.features.maxUsers === 999999) list.push("Usuários Ilimitados");
-    else list.push(`Até ${plan.features.maxUsers} usuários`);
-    
-    if (plan.features.maxJobsPerMonth === 999999) list.push("Pedidos Ilimitados");
-    else list.push(`Até ${plan.features.maxJobsPerMonth} pedidos/mês`);
-    
-    if (plan.features.maxDentists === 999999) list.push("Clientes Ilimitados");
-    else list.push(`Até ${plan.features.maxDentists} clientes`);
-    
-    list.push(`${plan.features.maxStorageGB}GB de Armazenamento`);
-    
-    if (plan.features.hasStoreModule) list.push("Módulo de Loja Online");
-    if (plan.whatsappModulePrice !== undefined) list.push(`Módulo WhatsApp (+R$${plan.whatsappModulePrice.toFixed(2)})`);
-    
-    return list;
   };
 
   return (
@@ -132,8 +110,8 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl gap-4 py-6 px-4 mx-auto relative z-10`}>
         {plans.map((plan, index) => {
           const isSelected = selectedPlanId === plan.id;
-          const features = getFeaturesList(plan);
-          const popular = plan.price > 0 && plan.price < 200; // Just to highlight a middle plan visually
+          const features = getDetailedPlanFeatures(plan, regType);
+          const isExclusive = isPlanPrivate(plan);
 
           return (
             <TimelineContent
@@ -148,16 +126,23 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                 className={`relative text-white border transition-all duration-300 cursor-pointer h-full flex flex-col ${
                   isSelected
                     ? "bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 shadow-[0px_0px_30px_0px_#4f46e5] border-indigo-500 scale-[1.02] z-20"
+                    : isExclusive
+                    ? "bg-gradient-to-r from-slate-900 via-amber-950/40 to-slate-900 border-amber-500/40 hover:border-amber-400 z-10"
                     : "bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-slate-800 hover:border-slate-600 z-10"
                 }`}
                 onClick={() => onSelectPlan(plan.id)}
               >
+                {isExclusive && (
+                  <div className="absolute top-0 left-0 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-[10px] font-black px-3 py-1 rounded-br-xl shadow-md z-30 flex items-center gap-1">
+                    <Lock size={10} className="stroke-[3]" /> EXCLUSIVO PARA VOCÊ
+                  </div>
+                )}
                 {plan.trialDays && plan.trialDays > 0 && (
                   <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-black px-3 py-1 rounded-bl-xl shadow-sm z-30">
                     {plan.trialDays} DIAS GRÁTIS
                   </div>
                 )}
-                <CardHeader className="text-left pb-4">
+                <CardHeader className="text-left pb-4 pt-6">
                   <div className="flex justify-between">
                     <h3 className="text-xl font-bold uppercase tracking-wider text-slate-300 mb-2">{plan.name}</h3>
                   </div>
@@ -198,10 +183,24 @@ export default function PricingSection({ plans, selectedPlanId, onSelectPlan, ti
                       {features.map((feature, featureIndex) => (
                         <li
                           key={featureIndex}
-                          className="flex items-start gap-2 text-sm"
+                          className={`flex items-start gap-2 text-xs sm:text-sm ${
+                            !feature.included ? 'opacity-40 line-through text-slate-500' : 'text-slate-200'
+                          }`}
                         >
-                          <span className="h-2 w-2 mt-1.5 bg-indigo-400 rounded-full shrink-0"></span>
-                          <span className="text-slate-300 leading-tight">{feature}</span>
+                          {feature.included ? (
+                            <span className={`h-4 w-4 mt-0.5 rounded-full flex items-center justify-center shrink-0 ${
+                              feature.highlight ? 'bg-indigo-500 text-white' : 'bg-emerald-500/20 text-emerald-400'
+                            }`}>
+                              <Check size={10} strokeWidth={3} />
+                            </span>
+                          ) : (
+                            <span className="h-4 w-4 mt-0.5 rounded-full flex items-center justify-center shrink-0 bg-red-500/20 text-red-400">
+                              <X size={10} strokeWidth={3} />
+                            </span>
+                          )}
+                          <span className={`leading-tight ${feature.highlight ? 'font-bold text-white' : ''}`}>
+                            {feature.text}
+                          </span>
                         </li>
                       ))}
                     </ul>

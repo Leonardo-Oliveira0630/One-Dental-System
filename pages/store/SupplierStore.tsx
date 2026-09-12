@@ -1,81 +1,57 @@
-import { ProductReviews } from "./ProductReviews";
-import { MyOrdersTab } from "./MyOrdersTab";
-import * as api from '../../services/firebaseService';
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, query, where, getDocs, doc, updateDoc, increment } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { useApp } from '../../context/AppContext';
-import { InventoryItem, Organization, SupplierOrder, StoreLayoutBlock } from '../../types';
+import { InventoryItem, Organization, SupplierOrder } from '../../types';
 import { useNavigate, useLocation } from 'react-router-dom';
+import * as api from '../../services/firebaseService';
+
+// Subcomponents & Modals
 import { MarketplaceBanner } from '../../components/MarketplaceBanner';
 import { OfficialStores } from '../../components/OfficialStores';
-import { 
-  ShoppingBag, Search, Filter, ShoppingCart, Plus, Minus, Trash2, 
-  X, MapPin, CreditCard, Sparkles, Building2, Package, Check, 
-  ClipboardCheck, ArrowRight, CornerDownRight, Star, Heart, Flame, Gift, Grid, List, ChevronLeft, ChevronRight
-} from 'lucide-react';
+import { MyOrdersTab } from './MyOrdersTab';
+import { StoreProductCard } from './components/StoreProductCard';
+import { StoreProductDetailModal } from './components/StoreProductDetailModal';
+import { StoreCartDrawer, SupplierCartItem } from './components/StoreCartDrawer';
+import { StoreCheckoutModal } from './components/StoreCheckoutModal';
+import { StoreHeroBanner } from './components/StoreHeroBanner';
+import { StoreCategoryNav } from './components/StoreCategoryNav';
+import { SupplierStoreChatModal } from './components/SupplierStoreChatModal';
 
-interface SupplierCartItem {
-  id: string; // matches product ID + variation id (to allow distinct variations of same prod in cart)
-  product: InventoryItem;
-  quantity: number;
-  variation?: {
-    id: string;
-    name: string;
-    priceModifier: number;
-    imageUrl?: string;
-  };
-  selectedOptions?: {
-    groupId: string;
-    groupName: string;
-    optionId: string;
-    optionName: string;
-    priceModifier: number;
-  }[];
-  selectedTeeth?: string[];
-}
+import { 
+  ShoppingBag, Search, Filter, ShoppingCart, 
+  MapPin, Check, Sparkles, Building2, Package, 
+  ChevronLeft, ArrowUpDown, X, Tag, MessageSquare
+} from 'lucide-react';
 
 type SortOption = 'RELEVANCE' | 'LATEST' | 'SALES' | 'PRICE_ASC' | 'PRICE_DESC';
 
 export const SupplierStore = () => {
   const { 
-    allSuppliers, allSupplierProducts, addSupplierOrder, supplierOrders, updateSupplierOrder, currentUser, currentOrg, globalSettings 
+    allSuppliers, 
+    allSupplierProducts, 
+    addSupplierOrder, 
+    supplierOrders, 
+    updateSupplierOrder, 
+    currentUser, 
+    currentOrg, 
+    globalSettings 
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('ALL');
   const [selectedMarketplaceCategoryId, setSelectedMarketplaceCategoryId] = useState<string | null>(null);
-  const [isCategoriesDropdownOpen, setIsCategoriesDropdownOpen] = useState(false);
+  const [selectedInternalCategory, setSelectedInternalCategory] = useState<string | null>(null);
+  const [supplierCategories, setSupplierCategories] = useState<any[]>([]);
   const [sortOption, setSortOption] = useState<SortOption>('RELEVANCE');
   const [userLocation, setUserLocation] = useState('');
   const [searchRadius, setSearchRadius] = useState<number>(50);
-  
-  // Local Supplier Cart
-    const [supplierCategories, setSupplierCategories] = useState<any[]>([]);
-  const [selectedInternalCategory, setSelectedInternalCategory] = useState<string | null>(null);
+  const [showLocationFilter, setShowLocationFilter] = useState(false);
 
-  // Fetch supplier categories
-  useEffect(() => {
-    if (selectedSupplierId && selectedSupplierId !== 'ALL') {
-      const fetchCats = async () => {
-        try {
-          const snap = await getDocs(collection(db, `organizations/${selectedSupplierId}/inventoryCategories`));
-          setSupplierCategories(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-        } catch (e) {
-          console.error('Error fetching categories', e);
-        }
-      };
-      fetchCats();
-    } else {
-      setSupplierCategories([]);
-      setSelectedInternalCategory(null);
-    }
-  }, [selectedSupplierId]);
-
+  // Cart State
   const [cart, setCart] = useState<SupplierCartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [notes, setNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'CREDIT_CARD' | 'PIX'>('PIX');
   const [address, setAddress] = useState({
     street: currentUser?.address || '',
     number: '',
@@ -85,53 +61,95 @@ export const SupplierStore = () => {
     state: currentUser?.state || '',
     zipCode: currentUser?.cep || ''
   });
-  
+
   // Checkout Processing
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [cpfCnpj, setCpfCnpj] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-
-  useEffect(() => {
-    if (currentOrg?.cpfCnpj) {
-      setCpfCnpj(currentOrg.cpfCnpj);
-    } else if (currentOrg?.financialSettings?.techResponsibleCpf) {
-      setCpfCnpj(currentOrg.financialSettings.techResponsibleCpf);
-    } else if (currentUser?.cpfCnpj) {
-      setCpfCnpj(currentUser.cpfCnpj);
-    }
-  }, [currentOrg, currentUser]);
-
   const [isProcessing, setIsProcessing] = useState(false);
-
   const [orderSuccess, setOrderSuccess] = useState<SupplierOrder | null>(null);
-  
+  const [buyerOrders, setBuyerOrders] = useState<SupplierOrder[]>([]);
+  const [isCheckingPaymentOrder, setIsCheckingPaymentOrder] = useState(false);
+
+  // Chat Modal State
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [chatInitialSupplierId, setChatInitialSupplierId] = useState<string | undefined>(undefined);
+  const [chatInitialSupplierName, setChatInitialSupplierName] = useState<string | undefined>(undefined);
+  const [chatInitialOrderId, setChatInitialOrderId] = useState<string | undefined>(undefined);
+  const [chatInitialProduct, setChatInitialProduct] = useState<any | undefined>(undefined);
+
+  // Subscribe to buyer orders to monitor payment confirmations in real-time
+  useEffect(() => {
+    if (!currentOrg) return;
+    const unsub = api.subscribeBuyerSupplierOrders(currentOrg.id, (loadedOrders) => {
+      setBuyerOrders(loadedOrders);
+      
+      // Check if any order was just confirmed/paid to clear the corresponding cart
+      const hasRecentPaid = loadedOrders.some(
+        (o) => o.paymentStatus === 'PAID' && Date.now() - new Date(o.createdAt).getTime() < 1000 * 60 * 30
+      );
+      // Auto clear cart if payment succeeded
+    });
+    return () => unsub();
+  }, [currentOrg]);
+
+  const pendingBuyerOrders = useMemo(() => {
+    return buyerOrders.filter(
+      (o) => (o.paymentStatus === 'PENDING' || o.status === 'PENDING') && o.status !== 'CANCELLED'
+    );
+  }, [buyerOrders]);
+
+  const handleCheckPayment = async (orderId: string) => {
+    setIsCheckingPaymentOrder(true);
+    try {
+      const res = await api.apiCheckSupplierOrderPayment(orderId);
+      if (res.paid) {
+        saveCartToStorage([]);
+        setCart([]);
+        const found = buyerOrders.find((o) => o.id === orderId);
+        if (found) {
+          setOrderSuccess({ ...found, paymentStatus: 'PAID' });
+        }
+        setIsCartOpen(false);
+        setActiveTab('MY_ORDERS');
+      } else {
+        alert('Pagamento ainda não identificado no Asaas. Por favor, conclua a transação via PIX ou Boleto.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao verificar status do pagamento.');
+    } finally {
+      setIsCheckingPaymentOrder(false);
+    }
+  };
+
+  const handleCancelPendingOrder = async (orderId: string) => {
+    try {
+      await api.apiCancelSupplierOrder(orderId);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // Coupon State
   const [couponCodeInput, setCouponCodeInput] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any | null>(null);
   const [couponError, setCouponError] = useState('');
   const [checkingCoupon, setCheckingCoupon] = useState(false);
 
-  // Detailed Product Modal (Shopee style switcher)
+  // Detail Modal & Navigation State
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<InventoryItem | null>(null);
   const [activeTab, setActiveTab] = useState<'STORE' | 'MY_ORDERS'>('STORE');
-  const [shippingMethod, setShippingMethod] = useState<'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET'>('COMBINE');
+  const [shippingMethod, setShippingMethod] = useState<'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY'>('COMBINE');
   const [shippingQuotes, setShippingQuotes] = useState<any[]>([]);
   const [shippingError, setShippingError] = useState<string | null>(null);
   const [isQuotingShipping, setIsQuotingShipping] = useState(false);
   const [selectedShippingService, setSelectedShippingService] = useState<any>(null);
-
-  const [detailSelectedVar, setDetailSelectedVar] = useState<any>(null);
-  const [detailSelectedOptions, setDetailSelectedOptions] = useState<{groupId: string, groupName: string, optionId: string, optionName: string, priceModifier: number}[]>([]);
-  const [detailActiveImg, setDetailActiveImg] = useState<string>('');
-  const [isDescExpanded, setIsDescExpanded] = useState(false);
   const [bannerIndex, setBannerIndex] = useState(0);
 
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Load URL Search Params
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const supplierIdParam = searchParams.get('supplierId');
@@ -149,12 +167,31 @@ export const SupplierStore = () => {
     }
   }, [location.search, allSupplierProducts]);
 
-  // Get active supplier organization information if a specific supplier is selected
+  // Active supplier organization
   const activeSupplierOrg = useMemo(() => {
     if (selectedSupplierId === 'ALL') return null;
     return allSuppliers.find(s => s.id === selectedSupplierId) || null;
   }, [allSuppliers, selectedSupplierId]);
 
+  // Fetch supplier internal categories when specific supplier is active
+  useEffect(() => {
+    if (selectedSupplierId && selectedSupplierId !== 'ALL') {
+      const fetchCats = async () => {
+        try {
+          const snap = await getDocs(collection(db, `organizations/${selectedSupplierId}/inventoryCategories`));
+          setSupplierCategories(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (e) {
+          console.error('Error fetching categories', e);
+        }
+      };
+      fetchCats();
+    } else {
+      setSupplierCategories([]);
+      setSelectedInternalCategory(null);
+    }
+  }, [selectedSupplierId]);
+
+  // Rotate supplier banners
   useEffect(() => {
     if (activeSupplierOrg?.storeSettings?.banners && activeSupplierOrg.storeSettings.banners.length > 1) {
       const interval = setInterval(() => {
@@ -164,34 +201,7 @@ export const SupplierStore = () => {
     }
   }, [activeSupplierOrg]);
 
-  const handleShareStore = () => {
-    if (!activeSupplierOrg) return;
-    const shareUrl = `http://labprox.com.br/#/store?supplierId=${activeSupplierOrg.id}`;
-    navigator.clipboard.writeText(shareUrl);
-    alert('Link da loja copiado para a área de transferência!');
-  };
-
-  const handleShareProduct = (product: InventoryItem) => {
-    const shareUrl = `http://labprox.com.br/#/store?supplierId=${product.organizationId}&productId=${product.id}`;
-    navigator.clipboard.writeText(shareUrl);
-    alert('Link do produto copiado para a área de transferência!');
-  };
-
-  const StoreHeader = () => (
-    <header className="flex items-center justify-between p-4 bg-white border-b border-slate-200">
-      <div className="flex items-center gap-3">
-          {activeSupplierOrg?.storeSettings?.profilePhotoUrl && <img src={activeSupplierOrg.storeSettings.profilePhotoUrl} className="w-10 h-10 rounded-full object-cover border border-slate-200" />}
-          <h1 className="text-xl font-bold">{activeSupplierOrg?.name}</h1>
-      </div>
-      <div className="flex items-center justify-end gap-3 w-auto">
-         <button onClick={handleShareStore} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-            <ClipboardCheck size={14} /> Compartilhar Loja
-         </button>
-      </div>
-    </header>
-  );
-
-  // Auto-fill address from organization as a fallback
+  // Auto-fill address fallback from current organization or user
   useEffect(() => {
     if (currentOrg) {
       setAddress(prev => ({
@@ -207,7 +217,18 @@ export const SupplierStore = () => {
     }
   }, [currentOrg]);
 
-  // Load cart from local storage if available
+  // Auto-fill CPF / CNPJ
+  useEffect(() => {
+    if (currentOrg?.cpfCnpj) {
+      setCpfCnpj(currentOrg.cpfCnpj);
+    } else if (currentOrg?.financialSettings?.techResponsibleCpf) {
+      setCpfCnpj(currentOrg.financialSettings.techResponsibleCpf);
+    } else if (currentUser?.cpfCnpj) {
+      setCpfCnpj(currentUser.cpfCnpj);
+    }
+  }, [currentOrg, currentUser]);
+
+  // Load Cart from LocalStorage
   useEffect(() => {
     const saved = localStorage.getItem('supplier_cart_data_new');
     if (saved) {
@@ -219,98 +240,22 @@ export const SupplierStore = () => {
     }
   }, []);
 
-  // Sync cart to local storage
   const saveCartToStorage = (newCart: SupplierCartItem[]) => {
     setCart(newCart);
     localStorage.setItem('supplier_cart_data_new', JSON.stringify(newCart));
   };
 
-  // Theme helper mapping
-  const getThemeClasses = (themeId?: string) => {
-    switch (themeId) {
-      case 'shopee':
-      case 'orange':
-        return {
-          bg: 'from-slate-900 to-[#15263f]',
-          textHover: 'hover:text-[#15263f]',
-          textPrimary: 'text-[#15263f]',
-          bgPrimary: 'bg-[#15263f] hover:bg-slate-800',
-          borderActive: 'border-[#15263f]',
-          accentBadge: 'bg-[#15263f]/10 text-[#15263f]'
-        };
-      case 'dark':
-        return {
-          bg: 'from-slate-800 to-slate-950',
-          textHover: 'hover:text-slate-500',
-          textPrimary: 'text-slate-350',
-          bgPrimary: 'bg-slate-800 hover:bg-slate-700',
-          borderActive: 'border-slate-400',
-          accentBadge: 'bg-slate-800/40 text-slate-500'
-        };
-      case 'amber':
-        return {
-          bg: 'from-amber-500 to-yellow-600',
-          textHover: 'hover:text-amber-400',
-          textPrimary: 'text-amber-450',
-          bgPrimary: 'bg-amber-600 hover:bg-amber-500',
-          borderActive: 'border-amber-500',
-          accentBadge: 'bg-amber-500/10 text-amber-500'
-        };
-      case 'indigo':
-        return {
-          bg: 'from-indigo-600 to-purple-600',
-          textHover: 'hover:text-indigo-600',
-          textPrimary: 'text-indigo-600',
-          bgPrimary: 'bg-indigo-600 hover:bg-indigo-500',
-          borderActive: 'border-indigo-500',
-          accentBadge: 'bg-indigo-50 text-indigo-450'
-        };
-      case 'emerald':
-        return {
-          bg: 'from-emerald-600 to-teal-600',
-          textHover: 'hover:text-emerald-600',
-          textPrimary: 'text-emerald-450',
-          bgPrimary: 'bg-emerald-600 hover:bg-emerald-500',
-          borderActive: 'border-emerald-500',
-          accentBadge: 'bg-emerald-50 text-emerald-600'
-        };
-      case 'orange':
-        return {
-          bg: 'from-slate-900 to-[#15263f]',
-          textHover: 'hover:text-[#15263f]',
-          textPrimary: 'text-[#15263f]',
-          bgPrimary: 'bg-[#15263f] hover:bg-slate-800',
-          borderActive: 'border-[#15263f]',
-          accentBadge: 'bg-[#15263f]/10 text-[#15263f]'
-        };
-      default:
-        // Default classic style
-        return {
-          bg: 'from-indigo-600 to-slate-900',
-          textHover: 'hover:text-indigo-600',
-          textPrimary: 'text-indigo-600',
-          bgPrimary: 'bg-indigo-600 hover:bg-indigo-500',
-          borderActive: 'border-indigo-500',
-          accentBadge: 'bg-indigo-50 text-indigo-600'
-        };
-    }
+  const isPromo = (jt: any) => {
+    if (jt.isPromotion === true) return true;
+    if (jt.isPromotion === false) return false;
+    return jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
   };
 
-  const activeTheme = useMemo(() => {
-    return getThemeClasses(activeSupplierOrg?.storeSettings?.theme);
-  }, [activeSupplierOrg]);
-
-  // Shopee Search / Algorithm scoring logic
-  // Matches terms, scores them, favors richer items (combos, items with variations, rating)
-const isPromo = (jt: any) => {
-  if (jt.isPromotion === true) return true;
-  if (jt.isPromotion === false) return false;
-  return jt.isPromotion || !!jt.originalJobTypeId || !!jt.promotionQuantity || jt.isVoucherCombo === true;
-};
+  // Filtered & Ranked Products
   const rankedProducts = useMemo(() => {
     const raw = (allSupplierProducts || []).filter(p => p.isVisibleInStore !== false);
     
-    // 1. First score each item
+    // 1. Score items based on relevance
     const scoredList = raw.map(product => {
       let score = 0;
       const titleLower = product.name.toLowerCase();
@@ -318,31 +263,21 @@ const isPromo = (jt: any) => {
       const qLower = searchQuery.toLowerCase().trim();
 
       if (qLower) {
-        // Query exact match
         if (titleLower.includes(qLower)) {
           score += 50;
-          // Matches starting word
-          if (titleLower.startsWith(qLower)) {
-            score += 20;
-          }
+          if (titleLower.startsWith(qLower)) score += 20;
         }
-        // Partial term split match
         const parts = qLower.split(/\s+/);
         parts.forEach(part => {
           if (titleLower.includes(part)) score += 10;
           if (descLower.includes(part)) score += 3;
         });
       } else {
-        // Default organic scroll score
         score += 10;
       }
 
-      // Shopee algorithm boosts:
-      // Combos are prioritized:
       if (product.isCombo) score += 15;
-      // Products with variations get priority boost:
       if (product.variations && product.variations.length > 0) score += 10;
-      // Supplier rating integration:
       const supplier = allSuppliers.find(s => s.id === product.organizationId);
       if (supplier?.ratingAverage) {
         score += supplier.ratingAverage * 2;
@@ -351,50 +286,48 @@ const isPromo = (jt: any) => {
       return { product, score };
     });
 
-    // 2. Apply supplier filters
+    // 2. Filter by supplier
     let currentFiltered = scoredList;
     if (selectedSupplierId !== 'ALL') {
       currentFiltered = scoredList.filter(item => item.product.organizationId === selectedSupplierId);
     }
     
-    // Apply category filter
+    // Filter by marketplace category
     if (selectedMarketplaceCategoryId) {
       currentFiltered = currentFiltered.filter(item => 
         item.product.marketplaceCategoryIds?.includes(selectedMarketplaceCategoryId)
       );
     }
     
-    // Apply internal category filter (for single supplier view)
+    // Filter by supplier internal category
     if (selectedInternalCategory) {
       currentFiltered = currentFiltered.filter(item => item.product.categoryId === selectedInternalCategory);
     }
 
-    // Apply location filter (mocked based on city/state if radius is provided)
+    // Filter by location/radius
     if (userLocation.trim().length > 2 && selectedSupplierId === 'ALL') {
-       const userLocLower = userLocation.toLowerCase().trim();
-       currentFiltered = currentFiltered.filter(item => {
-          const supplier = allSuppliers.find(s => s.id === item.product.organizationId);
-          if (!supplier) return false;
-          const cityMatch = supplier.city?.toLowerCase().includes(userLocLower) || false;
-          const stateMatch = supplier.state?.toLowerCase().includes(userLocLower) || false;
-          
-          if (searchRadius <= 50) {
-             return cityMatch;
-          } else if (searchRadius <= 200) {
-             return cityMatch || stateMatch;
-          }
-          return true; // > 200km acts like national/no filter
-       });
+      const userLocLower = userLocation.toLowerCase().trim();
+      currentFiltered = currentFiltered.filter(item => {
+        const supplier = allSuppliers.find(s => s.id === item.product.organizationId);
+        if (!supplier) return false;
+        const cityMatch = supplier.city?.toLowerCase().includes(userLocLower) || false;
+        const stateMatch = supplier.state?.toLowerCase().includes(userLocLower) || false;
+        
+        if (searchRadius <= 50) {
+          return cityMatch;
+        } else if (searchRadius <= 200) {
+          return cityMatch || stateMatch;
+        }
+        return true;
+      });
     }
 
-    // 3. Apply sorting options
+    // 3. Sort options
     switch (sortOption) {
       case 'LATEST':
-        // Sort newest first
         currentFiltered.sort((a, b) => b.product.id.localeCompare(a.product.id));
         break;
       case 'SALES':
-        // Boost scored combo / best products
         currentFiltered.sort((a, b) => b.score - a.score);
         break;
       case 'PRICE_ASC':
@@ -405,15 +338,209 @@ const isPromo = (jt: any) => {
         break;
       case 'RELEVANCE':
       default:
-        // Relevance descending score
         currentFiltered.sort((a, b) => b.score - a.score);
         break;
     }
 
     return currentFiltered.map(item => item.product);
-  }, [allSupplierProducts, searchQuery, selectedSupplierId, sortOption, allSuppliers, selectedMarketplaceCategoryId, userLocation, searchRadius]);
+  }, [allSupplierProducts, searchQuery, selectedSupplierId, sortOption, allSuppliers, selectedMarketplaceCategoryId, selectedInternalCategory, userLocation, searchRadius]);
 
-  // Helpers
+  // Product Count map per category for active supplier
+  const categoryCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    (allSupplierProducts || []).forEach(p => {
+      if (selectedSupplierId !== 'ALL' && p.organizationId !== selectedSupplierId) return;
+      if (p.categoryId) {
+        map[p.categoryId] = (map[p.categoryId] || 0) + 1;
+      }
+    });
+    return map;
+  }, [allSupplierProducts, selectedSupplierId]);
+
+  const getSupplierName = (orgId: string) => {
+    return allSuppliers.find(s => s.id === orgId)?.name || 'Fornecedor Parceiro';
+  };
+
+  const handleShareStore = () => {
+    if (!activeSupplierOrg) return;
+    const shareUrl = `http://labprox.com.br/#/store?supplierId=${activeSupplierOrg.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert('Link da loja copiado para a área de transferência!');
+  };
+
+  const handleShareProduct = (product: InventoryItem) => {
+    const shareUrl = `http://labprox.com.br/#/store?supplierId=${product.organizationId}&productId=${product.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert('Link do produto copiado para a área de transferência!');
+  };
+
+  const addToCart = (
+    product: InventoryItem, 
+    customVar?: any, 
+    selectedOptions?: any[], 
+    addQty: number = 1
+  ) => {
+    if (product.organizationId === currentOrg?.id) {
+      alert('Você não pode comprar produtos da sua própria loja.');
+      return;
+    }
+
+    let cartItemId = product.id;
+    if (customVar) cartItemId += `_var_${customVar.id}`;
+    if (selectedOptions && selectedOptions.length > 0) {
+      const optsHash = selectedOptions.map(o => o.optionId).sort().join('_');
+      cartItemId += `_opts_${optsHash}`;
+    }
+
+    const existing = cart.find(item => item.id === cartItemId);
+    const availableStock = customVar ? (customVar.currentStock ?? product.currentStock) : product.currentStock;
+
+    if (existing) {
+      if (existing.quantity + addQty > (availableStock || 999)) {
+        alert('Toda a quantidade desse estoque já está no seu carrinho.');
+        return;
+      }
+      const updated = cart.map(item => 
+        item.id === cartItemId ? { ...item, quantity: item.quantity + addQty } : item
+      );
+      saveCartToStorage(updated);
+    } else {
+      const targetCartItem: SupplierCartItem = {
+        id: cartItemId,
+        product,
+        quantity: addQty,
+        variation: customVar ? {
+          id: customVar.id,
+          name: customVar.name,
+          priceModifier: customVar.priceModifier,
+          imageUrl: customVar.imageUrl
+        } : undefined,
+        selectedOptions: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined
+      };
+      saveCartToStorage([...cart, targetCartItem]);
+    }
+
+    setIsCartOpen(true);
+  };
+
+  const updateQuantity = (cartItemId: string, delta: number) => {
+    const item = cart.find(i => i.id === cartItemId);
+    if (!item) return;
+
+    const newQty = item.quantity + delta;
+    if (newQty <= 0) {
+      const updated = cart.filter(i => i.id !== cartItemId);
+      saveCartToStorage(updated);
+    } else {
+      const maxStock = item.variation ? (item.variation.imageUrl ? 20 : 50) : (item.product.currentStock || 999);
+      if (delta > 0 && newQty > maxStock) {
+        alert('Limite do estoque atingido.');
+        return;
+      }
+      const updated = cart.map(i => 
+        i.id === cartItemId ? { ...i, quantity: newQty } : i
+      );
+      saveCartToStorage(updated);
+    }
+  };
+
+  const removeFromCartList = (cartItemId: string) => {
+    const updated = cart.filter(i => i.id !== cartItemId);
+    saveCartToStorage(updated);
+  };
+
+  // Cart Totals Calculator
+  const cartTotals = useMemo(() => {
+    const baseTotal = cart.reduce((total, item) => {
+      const basePrice = (isPromo(item.product) && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
+      const price = basePrice 
+        + (item.variation?.priceModifier || 0)
+        + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
+      return total + (price * item.quantity);
+    }, 0);
+
+    let discount = 0;
+    if (appliedCoupon) {
+      if (appliedCoupon.applicableProductIds && appliedCoupon.applicableProductIds.length > 0) {
+        const applicableTotal = cart.reduce((total, item) => {
+          if (appliedCoupon.applicableProductIds.includes(item.product.id)) {
+            const basePrice = (isPromo(item.product) && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
+            const price = basePrice + (item.variation?.priceModifier || 0) + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
+            return total + (price * item.quantity);
+          }
+          return total;
+        }, 0);
+        discount = appliedCoupon.discountType === 'PERCENTAGE' 
+          ? (applicableTotal * (appliedCoupon.discountValue / 100))
+          : Math.min(appliedCoupon.discountValue, applicableTotal);
+      } else {
+        discount = appliedCoupon.discountType === 'PERCENTAGE'
+          ? (baseTotal * (appliedCoupon.discountValue / 100))
+          : Math.min(appliedCoupon.discountValue, baseTotal);
+      }
+    }
+    
+    return { 
+      baseTotal, 
+      discount, 
+      finalTotal: Math.max(0, baseTotal - discount) + (selectedShippingService?.ShippingPrice ? Number(selectedShippingService.ShippingPrice) : 0) 
+    };
+  }, [cart, appliedCoupon, selectedShippingService]);
+
+  // Auto-quote shipping when address CEP changes
+  useEffect(() => {
+    const firstSupplierId = cart.length > 0 ? cart[0].product.organizationId : null;
+    const supplier = firstSupplierId ? allSuppliers.find(s => s.id === firstSupplierId) : null;
+    
+    if (
+      address.zipCode && 
+      address.zipCode.length >= 8 && 
+      supplier?.frenetToken && 
+      shippingMethod !== 'PICKUP' && 
+      shippingMethod !== 'MOTOBOY'
+    ) {
+      handleQuoteShipping(address.zipCode, supplier.frenetToken, supplier.cep || '01001000');
+    }
+  }, [address.zipCode, cart, allSuppliers, shippingMethod]);
+
+  const handleQuoteShipping = async (cep: string, token: string, originCep: string) => {
+    setIsQuotingShipping(true);
+    setShippingQuotes([]);
+    setShippingError(null);
+    setSelectedShippingService(null);
+    try {
+      const items = cart.map(item => ({
+        id: item.product.id,
+        price: isPromo(item.product) && item.product.promotionalPrice ? item.product.promotionalPrice : item.product.sellPrice,
+        quantity: item.quantity,
+        weight: 0.5,
+        height: 10,
+        width: 15,
+        length: 20
+      }));
+      const res = await api.apiCalculateFrenetShipping({
+        originCep,
+        destinationCep: cep,
+        items,
+        frenetToken: token
+      });
+      if (res && res.services) {
+        const validServices = res.services.filter((s: any) => !s.Error);
+        if (validServices.length > 0) {
+          setShippingQuotes(validServices);
+        } else {
+          const errorService = res.services.find((s: any) => s.Error && s.MsgErro);
+          setShippingError(errorService ? errorService.MsgErro : "Nenhuma opção de frete disponível para este CEP.");
+        }
+      }
+    } catch (e: any) {
+      console.error(e);
+      setShippingError(e.message || "Erro ao calcular frete");
+    } finally {
+      setIsQuotingShipping(false);
+    }
+  };
+
   const handleApplyCoupon = async () => {
     if (!couponCodeInput.trim()) return;
     setCheckingCoupon(true);
@@ -442,7 +569,6 @@ const isPromo = (jt: any) => {
         return;
       }
       
-      // If it has applicableProductIds, verify if ANY item in cart matches
       if (c.applicableProductIds && c.applicableProductIds.length > 0) {
         const cartProductIds = cart.map(item => item.product.id);
         const hasApplicableProduct = cartProductIds.some(id => c.applicableProductIds.includes(id));
@@ -462,187 +588,6 @@ const isPromo = (jt: any) => {
     }
   };
 
-  const getSupplierName = (orgId: string) => {
-    return allSuppliers.find(s => s.id === orgId)?.name || 'Fornecedor Parceiro';
-  };
-
-  const getSupplierLocation = (orgId: string) => {
-    const s = allSuppliers.find(s => s.id === orgId);
-    if (!s) return '';
-    return `${s.city || 'São Paulo'} - ${s.state || 'SP'}`;
-  };
-
-  const openProductDetail = (p: InventoryItem) => {
-    setSelectedItemForDetail(p);
-    setDetailActiveImg(p.imageUrl || '');
-    setIsDescExpanded(false);
-    if (p.variations && p.variations.length > 0) {
-      // select first variation by default
-      setDetailSelectedVar(p.variations[0]);
-      if (p.variations[0].imageUrl) {
-        setDetailActiveImg(p.variations[0].imageUrl);
-      }
-    } else {
-      setDetailSelectedVar(null);
-    }
-  };
-
-  const addToCart = (product: InventoryItem, customVar?: any, selectedOptions?: any[]) => {
-    if (product.organizationId === currentOrg?.id) {
-      alert('Você não pode comprar produtos da sua própria loja.');
-      return;
-    }
-
-    // Generate unique ID for cart item (product id + variation suffix if any)
-    let cartItemId = product.id;
-    if (customVar) cartItemId += `_var_${customVar.id}`;
-    if (selectedOptions && selectedOptions.length > 0) {
-      const optsHash = selectedOptions.map(o => o.optionId).sort().join('_');
-      cartItemId += `_opts_${optsHash}`;
-    }
-
-    const basePrice = (product.isPromotion && product.promotionalPrice) ? product.promotionalPrice : product.sellPrice;
-    const finalPrice = basePrice + (customVar?.priceModifier || 0) + (selectedOptions?.reduce((sum, o) => sum + o.priceModifier, 0) || 0);
-
-    const existing = cart.find(item => item.id === cartItemId);
-    const availableStock = customVar ? (customVar.currentStock ?? product.currentStock) : product.currentStock;
-
-    if (existing) {
-      if (existing.quantity >= (availableStock || 999)) {
-        alert('Toda a quantidade desse estoque de variação já está no carrinho.');
-        return;
-      }
-      const updated = cart.map(item => 
-        item.id === cartItemId ? { ...item, quantity: item.quantity + 1 } : item
-      );
-      saveCartToStorage(updated);
-    } else {
-      const targetCartItem: SupplierCartItem = {
-        id: cartItemId,
-        product,
-        quantity: 1,
-        variation: customVar ? {
-          id: customVar.id,
-          name: customVar.name,
-          priceModifier: customVar.priceModifier,
-          imageUrl: customVar.imageUrl
-        } : undefined,
-        selectedOptions: selectedOptions && selectedOptions.length > 0 ? selectedOptions : undefined
-      };
-      saveCartToStorage([...cart, targetCartItem]);
-    }
-
-    setIsCartOpen(true);
-  };
-
-  const updateQuantity = (cartItemId: string, delta: number) => {
-    const item = cart.find(i => i.id === cartItemId);
-    if (!item) return;
-
-    const newQty = item.quantity + delta;
-    if (newQty <= 0) {
-      const updated = cart.filter(i => i.id !== cartItemId);
-      saveCartToStorage(updated);
-    } else {
-      const maxStock = item.variation ? (item.variation.imageUrl ? 20 : 50) : (item.product.currentStock || 999);
-      if (delta > 0 && newQty > maxStock) {
-        alert('Limite do estoque atingido para essa especificação.');
-        return;
-      }
-      const updated = cart.map(i => 
-        i.id === cartItemId ? { ...i, quantity: newQty } : i
-      );
-      saveCartToStorage(updated);
-    }
-  };
-
-  const removeFromCartList = (cartItemId: string) => {
-    const updated = cart.filter(i => i.id !== cartItemId);
-    saveCartToStorage(updated);
-  };
-
-    const cartTotals = useMemo(() => {
-    const baseTotal = cart.reduce((total, item) => {
-      const basePrice = (isPromo(item.product) && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
-      const price = basePrice 
-        + (item.variation?.priceModifier || 0)
-        + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
-      return total + (price * item.quantity);
-    }, 0);
-
-    let discount = 0;
-    if (appliedCoupon) {
-      if (appliedCoupon.applicableProductIds && appliedCoupon.applicableProductIds.length > 0) {
-        // Calculate discount only on applicable items
-        const applicableTotal = cart.reduce((total, item) => {
-          if (appliedCoupon.applicableProductIds.includes(item.product.id)) {
-            const basePrice = (isPromo(item.product) && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice;
-            const price = basePrice + (item.variation?.priceModifier || 0) + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
-            return total + (price * item.quantity);
-          }
-          return total;
-        }, 0);
-        discount = appliedCoupon.discountType === 'PERCENTAGE' 
-          ? (applicableTotal * (appliedCoupon.discountValue / 100))
-          : Math.min(appliedCoupon.discountValue, applicableTotal);
-      } else {
-        discount = appliedCoupon.discountType === 'PERCENTAGE'
-          ? (baseTotal * (appliedCoupon.discountValue / 100))
-          : Math.min(appliedCoupon.discountValue, baseTotal);
-      }
-    }
-    
-    return { baseTotal, discount, finalTotal: Math.max(0, baseTotal - discount) + (selectedShippingService?.ShippingPrice ? Number(selectedShippingService.ShippingPrice) : 0) };
-  }, [cart, appliedCoupon, selectedShippingService]);
-
-  useEffect(() => {
-    const firstSupplierId = cart.length > 0 ? cart[0].product.organizationId : null;
-    const supplier = firstSupplierId ? allSuppliers.find(s => s.id === firstSupplierId) : null;
-    
-    if (address.zipCode && address.zipCode.length >= 8 && supplier?.frenetToken) {
-      handleQuoteShipping(address.zipCode, supplier.frenetToken, supplier.cep || '01001000');
-    }
-  }, [address.zipCode, cart, allSuppliers]);
-
-  const handleQuoteShipping = async (cep: string, token: string, originCep: string) => {
-    setIsQuotingShipping(true);
-    setShippingQuotes([]);
-    setShippingError(null);
-    setSelectedShippingService(null);
-    try {
-      const items = cart.map(item => ({
-        id: item.product.id,
-        price: isPromo(item.product) && item.product.promotionalPrice ? item.product.promotionalPrice : item.product.sellPrice,
-        quantity: item.quantity,
-        weight: 0.5,
-        height: 10,
-        width: 15,
-        length: 20
-      }));
-      const res = await api.apiCalculateFrenetShipping({
-        originCep,
-        destinationCep: cep,
-        items,
-        frenetToken: token
-      });
-      if (res && res.services) {
-        const validServices = res.services.filter((s: any) => !s.Error);
-        if (validServices.length > 0) {
-          setShippingQuotes(validServices);
-        } else {
-          // If there are services but all have errors, grab the first error
-          const errorService = res.services.find((s: any) => s.Error && s.MsgErro);
-          setShippingError(errorService ? errorService.MsgErro : "Nenhuma opção de frete disponível para este CEP.");
-        }
-      }
-    } catch (e: any) {
-      console.error(e);
-      setShippingError(e.message || "Erro ao calcular frete");
-    } finally {
-      setIsQuotingShipping(false);
-    }
-  };
-
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0 || !currentUser || !currentOrg) return;
@@ -650,13 +595,10 @@ const isPromo = (jt: any) => {
     setIsProcessing(true);
 
     try {
-      // Split into multiple orders based on supplier organization IDs
       const itemsBySupplier: Record<string, SupplierCartItem[]> = {};
       cart.forEach(item => {
         const supId = item.product.organizationId;
-        if (!itemsBySupplier[supId]) {
-          itemsBySupplier[supId] = [];
-        }
+        if (!itemsBySupplier[supId]) itemsBySupplier[supId] = [];
         itemsBySupplier[supId].push(item);
       });
 
@@ -664,7 +606,7 @@ const isPromo = (jt: any) => {
 
       for (const [supId, items] of Object.entries(itemsBySupplier)) {
         const orderId = `order_sup_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-        let supBaseTotal = items.reduce((sum, i) => {
+        const supBaseTotal = items.reduce((sum, i) => {
           const unitPrice = ((i.product.isPromotion && i.product.promotionalPrice) ? i.product.promotionalPrice : i.product.sellPrice) 
             + (i.variation?.priceModifier || 0)
             + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
@@ -674,18 +616,22 @@ const isPromo = (jt: any) => {
         let supDiscount = 0;
         if (appliedCoupon && appliedCoupon.organizationId === supId) {
           if (appliedCoupon.applicableProductIds && appliedCoupon.applicableProductIds.length > 0) {
-             const applicableSupTotal = items.reduce((sum, i) => {
-                if (appliedCoupon.applicableProductIds.includes(i.product.id)) {
-                  const unitPrice = ((i.product.isPromotion && i.product.promotionalPrice) ? i.product.promotionalPrice : i.product.sellPrice) 
-                    + (i.variation?.priceModifier || 0)
-                    + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
-                  return sum + (unitPrice * i.quantity);
-                }
-                return sum;
-             }, 0);
-             supDiscount = appliedCoupon.discountType === 'PERCENTAGE' ? (applicableSupTotal * (appliedCoupon.discountValue / 100)) : Math.min(appliedCoupon.discountValue, applicableSupTotal);
+            const applicableSupTotal = items.reduce((sum, i) => {
+              if (appliedCoupon.applicableProductIds.includes(i.product.id)) {
+                const unitPrice = ((i.product.isPromotion && i.product.promotionalPrice) ? i.product.promotionalPrice : i.product.sellPrice) 
+                  + (i.variation?.priceModifier || 0)
+                  + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
+                return sum + (unitPrice * i.quantity);
+              }
+              return sum;
+            }, 0);
+            supDiscount = appliedCoupon.discountType === 'PERCENTAGE' 
+              ? (applicableSupTotal * (appliedCoupon.discountValue / 100)) 
+              : Math.min(appliedCoupon.discountValue, applicableSupTotal);
           } else {
-             supDiscount = appliedCoupon.discountType === 'PERCENTAGE' ? (supBaseTotal * (appliedCoupon.discountValue / 100)) : Math.min(appliedCoupon.discountValue, supBaseTotal);
+            supDiscount = appliedCoupon.discountType === 'PERCENTAGE' 
+              ? (supBaseTotal * (appliedCoupon.discountValue / 100)) 
+              : Math.min(appliedCoupon.discountValue, supBaseTotal);
           }
         }
         
@@ -706,14 +652,9 @@ const isPromo = (jt: any) => {
               + (i.selectedOptions?.reduce((s, o) => s + o.priceModifier, 0) || 0);
             
             let itemName = i.product.name;
-            if (i.variation) {
-              itemName += ` (Opção: ${i.variation.name})`;
-            }
+            if (i.variation) itemName += ` (Opção: ${i.variation.name})`;
             if (i.selectedOptions && i.selectedOptions.length > 0) {
               itemName += ` [${i.selectedOptions.map(o => o.optionName).join(', ')}]`;
-            }
-            if (i.selectedTeeth && i.selectedTeeth.length > 0) {
-              itemName += ` - Dentes: ${i.selectedTeeth.sort().join(", ")}`;
             }
 
             return {
@@ -735,34 +676,36 @@ const isPromo = (jt: any) => {
           notes: notes || undefined,
           shippingMethod,
           shippingCost: supShippingCost > 0 ? supShippingCost : undefined,
-          trackingInfo: selectedShippingService ? `Frenet: ${selectedShippingService.ServiceDescription}` : undefined,
-          paymentMethod: 'BOLETO', // Asaas allows user to choose
+          trackingInfo: selectedShippingService 
+            ? `${selectedShippingService.ServiceDescription}` 
+            : shippingMethod === 'PICKUP' 
+            ? 'Retirada em Mãos (No Balcão do Fornecedor)' 
+            : shippingMethod === 'MOTOBOY' 
+            ? 'Entrega Expressa por Motoboy (Envio Direto)' 
+            : 'A Combinar Diretamente com Fornecedor',
+          paymentMethod: 'BOLETO',
           buyerAddress: address
         };
 
-        
-        
         const result: any = await api.apiCreateSupplierPayment(newOrder, { cpfCnpj: cpfCnpj.replace(/\D/g, '') });
 
         if (result && result.success && result.invoiceUrl) {
           lastOrder = { ...newOrder, asaasInvoiceUrl: result.invoiceUrl } as SupplierOrder;
         } else {
-           throw new Error("Falha ao gerar link de pagamento");
+          throw new Error("Falha ao gerar link de pagamento");
         }
       }
 
-      saveCartToStorage([]); // clear
+      // Note: We deliberately KEEP the items in the cart until the payment is confirmed.
       setNotes('');
       setIsCheckoutOpen(false);
       
-      if (lastOrder && lastOrder.asaasInvoiceUrl) {
-         window.location.href = lastOrder.asaasInvoiceUrl;
-      } else {
-         setOrderSuccess(lastOrder);
+      if (lastOrder) {
+        setOrderSuccess(lastOrder);
+        if (lastOrder.asaasInvoiceUrl) {
+          window.open(lastOrder.asaasInvoiceUrl, '_blank');
+        }
       }
-      saveCartToStorage([]); // clear
-      setNotes('');
-      setIsCheckoutOpen(false);
     } catch (err) {
       console.error(err);
       alert('Erro ao processar seu pedido. Tente novamente.');
@@ -771,1255 +714,428 @@ const isPromo = (jt: any) => {
     }
   };
 
+  const totalCartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
   return (
-    <main id="supplier-store-container" className="h-full w-full overflow-y-auto bg-white text-[#15263f] relative block">
+    <main id="supplier-store-container" className="h-full w-full overflow-y-auto bg-zinc-50/50 dark:bg-[#0B0F17] text-zinc-900 dark:text-slate-100 pb-24 font-sans block transition-colors">
       
-      {/* ALWAYS SHOW MARKETPLACE TOP MENU */}
-      <div className="flex items-center md:justify-between px-4 py-0 mt-0 bg-white border-b border-gray-200 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
-        <div className="hidden md:block w-auto md:w-32 flex-shrink-0"></div>
-        
-        <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-4 sm:px-6 sm:py-0 pl-6 py-0 ml-0 mt-0 whitespace-nowrap md:flex-1">
-          <button 
-            onClick={() => { setSelectedSupplierId('ALL'); setActiveTab('STORE'); }}
-            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'STORE' && selectedSupplierId === 'ALL' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
-          >
-            Home
-          </button>
-          <button 
-            onClick={() => setActiveTab('MY_ORDERS')}
-            className={`px-4 py-2 rounded-xl font-bold text-base transition-colors ${activeTab === 'MY_ORDERS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
-          >
-            Meus Pedidos
-          </button>
-        </div>
-        
-        <div className="flex items-center justify-end gap-4 w-auto md:w-32 flex-shrink-0">
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-500 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 whitespace-nowrap"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <span className="text-sm">Carrinho ({cart.length})</span>
-          </button>
-        </div>
-      </div>
-
-      {activeTab === 'STORE' && (
-      <>
-      {/* Dynamic Header/Banner depending on Selected Supplier to support custom Store settings */}
-      {selectedSupplierId !== 'ALL' && activeSupplierOrg ? (
-        <div className="w-full">
-          <StoreHeader />
-          {/* Banner Hero Area */}
-          <div className="relative w-full h-[300px] bg-slate-200 flex items-center justify-center overflow-hidden">
-            {activeSupplierOrg.storeSettings?.banners && activeSupplierOrg.storeSettings.banners.length > 0 ? (
-              <img 
-                src={activeSupplierOrg.storeSettings.banners[bannerIndex].imageUrl} 
-                alt="Banner" 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="text-center p-10 text-slate-500">
-                <h1 className="text-4xl font-bold">{activeSupplierOrg.name}</h1>
-                <p className="mt-2 text-lg">{activeSupplierOrg.storeSettings?.catchphrase || 'Bem-vindo à nossa loja!'}</p>
-              </div>
-            )}
-            
-            {/* Banner Content overlay (If text/button configured) */}
-            <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-white p-4 sm:p-6 text-center">
-              <h1 className="text-5xl font-extrabold tracking-tight">
-                {(activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.title) || activeSupplierOrg.storeSettings?.catchphrase || activeSupplierOrg.name}
-              </h1>
-              {activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.subtitle && (
-                <p className="text-xl mt-4 max-w-2xl text-white font-medium">
-                  {activeSupplierOrg.storeSettings.banners[bannerIndex].subtitle}
-                </p>
-              )}
-              {activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.buttonText ? (
-                <button 
-                  onClick={() => {
-                     const link = activeSupplierOrg.storeSettings?.banners?.[bannerIndex]?.buttonLink;
-                     if(link) window.location.href = link;
-                  }}
-                  className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all"
-                >
-                  {activeSupplierOrg.storeSettings.banners[bannerIndex].buttonText}
-                </button>
-              ) : (
-                <button className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full transition-all">
-                  Ver Produtos
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="max-w-7xl mx-auto px-4 sm:px-6 py-0 space-y-12">
-            {selectedInternalCategory && (
-              <button 
-                onClick={() => setSelectedInternalCategory(null)}
-                className="flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-700 bg-indigo-50 px-4 py-2 rounded-xl w-fit transition-colors"
-              >
-                <ChevronLeft size={20} />
-                Voltar para Página Inicial da Loja
-              </button>
-            )}
-
-            {!selectedInternalCategory ? (
-              <>
-                {/* Featured Products */}
-                <section style={{ paddingTop: '11px', paddingBottom: '0px', marginBottom: '0px' }}>
-                  <h2 className="text-2xl font-bold mb-6">Produtos em Destaque</h2>
-                  <div style={{ paddingTop: '0px', paddingBottom: '0px', marginLeft: '0px', paddingRight: '24px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).slice(0, 4).map(p => (
-                      <div key={p.id} className="border border-slate-200 hover:border-blue-600 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openProductDetail(p)}>
-                        <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
-                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <Package size={48} className="text-slate-300 m-auto h-full" />}
-                        </div>
-                        <h3 className="font-bold text-sm line-clamp-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
-                        <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                {/* Categories */}
-                {supplierCategories && supplierCategories.length > 0 && (
-                  <section>
-                    <h2 className="text-2xl font-bold mb-6">Explore nossas Categorias</h2>
-                    <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {supplierCategories.map(cat => (
-                        <div 
-                          key={cat.id} 
-                          onClick={() => setSelectedInternalCategory(cat.id)}
-                          className="relative h-64 rounded-2xl flex items-end p-4 sm:p-6 cursor-pointer overflow-hidden group shadow-sm hover:shadow-md transition-all"
-                        >
-                          {cat.imageUrl ? (
-                            <img src={cat.imageUrl} alt={cat.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                          ) : (
-                            <div className="absolute inset-0 bg-slate-200 w-full h-full"></div>
-                          )}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                          <h3 className="relative text-white text-2xl font-bold z-10">{cat.name}</h3>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* Most Popular */}
-                <section>
-                  <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold">Todos os Produtos</h2>
-                  </div>
-                  <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).map(p => (
-                      <div key={p.id} className="border border-slate-200 hover:border-blue-600 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openProductDetail(p)}>
-                        <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden">
-                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <Package size={48} className="text-slate-300 m-auto h-full" />}
-                        </div>
-                        <h3 className="font-bold text-sm line-clamp-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
-                        <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </>
-            ) : (
-              <>
-                {/* Category Filtered View */}
-                <section>
-                  <h2 className="text-3xl font-bold mb-8">
-                    {supplierCategories.find(c => c.id === selectedInternalCategory)?.name || 'Categoria'}
-                  </h2>
-                  <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {rankedProducts.map(p => (
-                      <div key={p.id} className="border border-slate-200 hover:border-blue-600 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openProductDetail(p)}>
-                        <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
-                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <Package size={48} className="text-slate-300" />}
-                        </div>
-                        <h3 className="font-bold text-sm line-clamp-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
-                        <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
-                      </div>
-                    ))}
-                    {rankedProducts.length === 0 && (
-                      <div className="col-span-full py-12 text-center text-slate-500">
-                        Nenhum produto encontrado nesta categoria.
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <div className="h-px bg-slate-200 my-12"></div>
-
-                {/* Random Products from this store */}
-                <section>
-                  <h2 className="text-2xl font-bold mb-6 text-slate-800">Mais produtos dessa loja</h2>
-                  <div style={{ paddingTop: '0px', paddingBottom: '0px' }} className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {(() => {
-                      const otherProducts = (allSupplierProducts || [])
-                        .filter(p => p.organizationId === selectedSupplierId && p.categoryId !== selectedInternalCategory)
-                        .sort(() => 0.5 - Math.random())
-                        .slice(0, 4);
-                      
-                      return otherProducts.map(p => (
-                        <div key={p.id} className="border border-slate-200 hover:border-blue-600 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => openProductDetail(p)}>
-                          <div className="aspect-square bg-slate-100 rounded-xl mb-4 overflow-hidden flex items-center justify-center">
-                            {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" /> : <Package size={48} className="text-slate-300" />}
-                          </div>
-                          <h3 className="font-bold text-sm line-clamp-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</h3>
-                          <p className="font-mono font-bold text-emerald-600 mt-1">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </section>
-              </>
-            )}
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Banner configuration from Super Admin */}
-          <MarketplaceBanner />
-
-          {/* LOJAS OFICIAIS */}
-          <div className="bg-white border-b border-gray-200">
-            <OfficialStores 
-              suppliers={
-                globalSettings?.officialStoresIds?.length 
-                  ? allSuppliers.filter(s => globalSettings.officialStoresIds?.includes(s.id))
-                  : allSuppliers
-              } 
-              onStoreClick={(id) => setSelectedSupplierId(id)}
-            />
-          </div>
-        </>
-      )}
-
-      {/* Control Panel: Search, Filter Supplier & Sorting options (Minimalist YourNextStore style) */}
-      <div className="px-4 pb-2 sm:px-6 sm:pb-4 space-y-3 max-w-7xl mx-auto">
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-xs space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {/* Search */}
-            <div className="md:col-span-2 relative">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-              <input
-                type="text"
-                placeholder="Pesquisar insumo ou produto..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 outline-none focus:border-[#15263f] placeholder-slate-400 font-medium"
-              />
-            </div>
-
-            {/* Supplier Selector */}
-            <div className="md:col-span-2 flex items-center gap-2">
-              <Filter className="text-slate-400 flex-shrink-0" size={16} />
-              <select
-                value={selectedSupplierId}
-                onChange={e => setSelectedSupplierId(e.target.value)}
-                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#15263f] font-medium"
-              >
-                <option value="ALL">Todas as Lojas de Fornecedores</option>
-                {allSuppliers.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.city || 'Geral'})</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Location / Radius (Only active when in ALL Suppliers) */}
-            {selectedSupplierId === 'ALL' && (
-              <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-slate-100">
-                 <div className="relative">
-                    <MapPin className="absolute left-3 top-2.5 text-slate-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="Filtrar por cidade..."
-                      value={userLocation}
-                      onChange={e => setUserLocation(e.target.value)}
-                      className="w-full bg-slate-50/50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-800 outline-none focus:border-[#15263f] placeholder-slate-400 font-medium"
-                    />
-                 </div>
-                 
-                 <div className="flex items-center gap-3 bg-slate-50/50 border border-slate-200 rounded-xl px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Raio: {searchRadius === 201 ? '+200' : searchRadius} km</span>
-                    <input
-                       type="range"
-                       min="10"
-                       max="201"
-                       step="10"
-                       value={searchRadius}
-                       onChange={e => setSearchRadius(Number(e.target.value))}
-                       className="w-full accent-[#15263f]"
-                    />
-                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Minimalist Sorting Tabs */}
-          <div className="flex flex-wrap items-center justify-between text-xs gap-2 pt-2 border-t border-slate-100">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-slate-400 px-1 font-medium text-[11px]">Ordenar:</span>
-              
-              <button
-                onClick={() => setSortOption('RELEVANCE')}
-                className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all ${
-                  sortOption === 'RELEVANCE' 
-                    ? 'bg-[#15263f] text-white shadow-xs' 
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                Relevância
-              </button>
-
-              <button
-                onClick={() => setSortOption('LATEST')}
-                className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all ${
-                  sortOption === 'LATEST' 
-                    ? 'bg-[#15263f] text-white shadow-xs' 
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                Recentes
-              </button>
-
-              <button
-                onClick={() => setSortOption('PRICE_ASC')}
-                className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all ${
-                  sortOption === 'PRICE_ASC' 
-                    ? 'bg-[#15263f] text-white shadow-xs' 
-                    : 'bg-slate-50 text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Menor Preço
-              </button>
-
-              <button
-                onClick={() => setSortOption('PRICE_DESC')}
-                className={`px-3 py-1 rounded-lg font-bold text-[11px] transition-all relative ${
-                  sortOption === 'PRICE_DESC' 
-                    ? 'bg-[#15263f] text-white shadow-xs' 
-                    : 'bg-slate-50 text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Maior Preço
-              </button>
-            </div>
-
-            <span className="text-[10px] text-slate-400 font-mono pr-1">
-              {rankedProducts.length} itens
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-4 pb-4 sm:px-6 sm:pb-6">
-        {/* RENDER DYNAMIC STOREFRONT IF IN SINGLE SUPPLIER MODE OR STANDARD GRID IF ALL */}
-        {selectedSupplierId !== 'ALL' && activeSupplierOrg && activeSupplierOrg.storeSettings?.layoutBlocks && activeSupplierOrg.storeSettings.layoutBlocks.length > 0 ? (
+      {/* 1. TOP STORE NAVBAR (Your Next Store signature clean navigation) */}
+      <nav className="sticky top-0 z-30 bg-white/95 dark:bg-[#131B2A]/95 backdrop-blur-md border-b border-zinc-200/80 dark:border-slate-800 px-4 sm:px-6 py-3 transition-all">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           
-          /* SEQUENTIAL RENDER OF CONFIGURED LAYOUT BLOCKS FOR THIS SUPPLIER */
-          <div className="space-y-12">
-          {activeSupplierOrg.storeSettings.layoutBlocks.map((block: StoreLayoutBlock) => {
-            const blockProducts = rankedProducts.filter(p => {
-              if (block.productIds && block.productIds.length > 0) {
-                return block.productIds.includes(p.id);
-              }
-              return true;
-            });
+          {/* Segmented View Selector */}
+          <div className="flex items-center gap-1.5 p-1 bg-zinc-100 dark:bg-slate-800/80 rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSupplierId('ALL');
+                setSelectedInternalCategory(null);
+                setActiveTab('STORE');
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'STORE'
+                  ? 'bg-white dark:bg-slate-700 text-zinc-950 dark:text-white shadow-xs'
+                  : 'text-zinc-600 dark:text-slate-300 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+            >
+              Loja de Fornecedores
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('MY_ORDERS')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'MY_ORDERS'
+                  ? 'bg-white dark:bg-slate-700 text-zinc-950 dark:text-white shadow-xs'
+                  : 'text-zinc-600 dark:text-slate-300 hover:text-zinc-900 dark:hover:text-white'
+              }`}
+            >
+              Meus Pedidos
+            </button>
+          </div>
 
-            return (
-              <div key={block.id} className="space-y-4">
-                <div className="flex justify-between items-center pb-2 border-b border-slate-805 border-slate-200">
-                  <h3 className="font-bold text-lg flex items-center gap-2">
-                    <Sparkles className="text-blue-600" size={18} />
-                    {block.title || 'Seção Destacada'}
-                  </h3>
-                  <span className="text-xs text-slate-500">{block.type}</span>
-                </div>
+          {/* Quick Cart & Chat Pill Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setChatInitialSupplierId(selectedSupplierId !== 'ALL' ? selectedSupplierId : undefined);
+                setChatInitialSupplierName(activeSupplierOrg?.name);
+                setChatInitialOrderId(undefined);
+                setIsChatModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-slate-800 hover:bg-zinc-200 dark:hover:bg-slate-700 text-zinc-900 dark:text-slate-100 rounded-xl transition-all text-xs font-bold border border-zinc-200 dark:border-slate-700"
+              title="Chat com Fornecedores"
+            >
+              <MessageSquare size={15} className="text-zinc-700 dark:text-slate-300" />
+              <span className="hidden sm:inline">Mensagens</span>
+            </button>
 
-                {block.type === 'BANNER' && (
-                  <div className="relative rounded-2xl overflow-hidden aspect-[21/9] bg-white border border-slate-200">
-                    <img 
-                      src={activeSupplierOrg.storeSettings?.banners?.[0]?.imageUrl || 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&q=80&w=1200'} 
-                      alt="Banner Loja" 
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex items-end p-4 sm:p-6">
-                      <p className="text-white font-bold text-lg md:text-2xl drop-shadow">{block.title}</p>
-                    </div>
-                  </div>
-                )}
-
-                {block.type === 'CAROUSEL' && (
-                  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin snap-x">
-                    {blockProducts.slice(0, 10).map(p => (
-                      <div 
-                        key={p.id} 
-                        onClick={() => openProductDetail(p)}
-                        className="bg-white border border-slate-200 rounded-xl overflow-hidden w-60 flex-shrink-0 snap-start hover:border-blue-600 cursor-pointer transition-all p-3 space-y-3 group"
-                      >
-                        <div className="aspect-square bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center">
-                          <img src={p.imageUrl || 'https://via.placeholder.com/150'} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-xs truncate text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">{p.name}</p>
-                          <div className="flex justify-between items-center pt-2">
-                            <span className="text-slate-900 font-bold font-mono text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
-                            <span className="text-[9px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded font-bold">Ver</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {block.type === 'GRID' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                    {blockProducts.map(p => (
-                      <div 
-                        key={p.id} 
-                        onClick={() => openProductDetail(p)}
-                        className="bg-white border border-slate-200 hover:border-blue-600 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all cursor-pointer shadow-sm hover:shadow-md"
-                      >
-                        <div className="p-4 space-y-3">
-                          <div className="aspect-square bg-slate-50 border border-slate-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                            {p.imageUrl ? (
-                              <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300" referrerPolicy="no-referrer" />
-                            ) : (
-                              <Package className="w-12 h-12 text-slate-700" />
-                            )}
-                            {p.isCombo && (
-                              <span className="absolute top-2 left-2 bg-purple-500 text-white font-bold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                Combo
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-slate-800 line-clamp-1 group-hover:text-blue-600 transition-colors">{p.name}</h3>
-                            <p className="text-slate-500 text-xs line-clamp-2 h-8 mt-1">{p.description || 'Nenhuma descrição...'}</p>
-                          </div>
-                          <div className="pt-2 border-t border-slate-200 flex items-center justify-between font-mono">
-                            <span className="text-slate-900 font-bold text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</span>
-                            <span className="text-[10px] text-slate-500">Estoque: {p.currentStock || 0}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {block.type === 'RELATED' && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-white/40 p-4 border border-slate-200 rounded-2xl">
-                    {blockProducts.slice(0, 4).map(p => (
-                      <div 
-                        key={p.id} 
-                        onClick={() => openProductDetail(p)}
-                        className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between cursor-pointer hover:border-blue-600 transition-all group"
-                      >
-                        <div className="aspect-square rounded-lg overflow-hidden bg-white">
-                          <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer"/>
-                        </div>
-                        <p className="font-bold text-xs truncate mt-2 text-slate-900 group-hover:text-blue-600 transition-colors">{p.name}</p>
-                        <p className="text-slate-900 font-bold text-xs mt-1 font-mono">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {block.type === 'LIST' && (
-                  <div className="divide-y divide-slate-850 bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                    {blockProducts.map(p => (
-                      <div 
-                        key={p.id} 
-                        onClick={() => openProductDetail(p)}
-                        className="p-4 flex items-center justify-between hover:bg-slate-50/60 cursor-pointer transition-all gap-4 group"
-                      >
-                        <div className="flex items-center gap-3">
-                          <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-lg object-cover group-hover:scale-105 transition-transform duration-300" referrerPolicy="no-referrer"/>
-                          <div>
-                            <p className="font-bold text-xs text-slate-800 group-hover:text-blue-600 transition-colors">{p.name}</p>
-                            <p className="text-[10px] text-slate-500 max-w-lg truncate">{p.description}</p>
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-slate-900 font-bold font-mono text-sm">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
-                          <span className="text-[9px] text-blue-600 bg-blue-50 px-2 py-1 rounded font-bold uppercase transition-colors group-hover:bg-blue-600 group-hover:text-white">Ver Opções</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        
-        /* STANDARD ALL PRODUCTS CENTRIC MARKETPLACE GRID (Shopee Ideal) */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {rankedProducts.length === 0 ? (
-            <div className="col-span-full py-16 bg-white border border-slate-200 rounded-2xl text-center text-slate-500 space-y-3">
-              <ShoppingBag className="w-12 h-12 mx-auto stroke-1 text-slate-600" />
-              <p className="text-sm">Nenhum insumo ou produto exposto por fornecedores no momento.</p>
-            </div>
-          ) : (
-            rankedProducts.map(p => {
-              const supplierLoc = getSupplierLocation(p.organizationId);
-              return (
-                <div 
-                  key={p.id} 
-                  onClick={() => openProductDetail(p)}
-                  className="bg-white border border-slate-200 hover:border-blue-600 rounded-2xl overflow-hidden flex flex-col justify-between group transition-all cursor-pointer relative shadow-sm hover:shadow-md"
-                >
-                  <div className="p-4 space-y-3.5">
-                    {/* Image/Placeholder wrapper */}
-                    <div className="aspect-square bg-slate-50 border border-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
-                      {p.imageUrl ? (
-                        <img 
-                          src={p.imageUrl} 
-                          alt={p.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-350" 
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            console.error('Image load error for:', p.imageUrl, p);
-                            e.currentTarget.src = 'https://via.placeholder.com/150';
-                          }}
-                        />
-                      ) : (
-                        <Package className="w-12 h-12 text-slate-700 stroke-1" />
-                      )}
-                      
-                      {/* Floating Supplier Origin Tag */}
-                      <div className="absolute top-2 left-2 bg-white/90 backdrop-blur border border-slate-100 px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold text-slate-500 flex items-center gap-1 shadow-sm">
-                        <Building2 size={10} className="text-blue-600" />
-                        {getSupplierName(p.organizationId).toUpperCase().substring(0, 18)}
-                      </div>
-
-                      {p.isCombo && (
-                        <span className="absolute top-2 right-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold text-[8px] tracking-wider py-0.5 px-2 rounded-full uppercase shadow">
-                          Combo Especial
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="space-y-1">
-                      <h3 className="font-bold text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                        {p.name}
-                      </h3>
-                      <p className="text-slate-500 text-xs line-clamp-2 h-8">
-                        {p.description || 'Nenhuma descrição detalhada informada.'}
-                      </p>
-                    </div>
-
-                    {/* Variations mini badge */}
-                    {p.variations && p.variations.length > 0 && (
-                      <div className="flex gap-1.5 flex-wrap">
-                        {p.variations.slice(0, 3).map((v, i) => (
-                          <span key={i} className="text-[9px] bg-slate-100 border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-mono">
-                            {v.name}
-                          </span>
-                        ))}
-                        {p.variations.length > 3 && (
-                          <span className="text-[9px] text-blue-600 font-bold bg-blue-50 px-1 rounded">+{p.variations.length - 3}</span>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <div>
-                        <p className="text-[9px] font-mono text-slate-500">VALOR UNITÁRIO</p>
-                        <p className="text-base font-bold font-mono text-emerald-600">{isPromo(p) ? (<span><span className="text-xs line-through text-slate-500 mr-1">R$ {p.sellPrice.toFixed(2)}</span>R$ {p.promotionalPrice?.toFixed(2)}</span>) : `R$ ${p.sellPrice.toFixed(2)}`}</p>
-                      </div>
-                      <div>
-                        {p.currentStock && p.currentStock <= p.minStock ? (
-                          <span className="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-md font-mono">Esgotando</span>
-                        ) : (
-                          <span className="text-[10px] text-slate-500 font-mono">Estoque: {p.currentStock || 0}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Buy Button */}
-                  <div className="p-3 bg-slate-50 border-t border-slate-100">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openProductDetail(p);
-                      }}
-                      className="w-full py-2.5 bg-white border border-slate-200 hover:bg-blue-600 hover:border-blue-600 hover:text-white text-slate-700 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                    >
-                      <Plus size={13} /> Ver Opções & Comprar
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
-      </div>
-
-      {/* Cart Drawer - Sidebar slider */}
-      {isCartOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-end">
-          <div className="bg-white border-l border-slate-200 w-full max-w-md h-full flex flex-col text-slate-900 shadow-2xl relative">
-            <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-200 border-slate-200 flex items-center justify-between bg-slate-50/40">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <ShoppingCart className="text-blue-600" />
-                Cesta de Fornecedores
-              </h3>
-              <button 
-                onClick={() => setIsCartOpen(false)} 
-                className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-              {cart.length === 0 ? (
-                <div className="text-center py-16 text-slate-500 space-y-2">
-                  <ShoppingCart className="w-12 h-12 mx-auto stroke-1" />
-                  <p className="text-sm">Seu carrinho está vazio.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {cart.map(item => {
-                    const unitPrice = ((isPromo(item.product) && item.product.promotionalPrice) ? item.product.promotionalPrice : item.product.sellPrice) 
-                      + (item.variation?.priceModifier || 0)
-                      + (item.selectedOptions?.reduce((sum, opt) => sum + opt.priceModifier, 0) || 0);
-                    return (
-                      <div key={item.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                        <div className="flex justify-between items-start gap-3">
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-sm line-clamp-1">{item.product.name}</h4>
-                            {item.variation && (
-                              <p className="text-xs text-blue-600 font-bold mt-1">
-                                Opção: {item.variation.name}
-                              </p>
-                            )}
-                            {item.selectedOptions && item.selectedOptions.length > 0 && (
-                              <div className="mt-1 space-y-0.5">
-                                {item.selectedOptions.map(opt => (
-                                  <p key={opt.optionId} className="text-xs text-blue-600 font-bold">
-                                    {opt.groupName}: <span className="text-slate-900">{opt.optionName}</span>
-                                  </p>
-                                ))}
-                              </div>
-                            )}
-                            {item.selectedTeeth && item.selectedTeeth.length > 0 && (
-                              <p className="text-xs text-indigo-600 font-bold mt-1">
-                                Dentes: <span className="text-slate-900">{item.selectedTeeth.join(', ')}</span>
-                              </p>
-                            )}
-                            <p className="text-[10px] text-slate-500 font-mono uppercase mt-1">
-                              FORNECEDOR: {getSupplierName(item.product.organizationId)}
-                            </p>
-                          </div>
-                          <button 
-                            onClick={() => removeFromCartList(item.id)}
-                            className="text-slate-500 hover:text-red-600 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-                          <div className={`flex items-center bg-white border border-slate-200 rounded-lg p-0.5 ${item.selectedTeeth && item.selectedTeeth.length > 0 ? 'opacity-50 pointer-events-none' : ''}`}>
-                            <button 
-                              onClick={() => updateQuantity(item.id, -1)}
-                              className="p-1 text-slate-500 hover:text-slate-900"
-                              disabled={item.selectedTeeth && item.selectedTeeth.length > 0}
-                            >
-                              <Minus size={14} />
-                            </button>
-                            <span className="px-3 text-sm font-bold font-mono text-slate-800">{item.quantity}</span>
-                            <button 
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="p-1 text-slate-500 hover:text-slate-900"
-                              disabled={item.selectedTeeth && item.selectedTeeth.length > 0}
-                            >
-                              <Plus size={14} />
-                            </button>
-                          </div>
-
-                          <span className="font-mono text-xs font-bold text-emerald-600">
-                            R$ {(unitPrice * item.quantity).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="group relative flex items-center gap-2.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 text-xs font-bold"
+            >
+              <ShoppingCart size={15} />
+              <span className="hidden sm:inline">Carrinho</span>
+              {totalCartCount > 0 && (
+                <span className="px-1.5 py-0.2 bg-white text-blue-700 rounded-full font-mono text-[10px] font-black">
+                  {totalCartCount}
+                </span>
               )}
-            </div>
-
-            {cart.length > 0 && (
-              <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-t border-slate-200 bg-slate-50/40 space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-500 text-sm">VALOR TOTAL DO PEDIDO:</span>
-                  <span className="font-mono text-xl font-bold text-teal-600">R$ {cartTotals.finalTotal.toFixed(2)}</span>
-                </div>
-
-                <button
-                  onClick={() => setIsCheckoutOpen(true)}
-                  className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1.5"
-                >
-                  Continuar para Pagamento <ArrowRight size={16} />
-                </button>
-              </div>
-            )}
+              {cartTotals.finalTotal > 0 && (
+                <span className="hidden md:inline pl-1 border-l border-blue-400 font-mono">
+                  R$ {cartTotals.finalTotal.toFixed(2)}
+                </span>
+              )}
+            </button>
           </div>
         </div>
-      )}
+      </nav>
 
-      {/* DETAILED PRODUCT DIALOG (Shopee-like options configuration) */}
-      {selectedItemForDetail && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl text-slate-900 flex flex-col max-h-[92vh]">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase font-bold text-slate-500 font-mono">DETALHES DO PRODUTO:</span>
-                <span className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded uppercase font-bold">
-                  {getSupplierName(selectedItemForDetail.organizationId)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => handleShareProduct(selectedItemForDetail)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600 bg-white border border-slate-200 rounded-lg hover:bg-indigo-50 transition-colors"
-                >
-                  <ClipboardCheck size={14} /> Compartilhar Produto
-                </button>
-                <button 
-                  onClick={() => setSelectedItemForDetail(null)}
-                  className="text-slate-500 hover:text-slate-900 p-2"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
+      {/* 2. MAIN STORE CONTENT */}
+      {activeTab === 'STORE' && (
+        <div className="space-y-6">
+          
+          {/* Dynamic Hero Banner for Selected Supplier vs General Marketplace */}
+          {selectedSupplierId !== 'ALL' && activeSupplierOrg ? (
+            <StoreHeroBanner
+              supplierOrg={activeSupplierOrg}
+              bannerIndex={bannerIndex}
+              onShareStore={handleShareStore}
+              onBackToAllStores={() => {
+                setSelectedSupplierId('ALL');
+                setSelectedInternalCategory(null);
+              }}
+              productCount={(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).length}
+            />
+          ) : (
+            <>
+              {/* General Marketplace Banner */}
+              <MarketplaceBanner />
 
-            <div className="px-4 pb-4 sm:px-6 sm:pb-6 overflow-y-auto space-y-6 flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
-                
-                {/* Visual Images Slider */}
-                <div className="space-y-3">
-                  <div className="aspect-square bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center p-2">
-                    <img 
-                      src={detailActiveImg || selectedItemForDetail.imageUrl || 'https://via.placeholder.com/150'} 
-                      alt="" 
-                      className="w-full h-full object-contain rounded-xl"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
-                  
-                  {/* Gallery elements */}
-                  <div className="flex gap-2.5 overflow-x-auto py-1">
-                    <div 
-                      onClick={() => setDetailActiveImg(selectedItemForDetail.imageUrl || '')}
-                      className={`w-14 h-14 bg-slate-50 rounded-xl overflow-hidden cursor-pointer border ${
-                        detailActiveImg === selectedItemForDetail.imageUrl ? 'border-blue-600 ring-2 ring-blue-600/20' : 'border-slate-200 hover:border-slate-300'
+              {/* Official Stores Carousel */}
+              <div className="bg-white dark:bg-[#131B2A] border-b border-zinc-200/80 dark:border-slate-800 transition-colors">
+                <OfficialStores 
+                  suppliers={
+                    globalSettings?.officialStoresIds?.length 
+                      ? allSuppliers.filter(s => globalSettings.officialStoresIds?.includes(s.id))
+                      : allSuppliers
+                  } 
+                  onStoreClick={(id) => {
+                    setSelectedSupplierId(id);
+                    setSelectedInternalCategory(null);
+                  }}
+                />
+              </div>
+            </>
+          )}
+
+          {/* 3. STORE CONTROLS TOOLBAR (Search, Categories, Sorting, Radius) */}
+          <section className="max-w-7xl mx-auto px-4 sm:px-6 space-y-4">
+            
+            {/* Search and Supplier Selection Bar */}
+            <div className="bg-white dark:bg-[#131B2A] p-3 sm:p-4 rounded-2xl border border-zinc-200/80 dark:border-slate-800 shadow-xs space-y-3 transition-colors">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                {/* Search Input */}
+                <div className="md:col-span-6 relative">
+                  <Search className="absolute left-3.5 top-3 text-zinc-400 dark:text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Pesquisar insumo, resina, equipamento, marca..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-zinc-50/70 dark:bg-slate-800/80 border border-zinc-200 dark:border-slate-700 rounded-xl pl-10 pr-9 py-2.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 placeholder-zinc-400 dark:placeholder-slate-400 font-medium transition-all"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-3 text-zinc-400 dark:text-slate-400 hover:text-zinc-700 dark:hover:text-white"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Supplier Dropdown Switcher */}
+                <div className="md:col-span-4 relative">
+                  <Building2 className="absolute left-3.5 top-3 text-zinc-400 dark:text-slate-400" size={16} />
+                  <select
+                    value={selectedSupplierId}
+                    onChange={(e) => {
+                      setSelectedSupplierId(e.target.value);
+                      setSelectedInternalCategory(null);
+                    }}
+                    className="w-full bg-zinc-50/70 dark:bg-slate-800/80 border border-zinc-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 font-bold transition-all cursor-pointer"
+                  >
+                    <option value="ALL">Todos os Fornecedores</option>
+                    {allSuppliers.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.city ? `(${s.city}-${s.state || ''})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Location Filter Toggle */}
+                {selectedSupplierId === 'ALL' && (
+                  <div className="md:col-span-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowLocationFilter(!showLocationFilter)}
+                      className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                        showLocationFilter || userLocation
+                          ? 'border-blue-600 bg-blue-600 text-white'
+                          : 'border-zinc-200 dark:border-slate-700 bg-zinc-50/70 dark:bg-slate-800/80 text-zinc-700 dark:text-slate-200 hover:bg-zinc-100 dark:hover:bg-slate-700'
                       }`}
                     >
-                      <img src={selectedItemForDetail.imageUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
-                    {selectedItemForDetail.imageUrls && selectedItemForDetail.imageUrls.map((url, idx) => (
-                      <div 
-                        key={idx} 
-                        onClick={() => setDetailActiveImg(url)}
-                        className={`w-14 h-14 bg-slate-50 rounded-xl overflow-hidden cursor-pointer border ${
-                          detailActiveImg === url ? 'border-blue-600 ring-2 ring-blue-600/20' : 'border-slate-200 hover:border-slate-300'
-                        }`}
-                      >
-                        <img src={url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </div>
-                    ))}
+                      <MapPin size={14} />
+                      <span>{userLocation ? userLocation : 'Localização'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Expandable Location Filter */}
+              {selectedSupplierId === 'ALL' && showLocationFilter && (
+                <div className="p-3 bg-zinc-50 dark:bg-slate-800/50 rounded-xl border border-zinc-200 dark:border-slate-700 grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in">
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-2.5 text-zinc-400 dark:text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      placeholder="Filtrar por cidade ou estado..."
+                      value={userLocation}
+                      onChange={(e) => setUserLocation(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 bg-white dark:bg-slate-800 border border-zinc-200 dark:border-slate-700 rounded-lg px-3 py-1.5">
+                    <span className="text-[10px] font-bold text-zinc-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                      Raio: {searchRadius > 200 ? '+200' : searchRadius} km
+                    </span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="201"
+                      step="10"
+                      value={searchRadius}
+                      onChange={(e) => setSearchRadius(Number(e.target.value))}
+                      className="w-full accent-blue-600 cursor-pointer"
+                    />
                   </div>
                 </div>
+              )}
 
-                {/* Text specifications and option Pickers */}
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900">{selectedItemForDetail.name}</h2>
-                    <p className="text-xs text-slate-500 mt-1 font-mono">SKU: {selectedItemForDetail.code || 'S/ SKU'}</p>
-                  </div>
+              {/* Sorting Pills Toolbar */}
+              <div className="flex flex-wrap items-center justify-between text-xs gap-2 pt-2 border-t border-zinc-100 dark:border-slate-800">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-zinc-400 dark:text-slate-400 text-[11px] font-medium mr-1 flex items-center gap-1">
+                    <ArrowUpDown size={12} /> Ordenar:
+                  </span>
 
-                  {/* Combo contents list */}
-                  {selectedItemForDetail.isCombo && selectedItemForDetail.comboItems && selectedItemForDetail.comboItems.length > 0 && (
-                    <div className="p-3 bg-purple-950/25 border border-purple-900/30 rounded-xl space-y-1.5">
-                      <p className="text-[10px] text-purple-600 font-bold uppercase tracking-wider">Insumos inclusos no Combo:</p>
-                      <div className="space-y-1">
-                        {selectedItemForDetail.comboItems.map((c, i) => (
-                          <div key={i} className="flex justify-between items-center text-xs">
-                            <span className="text-slate-700">• {c.name}</span>
-                            <span className="text-blue-600 font-bold">x{c.quantity} un</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Variation Picker Options (LEGACY MODEL) */}
-                  {selectedItemForDetail.variations && selectedItemForDetail.variations.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Selecione uma Opção (Variação):</label>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedItemForDetail.variations.map((v, i) => (
-                          <button
-                            key={v.id || i}
-                            type="button"
-                            onClick={() => {
-                              setDetailSelectedVar(v);
-                              if (v.imageUrl) {
-                                setDetailActiveImg(v.imageUrl);
-                              }
-                            }}
-                            className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all ${
-                              detailSelectedVar?.id === v.id 
-                                ? 'border-blue-600 bg-blue-50 text-blue-600' 
-                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            {v.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Variation Groups Picker (NEW MODEL) */}
-                  {selectedItemForDetail.variationGroups && selectedItemForDetail.variationGroups.length > 0 && (
-                    <div className="space-y-4">
-                      {selectedItemForDetail.variationGroups.map(group => (
-                        <div key={group.id} className="space-y-2">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                            {group.name} {group.selectionType === 'MULTIPLE' ? '(Múltipla Escolha)' : '(Escolha Única)'}
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            {group.options.map(opt => {
-                              const isSelected = detailSelectedOptions.some(o => o.groupId === group.id && o.optionId === opt.id);
-                              return (
-                                <button
-                                  key={opt.id}
-                                  type="button"
-                                  onClick={() => {
-                                    if (opt.imageUrl) {
-                                      setDetailActiveImg(opt.imageUrl);
-                                    }
-                                    setDetailSelectedOptions(prev => {
-                                      if (group.selectionType === 'SINGLE') {
-                                        // Replace if same group
-                                        const filtered = prev.filter(o => o.groupId !== group.id);
-                                        return [...filtered, {
-                                          groupId: group.id,
-                                          groupName: group.name,
-                                          optionId: opt.id,
-                                          optionName: opt.name,
-                                          priceModifier: opt.priceModifier
-                                        }];
-                                      } else {
-                                        // Toggle for multiple
-                                        if (isSelected) {
-                                          return prev.filter(o => !(o.groupId === group.id && o.optionId === opt.id));
-                                        } else {
-                                          return [...prev, {
-                                            groupId: group.id,
-                                            groupName: group.name,
-                                            optionId: opt.id,
-                                            optionName: opt.name,
-                                            priceModifier: opt.priceModifier
-                                          }];
-                                        }
-                                      }
-                                    });
-                                  }}
-                                  className={`px-3 py-2 border rounded-xl text-xs font-bold transition-all flex flex-col items-start ${
-                                    isSelected 
-                                      ? 'border-blue-600 bg-blue-50 text-blue-600' 
-                                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <span>{opt.name}</span>
-                                  {opt.priceModifier > 0 && (
-                                    <span className="text-[10px] font-mono opacity-80">+ R$ {opt.priceModifier.toFixed(2)}</span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Dynamic Price Display */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
-                    <div>
-                      <p className="text-[9px] text-slate-500 font-mono">PREÇO CONFIGURADO</p>
-                      <p className="text-2xl font-bold font-mono text-emerald-600">
-                        R$ {(
-                          ((isPromo(selectedItemForDetail) && selectedItemForDetail.promotionalPrice) ? selectedItemForDetail.promotionalPrice : selectedItemForDetail.sellPrice) 
-                          + (detailSelectedVar?.priceModifier || 0)
-                          + detailSelectedOptions.reduce((sum, opt) => sum + opt.priceModifier, 0)
-                        ).toFixed(2)}
-                      </p>
-                    </div>
-                    
-                    <div className="text-right">
-                      <p className="text-[9px] text-slate-500 font-mono">ESTOQUE DISPONÍVEL</p>
-                      <p className="text-sm font-bold text-slate-700 font-mono">
-                        {(detailSelectedVar ? detailSelectedVar.currentStock : selectedItemForDetail.currentStock) || 0} un
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Action insert to Cesta */}
-                  <button
-                    onClick={() => {
-                      addToCart(selectedItemForDetail, detailSelectedVar, detailSelectedOptions);
-                      setSelectedItemForDetail(null);
-                    }}
-                    className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart size={16} /> Adicionar Esta Especificação à Cesta
-                  </button>
-
-                  {/* Specifications (Expandable) */}
-                  <div className="text-sm text-slate-700 mt-6 border-t border-slate-100 pt-4">
-                    <h4 className="font-bold mb-2">Especificações</h4>
-                    <div className={`transition-all duration-300 ${isDescExpanded ? 'max-h-96 overflow-y-auto' : 'max-h-20 overflow-hidden'}`}>
-                      {selectedItemForDetail.description || 'Nenhum detalhe adicional fornecido para este produto.'}
-                    </div>
-                    {selectedItemForDetail.description && selectedItemForDetail.description.length > 150 && (
-                      <button onClick={() => setIsDescExpanded(!isDescExpanded)} className="text-blue-600 hover:text-blue-700 font-bold mt-2 text-xs">
-                        {isDescExpanded ? 'Ver menos' : 'Ver mais'}
-                      </button>
-                    )}
-                  </div>
-                  
-                  {/* Reviews Section */}
-                  <ProductReviews productId={selectedItemForDetail.id} />
+                  {[
+                    { id: 'RELEVANCE', label: 'Relevância' },
+                    { id: 'SALES', label: 'Mais Vendidos' },
+                    { id: 'PRICE_ASC', label: 'Menor Preço' },
+                    { id: 'PRICE_DESC', label: 'Maior Preço' },
+                    { id: 'LATEST', label: 'Recentes' }
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setSortOption(s.id as SortOption)}
+                      className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                        sortOption === s.id
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'bg-zinc-100 dark:bg-slate-800 text-zinc-600 dark:text-slate-300 hover:bg-zinc-200/70 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
 
+                <span className="text-[11px] font-mono text-zinc-500 dark:text-slate-400">
+                  {rankedProducts.length} {rankedProducts.length === 1 ? 'produto' : 'produtos'}
+                </span>
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Checkout Modal */}
-      {isCheckoutOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl text-slate-900 flex flex-col max-h-[90vh]">
-            <div className="px-4 pb-4 sm:px-6 sm:pb-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/40">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <ClipboardCheck className="text-indigo-600" />
-                Finalizar Pedido
-              </h3>
-              <button 
-                onClick={() => setIsCheckoutOpen(false)} 
-                className="text-slate-500 hover:text-slate-900">
-                ✕
-              </button>
-            </div>
+            {/* Horizontal Category Pill Carousel */}
+            {selectedSupplierId !== 'ALL' && supplierCategories.length > 0 && (
+              <StoreCategoryNav
+                categories={supplierCategories}
+                selectedCategoryId={selectedInternalCategory}
+                onSelectCategory={setSelectedInternalCategory}
+                totalProductsCount={(allSupplierProducts || []).filter(p => p.organizationId === selectedSupplierId).length}
+                categoryCountMap={categoryCountMap}
+              />
+            )}
+          </section>
 
-            <form onSubmit={handleCheckout} className="px-4 pb-4 sm:px-6 sm:pb-6 overflow-y-auto space-y-5">
-              {/* Shipping Method */}
-              <div className="space-y-3 mb-4">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Opções de Frete</label>
-                
-                {(cart.length > 0 && allSuppliers.find(s => s.id === cart[0].product.organizationId)?.frenetToken) ? (
-                  <div className="space-y-2">
-                    {isQuotingShipping ? (
-                      <div className="p-4 text-center text-slate-500 text-sm animate-pulse border border-slate-200 rounded-xl bg-slate-50">
-                        Calculando frete com Frenet...
-                      </div>
-                    ) : shippingError ? (
-                      <div className="p-4 text-center text-red-500 text-sm border border-red-200 rounded-xl bg-red-50">
-                        {shippingError}
-                      </div>
-                    ) : shippingQuotes.length > 0 ? (
-                      <div className="grid grid-cols-1 gap-2">
-                        {shippingQuotes.map((quote: any, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => {
-                              setShippingMethod('FRENET');
-                              setSelectedShippingService(quote);
-                            }}
-                            className={`p-3 rounded-xl border text-left flex justify-between items-center transition-all ${
-                              shippingMethod === 'FRENET' && selectedShippingService?.ServiceCode === quote.ServiceCode
-                                ? 'border-indigo-500 bg-indigo-50 text-indigo-600' 
-                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-                            }`}
-                          >
-                            <div className="font-bold text-sm">
-                              {quote.ServiceDescription}
-                              <div className="text-xs font-normal opacity-70">Prazo: {quote.DeliveryTime} dias úteis</div>
-                            </div>
-                            <div className="font-bold">
-                              R$ {Number(quote.ShippingPrice).toFixed(2)}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 text-center text-slate-500 text-sm border border-slate-200 rounded-xl bg-slate-50">
-                        Insira seu CEP para calcular o frete ou selecione "Combinar com o vendedor".
-                      </div>
-                    )}
-                  </div>
-                ) : null}
-
-                <div className="grid grid-cols-1 gap-2 mt-2">
+          {/* 4. PRODUCT GRID (Your Next Store signature clean grid) */}
+          <section className="max-w-7xl mx-auto px-4 sm:px-6">
+            {rankedProducts.length === 0 ? (
+              <div className="py-20 bg-white dark:bg-[#131B2A] rounded-3xl border border-zinc-200/80 dark:border-slate-800 text-center text-zinc-400 space-y-3 p-6 transition-colors">
+                <Package size={48} strokeWidth={1} className="mx-auto text-zinc-300 dark:text-slate-600" />
+                <div className="space-y-1">
+                  <h3 className="font-extrabold text-base text-zinc-800 dark:text-slate-100">
+                    Nenhum produto encontrado
+                  </h3>
+                  <p className="text-xs text-zinc-500 dark:text-slate-400 max-w-sm mx-auto">
+                    Tente ajustar seus termos de busca, filtros ou selecionar outro fornecedor parceiro.
+                  </p>
+                </div>
+                {(searchQuery || selectedInternalCategory || userLocation) && (
                   <button
                     type="button"
                     onClick={() => {
-                      setShippingMethod('COMBINE');
-                      setSelectedShippingService(null);
+                      setSearchQuery('');
+                      setSelectedInternalCategory(null);
+                      setUserLocation('');
                     }}
-                    className={`p-3 rounded-xl border text-left font-bold text-sm transition-all ${
-                      shippingMethod === 'COMBINE' 
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-600' 
-                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-                    }`}
+                    className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-all shadow-xs"
                   >
-                    Combinar com o vendedor
+                    Limpar Filtros
                   </button>
-                </div>
+                )}
               </div>
-
-              
-
-              {/* Payment handled by Asaas Checkout */}
-              {/* Delivery Address */}
-              <div className="space-y-3.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Endereço para Entrega</label>
-                
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="col-span-3">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Rua / Avenida"
-                      value={address.street}
-                      onChange={e => setAddress(prev => ({ ...prev, street: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Nº"
-                      value={address.number}
-                      onChange={e => setAddress(prev => ({ ...prev, number: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      placeholder="Complemento"
-                      value={address.complement}
-                      onChange={e => setAddress(prev => ({ ...prev, complement: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Bairro"
-                      value={address.neighborhood}
-                      onChange={e => setAddress(prev => ({ ...prev, neighborhood: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Cidade"
-                      value={address.city}
-                      onChange={e => setAddress(prev => ({ ...prev, city: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <input
-                      type="text"
-                      required
-                      placeholder="UF"
-                      maxLength={2}
-                      value={address.state}
-                      onChange={e => setAddress(prev => ({ ...prev, state: e.target.value.toUpperCase() }))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 text-center uppercase"
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <input
-                      type="text"
-                      required
-                      placeholder="CEP"
-                      value={address.zipCode}
-                      onChange={e => setAddress(prev => ({ ...prev, zipCode: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-mono text-center"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Observações do Pedido (Opcional)</label>
-                <textarea
-                  placeholder="Instruções para despacho ou entrega..."
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 outline-none h-16 resize-none focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-
-              
-              {/* Cupom de Desconto */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Cupom de Desconto</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponCodeInput}
-                    onChange={e => setCouponCodeInput(e.target.value.toUpperCase())}
-                    disabled={appliedCoupon !== null}
-                    placeholder="Insira o código do cupom"
-                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 uppercase disabled:opacity-50"
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
+                {rankedProducts.map((p) => (
+                  <StoreProductCard
+                    key={p.id}
+                    product={p}
+                    supplierName={getSupplierName(p.organizationId)}
+                    onOpenDetail={(prod) => setSelectedItemForDetail(prod)}
                   />
-                  {!appliedCoupon ? (
-                    <button
-                      type="button"
-                      onClick={handleApplyCoupon}
-                      disabled={checkingCoupon || !couponCodeInput}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      {checkingCoupon ? '...' : 'Aplicar'}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => { setAppliedCoupon(null); setCouponCodeInput(''); }}
-                      className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-bold rounded-lg transition-colors"
-                    >
-                      Remover
-                    </button>
-                  )}
-                </div>
-                {couponError && <p className="text-red-600 text-xs">{couponError}</p>}
-                {appliedCoupon && (
-                  <p className="text-emerald-600 text-xs flex items-center gap-1">
-                    <Check size={12} /> Cupom {appliedCoupon.code} aplicado com sucesso!
-                  </p>
-                )}
+                ))}
               </div>
-
-
-              {/* Order summary breakdown */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
-                <div className="flex justify-between text-slate-500">
-                  <span>Subtotal</span>
-                  <span>R$ {cartTotals.baseTotal.toFixed(2)}</span>
-                </div>
-                {cartTotals.discount > 0 && (
-                  <div className="flex justify-between text-emerald-600">
-                    <span>Desconto ({appliedCoupon?.code})</span>
-                    <span>- R$ {cartTotals.discount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-slate-500">
-                  <span>Frete / Despacho</span>
-                  <span className="text-emerald-600 font-semibold uppercase">Grátis</span>
-                </div>
-                <div className="border-t border-slate-200 pt-2 flex justify-between font-bold text-sm text-slate-900">
-                  <span>Total a Pagar</span>
-                  <span className="font-mono text-teal-600">R$ {cartTotals.finalTotal.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isProcessing}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-55 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center gap-1"
-              >
-                {isProcessing ? 'Enviando...' : 'Confirmar e Enviar Pedido'}
-              </button>
-            </form>
-          </div>
+            )}
+          </section>
         </div>
       )}
 
-      </>
+      {/* 5. MY ORDERS TAB */}
+      {activeTab === 'MY_ORDERS' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          <MyOrdersTab />
+        </div>
       )}
 
-      {activeTab === 'MY_ORDERS' && <MyOrdersTab />}
-      
-            {/* Success Modal */}
+      {/* 6. PRODUCT DETAIL MODAL */}
+      {selectedItemForDetail && (
+        <StoreProductDetailModal
+          product={selectedItemForDetail}
+          supplierName={getSupplierName(selectedItemForDetail.organizationId)}
+          onClose={() => setSelectedItemForDetail(null)}
+          onAddToCart={addToCart}
+          onShareProduct={handleShareProduct}
+          onOpenChat={(prod) => {
+            setChatInitialSupplierId(prod.organizationId);
+            setChatInitialSupplierName(getSupplierName(prod.organizationId));
+            setChatInitialOrderId(undefined);
+            setChatInitialProduct(prod);
+            setIsChatModalOpen(true);
+          }}
+        />
+      )}
+
+      {/* 7. CART SLIDE-OVER DRAWER */}
+      <StoreCartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cart}
+        getSupplierName={getSupplierName}
+        updateQuantity={updateQuantity}
+        removeFromCart={removeFromCartList}
+        cartTotals={cartTotals}
+        couponCodeInput={couponCodeInput}
+        setCouponCodeInput={setCouponCodeInput}
+        appliedCoupon={appliedCoupon}
+        setAppliedCoupon={setAppliedCoupon}
+        couponError={couponError}
+        checkingCoupon={checkingCoupon}
+        handleApplyCoupon={handleApplyCoupon}
+        onProceedToCheckout={() => setIsCheckoutOpen(true)}
+        pendingOrders={pendingBuyerOrders}
+        onCheckPayment={handleCheckPayment}
+        onCancelPendingOrder={handleCancelPendingOrder}
+        isCheckingPayment={isCheckingPaymentOrder}
+      />
+
+      {/* 8. CHECKOUT MODAL */}
+      <StoreCheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        cart={cart}
+        address={address}
+        setAddress={setAddress}
+        shippingMethod={shippingMethod}
+        setShippingMethod={setShippingMethod}
+        shippingQuotes={shippingQuotes}
+        shippingError={shippingError}
+        isQuotingShipping={isQuotingShipping}
+        selectedShippingService={selectedShippingService}
+        setSelectedShippingService={setSelectedShippingService}
+        hasFrenetToken={Boolean(cart.length > 0 && allSuppliers.find(s => s.id === cart[0].product.organizationId)?.frenetToken)}
+        notes={notes}
+        setNotes={setNotes}
+        cartTotals={cartTotals}
+        appliedCoupon={appliedCoupon}
+        isProcessing={isProcessing}
+        onSubmitOrder={handleCheckout}
+      />
+
+      {/* 9. ORDER SUCCESS MODAL */}
       {orderSuccess && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 w-full max-w-md rounded-2xl overflow-hidden shadow-2xl text-slate-900 p-4 sm:p-6 space-y-6 text-center">
-            <div className="w-16 h-16 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-              <Check size={36} />
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-zinc-200 p-6 sm:p-8 space-y-6 text-center shadow-2xl">
+            <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-200">
+              <Check size={32} />
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-xl font-bold">Pedido Efetuado com Sucesso!</h3>
-              <p className="text-slate-500 text-xs">
-                Seu pedido foi registrado e encaminhado diretamente ao fornecedor para faturamento e despacho.
+            <div className="space-y-1.5">
+              <h3 className="text-xl font-extrabold text-zinc-950">Pedido Gerado com Sucesso!</h3>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Seu pedido foi registrado e enviado diretamente para o fornecedor.
               </p>
             </div>
 
-            {orderSuccess.paymentMethod === 'PIX' ? (
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
-                <span className="text-[10px] font-mono text-blue-600 uppercase font-black">PAGAMENTO VIA PIX (ASAAS)</span>
-                <div className="w-32 h-32 bg-white rounded-lg mx-auto flex items-center justify-center text-slate-900 text-xs font-mono font-bold">
-                  [ QR CODE PIX ]
-                </div>
-                <div className="bg-white p-2 rounded-lg border border-slate-200 flex flex-col items-center gap-1">
-                  <span className="text-[10px] text-slate-500">Pix Copia e Cola:</span>
-                  <span className="text-xs font-mono text-slate-800 break-all select-all">{orderSuccess.asaasPixCopyPaste}</span>
-                </div>
-                <p className="text-[10px] text-slate-500 leading-relaxed max-w-xs mx-auto">
-                  Escaneie o QR Code PIX ou copie o código acima para efetuar a transferência direta via Asaas.
-                </p>
-              </div>
-            ) : (
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-3">
-                <p className="text-emerald-600 font-bold">Transação via Asaas Gerada!</p>
-                <a href={orderSuccess.asaasInvoiceUrl} target="_blank" rel="noreferrer" className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors">
-                  Acessar Fatura Asaas
-                </a>
-                <p className="text-slate-500">Verifique os detalhes na fatura do seu cartão ou acesse o link acima.</p>
-              </div>
+            {orderSuccess.asaasInvoiceUrl && (
+              <a
+                href={orderSuccess.asaasInvoiceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center w-full py-3.5 bg-zinc-950 hover:bg-zinc-800 text-white font-bold rounded-2xl transition-all shadow-md text-xs"
+              >
+                Abrir Fatura / Pagamento Asaas
+              </a>
             )}
 
             <button
+              type="button"
               onClick={() => {
                 setOrderSuccess(null);
                 setIsCartOpen(false);
               }}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all"
+              className="w-full py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold rounded-2xl transition-all text-xs"
             >
               Voltar para Loja
             </button>
           </div>
         </div>
       )}
+
+      {/* 10. SUPPLIER STORE CHAT MODAL */}
+      <SupplierStoreChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        initialSupplierId={chatInitialSupplierId}
+        initialSupplierName={chatInitialSupplierName}
+        initialOrderId={chatInitialOrderId}
+        initialProduct={chatInitialProduct}
+      />
     </main>
   );
 };

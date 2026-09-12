@@ -25,7 +25,8 @@ import {
   User, UserRole, Job, JobType, Sector, JobAlert, ClinicPatient, 
   Appointment, Organization, SubscriptionPlan, OrganizationConnection, 
   Coupon, LabCoupon, CommissionRecord, ManualDentist, Expense, BillingBatch, GlobalSettings, LabRating, DeliveryRoute, RouteItem, BoxColor, ChatMessage, ClinicService, ClinicRoom, ClinicDentist, PatientHistoryRecord, PaymentRecord, PriceTable, DentistPayment, CardMachine, BankAccount,
-  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget
+  Tutorial, Courier, ClinicBudget, ClinicPrescription, ClinicClinicalCard, ClinicAnamnesis, ClinicPatientFinance, OnlineRequisition, SupplierOrder, CaseApprovalItem, CaseApprovalReply, CaseApprovalFile, Budget,
+  OrderReturnRequest, SupplierChatMessage, SupplierConversation
 } from '../types';
 
 // Helper ultra-seguro para datas
@@ -1466,6 +1467,283 @@ export const subscribeBuyerSupplierOrders = (buyerOrgId: string, cb: (orders: Su
 export const apiCreateSupplierPayment = async (orderData: any, paymentData: any) => {
     const fn = httpsCallable(functions, 'createSupplierPayment');
     return (await fn({ orderData, paymentData })).data;
+};
+
+export const apiCheckSupplierOrderPayment = async (orderId: string): Promise<{ paid: boolean; status?: string; error?: string }> => {
+    try {
+        const fn = httpsCallable(functions, 'checkSupplierOrderPayment');
+        const res: any = (await fn({ orderId })).data;
+        return res;
+    } catch (e: any) {
+        // Fallback: verificar diretamente no Firestore
+        try {
+            const snap = await getDoc(doc(db, 'supplierOrders', orderId));
+            if (snap.exists()) {
+                const data = snap.data();
+                const isPaid = data.paymentStatus === 'PAID' || data.status === 'CONFIRMED';
+                return { paid: isPaid, status: data.paymentStatus || data.status };
+            }
+        } catch (err) {}
+        return { paid: false, error: e.message };
+    }
+};
+
+export const apiCancelSupplierOrder = async (orderId: string) => {
+    return updateDoc(doc(db, 'supplierOrders', orderId), {
+        status: 'CANCELLED',
+        paymentStatus: 'FAILED',
+        cancelledAt: new Date()
+    });
+};
+
+export const apiCancelSupplierOrderByBuyer = async (
+    orderId: string, 
+    reason: string, 
+    details?: string, 
+    requestedBy?: { userId: string; userName: string; orgId: string; orgName: string; userEmail?: string }
+) => {
+    const returnReq: OrderReturnRequest = {
+        id: `cancel_${Date.now()}`,
+        orderId,
+        type: 'CANCEL',
+        reason: 'BUYER_REMORSE_PRE_DISPATCH',
+        reasonLabel: reason || 'Cancelamento solicitado pelo comprador',
+        details: details || '',
+        requestedResolution: 'REFUND',
+        status: 'PENDING',
+        requestedAt: new Date(),
+        requestedByUserId: requestedBy?.userId || '',
+        requestedByUserName: requestedBy?.userName || 'Comprador',
+        requestedByUserEmail: requestedBy?.userEmail || '',
+        requestedByOrgId: requestedBy?.orgId || '',
+        requestedByOrgName: requestedBy?.orgName || ''
+    };
+
+    return updateDoc(doc(db, 'supplierOrders', orderId), {
+        returnRequest: returnReq,
+        cancellationReason: reason,
+        cancelledBy: 'BUYER',
+        status: 'PENDING' // Keep status or note request pending supplier approval
+    });
+};
+
+export const apiSubmitOrderReturnRequest = async (orderId: string, returnRequest: OrderReturnRequest) => {
+    return updateDoc(doc(db, 'supplierOrders', orderId), {
+        returnRequest: {
+            ...returnRequest,
+            requestedAt: returnRequest.requestedAt || new Date(),
+            updatedAt: new Date()
+        }
+    });
+};
+
+export const apiRespondOrderReturnRequest = async (
+    orderId: string, 
+    updates: Partial<OrderReturnRequest>,
+    newOrderStatus?: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED',
+    newPaymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+) => {
+    const orderRef = doc(db, 'supplierOrders', orderId);
+    const orderSnap = await getDoc(orderRef);
+    if (!orderSnap.exists()) throw new Error('Pedido não encontrado');
+    
+    const existingData = orderSnap.data();
+    const existingReq = existingData.returnRequest || {};
+    
+    const mergedRequest = {
+        ...existingReq,
+        ...updates,
+        updatedAt: new Date(),
+        ...(updates.status === 'REFUNDED' || updates.status === 'EXCHANGED' || updates.status === 'REJECTED' ? { resolvedAt: new Date() } : {})
+    };
+
+    const payload: any = {
+        returnRequest: mergedRequest
+    };
+
+    if (newOrderStatus) {
+        payload.status = newOrderStatus;
+        if (newOrderStatus === 'CANCELLED') {
+            payload.cancelledAt = new Date();
+        }
+    }
+    if (newPaymentStatus) {
+        payload.paymentStatus = newPaymentStatus;
+    }
+
+    return updateDoc(orderRef, payload);
+};
+
+export const apiPostReturnTrackingCode = async (orderId: string, postageCode: string) => {
+    const orderRef = doc(db, 'supplierOrders', orderId);
+    const snap = await getDoc(orderRef);
+    if (!snap.exists()) throw new Error('Pedido não encontrado');
+    const existingReq = snap.data().returnRequest;
+    if (!existingReq) throw new Error('Solicitação de devolução não encontrada');
+
+    return updateDoc(orderRef, {
+        'returnRequest.status': 'POSTED_BY_BUYER',
+        'returnRequest.reversePostageCode': postageCode,
+        'returnRequest.updatedAt': new Date()
+    });
+};
+
+export const apiConfirmReturnDelivery = async (orderId: string) => {
+    return updateDoc(doc(db, 'supplierOrders', orderId), {
+        'returnRequest.status': 'RECEIVED_BY_SUPPLIER',
+        'returnRequest.updatedAt': new Date()
+    });
+};
+
+export const apiCompleteOrderRefund = async (orderId: string, refundTransactionId?: string) => {
+    return updateDoc(doc(db, 'supplierOrders', orderId), {
+        status: 'CANCELLED',
+        paymentStatus: 'REFUNDED',
+        'returnRequest.status': 'REFUNDED',
+        'returnRequest.refundTransactionId': refundTransactionId || `REFUND_${Date.now()}`,
+        'returnRequest.resolvedAt': new Date(),
+        'returnRequest.updatedAt': new Date()
+    });
+};
+
+// --- SUPPLIER STORE CHAT SERVICES ---
+export const subscribeSupplierConversations = (
+    orgId: string, 
+    isSupplier: boolean, 
+    cb: (convs: SupplierConversation[]) => void
+) => {
+    if (!orgId) return () => {};
+    const fieldName = isSupplier ? 'supplierOrgId' : 'buyerOrgId';
+    const q = query(collection(db, 'supplierConversations'), where(fieldName, '==', orgId));
+    
+    return onSnapshot(q, (snap: any) => {
+        const list = snap.docs.map((d: any) => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt),
+            updatedAt: toDate(d.data().updatedAt),
+            lastMessageTimestamp: d.data().lastMessageTimestamp ? toDate(d.data().lastMessageTimestamp) : undefined
+        } as SupplierConversation));
+
+        list.sort((a: SupplierConversation, b: SupplierConversation) => {
+            const timeA = a.lastMessageTimestamp?.getTime() || a.updatedAt.getTime();
+            const timeB = b.lastMessageTimestamp?.getTime() || b.updatedAt.getTime();
+            return timeB - timeA;
+        });
+
+        cb(list);
+    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeSupplierConversations: ${error.code}`));
+};
+
+export const subscribeSupplierChatMessages = (
+    conversationId: string, 
+    cb: (msgs: SupplierChatMessage[]) => void
+) => {
+    if (!conversationId) return () => {};
+    const q = query(
+        collection(db, `supplierConversations/${conversationId}/messages`), 
+        orderBy('createdAt', 'asc')
+    );
+    
+    return onSnapshot(q, (snap: any) => {
+        cb(snap.docs.map((d: any) => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: toDate(d.data().createdAt)
+        } as SupplierChatMessage)));
+    }, (error: any) => logger.warn(`[Firestore] Erro em subscribeSupplierChatMessages: ${error.code}`));
+};
+
+export const apiGetOrCreateSupplierConversation = async (data: {
+    buyerOrgId: string;
+    buyerOrgName: string;
+    buyerUserId: string;
+    buyerUserName: string;
+    buyerUserEmail?: string;
+    buyerRole?: string;
+    supplierOrgId: string;
+    supplierOrgName: string;
+    orderId?: string;
+    productId?: string;
+    productName?: string;
+    productImageUrl?: string;
+}): Promise<string> => {
+    // Generate deterministic ID or find existing conversation
+    const convId = data.orderId 
+        ? `conv_order_${data.buyerOrgId}_${data.supplierOrgId}_${data.orderId}`
+        : data.productId
+        ? `conv_prod_${data.buyerOrgId}_${data.supplierOrgId}_${data.productId}`
+        : `conv_${data.buyerOrgId}_${data.supplierOrgId}`;
+        
+    const convRef = doc(db, 'supplierConversations', convId);
+    const snap = await getDoc(convRef);
+    
+    if (!snap.exists()) {
+        const newConv: SupplierConversation = {
+            id: convId,
+            buyerOrgId: data.buyerOrgId,
+            buyerOrgName: data.buyerOrgName || 'Cliente',
+            buyerUserId: data.buyerUserId,
+            buyerUserName: data.buyerUserName || 'Cliente',
+            buyerUserEmail: data.buyerUserEmail,
+            buyerRole: data.buyerRole || 'CLIENT',
+            supplierOrgId: data.supplierOrgId,
+            supplierOrgName: data.supplierOrgName || 'Fornecedor',
+            orderId: data.orderId,
+            productId: data.productId,
+            productName: data.productName,
+            productImageUrl: data.productImageUrl,
+            unreadCountBuyer: 0,
+            unreadCountSupplier: 0,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
+        await setDoc(convRef, newConv);
+    }
+    
+    return convId;
+};
+
+export const apiSendSupplierChatMessage = async (
+    conversationId: string, 
+    msg: Omit<SupplierChatMessage, 'id'>
+) => {
+    const messagesCol = collection(db, `supplierConversations/${conversationId}/messages`);
+    const newMsgRef = await addDoc(messagesCol, {
+        ...msg,
+        createdAt: new Date()
+    });
+
+    const isBuyer = msg.senderRole === 'BUYER';
+    
+    await updateDoc(doc(db, 'supplierConversations', conversationId), {
+        lastMessageText: msg.text,
+        lastMessageTimestamp: new Date(),
+        lastMessageSenderId: msg.senderId,
+        updatedAt: new Date(),
+        ...(isBuyer ? { unreadCountSupplier: increment(1) } : { unreadCountBuyer: increment(1) })
+    });
+
+    return newMsgRef.id;
+};
+
+export const apiMarkSupplierConversationAsRead = async (conversationId: string, isSupplier: boolean) => {
+    return updateDoc(doc(db, 'supplierConversations', conversationId), {
+        [isSupplier ? 'unreadCountSupplier' : 'unreadCountBuyer']: 0
+    });
+};
+
+export const apiSendOrderChatMessage = async (
+    orderId: string, 
+    msg: { senderId: string; senderName: string; text: string }
+) => {
+    const orderRef = doc(db, 'supplierOrders', orderId);
+    return updateDoc(orderRef, {
+        chat: arrayUnion({
+            ...msg,
+            timestamp: new Date()
+        })
+    });
 };
 
 export const apiAddProductReview = async (review: import('../types').ProductReview) => {

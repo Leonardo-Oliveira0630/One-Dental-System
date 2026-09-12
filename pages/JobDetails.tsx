@@ -3,6 +3,7 @@ import logger from "../utils/logger";
 import React, { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { JobStatus, UrgencyLevel, UserRole, JobItem, LabRating, Job, DeliveryRoute, Attachment, JobNature, JobItemExecution, SectorMovement, CommissionStatus, JobProduct } from '../types';
 import { 
@@ -77,6 +78,7 @@ const parseSafeDate = (d: any) => {
 
 export const JobDetails = () => {
   const { id } = useParams();
+  const { t } = useTranslation();
   const { jobs, budgets, updateJob, updateJobType, triggerPrint, currentUser, jobTypes, sectors, uploadFile, addJobToRoute, currentOrg, activeOrganization, allUsers, manualDentists, priceTables, inventoryItems, couriers, onlineRequisitions, currentPlan, updateOnlineRequisition, boxColors } = useApp();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1579,8 +1581,8 @@ export const JobDetails = () => {
             <ArrowLeft size={20} />
           </button>
           <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Resumo do Caso</h1>
-            <p className="text-xs text-slate-500 font-bold">Ordem de Serviço Simplificada</p>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">{t('jobDetails.caseSummary', 'Resumo do Caso')}</h1>
+            <p className="text-xs text-slate-500 font-bold">{t('jobDetails.simplifiedOs', 'Ordem de Serviço Simplificada')}</p>
           </div>
         </div>
 
@@ -1590,11 +1592,11 @@ export const JobDetails = () => {
           {/* Header OS details */}
           <div className="flex justify-between items-start border-b border-slate-100 pb-4">
             <div>
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Código OS</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('jobDetails.osCode', 'Código OS')}</span>
               <h2 className="font-mono text-xl font-black text-blue-600">#{job.osNumber || job.id.substring(0, 6)}</h2>
             </div>
             <div className="text-right">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Status Atual</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('jobDetails.currentStatus', 'Status Atual')}</span>
               <div>
                 <span className={`inline-block mt-1 px-3 py-1 rounded-full text-[10px] font-black uppercase border ${getStatusColor(job.status)}`}>
                   {getTranslatedStatus(job.status)}
@@ -1606,7 +1608,7 @@ export const JobDetails = () => {
           {/* Core Info Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:p-6">
             <div>
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Dentista Solicitante</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">{t('jobDetails.requestingDentist', 'Dentista Solicitante')}</span>
               <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
                 <User size={16} className="text-blue-500 font-bold" />
                 <span>Dr(a). {job.dentistName}</span>
@@ -1614,7 +1616,7 @@ export const JobDetails = () => {
             </div>
 
             <div>
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Nome do Paciente</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">{t('jobDetails.patientName', 'Nome do Paciente')}</span>
               <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
                 <User size={16} className="text-slate-400 font-bold" />
                 <span>{job.patientName}</span>
@@ -1622,15 +1624,15 @@ export const JobDetails = () => {
             </div>
 
             <div>
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Data de Finalização</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">{t('jobDetails.completionDate', 'Data de Finalização')}</span>
               <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
                 <Calendar size={16} className="text-green-500 font-bold" />
-                <span>{(job.dueDate ? new Date(job.dueDate).toLocaleDateString("pt-BR") : "-")}</span>
+                <span>{(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</span>
               </div>
             </div>
 
             <div>
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">Tipo de Serviço</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">{t('jobDetails.serviceType', 'Tipo de Serviço')}</span>
               <div className="text-slate-700 font-bold bg-slate-50 px-3 py-2 rounded-xl border border-slate-100 text-xs">
                 {job.items?.map((i: any) => `${i.name} (x${i.quantity || 1})`).join(', ') || 
                  job.products?.map((p: any) => `${p.name} (x${p.quantity || 1})`).join(', ') || 'Sem serviços informados'}
@@ -1641,7 +1643,7 @@ export const JobDetails = () => {
           {/* Observations and Editing */}
           <div className="border-t border-slate-100 pt-6 space-y-2">
             <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Observações do Pedido</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t('jobDetails.orderObservations', 'Observações do Pedido')}</span>
               {!freeLabEditingNotes && (
                 <button 
                   onClick={() => {
@@ -2599,20 +2601,20 @@ export const JobDetails = () => {
 
       {/* HEADER PRINCIPAL */}
       <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 shrink-0">
-          <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors"><ArrowLeft size={16} /> Lista</button>
+          <button onClick={() => navigate('/jobs')} className="flex items-center gap-2 text-slate-400 hover:text-slate-800 font-black text-[10px] uppercase tracking-widest transition-colors"><ArrowLeft size={16} /> {t('common.back', 'Voltar')}</button>
           <div className="flex flex-wrap gap-2 w-full xs:w-auto">
               {job.isBudget && job.status === 'PENDING' && (
                   <button onClick={() => handleReturnAction('PROSSEGUIMENTO')} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-green-50 border border-green-100 text-green-600 rounded-lg hover:bg-green-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
-                      <CheckCircle2 size={12} /> APROVAR E GERAR OS
+                      <CheckCircle2 size={12} /> {t('jobDetails.approveAndGenerateOs', 'Aprovar e Gerar OS')}
                   </button>
               )}
               {canReopen && !job.isBudget && (
                   <>
                     <button onClick={() => setShowReturnModal(true)} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-600 rounded-lg hover:bg-indigo-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
-                        <Plus size={12} /> CADASTRAR RETORNO
+                        <Plus size={12} /> {t('jobDetails.registerReturn', 'Cadastrar Retorno')}
                     </button>
                     <button onClick={handleReopenJob} disabled={isUpdatingStatus} className="px-3 py-1.5 bg-amber-50 border border-amber-100 text-amber-600 rounded-lg hover:bg-amber-100 font-bold flex items-center gap-1.5 text-[9px] uppercase tracking-widest transition-all">
-                      {isUpdatingStatus ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} REABRIR
+                      {isUpdatingStatus ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} {t('jobDetails.reopen', 'Reabrir')}
                     </button>
                   </>
               )}
@@ -2648,13 +2650,13 @@ export const JobDetails = () => {
                         <span className="font-mono font-black text-2xl md:text-3xl text-slate-900 tracking-tight shrink-0">OS #{job.osNumber || '---'}</span>
                         {jobs.filter(j => j.patientName === job.patientName).length > 1 && (
                             <div className="relative shrink-0">
-                                <button onClick={() => setIsCasesDropdownOpen(!isCasesDropdownOpen)} className="text-[9px] bg-slate-200 text-slate-600 px-2 py-1 rounded-md font-black uppercase tracking-widest hover:bg-slate-300 transition-colors shadow-sm cursor-pointer border border-slate-300">Todos os Casos</button>
+                                <button onClick={() => setIsCasesDropdownOpen(!isCasesDropdownOpen)} className="text-[9px] bg-slate-200 text-slate-600 px-2 py-1 rounded-md font-black uppercase tracking-widest hover:bg-slate-300 transition-colors shadow-sm cursor-pointer border border-slate-300">{t('jobDetails.allCases', 'Todos os Casos')}</button>
                                 {isCasesDropdownOpen && (
                                     <>
                                         <div className="fixed inset-0 z-[9998]" onClick={() => setIsCasesDropdownOpen(false)}></div>
                                         <div className="absolute left-0 top-full mt-2 bg-white shadow-2xl border border-slate-200 rounded-xl py-2 w-48 z-[9999]">
                                             <div className="px-3 pb-2 mb-1 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                                Histórico do Paciente
+                                                {t('jobDetails.patientHistory', 'Histórico do Paciente')}
                                             </div>
                                             {jobs.filter(j => j.patientName === job.patientName)
                                                  .sort((a,b) => {
@@ -2716,7 +2718,7 @@ export const JobDetails = () => {
                             onClick={handleToggleChat}
                             className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 transition-all shadow-sm ${job.chatEnabled ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-100 text-slate-400 border-slate-200'}`}
                         >
-                            <MessageSquare size={10}/> {job.chatEnabled ? 'CHAT ATIVO' : 'CHAT OFF'}
+                            <MessageSquare size={10}/> {job.chatEnabled ? t('jobDetails.chatActive', 'Chat Ativo') : t('jobDetails.chatOff', 'Chat Desativado')}
                         </button>
                     )}
                     {!job.isBudget && canManageApproval && (
@@ -2724,7 +2726,7 @@ export const JobDetails = () => {
                             onClick={handleToggleApproval}
                             className={`px-2.5 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase border flex items-center gap-1.5 transition-all shadow-sm ${job.approvalEnabled ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-100 text-slate-400 border-slate-200'}`}
                         >
-                            <CheckSquare size={10}/> {job.approvalEnabled ? 'APROVAÇÃO ATIVA' : 'APROVAÇÃO OFF'}
+                            <CheckSquare size={10}/> {job.approvalEnabled ? t('jobDetails.approvalActive', 'Aprovação Ativa') : t('jobDetails.approvalOff', 'Aprovação Desativada')}
                         </button>
                     )}
                 </div>
@@ -2739,7 +2741,7 @@ export const JobDetails = () => {
             
             <div className="flex flex-col xs:flex-row lg:flex-col lg:items-end gap-3 w-full lg:w-auto mt-2 lg:mt-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-50">
                 <div className="lg:text-right shrink-0">
-                    <p className="text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">Previsão de Saída</p>
+                    <p className="text-[8px] md:text-[10px] text-slate-400 uppercase font-black tracking-widest leading-none mb-1">{t('jobDetails.estimatedDelivery', 'Previsão de Saída')}</p>
                     <div className="flex items-center lg:justify-end gap-1.5 text-sm md:text-lg font-black text-slate-800"><Calendar size={18} className="text-blue-600 shrink-0" /> {(job.dueDate ? new Date(job.dueDate).toLocaleDateString() : "-")}</div>
                 </div>
                 
@@ -2752,37 +2754,37 @@ export const JobDetails = () => {
   }} 
                             className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 text-white font-black text-[10px] rounded-xl hover:bg-slate-900 shadow-xl shadow-slate-200 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95"
                         >
-                            <ScanBarcode size={16} /> LER CÓDIGO
+                            <ScanBarcode size={16} /> {t('jobDetails.readBarcode', 'Ler Código')}
                         </button>
                     )}
                     {canFinalize && !job.isBudget && (
                          <button onClick={handleFinalizeJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-green-600 text-white font-black text-[10px] rounded-xl hover:bg-green-700 shadow-xl shadow-green-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all transform active:scale-95">
-                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} FINALIZAR
+                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} {t('jobDetails.finishCase', 'Finalizar')}
                         </button>
                     )}
                     {isFinished && isLabStaff && !job.routeId && (
                         <button onClick={() => setShowRouteModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white font-black text-[10px] rounded-xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 flex items-center justify-center gap-2 uppercase tracking-widest transition-all">
-                            <Truck size={16} /> LOGÍSTICA
+                            <Truck size={16} /> {t('jobDetails.sendToLogistics', 'Logística')}
                         </button>
                     )}
                     {canAlert && !job.isBudget && (
                          <button onClick={() => setShowAlertModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-red-50 border border-red-100 text-red-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-red-100">
-                            <Bell size={16} /> Alerta
+                            <Bell size={16} /> {t('jobDetails.alert', 'Alerta')}
                         </button>
                     )}
                     {canEdit && (
                         <button onClick={() => setShowEditModal(true)} className="w-full sm:w-auto px-4 py-2.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-blue-100">
-                            <Edit size={16} /> Editar
+                            <Edit size={16} /> {t('common.edit', 'Editar')}
                         </button>
                     )}
                     {canShowReturn && !job.isBudget && (
                         <button onClick={handleReturnJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-orange-100">
-                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftCircle size={16} />} Devolver
+                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <ArrowLeftCircle size={16} />} {t('jobDetails.returnJob', 'Devolver')}
                         </button>
                     )}
                     {canShowCancel && (
                         <button onClick={handleCancelJob} disabled={isUpdatingStatus} className="w-full sm:w-auto px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl font-bold flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest transition-all hover:bg-gray-100">
-                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />} Cancelar
+                            {isUpdatingStatus ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />} {t('jobDetails.cancelJob', 'Cancelar')}
                         </button>
                     )}
                 </div>
@@ -2792,23 +2794,23 @@ export const JobDetails = () => {
 
       {/* ABAS COM OVERFLOW AUTO */}
       <div className="flex border-b border-slate-200 overflow-x-auto no-scrollbar shrink-0 sticky top-0 md:top-16 bg-slate-50 z-20 w-full">
-         <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> Dados Básicos</button>
+         <button onClick={() => setActiveTab('SUMMARY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'SUMMARY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><FileText size={16} /> {t('jobDetails.basicData', 'Dados Básicos')}</button>
          
          {!isClient && (
            <>
              {!job.isBudget && (!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
-                <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> Produção</button>
+                <button onClick={() => setActiveTab('PRODUCTION')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'PRODUCTION' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Layers size={16} /> {t('jobDetails.production', 'Produção')}</button>
              ) : !job.isBudget ? (
                 <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Controle de produção indisponível para este trabalho">
-                  <Lock size={14} className="text-slate-300" /> Produção <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
+                  <Lock size={14} className="text-slate-300" /> {t('jobDetails.production', 'Produção')} <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
                 </button>
              ) : null}
 
              {(!job.isPseudo && (isLabStaff || revealJobStatus)) ? (
-                <button onClick={() => setActiveTab('HISTORY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'HISTORY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Clock size={16} /> Histórico</button>
+                <button onClick={() => setActiveTab('HISTORY')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'HISTORY' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}><Clock size={16} /> {t('jobDetails.history', 'Histórico')}</button>
              ) : (
                 <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Histórico indisponível para este trabalho">
-                  <Lock size={14} className="text-slate-300" /> Histórico <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
+                  <Lock size={14} className="text-slate-300" /> {t('jobDetails.history', 'Histórico')} <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
                 </button>
              )}
            </>
@@ -2816,12 +2818,12 @@ export const JobDetails = () => {
 
          {!job.isBudget && (!job.isPseudo && (isLabStaff || job.chatEnabled)) ? (
             <button onClick={() => setActiveTab('CHAT')} className={`px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 ${activeTab === 'CHAT' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
-                <MessageCircle size={16} /> Chat
+                <MessageCircle size={16} /> {t('jobDetails.chat', 'Chat')}
                 {job.chatEnabled && isLabStaff && <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0"></div>}
             </button>
          ) : !job.isBudget ? (
             <button type="button" className="px-4 md:px-6 py-4 font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap shrink-0 text-slate-300 cursor-not-allowed" title="Chat desativado pelo laboratório">
-              <Lock size={14} className="text-slate-300" /> Chat <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
+              <Lock size={14} className="text-slate-300" /> {t('jobDetails.chat', 'Chat')} <span className="text-[8px] bg-slate-100 text-slate-400 px-1 py-0.5 rounded uppercase">Indisponível</span>
             </button>
          ) : null}
       </div>

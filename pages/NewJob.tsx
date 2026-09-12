@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { JobType, UserRole, JobStatus, UrgencyLevel, Job, JobItem, VariationOption, VariationGroup, JobNature, User as UserType, ManualDentist, User } from '../types';
 import { getContrastColor } from '../services/mockData';
@@ -38,6 +39,7 @@ const getJobTypeColor = (jobTypeId: string, jobTypeName?: string) => {
 };
 
 export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
+  const { t } = useTranslation();
   const { addJob, updateJob, updateBudget, addBudget, jobs, budgets, jobTypes, currentUser, triggerPrint, allUsers, manualDentists, boxColors, priceTables, inventoryItems, updateInventoryItem, updateOnlineRequisition, currentOrg, updateOrganization } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1083,9 +1085,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={32} className="text-red-600" />
               </div>
-              <h2 className="text-2xl font-black text-slate-800 text-center mb-2">Número de OS em uso</h2>
+              <h2 className="text-2xl font-black text-slate-800 text-center mb-2">{t('newJob.osNumberInUse', 'Número de OS em uso')}</h2>
               <p className="text-sm font-bold text-slate-500 text-center mb-6">
-                Já existe um trabalho cadastrado com a ficha <b className="text-slate-800">{osNumber}</b>. Deseja prosseguir com o próximo número disponível ({suggestedOsNumber})?
+                {t('newJob.osConflictMessage', {
+                  defaultValue: 'Já existe um trabalho cadastrado com a ficha {{osNumber}}. Deseja prosseguir com o próximo número disponível ({{suggested}})?',
+                  osNumber,
+                  suggested: suggestedOsNumber
+                })}
               </p>
               <div className="flex gap-3">
                 <button 
@@ -1095,7 +1101,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                     }} 
                     className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors uppercase tracking-widest text-xs"
                 >
-                    Cancelar
+                    {t('common.cancel', 'Cancelar')}
                 </button>
                 <button 
                     type="button" 
@@ -1105,7 +1111,7 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                     }} 
                     className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors uppercase tracking-widest text-xs"
                 >
-                    Usar {suggestedOsNumber}
+                    {t('newJob.useSuggested', { defaultValue: 'Usar {{number}}', number: suggestedOsNumber })}
                 </button>
               </div>
             </div>
@@ -1115,11 +1121,11 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
               <div className="bg-white rounded-3xl p-4 sm:p-6 md:p-4 sm:p-8 max-w-lg w-full text-center animate-in zoom-in duration-300 shadow-2xl">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={40} className="text-green-600" /></div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">Caso Cadastrado!</h2>
-                <p className="text-sm text-slate-500 mb-8">A Ordem de Serviço foi gerada com sucesso e está pronta para produção.</p>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">{t('newJob.caseRegisteredSuccess', 'Caso Cadastrado!')}</h2>
+                <p className="text-sm text-slate-500 mb-8">{t('newJob.caseRegisteredDesc', 'A Ordem de Serviço foi gerada com sucesso e está pronta para produção.')}</p>
                 <div className="grid grid-cols-1 gap-3">
-                  <button onClick={() => { triggerPrint(lastCreatedJob, 'SHEET'); setLastCreatedJob(null); navigate('/jobs'); }} className="w-full py-4 flex items-center justify-center gap-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg transition-all"><Printer size={20} /> Imprimir Ficha de Trabalho</button>
-                  <button onClick={() => { setLastCreatedJob(null); navigate('/jobs'); }} className="w-full py-4 flex items-center justify-center gap-3 border-2 border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"><ArrowRight size={20} /> Ir para Lista de Trabalhos</button>
+                  <button onClick={() => { triggerPrint(lastCreatedJob, 'SHEET'); setLastCreatedJob(null); navigate('/jobs'); }} className="w-full py-4 flex items-center justify-center gap-3 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 shadow-lg transition-all"><Printer size={20} /> {t('newJob.printWorksheet', 'Imprimir Ficha de Trabalho')}</button>
+                  <button onClick={() => { setLastCreatedJob(null); navigate('/jobs'); }} className="w-full py-4 flex items-center justify-center gap-3 border-2 border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"><ArrowRight size={20} /> {t('newJob.goToJobsList', 'Ir para Lista de Trabalhos')}</button>
                 </div>
               </div>
             </div>
@@ -1127,13 +1133,13 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h1 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter"><Plus className="text-blue-600" /> {isBudget ? 'Novo Orçamento' : 'Nova OS de Bancada'}</h1>
-                <p className="text-xs md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60">{isBudget ? 'Criação de novo orçamento' : 'Entrada física de trabalhos no Laboratório'}</p>
+                <h1 className="text-xl md:text-2xl font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter"><Plus className="text-blue-600" /> {isBudget ? t('newJob.newBudget', 'Novo Orçamento') : t('newJob.newBenchOs', 'Nova OS de Bancada')}</h1>
+                <p className="text-xs md:text-sm text-slate-500 font-bold uppercase tracking-widest opacity-60">{isBudget ? t('newJob.newBudgetDesc', 'Criação de novo orçamento') : t('newJob.physicalEntryDesc', 'Entrada física de trabalhos no Laboratório')}</p>
             </div>
             {!isBudget && (
             <div className="flex bg-slate-200 p-1 rounded-xl w-full md:w-auto">
-                <button type="button" onClick={() => handleEntryTypeChange('NEW')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'NEW' ? 'bg-white text-blue-600 shadow' : 'text-slate-50'}`}>Novo Caso</button>
-                <button type="button" onClick={() => handleEntryTypeChange('CONTINUATION')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'CONTINUATION' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>Retorno / Ajuste</button>
+                <button type="button" onClick={() => handleEntryTypeChange('NEW')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'NEW' ? 'bg-white text-blue-600 shadow' : 'text-slate-50'}`}>{t('newJob.newCase', 'Novo Caso')}</button>
+                <button type="button" onClick={() => handleEntryTypeChange('CONTINUATION')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${entryType === 'CONTINUATION' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'}`}>{t('newJob.returnAdjustment', 'Retorno / Ajuste')}</button>
             </div>
             )}
         </div>
@@ -1142,19 +1148,19 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
             <div className="lg:col-span-8 space-y-4 md:space-y-6">
                 
                 <div className="bg-white p-4 md:p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-200">
-                  <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> Identificação Obrigatória</h2>
+                  <h2 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2 uppercase tracking-widest"><UserIcon size={18} className="text-blue-500" /> {t('newJob.requiredIdentification', 'Identificação Obrigatória')}</h2>
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
-                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{isBudget ? 'Nº Orçamento' : 'Nº OS'} <span className="text-slate-400 font-medium normal-case ml-1">(Automático)</span></label>
-                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} onBlur={handleOsNumberBlur} placeholder="Auto" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300 placeholder:font-normal" />
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{isBudget ? t('newJob.budgetNumber', 'Nº Orçamento') : t('newJob.osNumber', 'Nº OS')} <span className="text-slate-400 font-medium normal-case ml-1">({t('common.automatic', 'Automático')})</span></label>
+                        <input value={osNumber} onChange={e => setOsNumber(e.target.value)} onBlur={handleOsNumberBlur} placeholder={t('common.auto', 'Auto')} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono font-bold text-lg focus:ring-2 focus:ring-blue-500 transition-all placeholder:text-slate-300 placeholder:font-normal" />
                     </div>
                     <div className="md:col-span-9">
-                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Nome do Paciente <span className="text-red-500">*</span></label>
+                         <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.patientName', 'Nome do Paciente')} <span className="text-red-500">*</span></label>
                          <input value={patientName} onChange={e => setPatientName(e.target.value.toUpperCase())} required placeholder="Ex: MARIA DAS DORES" className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold uppercase" />
                     </div>
                     
                     <div className="md:col-span-3">
-                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Origem do Caso</label>
+                        <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.caseOrigin', 'Origem do Caso')}</label>
                         <select
                             value={clientOrigin}
                             onChange={e => {
@@ -1165,16 +1171,16 @@ export const NewJob = ({ isBudget = false }: { isBudget?: boolean }) => {
                             }}
                             className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold text-slate-700"
                         >
-                            <option value="DENTIST">Dentista</option>
-                            <option value="LABORATORY">Laboratório</option>
+                            <option value="DENTIST">{t('newJob.originDentist', 'Dentista')}</option>
+                            <option value="LABORATORY">{t('newJob.originLab', 'Laboratório')}</option>
                         </select>
                     </div>
 
                     <div className="md:col-span-9 relative" ref={dropdownRef}>
-                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">Cliente <span className="text-red-500">*</span></label>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1 uppercase tracking-widest">{t('newJob.client', 'Cliente')} <span className="text-red-500">*</span></label>
                       <div className="relative">
                         <div className="absolute left-3 top-3 text-slate-400">{selectedDentistId ? <Check size={18} className="text-green-500" /> : <SearchIcon size={18} />}</div>
-                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder="Digite o nome do dentista..." className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
+                        <input type="text" value={dentistSearchQuery} onChange={e => { setDentistSearchQuery(e.target.value.toUpperCase()); setShowDentistSuggestions(true); }} onFocus={() => setShowDentistSuggestions(true)} placeholder={t('newJob.searchDentistPlaceholder', 'Digite o nome do dentista...')} className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-xl outline-none transition-all focus:ring-2 font-bold uppercase ${selectedDentistId ? 'border-green-200 bg-green-50/30' : 'border-slate-200 focus:ring-blue-500'}`} />
                       </div>
                       {showDentistSuggestions && dentistSearchQuery.length > 0 && (
                           <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">

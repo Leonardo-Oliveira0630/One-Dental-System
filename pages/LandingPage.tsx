@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
+import { getDetailedPlanFeatures, isPlanAccessible } from '../utils/planFeatures';
 import { 
   Logo, 
   LogoIcon 
@@ -48,7 +49,20 @@ import {
 
 export const LandingPage = () => {
   const navigate = useNavigate();
-  const { allPlans } = useApp();
+  const { allPlans, theme } = useApp();
+
+  // Ensure Landing Page is never altered by dark theme
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.remove('dark');
+    return () => {
+      const savedTheme = localStorage.getItem('app_theme');
+      if (savedTheme === 'dark' || (!savedTheme && wasDark) || theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    };
+  }, [theme]);
+
   const scrollToSection = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
     const element = document.getElementById(id);
@@ -253,7 +267,7 @@ export const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
+    <div id="landing-page-root" className="no-dark-theme force-light min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
       
       {/* 1. TOP PREMIUM HEADER */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 transition-all shadow-sm">
@@ -2221,8 +2235,8 @@ export const LandingPage = () => {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-4 sm:p-8 justify-center items-stretch">
-              {allPlans && allPlans.filter(p => p.isPublic && p.active && p.targetAudience !== 'CLINIC').length > 0 ? (
-                allPlans.filter(p => p.isPublic && p.active && p.targetAudience !== 'CLINIC').map((plan) => {
+              {allPlans && allPlans.filter(p => isPlanAccessible({ plan: p, targetAudience: 'LAB' })).length > 0 ? (
+                allPlans.filter(p => isPlanAccessible({ plan: p, targetAudience: 'LAB' })).map((plan) => {
                   const isRecommended = plan.price > 150 && plan.price < 400; // Highlight intermediate plans
                   
                   return (
@@ -2269,29 +2283,24 @@ export const LandingPage = () => {
                         </div>
                       </div>
 
-                      <ul className={`space-y-3.5 border-t pt-6 text-xs font-semibold ${
+                      <ul className={`space-y-2.5 border-t pt-6 text-xs font-semibold ${
                         isRecommended ? 'border-blue-800 text-blue-100' : 'border-slate-200 text-slate-700'
                       }`}>
-                        <li className="flex items-center gap-2.5">
-                          <Check size={16} className={isRecommended ? 'text-teal-400 font-extrabold' : 'text-blue-600 font-extrabold'} />
-                          <span>Até {plan.features?.maxUsers === -1 || plan.features?.maxUsers === 99999 ? 'Ilimitados' : plan.features?.maxUsers} usuários</span>
-                        </li>
-                        <li className="flex items-center gap-2.5">
-                          <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
-                          <span>Armazenamento: {plan.features?.maxStorageGB === -1 || plan.features?.maxStorageGB === 99999 ? 'Ilimitado' : `${plan.features?.maxStorageGB} GB`}</span>
-                        </li>
-                        {plan.features?.maxJobsPerMonth !== undefined && (
-                          <li className="flex items-center gap-2.5">
-                            <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
-                            <span>Casos / Mês: {plan.features?.maxJobsPerMonth === -1 || plan.features?.maxJobsPerMonth === 99999 ? 'Ilimitados' : plan.features?.maxJobsPerMonth}</span>
+                        {getDetailedPlanFeatures(plan, 'LAB').map((feat, fIdx) => (
+                          <li 
+                            key={fIdx} 
+                            className={`flex items-start gap-2.5 ${
+                              !feat.included ? 'opacity-40 line-through text-slate-400' : ''
+                            }`}
+                          >
+                            {feat.included ? (
+                              <Check size={15} className={`mt-0.5 shrink-0 ${isRecommended ? 'text-teal-400 font-extrabold' : 'text-blue-600 font-extrabold'}`} />
+                            ) : (
+                              <X size={15} className="mt-0.5 shrink-0 text-slate-400" />
+                            )}
+                            <span className={feat.highlight ? 'font-bold text-white' : ''}>{feat.text}</span>
                           </li>
-                        )}
-                        {plan.features?.hasStoreModule && (
-                          <li className="flex items-center gap-2.5">
-                            <Check size={16} className={isRecommended ? 'text-teal-400' : 'text-blue-600'} />
-                            <span>Módulo de Loja Ativo</span>
-                          </li>
-                        )}
+                        ))}
                       </ul>
 
                       <Link 
@@ -2389,8 +2398,8 @@ export const LandingPage = () => {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto gap-4 sm:p-8 justify-center items-stretch">
-              {allPlans && allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').length > 0 ? (
-                allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'CLINIC').map((plan) => {
+              {allPlans && allPlans.filter(p => isPlanAccessible({ plan: p, targetAudience: 'CLINIC' })).length > 0 ? (
+                allPlans.filter(p => isPlanAccessible({ plan: p, targetAudience: 'CLINIC' })).map((plan) => {
                   const isRecommended = plan.price > 120; // Highlight premium clinic plan
                   
                   return (
@@ -2437,23 +2446,24 @@ export const LandingPage = () => {
                         </div>
                       </div>
 
-                      <ul className={`space-y-3.5 border-t pt-6 text-xs font-semibold ${
+                      <ul className={`space-y-2.5 border-t pt-6 text-xs font-semibold ${
                         isRecommended ? 'border-teal-900 text-teal-100' : 'border-slate-200 text-slate-700'
                       }`}>
-                        <li className="flex items-center gap-2.5">
-                          <Check size={16} className={isRecommended ? 'text-emerald-400 font-extrabold' : 'text-teal-600 font-extrabold'} />
-                          <span>Até {plan.features?.maxUsers === -1 || plan.features?.maxUsers === 99999 ? 'Ilimitados' : plan.features?.maxUsers} usuários</span>
-                        </li>
-                        <li className="flex items-center gap-2.5">
-                          <Check size={16} className={isRecommended ? 'text-emerald-400' : 'text-teal-600'} />
-                          <span>Armazenamento: {plan.features?.maxStorageGB === -1 || plan.features?.maxStorageGB === 99999 ? 'Ilimitado' : `${plan.features?.maxStorageGB} GB`}</span>
-                        </li>
-                        {plan.features?.hasClinicModule && (
-                          <li className="flex items-center gap-2.5">
-                            <Check size={16} className={isRecommended ? 'text-emerald-400' : 'text-teal-600'} />
-                            <span>Módulo de Gestão Odonto Ativo</span>
+                        {getDetailedPlanFeatures(plan, 'CLINIC').map((feat, fIdx) => (
+                          <li 
+                            key={fIdx} 
+                            className={`flex items-start gap-2.5 ${
+                              !feat.included ? 'opacity-40 line-through text-slate-400' : ''
+                            }`}
+                          >
+                            {feat.included ? (
+                              <Check size={15} className={`mt-0.5 shrink-0 ${isRecommended ? 'text-emerald-400 font-extrabold' : 'text-teal-600 font-extrabold'}`} />
+                            ) : (
+                              <X size={15} className="mt-0.5 shrink-0 text-slate-400" />
+                            )}
+                            <span className={feat.highlight ? 'font-bold text-white' : ''}>{feat.text}</span>
                           </li>
-                        )}
+                        ))}
                       </ul>
 
                       <Link 

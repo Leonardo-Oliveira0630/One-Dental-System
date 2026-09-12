@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getCircularReplacer } from '../../utils/logger';
 import { useApp } from '../../context/AppContext';
 import { Receipt, User, ManualDentist, PermissionKey, UserRole } from '../../types';
@@ -23,6 +24,7 @@ import 'jspdf-autotable';
 import { matchesSearchQuery } from '../../utils/stringUtils';
 
 export const Receipts: React.FC = () => {
+    const { t } = useTranslation();
     const { currentUser, currentOrg, allUsers, manualDentists, updateOrganization } = useApp();
 
     enum OperationType {
@@ -575,8 +577,8 @@ export const Receipts: React.FC = () => {
                 <div className="p-4 bg-red-50 text-red-600 rounded-3xl mb-4">
                     <AlertTriangle size={48} />
                 </div>
-                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">Acesso Negado</h2>
-                <p className="text-slate-500 font-bold max-w-md mx-auto mt-2">Você não tem permissão para visualizar os recibos financeiros. Entre em contato com o administrador.</p>
+                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">{t('common.accessDenied', 'Acesso Negado')}</h2>
+                <p className="text-slate-500 font-bold max-w-md mx-auto mt-2">{t('common.noPermission', 'Você não tem permissão para visualizar os recibos financeiros. Entre em contato com o administrador.')}</p>
             </div>
         );
     }
@@ -585,8 +587,8 @@ export const Receipts: React.FC = () => {
         <div className="max-w-7xl mx-auto space-y-6 pb-20 animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Recibos Financeiros</h1>
-                    <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">Gerenciamento e Emissão de Comprovantes</p>
+                    <h1 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{t('receipts.title', 'Recibos Financeiros')}</h1>
+                    <p className="text-sm text-slate-500 font-bold uppercase tracking-widest">{t('receipts.subtitle', 'Gerenciamento e Emissão de Comprovantes')}</p>
                 </div>
                 {canManage && (
                     <div className="flex items-center gap-2">
@@ -594,13 +596,13 @@ export const Receipts: React.FC = () => {
                             onClick={() => { setShowSettings(!showSettings); setShowForm(false); }}
                             className="flex items-center gap-2 px-5 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 rounded-2xl font-black uppercase text-xs transition-all cursor-pointer"
                         >
-                            <Sliders size={16} className="text-slate-500" /> Configurar Pré-setados
+                            <Sliders size={16} className="text-slate-500" /> {t('receipts.settings', 'Configurar Pré-setados')}
                         </button>
                         <button 
                             onClick={() => { resetForm(); setEditingReceipt(null); setShowForm(true); setShowSettings(false); }}
                             className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all cursor-pointer"
                         >
-                            <Plus size={18} /> Novo Recibo
+                            <Plus size={18} /> {t('receipts.newReceipt', 'Novo Recibo')}
                         </button>
                     </div>
                 )}
@@ -611,9 +613,9 @@ export const Receipts: React.FC = () => {
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100">
                         <div>
                             <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                                <Settings size={18} className="text-blue-600" /> Configuração de Mensagens Pré-setadas
+                                <Settings size={18} className="text-blue-600" /> {t('receipts.settings', 'Configuração de Mensagens Pré-setadas')}
                             </h2>
-                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">Cadastre frases frequentes para agilizar o preenchimento</p>
+                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">{t('receipts.presetsSubtitle', 'Cadastre frases frequentes para agilizar o preenchimento')}</p>
                         </div>
                         <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"><X size={24}/></button>
                     </div>
@@ -622,14 +624,14 @@ export const Receipts: React.FC = () => {
                         {/* Referente a Presets */}
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
                             <h3 className="text-xs font-black text-blue-600 uppercase tracking-wider flex items-center gap-2">
-                                <FileText size={14} /> Campo "Referente a"
+                                <FileText size={14} /> {t('receipts.presetsReferente', 'Campo "Referente a"')}
                             </h3>
                             <div className="flex gap-2">
                                 <input 
-                                    type="text"
+                                    type="text" 
                                     value={newReferentePreset}
                                     onChange={e => setNewReferentePreset(e.target.value)}
-                                    placeholder="Ex: Confecção de Plótese Total Superior"
+                                    placeholder={t('receipts.presetPlaceholderReferente', 'Ex: Confecção de Prótese Total Superior')}
                                     className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
                                 />
                                 <button 
@@ -637,7 +639,7 @@ export const Receipts: React.FC = () => {
                                     disabled={isSavingSettings || !newReferentePreset.trim()}
                                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
                                 >
-                                    Salvar
+                                    {t('receipts.save', 'Salvar')}
                                 </button>
                             </div>
                             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -659,14 +661,14 @@ export const Receipts: React.FC = () => {
                         {/* Mensagem Presets */}
                         <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
                             <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider flex items-center gap-2">
-                                <MessageCircle size={14} /> Campo "Mensagem / Observações"
+                                <MessageCircle size={14} /> {t('receipts.presetsMensagem', 'Campo "Mensagem / Observações"')}
                             </h3>
                             <div className="flex gap-2">
                                 <input 
-                                    type="text"
+                                    type="text" 
                                     value={newMensagemPreset}
                                     onChange={e => setNewMensagemPreset(e.target.value)}
-                                    placeholder="Ex: Agradecemos a preferência e parceria!"
+                                    placeholder={t('receipts.presetPlaceholderMensagem', 'Ex: Agradecemos a preferência e parceria!')}
                                     className="flex-1 px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
                                 />
                                 <button 
@@ -674,7 +676,7 @@ export const Receipts: React.FC = () => {
                                     disabled={isSavingSettings || !newMensagemPreset.trim()}
                                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer"
                                 >
-                                    Salvar
+                                    {t('receipts.save', 'Salvar')}
                                 </button>
                             </div>
                             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
@@ -700,7 +702,7 @@ export const Receipts: React.FC = () => {
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden animate-in slide-in-from-bottom-4">
                     <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
                         <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                            <FileText size={18} className="text-blue-600" /> {editingReceipt ? 'Editar Recibo' : 'Dados do Recibo'}
+                            <FileText size={18} className="text-blue-600" /> {editingReceipt ? t('receipts.editReceipt', 'Editar Recibo') : t('receipts.newReceipt', 'Dados do Recibo')}
                         </h2>
                         <button onClick={() => { setShowForm(false); setEditingReceipt(null); }} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={24}/></button>
                     </div>
@@ -709,11 +711,11 @@ export const Receipts: React.FC = () => {
                         {/* Seção Dados do Recibo */}
                         <div className="space-y-4">
                             <h3 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                                <UserIcon size={12}/> Identificação e Datas
+                                <UserIcon size={12}/> {t('receipts.identificationAndDates', 'Identificação e Datas')}
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Dt. Emissão</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.date', 'Dt. Emissão')}</label>
                                     <input 
                                         type="date" 
                                         value={format(formData.dtEmissao || new Date(), 'yyyy-MM-dd')}
@@ -722,7 +724,7 @@ export const Receipts: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Número</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.receiptNumber', 'Número')}</label>
                                     <input 
                                         type="text" 
                                         value={formData.numero}
@@ -732,7 +734,7 @@ export const Receipts: React.FC = () => {
                                     />
                                 </div>
                                 <div className="md:col-span-2 relative" ref={dropdownRef}>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Cliente (Dentista)</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.client', 'Cliente (Dentista)')}</label>
                                     <div className="relative group/dentist">
                                         <div className="absolute left-3 top-3.5 text-slate-400 group-focus-within/dentist:text-blue-500 transition-colors pointer-events-none">
                                             <Search size={16}/>
@@ -746,7 +748,7 @@ export const Receipts: React.FC = () => {
                                             }}
                                             onFocus={() => setShowSuggestions(true)}
                                             className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500 transition-all"
-                                            placeholder="Selecione ou digite o nome do dentista..."
+                                            placeholder={t('receipts.searchDentistPlaceholder', 'Selecione ou digite o nome do dentista...')}
                                         />
                                         <button 
                                             type="button"
@@ -785,7 +787,7 @@ export const Receipts: React.FC = () => {
                                                     ))
                                                 ) : (
                                                     <div className="px-4 py-6 text-center">
-                                                        <p className="text-xs font-bold text-slate-400">Nenhum dentista encontrado</p>
+                                                        <p className="text-xs font-bold text-slate-400">{t('receipts.noDentistFound', 'Nenhum dentista encontrado')}</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -796,45 +798,45 @@ export const Receipts: React.FC = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Tipo Pessoa</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.personType', 'Tipo Pessoa')}</label>
                                     <select 
                                         value={formData.emitidoComo} 
                                         onChange={e => setFormData({...formData, emitidoComo: e.target.value as 'PF' | 'PJ'})}
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
                                     >
-                                        <option value="PF">Pessoa Física</option>
-                                        <option value="PJ">Pessoa Jurídica</option>
+                                        <option value="PF">{t('receipts.pf', 'Pessoa Física')}</option>
+                                        <option value="PJ">{t('receipts.pj', 'Pessoa Jurídica')}</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">CPF/CNPJ</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.cpfCnpj', 'CPF/CNPJ')}</label>
                                     <input 
                                         type="text" 
-                                        value={formData.cpfCnpj}
+                                        value={formData.cpfCnpj} 
                                         onChange={e => setFormData({...formData, cpfCnpj: e.target.value})}
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
                                         placeholder="000.000.000-00"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Titular do Recibo</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.holder', 'Titular do Recibo')}</label>
                                     <select 
                                         value={formData.titularRecibo} 
                                         onChange={e => setFormData({...formData, titularRecibo: e.target.value})}
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
                                     >
-                                        <option value="CLIENTE">Próprio Cliente</option>
-                                        <option value="OUTRO">Outro (Especificar)</option>
+                                        <option value="CLIENTE">{t('receipts.ownClient', 'Próprio Cliente')}</option>
+                                        <option value="OUTRO">{t('receipts.otherSpecify', 'Outro (Especificar)')}</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Empresa</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.company', 'Empresa')}</label>
                                     <input 
                                         type="text" 
                                         value={formData.nomeTitular}
                                         onChange={e => setFormData({...formData, nomeTitular: e.target.value})}
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Clínica / Nome Fantasia"
+                                        placeholder={t('receipts.companyPlaceholder', 'Clínica / Nome Fantasia')}
                                     />
                                 </div>
                             </div>
@@ -843,13 +845,13 @@ export const Receipts: React.FC = () => {
                         {/* Seção Dados do Serviço */}
                         <div className="space-y-4">
                             <h3 className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                                <Briefcase size={12}/> Informações do Serviço
+                                <Briefcase size={12}/> {t('receipts.serviceInfo', 'Informações do Serviço')}
                             </h3>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1 flex justify-between items-center">
-                                    <span>Referente a</span>
+                                    <span>{t('receipts.referringTo', 'Referente a')}</span>
                                     {referentePresets.length > 0 && (
-                                        <select
+                                        <select 
                                             onChange={e => {
                                                 if (e.target.value) {
                                                     setFormData(prev => ({ ...prev, referente: e.target.value }));
@@ -858,7 +860,7 @@ export const Receipts: React.FC = () => {
                                             }}
                                             className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 outline-none max-w-[200px]"
                                         >
-                                            <option value="">Usar Pré-setado...</option>
+                                            <option value="">{t('receipts.usePreset', 'Usar Pré-setado...')}</option>
                                             {referentePresets.map((preset, idx) => (
                                                 <option key={idx} value={preset}>{preset}</option>
                                             ))}
@@ -870,24 +872,24 @@ export const Receipts: React.FC = () => {
                                     value={formData.referente}
                                     onChange={e => setFormData({...formData, referente: e.target.value})}
                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Ex: Pagamento de fatura Abril/2024"
+                                    placeholder={t('receipts.referringToPlaceholder', 'Ex: Pagamento de fatura Abril/2024')}
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Descrição Detalhada</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.detailedDescription', 'Descrição Detalhada')}</label>
                                 <textarea 
                                     rows={3}
                                     value={formData.descricaoServico}
                                     onChange={e => setFormData({...formData, descricaoServico: e.target.value})}
                                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-medium focus:ring-2 focus:ring-blue-500 resize-none"
-                                    placeholder="Detalhes dos serviços realizados..."
+                                    placeholder={t('receipts.detailedDescriptionPlaceholder', 'Detalhes dos serviços realizados...')}
                                 />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1 flex justify-between items-center">
-                                    <span>Mensagem / Observações</span>
+                                    <span>{t('receipts.message', 'Mensagem / Observações')}</span>
                                     {mensagemPresets.length > 0 && (
-                                        <select
+                                        <select 
                                             onChange={e => {
                                                 if (e.target.value) {
                                                     setFormData(prev => ({ ...prev, mensagem: e.target.value }));
@@ -896,7 +898,7 @@ export const Receipts: React.FC = () => {
                                             }}
                                             className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 outline-none max-w-[200px]"
                                         >
-                                            <option value="">Usar Pré-setado...</option>
+                                            <option value="">{t('receipts.usePreset', 'Usar Pré-setado...')}</option>
                                             {mensagemPresets.map((preset, idx) => (
                                                 <option key={idx} value={preset}>{preset}</option>
                                             ))}
@@ -908,7 +910,7 @@ export const Receipts: React.FC = () => {
                                     value={formData.mensagem}
                                     onChange={e => setFormData({...formData, mensagem: e.target.value})}
                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-medium focus:ring-2 focus:ring-blue-500"
-                                    placeholder="Ex: Agradecemos a preferência!"
+                                    placeholder={t('receipts.messagePlaceholder', 'Ex: Agradecemos a preferência!')}
                                 />
                             </div>
                         </div>
@@ -916,11 +918,11 @@ export const Receipts: React.FC = () => {
                         {/* Seção Pagamento e Valores */}
                         <div className="space-y-4">
                             <h3 className="text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] flex items-center gap-2">
-                                <DollarSign size={12}/> Financeiro e Pagamento
+                                <DollarSign size={12}/> {t('receipts.financialAndPayment', 'Financeiro e Pagamento')}
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Nº Cheque / Ref</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.checkNumber', 'Nº Cheque / Ref')}</label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-3 text-slate-400"><Ticket size={16}/></div>
                                         <input 
@@ -933,7 +935,7 @@ export const Receipts: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Banco</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.bank', 'Banco')}</label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-3 text-slate-400"><Landmark size={16}/></div>
                                         <input 
@@ -941,25 +943,25 @@ export const Receipts: React.FC = () => {
                                             value={formData.banco}
                                             onChange={e => setFormData({...formData, banco: e.target.value})}
                                             className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
-                                            placeholder="Ex: Itaú"
+                                            placeholder={t('receipts.bankPlaceholder', 'Ex: Itaú')}
                                         />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Retenções / Impostos</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.taxes', 'Retenções / Impostos')}</label>
                                     <input 
                                         type="text" 
                                         value={formData.impostos}
                                         onChange={e => setFormData({...formData, impostos: e.target.value})}
                                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-xs font-bold focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Ex: ISS 5%"
+                                        placeholder={t('receipts.taxesPlaceholder', 'Ex: ISS 5%')}
                                     />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Valor Bruto</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.grossValue', 'Valor Bruto')}</label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-3 text-slate-400 text-xs font-bold">R$</div>
                                         <input 
@@ -972,7 +974,7 @@ export const Receipts: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Valor Desconto</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.discountValue', 'Valor Desconto')}</label>
                                     <div className="relative">
                                         <div className="absolute left-3 top-3 text-slate-400 text-xs font-bold">R$</div>
                                         <input 
@@ -985,13 +987,13 @@ export const Receipts: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">Bruto C/ Desconto</label>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-1.5 ml-1">{t('receipts.grossWithDiscount', 'Bruto C/ Desconto')}</label>
                                     <div className="w-full px-4 py-2.5 bg-white/50 border border-slate-200 rounded-xl text-sm font-black text-slate-500 underline decoration-blue-200 underline-offset-4">
                                         R$ {formData.valorBrutoComDesconto?.toFixed(2)}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1.5 ml-1">Valor Líquido</label>
+                                    <label className="block text-[10px] font-black text-slate-600 uppercase mb-1.5 ml-1">{t('receipts.netValue', 'Valor Líquido')}</label>
                                     <div className="w-full px-4 py-2.5 bg-blue-600 border border-blue-700 rounded-xl text-lg font-black text-white shadow-lg shadow-blue-600/20">
                                         R$ {formData.valorLiquido?.toFixed(2)}
                                     </div>
@@ -1005,13 +1007,13 @@ export const Receipts: React.FC = () => {
                                 onClick={() => { setShowForm(false); setEditingReceipt(null); }}
                                 className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all uppercase tracking-widest text-xs"
                             >
-                                Cancelar
+                                {t('common.cancel', 'Cancelar')}
                             </button>
                             <button 
-                                type="submit"
+                                type="submit" 
                                 className="flex-1 flex items-center justify-center gap-2 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 transition-all uppercase tracking-widest text-xs shadow-lg shadow-green-600/30"
                             >
-                                <Save size={18}/> {editingReceipt ? 'Atualizar e Gravar' : 'Gravar Recibo'}
+                                <Save size={18}/> {editingReceipt ? t('receipts.updateAndSave', 'Atualizar e Gravar') : t('receipts.saveReceipt', 'Gravar Recibo')}
                             </button>
                         </div>
                     </form>
@@ -1024,7 +1026,7 @@ export const Receipts: React.FC = () => {
                             <input 
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
-                                placeholder="Buscar por cliente, número ou referente..." 
+                                placeholder={t('receipts.searchPlaceholder', 'Buscar por cliente, número ou referente...')}
                                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 font-bold transition-all"
                             />
                         </div>
@@ -1070,25 +1072,25 @@ export const Receipts: React.FC = () => {
 
                                 <div className="space-y-3 mb-5">
                                     <div>
-                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Cliente</label>
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">{t('receipts.client', 'Cliente')}</label>
                                         <p className="text-sm font-black text-slate-800 truncate">{receipt.clienteName}</p>
                                     </div>
                                     <div>
-                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Referente</label>
+                                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">{t('receipts.referringTo', 'Referente')}</label>
                                         <p className="text-xs font-bold text-slate-600 truncate">{receipt.referente}</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                                     <div className="flex flex-col">
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Valor Líquido</span>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('receipts.netValue', 'Valor Líquido')}</span>
                                         <span className="text-lg font-black text-blue-600 leading-none">R$ {receipt.valorLiquido.toFixed(2)}</span>
                                     </div>
                                     <button 
                                         onClick={() => generatePDF(receipt)}
                                         className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] hover:bg-slate-800 active:scale-95 transition-all shadow-lg shadow-slate-900/10"
                                     >
-                                        <Printer size={14}/> Imprimir
+                                        <Printer size={14}/> {t('receipts.print', 'Imprimir')}
                                     </button>
                                 </div>
                             </div>
@@ -1100,8 +1102,8 @@ export const Receipts: React.FC = () => {
                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                                 <FileText size={40} />
                             </div>
-                            <h3 className="text-xl font-black text-slate-800 mb-1">Nenhum recibo encontrado</h3>
-                            <p className="text-slate-500 font-bold text-sm tracking-tight">Comece criando seu primeiro recibo financeiro.</p>
+                            <h3 className="text-xl font-black text-slate-800 mb-1">{t('receipts.noReceiptsFound', 'Nenhum recibo encontrado')}</h3>
+                            <p className="text-slate-500 font-bold text-sm tracking-tight">{t('receipts.createFirstReceipt', 'Comece criando seu primeiro recibo financeiro.')}</p>
                         </div>
                     )}
                 </>
@@ -1109,3 +1111,4 @@ export const Receipts: React.FC = () => {
         </div>
     );
 };
+

@@ -10,6 +10,7 @@ import {
 import { db, auth } from '../services/firebaseConfig';
 import * as api from '../services/firebaseService';
 import { notifyAppointmentCreated, notifyJobLogistics, notifySupplierOrder } from '../services/ycloudService';
+import { SupportedLanguage, setAppLanguage, getInitialLanguage } from '../src/i18n';
 
 import * as authPkg from 'firebase/auth';
 import * as firestorePkg from 'firebase/firestore';
@@ -270,6 +271,12 @@ interface AppContextType {
   addPatientBillingBatch: (b: Omit<import('../types').PatientBillingBatch, 'id' | 'organizationId' | 'createdAt'>) => Promise<void>;
   updatePatientBillingBatchStatus: (id: string, status: import('../types').PatientBillingBatch['status']) => Promise<void>;
   deletePatientBillingBatch: (id: string) => Promise<void>;
+
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => Promise<void>;
+  toggleTheme: () => void;
+  language: SupportedLanguage;
+  setLanguage: (lang: SupportedLanguage) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -331,6 +338,81 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [userConnections, setUserConnections] = useState<OrganizationConnection[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [printData, setPrintData] = useState<AppContextType['printData']>(null);
+
+  // Theme Management (Light / Dark)
+  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('labprox-theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark';
+      }
+    } catch (_) {}
+    return 'light';
+  });
+
+  useEffect(() => {
+    try {
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('labprox-theme', theme);
+    } catch (_) {}
+  }, [theme]);
+
+  useEffect(() => {
+    if (currentUser?.themePreference && currentUser.themePreference !== theme) {
+      setThemeState(currentUser.themePreference);
+    }
+  }, [currentUser?.themePreference]);
+
+  const setTheme = useCallback(async (newTheme: 'light' | 'dark') => {
+    setThemeState(newTheme);
+    try {
+      localStorage.setItem('labprox-theme', newTheme);
+      if (newTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      if (currentUser?.id) {
+        await api.apiUpdateUser(currentUser.id, { themePreference: newTheme });
+        setCurrentUser(prev => prev ? { ...prev, themePreference: newTheme } : null);
+      }
+    } catch (e) {
+      console.error('Error updating theme:', e);
+    }
+  }, [currentUser?.id]);
+
+  const toggleTheme = useCallback(() => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+  }, [theme, setTheme]);
+
+  // Language Management (pt-BR / en / es)
+  const [language, setLanguageState] = useState<SupportedLanguage>(getInitialLanguage);
+
+  useEffect(() => {
+    if (currentUser?.language && currentUser.language !== language) {
+      setLanguageState(currentUser.language);
+      setAppLanguage(currentUser.language);
+    }
+  }, [currentUser?.language]);
+
+  const setLanguage = useCallback(async (newLang: SupportedLanguage) => {
+    setLanguageState(newLang);
+    try {
+      await setAppLanguage(newLang);
+      if (currentUser?.id) {
+        await api.apiUpdateUser(currentUser.id, { language: newLang });
+        setCurrentUser(prev => prev ? { ...prev, language: newLang } : null);
+      }
+    } catch (e) {
+      console.error('Error updating language:', e);
+    }
+  }, [currentUser?.id]);
 
   // Subscrições Públicas: Planos, Laboratórios e Fornecedores são públicos
   useEffect(() => {
@@ -825,11 +907,22 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           // Disparar notificação de WhatsApp caso o status seja atualizado para ENTREGUE (DELIVERED)
           if (u.status === 'DELIVERED') {
               const job = jobs.find(j => j.id === id);
-              if (job) {
-                  const dentist = manualDentists.find(d => d.id === job.dentistId) || allUsers.find(u => u.id === job.dentistId);
-                  const dentistPhone = dentist?.phone || '';
-                  if (dentistPhone) {
-                      await notifyJobLogistics(job, 'DELIVERED', dentistPhone, dentist?.name || 'Dentista');
+              const mergedJob = job ? { ...job, ...updates } : (updates as Job);
+              if (mergedJob) {
+                  const dId = mergedJob.dentistId;
+                  const dentist = manualDentists.find(d => d.id === dId || (mergedJob.dentistName && d.name === mergedJob.dentistName)) || 
+                                  allUsers.find(u => u.id === dId || (mergedJob.dentistName && u.name === mergedJob.dentistName));
+                  const rawPhone = dentist?.whatsapp || dentist?.phone || (mergedJob as any)?.dentistPhone || (mergedJob as any)?.dentistWhatsapp || (mergedJob as any)?.phone || '';
+                  const cleanPhone = rawPhone.replace(/\D/g, '');
+                  if (cleanPhone.length >= 8) {
+                      try {
+                          console.log(`[AppContext] Disparando WhatsApp de entrega para Dr(a). ${dentist?.name || mergedJob.dentistName} (${cleanPhone})...`);
+                          await notifyJobLogistics(mergedJob, 'DELIVERED', cleanPhone, dentist?.name || mergedJob.dentistName || 'Dentista');
+                      } catch (notifyErr: any) {
+                          console.error("[AppContext] Erro ao disparar WhatsApp de entrega via Ycloud:", notifyErr?.message || notifyErr);
+                      }
+                  } else {
+                      console.warn(`[AppContext] WhatsApp de entrega não disparado: Telefone não encontrado ou inválido para o trabalho #${mergedJob.osNumber || id} (dentistId: ${dId}, dentistName: ${mergedJob.dentistName})`);
                   }
               }
           }
@@ -1513,7 +1606,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     addPatientPayment, updatePatientPayment, deletePatientPayment,
     addPatientBillingBatch, updatePatientBillingBatchStatus, deletePatientBillingBatch,
     labCoupons, addLabCoupon, updateLabCoupon, deleteLabCoupon, validateLabCoupon,
-    couriers, addCourier, updateCourier, deleteCourier
+    couriers, addCourier, updateCourier, deleteCourier,
+    theme, setTheme, toggleTheme,
+    language, setLanguage
   }), [
     currentUser, currentOrg, currentPlan, isLoadingAuth, globalSettings,
     allUsers, jobs, budgets, jobTypes, clinicServices, clinicRooms, clinicDentists, sectors, boxColors, alerts, commissions,
@@ -1521,7 +1616,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     patientPayments, patientBillingBatches,
     cardMachines, bankAccounts, inventoryCategories, inventoryItems,
     allSuppliers, allSupplierProducts, supplierOrders,
-    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions, nfcBoxes
+    allPayments, cart, printData, activeOrganization, userConnections, activeDataId, couriers, onlineRequisitions, nfcBoxes,
+    theme, setTheme, toggleTheme,
+    language, setLanguage
   ]);
 
   return (

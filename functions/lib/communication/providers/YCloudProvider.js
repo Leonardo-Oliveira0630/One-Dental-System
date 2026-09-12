@@ -62,8 +62,8 @@ class YCloudProvider {
         if (!cleanTo || cleanTo.length < 8) {
             throw new Error(`YCloud Provider: Número de destinatário (to) inválido: "${to}".`);
         }
-        let rawPhone = phoneNumber;
-        if (!rawPhone || rawPhone.includes('997544638') || rawPhone.length < 8) {
+        let rawPhone = (phoneNumber || '').replace(/\D/g, '');
+        if (!rawPhone || rawPhone.includes('997544638') || rawPhone.length < 8 || rawPhone === cleanTo.replace(/\D/g, '')) {
             rawPhone = '5527997599833';
         }
         const cleanFrom = formatE164(rawPhone);
@@ -88,8 +88,8 @@ class YCloudProvider {
             const errorData = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data;
             const apiErr = ((_b = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _b === void 0 ? void 0 : _b.message) || (errorData === null || errorData === void 0 ? void 0 : errorData.message) || error.message;
             if (payload.from && (((_c = error.response) === null || _c === void 0 ? void 0 : _c.status) === 403 || ((_d = error.response) === null || _d === void 0 ? void 0 : _d.status) === 409 || apiErr.includes('has not been registered') || apiErr.includes('not been registered'))) {
-                logger.warn(`[YCloudProvider] Remetente ${payload.from} rejeitado (${apiErr}), tentando enviar sem 'from'...`);
-                delete payload.from;
+                logger.warn(`[YCloudProvider] Remetente ${payload.from} rejeitado (${apiErr}), tentando com remetente padrão +5527997599833...`);
+                payload.from = '+5527997599833';
                 try {
                     const retryResponse = await axios_1.default.post('https://api.ycloud.com/v2/whatsapp/messages', payload, {
                         headers: {
@@ -100,7 +100,20 @@ class YCloudProvider {
                     return retryResponse.data;
                 }
                 catch (retryError) {
-                    error = retryError;
+                    logger.warn(`[YCloudProvider] Tentativa com +5527997599833 falhou, tentando sem 'from'...`);
+                    delete payload.from;
+                    try {
+                        const retryResponse2 = await axios_1.default.post('https://api.ycloud.com/v2/whatsapp/messages', payload, {
+                            headers: {
+                                'X-API-Key': apiKey,
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        return retryResponse2.data;
+                    }
+                    catch (retryError2) {
+                        error = retryError2;
+                    }
                 }
             }
             const status = (_e = error.response) === null || _e === void 0 ? void 0 : _e.status;
@@ -131,8 +144,8 @@ class YCloudProvider {
         if (!cleanTo || cleanTo.length < 8) {
             throw new Error(`YCloud Provider: Número de destinatário (to) inválido: "${to}".`);
         }
-        let rawPhone = phoneNumber;
-        if (!rawPhone || rawPhone.includes('997544638') || rawPhone.length < 8) {
+        let rawPhone = (phoneNumber || '').replace(/\D/g, '');
+        if (!rawPhone || rawPhone.includes('997544638') || rawPhone.length < 8 || rawPhone === cleanTo.replace(/\D/g, '')) {
             rawPhone = '5527997599833';
         }
         const cleanFrom = formatE164(rawPhone);
@@ -185,8 +198,8 @@ class YCloudProvider {
             const errorData = (_a = error.response) === null || _a === void 0 ? void 0 : _a.data;
             const apiErr = ((_b = errorData === null || errorData === void 0 ? void 0 : errorData.error) === null || _b === void 0 ? void 0 : _b.message) || (errorData === null || errorData === void 0 ? void 0 : errorData.message) || error.message;
             if (payload.from && (((_c = error.response) === null || _c === void 0 ? void 0 : _c.status) === 403 || ((_d = error.response) === null || _d === void 0 ? void 0 : _d.status) === 409 || apiErr.includes('has not been registered') || apiErr.includes('not been registered'))) {
-                logger.warn(`[YCloudProvider] Remetente ${payload.from} rejeitado (${apiErr}), tentando enviar template sem 'from'...`);
-                delete payload.from;
+                logger.warn(`[YCloudProvider] Remetente ${payload.from} rejeitado (${apiErr}), tentando com remetente padrão +5527997599833...`);
+                payload.from = '+5527997599833';
                 try {
                     const retryResponse = await axios_1.default.post('https://api.ycloud.com/v2/whatsapp/messages', payload, {
                         headers: {
@@ -197,7 +210,20 @@ class YCloudProvider {
                     return retryResponse.data;
                 }
                 catch (retryError) {
-                    error = retryError;
+                    logger.warn(`[YCloudProvider] Tentativa com +5527997599833 falhou, tentando sem 'from'...`);
+                    delete payload.from;
+                    try {
+                        const retryResponse2 = await axios_1.default.post('https://api.ycloud.com/v2/whatsapp/messages', payload, {
+                            headers: {
+                                'X-API-Key': apiKey,
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        return retryResponse2.data;
+                    }
+                    catch (retryError2) {
+                        error = retryError2;
+                    }
                 }
             }
             // Fallback to text message if template fails
@@ -212,6 +238,7 @@ class YCloudProvider {
                 }
                 const textPayload = {
                     to: cleanTo,
+                    from: '+5527997599833',
                     type: 'text',
                     text: { body: textBody }
                 };
@@ -226,7 +253,20 @@ class YCloudProvider {
                     return textResponse.data;
                 }
                 catch (textErr) {
-                    logger.error("[YCloudProvider] Fallback de texto também falhou:", ((_f = textErr.response) === null || _f === void 0 ? void 0 : _f.data) || textErr.message);
+                    logger.warn("[YCloudProvider] Fallback com +5527997599833 falhou, tentando sem 'from'...");
+                    delete textPayload.from;
+                    try {
+                        const textResponse2 = await axios_1.default.post('https://api.ycloud.com/v2/whatsapp/messages', textPayload, {
+                            headers: {
+                                'X-API-Key': apiKey,
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        return textResponse2.data;
+                    }
+                    catch (textErr2) {
+                        logger.error("[YCloudProvider] Fallback de texto também falhou:", ((_f = textErr2.response) === null || _f === void 0 ? void 0 : _f.data) || textErr2.message);
+                    }
                 }
             }
             const status = (_g = error.response) === null || _g === void 0 ? void 0 : _g.status;

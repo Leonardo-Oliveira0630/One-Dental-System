@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../../context/AppContext';
 import { OnlineRequisition, JobStatus, UserRole, JobItem, Attachment } from '../../types';
 import { 
@@ -33,6 +34,7 @@ const parseDateSafely = (val: any): Date | null => {
 };
 
 export const IncomingRequisitions = () => {
+  const { t } = useTranslation();
   const { 
     onlineRequisitions, 
     updateOnlineRequisition, 
@@ -64,7 +66,7 @@ export const IncomingRequisitions = () => {
   if (!isAuthorized) {
     return (
       <div className="p-8 text-center text-slate-500 font-bold uppercase tracking-widest">
-        Acesso Negado
+        {t('common.accessDenied', 'Acesso Negado')}
       </div>
     );
   }
@@ -86,14 +88,14 @@ export const IncomingRequisitions = () => {
     if (manual) return manual.name;
     const user = allUsers.find(u => u.id === req.dentistId);
     if (user) return user.name;
-    return req.dentistName || 'Dentista Parceiro';
+    return req.dentistName || t('requisitions.partnerDentist', 'Dentista Parceiro');
   };
 
   const getDentistClinic = (req: OnlineRequisition) => {
     if (req.dentistClinicName) return req.dentistClinicName;
     const manual = manualDentists.find(d => d.id === req.dentistManualId);
     if (manual && manual.clinicName) return manual.clinicName;
-    return 'Consultório Parceiro';
+    return t('requisitions.partnerClinic', 'Consultório Parceiro');
   };
 
   const handleOpenAccept = (req: OnlineRequisition) => {
@@ -160,7 +162,7 @@ export const IncomingRequisitions = () => {
   const confirmRejection = async () => {
     if (!rejectingReq) return;
     if (!rejectionReasonInput.trim()) {
-      alert("Por favor, preencha o motivo da recusa.");
+      alert(t('requisitions.fillRejectionReasonAlert', "Por favor, preencha o motivo da recusa."));
       return;
     }
     try {
@@ -168,12 +170,12 @@ export const IncomingRequisitions = () => {
         status: 'REJECTED',
         rejectionReason: rejectionReasonInput.trim()
       });
-      alert("Requisição recusada com sucesso.");
+      alert(t('requisitions.requisitionRejectedSuccess', "Requisição recusada com sucesso."));
       setRejectingReq(null);
       setRejectionReasonInput('');
     } catch (err: any) {
       console.error("Error rejecting requisition:", err);
-      alert("Erro ao atualizar requisição.");
+      alert(t('requisitions.updateError', "Erro ao atualizar requisição."));
     }
   };
 
@@ -213,7 +215,7 @@ export const IncomingRequisitions = () => {
     return (
       <div className="flex flex-wrap gap-1 mt-1">
         <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-tight">
-          Dentes: {teeth.join(', ')}
+          {t('requisitions.teeth', 'Dentes')}: {teeth.join(', ')}
         </span>
       </div>
     );
@@ -228,10 +230,10 @@ export const IncomingRequisitions = () => {
             <div className="p-2 bg-blue-50 text-blue-600 rounded-2xl">
               <ClipboardList size={22} className="sm:w-6 sm:h-6" />
             </div>
-            Requisições Online Recebidas
+            {t('requisitions.incoming.title', 'Requisições Online Recebidas')}
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Painel de recebimento de trabalhos e requisições enviadas pelos seus dentistas parceiros.
+            {t('requisitions.incoming.subtitle', 'Painel de recebimento de trabalhos e requisições enviadas pelos seus dentistas parceiros.')}
           </p>
         </div>
 
@@ -243,7 +245,7 @@ export const IncomingRequisitions = () => {
               statusFilter === 'PENDING' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <span>Pendentes</span>
+            <span>{t('requisitions.status.PENDING', 'Pendentes')}</span>
             {pendingCount > 0 && (
               <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-black">
                 {pendingCount}
@@ -256,7 +258,7 @@ export const IncomingRequisitions = () => {
               statusFilter === 'ACCEPTED' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <span>Aceitas</span>
+            <span>{t('requisitions.status.ACCEPTED', 'Aceitas')}</span>
             {acceptedCount > 0 && (
               <span className="px-1.5 py-0.2 bg-emerald-500 text-white rounded-full text-[10px] font-black">
                 {acceptedCount}
@@ -269,7 +271,7 @@ export const IncomingRequisitions = () => {
               statusFilter === 'REJECTED' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <span>Recusadas</span>
+            <span>{t('requisitions.status.REJECTED', 'Recusadas')}</span>
             {rejectedCount > 0 && (
               <span className="px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-black">
                 {rejectedCount}
@@ -282,7 +284,7 @@ export const IncomingRequisitions = () => {
               statusFilter === 'ALL' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <span>Todas</span>
+            <span>{t('requisitions.status.ALL', 'Todas')}</span>
             <span className="text-[10px] text-slate-400 font-bold">({allCount})</span>
           </button>
         </div>
@@ -292,7 +294,7 @@ export const IncomingRequisitions = () => {
       {filteredReqs.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-12 text-center text-slate-400 italic">
           <Package size={40} className="mx-auto text-slate-300 mb-3" />
-          Nenhuma requisição encontrada com o filtro selecionado.
+          {t('requisitions.incoming.noneFound', 'Nenhuma requisição encontrada com o filtro selecionado.')}
         </div>
       ) : (
         <>
@@ -337,8 +339,8 @@ export const IncomingRequisitions = () => {
                         req.status === 'ACCEPTED' ? 'bg-emerald-500' :
                         'bg-rose-500'
                       }`} />
-                      {req.status === 'PENDING' ? 'Pendente' :
-                       req.status === 'ACCEPTED' ? 'Aceito' : 'Recusado'}
+                      {req.status === 'PENDING' ? t('requisitions.status.PENDING', 'Pendente') :
+                       req.status === 'ACCEPTED' ? t('requisitions.status.ACCEPTED', 'Aceito') : t('requisitions.status.REJECTED', 'Recusado')}
                     </span>
                   </div>
 
@@ -350,7 +352,7 @@ export const IncomingRequisitions = () => {
                       </div>
                       <div>
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block leading-none">
-                          Paciente
+                          {t('requisitions.patient', 'Paciente')}
                         </span>
                         <span className="text-xs font-black text-slate-800">
                           {req.patientName}
@@ -359,14 +361,14 @@ export const IncomingRequisitions = () => {
                     </div>
                     <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
                       <Clock size={11} className="shrink-0" />
-                      {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleDateString('pt-BR')}
+                      {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleDateString()}
                     </div>
                   </div>
 
                   {/* Order Items (Todo o Pedido) */}
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                      Itens do Pedido ({reqItems.length})
+                      {t('requisitions.orderItems', 'Itens do Pedido')} ({reqItems.length})
                     </span>
                     <div className="space-y-2">
                       {reqItems.map((item, idx) => (
@@ -389,7 +391,7 @@ export const IncomingRequisitions = () => {
                       <MessageSquare size={15} className="text-amber-600 shrink-0 mt-0.5" />
                       <div className="space-y-0.5 min-w-0">
                         <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider block">
-                          Observações do Dentista:
+                          {t('requisitions.dentistNotes', 'Observações do Dentista')}:
                         </span>
                         <p className="text-xs text-amber-900 font-medium italic break-words">
                           "{req.notes}"
@@ -402,7 +404,7 @@ export const IncomingRequisitions = () => {
                   {req.attachments && req.attachments.length > 0 && (
                     <div className="space-y-1">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                        <Paperclip size={11} /> Anexos ({req.attachments.length})
+                        <Paperclip size={11} /> {t('requisitions.attachments', 'Anexos')} ({req.attachments.length})
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {req.attachments.map((file, i) => (
@@ -428,14 +430,14 @@ export const IncomingRequisitions = () => {
                     <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-xs text-rose-800 space-y-1">
                       <div className="font-bold flex items-center gap-1">
                         <AlertCircle size={13} className="text-rose-600" />
-                        Motivo da Recusa:
+                        {t('requisitions.rejectReason', 'Motivo da Recusa')}:
                       </div>
                       <p className="text-xs text-rose-700 font-medium">
-                        {req.rejectionReason || 'Sem justificativa especificada.'}
+                        {req.rejectionReason || t('requisitions.noReasonSpecified', 'Sem justificativa especificada.')}
                       </p>
                       {req.rejectedAt && (
                         <div className="text-[10px] text-rose-500 font-bold">
-                          Recusado em: {parseDateSafely(req.rejectedAt)?.toLocaleString('pt-BR')}
+                          {t('requisitions.rejectedOn', 'Recusado em')}: {parseDateSafely(req.rejectedAt)?.toLocaleString()}
                         </div>
                       )}
                     </div>
@@ -444,7 +446,7 @@ export const IncomingRequisitions = () => {
                   {req.status === 'ACCEPTED' && req.acceptedAt && (
                     <div className="text-[10px] text-emerald-700 font-bold flex items-center gap-1 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100">
                       <Check size={12} className="text-emerald-600 shrink-0" />
-                      Aceito em: {parseDateSafely(req.acceptedAt)?.toLocaleString('pt-BR')}
+                      {t('requisitions.acceptedOn', 'Aceito em')}: {parseDateSafely(req.acceptedAt)?.toLocaleString()}
                     </div>
                   )}
 
@@ -454,7 +456,7 @@ export const IncomingRequisitions = () => {
                       onClick={() => setSelectedReqForModal(req)}
                       className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all"
                     >
-                      <Eye size={14} /> Ver Completo
+                      <Eye size={14} /> {t('requisitions.viewFull', 'Ver Completo')}
                     </button>
 
                     {req.status === 'PENDING' && (
@@ -463,13 +465,13 @@ export const IncomingRequisitions = () => {
                           onClick={() => handleOpenAccept(req)}
                           className="flex-[1.5] py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1 transition-all shadow-sm"
                         >
-                          <Check size={15} /> Aceitar e Criar O.S.
+                          <Check size={15} /> {t('requisitions.acceptAndCreateOS', 'Aceitar e Criar O.S.')}
                         </button>
                         <button
                           onClick={() => handleReject(req)}
                           className="py-2 px-3 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all"
                         >
-                          <X size={15} /> Recusar
+                          <X size={15} /> {t('requisitions.reject', 'Recusar')}
                         </button>
                       </>
                     )}
@@ -485,13 +487,13 @@ export const IncomingRequisitions = () => {
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b border-slate-100">
                   <tr>
-                    <th className="p-4">Dentista / Clínica</th>
-                    <th className="p-4">Paciente</th>
-                    <th className="p-4">Serviços Solicitados</th>
-                    <th className="p-4">Observações</th>
-                    <th className="p-4">Anexos</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Ações</th>
+                    <th className="p-4">{t('requisitions.dentistClinic', 'Dentista / Clínica')}</th>
+                    <th className="p-4">{t('requisitions.patient', 'Paciente')}</th>
+                    <th className="p-4">{t('requisitions.requestedServices', 'Serviços Solicitados')}</th>
+                    <th className="p-4">{t('requisitions.dentistNotes', 'Observações')}</th>
+                    <th className="p-4">{t('requisitions.attachments', 'Anexos')}</th>
+                    <th className="p-4">{t('requisitions.statusLabel', 'Status')}</th>
+                    <th className="p-4 text-right">{t('common.actions', 'Ações')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -515,7 +517,7 @@ export const IncomingRequisitions = () => {
                           <div className="text-xs text-slate-400 capitalize">{getDentistClinic(req)}</div>
                           <div className="text-[10px] text-slate-500 font-bold mt-1.5 flex items-center gap-1">
                             <Clock size={11} className="text-slate-400 shrink-0" />
-                            {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString('pt-BR') || '---'}
+                            {parseDateSafely(req.sentAt || req.createdAt)?.toLocaleString() || '---'}
                           </div>
                         </td>
 
@@ -546,7 +548,7 @@ export const IncomingRequisitions = () => {
                               "{req.notes}"
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-xs italic font-light">Sem observações</span>
+                            <span className="text-slate-400 text-xs italic font-light">{t('requisitions.noNotes', 'Sem observações')}</span>
                           )}
                         </td>
 
@@ -562,7 +564,7 @@ export const IncomingRequisitions = () => {
                                     setAllAttachmentsForPreview(req.attachments || []);
                                   }}
                                   className="text-blue-600 hover:underline hover:text-blue-800 flex items-center gap-1 font-semibold text-left focus:outline-none"
-                                  title="Clique para visualizar ou baixar"
+                                  title={t('requisitions.clickToViewDownload', 'Clique para visualizar ou baixar')}
                                 >
                                   <FileText size={12} className="shrink-0" />
                                   <span className="truncate max-w-[150px]">{file.name}</span>
@@ -570,7 +572,7 @@ export const IncomingRequisitions = () => {
                               ))}
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-xs font-light italic">Nenhum arquivo</span>
+                            <span className="text-slate-400 text-xs font-light italic">{t('requisitions.noAttachments', 'Nenhum arquivo')}</span>
                           )}
                         </td>
 
@@ -581,14 +583,14 @@ export const IncomingRequisitions = () => {
                             req.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800' :
                             'bg-rose-100 text-rose-800'
                           }`}>
-                            {req.status === 'PENDING' ? 'Pendente' :
-                             req.status === 'ACCEPTED' ? 'Aceito' : 'Recusado'}
+                            {req.status === 'PENDING' ? t('requisitions.status.PENDING', 'Pendente') :
+                             req.status === 'ACCEPTED' ? t('requisitions.status.ACCEPTED', 'Aceito') : t('requisitions.status.REJECTED', 'Recusado')}
                           </span>
 
                           {req.status === 'ACCEPTED' && req.acceptedAt && (
                             <div className="text-[10px] text-emerald-700 font-bold mt-1.5 flex items-center gap-1">
                               <Clock size={10} className="text-emerald-500 shrink-0" />
-                              {parseDateSafely(req.acceptedAt)?.toLocaleDateString('pt-BR')}
+                              {parseDateSafely(req.acceptedAt)?.toLocaleDateString()}
                             </div>
                           )}
 
@@ -597,12 +599,12 @@ export const IncomingRequisitions = () => {
                               {req.rejectedAt && (
                                 <div className="text-[10px] text-rose-600 font-bold flex items-center gap-1">
                                   <Clock size={10} className="text-rose-400 shrink-0" />
-                                  {parseDateSafely(req.rejectedAt)?.toLocaleDateString('pt-BR')}
+                                  {parseDateSafely(req.rejectedAt)?.toLocaleDateString()}
                                 </div>
                               )}
                               {req.rejectionReason && (
                                 <div className="text-xs text-rose-600 max-w-[180px] break-words font-medium">
-                                  Motivo: {req.rejectionReason}
+                                  {t('requisitions.rejectReason', 'Motivo da Recusa')}: {req.rejectionReason}
                                 </div>
                               )}
                             </div>
@@ -615,7 +617,7 @@ export const IncomingRequisitions = () => {
                             <button
                               onClick={() => setSelectedReqForModal(req)}
                               className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition"
-                              title="Ver Detalhes do Pedido Completo"
+                              title={t('requisitions.viewFullOrderDetails', 'Ver Detalhes do Pedido Completo')}
                             >
                               <Eye size={16} />
                             </button>
@@ -625,20 +627,20 @@ export const IncomingRequisitions = () => {
                                 <button
                                   onClick={() => handleOpenAccept(req)}
                                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1 transition shadow-sm"
-                                  title="Abrir e Gerar Ordem de Serviço"
+                                  title={t('requisitions.openAndGenerateOS', 'Abrir e Gerar Ordem de Serviço')}
                                 >
-                                  <Check size={14} /> Aceitar
+                                  <Check size={14} /> {t('common.accept', 'Aceitar')}
                                 </button>
                                 <button
                                   onClick={() => handleReject(req)}
                                   className="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1 transition"
-                                  title="Recusar Requisição"
+                                  title={t('requisitions.rejectRequisition', 'Recusar Requisição')}
                                 >
-                                  <X size={14} /> Recusar
+                                  <X size={14} /> {t('common.reject', 'Recusar')}
                                 </button>
                               </>
                             ) : (
-                              <span className="text-xs text-slate-400 italic">Concluído</span>
+                              <span className="text-xs text-slate-400 italic">{t('common.completed', 'Concluído')}</span>
                             )}
                           </div>
                         </td>
@@ -664,7 +666,7 @@ export const IncomingRequisitions = () => {
                 </div>
                 <div>
                   <h3 className="text-base sm:text-lg font-black text-slate-800">
-                    Detalhes da Requisição Online
+                    {t('requisitions.modalDetailsTitle', 'Detalhes da Requisição Online')}
                   </h3>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-slate-400 font-bold">
@@ -675,8 +677,8 @@ export const IncomingRequisitions = () => {
                       selectedReqForModal.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-800' :
                       'bg-rose-100 text-rose-800'
                     }`}>
-                      {selectedReqForModal.status === 'PENDING' ? 'Pendente' :
-                       selectedReqForModal.status === 'ACCEPTED' ? 'Aceito' : 'Recusado'}
+                      {selectedReqForModal.status === 'PENDING' ? t('requisitions.status.PENDING', 'Pendente') :
+                       selectedReqForModal.status === 'ACCEPTED' ? t('requisitions.status.ACCEPTED', 'Aceito') : t('requisitions.status.REJECTED', 'Recusado')}
                     </span>
                   </div>
                 </div>
@@ -695,7 +697,7 @@ export const IncomingRequisitions = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 space-y-1">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                    Dentista / Solicitante
+                    {t('requisitions.dentistRequester', 'Dentista / Solicitante')}
                   </span>
                   <div className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
                     <Stethoscope size={15} className="text-blue-600 shrink-0" />
@@ -705,20 +707,20 @@ export const IncomingRequisitions = () => {
                     {getDentistClinic(selectedReqForModal)}
                   </div>
                   <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1 pt-1">
-                    <Clock size={11} /> Recebido em: {parseDateSafely(selectedReqForModal.sentAt || selectedReqForModal.createdAt)?.toLocaleString('pt-BR') || '---'}
+                    <Clock size={11} /> {t('requisitions.receivedOn', 'Recebido em')}: {parseDateSafely(selectedReqForModal.sentAt || selectedReqForModal.createdAt)?.toLocaleString() || '---'}
                   </div>
                 </div>
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-3.5 space-y-1">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                    Paciente
+                    {t('requisitions.patient', 'Paciente')}
                   </span>
                   <div className="font-black text-slate-800 text-base flex items-center gap-1.5">
                     <User size={16} className="text-blue-600 shrink-0" />
                     <span>{selectedReqForModal.patientName}</span>
                   </div>
                   <div className="text-xs text-slate-400 font-medium">
-                    Identificação do paciente para a O.S.
+                    {t('requisitions.patientIdForOS', 'Identificação do paciente para a O.S.')}
                   </div>
                 </div>
               </div>
@@ -728,10 +730,10 @@ export const IncomingRequisitions = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                     <Package size={15} className="text-blue-600" />
-                    Itens e Trabalhos Solicitados
+                    {t('requisitions.requestedItemsAndWork', 'Itens e Trabalhos Solicitados')}
                   </span>
                   <span className="text-xs text-slate-400 font-bold">
-                    {(selectedReqForModal.items && selectedReqForModal.items.length > 0) ? selectedReqForModal.items.length : 1} item(ns)
+                    {(selectedReqForModal.items && selectedReqForModal.items.length > 0) ? selectedReqForModal.items.length : 1} {t('requisitions.itemsCount', 'item(ns)')}
                   </span>
                 </div>
 
@@ -753,7 +755,7 @@ export const IncomingRequisitions = () => {
                         </span>
                         {item.quantity && item.quantity > 1 && (
                           <span className="text-[11px] font-bold text-slate-500">
-                            Qtd: {item.quantity} un
+                            {t('requisitions.qty', 'Qtd')}: {item.quantity} un
                           </span>
                         )}
                       </div>
@@ -762,7 +764,7 @@ export const IncomingRequisitions = () => {
                       {item.selectedTeeth && item.selectedTeeth.length > 0 && (
                         <div className="pt-1">
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                            Dentes Selecionados:
+                            {t('requisitions.selectedTeeth', 'Dentes Selecionados')}:
                           </span>
                           <div className="flex flex-wrap gap-1">
                             {item.selectedTeeth.map((tooth, tIdx) => (
@@ -778,7 +780,7 @@ export const IncomingRequisitions = () => {
                       {item.selectedVariationIds && item.selectedVariationIds.length > 0 && (
                         <div className="pt-1">
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
-                            Especificações & Variações:
+                            {t('requisitions.specsAndVariations', 'Especificações & Variações')}:
                           </span>
                           {renderVariations(item.serviceId, item.selectedVariationIds)}
                         </div>
@@ -793,7 +795,7 @@ export const IncomingRequisitions = () => {
                 <div className="space-y-1.5">
                   <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                     <MessageSquare size={15} className="text-amber-600" />
-                    Observações e Instruções Clínicas
+                    {t('requisitions.clinicalNotesAndInstructions', 'Observações e Instruções Clínicas')}
                   </span>
                   <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-950 font-medium whitespace-pre-wrap leading-relaxed">
                     "{selectedReqForModal.notes}"
@@ -806,7 +808,7 @@ export const IncomingRequisitions = () => {
                 <div className="space-y-2">
                   <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                     <Paperclip size={15} className="text-blue-600" />
-                    Arquivos e Anexos ({selectedReqForModal.attachments.length})
+                    {t('requisitions.filesAndAttachments', 'Arquivos e Anexos')} ({selectedReqForModal.attachments.length})
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {selectedReqForModal.attachments.map((file, i) => (
@@ -838,7 +840,7 @@ export const IncomingRequisitions = () => {
                           }}
                           className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shrink-0 transition flex items-center gap-1"
                         >
-                          <Eye size={12} /> Ver
+                          <Eye size={12} /> {t('common.view', 'Ver')}
                         </button>
                       </div>
                     ))}
@@ -851,14 +853,14 @@ export const IncomingRequisitions = () => {
                 <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3.5 space-y-1.5">
                   <div className="text-xs font-black text-rose-800 flex items-center gap-1.5">
                     <AlertCircle size={16} className="text-rose-600" />
-                    Justificativa da Recusa
+                    {t('requisitions.rejectJustification', 'Justificativa da Recusa')}
                   </div>
                   <p className="text-xs text-rose-700 font-medium leading-relaxed">
-                    {selectedReqForModal.rejectionReason || 'Sem justificativa informada.'}
+                    {selectedReqForModal.rejectionReason || t('requisitions.noReasonSpecified', 'Sem justificativa informada.')}
                   </p>
                   {selectedReqForModal.rejectedAt && (
                     <div className="text-[10px] text-rose-500 font-bold">
-                      Data da recusa: {parseDateSafely(selectedReqForModal.rejectedAt)?.toLocaleString('pt-BR')}
+                      {t('requisitions.rejectionDate', 'Data da recusa')}: {parseDateSafely(selectedReqForModal.rejectedAt)?.toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -868,11 +870,11 @@ export const IncomingRequisitions = () => {
                 <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 space-y-1">
                   <div className="text-xs font-black text-emerald-800 flex items-center gap-1.5">
                     <Check size={16} className="text-emerald-600" />
-                    Requisição Processada e Aceita
+                    {t('requisitions.processedAndAccepted', 'Requisição Processada e Aceita')}
                   </div>
                   {selectedReqForModal.acceptedAt && (
                     <div className="text-[11px] text-emerald-700 font-medium">
-                      Aceita em: {parseDateSafely(selectedReqForModal.acceptedAt)?.toLocaleString('pt-BR')}
+                      {t('requisitions.acceptedOn', 'Aceita em')}: {parseDateSafely(selectedReqForModal.acceptedAt)?.toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -886,7 +888,7 @@ export const IncomingRequisitions = () => {
                 onClick={() => setSelectedReqForModal(null)}
                 className="py-2.5 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition"
               >
-                Fechar
+                {t('common.close', 'Fechar')}
               </button>
 
               {selectedReqForModal.status === 'PENDING' && (
@@ -896,14 +898,14 @@ export const IncomingRequisitions = () => {
                     onClick={() => handleReject(selectedReqForModal)}
                     className="py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5"
                   >
-                    <X size={15} /> Recusar Requisição
+                    <X size={15} /> {t('requisitions.rejectRequisition', 'Recusar Requisição')}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleOpenAccept(selectedReqForModal)}
                     className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-md shadow-emerald-200"
                   >
-                    <Check size={16} /> Aceitar e Criar O.S.
+                    <Check size={16} /> {t('requisitions.acceptAndCreateOS', 'Aceitar e Criar O.S.')}
                   </button>
                 </>
               )}
@@ -930,7 +932,7 @@ export const IncomingRequisitions = () => {
           <div className="bg-white rounded-3xl p-4 sm:p-6 w-full max-w-md shadow-2xl border border-slate-100 animate-scale-up">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-base sm:text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                <X className="text-rose-500" size={20} /> Recusar Requisição
+                <X className="text-rose-500" size={20} /> {t('requisitions.rejectModalTitle', 'Recusar Requisição')}
               </h3>
               <button 
                 onClick={() => setRejectingReq(null)}
@@ -941,18 +943,22 @@ export const IncomingRequisitions = () => {
             </div>
             
             <p className="text-xs text-slate-500 mb-4 font-medium leading-relaxed">
-              Informe a justificativa de recusa para <strong>{rejectingReq.patientName}</strong> (enviada por {getDentistName(rejectingReq)}). O dentista parceiro poderá visualizar o motivo, corrigir as informações e reenviar o caso.
+              {t('requisitions.rejectModalNotice', {
+                patient: rejectingReq.patientName,
+                dentist: getDentistName(rejectingReq),
+                defaultValue: `Informe a justificativa de recusa para ${rejectingReq.patientName} (enviada por ${getDentistName(rejectingReq)}). O dentista parceiro poderá visualizar o motivo, corrigir as informações e reenviar o caso.`
+              })}
             </p>
 
             <div className="space-y-4">
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
-                  Justificativa / Motivo da Recusa *
+                  {t('requisitions.rejectReasonLabel', 'Justificativa / Motivo da Recusa *')}
                 </label>
                 <textarea
                   value={rejectionReasonInput}
                   onChange={(e) => setRejectionReasonInput(e.target.value)}
-                  placeholder="Ex: Escaneamento com distorção no dente 21, favor reenviar escaneamento..."
+                  placeholder={t('requisitions.rejectReasonPlaceholder', 'Ex: Escaneamento com distorção no dente 21, favor reenviar escaneamento...')}
                   rows={4}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all resize-none"
                   required
@@ -966,14 +972,14 @@ export const IncomingRequisitions = () => {
                 onClick={() => setRejectingReq(null)}
                 className="flex-1 py-3 text-slate-500 hover:bg-slate-100 rounded-2xl text-xs font-black uppercase transition-all"
               >
-                Cancelar
+                {t('common.cancel', 'Cancelar')}
               </button>
               <button
                 type="button"
                 onClick={confirmRejection}
                 className="flex-[2] py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-xs font-black uppercase shadow-lg shadow-rose-100 flex items-center justify-center gap-1.5 transition-all"
               >
-                <Check size={16} /> Confirmar Recusa
+                <Check size={16} /> {t('requisitions.confirmRejection', 'Confirmar Recusa')}
               </button>
             </div>
           </div>

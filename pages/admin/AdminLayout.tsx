@@ -63,25 +63,24 @@ export const AdminLayout = () => {
         </div>
       </div>
 
-      {/* TABS NAVIGATION: Grid on mobile, Flex on desktop to avoid horizontal scroll */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:flex md:flex-row bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mx-2 md:mx-0">
+      {/* TABS NAVIGATION: Responsive, touch-scrollable pill bar for tablet, mobile & desktop */}
+      <div className="flex items-center gap-1.5 md:gap-2 p-1.5 md:p-2 bg-white dark:bg-[#131B2A] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar scroll-smooth mx-2 md:mx-0">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-2 py-3 md:px-6 md:py-4 text-[10px] md:text-sm font-bold transition-all border-b-2 md:border-b-0 md:border-r border-slate-100 last:border-r-0 ${
+              `flex items-center justify-center gap-2 px-3.5 py-2.5 md:px-4 md:py-2.5 text-xs md:text-sm font-bold rounded-xl transition-all whitespace-nowrap shrink-0 ${
                 isActive 
-                  ? 'text-blue-600 border-blue-600 bg-blue-50/50 md:bg-blue-50/30' 
-                  : 'text-slate-400 border-transparent hover:text-slate-600'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20 font-black' 
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 bg-transparent'
               }`
             }
           >
-            {/* Fix: Use the render prop pattern to correctly access the isActive state for sub-elements and avoid type errors */}
             {({ isActive }) => (
               <>
-                <span className={isActive ? 'text-blue-600' : 'text-slate-400'}>{item.icon}</span>
-                <span className="truncate">{item.label}</span>
+                <span className={isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}>{item.icon}</span>
+                <span>{item.label}</span>
               </>
             )}
           </NavLink>

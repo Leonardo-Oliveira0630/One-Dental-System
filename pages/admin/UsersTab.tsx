@@ -1,9 +1,27 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole, User, PermissionKey } from '../../types';
-import { UserPlus, Edit, Lock, Trash2, X, ShieldCheck, Check, Loader2, AlertCircle, Save } from 'lucide-react';
+import { 
+  UserPlus, 
+  Edit, 
+  Lock, 
+  Trash2, 
+  X, 
+  ShieldCheck, 
+  Check, 
+  Loader2, 
+  AlertCircle, 
+  Save, 
+  Download, 
+  FileSpreadsheet, 
+  FileText, 
+  Search, 
+  ChevronDown,
+  Users
+} from 'lucide-react';
 import * as api from '../../services/firebaseService';
+import * as XLSX from 'xlsx';
 
 const AVAILABLE_PERMISSIONS: { key: PermissionKey, label: string, category: string }[] = [
     { key: 'jobs:view', label: 'Ver Lista e Detalhes', category: 'Produção' },
@@ -71,6 +89,21 @@ export const UsersTab = () => {
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedUserForPerms, setSelectedUserForPerms] = useState<User | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Close export menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   // Form States
   const [userName, setUserName] = useState('');
@@ -84,6 +117,86 @@ export const UsersTab = () => {
   const maxUsersLimit = currentPlan?.features?.maxUsers ?? -1;
   const activeTeamUsers = (allUsers || []).filter(u => u.role !== UserRole.CLIENT);
   const isAtMaxUsers = maxUsersLimit !== -1 && activeTeamUsers.length >= maxUsersLimit;
+
+  // Alphabetical sort of team users
+  const sortedTeamUsers = useMemo(() => {
+    return [...activeTeamUsers].sort((a, b) => 
+      (a.name || '').localeCompare(b.name || '', 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [activeTeamUsers]);
+
+  // Filtered by search and role
+  const filteredTeamUsers = useMemo(() => {
+    return sortedTeamUsers.filter(u => {
+      const term = searchTerm.trim().toLowerCase();
+      const matchesSearch = !term || 
+        (u.name || '').toLowerCase().includes(term) ||
+        (u.email || '').toLowerCase().includes(term) ||
+        (u.sectors || []).some(s => s.toLowerCase().includes(term)) ||
+        (u.sector || '').toLowerCase().includes(term);
+      const matchesRole = roleFilter === 'ALL' || u.role === roleFilter;
+      return matchesSearch && matchesRole;
+    });
+  }, [sortedTeamUsers, searchTerm, roleFilter]);
+
+  const handleExportExcel = () => {
+    const data = sortedTeamUsers.map((user, idx) => {
+      const roleLabel = user.role === UserRole.ADMIN ? 'Administrador' : user.role === UserRole.MANAGER ? 'Gestor' : 'Técnico';
+      const sectorsStr = user.sectors && user.sectors.length > 0 ? user.sectors.join(', ') : (user.sector || 'Geral');
+      return {
+        '#': idx + 1,
+        'Nome Completo': user.name || '',
+        'Email': user.email || '',
+        'Cargo': roleLabel,
+        'Setores Atuantes': sectorsStr,
+        'Permissões Ativas': user.permissions?.length || 0,
+        'Status': 'Ativo'
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Colaboradores");
+    const orgName = currentOrg?.name ? currentOrg.name.replace(/\s+/g, '_') : 'Labprox';
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Quadro_Colaboradores_${orgName}_${dateStr}.xlsx`);
+    setIsExportMenuOpen(false);
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['#', 'Nome Completo', 'Email', 'Cargo', 'Setores Atuantes', 'Permissoes Ativas', 'Status'];
+    const rows = sortedTeamUsers.map((user, idx) => {
+      const roleLabel = user.role === UserRole.ADMIN ? 'Administrador' : user.role === UserRole.MANAGER ? 'Gestor' : 'Técnico';
+      const sectorsStr = user.sectors && user.sectors.length > 0 ? user.sectors.join(', ') : (user.sector || 'Geral');
+      return [
+        idx + 1,
+        user.name || '',
+        user.email || '',
+        roleLabel,
+        sectorsStr,
+        user.permissions?.length || 0,
+        'Ativo'
+      ];
+    });
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+    ].join('\n');
+
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const orgName = currentOrg?.name ? currentOrg.name.replace(/\s+/g, '_') : 'Labprox';
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Quadro_Colaboradores_${orgName}_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setIsExportMenuOpen(false);
+  };
 
   const resetForm = () => {
     setUserName('');
@@ -179,61 +292,236 @@ export const UsersTab = () => {
         </div>
       )}
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-slate-800 text-lg">Equipe do Laboratório</h3>
-          {maxUsersLimit !== -1 && (
-            <p className="text-xs text-slate-500 font-medium">
-              Limite do plano: {activeTeamUsers.length} de {maxUsersLimit} cadastrados
-            </p>
+          <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+            <Users className="text-blue-600" size={22} />
+            Equipe do Laboratório
+          </h3>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            {activeTeamUsers.length} colaborador{activeTeamUsers.length !== 1 ? 'es' : ''} cadastrado{activeTeamUsers.length !== 1 ? 's' : ''} (ordem alfabética)
+            {maxUsersLimit !== -1 && ` • Limite do plano: ${maxUsersLimit}`}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* BOTÃO EXPORTAR QUADRO */}
+          <div className="relative" ref={exportMenuRef}>
+            <button
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              disabled={sortedTeamUsers.length === 0}
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm border border-slate-200 rounded-xl flex items-center gap-2 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Exportar Quadro de Colaboradores"
+            >
+              <Download size={17} className="text-slate-500" />
+              <span>Exportar Quadro</span>
+              <ChevronDown size={15} className={`text-slate-400 transition-transform ${isExportMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isExportMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3 py-1.5 border-b border-slate-100">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Formato de Exportação</p>
+                </div>
+                <button
+                  onClick={handleExportExcel}
+                  className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 text-slate-700 hover:text-blue-700 flex items-center gap-2.5 text-xs font-bold transition-colors"
+                >
+                  <FileSpreadsheet size={16} className="text-emerald-600" />
+                  <div>
+                    <p>Excel (.xlsx)</p>
+                    <p className="text-[10px] font-normal text-slate-400">Planilha formatada</p>
+                  </div>
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 text-slate-700 hover:text-blue-700 flex items-center gap-2.5 text-xs font-bold transition-colors"
+                >
+                  <FileText size={16} className="text-blue-600" />
+                  <div>
+                    <p>CSV (.csv)</p>
+                    <p className="text-[10px] font-normal text-slate-400">Compatível com Excel/Sheets</p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* BOTÃO NOVO USUÁRIO */}
+          <button 
+            onClick={() => { 
+              if (isAtMaxUsers) {
+                alert(`Limite de usuários atingido! Seu plano permite cadastrar no máximo ${maxUsersLimit} colaboradores. Faça um upgrade de plano na aba "Plano" para poder adicionar mais membros.`);
+                return;
+              }
+              resetForm(); 
+              setIsAddingUser(true); 
+            }} 
+            className={`px-4 py-2 text-white font-bold text-sm rounded-xl flex items-center gap-2 shadow-lg transition-all ${
+              isAtMaxUsers ? 'bg-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            <UserPlus size={18}/> Novo Usuário
+          </button>
+        </div>
+      </div>
+
+      {/* BARRA DE PESQUISA E FILTROS */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="text"
+            placeholder="Buscar por nome, email ou setor..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+          />
+          {searchTerm && (
+            <button 
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X size={14} />
+            </button>
           )}
         </div>
-        <button 
-          onClick={() => { 
-            if (isAtMaxUsers) {
-              alert(`Limite de usuários atingido! Seu plano permite cadastrar no máximo ${maxUsersLimit} colaboradores. Faça um upgrade de plano na aba "Plano" para poder adicionar mais membros.`);
-              return;
-            }
-            resetForm(); 
-            setIsAddingUser(true); 
-          }} 
-          className={`px-4 py-2 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg transition-all ${
-            isAtMaxUsers ? 'bg-slate-400 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700'
-          }`}
-        >
-          <UserPlus size={20}/> Novo Usuário
-        </button>
+
+        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+          <button
+            onClick={() => setRoleFilter('ALL')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === 'ALL'
+                ? 'bg-slate-800 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Todos ({activeTeamUsers.length})
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.COLLABORATOR)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.COLLABORATOR
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Técnicos
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.MANAGER)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.MANAGER
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Gestores
+          </button>
+          <button
+            onClick={() => setRoleFilter(UserRole.ADMIN)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              roleFilter === UserRole.ADMIN
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Administradores
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50 text-xs font-bold text-slate-500 uppercase border-b">
-            <tr><th className="p-4">Nome</th><th className="p-4">Cargo</th><th className="p-4">Setor</th><th className="p-4 text-right">Ações</th></tr>
+            <tr>
+              <th className="p-4">Nome</th>
+              <th className="p-4">Cargo</th>
+              <th className="p-4">Setores Atuantes</th>
+              <th className="p-4 text-center">Permissões</th>
+              <th className="p-4 text-right">Ações</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {(allUsers || []).filter(u => u.role !== UserRole.CLIENT).map(user => (
+            {filteredTeamUsers.map(user => (
               <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                 <td className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-400">{user.name.charAt(0)}</div>
-                    <div><p className="font-bold text-slate-800">{user.name}</p><p className="text-xs text-slate-400">{user.email}</p></div>
+                    <div className="w-9 h-9 bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center font-bold text-sm shadow-sm">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm leading-snug">{user.name}</p>
+                      <p className="text-xs text-slate-400">{user.email}</p>
+                    </div>
                   </div>
                 </td>
-                <td className="p-4"><span className="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">{user.role}</span></td>
-                <td className="p-4 text-slate-600 text-sm font-medium">
-                  {user.sectors && user.sectors.length > 0 
-                    ? user.sectors.join(', ') 
-                    : (user.sector || 'Geral')}
+                <td className="p-4">
+                  <span className={`px-2.5 py-1 text-[11px] font-bold rounded-lg uppercase tracking-wider ${
+                    user.role === UserRole.ADMIN 
+                      ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                      : user.role === UserRole.MANAGER 
+                        ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' 
+                        : 'bg-blue-100 text-blue-700 border border-blue-200'
+                  }`}>
+                    {user.role === UserRole.ADMIN ? 'Administrador' : user.role === UserRole.MANAGER ? 'Gestor' : 'Técnico'}
+                  </span>
+                </td>
+                <td className="p-4 text-slate-600 text-xs font-medium">
+                  {user.sectors && user.sectors.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 max-w-xs">
+                      {user.sectors.map((sec, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-slate-100 text-slate-700 font-semibold rounded text-[11px] border border-slate-200">
+                          {sec}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-slate-400 italic">{user.sector || 'Geral'}</span>
+                  )}
+                </td>
+                <td className="p-4 text-center">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
+                    <ShieldCheck size={13} className="text-slate-400" />
+                    {user.permissions ? user.permissions.length : 0} ativas
+                  </span>
                 </td>
                 <td className="p-4 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button onClick={() => openEditUser(user)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Edit size={18}/></button>
-                    <button onClick={() => { setSelectedUserForPerms(user); setTempPerms(user.permissions || []); }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"><Lock size={18}/></button>
-                    <button onClick={() => handleDeleteUser(user.id)} className="p-2 text-slate-300 hover:text-red-500 rounded-lg transition-all"><Trash2 size={18}/></button>
+                  <div className="flex justify-end gap-1.5">
+                    <button 
+                      onClick={() => openEditUser(user)} 
+                      title="Editar Colaborador" 
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                    >
+                      <Edit size={18}/>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedUserForPerms(user); setTempPerms(user.permissions || []); }} 
+                      title="Gerenciar Permissões" 
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                    >
+                      <Lock size={18}/>
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteUser(user.id)} 
+                      title="Excluir Colaborador" 
+                      className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    >
+                      <Trash2 size={18}/>
+                    </button>
                   </div>
                 </td>
               </tr>
             ))}
+            {filteredTeamUsers.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-12 text-center text-slate-400">
+                  <Users className="mx-auto mb-2 text-slate-300" size={32} />
+                  <p className="font-semibold text-sm">Nenhum colaborador encontrado</p>
+                  {searchTerm && <p className="text-xs mt-1">Tente remover os filtros de busca.</p>}
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -241,44 +529,80 @@ export const UsersTab = () => {
       {/* MODAL: NOVO/EDITAR USUÁRIO */}
       {(isAddingUser || editingUser) && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-4 sm:p-6 animate-in zoom-in duration-200">
-                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-5 sm:p-6 animate-in zoom-in duration-200 max-h-[92vh] flex flex-col">
+                  <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3 shrink-0">
                       <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                         {isAddingUser ? <><UserPlus className="text-blue-600" /> Cadastrar Colaborador</> : <><Edit className="text-blue-600" /> Editar Colaborador</>}
                       </h3>
-                      <button onClick={() => { setIsAddingUser(false); setEditingUser(null); }} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                      <button onClick={() => { setIsAddingUser(false); setEditingUser(null); }} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"><X size={22}/></button>
                   </div>
-                  <form onSubmit={isAddingUser ? handleAddUser : handleUpdateUserInfo} className="space-y-4">
+                  <form onSubmit={isAddingUser ? handleAddUser : handleUpdateUserInfo} className="space-y-4 overflow-y-auto pr-1">
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label><input required value={userName} onChange={e => setUserName(e.target.value)} className="w-full px-4 py-2 border rounded-xl" /></div>
                       <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label><input type="email" required disabled={!!editingUser} value={userEmail} onChange={e => setUserEmail(e.target.value)} className="w-full px-4 py-2 border rounded-xl disabled:bg-slate-50 disabled:text-slate-400" /></div>
                       {isAddingUser && <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Senha</label><input type="password" required value={userPass} onChange={e => setUserPass(e.target.value)} className="w-full px-4 py-2 border rounded-xl" minLength={6} /></div>}
-                      <div className="grid grid-cols-2 gap-4">
-                          <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label>
-                              <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border rounded-xl bg-white">
-                                  <option value={UserRole.COLLABORATOR}>Técnico</option>
-                                  <option value={UserRole.MANAGER}>Gestor</option>
-                                  <option value={UserRole.ADMIN}>Administrador</option>
-                              </select>
-                          </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label>
+                          <select value={userRole} onChange={e => setUserRole(e.target.value as UserRole)} className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                              <option value={UserRole.COLLABORATOR}>Técnico</option>
+                              <option value={UserRole.MANAGER}>Gestor</option>
+                              <option value={UserRole.ADMIN}>Administrador</option>
+                          </select>
                       </div>
                       <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Setores Atuantes</label>
-                          <div className="flex flex-col gap-2 max-h-40 overflow-y-auto p-3 border border-slate-200 rounded-xl bg-slate-50">
-                              {sectors.map(s => (
-                                  <label key={s.id} className="flex items-center gap-2 cursor-pointer">
-                                      <input 
-                                          type="checkbox" 
-                                          checked={userSectors.includes(s.name)} 
-                                          onChange={e => {
-                                              if (e.target.checked) setUserSectors([...userSectors, s.name]);
-                                              else setUserSectors(userSectors.filter(sec => sec !== s.name));
-                                          }} 
-                                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600/20"
-                                      />
-                                      <span className="text-sm font-medium text-slate-700">{s.name}</span>
-                                  </label>
-                              ))}
-                              {sectors.length === 0 && <span className="text-xs text-slate-400">Nenhum setor cadastrado</span>}
+                          <div className="flex items-center justify-between mb-1.5">
+                              <label className="block text-xs font-bold text-slate-500 uppercase">
+                                  Setores Atuantes {userSectors.length > 0 && <span className="text-blue-600 font-bold">({userSectors.length} selecionado{userSectors.length > 1 ? 's' : ''})</span>}
+                              </label>
+                              {sectors.length > 0 && (
+                                  <div className="flex items-center gap-2">
+                                      <button 
+                                          type="button" 
+                                          onClick={() => setUserSectors(sectors.map(s => s.name))}
+                                          className="text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                                      >
+                                          Todos
+                                      </button>
+                                      <span className="text-slate-300">•</span>
+                                      <button 
+                                          type="button" 
+                                          onClick={() => setUserSectors([])}
+                                          className="text-[11px] font-bold text-slate-500 hover:text-slate-700 hover:underline"
+                                      >
+                                          Limpar
+                                      </button>
+                                  </div>
+                              )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2.5 border border-slate-200 rounded-2xl bg-slate-50/70">
+                              {sectors.map(s => {
+                                  const isSelected = userSectors.includes(s.name);
+                                  return (
+                                      <label 
+                                          key={s.id} 
+                                          className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs font-bold cursor-pointer select-none transition-all ${
+                                              isSelected 
+                                                  ? 'bg-blue-50/90 border-blue-300 text-blue-800 shadow-sm' 
+                                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+                                          }`}
+                                      >
+                                          <input 
+                                              type="checkbox" 
+                                              checked={isSelected} 
+                                              onChange={e => {
+                                                  if (e.target.checked) setUserSectors([...userSectors, s.name]);
+                                                  else setUserSectors(userSectors.filter(sec => sec !== s.name));
+                                              }} 
+                                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer"
+                                          />
+                                          <span className="truncate leading-normal">{s.name}</span>
+                                      </label>
+                                  );
+                              })}
+                              {sectors.length === 0 && (
+                                  <div className="col-span-2 py-4 text-center text-xs text-slate-400 italic">
+                                      Nenhum setor cadastrado no laboratório
+                                  </div>
+                              )}
                           </div>
                       </div>
                       <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 flex items-center justify-center gap-2">

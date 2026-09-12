@@ -73,6 +73,72 @@ export interface BannerConfig {
   buttonBorderRadius?: string;
 }
 
+export interface SupplierDeliveryPolicy {
+  defaultDispatchDays: number; // Ex: 1 to 5 business days
+  shippingModes: ('FRENET' | 'CORREIOS' | 'CARRIER' | 'PICKUP' | 'LOCAL_EXPRESS')[];
+  freeShippingEnabled?: boolean;
+  freeShippingThreshold?: number;
+  deliveryNotes?: string;
+}
+
+export interface SupplierReturnPolicy {
+  legalReturnPeriodDays: number; // Minimum 7 days as per Brazilian Consumer Law (CDC)
+  returnConditions: string;
+  reverseLogisticsCoverage: 'SELLER_PAYS_DEFECT_AND_REPENTANCE' | 'SELLER_PAYS_ALL';
+  exchangeProcessingDays: number;
+  returnNotes?: string;
+}
+
+export interface SupplierWarrantyPolicy {
+  legalWarrantyDays: number; // 90 days minimum for durable goods (CDC)
+  manufacturerWarrantyMonths?: number;
+  technicalAssistanceInfo?: string;
+  warrantyCoverageDetails: string;
+}
+
+export interface SupplierRegulatedProductsPolicy {
+  anvisaComplianceConfirmed: boolean;
+  technicalResponsibleName?: string;
+  technicalResponsibleDocType?: 'CRF' | 'CRO' | 'CREA' | 'CRQ' | 'OTHER';
+  technicalResponsibleDocNumber?: string;
+  afeOrAnvisaAuthorizationNumber?: string;
+  requiresBatchAndExpiryTracking: boolean;
+  prohibitsUnauthorizedReprocessing: boolean;
+}
+
+export interface SupplierCustomerServicePolicy {
+  maxResponseTimeHours: number; // SLA (e.g. 24h)
+  supportChannels: ('PLATFORM_CHAT' | 'WHATSAPP' | 'EMAIL' | 'PHONE')[];
+  supportEmail?: string;
+  supportPhone?: string;
+  businessHours?: string;
+}
+
+export interface SupplierTermsAcceptance {
+  accepted: boolean;
+  version: string;
+  acceptedAt: string; // ISO date string
+  acceptedByUserId: string;
+  acceptedByUserName: string;
+  acceptedByUserEmail: string;
+  acceptedOrgId: string;
+  acceptedOrgName?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  legalRepresentativeName?: string;
+  legalRepresentativeCpf?: string;
+}
+
+export interface SupplierStorePolicies {
+  deliveryPolicy?: SupplierDeliveryPolicy;
+  returnPolicy?: SupplierReturnPolicy;
+  warrantyPolicy?: SupplierWarrantyPolicy;
+  regulatedProductsPolicy?: SupplierRegulatedProductsPolicy;
+  customerServicePolicy?: SupplierCustomerServicePolicy;
+  termsAcceptance?: SupplierTermsAcceptance;
+  lastUpdated?: string;
+}
+
 export interface StoreSettings {
   banners?: BannerConfig[];
   profilePhotoUrl?: string;
@@ -87,6 +153,7 @@ export interface StoreSettings {
   catchphrase?: string;
   theme?: 'shopee' | 'light' | 'dark' | 'amber' | 'indigo' | 'emerald' | 'orange';
   layoutBlocks?: StoreLayoutBlock[];
+  policies?: SupplierStorePolicies;
 }
 
 export interface Organization {
@@ -670,6 +737,8 @@ export interface User {
   croValid?: boolean;
   isApproved?: boolean;
   manualDentistId?: string;
+  themePreference?: 'light' | 'dark';
+  language?: 'pt-BR' | 'en' | 'es';
 }
 
 export interface CartItem {
@@ -797,6 +866,8 @@ export interface SubscriptionPlan {
   active: boolean;
   targetAudience?: 'LAB' | 'CLINIC' | 'LAB_OUTSOURCED' | 'SUPPLIER';
   trialDays?: number;
+  isPrivate?: boolean;
+  allowedEmails?: string[];
   features: {
     maxUsers: number;
     maxStorageGB: number;
@@ -1100,6 +1171,7 @@ export interface SupplierOrder {
   supplierName: string;
   buyerOrgId: string;
   buyerOrgName: string;
+  buyerUserId?: string;
   buyerName: string;
   buyerEmail: string;
   buyerPhone?: string;
@@ -1121,10 +1193,22 @@ export interface SupplierOrder {
   totalValue: number;
   discountValue?: number;
   couponCode?: string;
-  status?: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-  deliveryStatus?: 'PENDING' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED';
+  status?: 'PENDING' | 'PAID' | 'CONFIRMED' | 'SEPARATION' | 'READY_TO_SHIP' | 'SHIPPED' | 'DELIVERED' | 'RETURNED' | 'CANCELLED';
+  deliveryStatus?: 'PENDING' | 'SEPARATION' | 'READY_TO_SHIP' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'RETURNED';
   paymentStatus?: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
   createdAt: Date;
+  separatedAt?: Date;
+  separatedBy?: string;
+  packedAt?: Date;
+  shippedAt?: Date;
+  deliveredAt?: Date;
+  returnedAt?: Date;
+  internalNotes?: string;
+  invoiceNumber?: string;
+  invoiceUrl?: string;
+  subtotalProducts?: number;
+  pickingChecklist?: Record<string, boolean>;
+  buyerCpfCnpj?: string;
   notes?: string;
   paymentMethod: 'CREDIT_CARD' | 'PIX' | 'BOLETO';
   asaasPaymentId?: string;
@@ -1140,7 +1224,7 @@ export interface SupplierOrder {
     state?: string;
     zipCode?: string;
   };
-  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET';
+  shippingMethod?: 'COMBINE' | 'PAC' | 'SEDEX' | 'FRENET' | 'PICKUP' | 'MOTOBOY';
   shippingCost?: number;
   trackingCode?: string;
   trackingInfo?: string;
@@ -1150,6 +1234,102 @@ export interface SupplierOrder {
     text: string;
     timestamp: Date;
   }[];
+  returnRequest?: OrderReturnRequest;
+  cancellationReason?: string;
+  cancelledAt?: Date;
+  cancelledBy?: 'BUYER' | 'SUPPLIER' | 'SYSTEM';
+}
+
+export type ReturnRequestType = 'CANCEL' | 'RETURN' | 'EXCHANGE';
+export type ReturnRequestReason = 
+  | 'CDC_7_DAYS' // Arrependimento de Compra (Art. 49 CDC)
+  | 'DEFECT_WARRANTY' // Defeito de Fabricação / Garantia Legal (90 dias)
+  | 'SHIPPING_DAMAGE' // Avaria durante o Transporte
+  | 'DIVERGENT_PRODUCT' // Produto diferente do anunciado ou especificação incorreta
+  | 'DISPATCH_DELAY' // Atraso excessivo no envio
+  | 'BUYER_REMORSE_PRE_DISPATCH' // Cancelamento antes do despacho
+  | 'OTHER';
+
+export type ReturnRequestStatus = 
+  | 'PENDING' // Aguardando análise do fornecedor
+  | 'APPROVED' // Aprovado pelo fornecedor (aguardando envio ou estorno direto)
+  | 'REJECTED' // Recusado pelo fornecedor com justificativa
+  | 'POSTED_BY_BUYER' // Cliente postou a devolução
+  | 'RECEIVED_BY_SUPPLIER' // Fornecedor recebeu o produto na fábrica/distribuidora
+  | 'REFUNDED' // Estorno/Reembolso concluído
+  | 'EXCHANGED' // Novo produto enviado em troca
+  | 'CANCELLED'; // Cancelado pelo comprador
+
+export interface OrderReturnRequest {
+  id: string;
+  orderId: string;
+  type: ReturnRequestType;
+  reason: ReturnRequestReason;
+  reasonLabel: string;
+  details: string;
+  requestedResolution: 'REFUND' | 'EXCHANGE' | 'STORE_CREDIT';
+  status: ReturnRequestStatus;
+  requestedAt: Date;
+  updatedAt?: Date;
+  resolvedAt?: Date;
+  photos?: string[];
+  
+  // Reverse logistics & Supplier resolution
+  reversePostageCode?: string; // Código de Autorização de Postagem Reversa dos Correios / Transportadora
+  reversePostageDeadline?: string;
+  reverseInstructions?: string;
+  supplierNotes?: string;
+  rejectionReason?: string;
+  refundTransactionId?: string;
+  exchangeTrackingCode?: string;
+  
+  // Requester metadata
+  requestedByUserId: string;
+  requestedByUserName: string;
+  requestedByUserEmail: string;
+  requestedByOrgId: string;
+  requestedByOrgName: string;
+}
+
+export interface SupplierChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: 'BUYER' | 'SUPPLIER' | 'SYSTEM';
+  senderOrgId: string;
+  senderOrgName: string;
+  text: string;
+  imageUrl?: string;
+  createdAt: Date;
+  read?: boolean;
+}
+
+export interface SupplierConversation {
+  id: string; // `${buyerOrgId}_${supplierOrgId}` or `${buyerOrgId}_${supplierOrgId}_${orderId}`
+  buyerOrgId: string;
+  buyerOrgName: string;
+  buyerUserId: string;
+  buyerUserName: string;
+  buyerUserEmail?: string;
+  buyerRole?: string; // LAB, CLINIC, DENTIST
+  
+  supplierOrgId: string;
+  supplierOrgName: string;
+  
+  orderId?: string;
+  productId?: string;
+  productName?: string;
+  productImageUrl?: string;
+  
+  lastMessageText?: string;
+  lastMessageTimestamp?: Date;
+  lastMessageSenderId?: string;
+  unreadCountBuyer?: number;
+  unreadCountSupplier?: number;
+  
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 

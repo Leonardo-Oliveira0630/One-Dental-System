@@ -8,6 +8,11 @@ export class CommunicationService {
 
     constructor() {
         this.db = admin.firestore();
+        try {
+            this.db.settings({ ignoreUndefinedProperties: true });
+        } catch (e) {
+            // Settings already applied
+        }
         this.providers = new Map();
         this.registerProvider(new YCloudProvider());
     }
@@ -19,23 +24,20 @@ export class CommunicationService {
     async getChannelConfig(orgId: string) {
         let channelConfig: any = null;
         let systemApiKey = process.env.ycloud_api_key || process.env['YCLOUD_' + 'API_KEY'] || '';
-        let systemPhoneNumber = process.env.ycloud_phone_number || process.env['YCLOUD_' + 'PHONE_NUMBER'] || '5527997599833';
+        let systemPhoneNumber = '5527997599833';
 
         try {
             const settingsSnap = await this.db.collection('settings').doc('global').get();
             if (settingsSnap.exists) {
                 const globalData = settingsSnap.data();
                 if (globalData?.ycloudApiKey) systemApiKey = globalData.ycloudApiKey;
-                if (globalData?.ycloudPhoneNumber && !globalData.ycloudPhoneNumber.includes('997544638')) {
-                    systemPhoneNumber = globalData.ycloudPhoneNumber;
+                const rawGlobalPhone = (globalData?.ycloudPhoneNumber || '').replace(/\D/g, '');
+                if (rawGlobalPhone && !rawGlobalPhone.includes('997544638') && rawGlobalPhone.length >= 8) {
+                    systemPhoneNumber = rawGlobalPhone;
                 }
             }
         } catch (e) {
             console.error("Could not fetch global settings for YCloud API key", e);
-        }
-
-        if (!systemPhoneNumber || systemPhoneNumber.includes('997544638')) {
-            systemPhoneNumber = '5527997599833';
         }
 
         const snapshot = await this.db.collection('communication_channels')
@@ -54,13 +56,14 @@ export class CommunicationService {
             };
         } else {
             channelConfig = { ...snapshot.docs[0].data(), id: snapshot.docs[0].id };
-            // If the org channel is YCloud but doesn't have phone, fallback to system
-            if (channelConfig.provider === 'YCloud' && !channelConfig.phoneNumber) {
-                channelConfig.phoneNumber = systemPhoneNumber;
+            let rawOrgPhone = (channelConfig.wabaPhoneNumber || channelConfig.ycloudPhoneNumber || channelConfig.phoneNumber || '').replace(/\D/g, '');
+            if (!rawOrgPhone || rawOrgPhone.includes('997544638') || rawOrgPhone.length < 8) {
+                rawOrgPhone = systemPhoneNumber;
             }
+            channelConfig.phoneNumber = rawOrgPhone;
         }
 
-        let finalPhone = systemPhoneNumber || channelConfig.wabaPhoneNumber || channelConfig.ycloudPhoneNumber || channelConfig.phoneNumber;
+        let finalPhone = (channelConfig.phoneNumber || systemPhoneNumber || '5527997599833').replace(/\D/g, '');
         if (!finalPhone || finalPhone.includes('997544638') || finalPhone.length < 8) {
             finalPhone = '5527997599833';
         }
@@ -112,8 +115,15 @@ export class CommunicationService {
     }
 
     async logMessage(logData: any) {
+        // Strip out any undefined values to be 100% safe
+        const sanitized: any = {};
+        for (const [k, v] of Object.entries(logData)) {
+            if (v !== undefined) {
+                sanitized[k] = v;
+            }
+        }
         await this.db.collection('message_logs').add({
-            ...logData,
+            ...sanitized,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
     }
@@ -129,7 +139,7 @@ export class CommunicationService {
             const channelConfig = await this.getChannelConfig(orgId);
             const template = await this.getTemplate(orgId, module, templateType);
             
-            const providerName = channelConfig.provider;
+            const providerName = channelConfig.provider || 'YCloud';
             const provider = this.providers.get(providerName);
             
             if (!provider) {
@@ -161,12 +171,12 @@ export class CommunicationService {
 
             await this.logMessage({
                 orgId,
-                channelId: channelConfig.id,
+                channelId: channelConfig.id || 'GLOBAL_YCLOUD',
                 provider: providerName,
                 direction: 'OUTBOUND',
-                templateId: (template.data && template.data.id) ? template.data.id : (template.data && template.data.action ? template.data.action : null),
+                templateId: (template.data && template.data.id) ? template.data.id : (template.data && template.data.action ? template.data.action : (template.data && template.data.name ? template.data.name : null)),
                 recipient: cleanPhone,
-                message: JSON.stringify(result),
+                message: typeof result === 'object' ? JSON.stringify(result) : String(result || ''),
                 status: 'SENT',
                 sentAt: admin.firestore.FieldValue.serverTimestamp()
             });
@@ -183,11 +193,12 @@ export class CommunicationService {
 
             await this.logMessage({
                 orgId,
+                channelId: 'GLOBAL_YCLOUD',
                 direction: 'OUTBOUND',
                 recipient: cleanPhone,
-                message: error.message,
+                message: error.message || 'Erro desconhecido',
                 status: 'FAILED',
-                failedReason: error.message,
+                failedReason: error.message || 'Erro desconhecido',
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
             });
 

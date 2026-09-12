@@ -1034,31 +1034,31 @@ export const Catalog = () => {
     const isLinked = selectedLab ? userConnections.some(c => c.organizationId === selectedLab.id) : false;
 
     return (
-        <div className="flex flex-col h-full bg-white relative">
-            <div className="flex items-center md:justify-between px-4 py-0 mt-0 bg-white border-b border-white sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full">
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0B0F17] relative">
+            <div className="flex items-center md:justify-between px-4 py-2.5 bg-white dark:bg-[#131B2A] border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30 shrink-0 overflow-x-auto gap-4 scrollbar-hide w-full shadow-sm">
                 <div className="hidden md:block w-auto md:w-32 flex-shrink-0"></div>
-                <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-4 sm:px-6 sm:py-0 pl-6 py-0 ml-0 mt-0 whitespace-nowrap md:flex-1">
+                <div className="flex items-center justify-start md:justify-center flex-nowrap gap-2 md:gap-3 px-2 py-0 whitespace-nowrap md:flex-1">
                     <button
                         onClick={() => setMainTab('STORE')}
-                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'STORE' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'STORE' ? 'bg-[#15263f] text-white dark:bg-blue-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                     >
                         Loja Online
                     </button>
                     <button
                         onClick={() => setMainTab('PARTNERSHIPS')}
-                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'PARTNERSHIPS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'PARTNERSHIPS' ? 'bg-[#15263f] text-white dark:bg-blue-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                     >
                         Parcerias Lab
                     </button>
                     <button
                         onClick={() => setMainTab('MY_ORDERS')}
-                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'MY_ORDERS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'MY_ORDERS' ? 'bg-[#15263f] text-white dark:bg-blue-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                     >
                         Meus Pedidos
                     </button>
                     <button
                         onClick={() => setMainTab('VOUCHERS')}
-                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'VOUCHERS' ? 'bg-[#15263f] text-white' : 'text-slate-600 hover:bg-[#15263f] hover:text-white'}`}
+                        className={`px-4 py-2 rounded-xl font-bold text-sm md:text-base transition-colors ${mainTab === 'VOUCHERS' ? 'bg-[#15263f] text-white dark:bg-blue-600' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'}`}
                     >
                         Vouchers
                     </button>
@@ -1075,7 +1075,7 @@ export const Catalog = () => {
             </div>
 
             {mainTab === 'PARTNERSHIPS' && (
-                <div className="flex-1 overflow-y-auto bg-white animate-in fade-in">
+                <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0B0F17] animate-in fade-in">
                     <Partnerships onSelectLab={(labId) => {
                         switchActiveOrganization(labId);
                         setMainTab('STORE');
@@ -1084,19 +1084,19 @@ export const Catalog = () => {
             )}
 
             {mainTab === 'MY_ORDERS' && (
-                <div className="flex-1 overflow-y-auto bg-white animate-in fade-in">
+                <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0B0F17] animate-in fade-in">
                     <JobsList isStoreContext={true} />
                 </div>
             )}
 
             {mainTab === 'VOUCHERS' && (
-                <div className="flex-1 overflow-y-auto bg-white animate-in fade-in">
+                <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0B0F17] animate-in fade-in p-4 sm:p-6 max-w-6xl mx-auto w-full">
                     <MyVouchersTab />
                 </div>
             )}
 
             {mainTab === 'CART' && (
-                <div className="flex-1 p-4 md:p-4 sm:p-8 overflow-y-auto bg-white animate-in fade-in">
+                <div className="flex-1 p-4 md:p-6 sm:p-8 overflow-y-auto bg-slate-50 dark:bg-[#0B0F17] animate-in fade-in">
                     <Cart onBackToStore={() => setMainTab('STORE')} />
                 </div>
             )}

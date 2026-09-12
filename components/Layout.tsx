@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useApp } from '../context/AppContext';
 import { Logo, LogoIcon } from './Logo';
 import { 
@@ -8,7 +9,7 @@ import {
   LogOut, Menu, UserCircle, ShoppingCart, 
   PlusCircle, Layers, X, Building, Table,
   Contact, CalendarRange, Crown, Handshake, ChevronsUpDown, Settings, DollarSign, Package, Inbox as InboxIcon, Activity, Stethoscope, Globe, Bell, Ticket, Truck, WifiOff, RefreshCw, Home, Search, Camera, Briefcase, LayoutGrid, Users, Wallet, FileText, AlertTriangle, BookOpen, HelpCircle, ShieldCheck, ClipboardList, Cpu
-, ChevronLeft, MessageSquare, Columns} from 'lucide-react';
+, ChevronLeft, MessageSquare, Columns, Sun, Moon} from 'lucide-react';
 import { UserRole, PermissionKey } from '../types';
 import { GlobalScanner, ManualScannerInput } from './Scanner';
 import { PrintOverlay } from './PrintOverlay';
@@ -17,15 +18,17 @@ import { PWAInstallPrompt } from './PWAInstallPrompt';
 import { JobSearch } from './JobSearch';
 import * as firestorePkg from 'firebase/firestore';
 import { db } from '../services/firebaseConfig';
-import { getOrganizationBySlug } from '../services/firebaseService';
+import { getOrganizationBySlug, subscribeSupplierConversations } from '../services/firebaseService';
 import { SupportChatWidget } from './SupportChatWidget';
 
 const { onSnapshotsInSync } = firestorePkg as any;
 
 export const Layout = ({ children }: { children?: React.ReactNode }) => {
+  const { t } = useTranslation();
   const { 
     currentUser, logout, cart, jobs, currentOrg, currentPlan,
-    userConnections, activeOrganization, switchActiveOrganization
+    userConnections, activeOrganization, switchActiveOrganization,
+    theme, toggleTheme
   } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
@@ -37,6 +40,19 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [showOverduePopup, setShowOverduePopup] = useState(false);
   const [storeOrg, setStoreOrg] = useState<any>(null);
+  const [unreadSupplierChatCount, setUnreadSupplierChatCount] = useState(0);
+
+  useEffect(() => {
+    if (!currentOrg?.id || currentOrg?.orgType !== 'SUPPLIER') {
+      setUnreadSupplierChatCount(0);
+      return;
+    }
+    const unsub = subscribeSupplierConversations(currentOrg.id, true, (convs) => {
+      const totalUnread = convs.reduce((sum, c) => sum + (c.unreadCountSupplier || 0), 0);
+      setUnreadSupplierChatCount(totalUnread);
+    });
+    return () => unsub();
+  }, [currentOrg?.id, currentOrg?.orgType]);
 
   const pathParts = location.pathname.split('/');
   const storeSlug = pathParts[1] === 'store' && pathParts[2] ? pathParts[2] : null;
@@ -121,8 +137,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
   const isSuperAdmin = currentUser?.role === UserRole.SUPER_ADMIN;
   const isClient = currentUser?.role === UserRole.CLIENT;
+  const isClinic = currentOrg?.orgType === 'CLINIC';
   const isBuyer = (isClient || currentOrg?.orgType === 'LAB_OUTSOURCED') && !isSupplier;
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.SUPER_ADMIN;
+  const isLab = !isClient && !isSupplier && !isClinic && (currentOrg?.orgType === 'LAB' || !currentOrg?.orgType);
   const isFreeLab = currentOrg?.orgType === 'LAB' && (currentOrg?.planId === 'free_lab' || currentPlan?.id === 'free_lab' || currentPlan?.features?.isLabFreeStoreOnly === true);
   
   const isClinicPendingApproval = () => {
@@ -163,13 +181,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
       return { 
         name: storeOrg.name, 
         logo: storeOrg.logoUrl, 
-        sub: storeOrg.orgType === 'SUPPLIER' ? 'Fornecedor Parceiro' : 'Laboratório Parceiro' 
+        sub: storeOrg.orgType === 'SUPPLIER' ? t('navigation.partnerSupplier', 'Fornecedor Parceiro') : t('navigation.partnerLab', 'Laboratório Parceiro') 
       };
     }
     return isViewingLabContext && activeOrganization 
-      ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: 'Laboratório Parceiro' } 
-      : { name: currentOrg?.name || 'Labprox', logo: currentOrg?.logoUrl, sub: isClient ? 'Minha Clínica' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Laboratório Terceirizado' : 'Labprox SYSTEM' };
-  }, [isViewingLabContext, activeOrganization, currentOrg, isClient, storeSlug, storeOrg]);
+      ? { name: activeOrganization.name, logo: activeOrganization.logoUrl, sub: t('navigation.partnerLab', 'Laboratório Parceiro') } 
+      : { name: currentOrg?.name || 'Labprox', logo: currentOrg?.logoUrl, sub: isClient ? t('navigation.myClinic', 'Minha Clínica') : currentOrg?.orgType === 'LAB_OUTSOURCED' ? t('navigation.outsourcedLab', 'Laboratório Terceirizado') : 'Labprox SYSTEM' };
+  }, [isViewingLabContext, activeOrganization, currentOrg, isClient, storeSlug, storeOrg, t]);
 
   if (location.pathname === '/helpdesk') {
     return <>{children}</>;
@@ -186,13 +204,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           {isOffline && (
             <div className="bg-orange-600 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-4 duration-300 pointer-events-auto max-w-full">
                 <WifiOff size={16} />
-                <span className="text-[10px] font-black uppercase tracking-tight truncate">Modo Offline Ativo</span>
+                <span className="text-[10px] font-black uppercase tracking-tight truncate">{t('common.offlineMode', 'Modo Offline Ativo')}</span>
             </div>
           )}
           {isSyncing && !isOffline && (
             <div className="bg-blue-600 text-white px-4 py-1.5 rounded-full shadow-xl flex items-center gap-2 animate-pulse pointer-events-auto">
                 <RefreshCw size={12} className="animate-spin" />
-                <span className="text-[10px] font-black uppercase tracking-tight">Sincronizando...</span>
+                <span className="text-[10px] font-black uppercase tracking-tight">{t('common.syncing', 'Sincronizando...')}</span>
             </div>
           )}
       </div>
@@ -224,7 +242,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <div className="flex flex-col min-w-0 opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">
                 {displayBrand.name.toUpperCase() === 'Labprox' ? (
                   <span className="text-sm font-black tracking-tight leading-none truncate uppercase text-white">
-                    Smile<span className="text-[#00B8D9]">ProX</span>
+                    Lab<span className="text-[#00B8D9]">prox</span>
                   </span>
                 ) : (
                   <span className="text-xs font-black tracking-tight leading-none truncate uppercase text-white">{displayBrand.name}</span>
@@ -237,7 +255,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
           {isBuyer && (
              <div className="mb-6 px-2 relative shrink-0 opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2 truncate">Laboratório Ativo</p>
+                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2 px-2 truncate">{t('navigation.activeLab', 'Laboratório Ativo')}</p>
                 <button 
                    onClick={() => setIsLabSelectorOpen(!isLabSelectorOpen)}
                    className="w-full flex items-center justify-between gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 group"
@@ -250,7 +268,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                            <Building size={16} className="text-indigo-500" />
                          )}
                       </div>
-                      <span className="font-bold text-sm truncate">{activeOrganization?.name || 'Selecione...'}</span>
+                      <span className="font-bold text-sm truncate">{activeOrganization?.name || t('navigation.selectLab', 'Selecione...')}</span>
                    </div>
                    <ChevronsUpDown size={14} className="text-slate-500 group-hover:text-white shrink-0" />
                 </button>
@@ -279,38 +297,40 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
               <>
                 {isSuperAdmin && (
                   <>
-                    <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label="Home Master" active={location.pathname === '/superadmin'} />
-                    <SidebarItem to="/superadmin/nfc" icon={<Cpu size={20} />} label="Gerenciar Kits NFC" active={location.pathname === '/superadmin/nfc'} />
-                    <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label="Planos" active={location.pathname === '/superadmin/plans'} />
-                    <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/superadmin/coupons'} />
-                    <SidebarItem to="/superadmin/subscriptions" icon={<Users size={20} />} label="Assinaturas" active={location.pathname === '/superadmin/subscriptions'} />
-                    <SidebarItem to="/superadmin/categories" icon={<LayoutGrid size={20} />} label="Categorias (Store)" active={location.pathname === '/superadmin/categories'} />
-                    <SidebarItem to="/superadmin/finance" icon={<DollarSign size={20} />} label="Financeiro SaaS" active={location.pathname === '/superadmin/finance'} />
-                    <SidebarItem to="/superadmin/whatsapp" icon={<MessageSquare size={20} />} label="Modelos WhatsApp" active={location.pathname === '/superadmin/whatsapp'} />
-                    <SidebarItem to="/superadmin/tutorials" icon={<BookOpen size={20} />} label="Gerenciar Tutoriais" active={location.pathname === '/superadmin/tutorials'} />
-                    <SidebarItem to="/superadmin/helpdesk" icon={<ShieldCheck size={20} />} label="Agentes de Atendimento" active={location.pathname === '/superadmin/helpdesk'} />
-                    <SidebarItem to="/superadmin/resets" icon={<AlertTriangle size={20} />} label="Reset de Laboratórios" active={location.pathname === '/superadmin/resets'} />
-                    <SidebarItem to="/superadmin/bio" icon={<Globe size={20} />} label="Página da Bio" active={location.pathname === '/superadmin/bio'} />
+                    <SidebarItem to="/superadmin" icon={<LayoutDashboard size={20} />} label={t('navigation.homeMaster', 'Home Master')} active={location.pathname === '/superadmin'} />
+                    <SidebarItem to="/superadmin/nfc" icon={<Cpu size={20} />} label={t('navigation.manageNfc', 'Gerenciar Kits NFC')} active={location.pathname === '/superadmin/nfc'} />
+                    <SidebarItem to="/superadmin/plans" icon={<Crown size={20} />} label={t('navigation.plans', 'Planos')} active={location.pathname === '/superadmin/plans'} />
+                    <SidebarItem to="/superadmin/coupons" icon={<Ticket size={20} />} label={t('navigation.coupons', 'Cupons')} active={location.pathname === '/superadmin/coupons'} />
+                    <SidebarItem to="/superadmin/subscriptions" icon={<Users size={20} />} label={t('navigation.subscriptions', 'Assinaturas')} active={location.pathname === '/superadmin/subscriptions'} />
+                    <SidebarItem to="/superadmin/categories" icon={<LayoutGrid size={20} />} label={t('navigation.categories', 'Categorias (Store)')} active={location.pathname === '/superadmin/categories'} />
+                    <SidebarItem to="/superadmin/finance" icon={<DollarSign size={20} />} label={t('navigation.saasFinance', 'Financeiro SaaS')} active={location.pathname === '/superadmin/finance'} />
+                    <SidebarItem to="/superadmin/whatsapp" icon={<MessageSquare size={20} />} label={t('navigation.whatsappTemplates', 'Modelos WhatsApp')} active={location.pathname === '/superadmin/whatsapp'} />
+                    <SidebarItem to="/superadmin/tutorials" icon={<BookOpen size={20} />} label={t('navigation.manageTutorials', 'Gerenciar Tutoriais')} active={location.pathname === '/superadmin/tutorials'} />
+                    <SidebarItem to="/superadmin/helpdesk" icon={<ShieldCheck size={20} />} label={t('navigation.supportAgents', 'Agentes de Atendimento')} active={location.pathname === '/superadmin/helpdesk'} />
+                    <SidebarItem to="/superadmin/resets" icon={<AlertTriangle size={20} />} label={t('navigation.labResets', 'Reset de Laboratórios')} active={location.pathname === '/superadmin/resets'} />
+                    <SidebarItem to="/superadmin/bio" icon={<Globe size={20} />} label={t('navigation.bioPage', 'Página da Bio')} active={location.pathname === '/superadmin/bio'} />
                   </>
                 )}
 
                 {!isSuperAdmin && isPastDue ? (
                   <>
                     <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-4">
-                      <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-1">Acesso Bloqueado</p>
-                      <p className="text-[10px] text-slate-400">Regularize sua assinatura ou período de testes no menu abaixo para liberar as funcionalidades.</p>
+                      <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-1">{t('auth.accessBlocked', 'Acesso Bloqueado')}</p>
+                      <p className="text-[10px] text-slate-400">{t('auth.accessBlockedDesc', 'Regularize sua assinatura ou período de testes no menu abaixo para liberar as funcionalidades.')}</p>
                     </div>
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin/assinatura" icon={<Settings size={20} />} label="Faturas / Assinatura" active={location.pathname === '/admin/assinatura'} />
-                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Meu Perfil" active={location.pathname === '/profile'} />
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin/assinatura" icon={<Settings size={20} />} label={t('navigation.subscriptions', 'Faturas / Assinatura')} active={location.pathname === '/admin/assinatura'} />
+                    <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label={t('navigation.profile', 'Meu Perfil')} active={location.pathname === '/profile'} />
                   </>
                 ) : (
                   <>
                     {isSupplier && (
                       <>
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/dashboard" icon={<LayoutDashboard size={20} />} label="Painel de Pedidos" active={location.pathname === '/supplier/dashboard'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/products" icon={<Package size={20} />} label="Meus Produtos" active={location.pathname === '/supplier/products'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/coupons" icon={<Ticket size={20} />} label="Cupons" active={location.pathname === '/supplier/coupons'} />
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/settings" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/supplier/settings'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/dashboard" icon={<LayoutDashboard size={20} />} label={t('dashboard.title', 'Painel de Pedidos')} active={location.pathname === '/supplier/dashboard' && !location.search.includes('view=finance')} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/dashboard?view=finance" icon={<DollarSign size={20} />} label={t('navigation.supplierFinance', 'Financeiro & Faturamento')} active={location.pathname === '/supplier/dashboard' && location.search.includes('view=finance')} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/chat" icon={<MessageSquare size={20} />} label={t('navigation.chat', 'Mensagens de Clientes')} active={location.pathname === '/supplier/chat'} badge={unreadSupplierChatCount > 0 ? unreadSupplierChatCount : undefined} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/products" icon={<Package size={20} />} label={t('common.products', 'Meus Produtos')} active={location.pathname === '/supplier/products'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/coupons" icon={<Ticket size={20} />} label={t('navigation.coupons', 'Cupons')} active={location.pathname === '/supplier/coupons'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/supplier/settings" icon={<Settings size={20} />} label={t('navigation.settings', 'Configurações')} active={location.pathname === '/supplier/settings'} />
                       </>
                     )}
 
@@ -318,40 +338,40 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                       <>
                         {!isFreeLab ? (
                           <>
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" active={location.pathname === '/dashboard'} />
-                            {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />}
-                            {hasPerm('receipts:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/receipts" icon={<FileText size={20} />} label="Recibos" active={location.pathname === '/lab/receipts'} />}
-                            {hasPerm('commissions:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<Wallet size={20} />} label="Comissões" active={location.pathname === '/commissions'} />}
-                            {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
-                            {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/incoming-requisitions'} badge={pendingRequisitionsCount} />}
-                            {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label="Clientes" active={location.pathname === '/lab/dentists'} />}
-                            {hasPerm('catalog:prices_view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/price-tables" icon={<Table size={20} />} label="Tabelas de Preços" active={location.pathname === '/lab/price-tables'} />}
-                            {hasPerm('inventory:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/inventory" icon={<Package size={20} />} label="Inventário" active={location.pathname === '/lab/inventory'} />}
-                            {hasPerm('store_suppliers:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Online" active={location.pathname === '/store'} />}
-                            {hasPerm('logistics:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />}
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dashboard" icon={<LayoutDashboard size={20} />} label={t('navigation.dashboard', 'Dashboard')} active={location.pathname === '/dashboard'} />
+                            {hasPerm('finance:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label={t('navigation.clinicFinance', 'Financeiro')} active={location.pathname === '/lab/finance'} />}
+                            {hasPerm('receipts:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/receipts" icon={<FileText size={20} />} label={t('navigation.receipts', 'Recibos')} active={location.pathname === '/lab/receipts'} />}
+                            {hasPerm('commissions:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/commissions" icon={<Wallet size={20} />} label={t('navigation.commissions', 'Comissões')} active={location.pathname === '/commissions'} />}
+                            {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label={t('navigation.incomingOrders', 'Pedidos Web')} active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />}
+                            {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-requisitions" icon={<ClipboardList size={20} />} label={t('navigation.incomingRequisitions', 'Requisições Online')} active={location.pathname === '/incoming-requisitions'} badge={pendingRequisitionsCount} />}
+                            {hasPerm('clients:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/dentists" icon={<Stethoscope size={20} />} label={t('navigation.clients', 'Clientes')} active={location.pathname === '/lab/dentists'} />}
+                            {hasPerm('catalog:prices_view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/price-tables" icon={<Table size={20} />} label={t('navigation.priceTables', 'Tabelas de Preços')} active={location.pathname === '/lab/price-tables'} />}
+                            {hasPerm('inventory:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/inventory" icon={<Package size={20} />} label={t('navigation.inventory', 'Inventário')} active={location.pathname === '/lab/inventory'} />}
+                            {hasPerm('store_suppliers:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label={t('navigation.store', 'Loja Online')} active={location.pathname === '/store'} />}
+                            {hasPerm('logistics:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label={t('navigation.logistics', 'Entregas')} active={location.pathname === '/lab/logistics'} />}
                             
                             <div className="pt-2 mt-2 border-t border-white/5 opacity-50"></div>
-                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">Produção</p>
-                            {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label="Novo Caso" active={location.pathname === '/new-job'} />}
-                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />}
-                            {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-budget" icon={<PlusCircle size={20} />} label="Novo Orçamento" active={location.pathname === '/new-budget'} />}
-                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/budgets" icon={<FileText size={20} />} label="Orçamentos" active={location.pathname === '/budgets'} />}
-                            {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label="Produção VIP" active={location.pathname === '/promised'} />}
-                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/kanban" icon={<Columns size={20} />} label="Kanban" active={location.pathname === '/lab/kanban'} />}
-                            {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label="Calendário" active={location.pathname === '/calendar'} />}
-                            {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />}
-                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label="Relatórios" active={location.pathname === '/reports'} />}
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
+                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-4 mb-1 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">{t('navigation.production', 'Produção')}</p>
+                            {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-job" icon={<PlusCircle size={20} />} label={t('navigation.newJob', 'Novo Caso')} active={location.pathname === '/new-job'} />}
+                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label={t('navigation.jobs', 'Trabalhos')} active={location.pathname === '/jobs'} />}
+                            {hasPerm('jobs:create') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/new-budget" icon={<PlusCircle size={20} />} label={t('navigation.newBudget', 'Novo Orçamento')} active={location.pathname === '/new-budget'} />}
+                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/budgets" icon={<FileText size={20} />} label={t('navigation.budgets', 'Orçamentos')} active={location.pathname === '/budgets'} />}
+                            {hasPerm('vip:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/promised" icon={<Crown size={20} />} label={t('navigation.vipProduction', 'Produção VIP')} active={location.pathname === '/promised'} />}
+                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/kanban" icon={<Columns size={20} />} label={t('navigation.kanban', 'Kanban')} active={location.pathname === '/lab/kanban'} />}
+                            {hasPerm('calendar:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/calendar" icon={<Calendar size={20} />} label={t('navigation.productionCalendar', 'Calendário')} active={location.pathname === '/calendar'} />}
+                            {hasPerm('catalog:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label={t('navigation.services', 'Serviços')} active={location.pathname === '/job-types'} />}
+                            {hasPerm('jobs:view') && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/reports" icon={<FileText size={20} />} label={t('navigation.reports', 'Relatórios')} active={location.pathname === '/reports'} />}
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label={t('navigation.helpdesk', 'Central de Ajuda')} active={location.pathname === '/tutorials'} />
                           </>
                         ) : (
                           <>
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label="Financeiro" active={location.pathname === '/lab/finance'} />
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label="Pedidos Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label="Trabalhos" active={location.pathname === '/jobs'} />
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label="Serviços" active={location.pathname === '/job-types'} />
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label="Entregas" active={location.pathname === '/lab/logistics'} />
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Online" active={location.pathname === '/store'} />
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/finance" icon={<DollarSign size={20} />} label={t('navigation.clinicFinance', 'Financeiro')} active={location.pathname === '/lab/finance'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/incoming-orders" icon={<InboxIcon size={20} />} label={t('navigation.incomingOrders', 'Pedidos Web')} active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/jobs" icon={<List size={20} />} label={t('navigation.jobs', 'Trabalhos')} active={location.pathname === '/jobs'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/job-types" icon={<Package size={20} />} label={t('navigation.services', 'Serviços')} active={location.pathname === '/job-types'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/lab/logistics" icon={<Truck size={20} />} label={t('navigation.logistics', 'Entregas')} active={location.pathname === '/lab/logistics'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label={t('navigation.store', 'Loja Online')} active={location.pathname === '/store'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label={t('navigation.helpdesk', 'Central de Ajuda')} active={location.pathname === '/tutorials'} />
                           </>
                         )}
                       </>
@@ -359,28 +379,28 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
                     {isBuyer && (
                       <>
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label="Loja Online" active={location.pathname === '/store'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/store" icon={<ShoppingBag size={20} />} label={t('navigation.store', 'Loja Online')} active={location.pathname === '/store'} />
                         
                         {currentOrg?.orgType === 'CLINIC' && (
                           <>
                             <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
-                            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">Minha Clínica</p>
+                            <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest px-4 mb-2 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">{t('navigation.myClinic', 'Minha Clínica')}</p>
                             
                             {(!currentPlan || currentPlan.features.hasClinicModule) && (
                               <>
-                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label="Agenda" active={location.pathname === '/schedule'} />
-                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/finance" icon={<Wallet size={20} />} label="Financeiro" active={location.pathname === '/clinic/finance'} />
-                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label="Salas" active={location.pathname === '/clinic/rooms'} />
-                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label="Corpo Clínico" active={location.pathname === '/clinic/dentists'} />
+                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/schedule" icon={<CalendarRange size={20} />} label={t('navigation.schedule', 'Agenda')} active={location.pathname === '/schedule'} />
+                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/finance" icon={<Wallet size={20} />} label={t('navigation.clinicFinance', 'Financeiro')} active={location.pathname === '/clinic/finance'} />
+                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/rooms" icon={<LayoutGrid size={20} />} label={t('navigation.rooms', 'Salas')} active={location.pathname === '/clinic/rooms'} />
+                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/dentists" icon={<Users size={20} />} label={t('navigation.clinicalStaff', 'Corpo Clínico')} active={location.pathname === '/clinic/dentists'} />
                               </>
                             )}
                             
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label="Pacientes" active={location.pathname === '/patients'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/patients" icon={<Contact size={20} />} label={t('navigation.patients', 'Pacientes')} active={location.pathname === '/patients'} />
                             
                             {(!currentPlan || currentPlan.features.hasClinicModule) && (
                               <>
-                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/services" icon={<Briefcase size={20} />} label="Meus Serviços" active={location.pathname === '/clinic/services'} />
-                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/inventory" icon={<Package size={20} />} label="Estoque (Insumos)" active={location.pathname === '/clinic/inventory'} />
+                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/services" icon={<Briefcase size={20} />} label={t('navigation.myServices', 'Meus Serviços')} active={location.pathname === '/clinic/services'} />
+                                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic/inventory" icon={<Package size={20} />} label={t('navigation.clinicInventory', 'Estoque (Insumos)')} active={location.pathname === '/clinic/inventory'} />
                               </>
                             )}
                           </>
@@ -389,28 +409,28 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                         <div className="pt-4 mt-4 border-t border-white/5 opacity-50"></div>
                         {isBuyer && (
                           <>
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/cases" icon={<Briefcase size={20} />} label="Meus Casos" active={location.pathname === '/dentist/cases' || location.pathname === '/my-cases'} />
-                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/requisitions" icon={<ClipboardList size={20} />} label="Requisições Online" active={location.pathname === '/requisitions'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/dentist/cases" icon={<Briefcase size={20} />} label={t('navigation.myCases', 'Meus Casos')} active={location.pathname === '/dentist/cases' || location.pathname === '/my-cases'} />
+                            <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/requisitions" icon={<ClipboardList size={20} />} label={t('navigation.incomingRequisitions', 'Requisições Online')} active={location.pathname === '/requisitions'} />
                           </>
                         )}
-                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label="Central de Ajuda" active={location.pathname === '/tutorials'} />
+                        <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/tutorials" icon={<HelpCircle size={20} />} label={t('navigation.helpdesk', 'Central de Ajuda')} active={location.pathname === '/tutorials'} />
                       </>
                     )}
 
                     <div className="pt-8 mt-8 border-t border-white/10 shrink-0">
-                      <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label="Perfil" active={location.pathname === '/profile'} />
-                      {currentOrg?.orgType === 'CLINIC' && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic-settings" icon={<Settings size={20} />} label="Configurações" active={location.pathname === '/clinic-settings'} />}
-                      {((currentOrg?.orgType !== 'LAB_OUTSOURCED' && currentOrg?.orgType !== 'CLINIC' && !isSupplier && (isAdmin || hasPerm('users:view') || hasPerm('clients:view') || hasPerm('sectors:view') || hasPerm('boxes:view') || hasPerm('finance:view') || hasPerm('commissions:view'))) || isFreeLab) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label="Configurar Lab" active={location.pathname.startsWith('/admin')} />}
+                      <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/profile" icon={<UserCircle size={20} />} label={t('navigation.profile', 'Perfil')} active={location.pathname === '/profile'} />
+                      {currentOrg?.orgType === 'CLINIC' && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/clinic-settings" icon={<Settings size={20} />} label={t('navigation.settings', 'Configurações')} active={location.pathname === '/clinic-settings'} />}
+                      {((currentOrg?.orgType !== 'LAB_OUTSOURCED' && currentOrg?.orgType !== 'CLINIC' && !isSupplier && (isAdmin || hasPerm('users:view') || hasPerm('clients:view') || hasPerm('sectors:view') || hasPerm('boxes:view') || hasPerm('finance:view') || hasPerm('commissions:view'))) || isFreeLab) && <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to="/admin" icon={<Settings size={20} />} label={t('navigation.settings', 'Configurar Lab')} active={location.pathname.startsWith('/admin')} />}
                     </div>
                   </>
                 )}
               </>
             ) : (
               <>
-                <p className="text-[9px] font-black text-[#00B8D9] uppercase tracking-widest px-4 mb-2 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">Menu do Visitante</p>
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={location.pathname} icon={<ShoppingBag size={20} />} label="Catálogo" active={true} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} icon={<UserCircle size={20} />} label="Fazer Login" active={false} />
-                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={`/register-lab?redirect=${encodeURIComponent(location.pathname + location.search)}`} icon={<PlusCircle size={20} />} label="Criar Conta" active={false} />
+                <p className="text-[9px] font-black text-[#00B8D9] uppercase tracking-widest px-4 mb-2 truncate opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">{t('navigation.visitorMenu', 'Menu do Visitante')}</p>
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={location.pathname} icon={<ShoppingBag size={20} />} label={t('navigation.catalog', 'Catálogo')} active={true} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} icon={<UserCircle size={20} />} label={t('navigation.login', 'Fazer Login')} active={false} />
+                <SidebarItem onClick={() => setIsMobileMenuOpen(false)} to={`/register-lab?redirect=${encodeURIComponent(location.pathname + location.search)}`} icon={<PlusCircle size={20} />} label={t('navigation.createAccount', 'Criar Conta')} active={false} />
               </>
             )}
           </nav>
@@ -418,7 +438,7 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
           {currentUser && (
             <div className="mt-auto pt-4 shrink-0">
                <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 text-red-300 hover:bg-white/5 rounded-xl transition-colors">
-                <LogOut size={20} className="shrink-0" /><span className="opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">Sair</span>
+                <LogOut size={20} className="shrink-0" /><span className="opacity-100 md:opacity-0 md:group-hover/sidebar:opacity-100 transition-opacity duration-300">{t('navigation.logout', 'Sair')}</span>
               </button>
             </div>
           )}
@@ -427,10 +447,10 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       {/* Default Mobile Header */}
       {!isStoreRoute && (
-          <header className={`fixed top-0 right-0 left-0 bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden print:hidden transition-all duration-300`}>
+          <header className={`fixed top-0 right-0 left-0 mobile-header-light bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 z-[50] md:hidden print:hidden transition-all duration-300`}>
              <div className="flex items-center gap-3 overflow-hidden">
                  {!isMobileMenuOpen && (
-                   <button onClick={() => setIsMobileMenuOpen(true)} className={`text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0`}><Menu size={24} /></button>
+                   <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 rounded-lg active:bg-slate-100 transition-colors shrink-0"><Menu size={24} /></button>
                  )}
                  {!isMobileSearchOpen && (
                    <div className="flex items-center gap-2 overflow-hidden">
@@ -446,6 +466,16 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
              <div className="flex items-center gap-1 shrink-0">
                  {!isBuyer && (
                    <button 
+                     type="button"
+                     onClick={() => window.dispatchEvent(new CustomEvent('open-scanner'))}
+                     className="p-2 rounded-lg text-slate-600 hover:text-blue-600 active:bg-slate-100 transition-colors"
+                     title={t('navigation.scanner', 'Escanear Código com Câmera')}
+                   >
+                     <Camera size={20} />
+                   </button>
+                 )}
+                 {!isBuyer && (
+                   <button 
                      onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
                      className={`p-2 rounded-lg transition-colors ${isMobileSearchOpen ? 'bg-blue-50 text-blue-600' : 'text-slate-600'}`}
                    >
@@ -453,12 +483,22 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    </button>
                  )}
                  {currentUser ? (
-                   <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">
+                   <button 
+                     onClick={toggleTheme}
+                     className="p-2 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+                     title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+                     aria-label="Alternar Tema"
+                   >
+                     {theme === 'dark' ? <Sun size={19} className="text-amber-500" /> : <Moon size={19} className="text-slate-600" />}
+                   </button>
+                 ) : null}
+                 {currentUser ? (
+                   <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-700 font-black text-xs shrink-0">
                      {currentUser.name?.charAt(0) || 'U'}
                    </Link>
                  ) : (
                    <Link to="/login" className="px-3 py-1 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-all text-xs shadow-sm">
-                     Entrar
+                     {t('auth.login', 'Entrar')}
                    </Link>
                  )}
              </div>
@@ -467,8 +507,8 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
 
       {/* Store Header */}
       {isStoreRoute && (
-         <header className={`fixed top-0 right-0 bg-white border-b border-white min-h-16 px-0 pb-0 mb-0 mr-0 flex flex-col md:flex-row md:items-center justify-between z-[50] left-0 md:left-64 print:hidden transition-all duration-300`}>
-           <div className="flex items-center justify-between px-4 h-14 md:h-16 shrink-0 w-full md:w-auto border-b border-slate-100 md:border-none">
+         <header id="store-top-header" className={`fixed top-0 right-0 app-header-light force-light bg-white border-b border-slate-200 min-h-16 px-2 md:px-4 pb-0 mb-0 mr-0 flex flex-col md:flex-row md:items-center justify-between z-[50] ${isSidebarHovered ? 'left-0 md:left-64' : 'left-0 md:left-20'} print:hidden transition-all duration-300`}>
+           <div className="flex items-center justify-between px-2 md:px-0 h-14 md:h-16 shrink-0 w-full md:w-auto border-b border-slate-100 md:border-none">
                <div className="flex items-center gap-2 shrink-0">
                    {!isMobileMenuOpen && (
                        <button onClick={() => setIsMobileMenuOpen(true)} className="text-slate-600 p-2 -ml-2 rounded-lg active:bg-slate-100 transition-colors shrink-0 md:hidden"><Menu size={24} /></button>
@@ -478,41 +518,57 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                    </div>
                </div>
                
-               <div className="flex items-center gap-1 shrink-0 md:hidden">
+               <div className="flex items-center gap-2 shrink-0 md:hidden">
+                   <button 
+                     onClick={toggleTheme}
+                     className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
+                     title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+                     aria-label="Alternar Tema"
+                   >
+                     {theme === 'dark' ? <Sun size={17} className="text-amber-500" /> : <Moon size={17} className="text-slate-600" />}
+                   </button>
                    {currentUser ? (
-                       <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">
+                       <Link to="/profile" className="w-8 h-8 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
                          {currentUser.name?.charAt(0) || 'U'}
                        </Link>
                    ) : (
                        <Link to="/login" className="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-xs shadow-sm">
-                         Entrar
+                         {t('auth.login', 'Entrar')}
                        </Link>
                    )}
                </div>
            </div>
            
-           <div id="store-header-portal" className="flex-1 flex justify-center items-center py-2 md:p-0 min-h-[48px] overflow-hidden w-full md:w-auto bg-slate-50 md:bg-transparent shadow-inner md:shadow-none"></div>
+           <div id="store-header-portal" className="flex-1 flex justify-center items-center py-2 md:p-0 min-h-[48px] overflow-hidden w-full md:w-auto bg-transparent"></div>
            
-           <div className="hidden md:flex items-center gap-1 shrink-0 px-4">
+           <div className="hidden md:flex items-center gap-3 shrink-0 px-2 lg:px-4">
+               <button 
+                 onClick={toggleTheme}
+                 className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
+                 title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+                 aria-label="Alternar Tema"
+               >
+                 {theme === 'dark' ? <Sun size={17} className="text-amber-500" /> : <Moon size={17} className="text-slate-600" />}
+               </button>
                {currentUser ? (
-                   <Link to="/profile" className="w-8 h-8 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 font-black text-xs shrink-0">
+                   <Link to="/profile" className="w-9 h-9 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xs shrink-0 shadow-md hover:scale-105 transition-transform">
                      {currentUser.name?.charAt(0) || 'U'}
                    </Link>
                ) : (
                    <Link to="/login" className="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-xs shadow-sm">
-                     Entrar
+                     {t('auth.login', 'Entrar')}
                    </Link>
                )}
            </div>
          </header>
       )}
 
-      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
-          <MobileNavItem to={isFreeLab ? "/lab/finance" : "/dashboard"} icon={<Home size={22}/>} label="Home" active={isFreeLab ? location.pathname === '/lab/finance' : location.pathname === '/dashboard'} />
+      <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-[#131B2A] border-t border-slate-200 dark:border-slate-800 flex items-center justify-around z-50 md:hidden pb-[env(safe-area-inset-bottom)] print:hidden">
+          <MobileNavItem to={isFreeLab ? "/lab/finance" : "/dashboard"} icon={<Home size={22}/>} label={t('navigation.home', 'Home')} active={isFreeLab ? location.pathname === '/lab/finance' : location.pathname === '/dashboard'} />
           
           {!isBuyer ? (
             <>
-              <MobileNavItem to="/jobs" icon={<List size={22}/>} label="OS" active={location.pathname === '/jobs'} />
+              <MobileNavItem to="/jobs" icon={<List size={22}/>} label={t('navigation.jobs', 'OS')} active={location.pathname === '/jobs'} />
               <div className="relative -top-5">
                  <button 
                     id="btn-mobile-bottom-camera-scanner"
@@ -522,36 +578,36 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                       e.stopPropagation();
                       window.dispatchEvent(new CustomEvent('open-scanner')); 
                     }} 
-                    className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 border-4 border-white active:scale-90 transition-transform cursor-pointer"
-                    title="Ler Código de Barras (Ficha A4)"
-                    aria-label="Ler Código de Barras da Ficha A4"
+                    className="w-14 h-14 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-300 dark:shadow-blue-900/40 border-4 border-white dark:border-[#131B2A] active:scale-90 transition-transform cursor-pointer"
+                    title={t('navigation.scanner', 'Ler Código de Barras (Ficha A4)')}
+                    aria-label={t('navigation.scanner', 'Ler Código de Barras da Ficha A4')}
                  >
                     <Camera size={28}/>
                  </button>
               </div>
-              <MobileNavItem to="/incoming-orders" icon={<InboxIcon size={22}/>} label="Web" active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
+              <MobileNavItem to="/incoming-orders" icon={<InboxIcon size={22}/>} label={t('navigation.incomingOrders', 'Web')} active={location.pathname === '/incoming-orders'} badge={pendingOrdersCount} />
             </>
           ) : currentOrg?.orgType === 'LAB_OUTSOURCED' ? (
             <>
-              <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label="Loja" active={location.pathname === '/store'} />
+              <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label={t('navigation.store', 'Loja')} active={location.pathname === '/store'} />
             </>
           ) : (
             <>
               {(!currentPlan || currentPlan.features.hasClinicModule) ? (
                 <>
-                  <MobileNavItem to="/schedule" icon={<CalendarRange size={22}/>} label="Agenda" active={location.pathname === '/schedule'} />
+                  <MobileNavItem to="/schedule" icon={<CalendarRange size={22}/>} label={t('navigation.schedule', 'Agenda')} active={location.pathname === '/schedule'} />
                   <div className="relative -top-5">
-                     <Link to="/clinic/finance" className="w-14 h-14 bg-teal-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-teal-300 border-4 border-white active:scale-90 transition-transform">
+                     <Link to="/clinic/finance" className="w-14 h-14 bg-teal-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-teal-300 dark:shadow-teal-900/40 border-4 border-white dark:border-[#131B2A] active:scale-90 transition-transform">
                         <Wallet size={28}/>
                      </Link>
                   </div>
-                  <MobileNavItem to="/clinic/rooms" icon={<LayoutGrid size={22}/>} label="Salas" active={location.pathname === '/clinic/rooms'} />
+                  <MobileNavItem to="/clinic/rooms" icon={<LayoutGrid size={22}/>} label={t('navigation.rooms', 'Salas')} active={location.pathname === '/clinic/rooms'} />
                 </>
               ) : (
                 <>
-                  <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label="Loja" active={location.pathname === '/store'} />
+                  <MobileNavItem to="/store" icon={<ShoppingBag size={22}/>} label={t('navigation.store', 'Loja')} active={location.pathname === '/store'} />
                   <div className="relative -top-5">
-                     <Link to="/patients" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-indigo-300 border-4 border-white active:scale-90 transition-transform">
+                     <Link to="/patients" className="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-indigo-300 dark:shadow-indigo-900/40 border-4 border-white dark:border-[#131B2A] active:scale-90 transition-transform">
                         <Contact size={28}/>
                      </Link>
                   </div>
@@ -560,31 +616,43 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
             </>
           )}
           
-          <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label="Perfil" active={location.pathname === '/profile'} />
+          <MobileNavItem to="/profile" icon={<UserCircle size={22}/>} label={t('navigation.profile', 'Perfil')} active={location.pathname === '/profile'} />
       </nav>
 
-      <main style={{ marginTop: '-38px' }} className={`flex-1 bg-white transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
+      <main style={{ marginTop: '-38px' }} className={`flex-1 bg-white dark:bg-[#0B0F17] text-slate-800 dark:text-slate-100 transition-all duration-300 print:hidden flex flex-col min-h-screen overflow-x-hidden relative ${isSidebarHovered ? 'md:ml-64' : 'md:ml-20'}`}>
         <header 
+          id="app-top-header"
           style={{ paddingTop: '0px', paddingBottom: '0px', marginBottom: '0px', marginTop: '37px' }}
-          className={`${isStoreRoute ? "hidden" : "hidden md:flex"} bg-white border-b border-slate-200 h-16 items-center justify-between px-8 sticky top-0 z-30 print:hidden shrink-0`}
+          className={`${isStoreRoute ? "hidden" : "hidden md:flex"} app-header-light bg-white border-b border-slate-200 h-16 items-center justify-between px-4 lg:px-8 sticky top-0 z-30 print:hidden shrink-0 gap-2 sm:gap-4`}
         >
           <div className="flex items-center gap-2 overflow-hidden shrink-0">
              <Logo size={100} imgStyle={{ width: '100px', height: '100px' }} variant="colored" />
           </div>
 
-          <div className="flex-1 max-w-xl mx-8">
+          <div className="flex-1 max-w-xl mx-2 lg:mx-6">
             <JobSearch />
           </div>
 
-          <div className="mr-4 hidden lg:block">
-            <ManualScannerInput />
-          </div>
+          {isLab && (
+            <div className="shrink-0 flex items-center">
+              <ManualScannerInput />
+            </div>
+          )}
 
-          <div className="flex items-center gap-4 shrink-0">
-              <div className="flex flex-col items-end">
-                  <span className="text-sm font-black text-slate-800 leading-none uppercase truncate max-w-[150px]">{currentUser?.name}</span>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[150px]">
-                      {isClient ? 'Cirurgião-Dentista' : currentOrg?.orgType === 'LAB_OUTSOURCED' ? 'Lab Terceirizado' : (currentUser?.sector || 'Acesso Administrativo')}
+          <div className="flex items-center gap-3 lg:gap-4 shrink-0">
+              <button 
+                onClick={toggleTheme}
+                className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
+                title={theme === 'dark' ? 'Mudar para Tema Claro' : 'Mudar para Tema Escuro'}
+                aria-label="Alternar Tema"
+              >
+                {theme === 'dark' ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} className="text-slate-600" />}
+              </button>
+
+              <div className="hidden sm:flex flex-col items-end">
+                  <span className="text-sm font-black text-slate-800 leading-none uppercase truncate max-w-[120px] lg:max-w-[160px]">{currentUser?.name}</span>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 truncate max-w-[120px] lg:max-w-[160px]">
+                      {isClient ? t('auth.iAmDentist', 'Cirurgião-Dentista') : currentOrg?.orgType === 'LAB_OUTSOURCED' ? t('navigation.outsourcedLab', 'Lab Terceirizado') : (currentUser?.sector || t('navigation.adminAccess', 'Acesso Administrativo'))}
                   </span>
               </div>
               <Link to="/profile" className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-md hover:scale-105 transition-transform shrink-0">{currentUser?.name?.charAt(0) || 'U'}</Link>
@@ -598,41 +666,41 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                 <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md shadow-teal-500/10">
                   <ShieldCheck size={32} />
                 </div>
-                <h2 className="text-2xl font-black text-slate-900 mb-2">Conta em Análise</h2>
+                <h2 className="text-2xl font-black text-slate-900 mb-2">{t('auth.accountUnderReview', 'Conta em Análise')}</h2>
                 <p className="text-slate-500 text-sm max-w-md mx-auto mb-6 leading-relaxed">
-                  Para sua segurança e conformidade regulatória, todos os cadastros de dentistas passam por verificação de registro profissional (CRO).
+                  {t('auth.accountUnderReviewDesc', 'Para sua segurança e conformidade regulatória, todos os cadastros de dentistas passam por verificação de registro profissional (CRO).')}
                 </p>
 
                 <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 text-left space-y-3 mb-6">
                   <p className="text-xs font-black text-slate-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
-                    <Stethoscope size={14} className="text-teal-600" /> Registro Informado
+                    <Stethoscope size={14} className="text-teal-600" /> {t('auth.croReported', 'Registro Informado')}
                   </p>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="bg-white p-2 rounded-xl border border-slate-200/50">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Estado</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">{t('auth.croUf', 'Estado')}</span>
                       <span className="text-sm font-black text-slate-700">{currentOrg?.croUf || 'N/A'}</span>
                     </div>
                     <div className="bg-white p-2 rounded-xl border border-slate-200/50 col-span-2">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Inscrição CRO</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">{t('auth.croNumber', 'Inscrição CRO')}</span>
                       <span className="text-sm font-black text-slate-700">{currentOrg?.croNumero || 'N/A'}</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-center pt-1">
                     <div className="bg-white p-2 rounded-xl border border-slate-200/50">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Categoria</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">{t('auth.croCategory', 'Categoria')}</span>
                       <span className="text-sm font-black text-slate-700">{currentOrg?.croCategoria || 'CD'}</span>
                     </div>
                     <div className="bg-white p-2 rounded-xl border border-slate-200/50 flex flex-col justify-center">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Status API</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">{t('auth.apiStatus', 'Status API')}</span>
                       <span className={`text-xs font-bold ${currentOrg?.croValid ? 'text-emerald-300' : 'text-amber-500'}`}>
-                        {currentOrg?.croValid ? 'Validado Público' : 'Aguardando Análise'}
+                        {currentOrg?.croValid ? t('auth.validatedPublic', 'Validado Público') : t('auth.waitingReview', 'Aguardando Análise')}
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-amber-50 text-amber-800 text-xs p-4 rounded-xl mb-8 leading-relaxed text-left border border-amber-100 font-medium">
-                  <strong>Pendente de Homologação:</strong> Detectamos que seu registro profissional necessita de uma aprovação ou verificação adicional. Nossa equipe de Administração de Super Admin foi notificada e está analisando sua conta.
+                  <strong>{t('auth.pendingHomologation', 'Pendente de Homologação')}:</strong> {t('auth.pendingHomologationDesc', 'Detectamos que seu registro profissional necessita de uma aprovação ou verificação adicional. Nossa equipe de Administração de Super Admin foi notificada e está analisando sua conta.')}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -640,13 +708,13 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                     onClick={() => window.location.reload()} 
                     className="flex-grow py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2"
                   >
-                    <RefreshCw size={16} /> Atualizar Status
+                    <RefreshCw size={16} /> {t('auth.refreshStatus', 'Atualizar Status')}
                   </button>
                   <button 
                     onClick={handleLogout} 
                     className="flex-grow py-3 bg-slate-150 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
                   >
-                    <LogOut size={16} /> Sair do App
+                    <LogOut size={16} /> {t('auth.exitApp', 'Sair do App')}
                   </button>
                 </div>
               </div>
@@ -669,14 +737,14 @@ export const Layout = ({ children }: { children?: React.ReactNode }) => {
                           <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                              <AlertTriangle size={32} />
                           </div>
-                          <h2 className="text-2xl font-black text-slate-900 mb-2">Assinatura Necessária</h2>
-                          <p className="text-slate-500 mb-6 font-medium">Sua conta de laboratório ou período de testes está com restrição. Para regularizar, acesse o menu de assinatura para visualizar e efetuar o pagamento da fatura gerada no Asaas.</p>
+                          <h2 className="text-2xl font-black text-slate-900 mb-2">{t('auth.subscriptionRequired', 'Assinatura Necessária')}</h2>
+                          <p className="text-slate-500 mb-6 font-medium">{t('auth.subscriptionRequiredDesc', 'Sua conta de laboratório ou período de testes está com restrição. Para regularizar, acesse o menu de assinatura para visualizar e efetuar o pagamento da fatura gerada no Asaas.')}</p>
                           <div className="flex gap-3">
                             <button onClick={() => setShowOverduePopup(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">
-                               Fechar
+                               {t('common.close', 'Fechar')}
                             </button>
                             <button onClick={() => { setShowOverduePopup(false); navigate('/admin/assinatura'); }} className="flex-1 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/30">
-                               Ver Assinatura
+                               {t('auth.viewSubscription', 'Ver Assinatura')}
                             </button>
                           </div>
                        </div>

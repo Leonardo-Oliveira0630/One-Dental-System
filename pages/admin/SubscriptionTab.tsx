@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag, Receipt, ExternalLink, Calendar, CreditCard, Landmark, Banknote, MessageCircle, Puzzle } from 'lucide-react';
+import { Crown, CheckCircle, Zap, ArrowUpCircle, Check, Tag, Receipt, ExternalLink, Calendar, CreditCard, Landmark, Banknote, MessageCircle, Puzzle, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../../services/firebaseService';
 import PricingSection from '../../components/ui/pricing-section-4';
+import { getDetailedPlanFeatures, isPlanAccessible } from '../../utils/planFeatures';
 
 export const SubscriptionTab = () => {
-  const { currentPlan, currentOrg, allPlans, updateOrganization, getSaaSInvoices, globalSettings } = useApp();
+  const { currentPlan, currentOrg, currentUser, allPlans, updateOrganization, getSaaSInvoices, globalSettings } = useApp();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState('');
   const [couponLoading, setCouponLoading] = useState(false);
@@ -109,10 +110,20 @@ export const SubscriptionTab = () => {
          <div className="relative z-10">
             <p className="text-blue-400 font-bold uppercase text-xs tracking-widest mb-1">Plano Atual</p>
             <h2 className="text-4xl font-black mb-4">{currentPlan?.name || 'Carregando...'}</h2>
-            <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-300">
-               <div className="flex items-center gap-1.5"><CheckCircle size={16} className="text-green-500" /> {currentPlan?.features.maxUsers === -1 ? 'Usuários Ilimitados' : `${currentPlan?.features.maxUsers} Usuários`}</div>
-               <div className="flex items-center gap-1.5"><CheckCircle size={16} className="text-green-500" /> {currentPlan?.features.maxStorageGB}GB Armazenamento</div>
-            </div>
+            
+            {activePlan && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 mt-4 pt-4 border-t border-slate-800">
+                {getDetailedPlanFeatures(activePlan, currentOrg?.orgType)
+                  .filter(f => f.included)
+                  .slice(0, 6)
+                  .map((feat, fIdx) => (
+                    <div key={fIdx} className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+                      <CheckCircle size={14} className="text-teal-400 shrink-0" />
+                      <span>{feat.text}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
             
             {currentOrg?.subscriptionStatus === 'OVERDUE' && (
               <div className="mt-6 p-4 bg-red-500/20 border border-red-500/50 rounded-2xl flex items-center justify-between">
@@ -221,16 +232,22 @@ export const SubscriptionTab = () => {
       <div className="bg-white p-4 sm:p-6 rounded-3xl shadow-sm border border-slate-100">
          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><ArrowUpCircle className="text-blue-600" /> Upgrade de Plano</h3>
          <PricingSection 
-            plans={allPlans.filter(p => p.isPublic && p.active && p.targetAudience === 'LAB')}
+            plans={allPlans.filter(p => isPlanAccessible({
+              plan: p,
+              userEmail: currentUser?.email,
+              orgEmail: currentOrg?.email,
+              currentOrgPlanId: currentOrg?.planId,
+              targetAudience: currentOrg?.orgType || 'LAB'
+            }))}
             selectedPlanId={currentOrg?.planId || ''}
             onSelectPlan={(id) => {
               if (id !== currentOrg?.planId) {
                 navigate(`/subscribe?plan=${id}`);
               }
             }}
-            regType="LAB"
+            regType={currentOrg?.orgType || 'LAB'}
             title="Escolha o melhor plano"
-            subtitle="Faça o upgrade do seu laboratório"
+            subtitle="Planos com todas as vantagens e funcionalidades para seu negócio"
           />
         </div>
 
